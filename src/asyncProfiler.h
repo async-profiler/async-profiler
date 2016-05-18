@@ -15,9 +15,12 @@
  */
 
 #include <jvmti.h>
+#include <iostream>
 
-#define MAX_FRAMES 100
-#define MAX_CALLTRACES 65536
+#define MAX_FRAMES         100
+#define MAX_CALLTRACES     65536
+#define MAX_TRACES_TO_DUMP 1000
+#define SAMPLING_INTERVAL  10000
 
 typedef unsigned long long u64;
 
@@ -32,11 +35,53 @@ typedef struct {
     ASGCT_CallFrame* frames;
 } ASGCT_CallTrace;
 
-typedef struct {
-    jint call_count;
-    jint num_frames;
-    ASGCT_CallFrame frames[MAX_FRAMES];
-} CallTraceSnapshot;
+class CallTraceSample {
+  private:
+    int _call_count;
+    int _num_frames;
+    ASGCT_CallFrame _frames[MAX_FRAMES];
+
+    static char* format_class_name(char* class_name);
+
+  public:
+    void assign(ASGCT_CallTrace* trace);
+    void dump(std::ostream& out);
+
+    static int comparator(const void* s1, const void* s2) {
+        return ((CallTraceSample*)s2)->_call_count - ((CallTraceSample*)s1)->_call_count;
+    }
+
+    friend class Profiler;
+};
+
+class Profiler {
+  private:
+    bool _running;
+    int _calls_total;
+    int _calls_non_java;
+    int _calls_gc;
+    int _calls_deopt;
+    int _calls_unknown;
+    u64 _hashes[MAX_CALLTRACES];
+    CallTraceSample _samples[MAX_CALLTRACES];
+
+    u64 hashCallTrace(ASGCT_CallTrace* trace);
+    void storeCallTrace(ASGCT_CallTrace* trace);
+    void setTimer(long sec, long usec);
+
+  public:
+    static Profiler _instance;
+
+    Profiler() : _running(false) {}
+
+    bool is_running() { return _running; }
+
+    void start();
+    void stop();
+    void dump(std::ostream& out, int max_traces);
+    void recordSample(void* ucontext);
+};
+
 
 extern "C" JNIIMPORT void JNICALL
 AsyncGetCallTrace(ASGCT_CallTrace* trace, jint depth, void* ucontext);

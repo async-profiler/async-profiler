@@ -19,70 +19,57 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/time.h>
-
 #include "asyncProfiler.h"
 
-static JavaVM* jvm;
-static jvmtiEnv* jvmti;
-static u64 calltrace_hash[MAX_CALLTRACES];
-static CallTraceSnapshot calltrace_snapshot[MAX_CALLTRACES];
-static int calls_total, calls_in_java, calls_with_traces;
+extern JavaVM* _vm;
+extern jvmtiEnv* _jvmti;
 
-static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
-    jint method_count;
-    jmethodID* methods;
-    if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
-        jvmti->Deallocate((unsigned char*)methods);
+Profiler Profiler::_instance;
+
+
+static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    Profiler::_instance.recordSample(ucontext);
+}
+
+
+void CallTraceSample::assign(ASGCT_CallTrace* trace) {
+    _call_count = 1;
+    _num_frames = trace->num_frames;
+    for (int i = 0; i < trace->num_frames; i++) {
+        _frames[i] = trace->frames[i];
     }
 }
 
-static void loadAllMethodIDs(jvmtiEnv* jvmti) {
-    jint class_count;
-    jclass* classes;
-    if (jvmti->GetLoadedClasses(&class_count, &classes) == 0) {
-        for (int i = 0; i < class_count; i++) {
-            loadMethodIDs(jvmti, classes[i]);
+char* CallTraceSample::format_class_name(char* class_name) {
+    for (char* s = class_name; *s != 0; s++) {
+        if (*s == '/') *s = '.';
+    }
+    class_name[strlen(class_name) - 1] = 0;
+    return class_name + 1;
+}
+
+void CallTraceSample::dump(std::ostream& out) {
+    char buf[1024];
+    for (int i = 0; i < _num_frames; i++) {
+        if (_frames[i].method_id != NULL) {
+            char* name;
+            char* sig;
+            char* class_sig;
+            jclass method_class;
+            _jvmti->GetMethodName(_frames[i].method_id, &name, &sig, NULL);
+            _jvmti->GetMethodDeclaringClass(_frames[i].method_id, &method_class);
+            _jvmti->GetClassSignature(method_class, &class_sig, NULL);
+            sprintf(buf, "  [%2d] %s.%s @%d\n", i, format_class_name(class_sig), name, _frames[i].bci);
+            out << buf;
+            _jvmti->Deallocate((unsigned char*)name);
+            _jvmti->Deallocate((unsigned char*)sig);
+            _jvmti->Deallocate((unsigned char*)class_sig);
         }
-        jvmti->Deallocate((unsigned char*)classes);
     }
 }
 
-static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    loadAllMethodIDs(jvmti);
-}
 
-static void JNICALL ClassLoad(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
-    // Needed only for AsyncGetCallTrace support
-}
-
-static void JNICALL ClassPrepare(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
-    loadMethodIDs(jvmti, klass);
-}
-
-static void initJvmti(JavaVM* vm) {
-    jvm = vm;
-    vm->GetEnv((void**)&jvmti, JVMTI_VERSION_1_0);
-
-    jvmtiCapabilities capabilities = {0};
-    capabilities.can_generate_all_class_hook_events = 1;
-    capabilities.can_get_bytecodes = 1;
-    capabilities.can_get_constant_pool = 1;
-    capabilities.can_get_source_file_name = 1;
-    capabilities.can_get_line_numbers = 1;
-    jvmti->AddCapabilities(&capabilities);
-
-    jvmtiEventCallbacks callbacks = {0};
-    callbacks.VMInit = VMInit;
-    callbacks.ClassLoad = ClassLoad;
-    callbacks.ClassPrepare = ClassPrepare;
-    jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
-
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
-}
-
-static u64 hashCode(ASGCT_CallTrace* trace) {
+u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
     const u64 M = 0xc6a4a7935bd1e995LL;
     const int R = 47;
 
@@ -104,100 +91,55 @@ static u64 hashCode(ASGCT_CallTrace* trace) {
     return h;
 }
 
-static void storeCallTrace(ASGCT_CallTrace* trace) {
-    u64 hash = hashCode(trace);
+void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
+    u64 hash = hashCallTrace(trace);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
     do {
-        if (calltrace_hash[i] == hash && calltrace_snapshot[i].call_count > 0) {
-            calltrace_snapshot[i].call_count++;
+        if (_hashes[i] == hash && _samples[i]._call_count > 0) {
+            _samples[i]._call_count++;
             return;
-        } else if (calltrace_hash[i] == 0) {
+        } else if (_hashes[i] == 0) {
             break;
         }
         if (++i == MAX_CALLTRACES) i = 0;
     } while (i != bucket);
 
-    calltrace_hash[i] = hash;
-
-    CallTraceSnapshot* snapshot = &calltrace_snapshot[i];
-    snapshot->call_count = 1;
-    snapshot->num_frames = trace->num_frames;
-    for (int j = 0; j < trace->num_frames; j++) {
-        snapshot->frames[j] = trace->frames[j];
-    }
+    _hashes[i] = hash;
+    _samples[i].assign(trace);
 }
 
-static int snapshotComparator(const void* s1, const void* s2) {
-    return ((CallTraceSnapshot*)s2)->call_count - ((CallTraceSnapshot*)s1)->call_count;
-}
-
-static char* format_class_name(char* class_name) {
-    for (char* s = class_name; *s != 0; s++) {
-        if (*s == '/') *s = '.';
-    }
-    class_name[strlen(class_name) - 1] = 0;
-    return class_name + 1;
-}
-
-static void dumpCallTrace(CallTraceSnapshot* trace) {
-    for (int i = 0; i < trace->num_frames; i++) {
-        ASGCT_CallFrame* frame = &trace->frames[i];
-        if (frame->method_id != NULL) {
-            char* name;
-            char* sig;
-            char* class_sig;
-            jclass method_class;
-            jvmti->GetMethodName(frame->method_id, &name, &sig, NULL);
-            jvmti->GetMethodDeclaringClass(frame->method_id, &method_class);
-            jvmti->GetClassSignature(method_class, &class_sig, NULL);
-            printf("  [%2d] %s.%s @%d\n", i, format_class_name(class_sig), name, frame->bci);
-            jvmti->Deallocate((unsigned char*)name);
-            jvmti->Deallocate((unsigned char*)sig);
-            jvmti->Deallocate((unsigned char*)class_sig);
-        }
-    }
-}
-
-static void dumpCallTraces() {
-    printf("total = %d, in_java = %d, with_traces = %d\n", calls_total, calls_in_java, calls_with_traces);
-    
-    qsort(calltrace_snapshot, MAX_CALLTRACES, sizeof(CallTraceSnapshot), snapshotComparator);
-
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
-        CallTraceSnapshot* trace = &calltrace_snapshot[i];
-        if (trace->call_count > 0) {
-            printf("\nSamples: %d (%.2f%%)\n", trace->call_count, 100.0f * trace->call_count / calls_total);
-            dumpCallTrace(trace);
-        }
-    }
-}
-
-static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    calls_total++;
+void Profiler::recordSample(void* ucontext) {
+    _calls_total++;
 
     JNIEnv* env;
-    if (jvm->GetEnv((void**)&env, JNI_VERSION_1_6) != 0) {
+    if (_vm->GetEnv((void**)&env, JNI_VERSION_1_6) != 0) {
+        _calls_non_java++;
         return;
     }
 
-    calls_in_java++;
-
     ASGCT_CallFrame frames[MAX_FRAMES];
-    ASGCT_CallTrace trace = {env, sizeof(frames) / sizeof(frames[0]), frames};
+    ASGCT_CallTrace trace = {env, MAX_FRAMES, frames};
     AsyncGetCallTrace(&trace, trace.num_frames, ucontext);
 
     if (trace.num_frames > 0) {
-        calls_with_traces++;
         storeCallTrace(&trace);
+    } else if (trace.num_frames == -2) {
+        _calls_gc++;
+    } else if (trace.num_frames == -9) {
+        _calls_deopt++;
+    } else {
+        _calls_unknown++;
     }
 }
 
-static void setProfilingTimer(long sec, long usec) {
+void Profiler::setTimer(long sec, long usec) {
+    bool enabled = sec | usec;
+
     struct sigaction sa;
-    sa.sa_handler = (sec | usec) == 0 ? SIG_IGN : NULL;
-    sa.sa_sigaction = (sec | usec) == 0 ? NULL : sigprofHandler;
+    sa.sa_handler = enabled ? NULL : SIG_IGN;
+    sa.sa_sigaction = enabled ? sigprofHandler : NULL;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGPROF, &sa, NULL);
@@ -206,31 +148,54 @@ static void setProfilingTimer(long sec, long usec) {
     setitimer(ITIMER_PROF, &itv, NULL);
 }
 
-static void initProfiler(char* options) {
-    if (strcmp(options, "start") == 0) {
-        printf("Profiling started\n");
-        memset(calltrace_hash, 0, sizeof(calltrace_hash));
-        memset(calltrace_snapshot, 0, sizeof(calltrace_snapshot));
-        calls_total = calls_in_java = calls_with_traces = 0;
-        setProfilingTimer(0, 10000);
-    } else if (strcmp(options, "stop") == 0) {
-        printf("Profiling stopped\n");
-        setProfilingTimer(0, 0);
-        dumpCallTraces();
+void Profiler::start() {
+    if (_running) return;
+    _running = true;
+
+    _calls_total = _calls_non_java = _calls_gc = _calls_deopt = _calls_unknown = 0;
+    memset(_hashes, 0, sizeof(_hashes));
+    memset(_samples, 0, sizeof(_samples));
+
+    setTimer(0, SAMPLING_INTERVAL);
+}
+
+void Profiler::stop() {
+    if (!_running) return;
+    _running = false;
+
+    setTimer(0, 0);
+}
+
+void Profiler::dump(std::ostream& out, int max_traces) {
+    if (_running) return;
+
+    float percent = 100.0f / _calls_total;
+
+    char buf[256];
+    sprintf(buf,
+        "--- Execution profile ---\n"
+        "Total:    %d\n"
+        "Non-Java: %d (%.2f%%)\n"
+        "GC:       %d (%.2f%%)\n"
+        "Deopt:    %d (%.2f%%)\n"
+        "Unknown:  %d (%.2f%%)\n",
+        _calls_total,
+        _calls_non_java, _calls_non_java * percent,
+        _calls_gc, _calls_gc * percent,
+        _calls_deopt, _calls_deopt * percent,
+        _calls_unknown, _calls_unknown * percent
+    );
+    out << buf;
+
+    qsort(_samples, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
+    if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
+
+    for (int i = 0; i < max_traces; i++) {
+        int samples = _samples[i]._call_count;
+        if (samples > 0) {
+            sprintf(buf, "\nSamples: %d (%.2f%%)\n", samples, samples * percent);
+            out << buf;
+            _samples[i].dump(out);
+        }
     }
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    initJvmti(vm);
-    initProfiler("start");
-    return 0;
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    initJvmti(vm);
-    loadAllMethodIDs(jvmti);
-    initProfiler(options);
-    return 0;
 }
