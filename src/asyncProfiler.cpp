@@ -20,9 +20,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include "asyncProfiler.h"
-
-extern JavaVM* _vm;
-extern jvmtiEnv* _jvmti;
+#include "vmEntry.h"
 
 Profiler Profiler::_instance;
 
@@ -32,39 +30,33 @@ static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 
+MethodName::MethodName(jmethodID method) {
+    jclass method_class;
+    jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->GetMethodName(method, &_name, &_sig, NULL);
+    jvmti->GetMethodDeclaringClass(method, &method_class);
+    jvmti->GetClassSignature(method_class, &_class_sig, NULL);
+
+    char* s;
+    for (s = _class_sig; *s; s++) {
+        if (*s == '/') *s = '.';
+    }
+    s[-1] = 0;
+}
+
+MethodName::~MethodName() {
+    jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->Deallocate((unsigned char*)_name);
+    jvmti->Deallocate((unsigned char*)_sig);
+    jvmti->Deallocate((unsigned char*)_class_sig);
+}
+
+
 void CallTraceSample::assign(ASGCT_CallTrace* trace) {
     _call_count = 1;
     _num_frames = trace->num_frames;
     for (int i = 0; i < trace->num_frames; i++) {
         _frames[i] = trace->frames[i];
-    }
-}
-
-char* CallTraceSample::format_class_name(char* class_name) {
-    for (char* s = class_name; *s != 0; s++) {
-        if (*s == '/') *s = '.';
-    }
-    class_name[strlen(class_name) - 1] = 0;
-    return class_name + 1;
-}
-
-void CallTraceSample::dump(std::ostream& out) {
-    char buf[1024];
-    for (int i = 0; i < _num_frames; i++) {
-        if (_frames[i].method_id != NULL) {
-            char* name;
-            char* sig;
-            char* class_sig;
-            jclass method_class;
-            _jvmti->GetMethodName(_frames[i].method_id, &name, &sig, NULL);
-            _jvmti->GetMethodDeclaringClass(_frames[i].method_id, &method_class);
-            _jvmti->GetClassSignature(method_class, &class_sig, NULL);
-            sprintf(buf, "  [%2d] %s.%s @%d\n", i, format_class_name(class_sig), name, _frames[i].bci);
-            out << buf;
-            _jvmti->Deallocate((unsigned char*)name);
-            _jvmti->Deallocate((unsigned char*)sig);
-            _jvmti->Deallocate((unsigned char*)class_sig);
-        }
     }
 }
 
@@ -97,8 +89,8 @@ void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
     int i = bucket;
 
     do {
-        if (_hashes[i] == hash && _samples[i]._call_count > 0) {
-            _samples[i]._call_count++;
+        if (_hashes[i] == hash && _traces[i]._call_count > 0) {
+            _traces[i]._call_count++;
             return;
         } else if (_hashes[i] == 0) {
             break;
@@ -107,24 +99,57 @@ void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
     } while (i != bucket);
 
     _hashes[i] = hash;
-    _samples[i].assign(trace);
+    _traces[i].assign(trace);
+}
+
+u64 Profiler::hashMethod(jmethodID method) {
+    const u64 M = 0xc6a4a7935bd1e995LL;
+    const int R = 17;
+
+    u64 h = (u64)method;
+
+    h ^= h >> R;
+    h *= M;
+    h ^= h >> R;
+
+    return h;
+}
+
+void Profiler::storeMethod(jmethodID method) {
+    u64 hash = hashMethod(method);
+    int bucket = (int)(hash % MAX_CALLTRACES);
+    int i = bucket;
+
+    do {
+        if (_methods[i]._method == method) {
+            _methods[i]._call_count++;
+            return;
+        } else if (_methods[i]._method == NULL) {
+            break;
+        }
+        if (++i == MAX_CALLTRACES) i = 0;
+    } while (i != bucket);
+
+    _methods[i]._call_count = 1;
+    _methods[i]._method = method;
 }
 
 void Profiler::recordSample(void* ucontext) {
     _calls_total++;
 
-    JNIEnv* env;
-    if (_vm->GetEnv((void**)&env, JNI_VERSION_1_6) != 0) {
+    JNIEnv* jni = VM::jni();
+    if (jni == NULL) {
         _calls_non_java++;
         return;
     }
 
     ASGCT_CallFrame frames[MAX_FRAMES];
-    ASGCT_CallTrace trace = {env, MAX_FRAMES, frames};
+    ASGCT_CallTrace trace = {jni, MAX_FRAMES, frames};
     AsyncGetCallTrace(&trace, trace.num_frames, ucontext);
 
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);
+        storeMethod(frames[0].method_id);
     } else if (trace.num_frames == -2) {
         _calls_gc++;
     } else if (trace.num_frames == -9) {
@@ -148,15 +173,16 @@ void Profiler::setTimer(long sec, long usec) {
     setitimer(ITIMER_PROF, &itv, NULL);
 }
 
-void Profiler::start() {
+void Profiler::start(long interval) {
     if (_running) return;
     _running = true;
 
     _calls_total = _calls_non_java = _calls_gc = _calls_deopt = _calls_unknown = 0;
     memset(_hashes, 0, sizeof(_hashes));
-    memset(_samples, 0, sizeof(_samples));
+    memset(_traces, 0, sizeof(_traces));
+    memset(_methods, 0, sizeof(_methods));
 
-    setTimer(0, SAMPLING_INTERVAL);
+    setTimer(interval / 1000, interval * 1000);
 }
 
 void Profiler::stop() {
@@ -166,11 +192,8 @@ void Profiler::stop() {
     setTimer(0, 0);
 }
 
-void Profiler::dump(std::ostream& out, int max_traces) {
-    if (_running) return;
-
+void Profiler::summary(std::ostream& out) {
     float percent = 100.0f / _calls_total;
-
     char buf[256];
     sprintf(buf,
         "--- Execution profile ---\n"
@@ -178,7 +201,8 @@ void Profiler::dump(std::ostream& out, int max_traces) {
         "Non-Java: %d (%.2f%%)\n"
         "GC:       %d (%.2f%%)\n"
         "Deopt:    %d (%.2f%%)\n"
-        "Unknown:  %d (%.2f%%)\n",
+        "Unknown:  %d (%.2f%%)\n"
+        "\n",
         _calls_total,
         _calls_non_java, _calls_non_java * percent,
         _calls_gc, _calls_gc * percent,
@@ -186,16 +210,50 @@ void Profiler::dump(std::ostream& out, int max_traces) {
         _calls_unknown, _calls_unknown * percent
     );
     out << buf;
+}
 
-    qsort(_samples, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
+void Profiler::dumpTraces(std::ostream& out, int max_traces) {
+    if (_running) return;
+
+    float percent = 100.0f / _calls_total;
+    char buf[1024];
+
+    qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
     for (int i = 0; i < max_traces; i++) {
-        int samples = _samples[i]._call_count;
-        if (samples > 0) {
-            sprintf(buf, "\nSamples: %d (%.2f%%)\n", samples, samples * percent);
-            out << buf;
-            _samples[i].dump(out);
+        int samples = _traces[i]._call_count;
+        if (samples == 0) break;
+
+        sprintf(buf, "Samples: %d (%.2f%%)\n", samples, samples * percent);
+        out << buf;
+
+        for (int j = 0; j < _traces[i]._num_frames; j++) {
+            ASGCT_CallFrame* frame = &_traces[i]._frames[j];
+            if (frame->method_id != NULL) {
+                MethodName mn(frame->method_id);
+                sprintf(buf, "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
+                out << buf;
+            }
         }
+        out << "\n";
+    }
+}
+
+void Profiler::dumpMethods(std::ostream& out) {
+    if (_running) return;
+
+    float percent = 100.0f / _calls_total;
+    char buf[1024];
+
+    qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
+
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        int samples = _methods[i]._call_count;
+        if (samples == 0) break;
+
+        MethodName mn(_methods[i]._method);
+        sprintf(buf, "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
+        out << buf;
     }
 }

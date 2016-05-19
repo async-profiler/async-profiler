@@ -17,10 +17,12 @@
 #include <jvmti.h>
 #include <iostream>
 
-#define MAX_FRAMES         100
-#define MAX_CALLTRACES     65536
-#define MAX_TRACES_TO_DUMP 1000
-#define SAMPLING_INTERVAL  10000
+#define MAX_FRAMES     100
+#define MAX_CALLTRACES 65536
+
+#define DEFAULT_INTERVAL       10
+#define DEFAULT_TRACES_TO_DUMP 1000
+
 
 typedef unsigned long long u64;
 
@@ -35,20 +37,46 @@ typedef struct {
     ASGCT_CallFrame* frames;
 } ASGCT_CallTrace;
 
+
+class MethodName {
+  private:
+    char* _name;
+    char* _sig;
+    char* _class_sig;
+
+  public:
+    MethodName(jmethodID method);
+    ~MethodName();
+
+    char* holder()    { return _class_sig + 1; }
+    char* name()      { return _name; }
+    char* signature() { return _sig; }
+};
+
 class CallTraceSample {
   private:
     int _call_count;
     int _num_frames;
     ASGCT_CallFrame _frames[MAX_FRAMES];
 
-    static char* format_class_name(char* class_name);
+    void assign(ASGCT_CallTrace* trace);
 
   public:
-    void assign(ASGCT_CallTrace* trace);
-    void dump(std::ostream& out);
-
     static int comparator(const void* s1, const void* s2) {
         return ((CallTraceSample*)s2)->_call_count - ((CallTraceSample*)s1)->_call_count;
+    }
+
+    friend class Profiler;
+};
+
+class MethodSample {
+  private:
+    int _call_count;
+    jmethodID _method;
+
+  public:
+    static int comparator(const void* s1, const void* s2) {
+        return ((MethodSample*)s2)->_call_count - ((MethodSample*)s1)->_call_count;
     }
 
     friend class Profiler;
@@ -63,10 +91,13 @@ class Profiler {
     int _calls_deopt;
     int _calls_unknown;
     u64 _hashes[MAX_CALLTRACES];
-    CallTraceSample _samples[MAX_CALLTRACES];
+    CallTraceSample _traces[MAX_CALLTRACES];
+    MethodSample _methods[MAX_CALLTRACES];
 
     u64 hashCallTrace(ASGCT_CallTrace* trace);
     void storeCallTrace(ASGCT_CallTrace* trace);
+    u64 hashMethod(jmethodID method);
+    void storeMethod(jmethodID method);
     void setTimer(long sec, long usec);
 
   public:
@@ -75,10 +106,13 @@ class Profiler {
     Profiler() : _running(false) {}
 
     bool is_running() { return _running; }
+    int samples()     { return _calls_total; }
 
-    void start();
+    void start(long interval);
     void stop();
-    void dump(std::ostream& out, int max_traces);
+    void summary(std::ostream& out);
+    void dumpTraces(std::ostream& out, int max_traces);
+    void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
 };
 
