@@ -17,11 +17,11 @@
 #include <jvmti.h>
 #include <iostream>
 
-#define MAX_FRAMES     100
-#define MAX_CALLTRACES 65536
+#define MAX_FRAMES     64
+#define MAX_CALLTRACES 32768
 
 #define DEFAULT_INTERVAL       10
-#define DEFAULT_TRACES_TO_DUMP 1000
+#define DEFAULT_TRACES_TO_DUMP 500
 
 
 typedef unsigned long long u64;
