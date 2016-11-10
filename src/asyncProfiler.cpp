@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,8 +23,8 @@
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
+ASGCTType asgct;
 Profiler Profiler::_instance;
-
 
 static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext);
@@ -145,7 +146,13 @@ void Profiler::recordSample(void* ucontext) {
 
     ASGCT_CallFrame frames[MAX_FRAMES];
     ASGCT_CallTrace trace = {jni, MAX_FRAMES, frames};
-    AsyncGetCallTrace(&trace, trace.num_frames, ucontext);
+    if (asgct == NULL) {
+        const char ERROR[] = "No AsyncGetCallTrace";
+        write(STDOUT_FILENO, ERROR, sizeof (ERROR));
+        return;
+    }
+
+    (*asgct)(&trace, trace.num_frames, ucontext);
 
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);

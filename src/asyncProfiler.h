@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <dlfcn.h>
 #include <jvmti.h>
 #include <iostream>
 
@@ -37,6 +38,9 @@ typedef struct {
     ASGCT_CallFrame* frames;
 } ASGCT_CallTrace;
 
+typedef void (*ASGCTType)(ASGCT_CallTrace *, jint, void *);
+
+extern "C" ASGCTType asgct;
 
 class MethodName {
   private:
@@ -115,7 +119,3 @@ class Profiler {
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
 };
-
-
-extern "C" JNIIMPORT void JNICALL
-AsyncGetCallTrace(ASGCT_CallTrace* trace, jint depth, void* ucontext);
