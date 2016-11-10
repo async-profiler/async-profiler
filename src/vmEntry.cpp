@@ -21,28 +21,10 @@
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti;
 
-
-// Short version: reinterpret_cast produces undefined behavior in many
-// cases where memcpy doesn't.
-
-template<class Dest, class Source>
-inline Dest bit_cast(const Source &source) {
-    // Compile time assertion: sizeof(Dest) == sizeof(Source)
-    // A compile error here means your Dest and Source have different sizes.
-    typedef char VerifySizesAreEqual[sizeof (Dest) == sizeof (Source) ? 1 : -1]
-            __attribute__((unused));
-
-    Dest dest;
-    memcpy(&dest, &source, sizeof (dest));
-    return dest;
-}
-
-// Accessors for getting the JVM function for AsyncGetCallTrace
-
 template<class FunctionType>
 inline FunctionType getJvmFunction(const char *function_name) {
     // get address of function, return null if not found
-    return bit_cast<FunctionType>(dlsym(RTLD_DEFAULT, function_name));
+    return (FunctionType) dlsym(RTLD_DEFAULT, function_name);
 }
 
 void VM::init(JavaVM* vm) {
