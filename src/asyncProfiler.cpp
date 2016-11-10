@@ -157,8 +157,24 @@ void Profiler::recordSample(void* ucontext) {
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);
         storeMethod(frames[0].method_id);
+    } else if (trace.num_frames == 0) {
+        _calls_non_java++;
+    } else if (trace.num_frames == -1) {
+        _calls_no_class_load++;
     } else if (trace.num_frames == -2) {
-        _calls_gc++;
+        _calls_gc_active++;
+    } else if (trace.num_frames == -3) {
+        _calls_unknown_not_java++;
+    } else if (trace.num_frames == -4) {
+        _calls_not_walkable_not_java++;
+    } else if (trace.num_frames == -5) {
+        _calls_unknown_java++;
+    } else if (trace.num_frames == -6) {
+        _calls_not_walkable_java++;
+    } else if (trace.num_frames == -7) {
+        _calls_unknown_state++;
+    } else if (trace.num_frames == -8) {
+        _calls_thread_exit++;
     } else if (trace.num_frames == -9) {
         _calls_deopt++;
     } else {
@@ -186,7 +202,19 @@ void Profiler::start(long interval) {
     if (_running) return;
     _running = true;
 
-    _calls_total = _calls_non_java = _calls_gc = _calls_deopt = _calls_unknown = 0;
+    _calls_total = 0;
+    _calls_non_java = 0;
+    _calls_no_class_load = 0;
+    _calls_gc_active = 0;
+    _calls_unknown_not_java = 0;
+    _calls_not_walkable_not_java = 0;
+    _calls_unknown_java = 0;
+    _calls_not_walkable_java = 0;
+    _calls_unknown_state = 0;
+    _calls_thread_exit = 0;
+    _calls_deopt = 0;
+    _calls_safepoint = 0;
+    _calls_unknown = 0;
     memset(_hashes, 0, sizeof(_hashes));
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
@@ -201,24 +229,63 @@ void Profiler::stop() {
     setTimer(0, 0);
 }
 
+void nonzero_summary(std::ostream& out, const char* fmt, int calls, float percent) {
+    char buf[256];
+    if (calls > 0) {
+        snprintf(buf, sizeof (buf),
+                fmt,
+                calls, calls * percent);
+        out << buf;
+    }
+}
+
 void Profiler::summary(std::ostream& out) {
     float percent = 100.0f / _calls_total;
     char buf[256];
-    sprintf(buf,
-        "--- Execution profile ---\n"
-        "Total:    %d\n"
-        "Non-Java: %d (%.2f%%)\n"
-        "GC:       %d (%.2f%%)\n"
-        "Deopt:    %d (%.2f%%)\n"
-        "Unknown:  %d (%.2f%%)\n"
-        "\n",
-        _calls_total,
-        _calls_non_java, _calls_non_java * percent,
-        _calls_gc, _calls_gc * percent,
-        _calls_deopt, _calls_deopt * percent,
-        _calls_unknown, _calls_unknown * percent
-    );
+    snprintf(buf, sizeof(buf),
+            "--- Execution profile ---\n"
+            "Total:               %d\n",
+            _calls_total);
     out << buf;
+    
+    nonzero_summary(out,
+            "No Java frame:       %d (%.2f%%)\n",
+            _calls_non_java, _calls_non_java * percent);
+    nonzero_summary(out,
+            "No class load:       %d (%.2f%%)\n",
+            _calls_no_class_load, _calls_no_class_load * percent);
+    nonzero_summary(out,
+            "GC active:           %d (%.2f%%)\n",
+            _calls_gc_active, _calls_gc_active * percent);
+    nonzero_summary(out,
+            "Unknown (non-Java):  %d (%.2f%%)\n",
+            _calls_unknown_not_java, _calls_unknown_not_java * percent);
+    nonzero_summary(out,
+            "Not walkable (nonJ): %d (%.2f%%)\n",
+            _calls_not_walkable_not_java, _calls_not_walkable_not_java * percent);
+    nonzero_summary(out,
+            "Unknown Java:        %d (%.2f%%)\n",
+            _calls_unknown_java, _calls_unknown_java * percent);
+    nonzero_summary(out,
+            "Not walkable (Java): %d (%.2f%%)\n",
+            _calls_not_walkable_java, _calls_not_walkable_java * percent);
+    nonzero_summary(out,
+            "Unknown state:       %d (%.2f%%)\n",
+            _calls_unknown_state, _calls_unknown_state * percent);
+    nonzero_summary(out,
+            "Thread exit:         %d (%.2f%%)\n",
+            _calls_thread_exit, _calls_thread_exit * percent);
+    nonzero_summary(out,
+            "Deopt:               %d (%.2f%%)\n",
+            _calls_deopt, _calls_deopt * percent);
+    nonzero_summary(out,
+            "Safepoint:           %d (%.2f%%)\n",
+            _calls_safepoint, _calls_safepoint * percent);
+    nonzero_summary(out,
+            "Unknown:             %d (%.2f%%)\n",
+            _calls_unknown, _calls_unknown * percent);
+    
+    out << std::endl;
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
