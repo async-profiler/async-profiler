@@ -174,10 +174,12 @@ void Profiler::setTimer(long sec, long usec) {
     sa.sa_sigaction = enabled ? sigprofHandler : NULL;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     sigemptyset(&sa.sa_mask);
-    sigaction(SIGPROF, &sa, NULL);
+    if (sigaction(SIGPROF, &sa, NULL) != 0)
+        perror("couldn't install signal handler");
 
     struct itimerval itv = {{sec, usec}, {sec, usec}};
-    setitimer(ITIMER_PROF, &itv, NULL);
+    if (setitimer(ITIMER_PROF, &itv, NULL) != 0)
+        perror("couldn't start timer");
 }
 
 void Profiler::start(long interval) {
