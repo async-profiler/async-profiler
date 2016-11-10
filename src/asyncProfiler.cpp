@@ -189,7 +189,7 @@ void Profiler::start(long interval) {
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
 
-    setTimer(interval / 1000, interval * 1000);
+    setTimer(interval / 1000, (interval % 1000) * 1000);
 }
 
 void Profiler::stop() {
