@@ -234,14 +234,14 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         int samples = _traces[i]._call_count;
         if (samples == 0) break;
 
-        sprintf(buf, "Samples: %d (%.2f%%)\n", samples, samples * percent);
+        snprintf(buf, sizeof(buf), "Samples: %d (%.2f%%)\n", samples, samples * percent);
         out << buf;
 
         for (int j = 0; j < _traces[i]._num_frames; j++) {
             ASGCT_CallFrame* frame = &_traces[i]._frames[j];
             if (frame->method_id != NULL) {
                 MethodName mn(frame->method_id);
-                sprintf(buf, "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
+                snprintf(buf, sizeof(buf), "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
                 out << buf;
             }
         }
@@ -262,7 +262,7 @@ void Profiler::dumpMethods(std::ostream& out) {
         if (samples == 0) break;
 
         MethodName mn(_methods[i]._method);
-        sprintf(buf, "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
+        snprintf(buf, sizeof(buf), "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
         out << buf;
     }
 }
