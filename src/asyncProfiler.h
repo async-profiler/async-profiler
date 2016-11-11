@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <dlfcn.h>
 #include <jvmti.h>
 #include <iostream>
 
@@ -37,6 +38,9 @@ typedef struct {
     ASGCT_CallFrame* frames;
 } ASGCT_CallTrace;
 
+typedef void (*ASGCTType)(ASGCT_CallTrace *, jint, void *);
+
+extern "C" ASGCTType asgct;
 
 class MethodName {
   private:
@@ -86,9 +90,18 @@ class Profiler {
   private:
     bool _running;
     int _calls_total;
+    // See ./hotspot/src/share/vm/prims/forte.cpp
     int _calls_non_java;
-    int _calls_gc;
+    int _calls_no_class_load;
+    int _calls_gc_active;
+    int _calls_unknown_not_java;
+    int _calls_not_walkable_not_java;
+    int _calls_unknown_java;
+    int _calls_not_walkable_java;
+    int _calls_unknown_state;
+    int _calls_thread_exit;
     int _calls_deopt;
+    int _calls_safepoint;
     int _calls_unknown;
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
@@ -115,7 +128,3 @@ class Profiler {
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
 };
-
-
-extern "C" JNIIMPORT void JNICALL
-AsyncGetCallTrace(ASGCT_CallTrace* trace, jint depth, void* ucontext);

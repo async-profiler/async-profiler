@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,8 +23,8 @@
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
+ASGCTType asgct;
 Profiler Profiler::_instance;
-
 
 static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext);
@@ -145,13 +146,36 @@ void Profiler::recordSample(void* ucontext) {
 
     ASGCT_CallFrame frames[MAX_FRAMES];
     ASGCT_CallTrace trace = {jni, MAX_FRAMES, frames};
-    AsyncGetCallTrace(&trace, trace.num_frames, ucontext);
+    if (asgct == NULL) {
+        const char ERROR[] = "No AsyncGetCallTrace";
+        write(STDOUT_FILENO, ERROR, sizeof (ERROR));
+        return;
+    }
+
+    (*asgct)(&trace, trace.num_frames, ucontext);
 
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);
         storeMethod(frames[0].method_id);
+    // See ticks_* enum values in http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/tip/src/share/vm/prims/forte.cpp
+    } else if (trace.num_frames == 0) {
+        _calls_non_java++;
+    } else if (trace.num_frames == -1) {
+        _calls_no_class_load++;
     } else if (trace.num_frames == -2) {
-        _calls_gc++;
+        _calls_gc_active++;
+    } else if (trace.num_frames == -3) {
+        _calls_unknown_not_java++;
+    } else if (trace.num_frames == -4) {
+        _calls_not_walkable_not_java++;
+    } else if (trace.num_frames == -5) {
+        _calls_unknown_java++;
+    } else if (trace.num_frames == -6) {
+        _calls_not_walkable_java++;
+    } else if (trace.num_frames == -7) {
+        _calls_unknown_state++;
+    } else if (trace.num_frames == -8) {
+        _calls_thread_exit++;
     } else if (trace.num_frames == -9) {
         _calls_deopt++;
     } else {
@@ -167,22 +191,36 @@ void Profiler::setTimer(long sec, long usec) {
     sa.sa_sigaction = enabled ? sigprofHandler : NULL;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
     sigemptyset(&sa.sa_mask);
-    sigaction(SIGPROF, &sa, NULL);
+    if (sigaction(SIGPROF, &sa, NULL) != 0)
+        perror("couldn't install signal handler");
 
     struct itimerval itv = {{sec, usec}, {sec, usec}};
-    setitimer(ITIMER_PROF, &itv, NULL);
+    if (setitimer(ITIMER_PROF, &itv, NULL) != 0)
+        perror("couldn't start timer");
 }
 
 void Profiler::start(long interval) {
     if (_running) return;
     _running = true;
 
-    _calls_total = _calls_non_java = _calls_gc = _calls_deopt = _calls_unknown = 0;
+    _calls_total = 0;
+    _calls_non_java = 0;
+    _calls_no_class_load = 0;
+    _calls_gc_active = 0;
+    _calls_unknown_not_java = 0;
+    _calls_not_walkable_not_java = 0;
+    _calls_unknown_java = 0;
+    _calls_not_walkable_java = 0;
+    _calls_unknown_state = 0;
+    _calls_thread_exit = 0;
+    _calls_deopt = 0;
+    _calls_safepoint = 0;
+    _calls_unknown = 0;
     memset(_hashes, 0, sizeof(_hashes));
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
 
-    setTimer(interval / 1000, interval * 1000);
+    setTimer(interval / 1000, (interval % 1000) * 1000);
 }
 
 void Profiler::stop() {
@@ -192,24 +230,63 @@ void Profiler::stop() {
     setTimer(0, 0);
 }
 
+void nonzero_summary(std::ostream& out, const char* fmt, int calls, float percent) {
+    char buf[256];
+    if (calls > 0) {
+        snprintf(buf, sizeof (buf),
+                fmt,
+                calls, calls * percent);
+        out << buf;
+    }
+}
+
 void Profiler::summary(std::ostream& out) {
     float percent = 100.0f / _calls_total;
     char buf[256];
-    sprintf(buf,
-        "--- Execution profile ---\n"
-        "Total:    %d\n"
-        "Non-Java: %d (%.2f%%)\n"
-        "GC:       %d (%.2f%%)\n"
-        "Deopt:    %d (%.2f%%)\n"
-        "Unknown:  %d (%.2f%%)\n"
-        "\n",
-        _calls_total,
-        _calls_non_java, _calls_non_java * percent,
-        _calls_gc, _calls_gc * percent,
-        _calls_deopt, _calls_deopt * percent,
-        _calls_unknown, _calls_unknown * percent
-    );
+    snprintf(buf, sizeof(buf),
+            "--- Execution profile ---\n"
+            "Total:               %d\n",
+            _calls_total);
     out << buf;
+    
+    nonzero_summary(out,
+            "No Java frame:       %d (%.2f%%)\n",
+            _calls_non_java, _calls_non_java * percent);
+    nonzero_summary(out,
+            "No class load:       %d (%.2f%%)\n",
+            _calls_no_class_load, _calls_no_class_load * percent);
+    nonzero_summary(out,
+            "GC active:           %d (%.2f%%)\n",
+            _calls_gc_active, _calls_gc_active * percent);
+    nonzero_summary(out,
+            "Unknown (non-Java):  %d (%.2f%%)\n",
+            _calls_unknown_not_java, _calls_unknown_not_java * percent);
+    nonzero_summary(out,
+            "Not walkable (nonJ): %d (%.2f%%)\n",
+            _calls_not_walkable_not_java, _calls_not_walkable_not_java * percent);
+    nonzero_summary(out,
+            "Unknown Java:        %d (%.2f%%)\n",
+            _calls_unknown_java, _calls_unknown_java * percent);
+    nonzero_summary(out,
+            "Not walkable (Java): %d (%.2f%%)\n",
+            _calls_not_walkable_java, _calls_not_walkable_java * percent);
+    nonzero_summary(out,
+            "Unknown state:       %d (%.2f%%)\n",
+            _calls_unknown_state, _calls_unknown_state * percent);
+    nonzero_summary(out,
+            "Thread exit:         %d (%.2f%%)\n",
+            _calls_thread_exit, _calls_thread_exit * percent);
+    nonzero_summary(out,
+            "Deopt:               %d (%.2f%%)\n",
+            _calls_deopt, _calls_deopt * percent);
+    nonzero_summary(out,
+            "Safepoint:           %d (%.2f%%)\n",
+            _calls_safepoint, _calls_safepoint * percent);
+    nonzero_summary(out,
+            "Unknown:             %d (%.2f%%)\n",
+            _calls_unknown, _calls_unknown * percent);
+    
+    out << std::endl;
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
@@ -225,14 +302,14 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         int samples = _traces[i]._call_count;
         if (samples == 0) break;
 
-        sprintf(buf, "Samples: %d (%.2f%%)\n", samples, samples * percent);
+        snprintf(buf, sizeof(buf), "Samples: %d (%.2f%%)\n", samples, samples * percent);
         out << buf;
 
         for (int j = 0; j < _traces[i]._num_frames; j++) {
             ASGCT_CallFrame* frame = &_traces[i]._frames[j];
             if (frame->method_id != NULL) {
                 MethodName mn(frame->method_id);
-                sprintf(buf, "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
+                snprintf(buf, sizeof(buf), "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
                 out << buf;
             }
         }
@@ -253,7 +330,7 @@ void Profiler::dumpMethods(std::ostream& out) {
         if (samples == 0) break;
 
         MethodName mn(_methods[i]._method);
-        sprintf(buf, "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
+        snprintf(buf, sizeof(buf), "%6d (%.2f%%) %s.%s\n", samples, samples * percent, mn.holder(), mn.name());
         out << buf;
     }
 }

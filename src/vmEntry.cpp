@@ -21,6 +21,11 @@
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti;
 
+template<class FunctionType>
+inline FunctionType getJvmFunction(const char *function_name) {
+    // get address of function, return null if not found
+    return (FunctionType) dlsym(RTLD_DEFAULT, function_name);
+}
 
 void VM::init(JavaVM* vm) {
     _vm = vm;
@@ -71,6 +76,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm);
+    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     Profiler::_instance.start(DEFAULT_INTERVAL);
     return 0;
 }
@@ -95,5 +101,6 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
     VM::attach(vm);
+    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     return JNI_VERSION_1_6;
 }
