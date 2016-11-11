@@ -157,6 +157,7 @@ void Profiler::recordSample(void* ucontext) {
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);
         storeMethod(frames[0].method_id);
+    // See ticks_* enum values in http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/tip/src/share/vm/prims/forte.cpp
     } else if (trace.num_frames == 0) {
         _calls_non_java++;
     } else if (trace.num_frames == -1) {
