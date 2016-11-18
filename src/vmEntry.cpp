@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <string.h>
+#include <stdlib.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
@@ -83,7 +84,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 }
 
 const char OPTION_DELIMITER[] = ",";
-const char MAX_FRAMES[] = "maxFrames:";
+const char FRAME_BUFFER_SIZE[] = "frameBufferSize:";
 const char START[] = "start";
 const char STOP[] = "stop";
 const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
@@ -95,15 +96,11 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
     char *token = strtok(options, OPTION_DELIMITER);
     while (token) {
-        if (strncmp(token, MAX_FRAMES, strlen(MAX_FRAMES)) == 0) {
-            const char *text = token + strlen(MAX_FRAMES);
+        if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
+            const char *text = token + strlen(FRAME_BUFFER_SIZE);
             const int value = atoi(text);
-            if (value >= 0) {
-                std::cout << "Setting max frames to " << value << std::endl;
-                maxFrames = value;
-            } else {
-                std::cout << "Ignoring max frames value " << value << std::endl;
-            }
+            std::cout << "Setting frame buffer size to " << value << std::endl;
+            Profiler::_instance.frameBufferSize(value);
         } else if (strcmp(token, START) == 0) {
             std::cout << "Profiling started" << std::endl;
             Profiler::_instance.start(DEFAULT_INTERVAL);
