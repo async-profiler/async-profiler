@@ -84,6 +84,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
+    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
 
     if (strcmp(options, "start") == 0) {
         std::cout << "Profiling started\n";
