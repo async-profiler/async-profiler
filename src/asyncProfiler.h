@@ -124,6 +124,7 @@ class Profiler {
     void start(long interval);
     void stop();
     void summary(std::ostream& out);
+    void dumpRawTraces(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);

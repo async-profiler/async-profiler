@@ -289,6 +289,37 @@ void Profiler::summary(std::ostream& out) {
     out << std::endl;
 }
 
+/*
+ * Dumping in lightweight-java-profiler format:
+ * 
+ * <samples> <frames>   <frame1>
+ *                      <frame2>
+ *                      ...
+ *                      <framen>
+ */
+void Profiler::dumpRawTraces(std::ostream& out) {
+    if (_running) return;
+
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        const int samples = _traces[i]._call_count;
+        if (samples == 0) continue;
+        
+        out << samples << '\t' << _traces[i]._num_frames << '\t';
+
+        for (int j = 0; j < _traces[i]._num_frames; j++) {
+            ASGCT_CallFrame* frame = &_traces[i]._frames[j];
+            if (frame->method_id != NULL) {
+                if (j != 0) {
+                    out << "\t\t";
+                }
+
+                MethodName mn(frame->method_id);
+                out << mn.holder() << "::" << mn.name() << std::endl;
+            }
+        }
+    }
+}
+
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     if (_running) return;
 

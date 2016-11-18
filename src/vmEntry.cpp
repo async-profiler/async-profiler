@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <fstream>
 #include <string.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
@@ -81,6 +82,8 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     return 0;
 }
 
+const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
+
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
@@ -94,6 +97,21 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         Profiler::_instance.stop();
         Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
         Profiler::_instance.dumpMethods(std::cout);
+    } else if (strstr(options, DUMP_RAW_TRACES) != NULL) {
+        std::cout << "Profiling stopped\n";
+        Profiler::_instance.stop();
+
+        const char *fileName = options + strlen(DUMP_RAW_TRACES);
+
+        std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
+        if (!dump.is_open()) {
+            std::cerr << "Couldn't open: " << fileName << std::endl;
+            return -1;
+        }
+        
+        std::cout << "Dumping raw traces to " << fileName << std::endl;
+        Profiler::_instance.dumpRawTraces(dump);
+        dump.close();
     }
 
     return 0;
