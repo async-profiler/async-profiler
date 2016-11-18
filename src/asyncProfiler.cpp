@@ -20,6 +20,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
@@ -55,9 +56,11 @@ MethodName::~MethodName() {
 
 void CallTraceSample::assign(ASGCT_CallTrace* trace) {
     _call_count = 1;
-    _num_frames = trace->num_frames;
-    for (int i = 0; i < trace->num_frames; i++) {
-        _frames[i] = trace->frames[i];
+    _num_frames = MIN(trace->num_frames, MAX_FRAMES);
+    
+    const int offset = trace->num_frames - _num_frames;    
+    for (int i = 0; i < _num_frames; i++) {
+        _frames[i] = trace->frames[offset + i];
     }
 }
 
@@ -144,8 +147,9 @@ void Profiler::recordSample(void* ucontext) {
         return;
     }
 
-    ASGCT_CallFrame frames[MAX_FRAMES];
-    ASGCT_CallTrace trace = {jni, MAX_FRAMES, frames};
+    const int FRAME_BUFFER_SIZE = 4096;
+    ASGCT_CallFrame frames[FRAME_BUFFER_SIZE];
+    ASGCT_CallTrace trace = {jni, FRAME_BUFFER_SIZE, frames};
     if (asgct == NULL) {
         const char ERROR[] = "No AsyncGetCallTrace";
         write(STDOUT_FILENO, ERROR, sizeof (ERROR));
