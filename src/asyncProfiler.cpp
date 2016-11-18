@@ -68,7 +68,7 @@ u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
     u64 h = trace->num_frames * M;
 
     for (int i = 0; i < trace->num_frames; i++) {
-        u64 k = ((u64)trace->frames[i].bci << 32) ^ (u64)trace->frames[i].method_id;
+        u64 k = (u64) trace->frames[i].method_id;
         k *= M;
         k ^= k >> R;
         k *= M;
@@ -112,7 +112,7 @@ void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
 
     // Copying frames into frame buffer
     for (int i = 0; i < trace->num_frames; i++) {
-        _frames[_freeFrame] = trace->frames[i];
+        _frames[_freeFrame] = trace->frames[i].method_id;
         _freeFrame++;
     }
 }
@@ -237,7 +237,7 @@ void Profiler::start(long interval) {
     
     // Reset frames
     free(_frames);
-    _frames = (ASGCT_CallFrame *) malloc(_frameBufferSize * sizeof (ASGCT_CallFrame));
+    _frames = (jmethodID *) malloc(_frameBufferSize * sizeof (jmethodID));
     _freeFrame = 0;
     _frameBufferOverflow = false;
 
@@ -339,13 +339,13 @@ void Profiler::dumpRawTraces(std::ostream& out) {
 
         CallTraceSample& trace = _traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
-            ASGCT_CallFrame* frame = &_frames[trace._offset + j];
-            if (frame->method_id != NULL) {
+            jmethodID method = _frames[trace._offset + j];
+            if (method != NULL) {
                 if (j != 0) {
                     out << "\t\t";
                 }
 
-                MethodName mn(frame->method_id);
+                MethodName mn(method);
                 out << mn.holder() << "::" << mn.name() << std::endl;
             }
         }
@@ -370,10 +370,10 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
 
         CallTraceSample& trace = _traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
-            ASGCT_CallFrame* frame = &_frames[trace._offset + j];
-            if (frame->method_id != NULL) {
-                MethodName mn(frame->method_id);
-                snprintf(buf, sizeof(buf), "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
+            jmethodID method = _frames[trace._offset + j];
+            if (method != NULL) {
+                MethodName mn(method);
+                snprintf(buf, sizeof(buf), "  [%2d] %s.%s\n", j, mn.holder(), mn.name());
                 out << buf;
             }
         }

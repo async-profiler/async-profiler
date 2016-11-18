@@ -105,7 +105,7 @@ class Profiler {
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
     
-    ASGCT_CallFrame *_frames;
+    jmethodID *_frames;
     int _frameBufferSize;
     int _freeFrame;
     bool _frameBufferOverflow;
