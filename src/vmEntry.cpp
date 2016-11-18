@@ -82,6 +82,10 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     return 0;
 }
 
+const char OPTION_DELIMITER[] = ",";
+const char MAX_FRAMES[] = "maxFrames:";
+const char START[] = "start";
+const char STOP[] = "stop";
 const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
 
 extern "C" JNIEXPORT jint JNICALL
@@ -89,31 +93,45 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
     asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
 
-    if (strcmp(options, "start") == 0) {
-        std::cout << "Profiling started\n";
-        Profiler::_instance.start(DEFAULT_INTERVAL);
-    } else if (strcmp(options, "stop") == 0) {
-        std::cout << "Profiling stopped\n";
-        Profiler::_instance.stop();
-        Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
-        Profiler::_instance.dumpMethods(std::cout);
-    } else if (strstr(options, DUMP_RAW_TRACES) != NULL) {
-        std::cout << "Profiling stopped\n";
-        Profiler::_instance.stop();
+    char *token = strtok(options, OPTION_DELIMITER);
+    while (token) {
+        if (strncmp(token, MAX_FRAMES, strlen(MAX_FRAMES)) == 0) {
+            const char *text = token + strlen(MAX_FRAMES);
+            const int value = atoi(text);
+            if (value >= 0) {
+                std::cout << "Setting max frames to " << value << std::endl;
+                maxFrames = value;
+            } else {
+                std::cout << "Ignoring max frames value " << value << std::endl;
+            }
+        } else if (strcmp(token, START) == 0) {
+            std::cout << "Profiling started" << std::endl;
+            Profiler::_instance.start(DEFAULT_INTERVAL);
+        } else if (strcmp(token, STOP) == 0) {
+            std::cout << "Profiling stopped" << std::endl;
+            Profiler::_instance.stop();
+            Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
+            Profiler::_instance.dumpMethods(std::cout);
+        } else if (strncmp(token, DUMP_RAW_TRACES, strlen(DUMP_RAW_TRACES)) == 0) {
+            std::cout << "Profiling stopped" << std::endl;
+            Profiler::_instance.stop();
 
-        const char *fileName = options + strlen(DUMP_RAW_TRACES);
+            const char *fileName = token + strlen(DUMP_RAW_TRACES);
 
-        std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
-        if (!dump.is_open()) {
-            std::cerr << "Couldn't open: " << fileName << std::endl;
-            return -1;
+            std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
+            if (!dump.is_open()) {
+                std::cerr << "Couldn't open: " << fileName << std::endl;
+                return -1;
+            }
+
+            std::cout << "Dumping raw traces to " << fileName << std::endl;
+            Profiler::_instance.dumpRawTraces(dump);
+            dump.close();
         }
         
-        std::cout << "Dumping raw traces to " << fileName << std::endl;
-        Profiler::_instance.dumpRawTraces(dump);
-        dump.close();
+        token = strtok(NULL, OPTION_DELIMITER);
     }
-
+    
     return 0;
 }
 

@@ -25,6 +25,7 @@
 #include "vmEntry.h"
 
 ASGCTType asgct;
+int maxFrames = DEFAULT_MAX_FRAMES;
 Profiler Profiler::_instance;
 
 static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -56,7 +57,7 @@ MethodName::~MethodName() {
 
 void CallTraceSample::assign(ASGCT_CallTrace* trace) {
     _call_count = 1;
-    _num_frames = MIN(trace->num_frames, MAX_FRAMES);
+    _num_frames = MIN(trace->num_frames, maxFrames);
     
     const int offset = trace->num_frames - _num_frames;    
     for (int i = 0; i < _num_frames; i++) {
@@ -221,7 +222,13 @@ void Profiler::start(long interval) {
     _calls_safepoint = 0;
     _calls_unknown = 0;
     memset(_hashes, 0, sizeof(_hashes));
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        free(_traces[i]._frames);
+        _traces[i]._frames = NULL;
+    }
     memset(_traces, 0, sizeof(_traces));
+    for (int i = 0; i < MAX_CALLTRACES; i++)
+        _traces[i]._frames = (ASGCT_CallFrame *) malloc(maxFrames * sizeof(ASGCT_CallFrame));
     memset(_methods, 0, sizeof(_methods));
 
     setTimer(interval / 1000, (interval % 1000) * 1000);

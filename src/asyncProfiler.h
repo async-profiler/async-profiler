@@ -18,9 +18,9 @@
 #include <jvmti.h>
 #include <iostream>
 
-#define MAX_FRAMES     64
 #define MAX_CALLTRACES 32768
 
+#define DEFAULT_MAX_FRAMES     64
 #define DEFAULT_INTERVAL       10
 #define DEFAULT_TRACES_TO_DUMP 500
 
@@ -57,15 +57,19 @@ class MethodName {
     char* signature() { return _sig; }
 };
 
+extern "C" int maxFrames;
+
 class CallTraceSample {
   private:
     int _call_count;
     int _num_frames;
-    ASGCT_CallFrame _frames[MAX_FRAMES];
+    ASGCT_CallFrame *_frames;
 
     void assign(ASGCT_CallTrace* trace);
 
   public:
+    CallTraceSample(): _frames(NULL) {}
+      
     static int comparator(const void* s1, const void* s2) {
         return ((CallTraceSample*)s2)->_call_count - ((CallTraceSample*)s1)->_call_count;
     }
