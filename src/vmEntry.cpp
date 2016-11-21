@@ -93,8 +93,15 @@ const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
-
-    char *token = strtok(options, OPTION_DELIMITER);
+    
+    char args[1024];
+    if (strlen(options) >= sizeof(args)) {
+        std::cerr << "List of options is too long" << std::endl;
+        return -1;
+    }
+    strncpy(args, options, sizeof(args));
+    
+    char *token = strtok(args, OPTION_DELIMITER);
     while (token) {
         if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
             const char *text = token + strlen(FRAME_BUFFER_SIZE);
