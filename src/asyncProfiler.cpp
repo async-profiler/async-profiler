@@ -20,6 +20,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
@@ -52,15 +53,13 @@ MethodName::~MethodName() {
     jvmti->Deallocate((unsigned char*)_class_sig);
 }
 
-
-void CallTraceSample::assign(ASGCT_CallTrace* trace) {
-    _call_count = 1;
-    _num_frames = trace->num_frames;
-    for (int i = 0; i < trace->num_frames; i++) {
-        _frames[i] = trace->frames[i];
+void Profiler::frameBufferSize(int size) {
+    if (size >= 0) {
+        _frameBufferSize = size;
+    } else {
+        std::cerr << "Ignoring frame buffer size " << size << std::endl;
     }
 }
-
 
 u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
     const u64 M = 0xc6a4a7935bd1e995LL;
@@ -69,7 +68,7 @@ u64 Profiler::hashCallTrace(ASGCT_CallTrace* trace) {
     u64 h = trace->num_frames * M;
 
     for (int i = 0; i < trace->num_frames; i++) {
-        u64 k = ((u64)trace->frames[i].bci << 32) ^ (u64)trace->frames[i].method_id;
+        u64 k = (u64) trace->frames[i].method_id;
         k *= M;
         k ^= k >> R;
         k *= M;
@@ -98,9 +97,24 @@ void Profiler::storeCallTrace(ASGCT_CallTrace* trace) {
         }
         if (++i == MAX_CALLTRACES) i = 0;
     } while (i != bucket);
+    
+    if (_frameBufferSize - _freeFrame < trace->num_frames) {
+        // Don't have enough space to store call trace
+        _frameBufferOverflow = true;
+        return;
+    }
 
     _hashes[i] = hash;
-    _traces[i].assign(trace);
+    
+    _traces[i]._call_count = 1;
+    _traces[i]._offset = _freeFrame;
+    _traces[i]._num_frames = trace->num_frames;
+
+    // Copying frames into frame buffer
+    for (int i = 0; i < trace->num_frames; i++) {
+        _frames[_freeFrame] = trace->frames[i].method_id;
+        _freeFrame++;
+    }
 }
 
 u64 Profiler::hashMethod(jmethodID method) {
@@ -144,8 +158,9 @@ void Profiler::recordSample(void* ucontext) {
         return;
     }
 
-    ASGCT_CallFrame frames[MAX_FRAMES];
-    ASGCT_CallTrace trace = {jni, MAX_FRAMES, frames};
+    const int FRAME_BUFFER_SIZE = 4096;
+    ASGCT_CallFrame frames[FRAME_BUFFER_SIZE];
+    ASGCT_CallTrace trace = {jni, FRAME_BUFFER_SIZE, frames};
     if (asgct == NULL) {
         const char ERROR[] = "No AsyncGetCallTrace";
         write(STDOUT_FILENO, ERROR, sizeof (ERROR));
@@ -219,6 +234,12 @@ void Profiler::start(long interval) {
     memset(_hashes, 0, sizeof(_hashes));
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
+    
+    // Reset frames
+    free(_frames);
+    _frames = (jmethodID *) malloc(_frameBufferSize * sizeof (jmethodID));
+    _freeFrame = 0;
+    _frameBufferOverflow = false;
 
     setTimer(interval / 1000, (interval % 1000) * 1000);
 }
@@ -228,6 +249,16 @@ void Profiler::stop() {
     _running = false;
 
     setTimer(0, 0);
+    
+    if (_frameBufferOverflow) {
+        std::cerr << "Frame buffer overflowed with size " << _frameBufferSize 
+                << ". Consider increasing its size." << std::endl;
+    } else {
+        std::cout << "Frame buffer usage " 
+                << _freeFrame << "/" << _frameBufferSize 
+                << "=" 
+                << 100.0 * _freeFrame / _frameBufferSize << "%" << std::endl;
+    }
 }
 
 void nonzero_summary(std::ostream& out, const char* fmt, int calls, float percent) {
@@ -289,6 +320,38 @@ void Profiler::summary(std::ostream& out) {
     out << std::endl;
 }
 
+/*
+ * Dumping in lightweight-java-profiler format:
+ * 
+ * <samples> <frames>   <frame1>
+ *                      <frame2>
+ *                      ...
+ *                      <framen>
+ */
+void Profiler::dumpRawTraces(std::ostream& out) {
+    if (_running) return;
+
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        const int samples = _traces[i]._call_count;
+        if (samples == 0) continue;
+        
+        out << samples << '\t' << _traces[i]._num_frames << '\t';
+
+        CallTraceSample& trace = _traces[i];
+        for (int j = 0; j < trace._num_frames; j++) {
+            jmethodID method = _frames[trace._offset + j];
+            if (method != NULL) {
+                if (j != 0) {
+                    out << "\t\t";
+                }
+
+                MethodName mn(method);
+                out << mn.holder() << "::" << mn.name() << std::endl;
+            }
+        }
+    }
+}
+
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     if (_running) return;
 
@@ -305,11 +368,12 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         snprintf(buf, sizeof(buf), "Samples: %d (%.2f%%)\n", samples, samples * percent);
         out << buf;
 
-        for (int j = 0; j < _traces[i]._num_frames; j++) {
-            ASGCT_CallFrame* frame = &_traces[i]._frames[j];
-            if (frame->method_id != NULL) {
-                MethodName mn(frame->method_id);
-                snprintf(buf, sizeof(buf), "  [%2d] %s.%s @%d\n", j, mn.holder(), mn.name(), frame->bci);
+        CallTraceSample& trace = _traces[i];
+        for (int j = 0; j < trace._num_frames; j++) {
+            jmethodID method = _frames[trace._offset + j];
+            if (method != NULL) {
+                MethodName mn(method);
+                snprintf(buf, sizeof(buf), "  [%2d] %s.%s\n", j, mn.holder(), mn.name());
                 out << buf;
             }
         }

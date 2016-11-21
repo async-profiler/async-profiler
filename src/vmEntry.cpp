@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <fstream>
 #include <string.h>
+#include <stdlib.h>
 #include "asyncProfiler.h"
 #include "vmEntry.h"
 
@@ -51,6 +53,8 @@ void VM::init(JavaVM* vm) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
+
+    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
@@ -76,31 +80,67 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm);
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     Profiler::_instance.start(DEFAULT_INTERVAL);
     return 0;
 }
 
+const char OPTION_DELIMITER[] = ",";
+const char FRAME_BUFFER_SIZE[] = "frameBufferSize:";
+const char START[] = "start";
+const char STOP[] = "stop";
+const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
+
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
-
-    if (strcmp(options, "start") == 0) {
-        std::cout << "Profiling started\n";
-        Profiler::_instance.start(DEFAULT_INTERVAL);
-    } else if (strcmp(options, "stop") == 0) {
-        std::cout << "Profiling stopped\n";
-        Profiler::_instance.stop();
-        Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
-        Profiler::_instance.dumpMethods(std::cout);
+    
+    char args[1024];
+    if (strlen(options) >= sizeof(args)) {
+        std::cerr << "List of options is too long" << std::endl;
+        return -1;
     }
+    strncpy(args, options, sizeof(args));
+    
+    char *token = strtok(args, OPTION_DELIMITER);
+    while (token) {
+        if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
+            const char *text = token + strlen(FRAME_BUFFER_SIZE);
+            const int value = atoi(text);
+            std::cout << "Setting frame buffer size to " << value << std::endl;
+            Profiler::_instance.frameBufferSize(value);
+        } else if (strcmp(token, START) == 0) {
+            std::cout << "Profiling started" << std::endl;
+            Profiler::_instance.start(DEFAULT_INTERVAL);
+        } else if (strcmp(token, STOP) == 0) {
+            std::cout << "Profiling stopped" << std::endl;
+            Profiler::_instance.stop();
+            Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
+            Profiler::_instance.dumpMethods(std::cout);
+        } else if (strncmp(token, DUMP_RAW_TRACES, strlen(DUMP_RAW_TRACES)) == 0) {
+            std::cout << "Profiling stopped" << std::endl;
+            Profiler::_instance.stop();
 
+            const char *fileName = token + strlen(DUMP_RAW_TRACES);
+
+            std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
+            if (!dump.is_open()) {
+                std::cerr << "Couldn't open: " << fileName << std::endl;
+                return -1;
+            }
+
+            std::cout << "Dumping raw traces to " << fileName << std::endl;
+            Profiler::_instance.dumpRawTraces(dump);
+            dump.close();
+        }
+        
+        token = strtok(NULL, OPTION_DELIMITER);
+    }
+    
     return 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
     VM::attach(vm);
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     return JNI_VERSION_1_6;
 }

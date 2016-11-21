@@ -18,11 +18,11 @@
 #include <jvmti.h>
 #include <iostream>
 
-#define MAX_FRAMES     64
 #define MAX_CALLTRACES 32768
 
-#define DEFAULT_INTERVAL       10
-#define DEFAULT_TRACES_TO_DUMP 500
+#define DEFAULT_FRAME_BUFFER_SIZE 1024*1024
+#define DEFAULT_INTERVAL          10
+#define DEFAULT_TRACES_TO_DUMP    500
 
 
 typedef unsigned long long u64;
@@ -60,10 +60,8 @@ class MethodName {
 class CallTraceSample {
   private:
     int _call_count;
+    int _offset; // Offset in frame buffer
     int _num_frames;
-    ASGCT_CallFrame _frames[MAX_FRAMES];
-
-    void assign(ASGCT_CallTrace* trace);
 
   public:
     static int comparator(const void* s1, const void* s2) {
@@ -106,6 +104,11 @@ class Profiler {
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
+    
+    jmethodID *_frames;
+    int _frameBufferSize;
+    int _freeFrame;
+    bool _frameBufferOverflow;
 
     u64 hashCallTrace(ASGCT_CallTrace* trace);
     void storeCallTrace(ASGCT_CallTrace* trace);
@@ -116,14 +119,20 @@ class Profiler {
   public:
     static Profiler _instance;
 
-    Profiler() : _running(false) {}
+    Profiler() : 
+        _running(false), 
+        _frames(NULL), 
+        _frameBufferSize(DEFAULT_FRAME_BUFFER_SIZE) {
+    }
 
     bool is_running() { return _running; }
     int samples()     { return _calls_total; }
 
+    void frameBufferSize(int size);
     void start(long interval);
     void stop();
     void summary(std::ostream& out);
+    void dumpRawTraces(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
