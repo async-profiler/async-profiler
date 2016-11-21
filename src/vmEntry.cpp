@@ -53,6 +53,8 @@ void VM::init(JavaVM* vm) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
+
+    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
@@ -78,7 +80,6 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm);
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     Profiler::_instance.start(DEFAULT_INTERVAL);
     return 0;
 }
@@ -92,7 +93,6 @@ const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::attach(vm);
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
 
     char *token = strtok(options, OPTION_DELIMITER);
     while (token) {
@@ -135,6 +135,5 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
     VM::attach(vm);
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
     return JNI_VERSION_1_6;
 }
