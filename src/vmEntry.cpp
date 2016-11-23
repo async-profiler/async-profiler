@@ -86,6 +86,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 
 const char OPTION_DELIMITER[] = ",";
 const char FRAME_BUFFER_SIZE[] = "frameBufferSize:";
+const char FREQ[] = "freq:";
 const char START[] = "start";
 const char STOP[] = "stop";
 const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
@@ -101,6 +102,8 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     }
     strncpy(args, options, sizeof(args));
     
+    int freq = 1000 / DEFAULT_INTERVAL;
+    
     char *token = strtok(args, OPTION_DELIMITER);
     while (token) {
         if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
@@ -108,15 +111,38 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
             const int value = atoi(text);
             std::cout << "Setting frame buffer size to " << value << std::endl;
             Profiler::_instance.frameBufferSize(value);
+        } else if (strncmp(token, FREQ, strlen(FREQ)) == 0) {
+            const char *text = token + strlen(FREQ);
+            const int value = atoi(text);
+            if (value <= 0 || value > 1000) {
+                std::cerr << "Frequency must be in (0, 1000]: " << value << std::endl;
+                return -1;
+            }
+            freq = value;
         } else if (strcmp(token, START) == 0) {
-            std::cout << "Profiling started" << std::endl;
-            Profiler::_instance.start(DEFAULT_INTERVAL);
+            if (Profiler::_instance.is_running()) {
+                std::cerr << "Profiler is already running" << std::endl;
+                return -1;
+            }
+            
+            std::cout << "Profiling started with frequency " << freq << "Hz" << std::endl;
+            Profiler::_instance.start(1000 / freq);
         } else if (strcmp(token, STOP) == 0) {
+            if (!Profiler::_instance.is_running()) {
+                std::cerr << "Profiler is not running" << std::endl;
+                return -1;
+            }
+            
             std::cout << "Profiling stopped" << std::endl;
             Profiler::_instance.stop();
             Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
             Profiler::_instance.dumpMethods(std::cout);
         } else if (strncmp(token, DUMP_RAW_TRACES, strlen(DUMP_RAW_TRACES)) == 0) {
+            if (!Profiler::_instance.is_running()) {
+                std::cerr << "Profiler is not running" << std::endl;
+                return -1;
+            }
+            
             std::cout << "Profiling stopped" << std::endl;
             Profiler::_instance.stop();
 
