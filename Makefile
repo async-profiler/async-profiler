@@ -17,7 +17,7 @@ build:
 	mkdir -p build
 
 build/libasyncProfiler.so: src/*.cpp src/*.h
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ -Wl,-soname,$(LIB_PROFILER) $^
+	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ -Wl,-soname,$(LIB_PROFILER) src/*.cpp
 
 build/libasyncProfiler.dylib: src/*.cpp src/*.h
 	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ -Wl,-install_name,$(LIB_PROFILER) src/*.cpp
