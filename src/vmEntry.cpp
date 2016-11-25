@@ -31,9 +31,10 @@ inline FunctionType getJvmFunction(const char *function_name) {
 
 void VM::init(JavaVM* vm) {
     _vm = vm;
-    if (_jvmti == NULL) {
-        _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
-    }
+    if (_jvmti != NULL)
+        return;
+
+    _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
 
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
