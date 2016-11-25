@@ -327,6 +327,8 @@ void Profiler::summary(std::ostream& out) {
  *                      <frame2>
  *                      ...
  *                      <framen>
+ * ...
+ * Total ...
  */
 void Profiler::dumpRawTraces(std::ostream& out) {
     if (_running) return;
@@ -350,6 +352,8 @@ void Profiler::dumpRawTraces(std::ostream& out) {
             }
         }
     }
+    
+    out << "Total" << std::endl;
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
