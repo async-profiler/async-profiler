@@ -21,7 +21,7 @@
 #include "vmEntry.h"
 
 JavaVM* VM::_vm;
-jvmtiEnv* VM::_jvmti;
+jvmtiEnv* VM::_jvmti = NULL;
 
 template<class FunctionType>
 inline FunctionType getJvmFunction(const char *function_name) {
@@ -30,6 +30,8 @@ inline FunctionType getJvmFunction(const char *function_name) {
 }
 
 void VM::init(JavaVM* vm) {
+    if (_jvmti != NULL) return;
+
     _vm = vm;
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
 
