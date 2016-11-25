@@ -30,6 +30,8 @@ inline FunctionType getJvmFunction(const char *function_name) {
 }
 
 void VM::init(JavaVM* vm) {
+    if (_jvmti != NULL) return;
+
     _vm = vm;
     if (_jvmti != NULL)
         return;
