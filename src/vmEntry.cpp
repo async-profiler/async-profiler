@@ -33,6 +33,9 @@ void VM::init(JavaVM* vm) {
     if (_jvmti != NULL) return;
 
     _vm = vm;
+    if (_jvmti != NULL)
+        return;
+
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
 
     jvmtiCapabilities capabilities = {0};
