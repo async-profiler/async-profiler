@@ -25,11 +25,12 @@ class VM {
     static void loadAllMethodIDs(jvmtiEnv* jvmti);
 
   public:
-    static void init(JavaVM* vm);
+    static bool init(JavaVM* vm);
 
-    static void attach(JavaVM* vm) {
-        init(vm);
+    static bool attach(JavaVM* vm) {
+        if (!init(vm)) return false;
         loadAllMethodIDs(_jvmti);
+        return true;
     }
 
     static jvmtiEnv* jvmti() {

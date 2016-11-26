@@ -161,11 +161,6 @@ void Profiler::recordSample(void* ucontext) {
     const int FRAME_BUFFER_SIZE = 4096;
     ASGCT_CallFrame frames[FRAME_BUFFER_SIZE];
     ASGCT_CallTrace trace = {jni, FRAME_BUFFER_SIZE, frames};
-    if (asgct == NULL) {
-        const char ERROR[] = "No AsyncGetCallTrace";
-        write(STDOUT_FILENO, ERROR, sizeof (ERROR));
-        return;
-    }
 
     (*asgct)(&trace, trace.num_frames, ucontext);
 

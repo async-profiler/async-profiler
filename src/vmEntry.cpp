@@ -23,14 +23,8 @@
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
-template<class FunctionType>
-inline FunctionType getJvmFunction(const char *function_name) {
-    // get address of function, return null if not found
-    return (FunctionType) dlsym(RTLD_DEFAULT, function_name);
-}
-
-void VM::init(JavaVM* vm) {
-    if (_jvmti != NULL) return;
+bool VM::init(JavaVM* vm) {
+    if (_jvmti != NULL) return true;
 
     _vm = vm;
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
@@ -56,7 +50,12 @@ void VM::init(JavaVM* vm) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
 
-    asgct = getJvmFunction<ASGCTType>("AsyncGetCallTrace");
+    asgct = (ASGCTType)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
+    if (asgct == NULL) {
+        std::cerr << "Could not find AsyncGetCallTrace function" << std::endl;
+        return false;
+    }
+    return true;
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
@@ -81,7 +80,10 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    VM::init(vm);
+    if (!VM::init(vm)) {
+        return -1;
+    }
+
     Profiler::_instance.start(DEFAULT_INTERVAL);
     return 0;
 }
@@ -95,7 +97,9 @@ const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    VM::attach(vm);
+    if (!VM::attach(vm)) {
+        return -1;
+    }
     
     char args[1024];
     if (strlen(options) >= sizeof(args)) {
@@ -156,6 +160,8 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
-    VM::attach(vm);
+    if (!VM::attach(vm)) {
+        return -1;
+    }
     return JNI_VERSION_1_6;
 }
