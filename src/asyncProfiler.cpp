@@ -150,6 +150,16 @@ void Profiler::storeMethod(jmethodID method) {
 }
 
 void Profiler::recordSample(void* ucontext) {
+    // Check deadline
+    if (time(NULL) > _deadline) {
+        char error[] = "Disabling profiler due to deadline\n";
+        write(STDERR_FILENO, error, sizeof(error));
+
+        _running = false;
+
+        setTimer(0, 0);
+    }
+    
     _calls_total++;
 
     JNIEnv* jni = VM::jni();
@@ -209,7 +219,10 @@ void Profiler::setTimer(long sec, long usec) {
         perror("couldn't start timer");
 }
 
-void Profiler::start(long interval) {
+void Profiler::start(int interval, int duration) {
+    if (interval <= 0) return;
+    if (duration <= 0) return;
+    
     if (_running) return;
     _running = true;
 
@@ -235,6 +248,9 @@ void Profiler::start(long interval) {
     _frames = (jmethodID *) malloc(_frameBufferSize * sizeof (jmethodID));
     _freeFrame = 0;
     _frameBufferOverflow = false;
+    
+    // Setting deadline
+    _deadline = time(NULL) + duration;
 
     setTimer(interval / 1000, (interval % 1000) * 1000);
 }

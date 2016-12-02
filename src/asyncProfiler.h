@@ -22,6 +22,7 @@
 
 #define DEFAULT_FRAME_BUFFER_SIZE 1024*1024
 #define DEFAULT_INTERVAL          10
+#define DEFAULT_DURATION          3600
 #define DEFAULT_TRACES_TO_DUMP    500
 
 
@@ -109,6 +110,9 @@ class Profiler {
     int _frameBufferSize;
     int _freeFrame;
     bool _frameBufferOverflow;
+    
+    // Seconds resolution is enough
+    time_t _deadline;
 
     u64 hashCallTrace(ASGCT_CallTrace* trace);
     void storeCallTrace(ASGCT_CallTrace* trace);
@@ -129,7 +133,8 @@ class Profiler {
     int samples()     { return _calls_total; }
 
     void frameBufferSize(int size);
-    void start(long interval);
+    void start(int interval) { start(interval, DEFAULT_DURATION); };
+    void start(int interval, int duration);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);
