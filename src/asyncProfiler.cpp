@@ -149,7 +149,20 @@ void Profiler::storeMethod(jmethodID method) {
     _methods[i]._method = method;
 }
 
+void Profiler::checkDeadline() {
+    if (time(NULL) > _deadline) {
+        const char error[] = "Disabling profiler due to deadline\n";
+        ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
+        (void) w;
+
+        _running = false;
+        setTimer(0, 0);
+    }
+}
+
 void Profiler::recordSample(void* ucontext) {
+    checkDeadline();
+
     _calls_total++;
 
     JNIEnv* jni = VM::jni();
@@ -167,29 +180,22 @@ void Profiler::recordSample(void* ucontext) {
     if (trace.num_frames > 0) {
         storeCallTrace(&trace);
         storeMethod(frames[0].method_id);
-    // See ticks_* enum values in http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/tip/src/share/vm/prims/forte.cpp
-    } else if (trace.num_frames == 0) {
-        _calls_non_java++;
-    } else if (trace.num_frames == -1) {
-        _calls_no_class_load++;
-    } else if (trace.num_frames == -2) {
-        _calls_gc_active++;
-    } else if (trace.num_frames == -3) {
-        _calls_unknown_not_java++;
-    } else if (trace.num_frames == -4) {
-        _calls_not_walkable_not_java++;
-    } else if (trace.num_frames == -5) {
-        _calls_unknown_java++;
-    } else if (trace.num_frames == -6) {
-        _calls_not_walkable_java++;
-    } else if (trace.num_frames == -7) {
-        _calls_unknown_state++;
-    } else if (trace.num_frames == -8) {
-        _calls_thread_exit++;
-    } else if (trace.num_frames == -9) {
-        _calls_deopt++;
     } else {
-        _calls_unknown++;
+        // See ticks_* enum values in
+        // http://hg.openjdk.java.net/jdk8/jdk8/hotspot/file/tip/src/share/vm/prims/forte.cpp
+        switch (trace.num_frames) {
+            case  0: _calls_non_java++;              break;
+            case -1: _calls_no_class_load++;         break;
+            case -2: _calls_gc_active++;             break;
+            case -3: _calls_unknown_not_java++;      break;
+            case -4: _calls_not_walkable_not_java++; break;
+            case -5: _calls_unknown_java++;          break;
+            case -6: _calls_not_walkable_java++;     break;
+            case -7: _calls_unknown_state++;         break;
+            case -8: _calls_thread_exit++;           break;
+            case -9: _calls_deopt++;                 break;
+            default: _calls_unknown++;               break;
+        }
     }
 }
 
@@ -209,8 +215,8 @@ void Profiler::setTimer(long sec, long usec) {
         perror("couldn't start timer");
 }
 
-void Profiler::start(long interval) {
-    if (_running) return;
+void Profiler::start(int interval, int duration) {
+    if (_running || interval <= 0 || duration <= 0) return;
     _running = true;
 
     _calls_total = 0;
@@ -229,12 +235,14 @@ void Profiler::start(long interval) {
     memset(_hashes, 0, sizeof(_hashes));
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
-    
+
     // Reset frames
     free(_frames);
     _frames = (jmethodID *) malloc(_frameBufferSize * sizeof (jmethodID));
     _freeFrame = 0;
     _frameBufferOverflow = false;
+
+    _deadline = time(NULL) + duration;
 
     setTimer(interval / 1000, (interval % 1000) * 1000);
 }

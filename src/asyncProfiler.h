@@ -22,6 +22,7 @@
 
 #define DEFAULT_FRAME_BUFFER_SIZE 1024*1024
 #define DEFAULT_INTERVAL          10
+#define DEFAULT_DURATION          3600
 #define DEFAULT_TRACES_TO_DUMP    500
 
 
@@ -104,16 +105,20 @@ class Profiler {
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
-    
+
     jmethodID *_frames;
     int _frameBufferSize;
     int _freeFrame;
     bool _frameBufferOverflow;
 
+    // Seconds resolution is enough
+    time_t _deadline;
+
     u64 hashCallTrace(ASGCT_CallTrace* trace);
     void storeCallTrace(ASGCT_CallTrace* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method);
+    void checkDeadline();
     void setTimer(long sec, long usec);
 
   public:
@@ -129,7 +134,7 @@ class Profiler {
     int samples()     { return _calls_total; }
 
     void frameBufferSize(int size);
-    void start(long interval);
+    void start(int interval, int duration = DEFAULT_DURATION);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);
