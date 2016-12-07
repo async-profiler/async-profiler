@@ -267,14 +267,16 @@ void Profiler::stop() {
                 "Frame buffer overflowed with size %d. "
                 "Consider increasing its size.\n",
                 _frameBufferSize);
-        write(STDERR_FILENO, text, size);
+        ssize_t w = write(STDERR_FILENO, text, size);
+        (void) w;
     } else {
         int size = snprintf(text, sizeof (text),
                 "Frame buffer usage %d/%d=%f%%\n",
                 _freeFrame,
                 _frameBufferSize,
                 100.0 * _freeFrame / _frameBufferSize);
-        write(STDOUT_FILENO, text, size);
+        ssize_t w = write(STDOUT_FILENO, text, size);
+        (void) w;
     }
 }
 
