@@ -201,18 +201,24 @@ void Profiler::recordSample(void* ucontext) {
 
 void Profiler::setTimer(long sec, long usec) {
     bool enabled = sec | usec;
-
-    struct sigaction sa;
-    sa.sa_handler = enabled ? NULL : SIG_IGN;
-    sa.sa_sigaction = enabled ? sigprofHandler : NULL;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-    sigemptyset(&sa.sa_mask);
-    if (sigaction(SIGPROF, &sa, NULL) != 0)
-        perror("couldn't install signal handler");
-
     struct itimerval itv = {{sec, usec}, {sec, usec}};
-    if (setitimer(ITIMER_PROF, &itv, NULL) != 0)
-        perror("couldn't start timer");
+
+    if (enabled) {
+        struct sigaction sa;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_handler = NULL;
+        sa.sa_sigaction = sigprofHandler;
+        sa.sa_flags = SA_RESTART | SA_SIGINFO;
+        
+        if (sigaction(SIGPROF, &sa, NULL) != 0)
+            perror("couldn't install signal handler");
+
+        if (setitimer(ITIMER_PROF, &itv, NULL) != 0)
+            perror("couldn't start timer");
+    } else {
+        if (setitimer(ITIMER_PROF, &itv, NULL) != 0)
+            perror("couldn't stop timer");
+    }
 }
 
 void Profiler::start(int interval, int duration) {
@@ -254,12 +260,12 @@ void Profiler::stop() {
     setTimer(0, 0);
     
     if (_frameBufferOverflow) {
-        std::cerr << "Frame buffer overflowed with size " << _frameBufferSize 
+        std::cerr << "Frame buffer overflowed with size " << _frameBufferSize
                 << ". Consider increasing its size." << std::endl;
     } else {
-        std::cout << "Frame buffer usage " 
-                << _freeFrame << "/" << _frameBufferSize 
-                << "=" 
+        std::cout << "Frame buffer usage "
+                << _freeFrame << "/" << _frameBufferSize
+                << "="
                 << 100.0 * _freeFrame / _frameBufferSize << "%" << std::endl;
     }
 }
