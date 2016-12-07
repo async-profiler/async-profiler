@@ -201,12 +201,11 @@ void Profiler::recordSample(void* ucontext) {
 
 void Profiler::setTimer(long sec, long usec) {
     bool enabled = sec | usec;
-
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
     struct itimerval itv = {{sec, usec}, {sec, usec}};
 
     if (enabled) {
+        struct sigaction sa;
+        sigemptyset(&sa.sa_mask);
         sa.sa_handler = NULL;
         sa.sa_sigaction = sigprofHandler;
         sa.sa_flags = SA_RESTART | SA_SIGINFO;
