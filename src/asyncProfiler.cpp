@@ -247,7 +247,7 @@ void Profiler::start(int interval, int duration) {
     _frames = (jmethodID *) malloc(_frameBufferSize * sizeof (jmethodID));
     _freeFrame = 0;
     _frameBufferOverflow = false;
-    
+
     _deadline = time(NULL) + duration;
 
     setTimer(interval / 1000, (interval % 1000) * 1000);
