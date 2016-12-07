@@ -110,7 +110,7 @@ class Profiler {
     int _frameBufferSize;
     int _freeFrame;
     bool _frameBufferOverflow;
-    
+
     // Seconds resolution is enough
     time_t _deadline;
 

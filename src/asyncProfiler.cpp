@@ -248,7 +248,6 @@ void Profiler::start(int interval, int duration) {
     _freeFrame = 0;
     _frameBufferOverflow = false;
     
-    // Setting deadline
     _deadline = time(NULL) + duration;
 
     setTimer(interval / 1000, (interval % 1000) * 1000);
