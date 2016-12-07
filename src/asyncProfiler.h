@@ -105,7 +105,7 @@ class Profiler {
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
-    
+
     jmethodID *_frames;
     int _frameBufferSize;
     int _freeFrame;
@@ -118,6 +118,7 @@ class Profiler {
     void storeCallTrace(ASGCT_CallTrace* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method);
+    void checkDeadline();
     void setTimer(long sec, long usec);
 
   public:
@@ -133,8 +134,7 @@ class Profiler {
     int samples()     { return _calls_total; }
 
     void frameBufferSize(int size);
-    void start(int interval) { start(interval, DEFAULT_DURATION); };
-    void start(int interval, int duration);
+    void start(int interval, int duration = DEFAULT_DURATION);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);
