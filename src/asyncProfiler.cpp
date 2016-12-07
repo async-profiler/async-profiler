@@ -155,7 +155,8 @@ void Profiler::checkDeadline() {
         ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
         (void) w;
 
-        stop();
+        _running = false;
+        setTimer(0, 0);
     }
 }
 
@@ -259,23 +260,14 @@ void Profiler::stop() {
 
     setTimer(0, 0);
     
-    char text[1024];
-    
     if (_frameBufferOverflow) {
-        int size = snprintf(text, sizeof(text),
-                "Frame buffer overflowed with size %d. "
-                "Consider increasing its size.\n",
-                _frameBufferSize);
-        ssize_t w = write(STDERR_FILENO, text, size);
-        (void) w;
+        std::cerr << "Frame buffer overflowed with size " << _frameBufferSize
+                << ". Consider increasing its size." << std::endl;
     } else {
-        int size = snprintf(text, sizeof (text),
-                "Frame buffer usage %d/%d=%f%%\n",
-                _freeFrame,
-                _frameBufferSize,
-                100.0 * _freeFrame / _frameBufferSize);
-        ssize_t w = write(STDOUT_FILENO, text, size);
-        (void) w;
+        std::cout << "Frame buffer usage "
+                << _freeFrame << "/" << _frameBufferSize
+                << "="
+                << 100.0 * _freeFrame / _frameBufferSize << "%" << std::endl;
     }
 }
 
