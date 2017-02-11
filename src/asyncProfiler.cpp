@@ -270,12 +270,10 @@ void Profiler::stop() {
     }
 }
 
-void nonzero_summary(std::ostream& out, const char* fmt, int calls, float percent) {
-    char buf[256];
+static void nonzero_summary(std::ostream& out, const char* title, int calls, float percent) {
     if (calls > 0) {
-        snprintf(buf, sizeof (buf),
-                fmt,
-                calls, calls * percent);
+        char buf[256];
+        snprintf(buf, sizeof(buf), "%-20s %d (%.2f%%)\n", title, calls, calls * percent);
         out << buf;
     }
 }
@@ -289,43 +287,19 @@ void Profiler::summary(std::ostream& out) {
             _calls_total);
     out << buf;
     
-    nonzero_summary(out,
-            "No Java frame:       %d (%.2f%%)\n",
-            _calls_non_java, _calls_non_java * percent);
-    nonzero_summary(out,
-            "No class load:       %d (%.2f%%)\n",
-            _calls_no_class_load, _calls_no_class_load * percent);
-    nonzero_summary(out,
-            "GC active:           %d (%.2f%%)\n",
-            _calls_gc_active, _calls_gc_active * percent);
-    nonzero_summary(out,
-            "Unknown (non-Java):  %d (%.2f%%)\n",
-            _calls_unknown_not_java, _calls_unknown_not_java * percent);
-    nonzero_summary(out,
-            "Not walkable (nonJ): %d (%.2f%%)\n",
-            _calls_not_walkable_not_java, _calls_not_walkable_not_java * percent);
-    nonzero_summary(out,
-            "Unknown Java:        %d (%.2f%%)\n",
-            _calls_unknown_java, _calls_unknown_java * percent);
-    nonzero_summary(out,
-            "Not walkable (Java): %d (%.2f%%)\n",
-            _calls_not_walkable_java, _calls_not_walkable_java * percent);
-    nonzero_summary(out,
-            "Unknown state:       %d (%.2f%%)\n",
-            _calls_unknown_state, _calls_unknown_state * percent);
-    nonzero_summary(out,
-            "Thread exit:         %d (%.2f%%)\n",
-            _calls_thread_exit, _calls_thread_exit * percent);
-    nonzero_summary(out,
-            "Deopt:               %d (%.2f%%)\n",
-            _calls_deopt, _calls_deopt * percent);
-    nonzero_summary(out,
-            "Safepoint:           %d (%.2f%%)\n",
-            _calls_safepoint, _calls_safepoint * percent);
-    nonzero_summary(out,
-            "Unknown:             %d (%.2f%%)\n",
-            _calls_unknown, _calls_unknown * percent);
-    
+    nonzero_summary(out, "No Java frame:",       _calls_non_java,              percent);
+    nonzero_summary(out, "No class load:",       _calls_no_class_load,         percent);
+    nonzero_summary(out, "GC active:",           _calls_gc_active,             percent);
+    nonzero_summary(out, "Unknown (non-Java):",  _calls_unknown_not_java,      percent);
+    nonzero_summary(out, "Not walkable (nonJ):", _calls_not_walkable_not_java, percent);
+    nonzero_summary(out, "Unknown Java:",        _calls_unknown_java,          percent);
+    nonzero_summary(out, "Not walkable (Java):", _calls_not_walkable_java,     percent);
+    nonzero_summary(out, "Unknown state:",       _calls_unknown_state,         percent);
+    nonzero_summary(out, "Thread exit:",         _calls_thread_exit,           percent);
+    nonzero_summary(out, "Deopt:",               _calls_deopt,                 percent);
+    nonzero_summary(out, "Safepoint:",           _calls_safepoint,             percent);
+    nonzero_summary(out, "Unknown:",             _calls_unknown,               percent);
+
     out << std::endl;
 }
 
