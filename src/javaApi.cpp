@@ -15,7 +15,7 @@
  */
 
 #include <sstream>
-#include "asyncProfiler.h"
+#include "profiler.h"
 
 
 extern "C" JNIEXPORT void JNICALL
