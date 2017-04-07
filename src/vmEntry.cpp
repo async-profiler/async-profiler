@@ -15,13 +15,18 @@
  */
 
 #include <fstream>
+#include <dlfcn.h>
 #include <string.h>
 #include <stdlib.h>
-#include "asyncProfiler.h"
 #include "vmEntry.h"
+#include "profiler.h"
+#include "perfEvent.h"
+
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
+AsyncGetCallTrace VM::_asyncGetCallTrace;
+
 
 bool VM::init(JavaVM* vm) {
     if (_jvmti != NULL) return true;
@@ -42,19 +47,39 @@ bool VM::init(JavaVM* vm) {
     callbacks.VMInit = VMInit;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
-    callbacks.CompiledMethodLoad = CompiledMethodLoad;
+    callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
+    callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
+    callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
+    callbacks.ThreadStart = PerfEvent::ThreadStart;
+    callbacks.ThreadEnd = PerfEvent::ThreadEnd;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
-    asgct = (ASGCTType)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
-    if (asgct == NULL) {
+    PerfEvent::init();
+
+    _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
+    if (_asyncGetCallTrace == NULL) {
         std::cerr << "Could not find AsyncGetCallTrace function" << std::endl;
         return false;
     }
+    return true;
+}
+
+bool VM::attach(JavaVM* vm) {
+    if (_jvmti != NULL) return true;
+    
+    if (!init(vm)) return false;
+
+    loadAllMethodIDs(_jvmti);
+    _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
+    _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
+
     return true;
 }
 
@@ -100,7 +125,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     if (!VM::attach(vm)) {
         return -1;
     }
-    
+
     char args[1024];
     if (strlen(options) >= sizeof(args)) {
         std::cerr << "List of options is too long" << std::endl;
@@ -110,15 +135,15 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     
     int interval = DEFAULT_INTERVAL;
     
-    char *token = strtok(args, OPTION_DELIMITER);
+    char* token = strtok(args, OPTION_DELIMITER);
     while (token) {
         if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
-            const char *text = token + strlen(FRAME_BUFFER_SIZE);
+            const char* text = token + strlen(FRAME_BUFFER_SIZE);
             const int value = atoi(text);
             std::cout << "Setting frame buffer size to " << value << std::endl;
             Profiler::_instance.frameBufferSize(value);
         } else if (strncmp(token, INTERVAL, strlen(INTERVAL)) == 0) {
-            const char *text = token + strlen(INTERVAL);
+            const char* text = token + strlen(INTERVAL);
             const int value = atoi(text);
             if (value <= 0) {
                 std::cerr << "Interval must be positive: " << value << std::endl;
@@ -126,20 +151,21 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
             }
             interval = value;
         } else if (strcmp(token, START) == 0) {
-            if (!Profiler::_instance.is_running()) {
+            if (!Profiler::_instance.running()) {
                 std::cout << "Profiling started with interval " << interval << " ms" << std::endl;
                 Profiler::_instance.start(interval);
             }
         } else if (strcmp(token, STOP) == 0) {
             std::cout << "Profiling stopped" << std::endl;
             Profiler::_instance.stop();
+            Profiler::_instance.summary(std::cout);
             Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
             Profiler::_instance.dumpMethods(std::cout);
         } else if (strncmp(token, DUMP_RAW_TRACES, strlen(DUMP_RAW_TRACES)) == 0) {
             std::cout << "Profiling stopped" << std::endl;
             Profiler::_instance.stop();
 
-            const char *fileName = token + strlen(DUMP_RAW_TRACES);
+            const char* fileName = token + strlen(DUMP_RAW_TRACES);
 
             std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
             if (!dump.is_open()) {

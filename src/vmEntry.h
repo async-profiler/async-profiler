@@ -14,24 +14,38 @@
  * limitations under the License.
  */
 
+#ifndef _VMENTRY_H
+#define _VMENTRY_H
+
 #include <jvmti.h>
+
+
+typedef struct {
+    jint bci;
+    jmethodID method_id;
+} ASGCT_CallFrame;
+
+typedef struct {
+    JNIEnv* env;
+    jint num_frames;
+    ASGCT_CallFrame* frames;
+} ASGCT_CallTrace;
+
+typedef void (*AsyncGetCallTrace)(ASGCT_CallTrace*, jint, void*);
+
 
 class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
+    static AsyncGetCallTrace _asyncGetCallTrace;
 
     static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti);
 
   public:
     static bool init(JavaVM* vm);
-
-    static bool attach(JavaVM* vm) {
-        if (!init(vm)) return false;
-        loadAllMethodIDs(_jvmti);
-        return true;
-    }
+    static bool attach(JavaVM* vm);
 
     static jvmtiEnv* jvmti() {
         return _jvmti;
@@ -40,6 +54,10 @@ class VM {
     static JNIEnv* jni() {
         JNIEnv* jni;
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
+    }
+
+    static void asyncGetCallTrace(ASGCT_CallTrace* trace, jint depth, void* ucontext) {
+        _asyncGetCallTrace(trace, depth, ucontext);
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -53,11 +71,6 @@ class VM {
     static void JNICALL ClassPrepare(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
         loadMethodIDs(jvmti, klass);
     }
-
-    static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
-                                           jint code_size, const void* code_addr,
-                                           jint map_length, const jvmtiAddrLocationMap* map,
-                                           const void* compile_info) {
-        // Needed to enable DebugNonSafepoints info by default
-    }
 };
+
+#endif // _VMENTRY_H
