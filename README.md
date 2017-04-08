@@ -101,6 +101,7 @@ solution can be tailored to other visualization tools.
 $ jps
 9234 Jps
 8983 Computey
+<<<<<<< HEAD
 $ ./profiler.sh -p 8983 -o interval:100000000 -a start
 $ ./profiler.sh -p 8983 -f /tmp/traces.txt -a dump
 $ FlameGraph/stackcollapse-ljp.awk /tmp/traces.txt > /tmp/folded.stacks dump
