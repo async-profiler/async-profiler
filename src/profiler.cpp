@@ -392,9 +392,9 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
-    for (int i = 0; i < max_traces; i++) {
+    for (int i = max_traces - 1; i >= 0; i--) {
         u64 samples = _traces[i]._counter;
-        if (samples == 0) break;
+        if (samples == 0) continue;
 
         snprintf(buf, sizeof(buf), "Samples: %lld (%.2f%%)\n", samples, samples * percent);
         out << buf;
@@ -418,9 +418,9 @@ void Profiler::dumpMethods(std::ostream& out) {
 
     qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
 
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
+    for (int i = MAX_CALLTRACES - 1; i >= 0; i--) {
         u64 samples = _methods[i]._counter;
-        if (samples == 0) break;
+        if (samples == 0) continue;
 
         MethodName mn(_methods[i]._method);
         snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", samples, samples * percent, mn.toString());
