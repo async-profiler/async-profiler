@@ -289,8 +289,7 @@ void Profiler::start(int interval, int duration) {
     _deadline = time(NULL) + duration;
     setSignalHandler();
     
-    PerfEvent::start();
-    // setTimer(interval / 1000, (interval % 1000) * 1000);
+    PerfEvent::start(interval);
 }
 
 void Profiler::stop() {
@@ -298,7 +297,6 @@ void Profiler::stop() {
     _running = false;
 
     PerfEvent::stop();
-    // setTimer(0, 0);
 
     if (_frame_buffer_overflow) {
         std::cerr << "Frame buffer overflowed with size " << _frame_buffer_size

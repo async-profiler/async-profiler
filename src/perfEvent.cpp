@@ -30,6 +30,7 @@
 
 int PerfEvent::_max_events = 0;
 PerfEvent* PerfEvent::_events = NULL;
+int PerfEvent::_interval_cycles;
 
 
 void PerfEvent::init() {
@@ -57,7 +58,7 @@ void PerfEvent::createForThread(int tid) {
     attr.type = PERF_TYPE_SOFTWARE;
     attr.size = sizeof(attr);
     attr.config = PERF_COUNT_SW_CPU_CLOCK;
-    attr.sample_period = 10000000;
+    attr.sample_period = _interval_cycles;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
@@ -129,7 +130,9 @@ void PerfEvent::destroyForAllThreads() {
     }
 }
 
-void PerfEvent::start() {
+void PerfEvent::start(int interval_cycles) {
+    _interval_cycles = interval_cycles;
+
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);

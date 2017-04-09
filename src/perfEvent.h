@@ -54,6 +54,7 @@ class PerfEvent : public SpinLock {
   private:
     static int _max_events;
     static PerfEvent* _events;
+    static int _interval_cycles;
 
     int _fd;
     struct perf_event_mmap_page* _page;
@@ -67,7 +68,7 @@ class PerfEvent : public SpinLock {
 
   public:
     static void init();
-    static void start();
+    static void start(int interval_cycles);
     static void stop();
     static void reenable(siginfo_t* siginfo);
     static int getCallChain(const void** callchain, int max_depth);

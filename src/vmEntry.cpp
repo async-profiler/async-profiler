@@ -152,7 +152,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
             interval = value;
         } else if (strcmp(token, START) == 0) {
             if (!Profiler::_instance.running()) {
-                std::cout << "Profiling started with interval " << interval << " ms" << std::endl;
+                std::cout << "Profiling started with interval " << interval << " cycles" << std::endl;
                 Profiler::_instance.start(interval);
             }
         } else if (strcmp(token, STOP) == 0) {

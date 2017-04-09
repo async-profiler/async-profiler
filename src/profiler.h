@@ -30,8 +30,8 @@ const int MAX_NATIVE_LIBS   = 4096;
 const int CONCURRENCY_LEVEL = 16;
 
 const int DEFAULT_FRAME_BUFFER_SIZE = 1024*1024;
-const int DEFAULT_INTERVAL          = 10;
-const int DEFAULT_DURATION          = 3600;
+const int DEFAULT_INTERVAL          = 10000000; // 10M cycles
+const int DEFAULT_DURATION          = 3600;     // 1 hour
 const int DEFAULT_TRACES_TO_DUMP    = 500;
 
 
