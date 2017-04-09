@@ -19,8 +19,9 @@
 
 
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval) {
-    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL);
+Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval, jint duration) {
+    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL,
+                              duration ? duration : DEFAULT_DURATION);
 }
 
 extern "C" JNIEXPORT void JNICALL

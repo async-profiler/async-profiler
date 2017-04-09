@@ -149,8 +149,7 @@ void Profiler::checkDeadline() {
         ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
         (void) w;
 
-        _running = false;
-        setTimer(0, 0);
+        stop();
     }
 }
 
@@ -257,14 +256,6 @@ void Profiler::setSignalHandler() {
 
     if (sigaction(SIGPROF, &sa, NULL)) {
         perror("sigaction failed");
-    }
-}
-
-void Profiler::setTimer(long sec, long usec) {
-    struct itimerval itv = {{sec, usec}, {sec, usec}};
-
-    if (setitimer(ITIMER_PROF, &itv, NULL) != 0) {
-        perror("setitimer failed");
     }
 }
 

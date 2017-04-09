@@ -121,7 +121,6 @@ class Profiler {
     jmethodID findNativeMethod(const void* address);
     void resetSymbols();
     void setSignalHandler();
-    void setTimer(long sec, long usec);
     void nonzeroSummary(std::ostream& out, const char* title, int calls, double percent);
 
   public:
@@ -139,7 +138,7 @@ class Profiler {
     int samples() { return _samples; }
 
     void frameBufferSize(int size);
-    void start(int interval, int duration = DEFAULT_DURATION);
+    void start(int interval, int duration);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);

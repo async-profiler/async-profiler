@@ -125,6 +125,9 @@ which is built as part of this tool.
 the trace will stop automatically. The default is 3600 seconds (1 hour).
 Example: `./profiler.sh -p 8983 -o duration:60 -a start`.
 
+* `duration:N` - sets the duration of the trace, in seconds. After this time,
+the trace will stop automatically. The default is 3600 seconds (1 hour).
+
 * `frameBufferSize:N` - sets the frame buffer size, in the number of Java
 method ids that should fit in the buffer. If you receive messages about an
 insufficient frame buffer size, increase this value from the default.
