@@ -123,10 +123,8 @@ which is built as part of this tool.
 
 * `duration:N` - sets the duration of the trace, in seconds. After this time,
 the trace will stop automatically. The default is 3600 seconds (1 hour).
-Example: `./profiler.sh -p 8983 -o duration:60 -a start`.
-
-* `duration:N` - sets the duration of the trace, in seconds. After this time,
-the trace will stop automatically. The default is 3600 seconds (1 hour).
+Example: `./profiler.sh -p 8983 -o duration:60 -a start`. _NOTE: This feature
+is not currently supported; profiling will not stop automatically._
 
 * `frameBufferSize:N` - sets the frame buffer size, in the number of Java
 method ids that should fit in the buffer. If you receive messages about an
@@ -169,10 +167,8 @@ is delivered to the Java thread in a way that guarantees no other code has run,
 which means that in some rare cases, the captured Java stack might not match
 the captured native (user+kernel) stack.
 
-* When the JVM option `-XX:+PreserveFramePointer` is not enabled (available
-since 1.8u60), `perf_events` might not be able to walk the full stack through
-the Java frames. This should not prevent you from getting a good stack trace,
-but you will not see the non-Java frames _preceding_ the Java frames on the
+*  You will not see the non-Java frames _preceding_ the Java frames on the
 stack. For example, if `start_thread` called `JavaMain` and then your Java
 code started running, you will not see the first two frames in the resulting
-stack if `perf_events` is unable to unwind the whole stack.
+stack. On the other hand, you _will_ see non-Java frames (user and kernel)
+invoked by your Java code.

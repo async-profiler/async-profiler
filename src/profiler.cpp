@@ -145,11 +145,17 @@ void Profiler::storeMethod(jmethodID method) {
 
 void Profiler::checkDeadline() {
     if (time(NULL) > _deadline) {
-        const char error[] = "Disabling profiler due to deadline\n";
+        const char error[] = "Profiling duration elapsed. Disabling the "
+                             "profiler automatically is not currently "
+                             "supported. Use 'stop' explicitly.\n";
         ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
         (void) w;
+        _deadline = INT_MAX;    // Prevent further invocations
 
-        stop();
+        // FIXME Stopping the profiler is not safe from a signal handler. We
+        // need to refactor this to a separate thread that sleeps for the
+        // specified duration, or issue the stop command from a separate
+        // thread or after returning from the signal.
     }
 }
 
