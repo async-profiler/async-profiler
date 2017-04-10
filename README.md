@@ -168,3 +168,11 @@ of 127 frames. On recent Linux kernels, this can be configured using
 is delivered to the Java thread in a way that guarantees no other code has run,
 which means that in some rare cases, the captured Java stack might not match
 the captured native (user+kernel) stack.
+
+* When the JVM option `-XX:+PreserveFramePointer` is not enabled (available
+since 1.8u60), `perf_events` might not be able to walk the full stack through
+the Java frames. This should not prevent you from getting a good stack trace,
+but you will not see the non-Java frames _preceding_ the Java frames on the
+stack. For example, if `start_thread` called `JavaMain` and then your Java
+code started running, you will not see the first two frames in the resulting
+stack if `perf_events` is unable to unwind the whole stack.
