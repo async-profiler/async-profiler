@@ -145,12 +145,17 @@ void Profiler::storeMethod(jmethodID method) {
 
 void Profiler::checkDeadline() {
     if (time(NULL) > _deadline) {
-        const char error[] = "Disabling profiler due to deadline\n";
+        const char error[] = "Profiling duration elapsed. Disabling the "
+                             "profiler automatically is not currently "
+                             "supported. Use 'stop' explicitly.\n";
         ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
         (void) w;
+        _deadline = INT_MAX;    // Prevent further invocations
 
-        _running = false;
-        setTimer(0, 0);
+        // FIXME Stopping the profiler is not safe from a signal handler. We
+        // need to refactor this to a separate thread that sleeps for the
+        // specified duration, or issue the stop command from a separate
+        // thread or after returning from the signal.
     }
 }
 
@@ -260,14 +265,6 @@ void Profiler::setSignalHandler() {
     }
 }
 
-void Profiler::setTimer(long sec, long usec) {
-    struct itimerval itv = {{sec, usec}, {sec, usec}};
-
-    if (setitimer(ITIMER_PROF, &itv, NULL) != 0) {
-        perror("setitimer failed");
-    }
-}
-
 void Profiler::start(int interval, int duration) {
     if (_running || interval <= 0 || duration <= 0) return;
     _running = true;
@@ -289,8 +286,7 @@ void Profiler::start(int interval, int duration) {
     _deadline = time(NULL) + duration;
     setSignalHandler();
     
-    PerfEvent::start();
-    // setTimer(interval / 1000, (interval % 1000) * 1000);
+    PerfEvent::start(interval);
 }
 
 void Profiler::stop() {
@@ -298,7 +294,6 @@ void Profiler::stop() {
     _running = false;
 
     PerfEvent::stop();
-    // setTimer(0, 0);
 
     if (_frame_buffer_overflow) {
         std::cerr << "Frame buffer overflowed with size " << _frame_buffer_size
@@ -392,9 +387,9 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
-    for (int i = 0; i < max_traces; i++) {
+    for (int i = max_traces - 1; i >= 0; i--) {
         u64 samples = _traces[i]._counter;
-        if (samples == 0) break;
+        if (samples == 0) continue;
 
         snprintf(buf, sizeof(buf), "Samples: %lld (%.2f%%)\n", samples, samples * percent);
         out << buf;
@@ -418,9 +413,9 @@ void Profiler::dumpMethods(std::ostream& out) {
 
     qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
 
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
+    for (int i = MAX_CALLTRACES - 1; i >= 0; i--) {
         u64 samples = _methods[i]._counter;
-        if (samples == 0) break;
+        if (samples == 0) continue;
 
         MethodName mn(_methods[i]._method);
         snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", samples, samples * percent, mn.toString());

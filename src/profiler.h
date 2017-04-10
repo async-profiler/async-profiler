@@ -30,8 +30,8 @@ const int MAX_NATIVE_LIBS   = 4096;
 const int CONCURRENCY_LEVEL = 16;
 
 const int DEFAULT_FRAME_BUFFER_SIZE = 1024*1024;
-const int DEFAULT_INTERVAL          = 10;
-const int DEFAULT_DURATION          = 3600;
+const int DEFAULT_INTERVAL          = 10000000; // 10M cycles
+const int DEFAULT_DURATION          = 3600;     // 1 hour
 const int DEFAULT_TRACES_TO_DUMP    = 500;
 
 
@@ -121,7 +121,6 @@ class Profiler {
     jmethodID findNativeMethod(const void* address);
     void resetSymbols();
     void setSignalHandler();
-    void setTimer(long sec, long usec);
     void nonzeroSummary(std::ostream& out, const char* title, int calls, double percent);
 
   public:
@@ -139,7 +138,7 @@ class Profiler {
     int samples() { return _samples; }
 
     void frameBufferSize(int size);
-    void start(int interval, int duration = DEFAULT_DURATION);
+    void start(int interval, int duration);
     void stop();
     void summary(std::ostream& out);
     void dumpRawTraces(std::ostream& out);

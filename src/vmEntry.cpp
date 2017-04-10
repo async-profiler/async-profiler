@@ -109,13 +109,14 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
         return -1;
     }
 
-    Profiler::_instance.start(DEFAULT_INTERVAL);
+    Profiler::_instance.start(DEFAULT_INTERVAL, DEFAULT_DURATION);
     return 0;
 }
 
 const char OPTION_DELIMITER[] = ",";
 const char FRAME_BUFFER_SIZE[] = "frameBufferSize:";
 const char INTERVAL[] = "interval:";
+const char DURATION[] = "duration:";
 const char START[] = "start";
 const char STOP[] = "stop";
 const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
@@ -134,6 +135,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     strncpy(args, options, sizeof(args));
     
     int interval = DEFAULT_INTERVAL;
+    int duration = DEFAULT_DURATION;
     
     char* token = strtok(args, OPTION_DELIMITER);
     while (token) {
@@ -150,10 +152,20 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
                 return -1;
             }
             interval = value;
+        } else if (strncmp(token, DURATION, strlen(DURATION)) == 0) {
+            const char* text = token + strlen(DURATION);
+            const int value = atoi(text);
+            if (value <= 0) {
+                std::cerr << "Duration must be positive: " << value << std::endl;
+                return -1;
+            }
+            duration = value;
         } else if (strcmp(token, START) == 0) {
             if (!Profiler::_instance.running()) {
-                std::cout << "Profiling started with interval " << interval << " ms" << std::endl;
-                Profiler::_instance.start(interval);
+                std::cout << "Profiling started with interval " << interval
+                          << " cycles and duration " << duration
+                          << " seconds" << std::endl;
+                Profiler::_instance.start(interval, duration);
             }
         } else if (strcmp(token, STOP) == 0) {
             std::cout << "Profiling stopped" << std::endl;
