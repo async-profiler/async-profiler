@@ -35,10 +35,13 @@ static inline jmethodID asJavaMethod(const char* name) {
     return (jmethodID)(-(intptr_t)name);
 }
 
-static inline void terminateOnSpace(char* name) {
-    char *space = strchr(name, ' ');
-    if (space != NULL) {
-        *space = '\0';
+static inline void escape(char* name) {
+    char *pos = name;
+    while (*pos) {
+        if (*pos == ' ') {
+            *pos = '_';
+        }
+        pos++;
     }
 }
 
@@ -64,7 +67,7 @@ MethodName::MethodName(jmethodID method, const char* sep) {
         jvmti->Deallocate((unsigned char*)method_name);
     }
 
-    terminateOnSpace((char *)_str);
+    escape((char *)_str);
 }
 
 char* MethodName::fixClassName(char* name) {
