@@ -29,11 +29,11 @@ class MethodName {
     char _buf[520];
     const char* _str;
 
-    char* fixClassName(char* name);
+    char* fixClassName(char* name, bool dotted = false);
     char* demangle(char* name);
 
   public:
-    MethodName(jmethodID method, const char* sep = ".");
+    MethodName(jmethodID method, bool dotted = false);
 
     const char* toString() { return _str; }
 };

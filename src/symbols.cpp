@@ -81,6 +81,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     std::string str;
 
     while (std::getline(maps, str)) {
+        str += "_[k]";
         SymbolMap map(str.c_str());
         char type = map.type();
         if (type == 'T' || type == 't' || type == 'V' || type == 'v' || type == 'W' || type == 'w') {

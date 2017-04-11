@@ -35,17 +35,8 @@ static inline jmethodID asJavaMethod(const char* name) {
     return (jmethodID)(-(intptr_t)name);
 }
 
-static inline void escape(char* name) {
-    char *pos = name;
-    while (*pos) {
-        if (*pos == ' ') {
-            *pos = '_';
-        }
-        pos++;
-    }
-}
 
-MethodName::MethodName(jmethodID method, const char* sep) {
+MethodName::MethodName(jmethodID method, bool dotted) {
     if (method == NULL) {
         _str = "[unknown]";
     } else if (isString(method)) {
@@ -60,22 +51,22 @@ MethodName::MethodName(jmethodID method, const char* sep) {
         jvmti->GetMethodDeclaringClass(method, &method_class);
         jvmti->GetClassSignature(method_class, &class_name, NULL);
 
-        snprintf(_buf, sizeof(_buf), "%s%s%s", fixClassName(class_name), sep, method_name);
+        snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
         _str = _buf;
 
         jvmti->Deallocate((unsigned char*)class_name);
         jvmti->Deallocate((unsigned char*)method_name);
     }
-
-    escape((char *)_str);
 }
 
-char* MethodName::fixClassName(char* name) {
-    char* s;
-    for (s = name + 1; *s; s++) {
-        if (*s == '/') *s = '.';
+char* MethodName::fixClassName(char* name, bool dotted) {
+    if (dotted) {
+        for (char* s = name + 1; *s; s++) {
+            if (*s == '/') *s = '.';
+        }
     }
-    s[-1] = 0;
+
+    name[strlen(name) - 1] = 0;
     return name + 1;
 }
 
@@ -89,10 +80,7 @@ char* MethodName::demangle(char* name) {
             return _buf;
         }
     }
-
-    // Defensive copy
-    strncpy(_buf, name, sizeof (_buf));
-    return _buf;
+    return name;
 }
 
 
