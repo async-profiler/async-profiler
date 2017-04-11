@@ -26,14 +26,10 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <linux/limits.h>
 
-#define PATH_MAX 1024
 
-static void print_error(const char* msg) {
-    fprintf(stderr, "%s (error code = %d)\n", msg, errno);
-}
-
-const char* get_temp_directory() {
+static const char* get_temp_directory() {
     return "/tmp";
 }
 
@@ -128,24 +124,24 @@ int main(int argc, char** argv) {
     
     int pid = atoi(argv[1]);
     if (pid == 0) {
-        print_error("Invalid pid provided");
+        perror("Invalid pid provided");
         return 1;
     }
 
     if (!check_socket(pid) && !start_attach_mechanism(pid)) {
-        print_error("Could not start attach mechanism");
+        perror("Could not start attach mechanism");
         return 1;
     }
 
     int fd = connect_socket(pid);
     if (fd == -1) {
-        print_error("Could not connect to socket");
+        perror("Could not connect to socket");
         return 1;
     }
     
     printf("Connected to remote JVM\n");
     if (!write_command(fd, argc - 2, argv + 2)) {
-        print_error("Error writing to socket");
+        perror("Error writing to socket");
         close(fd);
         return 1;
     }

@@ -121,7 +121,6 @@ class Profiler {
     jmethodID findNativeMethod(const void* address);
     void resetSymbols();
     void setSignalHandler();
-    void nonzeroSummary(std::ostream& out, const char* title, int calls, double percent);
 
   public:
     static Profiler _instance;

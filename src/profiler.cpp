@@ -306,12 +306,6 @@ void Profiler::stop() {
     }
 }
 
-void Profiler::nonzeroSummary(std::ostream& out, const char* title, int calls, double percent) {
-    if (calls > 0) {
-        char buf[256];
-    }
-}
-
 void Profiler::summary(std::ostream& out) {
     static const char* title[FAILURE_TYPES] = {
         "Non-Java:",
