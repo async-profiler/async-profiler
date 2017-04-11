@@ -29,11 +29,11 @@ class MethodName {
     char _buf[520];
     const char* _str;
 
-    char* fixClassName(char* name);
+    char* fixClassName(char* name, bool dotted = false);
     char* demangle(char* name);
 
   public:
-    MethodName(jmethodID method, const char* sep = ".");
+    MethodName(jmethodID method, bool dotted = false);
 
     const char* toString() { return _str; }
 };
@@ -91,9 +91,10 @@ class CodeCache {
     StringTable* _strings;
     const void* _min_address;
     const void* _max_address;
+    bool _solid;  // true, if there are no holes between functions
 
   public:
-    CodeCache(const char* name,
+    CodeCache(const char* name, bool solid,
               const void* min_address = (const void*)-1,
               const void* max_address = (const void*)0);
     ~CodeCache();

@@ -81,6 +81,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     std::string str;
 
     while (std::getline(maps, str)) {
+        str += "_[k]";
         SymbolMap map(str.c_str());
         char type = map.type();
         if (type == 'T' || type == 't' || type == 'V' || type == 'v' || type == 'W' || type == 'w') {
@@ -140,7 +141,7 @@ void Symbols::parseFile(CodeCache* cc, const char* fileName, const char* base) {
 int Symbols::parseMaps(CodeCache** array, int size) {
     int count = 0;
     if (count < size) {
-        CodeCache* cc = new CodeCache("[kernel]");
+        CodeCache* cc = new CodeCache("[kernel]", true);
         parseKernelSymbols(cc);
         array[count++] = cc;
     }
@@ -151,7 +152,7 @@ int Symbols::parseMaps(CodeCache** array, int size) {
     while (count < size && std::getline(maps, str)) {
         MemoryMap map(str.c_str());
         if (map.isExecutable() && map.file()[0] != 0) {
-            CodeCache* cc = new CodeCache(map.file(), map.addr(), map.end());
+            CodeCache* cc = new CodeCache(map.file(), false, map.addr(), map.end());
             const char* base = map.addr() - map.offs();
             if (map.inode() != 0) {
                 parseFile(cc, map.file(), base);

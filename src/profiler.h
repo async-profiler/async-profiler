@@ -129,7 +129,7 @@ class Profiler {
         _running(false), 
         _frame_buffer(NULL), 
         _frame_buffer_size(DEFAULT_FRAME_BUFFER_SIZE),
-        _java_code("[jvm]"),
+        _java_code("[jvm]", false),
         _native_libs(0) {
     }
 

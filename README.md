@@ -103,8 +103,7 @@ $ jps
 8983 Computey
 $ ./profiler.sh -p 8983 -o interval:100000000 -a start
 $ ./profiler.sh -p 8983 -f /tmp/traces.txt -a dump
-$ FlameGraph/stackcollapse-ljp.awk /tmp/traces.txt > /tmp/folded.stacks
-$ FlameGraph/flamegraph.pl /tmp/folded.stacks > /tmp/flamegraph.svg
+$ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
 ```
 
 ## All Agent Options
@@ -138,22 +137,16 @@ Example: `./profiler.sh -p 8983 -o frameBufferSize:1000000 -a start`.
 * `dumpRawTraces:filename` - stops profiling and dumps the raw trace information
 to the specified file. Example: `./profiler.sh -p 8983 -f /tmp/traces -a dump`.
 
-The format of the raw trace file is a collection of call stacks, where the first
-line is the number of appearances of that call stack, the number of frames in
-the call stack, followed by the call stack with each frame on a separate line.
+The format of the raw trace file is a collection of call stacks, where each line
+is a semicolon separated list of frames followed by the sample count.
 For example:
 
 ```
-1056	5	Primes::isPrime
-		Primes::primesThread
-		Primes::access$000
-		Primes$1::run
-		java.lang.Thread::run
+java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
 ```
 
 This stack appeared 1056 times in the trace. This is the same stack trace format
-used by the [Lightweight Java Profiler](https://code.google.com/archive/p/lightweight-java-profiler/),
-and can be easily used for generating flame graphs.
+used by the [FlameGraph](https://github.com/brendangregg/FlameGraph) script.
 
 ## Restrictions/Limitations
 

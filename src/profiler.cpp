@@ -341,14 +341,9 @@ void Profiler::summary(std::ostream& out) {
 }
 
 /*
- * Dumping in lightweight-java-profiler format:
+ * Dump traces in FlameGraph format:
  * 
- * <samples> <frames>   <frame1>
- *                      <frame2>
- *                      ...
- *                      <framen>
- * ...
- * Total ...
+ * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpRawTraces(std::ostream& out) {
     if (_running) return;
@@ -357,19 +352,14 @@ void Profiler::dumpRawTraces(std::ostream& out) {
         u64 samples = _traces[i]._counter;
         if (samples == 0) continue;
         
-        out << samples << '\t' << _traces[i]._num_frames << '\t';
-
         CallTraceSample& trace = _traces[i];
-        for (int j = 0; j < trace._num_frames; j++) {
-            if (j != 0) out << "\t\t";
-
+        for (int j = trace._num_frames - 1; j >= 0; j--) {
             jmethodID method = _frame_buffer[trace._start_frame + j];
-            MethodName mn(method, "::");
-            out << mn.toString() << std::endl;
+            MethodName mn(method);
+            out << mn.toString() << (j == 0 ? ' ' : ';');
         }
+        out << samples << "\n";
     }
-    
-    out << "Total" << std::endl;
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
@@ -391,7 +381,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         CallTraceSample& trace = _traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
             jmethodID method = _frame_buffer[trace._start_frame + j];
-            MethodName mn(method);
+            MethodName mn(method, true);
             snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, mn.toString());
             out << buf;
         }
@@ -411,7 +401,7 @@ void Profiler::dumpMethods(std::ostream& out) {
         u64 samples = _methods[i]._counter;
         if (samples == 0) continue;
 
-        MethodName mn(_methods[i]._method);
+        MethodName mn(_methods[i]._method, true);
         snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", samples, samples * percent, mn.toString());
         out << buf;
     }
