@@ -105,7 +105,8 @@ const char* StringTable::add(const char* s, int length) {
 }
 
 
-CodeCache::CodeCache(const char* name, const void* min_address, const void* max_address) {
+CodeCache::CodeCache(const char* name, bool solid,
+                     const void* min_address, const void* max_address) {
     _name = strdup(name);
     _capacity = INITIAL_CODE_CACHE_CAPACITY;
     _count = 0;
@@ -113,6 +114,7 @@ CodeCache::CodeCache(const char* name, const void* min_address, const void* max_
     _strings = NULL;
     _min_address = min_address;
     _max_address = max_address;
+    _solid = solid;
 }
 
 CodeCache::~CodeCache() {
@@ -199,5 +201,5 @@ jmethodID CodeCache::binary_search(const void* address) {
         }
     }
 
-    return low > 0 ? _blobs[low - 1]._method : asJavaMethod(_name);
+    return _solid && low > 0 ? _blobs[low - 1]._method : asJavaMethod(_name);
 }

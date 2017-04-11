@@ -91,9 +91,10 @@ class CodeCache {
     StringTable* _strings;
     const void* _min_address;
     const void* _max_address;
+    bool _solid;  // true, if there are no holes between functions
 
   public:
-    CodeCache(const char* name,
+    CodeCache(const char* name, bool solid,
               const void* min_address = (const void*)-1,
               const void* max_address = (const void*)0);
     ~CodeCache();
