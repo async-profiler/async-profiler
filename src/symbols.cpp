@@ -173,7 +173,7 @@ void Symbols::parseElf(CodeCache* cc, const char* addr, const char* base, BuildI
 
     for (int i = 0; i < ehdr->e_shnum; i++) {
         Elf64_Shdr* section = (Elf64_Shdr*)(sections + i * ehdr->e_shentsize);
-        if (section->sh_type == SHT_SYMTAB || section->sh_type == SHT_DYNSYM) {
+        if (section->sh_type == SHT_SYMTAB || section->sh_type == SHT_DYNSYM && build_id != NULL) {
             Elf64_Shdr* strtab = (Elf64_Shdr*)(sections + section->sh_link * ehdr->e_shentsize);
             const char* strings = cc->addStrings(addr + strtab->sh_offset, strtab->sh_size);
 
