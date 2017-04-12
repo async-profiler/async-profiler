@@ -22,6 +22,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -76,6 +77,14 @@ class MemoryMap {
 };
 
 
+void BuildId::set(const char* value, int length) {
+    if (length > 0 && length <= sizeof(_value)) {
+        memcpy(_value, value, length);
+        _length = length;
+    }
+}
+
+
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     std::ifstream maps("/proc/kallsyms");
     std::string str;
@@ -91,11 +100,68 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
             }
         }
     }
-
-    cc->sort();
 }
 
-void Symbols::parseElf(CodeCache* cc, const char* addr, const char* base) {
+void Symbols::parseLibrarySymbols(CodeCache* cc, const char* lib_name, const char* base) {
+    // Parse symbols from the original .so
+    // If there is no .strtab section, try loading symbols from an external debug library
+    BuildId build_id;
+    if (parseFile(cc, lib_name, base, &build_id) && cc->hasDebugSymbols()) {
+        return;
+    }
+
+    char path[PATH_MAX];
+
+    // 1. /usr/lib/debug/.build-id/ab/cdef1234.debug
+    if (build_id.length() > 1) {
+        char* p = path + sprintf(path, "/usr/lib/debug/.build-id/%02hhx/", build_id[0]);
+        for (int i = 1; i < build_id.length(); i++) {
+            p += sprintf(p, "%02hhx", build_id[i]);
+        }
+        strcpy(p, ".debug");
+        if (parseFile(cc, path, base, NULL)) return;
+    }
+
+    // Do not even try to add debug prefix/suffix if lib_name is too long
+    if (strlen(lib_name) >= sizeof(path) - sizeof("/usr/lib/debug")) {
+        return;
+    }
+
+    // 2. /usr/lib/debug/path/to/lib.so
+    snprintf(path, sizeof(path), "/usr/lib/debug%s", lib_name);
+    if (parseFile(cc, path, base, NULL)) return;
+
+    // 3. /path/to/lib.so.debug
+    snprintf(path, sizeof(path), "%s.debug", lib_name);
+    if (parseFile(cc, path, base, NULL)) return;
+
+    // 4. /path/to/.debug/lib.so
+    const char* slash = strrchr(lib_name, '/');
+    if (slash != NULL) {
+        int dir_len = slash - lib_name;
+        strncpy(path, lib_name, dir_len);
+        snprintf(path + dir_len, sizeof(path) - dir_len, "/.debug%s", slash);
+        if (parseFile(cc, path, base, NULL)) return;
+    }
+}
+
+bool Symbols::parseFile(CodeCache* cc, const char* file_name, const char* base, BuildId* build_id) {
+    int fd = open(file_name, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    size_t length = (size_t)lseek64(fd, 0, SEEK_END);
+    char* addr = (char*)mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (addr != NULL) {
+        parseElf(cc, addr, base, build_id);
+        munmap(addr, length);
+    }
+    close(fd);
+    return true;
+}
+
+void Symbols::parseElf(CodeCache* cc, const char* addr, const char* base, BuildId* build_id) {
     Elf64_Ehdr* ehdr = (Elf64_Ehdr*)addr;
     unsigned char* ident = ehdr->e_ident;
     if (ident[0] != 0x7f || ident[1] != 'E' || ident[2] != 'L' || ident[3] != 'F' ||
@@ -119,22 +185,17 @@ void Symbols::parseElf(CodeCache* cc, const char* addr, const char* base) {
                     cc->add(base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
                 }
             }
-        }
-    }
 
-    cc->sort();
-}
-
-void Symbols::parseFile(CodeCache* cc, const char* fileName, const char* base) {
-    int fd = open(fileName, O_RDONLY);
-    if (fd != -1) {
-        size_t length = (size_t)lseek64(fd, 0, SEEK_END);
-        char* addr = (char*)mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
-        if (addr != NULL) {
-            parseElf(cc, addr, base);
-            munmap(addr, length);
+            if (section->sh_type == SHT_SYMTAB) {
+                cc->setDebugSymbols(true);
+            }
+        } else if (section->sh_type == SHT_NOTE && section->sh_size > 16 && build_id != NULL) {
+            Elf64_Nhdr* note = (Elf64_Nhdr*)(addr + section->sh_offset);
+            const char* data = (const char*)(note + 1);
+            if (note->n_namesz == 4 && note->n_type == NT_GNU_BUILD_ID && memcmp(data, "GNU", 4) == 0) {
+                build_id->set(data + 4, note->n_descsz);
+            }
         }
-        close(fd);
     }
 }
 
@@ -143,6 +204,7 @@ int Symbols::parseMaps(CodeCache** array, int size) {
     if (count < size) {
         CodeCache* cc = new CodeCache("[kernel]", true);
         parseKernelSymbols(cc);
+        cc->sort();
         array[count++] = cc;
     }
 
@@ -154,11 +216,14 @@ int Symbols::parseMaps(CodeCache** array, int size) {
         if (map.isExecutable() && map.file()[0] != 0) {
             CodeCache* cc = new CodeCache(map.file(), false, map.addr(), map.end());
             const char* base = map.addr() - map.offs();
+
             if (map.inode() != 0) {
-                parseFile(cc, map.file(), base);
+                parseLibrarySymbols(cc, map.file(), base);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                parseElf(cc, base, base);
+                parseElf(cc, base, base, NULL);
             }
+
+            cc->sort();
             array[count++] = cc;
         }
     }

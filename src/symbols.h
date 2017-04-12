@@ -20,12 +20,33 @@
 #include "codeCache.h"
 
 
+class BuildId {
+  private:
+    unsigned char _value[64];
+    int _length;
+
+  public:
+    BuildId() : _length(0) {
+    }
+
+    int length() {
+        return _length;
+    }
+
+    unsigned char operator[](int index) {
+        return _value[index];
+    }
+
+    void set(const char* value, int length);
+};
+
 class Symbols {
   private:
     static void parseKernelSymbols(CodeCache* cc);
-    static void parseElf(CodeCache* cc, const char* addr, const char* base);
-    static void parseFile(CodeCache* cc, const char* fileName, const char* base);
-  
+    static void parseLibrarySymbols(CodeCache* cc, const char* lib_name, const char* base);
+    static bool parseFile(CodeCache* cc, const char* file_name, const char* base, BuildId* build_id);
+    static void parseElf(CodeCache* cc, const char* addr, const char* base, BuildId* build_id);
+
   public:
     static int parseMaps(CodeCache** array, int size);
 };

@@ -117,6 +117,7 @@ CodeCache::CodeCache(const char* name, bool solid,
     _min_address = min_address;
     _max_address = max_address;
     _solid = solid;
+    _debug_symbols = false;
 }
 
 CodeCache::~CodeCache() {

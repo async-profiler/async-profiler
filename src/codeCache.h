@@ -91,7 +91,8 @@ class CodeCache {
     StringTable* _strings;
     const void* _min_address;
     const void* _max_address;
-    bool _solid;  // true, if there are no holes between functions
+    bool _solid;              // true, if there are no holes between functions
+    bool _debug_symbols;      // true, if this CodeCache contains non-public symbols
 
   public:
     CodeCache(const char* name, bool solid,
@@ -112,6 +113,14 @@ class CodeCache {
 
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
+    }
+
+    bool hasDebugSymbols() {
+        return _debug_symbols;
+    }
+
+    void setDebugSymbols(bool debug_symbols) {
+        _debug_symbols = debug_symbols;
     }
 };
 
