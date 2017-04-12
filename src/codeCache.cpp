@@ -66,6 +66,8 @@ char* MethodName::fixClassName(char* name, bool dotted) {
         }
     }
 
+    // Class signature is a string of form 'Ljava/lang/Thread;'
+    // So we have to remove the first 'L' and the last ';'
     name[strlen(name) - 1] = 0;
     return name + 1;
 }
