@@ -202,7 +202,7 @@ void Symbols::parseElf(CodeCache* cc, const char* addr, const char* base, BuildI
 int Symbols::parseMaps(CodeCache** array, int size) {
     int count = 0;
     if (count < size) {
-        CodeCache* cc = new CodeCache("[kernel]", true);
+        CodeCache* cc = new CodeCache("[kernel]");
         parseKernelSymbols(cc);
         cc->sort();
         array[count++] = cc;
@@ -214,7 +214,7 @@ int Symbols::parseMaps(CodeCache** array, int size) {
     while (count < size && std::getline(maps, str)) {
         MemoryMap map(str.c_str());
         if (map.isExecutable() && map.file()[0] != 0) {
-            CodeCache* cc = new CodeCache(map.file(), false, map.addr(), map.end());
+            CodeCache* cc = new CodeCache(map.file(), map.addr(), map.end());
             const char* base = map.addr() - map.offs();
 
             if (map.inode() != 0) {

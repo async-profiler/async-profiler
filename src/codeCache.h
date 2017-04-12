@@ -91,11 +91,10 @@ class CodeCache {
     StringTable* _strings;
     const void* _min_address;
     const void* _max_address;
-    bool _solid;              // true, if there are no holes between functions
     bool _debug_symbols;      // true, if this CodeCache contains non-public symbols
 
   public:
-    CodeCache(const char* name, bool solid,
+    CodeCache(const char* name,
               const void* min_address = (const void*)-1,
               const void* max_address = (const void*)0);
     ~CodeCache();
