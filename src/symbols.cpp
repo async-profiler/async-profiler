@@ -122,25 +122,18 @@ void Symbols::parseLibrarySymbols(CodeCache* cc, const char* lib_name, const cha
         if (parseFile(cc, path, base, NULL)) return;
     }
 
-    // Do not even try to add debug prefix/suffix if lib_name is too long
-    if (strlen(lib_name) >= sizeof(path) - sizeof("/usr/lib/debug")) {
-        return;
+    // 2. /usr/lib/debug/path/to/lib.so
+    if (snprintf(path, sizeof(path), "/usr/lib/debug%s", lib_name) < sizeof(path)) {
+        if (parseFile(cc, path, base, NULL)) return;
     }
 
-    // 2. /usr/lib/debug/path/to/lib.so
-    snprintf(path, sizeof(path), "/usr/lib/debug%s", lib_name);
-    if (parseFile(cc, path, base, NULL)) return;
+    // 3. /usr/lib/debug/path/to/lib.so.debug
+    if (snprintf(path, sizeof(path), "/usr/lib/debug%s.debug", lib_name) < sizeof(path)) {
+        if (parseFile(cc, path, base, NULL)) return;
+    }
 
-    // 3. /path/to/lib.so.debug
-    snprintf(path, sizeof(path), "%s.debug", lib_name);
-    if (parseFile(cc, path, base, NULL)) return;
-
-    // 4. /path/to/.debug/lib.so
-    const char* slash = strrchr(lib_name, '/');
-    if (slash != NULL) {
-        int dir_len = slash - lib_name;
-        strncpy(path, lib_name, dir_len);
-        snprintf(path + dir_len, sizeof(path) - dir_len, "/.debug%s", slash);
+    // 4. /path/to/lib.so.debug
+    if (snprintf(path, sizeof(path), "%s.debug", lib_name) < sizeof(path)) {
         if (parseFile(cc, path, base, NULL)) return;
     }
 }
