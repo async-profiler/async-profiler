@@ -7,4 +7,4 @@ sudo: required
 before_install:
   - sudo apt-get install default-jdk
 
-script: make
+script: make && make test
