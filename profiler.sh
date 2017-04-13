@@ -3,7 +3,8 @@
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
-PROFILER=$(realpath $SCRIPT_DIR/build/libasyncProfiler.so)
+# realpath is not present on all distros, notably on the Travis CI image
+PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION=""
 PID=""
 START_OPTIONS=""

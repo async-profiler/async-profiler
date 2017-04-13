@@ -6,6 +6,8 @@ CPP=g++
 CPPFLAGS=-O2
 INCLUDES=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux
 
+.PHONY: test
+
 all: build build/$(LIB_PROFILER) build/$(JATTACH)
 
 build:
@@ -16,6 +18,9 @@ build/$(LIB_PROFILER): src/*.cpp src/*.h
 
 build/$(JATTACH): src/jattach.c
 	$(CC) $(CFLAGS) -o $@ $^
+
+test: all
+	test/smoke-test.sh
 
 clean:
 	rm -rf build

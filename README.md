@@ -30,6 +30,8 @@ be tuned in order to allow non-root users to use `perf_events`.
 
 ## Building
 
+Build status: [![Build Status](https://travis-ci.org/apangin/async-profiler.svg?branch=master)](https://travis-ci.org/apangin/async-profiler)
+
 Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC is required. After building, the profiler agent binary
 will be in the `build` subdirectory. Additionally, a small Java application
