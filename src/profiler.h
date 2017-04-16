@@ -19,7 +19,7 @@
 
 #include <iostream>
 #include "spinLock.h"
-#include "symbols.h"
+#include "codeCache.h"
 #include "vmEntry.h"
 
 

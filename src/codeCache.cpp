@@ -107,8 +107,7 @@ const char* StringTable::add(const char* s, int length) {
 }
 
 
-CodeCache::CodeCache(const char* name,
-                     const void* min_address, const void* max_address) {
+CodeCache::CodeCache(const char* name, const void* min_address, const void* max_address) {
     _name = strdup(name);
     _capacity = INITIAL_CODE_CACHE_CAPACITY;
     _count = 0;
@@ -116,7 +115,6 @@ CodeCache::CodeCache(const char* name,
     _strings = NULL;
     _min_address = min_address;
     _max_address = max_address;
-    _debug_symbols = false;
 }
 
 CodeCache::~CodeCache() {
