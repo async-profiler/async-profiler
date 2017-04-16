@@ -198,7 +198,7 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
     }
 
     // 3. /usr/lib/debug/path/to/libjvm.so.debug
-    if (!result && snprintf(path, sizeof(path), "/usr/lib/debug/%s/%s", dirname, debuglink) < sizeof(path)) {
+    if (!result && snprintf(path, sizeof(path), "/usr/lib/debug%s/%s", dirname, debuglink) < sizeof(path)) {
         result = parseFile(_cc, _base, path, false);
     }
 
