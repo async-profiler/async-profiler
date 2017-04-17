@@ -18,6 +18,7 @@
 #define _PROFILER_H
 
 #include <iostream>
+#include <pthread.h>
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -69,6 +70,28 @@ class MethodSample {
     friend class Profiler;
 };
 
+
+class MutexLocker {
+  private:
+    pthread_mutex_t* _mutex;
+
+  public:
+    MutexLocker(pthread_mutex_t& mutex) : _mutex(&mutex) {
+        pthread_mutex_lock(_mutex);
+    }
+
+    ~MutexLocker() {
+        pthread_mutex_unlock(_mutex);
+    }
+};
+
+
+enum State {
+    IDLE,
+    RUNNING,
+    TERMINATED
+};
+
 class Profiler {
   private:
 
@@ -89,7 +112,9 @@ class Profiler {
         FAILURE_TYPES               = 12
     };
 
-    bool _running;
+    pthread_mutex_t _state_lock;
+    State _state;
+
     u64 _samples;
     u64 _failures[FAILURE_TYPES];
     u64 _hashes[MAX_CALLTRACES];
@@ -125,15 +150,16 @@ class Profiler {
   public:
     static Profiler _instance;
 
-    Profiler() : 
-        _running(false), 
-        _frame_buffer(NULL), 
+    Profiler() :
+        _state(IDLE),
+        _frame_buffer(NULL),
         _frame_buffer_size(DEFAULT_FRAME_BUFFER_SIZE),
         _java_code("[jvm]"),
         _native_libs(0) {
+        pthread_mutex_init(&_state_lock, NULL);
     }
 
-    bool running() { return _running; }
+    State state() { return _state; }
     int samples() { return _samples; }
 
     void frameBufferSize(int size);
@@ -144,6 +170,11 @@ class Profiler {
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpMethods(std::ostream& out);
     void recordSample(void* ucontext);
+
+    static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
+        MutexLocker ml(_instance._state_lock);
+        _instance._state = TERMINATED;
+    }
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,

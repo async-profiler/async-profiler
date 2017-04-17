@@ -43,15 +43,19 @@ MethodName::MethodName(jmethodID method, bool dotted) {
         _str = demangle(asString(method));
     } else {
         jclass method_class;
-        char* class_name;
-        char* method_name;
+        char* class_name = NULL;
+        char* method_name = NULL;
 
         jvmtiEnv* jvmti = VM::jvmti();
-        jvmti->GetMethodName(method, &method_name, NULL, NULL);
-        jvmti->GetMethodDeclaringClass(method, &method_class);
-        jvmti->GetClassSignature(method_class, &class_name, NULL);
+        jvmtiError err;
 
-        snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
+        if ((err = jvmti->GetMethodName(method, &method_name, NULL, NULL)) == 0 &&
+            (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
+            (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
+            snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
+        } else {
+            snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+        }
         _str = _buf;
 
         jvmti->Deallocate((unsigned char*)class_name);
