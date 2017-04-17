@@ -45,6 +45,7 @@ bool VM::init(JavaVM* vm) {
 
     jvmtiEventCallbacks callbacks = {0};
     callbacks.VMInit = VMInit;
+    callbacks.VMDeath = Profiler::VMDeath;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
@@ -55,6 +56,7 @@ bool VM::init(JavaVM* vm) {
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
@@ -161,7 +163,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
             }
             duration = value;
         } else if (strcmp(token, START) == 0) {
-            if (!Profiler::_instance.running()) {
+            if (Profiler::_instance.state() == IDLE) {
                 std::cout << "Profiling started with interval " << interval
                           << " cycles and duration " << duration
                           << " seconds" << std::endl;

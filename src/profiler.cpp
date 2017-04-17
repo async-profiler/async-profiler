@@ -267,8 +267,11 @@ void Profiler::setSignalHandler() {
 }
 
 void Profiler::start(int interval, int duration) {
-    if (_running || interval <= 0 || duration <= 0) return;
-    _running = true;
+    if (interval <= 0 || duration <= 0) return;
+
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) return;
+    _state = RUNNING;
 
     _samples = 0;
     memset(_failures, 0, sizeof(_failures));
@@ -291,8 +294,9 @@ void Profiler::start(int interval, int duration) {
 }
 
 void Profiler::stop() {
-    if (!_running) return;
-    _running = false;
+    MutexLocker ml(_state_lock);
+    if (_state != RUNNING) return;
+    _state = IDLE;
 
     PerfEvent::stop();
 
@@ -347,7 +351,8 @@ void Profiler::summary(std::ostream& out) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpRawTraces(std::ostream& out) {
-    if (_running) return;
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) return;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         u64 samples = _traces[i]._counter;
@@ -364,7 +369,8 @@ void Profiler::dumpRawTraces(std::ostream& out) {
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
-    if (_running) return;
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) return;
 
     double percent = 100.0 / _samples;
     char buf[1024];
@@ -391,7 +397,8 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
 }
 
 void Profiler::dumpMethods(std::ostream& out) {
-    if (_running) return;
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) return;
 
     double percent = 100.0 / _samples;
     char buf[1024];

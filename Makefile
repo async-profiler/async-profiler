@@ -14,7 +14,7 @@ build:
 	mkdir -p build
 
 build/$(LIB_PROFILER): src/*.cpp src/*.h
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ src/*.cpp -ldl
+	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ src/*.cpp -ldl -lpthread
 
 build/$(JATTACH): src/jattach.c
 	$(CC) $(CFLAGS) -o $@ $^
