@@ -24,6 +24,7 @@
 #include "profiler.h"
 #include "perfEvent.h"
 #include "stackFrame.h"
+#include "symbols.h"
 
 
 Profiler Profiler::_instance;

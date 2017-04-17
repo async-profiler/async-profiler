@@ -19,7 +19,7 @@
 
 #include <iostream>
 #include "spinLock.h"
-#include "symbols.h"
+#include "codeCache.h"
 #include "vmEntry.h"
 
 
@@ -129,7 +129,7 @@ class Profiler {
         _running(false), 
         _frame_buffer(NULL), 
         _frame_buffer_size(DEFAULT_FRAME_BUFFER_SIZE),
-        _java_code("[jvm]", false),
+        _java_code("[jvm]"),
         _native_libs(0) {
     }
 
