@@ -17,6 +17,9 @@
 #ifndef _SPINLOCK_H
 #define _SPINLOCK_H
 
+#define x86_pause()  asm volatile("pause")
+
+
 // Cannot use regular mutexes inside signal handler
 class SpinLock {
   private:
@@ -36,7 +39,7 @@ class SpinLock {
 
     void spinLock() {
         while (!tryLock()) {
-            __builtin_ia32_pause();
+            x86_pause();
         }
     }
 

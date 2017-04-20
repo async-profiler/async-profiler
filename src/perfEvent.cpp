@@ -27,6 +27,17 @@
 
 #define rmb()  asm volatile("lfence":::"memory")
 
+// Ancient fcntl.h does not define F_SETOWN_EX constants and structures
+#ifndef F_SETOWN_EX
+#define F_SETOWN_EX  15
+#define F_OWNER_TID  0
+
+struct f_owner_ex {
+    int type;
+    pid_t pid;
+};
+#endif // F_SETOWN_EX
+
 
 int PerfEvent::_max_events = 0;
 PerfEvent* PerfEvent::_events = NULL;
@@ -39,7 +50,7 @@ void PerfEvent::init() {
 }
 
 int PerfEvent::tid() {
-    return syscall(SYS_gettid);
+    return syscall(__NR_gettid);
 }
 
 int PerfEvent::getMaxPid() {
@@ -65,7 +76,7 @@ void PerfEvent::createForThread(int tid) {
     attr.exclude_idle = 1;
     attr.precise_ip = 2;
 
-    int fd = syscall(SYS_perf_event_open, &attr, tid, -1, -1, 0);
+    int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
         perror("perf_event_open failed");
         return;
