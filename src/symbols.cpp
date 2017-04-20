@@ -148,7 +148,7 @@ bool ElfParser::loadSymbolsUsingBuildId() {
     }
 
     ElfNote* note = (ElfNote*)at(section);
-    if (note->n_namesz != 4 || note->n_descsz < 2 || note->n_descsz > 64 || note->n_type != NT_GNU_BUILD_ID) {
+    if (note->n_namesz != 4 || note->n_descsz < 2 || note->n_descsz > 64) {
         return false;
     }
 
