@@ -25,7 +25,14 @@
 #include "perfEvent.h"
 #include "vmEntry.h"
 
+// from aarch32_port
+#if (defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7__)
+#define rmb() __asm__ __volatile__ ("dmb ish"   : : : "memory")
+#elif defined (__arm__) || (__thumb__)
+#define rmb()  __asm__ __volatile__ ("mcr p15,0,r0,c7,c10,5" : : : "memory")
+#else
 #define rmb()  asm volatile("lfence":::"memory")
+#endif
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
 #ifndef F_SETOWN_EX
