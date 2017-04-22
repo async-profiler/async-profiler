@@ -26,10 +26,8 @@
 #include "vmEntry.h"
 
 // from aarch32_port
-#if (defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7__)
+#elif defined (__arm__) || defined(__thumb__)
 #define rmb() __asm__ __volatile__ ("dmb ish"   : : : "memory")
-#elif defined (__arm__) || (__thumb__)
-#define rmb()  __asm__ __volatile__ ("mcr p15,0,r0,c7,c10,5" : : : "memory")
 #else
 #define rmb()  asm volatile("lfence":::"memory")
 #endif
@@ -107,7 +105,7 @@ void PerfEvent::createForThread(int tid) {
     fcntl(fd, F_SETFL, O_ASYNC);
     fcntl(fd, F_SETSIG, SIGPROF);
     fcntl(fd, F_SETOWN_EX, &ex);
-    
+
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
 }
@@ -177,7 +175,7 @@ int PerfEvent::getCallChain(const void** callchain, int max_depth) {
     }
 
     int depth = 0;
-    
+
     struct perf_event_mmap_page* page = event->_page;
     if (page != NULL) {
         u64 tail = page->data_tail;

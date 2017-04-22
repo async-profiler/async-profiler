@@ -17,7 +17,7 @@
 #include <ucontext.h>
 #include "stackFrame.h"
 
-#if defined(__arm__) || defined(__thimb__)
+#if defined(__arm__) || defined(__thumb__)
 uintptr_t& StackFrame::pc(void* ucontext) {
     return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_pc;
 }

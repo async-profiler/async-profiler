@@ -18,10 +18,9 @@
 #define _SPINLOCK_H
 
 #if defined(__arm__) || defined(__thumb__)
-#include <sched.h>
-#define pause() sched_yield()
+#define spinPause() __asm__ __volatile__ ("yield"   : : : )
 #else
-#define x86_pause()  asm volatile("pause")
+#define spinPause()  asm volatile("pause")
 #endif
 
 // Cannot use regular mutexes inside signal handler
@@ -43,7 +42,7 @@ class SpinLock {
 
     void spinLock() {
         while (!tryLock()) {
-            pause();
+            spinPause();
         }
     }
 
