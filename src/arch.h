@@ -14,38 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef _SPINLOCK_H
-#define _SPINLOCK_H
-
-#include "arch.h"
+#ifndef _ARCH_H
+#define _ARCH_H
 
 
-// Cannot use regular mutexes inside signal handler
-class SpinLock {
-  private:
-    int _lock;
+#if defined(__x86_64__) || defined(__i386__)
 
-  public:
-    SpinLock() : _lock(0) {
-    }
+#define spinPause()  asm volatile("pause")
+#define rmb()        asm volatile("lfence" : : : "memory")
 
-    void reset() {
-        _lock = 0;
-    }
+#elif defined(__arm__) || defined(__thumb__)
 
-    bool tryLock() {
-        return __sync_lock_test_and_set(&_lock, 1) == 0;
-    }
+#define spinPause()  asm volatile("yield")
+#define rmb()        asm volatile("dmb ish" : : : "memory")
 
-    void spinLock() {
-        while (!tryLock()) {
-            spinPause();
-        }
-    }
+#else
 
-    void unlock() {
-        __sync_lock_release(&_lock);
-    }
-};
+#define spinPause()
+#define rmb()        __sync_synchronize()
 
-#endif // _SPINLOCK_H
+#endif
+
+
+#endif // _ARCH_H

@@ -14,38 +14,26 @@
  * limitations under the License.
  */
 
-#ifndef _SPINLOCK_H
-#define _SPINLOCK_H
+#if defined(__arm__) || defined(__thumb__)
 
-#include "arch.h"
+#include <ucontext.h>
+#include "stackFrame.h"
 
 
-// Cannot use regular mutexes inside signal handler
-class SpinLock {
-  private:
-    int _lock;
+uintptr_t& StackFrame::pc(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_pc;
+}
 
-  public:
-    SpinLock() : _lock(0) {
-    }
+uintptr_t& StackFrame::sp(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_sp;
+}
 
-    void reset() {
-        _lock = 0;
-    }
+uintptr_t& StackFrame::fp(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_fp;
+}
 
-    bool tryLock() {
-        return __sync_lock_test_and_set(&_lock, 1) == 0;
-    }
+bool StackFrame::pop() {
+    return false;
+}
 
-    void spinLock() {
-        while (!tryLock()) {
-            spinPause();
-        }
-    }
-
-    void unlock() {
-        __sync_lock_release(&_lock);
-    }
-};
-
-#endif // _SPINLOCK_H
+#endif // defined(__arm__) || defined(__thumb__)

@@ -22,15 +22,10 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include "arch.h"
 #include "perfEvent.h"
 #include "vmEntry.h"
 
-// from aarch32_port
-#if defined (__arm__) || defined(__thumb__)
-#define rmb() __asm__ __volatile__ ("dmb ish"   : : : "memory")
-#else
-#define rmb()  asm volatile("lfence":::"memory")
-#endif
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
 #ifndef F_SETOWN_EX
