@@ -17,7 +17,19 @@
 #include <ucontext.h>
 #include "stackFrame.h"
 
+#if defined(__arm__) || defined(__thumb__)
+uintptr_t& StackFrame::pc(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_pc;
+}
 
+uintptr_t& StackFrame::sp(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_sp;
+}
+
+uintptr_t& StackFrame::fp(void* ucontext) {
+    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_fp;
+}
+#else
 static inline uintptr_t* regs(void* ucontext) {
     return (uintptr_t*)((ucontext_t*)ucontext)->uc_mcontext.gregs;
 }
@@ -33,7 +45,7 @@ uintptr_t& StackFrame::sp(void* ucontext) {
 uintptr_t& StackFrame::fp(void* ucontext) {
     return regs(ucontext)[REG_RBP];
 }
-
+#endif
 
 static inline bool withinCurrentStack(uintptr_t value) {
     // Check that value is not too far from stack pointer of current context
@@ -60,6 +72,10 @@ static inline bool isFramePrologueEpilogue(uintptr_t pc) {
 }
 
 bool StackFrame::pop() {
+#if defined(__arm__) || defined(__thumb__)
+    return false;
+#endif
+
     if (!withinCurrentStack(_sp)) {
         return false;
     }
