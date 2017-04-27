@@ -128,7 +128,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Make write() return EPIPE instead of silent process termination
     signal(SIGPIPE, SIG_IGN);
+
     if (!check_socket(pid) && !start_attach_mechanism(pid)) {
         perror("Could not start attach mechanism");
         return 1;
