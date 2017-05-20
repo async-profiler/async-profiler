@@ -84,9 +84,8 @@ void PerfEvent::createForThread(int tid) {
 
     void* page = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
-        perror("mmap failed");
-        close(fd);
-        return;
+        perror("perf_event mmap failed");
+        page = NULL;
     }
 
     _events[tid].reset();

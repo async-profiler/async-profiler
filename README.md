@@ -157,6 +157,12 @@ of 127 frames. On recent Linux kernels, this can be configured using
 `sysctl kernel.perf_event_max_stack` or by writing to the
 `/proc/sys/kernel/perf_event_max_stack` file.
 
+* Profiler allocates 8kB perf_event buffer for each thread of the target process.
+Make sure `/proc/sys/kernel/perf_event_mlock_kb` value is large enough
+(more than `8 * threads`) when running under unprivileged user.
+Otherwise the message _"perf_event mmap failed: Operation not permitted"_
+will be printed, and no native stack traces will be collected.
+
 * There is no bullet-proof guarantee that the `perf_events` overflow signal
 is delivered to the Java thread in a way that guarantees no other code has run,
 which means that in some rare cases, the captured Java stack might not match
