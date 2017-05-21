@@ -136,7 +136,7 @@ class Profiler {
     time_t _deadline;
 
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
-    int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int native_frames);
+    int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void storeCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);

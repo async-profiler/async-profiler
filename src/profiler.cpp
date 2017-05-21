@@ -183,15 +183,15 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames) {
     return native_frames;
 }
 
-int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int native_frames) {
+int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         atomicInc(_failures[-ticks_no_Java_frame]);
         return 0;
     }
 
-    ASGCT_CallTrace trace = {jni, 0, frames + native_frames};
-    VM::asyncGetCallTrace(&trace, MAX_STACK_FRAMES - native_frames, ucontext);
+    ASGCT_CallTrace trace = {jni, 0, frames};
+    VM::asyncGetCallTrace(&trace, max_depth, ucontext);
 
     if (trace.num_frames == ticks_unknown_Java) {
         // If current Java stack is not walkable (e.g. the top frame is not fully constructed),
@@ -201,14 +201,17 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int native_f
         StackFrame top_frame(ucontext);
         if (top_frame.pop()) {
             // Add one slot to manually insert top method
-            trace.frames[0].method_id = _java_code.linear_search(top_frame.pc());
-            trace.frames++;
+            if (_java_code.contains(top_frame.pc())) {
+                trace.frames[0].method_id = _java_code.linear_search(top_frame.pc());
+                trace.frames++;
+                max_depth--;
+            }
 
             // Retry with the fixed context
-            VM::asyncGetCallTrace(&trace, MAX_STACK_FRAMES - 1 - native_frames, ucontext);
+            VM::asyncGetCallTrace(&trace, max_depth, ucontext);
 
             if (trace.num_frames > 0) {
-                return trace.num_frames + 1;
+                return trace.num_frames + (trace.frames - frames);
             }
 
             // Restore previous context
@@ -237,7 +240,7 @@ void Profiler::recordSample(void* ucontext) {
 
     ASGCT_CallFrame* frames = _asgct_buffer[lock_index];
     int num_frames = getNativeTrace(ucontext, frames);
-    num_frames += getJavaTrace(ucontext, frames, num_frames);
+    num_frames += getJavaTrace(ucontext, frames + num_frames, MAX_STACK_FRAMES - num_frames);
 
     if (num_frames > 0) {
         storeCallTrace(num_frames, frames);
