@@ -43,6 +43,13 @@ Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint ma
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_one_profiler_AsyncProfiler_dumpRawTraces0(JNIEnv* env, jobject unused) {
+    std::ostringstream out;
+    Profiler::_instance.dumpRawTraces(out);
+    return env->NewStringUTF(out.str().c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_dumpMethods0(JNIEnv* env, jobject unused) {
     std::ostringstream out;
     Profiler::_instance.summary(out);
