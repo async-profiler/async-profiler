@@ -20,50 +20,15 @@
 #include <jvmti.h>
 
 
-const int STRING_TABLE_CHUNK = 32000;
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 
 
-class MethodName {
-  private:
-    char _buf[520];
-    const char* _str;
-
-    char* fixClassName(char* name, bool dotted = false);
-    char* demangle(char* name);
-
-  public:
-    MethodName(jmethodID method, bool dotted = false);
-
-    const char* toString() { return _str; }
-};
-
-
-class StringTable {
-  private:
-    StringTable* _next;
-    int _capacity;
-    int _size;
-    char _data[0];
-
-  public:
-    static StringTable* allocate(StringTable* next, int capacity, int size = 0);
-    StringTable* destroy();
-
-    char* data()    { return _data; }
-    int remaining() { return _capacity - _size; }
-
-    const char* add(const char* s, int length);
-};
-
-
 class CodeBlob {
-  private:
+  public:
     const void* _start;
     const void* _end;
     jmethodID _method;
 
-  public:
     static int comparator(const void* c1, const void* c2) {
         CodeBlob* cb1 = (CodeBlob*)c1;
         CodeBlob* cb2 = (CodeBlob*)c2;
@@ -77,41 +42,56 @@ class CodeBlob {
             return cb1->_end > cb2->_end ? -1 : 1;
         }
     }
-
-    friend class CodeCache;
 };
 
 
 class CodeCache {
-  private:
-    char* _name;
+  protected:
     int _capacity;
     int _count;
     CodeBlob* _blobs;
-    StringTable* _strings;
-    const void* _min_address;
-    const void* _max_address;
+
+    void expand();
 
   public:
-    CodeCache(const char* name,
-              const void* min_address = (const void*)-1,
-              const void* max_address = (const void*)0);
-    ~CodeCache();
+    CodeCache() {
+        _capacity = INITIAL_CODE_CACHE_CAPACITY;
+        _count = 0;
+        _blobs = new CodeBlob[_capacity];
+    }
 
-    const char* addString(const char* s);
-    const char* addStrings(const char* s, int length);
+    ~CodeCache() {
+        delete[] _blobs;
+    }
 
     void add(const void* start, int length, jmethodID method);
-    void add(const void* start, int length, const char* name);
     void remove(const void* start, jmethodID method);
+    jmethodID find(const void* address);
+};
 
-    void sort();
-    jmethodID linear_search(const void* address);
-    jmethodID binary_search(const void* address);
+
+class NativeCodeCache : public CodeCache {
+  private:
+    const char* _name;
+    const void* _min_address;
+    const void* _max_address;
+  
+  public:
+    NativeCodeCache(const char* name, const void* min_address = NULL, const void* max_address = NULL) : CodeCache() {
+        _name = name;
+        _min_address = min_address;
+        _max_address = max_address;
+    }
+
+    ~NativeCodeCache();
 
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
     }
+
+    void add(const void* start, int length, const char* name);
+    const char* binary_search(const void* address);
+    void sort();
 };
 
 #endif // _CODECACHE_H

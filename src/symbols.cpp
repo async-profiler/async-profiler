@@ -91,7 +91,7 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
     return NULL;
 }
 
-bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug) {
+bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
         return false;
@@ -109,7 +109,7 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
     return true;
 }
 
-void ElfParser::parseMem(CodeCache* cc, const char* base, const void* addr) {
+void ElfParser::parseMem(NativeCodeCache* cc, const char* base, const void* addr) {
     ElfParser elf(cc, base, addr);
     elf.loadSymbols(false);
 }
@@ -208,7 +208,7 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
 
 void ElfParser::loadSymbolTable(ElfSection* symtab) {
     ElfSection* strtab = section(symtab->sh_link);
-    const char* strings = _cc->addStrings(at(strtab), strtab->sh_size);
+    const char* strings = at(strtab);
 
     const char* symbols = at(symtab);
     const char* symbols_end = symbols + symtab->sh_size;
@@ -221,7 +221,7 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
 }
 
 
-void Symbols::parseKernelSymbols(CodeCache* cc) {
+void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     std::ifstream maps("/proc/kallsyms");
     std::string str;
 
@@ -232,16 +232,16 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
         if (type == 'T' || type == 't' || type == 'V' || type == 'v' || type == 'W' || type == 'w') {
             const char* addr = symbol.addr();
             if (addr != NULL) {
-                cc->add(addr, 0, cc->addString(symbol.name()));
+                cc->add(addr, 0, symbol.name());
             }
         }
     }
 }
 
-int Symbols::parseMaps(CodeCache** array, int size) {
+int Symbols::parseMaps(NativeCodeCache** array, int size) {
     int count = 0;
     if (count < size) {
-        CodeCache* cc = new CodeCache("[kernel]");
+        NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
         cc->sort();
         array[count++] = cc;
@@ -253,7 +253,7 @@ int Symbols::parseMaps(CodeCache** array, int size) {
     while (count < size && std::getline(maps, str)) {
         MemoryMapDesc map(str.c_str());
         if (map.isExecutable() && map.file()[0] != 0) {
-            CodeCache* cc = new CodeCache(map.file(), map.addr(), map.end());
+            NativeCodeCache* cc = new NativeCodeCache(map.file(), map.addr(), map.end());
             const char* base = map.addr() - map.offs();
 
             if (map.inode() != 0) {

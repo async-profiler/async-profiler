@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <cxxabi.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include "profiler.h"
@@ -37,6 +38,71 @@ static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 static inline u64 atomicInc(u64& var) {
     return __sync_fetch_and_add(&var, 1);
 }
+
+
+class MethodName {
+  private:
+    char _buf[520];
+    const char* _str;
+
+    char* fixClassName(char* name, bool dotted) {
+        if (dotted) {
+            for (char* s = name + 1; *s; s++) {
+                if (*s == '/') *s = '.';
+            }
+        }
+
+        // Class signature is a string of form 'Ljava/lang/Thread;'
+        // So we have to remove the first 'L' and the last ';'
+        name[strlen(name) - 1] = 0;
+        return name + 1;
+    }
+
+    const char* demangle(const char* name) {
+        if (name != NULL && name[0] == '_' && name[1] == 'Z') {
+            int status;
+            char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
+            if (demangled != NULL) {
+                strncpy(_buf, demangled, sizeof(_buf));
+                free(demangled);
+                return _buf;
+            }
+        }
+        return name;
+    }
+
+  public:
+    MethodName(ASGCT_CallFrame& frame, bool dotted = false) {
+        if (frame.method_id == NULL) {
+            _str = "[unknown]";
+        } else if (frame.bci == BCI_NATIVE_FRAME) {
+            _str = demangle((const char*)frame.method_id);
+        } else {
+            jclass method_class;
+            char* class_name = NULL;
+            char* method_name = NULL;
+
+            jvmtiEnv* jvmti = VM::jvmti();
+            jvmtiError err;
+
+            if ((err = jvmti->GetMethodName(frame.method_id, &method_name, NULL, NULL)) == 0 &&
+                (err = jvmti->GetMethodDeclaringClass(frame.method_id, &method_class)) == 0 &&
+                (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
+                snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
+            } else {
+                snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+            }
+            _str = _buf;
+
+            jvmti->Deallocate((unsigned char*)class_name);
+            jvmti->Deallocate((unsigned char*)method_name);
+        }
+    }
+
+    const char* toString() {
+        return _str;
+    }
+};
 
 
 void Profiler::frameBufferSize(int size) {
@@ -106,7 +172,7 @@ void Profiler::copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTr
     trace->_num_frames = num_frames;
 
     for (int i = 0; i < num_frames; i++) {
-        _frame_buffer[start_frame++] = frames[i].method_id;
+        _frame_buffer[start_frame++] = frames[i];
     }
 }
 
@@ -123,14 +189,15 @@ u64 Profiler::hashMethod(jmethodID method) {
     return h;
 }
 
-void Profiler::storeMethod(jmethodID method) {
+void Profiler::storeMethod(jmethodID method, jint bci) {
     u64 hash = hashMethod(method);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
-    while (_methods[i]._method != method) {
-        if (_methods[i]._method == NULL) {
-            if (__sync_bool_compare_and_swap(&_methods[i]._method, NULL, method)) {
+    while (_methods[i]._method.method_id != method) {
+        if (_methods[i]._method.method_id == NULL) {
+            if (__sync_bool_compare_and_swap(&_methods[i]._method.method_id, NULL, method)) {
+                _methods[i]._method.bci = bci;
                 break;
             }
             continue;
@@ -160,10 +227,35 @@ void Profiler::checkDeadline() {
     }
 }
 
-jmethodID Profiler::findNativeMethod(const void* address) {
-    for (int i = 0; i < _native_libs; i++) {
-        if (_native_code[i]->contains(address)) {
-            return _native_code[i]->binary_search(address);
+void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
+    _jit_lock.lock();
+    _java_methods.add(address, length, method);
+    updateJitRange(address, (const char*)address + length);
+    _jit_lock.unlock();
+}
+
+void Profiler::removeJavaMethod(const void* address, jmethodID method) {
+    _jit_lock.lock();
+    _java_methods.remove(address, method);
+    _jit_lock.unlock();
+}
+
+void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
+    _jit_lock.lock();
+    _runtime_stubs.add(address, length, name);
+    updateJitRange(address, (const char*)address + length);
+    _jit_lock.unlock();
+}
+
+void Profiler::updateJitRange(const void* min_address, const void* max_address) {
+    if (min_address < _jit_min_address) _jit_min_address = min_address;
+    if (max_address > _jit_max_address) _jit_max_address = max_address;
+}
+
+const char* Profiler::findNativeMethod(const void* address) {
+    for (int i = 0; i < _native_lib_count; i++) {
+        if (_native_libs[i]->contains(address)) {
+            return _native_libs[i]->binary_search(address);
         }
     }
     return NULL;
@@ -174,10 +266,12 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames) {
     int native_frames = PerfEvent::getCallChain(native_callchain, MAX_NATIVE_FRAMES);
 
     for (int i = 0; i < native_frames; i++) {
-        if (_java_code.contains(native_callchain[i])) {
+        const void* address = native_callchain[i];
+        if (address >= _jit_min_address && address < _jit_max_address) {
             return i;
         }
-        frames[i].method_id = findNativeMethod(native_callchain[i]);
+        frames[i].bci = BCI_NATIVE_FRAME;
+        frames[i].method_id = (jmethodID)findNativeMethod(address);
     }
 
     return native_frames;
@@ -200,9 +294,8 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_dept
         // see https://bugs.openjdk.java.net/browse/JDK-8178287
         StackFrame top_frame(ucontext);
         if (top_frame.pop()) {
-            // Add one slot to manually insert top method
-            if (_java_code.contains(top_frame.pc())) {
-                trace.frames[0].method_id = _java_code.linear_search(top_frame.pc());
+            // Guess top method by PC and insert it manually into the call trace
+            if (fillTopFrame(top_frame.pc(), trace.frames)) {
                 trace.frames++;
                 max_depth--;
             }
@@ -229,6 +322,27 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_dept
     return 0;
 }
 
+bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
+    jmethodID method = NULL;
+    _jit_lock.lockShared();
+
+    // Check if PC lies within JVM's compiled code cache
+    if (pc >= _jit_min_address && pc < _jit_max_address) {
+        if ((method = _java_methods.find(pc)) != NULL) {
+            // PC belong to a JIT compiled method
+            frame->bci = 0;
+            frame->method_id = method;
+        } else if ((method = _runtime_stubs.find(pc)) != NULL) {
+            // PC belongs to a VM runtime stub
+            frame->bci = BCI_NATIVE_FRAME;
+            frame->method_id = method;
+        }
+    }
+
+    _jit_lock.unlockShared();
+    return method != NULL;
+}
+
 void Profiler::recordSample(void* ucontext) {
     checkDeadline();
 
@@ -244,17 +358,17 @@ void Profiler::recordSample(void* ucontext) {
 
     if (num_frames > 0) {
         storeCallTrace(num_frames, frames);
-        storeMethod(frames[0].method_id);
+        storeMethod(frames[0].method_id, frames[0].bci);
     }
 
     _locks[lock_index].unlock();
 }
 
 void Profiler::resetSymbols() {
-    for (int i = 0; i < _native_libs; i++) {
-        delete _native_code[i];
+    for (int i = 0; i < _native_lib_count; i++) {
+        delete _native_libs[i];
     }
-    _native_libs = Symbols::parseMaps(_native_code, MAX_NATIVE_LIBS);
+    _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
 void Profiler::setSignalHandler() {
@@ -284,7 +398,7 @@ void Profiler::start(int interval, int duration) {
 
     // Reset frames
     free(_frame_buffer);
-    _frame_buffer = (jmethodID*)malloc(_frame_buffer_size * sizeof(jmethodID));
+    _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
 
@@ -363,8 +477,7 @@ void Profiler::dumpRawTraces(std::ostream& out) {
         
         CallTraceSample& trace = _traces[i];
         for (int j = trace._num_frames - 1; j >= 0; j--) {
-            jmethodID method = _frame_buffer[trace._start_frame + j];
-            MethodName mn(method);
+            MethodName mn(_frame_buffer[trace._start_frame + j]);
             out << mn.toString() << (j == 0 ? ' ' : ';');
         }
         out << samples << "\n";
@@ -390,8 +503,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
 
         CallTraceSample& trace = _traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
-            jmethodID method = _frame_buffer[trace._start_frame + j];
-            MethodName mn(method, true);
+            MethodName mn(_frame_buffer[trace._start_frame + j], true);
             snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, mn.toString());
             out << buf;
         }

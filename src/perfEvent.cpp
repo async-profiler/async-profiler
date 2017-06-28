@@ -127,7 +127,7 @@ void PerfEvent::destroyForThread(int tid) {
         event->_fd = 0;
     }
     if (event->_page != NULL) {
-        event->spinLock();
+        event->lock();
         munmap(event->_page, 2 * PAGE_SIZE);
         event->_page = NULL;
         event->unlock();
