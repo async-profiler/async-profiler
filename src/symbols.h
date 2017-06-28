@@ -28,13 +28,13 @@ typedef Elf64_Sym  ElfSymbol;
 
 class ElfParser {
   private:
-    CodeCache* _cc;
+    NativeCodeCache* _cc;
     const char* _base;
     const char* _file_name;
     ElfHeader* _header;
     const char* _sections;
 
-    ElfParser(CodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
+    ElfParser(NativeCodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
         _cc = cc;
         _base = base;
         _file_name = file_name;
@@ -65,17 +65,17 @@ class ElfParser {
     void loadSymbolTable(ElfSection* symtab);
 
   public:
-    static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(CodeCache* cc, const char* base, const void* addr);
+    static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
+    static void parseMem(NativeCodeCache* cc, const char* base, const void* addr);
 };
 
 
 class Symbols {
   private:
-    static void parseKernelSymbols(CodeCache* cc);
+    static void parseKernelSymbols(NativeCodeCache* cc);
 
   public:
-    static int parseMaps(CodeCache** array, int size);
+    static int parseMaps(NativeCodeCache** array, int size);
 };
 
 #endif // _SYMBOLS_H

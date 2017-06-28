@@ -14,158 +14,29 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <cxxabi.h>
 #include "codeCache.h"
-#include "vmEntry.h"
 
 
-static inline bool isString(jmethodID method) {
-    return (intptr_t)method < 0;
-}
-
-static inline char* asString(jmethodID method) {
-    return (char*)(-(intptr_t)method);
-}
-
-static inline jmethodID asJavaMethod(const char* name) {
-    return (jmethodID)(-(intptr_t)name);
-}
-
-
-MethodName::MethodName(jmethodID method, bool dotted) {
-    if (method == NULL) {
-        _str = "[unknown]";
-    } else if (isString(method)) {
-        _str = demangle(asString(method));
-    } else {
-        jclass method_class;
-        char* class_name = NULL;
-        char* method_name = NULL;
-
-        jvmtiEnv* jvmti = VM::jvmti();
-        jvmtiError err;
-
-        if ((err = jvmti->GetMethodName(method, &method_name, NULL, NULL)) == 0 &&
-            (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
-            (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
-            snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
-        } else {
-            snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
-        }
-        _str = _buf;
-
-        jvmti->Deallocate((unsigned char*)class_name);
-        jvmti->Deallocate((unsigned char*)method_name);
-    }
-}
-
-char* MethodName::fixClassName(char* name, bool dotted) {
-    if (dotted) {
-        for (char* s = name + 1; *s; s++) {
-            if (*s == '/') *s = '.';
-        }
-    }
-
-    // Class signature is a string of form 'Ljava/lang/Thread;'
-    // So we have to remove the first 'L' and the last ';'
-    name[strlen(name) - 1] = 0;
-    return name + 1;
-}
-
-char* MethodName::demangle(char* name) {
-    if (name != NULL && name[0] == '_' && name[1] == 'Z') {
-        int status;
-        char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
-        if (demangled != NULL) {
-            strncpy(_buf, demangled, sizeof(_buf));
-            free(demangled);
-            return _buf;
-        }
-    }
-    return name;
-}
-
-
-StringTable* StringTable::allocate(StringTable* next, int capacity, int size) {
-    StringTable* st = (StringTable*)malloc(sizeof(StringTable) + capacity);
-    st->_next = next;
-    st->_capacity = capacity;
-    st->_size = size;
-    return st;
-}
-
-StringTable* StringTable::destroy() {
-    StringTable* next = _next;
-    free(this);
-    return next;
-}
-
-const char* StringTable::add(const char* s, int length) {
-    const char* result = (const char*)memcpy(_data + _size, s, length);
-    _size += length;
-    return result;
-}
-
-
-CodeCache::CodeCache(const char* name, const void* min_address, const void* max_address) {
-    _name = strdup(name);
-    _capacity = INITIAL_CODE_CACHE_CAPACITY;
-    _count = 0;
-    _blobs = (CodeBlob*)malloc(_capacity * sizeof(CodeBlob));
-    _strings = NULL;
-    _min_address = min_address;
-    _max_address = max_address;
-}
-
-CodeCache::~CodeCache() {
-    for (StringTable* st = _strings; st != NULL; ) {
-        st = st->destroy();
-    }
-    free(_blobs);
-    free(_name);
-}
-
-const char* CodeCache::addString(const char* s) {
-    int length = strlen(s) + 1;
-    if (_strings == NULL || _strings->remaining() < length) {
-        _strings = StringTable::allocate(_strings, STRING_TABLE_CHUNK);
-    }
-    return _strings->add(s, length);
-}
-
-const char* CodeCache::addStrings(const char* s, int length) {
-    _strings = StringTable::allocate(_strings, length);
-    return _strings->add(s, length);
+void CodeCache::expand() {
+    CodeBlob* old_blobs = _blobs;
+    CodeBlob* new_blobs = new CodeBlob[_capacity * 2];
+    memcpy(new_blobs, old_blobs, _capacity * sizeof(CodeBlob));
+    _capacity *= 2;
+    _blobs = new_blobs;
+    delete[] old_blobs;
 }
 
 void CodeCache::add(const void* start, int length, jmethodID method) {
-    const char* end = (const char*)start + length;
-    if (start < _min_address) _min_address = start;
-    if (end > _max_address) _max_address = end;
-
     if (_count >= _capacity) {
-        // Note: we do not free old block here; it can be concurrently used in signal handler
-        CodeBlob* new_blobs = (CodeBlob*)malloc(_capacity * sizeof(CodeBlob) * 2);
-        memcpy(new_blobs, _blobs, _capacity * sizeof(CodeBlob));
-        _capacity *= 2;
-        _blobs = new_blobs;
-        __sync_synchronize();
+        expand();
     }
 
     _blobs[_count]._start = start;
-    _blobs[_count]._end = end;
+    _blobs[_count]._end = (const char*)start + length;
     _blobs[_count]._method = method;
-    __sync_synchronize();
     _count++;
-
-}
-
-void CodeCache::add(const void* start, int length, const char* name) {
-    add(start, length, asJavaMethod(name));
 }
 
 void CodeCache::remove(const void* start, jmethodID method) {
@@ -177,20 +48,27 @@ void CodeCache::remove(const void* start, jmethodID method) {
     }
 }
 
-void CodeCache::sort() {
-    qsort(_blobs, _count, sizeof(CodeBlob), CodeBlob::comparator);
-}
-
-jmethodID CodeCache::linear_search(const void* address) {
+jmethodID CodeCache::find(const void* address) {
     for (int i = 0; i < _count; i++) {
         if (address >= _blobs[i]._start && address < _blobs[i]._end) {
             return _blobs[i]._method;
         }
     }
-    return asJavaMethod(_name);
+    return NULL;
 }
 
-jmethodID CodeCache::binary_search(const void* address) {
+
+NativeCodeCache::~NativeCodeCache() {
+    for (int i = 0; i < _count; i++) {
+        free(_blobs[i]._method);
+    }
+}
+
+void NativeCodeCache::add(const void* start, int length, const char* name) {
+    CodeCache::add(start, length, (jmethodID)strdup(name));
+}
+
+const char* NativeCodeCache::binary_search(const void* address) {
     int low = 0;
     int high = _count - 1;
 
@@ -201,13 +79,22 @@ jmethodID CodeCache::binary_search(const void* address) {
         } else if (_blobs[mid]._start > address) {
             high = mid - 1;
         } else {
-            return _blobs[mid]._method;
+            return (const char*)_blobs[mid]._method;
         }
     }
 
     // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code
     if (low > 0 && _blobs[low - 1]._start == _blobs[low - 1]._end) {
-        return _blobs[low - 1]._method;
+        return (const char*)_blobs[low - 1]._method;
     }
-    return asJavaMethod(_name);
+    return _name;
+}
+
+void NativeCodeCache::sort() {
+    if (_count == 0) return;
+    
+    qsort(_blobs, _count, sizeof(CodeBlob), CodeBlob::comparator);
+
+    if (_min_address == NULL) _min_address = _blobs[0]._start;
+    if (_max_address == NULL) _max_address = _blobs[_count - 1]._end;
 }

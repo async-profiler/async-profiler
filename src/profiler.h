@@ -60,7 +60,7 @@ class CallTraceSample {
 class MethodSample {
   private:
     u64 _counter;
-    jmethodID _method;
+    ASGCT_CallFrame _method;
 
   public:
     static int comparator(const void* s1, const void* s2) {
@@ -123,27 +123,37 @@ class Profiler {
 
     SpinLock _locks[CONCURRENCY_LEVEL];
     ASGCT_CallFrame _asgct_buffer[CONCURRENCY_LEVEL][MAX_STACK_FRAMES];
-    jmethodID* _frame_buffer;
+    ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
 
-    CodeCache _java_code;
-    CodeCache* _native_code[MAX_NATIVE_LIBS];
-    int _native_libs;
+    SpinLock _jit_lock;
+    const void* _jit_min_address;
+    const void* _jit_max_address;
+    CodeCache _java_methods;
+    NativeCodeCache _runtime_stubs;
+    NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
+    int _native_lib_count;
 
     // Seconds resolution is enough
     time_t _deadline;
 
+    void addJavaMethod(const void* address, int length, jmethodID method);
+    void removeJavaMethod(const void* address, jmethodID method);
+    void addRuntimeStub(const void* address, int length, const char* name);
+    void updateJitRange(const void* min_address, const void* max_address);
+
+    const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
     int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void storeCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
-    void storeMethod(jmethodID method);
+    void storeMethod(jmethodID method, jint bci);
     void checkDeadline();
-    jmethodID findNativeMethod(const void* address);
     void resetSymbols();
     void setSignalHandler();
 
@@ -154,8 +164,12 @@ class Profiler {
         _state(IDLE),
         _frame_buffer(NULL),
         _frame_buffer_size(DEFAULT_FRAME_BUFFER_SIZE),
-        _java_code("[jvm]"),
-        _native_libs(0) {
+        _jit_lock(),
+        _jit_min_address((const void*)-1),
+        _jit_max_address((const void*)0),
+        _java_methods(),
+        _runtime_stubs(NULL),
+        _native_lib_count(0) {
         pthread_mutex_init(&_state_lock, NULL);
     }
 
@@ -181,18 +195,17 @@ class Profiler {
                                            jint code_size, const void* code_addr,
                                            jint map_length, const jvmtiAddrLocationMap* map,
                                            const void* compile_info) {
-        _instance._java_code.add(code_addr, code_size, method);
+        _instance.addJavaMethod(code_addr, code_size, method);
     }
 
     static void JNICALL CompiledMethodUnload(jvmtiEnv* jvmti, jmethodID method,
                                              const void* code_addr) {
-        _instance._java_code.remove(code_addr, method);
+        _instance.removeJavaMethod(code_addr, method);
     }
 
     static void JNICALL DynamicCodeGenerated(jvmtiEnv* jvmti, const char* name,
                                              const void* address, jint length) {
-        const char* name_copy = _instance._java_code.addString(name);
-        _instance._java_code.add(address, length, name_copy);
+        _instance.addRuntimeStub(address, length, name);
     }
 };
 

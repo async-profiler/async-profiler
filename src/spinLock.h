@@ -20,10 +20,14 @@
 #include "arch.h"
 
 
-// Cannot use regular mutexes inside signal handler
+// Cannot use regular mutexes inside signal handler.
+// This lock is based on CAS busy loop. GCC atomic builtins imply full barrier.
 class SpinLock {
   private:
-    int _lock;
+    //  0 - unlocked
+    //  1 - exclusive lock
+    // <0 - shared lock
+    volatile int _lock;
 
   public:
     SpinLock() : _lock(0) {
@@ -34,17 +38,28 @@ class SpinLock {
     }
 
     bool tryLock() {
-        return __sync_lock_test_and_set(&_lock, 1) == 0;
+        return __sync_bool_compare_and_swap(&_lock, 0, 1);
     }
 
-    void spinLock() {
+    void lock() {
         while (!tryLock()) {
             spinPause();
         }
     }
 
     void unlock() {
-        __sync_lock_release(&_lock);
+        __sync_fetch_and_sub(&_lock, 1);
+    }
+
+    void lockShared() {
+        int value;
+        while ((value = _lock) == 1 || !__sync_bool_compare_and_swap(&_lock, value, value - 1)) {
+            spinPause();
+        }
+    }
+
+    void unlockShared() {
+        __sync_fetch_and_add(&_lock, 1);
     }
 };
 

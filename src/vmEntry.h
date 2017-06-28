@@ -20,6 +20,9 @@
 #include <jvmti.h>
 
 
+// Denotes ASGCT_CallFrame with string name instead of Java method ID
+const jint BCI_NATIVE_FRAME = -2;
+
 typedef struct {
     jint bci;
     jmethodID method_id;
