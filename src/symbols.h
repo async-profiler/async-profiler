@@ -21,10 +21,20 @@
 #include "codeCache.h"
 
 
+#ifdef __LP64__
+const unsigned char ELFCLASS_SUPPORTED = ELFCLASS64;
 typedef Elf64_Ehdr ElfHeader;
 typedef Elf64_Shdr ElfSection;
 typedef Elf64_Nhdr ElfNote;
 typedef Elf64_Sym  ElfSymbol;
+#else
+const unsigned char ELFCLASS_SUPPORTED = ELFCLASS32;
+typedef Elf32_Ehdr ElfHeader;
+typedef Elf32_Shdr ElfSection;
+typedef Elf32_Nhdr ElfNote;
+typedef Elf32_Sym  ElfSymbol;
+#endif // __LP64__
+
 
 class ElfParser {
   private:
@@ -45,7 +55,7 @@ class ElfParser {
     bool valid_header() {
         unsigned char* ident = _header->e_ident;
         return ident[0] == 0x7f && ident[1] == 'E' && ident[2] == 'L' && ident[3] == 'F'
-            && ident[4] == ELFCLASS64 && ident[5] == ELFDATA2LSB && ident[6] == EV_CURRENT
+            && ident[4] == ELFCLASS_SUPPORTED && ident[5] == ELFDATA2LSB && ident[6] == EV_CURRENT
             && _header->e_shstrndx != SHN_UNDEF;
     }
 
