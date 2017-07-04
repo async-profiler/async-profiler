@@ -65,8 +65,15 @@ $ ./profiler.sh --start 8983
 $ ./profiler.sh --stop 8983
 ```
 
-By default, the profiling frequency is 1000Hz (every 1ms). Here is a sample of
-the output printed to the Java application's terminal:
+Alternatively, you may specify `-d` (duration) argument to profile
+the application for a fixed period of time with a single command.
+
+```
+$ ./profiler.sh -d 30 8983
+```
+
+By default, the profiling frequency is 1000Hz (every 1ms of CPU time).
+Here is a sample of the output printed to the Java application's terminal:
 
 ```
 --- Execution profile ---
@@ -107,42 +114,50 @@ $ ./profiler.sh -d 30 -o flamegraph -f /tmp/traces.txt 8983
 $ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
 ```
 
-## All Agent Options
+## Profiler Options
 
-The following is a complete list of the command-line options accepted by the
-agent. Some options can be combined, e.g. the profiling interval can be
-provided at the same time as the `start` command, by separating them with
-commas: `interval=1000000,start`. When using the `profiler.sh` helper script,
-start/stop/dump are actions, and the rest of the switches are provided as
-options. See examples below for how to use these options with the helper script,
-but you can also pass them directly to the agent using the `jattach` utility,
-which is built as part of this tool.
+The following is a complete list of the command-line options accepted by
+`profiler.sh` script.
 
-* `interval:N` - sets the profiling interval, in CPU cycles. The default is
-10000000 (10M) cycles. Example: `./profiler.sh -p 8983 -o interval:100000 -a start`.
+* `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
+is counted. No samples are collected while CPU is idle. The default is
+1000000 (1ms).  
+Example: `./profiler.sh -i 100000 8983`
 
-* `frameBufferSize:N` - sets the frame buffer size, in the number of Java
+* `-b N` - sets the frame buffer size, in the number of Java
 method ids that should fit in the buffer. If you receive messages about an
-insufficient frame buffer size, increase this value from the default.
-Example: `./profiler.sh -p 8983 -o frameBufferSize:1000000 -a start`.
+insufficient frame buffer size, increase this value from the default.  
+Example: `./profiler.sh -b 5000000 8983`
 
-* `start` - starts profiling.
+* `--start` - starts profiling in semi-automatic mode, i.e. profiler will run
+until `--stop` command is explicitly called.
 
-* `stop` - stops profiling and prints the report.
+* `--stop` - stops profiling and prints the report.
 
-* `dumpRawTraces:filename` - stops profiling and dumps the raw trace information
-to the specified file. Example: `./profiler.sh -p 8983 -f /tmp/traces -a dump`.
+* `--status` - prints profiling status: whether profiler is active and
+for how long.
 
-The format of the raw trace file is a collection of call stacks, where each line
-is a semicolon separated list of frames followed by the sample count.
-For example:
+* `-d N` - the profiling duration, in seconds. If no `--start`, `--stop`
+or `--status` option is given, the profiler will run for the specified period
+of time and then automatically stop.  
+Example: `./profiler.sh -d 30 8983`
 
-```
-java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
-```
+* `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
+This is a comma-separated list of the following options:
+  - `summary` - dump basic profiling statistics;
+  - `traces[=N]` - dump call traces (at most N samples);
+  - `methods[=N]` - dump hot methods (at most N samples);
+  - `flamegraph` - dump raw call traces in the format used by
+  [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
+  a collection of call stacks, where each line is a semicolon separated list
+  of frames followed by the sample count. For example:
+  ```
+  java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
+  ```
+  The default format is `summary,traces=200,methods=200`.
 
-This stack appeared 1056 times in the trace. This is the same stack trace format
-used by the [FlameGraph](https://github.com/brendangregg/FlameGraph) script.
+* `-f FILENAME` - the file name to dump the profile information to.  
+Example: `./profiler.sh -o flamegraph -f /tmp/traces.txt 8983`
 
 ## Restrictions/Limitations
 
