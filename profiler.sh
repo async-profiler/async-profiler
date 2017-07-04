@@ -1,64 +1,86 @@
 #!/bin/bash
 
+usage() {
+    echo "Usage: $0 [options] <pid>"
+    echo "Options:"
+    echo "  --start           start profiling and return immediately"
+    echo "  --stop            stop profiling"
+    echo "  --status          print profiling status"
+    echo "  -d duration       run profiling for <duration> seconds"
+    echo "  -f filename       dump output to <filename>"
+    echo "  -i interval       sampling interval in nanoseconds"
+    echo "  -o fmt[,fmt...]   output format: summary|traces|methods|flamegraph"
+    echo ""
+    echo "Example: $0 -d 30 -f profile.fg -o flamegraph 3456"
+    echo "         $0 --start -i 999000 3456"
+    echo "         $0 --stop -o summary,methods 3456"
+    exit 1
+}
+
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
 # realpath is not present on all distros, notably on the Travis CI image
 PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION=""
-PID=""
-START_OPTIONS=""
+DURATION="60"
 FILE=""
+INTERVAL=""
+OUTPUT="summary,traces,methods"
 
-while getopts ":h?a:p:o:f:" opt; do
-    case $opt in
-        h|\?)
-            echo "Usage: $0 -a <start|stop|dump> -p <pid>"
-            echo "       [-o start-options] [-f output-file]"
-            echo ""
-            echo "Example: $0 -p 8983 -a start"
-            echo "         $0 -p 8983 -a stop"
-            exit 1
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|"-?")
+            usage
             ;;
-        a)
-            ACTION=$OPTARG
+        --start|--stop|--status)
+            ACTION="$1"
             ;;
-        p)
-            PID=$OPTARG
+        -d)
+            DURATION="$2"
+            shift
             ;;
-        o)
-            START_OPTIONS=$OPTARG
+        -f)
+            FILE=",file=$2"
+            shift
             ;;
-        f)
-            FILE=$OPTARG
+        -i)
+            INTERVAL=",interval=$2"
+            shift
             ;;
+        -o)
+            OUTPUT=",$2"
+            shift
+            ;;
+        [0-9]*)
+            PID="$1"
+            ;;
+        *)
+        	echo "Unrecognized option: $1"
+        	usage
+        	;;
     esac
+    shift
 done
 
-if [[ "$PID" == "" ]]
-then
-    echo "Error: pid is required"
-    exit 1
-fi
-if [[ "$ACTION" == "" ]]
-then
-    echo "Error: action is required (start, stop, or dump)"
-    exit 1
-fi
+[[ "$PID" == "" ]] && usage
 
 case $ACTION in
-    "start")
-        $JATTACH $PID load $PROFILER true $START_OPTIONS,start > /dev/null
+    --start)
+        $JATTACH $PID load $PROFILER true start$INTERVAL > /dev/null
         ;;
-    "stop")
-        $JATTACH $PID load $PROFILER true stop > /dev/null
+    --stop)
+        $JATTACH $PID load $PROFILER true stop$FILE$OUTPUT > /dev/null
         ;;
-    "dump")
-        if [[ "$FILE" == "" ]]
-        then
-            echo "Error: file required for dump action"
+    --status)
+        $JATTACH $PID load $PROFILER true status > /dev/null
+        ;;
+    *)
+        $JATTACH $PID load $PROFILER true start$INTERVAL > /dev/null
+        if [ $? -ne 0 ]; then
             exit 1
         fi
-        $JATTACH $PID load $PROFILER true dumpRawTraces:$FILE > /dev/null
+        sleep $DURATION
+        $JATTACH $PID load $PROFILER true stop$FILE$OUTPUT > /dev/null
         ;;
 esac

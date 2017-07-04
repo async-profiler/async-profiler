@@ -15,13 +15,13 @@
  */
 
 #include <sstream>
+#include "arguments.h"
 #include "profiler.h"
 
 
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval, jint duration) {
-    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL,
-                              duration ? duration : DEFAULT_DURATION);
+Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval) {
+    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL, DEFAULT_FRAMEBUF);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -35,24 +35,24 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_one_profiler_AsyncProfiler_dumpFlameGraph0(JNIEnv* env, jobject unused) {
+    std::ostringstream out;
+    Profiler::_instance.dumpFlameGraph(out);
+    return env->NewStringUTF(out.str().c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint max_traces) {
     std::ostringstream out;
-    Profiler::_instance.summary(out);
-    Profiler::_instance.dumpTraces(out, max_traces ? max_traces : DEFAULT_TRACES_TO_DUMP);
+    Profiler::_instance.dumpSummary(out);
+    Profiler::_instance.dumpTraces(out, max_traces ? max_traces : MAX_CALLTRACES);
     return env->NewStringUTF(out.str().c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpRawTraces0(JNIEnv* env, jobject unused) {
+Java_one_profiler_AsyncProfiler_dumpMethods0(JNIEnv* env, jobject unused, jint max_methods) {
     std::ostringstream out;
-    Profiler::_instance.dumpRawTraces(out);
-    return env->NewStringUTF(out.str().c_str());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpMethods0(JNIEnv* env, jobject unused) {
-    std::ostringstream out;
-    Profiler::_instance.summary(out);
-    Profiler::_instance.dumpMethods(out);
+    Profiler::_instance.dumpSummary(out);
+    Profiler::_instance.dumpMethods(out, max_methods ? max_methods : MAX_CALLTRACES);
     return env->NewStringUTF(out.str().c_str());
 }

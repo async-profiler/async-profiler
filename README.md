@@ -61,11 +61,11 @@ Example:
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -p 8983 -a start
-$ ./profiler.sh -p 8983 -a stop
+$ ./profiler.sh --start 8983
+$ ./profiler.sh --stop 8983
 ```
 
-By default, the profiling frequency is 100Hz (every 10ms). Here is a sample of
+By default, the profiling frequency is 1000Hz (every 1ms). Here is a sample of
 the output printed to the Java application's terminal:
 
 ```
@@ -103,8 +103,7 @@ solution can be tailored to other visualization tools.
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -p 8983 -o interval:100000000 -a start
-$ ./profiler.sh -p 8983 -f /tmp/traces.txt -a dump
+$ ./profiler.sh -d 30 -o flamegraph -f /tmp/traces.txt 8983
 $ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
 ```
 
@@ -113,7 +112,7 @@ $ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
 The following is a complete list of the command-line options accepted by the
 agent. Some options can be combined, e.g. the profiling interval can be
 provided at the same time as the `start` command, by separating them with
-commas: `interval:1000000,start`. When using the `profiler.sh` helper script,
+commas: `interval=1000000,start`. When using the `profiler.sh` helper script,
 start/stop/dump are actions, and the rest of the switches are provided as
 options. See examples below for how to use these options with the helper script,
 but you can also pass them directly to the agent using the `jattach` utility,
@@ -121,11 +120,6 @@ which is built as part of this tool.
 
 * `interval:N` - sets the profiling interval, in CPU cycles. The default is
 10000000 (10M) cycles. Example: `./profiler.sh -p 8983 -o interval:100000 -a start`.
-
-* `duration:N` - sets the duration of the trace, in seconds. After this time,
-the trace will stop automatically. The default is 3600 seconds (1 hour).
-Example: `./profiler.sh -p 8983 -o duration:60 -a start`. _NOTE: This feature
-is not currently supported; profiling will not stop automatically._
 
 * `frameBufferSize:N` - sets the frame buffer size, in the number of Java
 method ids that should fit in the buffer. If you receive messages about an

@@ -16,9 +16,8 @@
 
 #include <fstream>
 #include <dlfcn.h>
-#include <string.h>
-#include <stdlib.h>
 #include "vmEntry.h"
+#include "arguments.h"
 #include "profiler.h"
 #include "perfEvent.h"
 
@@ -111,17 +110,15 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
         return -1;
     }
 
-    Profiler::_instance.start(DEFAULT_INTERVAL, DEFAULT_DURATION);
+    Arguments args(options);
+    if (args.error() != NULL) {
+        std::cerr << args.error() << std::endl;
+        return -1;
+    }
+
+    Profiler::_instance.run(args);
     return 0;
 }
-
-const char OPTION_DELIMITER[] = ",";
-const char FRAME_BUFFER_SIZE[] = "frameBufferSize:";
-const char INTERVAL[] = "interval:";
-const char DURATION[] = "duration:";
-const char START[] = "start";
-const char STOP[] = "stop";
-const char DUMP_RAW_TRACES[] = "dumpRawTraces:";
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
@@ -129,72 +126,13 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         return -1;
     }
 
-    char args[1024];
-    if (strlen(options) >= sizeof(args)) {
-        std::cerr << "List of options is too long" << std::endl;
+    Arguments args(options);
+    if (args.error() != NULL) {
+        std::cerr << args.error() << std::endl;
         return -1;
     }
-    strncpy(args, options, sizeof(args));
-    
-    int interval = DEFAULT_INTERVAL;
-    int duration = DEFAULT_DURATION;
-    
-    char* token = strtok(args, OPTION_DELIMITER);
-    while (token) {
-        if (strncmp(token, FRAME_BUFFER_SIZE, strlen(FRAME_BUFFER_SIZE)) == 0) {
-            const char* text = token + strlen(FRAME_BUFFER_SIZE);
-            const int value = atoi(text);
-            std::cout << "Setting frame buffer size to " << value << std::endl;
-            Profiler::_instance.frameBufferSize(value);
-        } else if (strncmp(token, INTERVAL, strlen(INTERVAL)) == 0) {
-            const char* text = token + strlen(INTERVAL);
-            const int value = atoi(text);
-            if (value <= 0) {
-                std::cerr << "Interval must be positive: " << value << std::endl;
-                return -1;
-            }
-            interval = value;
-        } else if (strncmp(token, DURATION, strlen(DURATION)) == 0) {
-            const char* text = token + strlen(DURATION);
-            const int value = atoi(text);
-            if (value <= 0) {
-                std::cerr << "Duration must be positive: " << value << std::endl;
-                return -1;
-            }
-            duration = value;
-        } else if (strcmp(token, START) == 0) {
-            if (Profiler::_instance.state() == IDLE) {
-                std::cout << "Profiling started with interval " << interval
-                          << " cycles and duration " << duration
-                          << " seconds" << std::endl;
-                Profiler::_instance.start(interval, duration);
-            }
-        } else if (strcmp(token, STOP) == 0) {
-            std::cout << "Profiling stopped" << std::endl;
-            Profiler::_instance.stop();
-            Profiler::_instance.summary(std::cout);
-            Profiler::_instance.dumpTraces(std::cout, DEFAULT_TRACES_TO_DUMP);
-            Profiler::_instance.dumpMethods(std::cout);
-        } else if (strncmp(token, DUMP_RAW_TRACES, strlen(DUMP_RAW_TRACES)) == 0) {
-            std::cout << "Profiling stopped" << std::endl;
-            Profiler::_instance.stop();
 
-            const char* fileName = token + strlen(DUMP_RAW_TRACES);
-
-            std::ofstream dump(fileName, std::ios::out | std::ios::trunc);
-            if (!dump.is_open()) {
-                std::cerr << "Couldn't open: " << fileName << std::endl;
-                return -1;
-            }
-
-            std::cout << "Dumping raw traces to " << fileName << std::endl;
-            Profiler::_instance.dumpRawTraces(dump);
-            dump.close();
-        }
-        
-        token = strtok(NULL, OPTION_DELIMITER);
-    }
-    
+    Profiler::_instance.run(args);
     return 0;
 }
 
