@@ -88,7 +88,7 @@ done
 
 # if no -f argument is given, use temporary file to transfer output to caller terminal
 if [[ $USE_TMP ]]; then
-    FILE="/tmp/async-profiler-${PID}.tmp";
+    FILE=$(mktemp --tmpdir async-profiler.XXXXXXXX)
 fi
 
 case $ACTION in
