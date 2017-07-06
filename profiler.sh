@@ -21,6 +21,16 @@ usage() {
     exit 1
 }
 
+show_agent_output() {
+    if [[ $USE_TMP ]]; then
+        if [[ -f $FILE ]]; then
+            cat $FILE
+            rm $FILE
+        fi
+    fi
+}
+
+
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
@@ -29,6 +39,7 @@ PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION="collect"
 DURATION="60"
 FILE=""
+USE_TMP="true"
 INTERVAL=""
 FRAMEBUF=""
 OUTPUT="summary,traces=200,methods=200"
@@ -46,7 +57,8 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -f)
-            FILE=",file=$2"
+            FILE="$2"
+            unset USE_TMP
             shift
             ;;
         -i)
@@ -74,22 +86,30 @@ done
 
 [[ "$PID" == "" ]] && usage
 
+# if no -f argument is given, use temporary file to transfer output to caller terminal
+if [[ $USE_TMP ]]; then
+    FILE="/tmp/async-profiler-${PID}.tmp";
+fi
+
 case $ACTION in
     start)
-        $JATTACH $PID load $PROFILER true start$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         ;;
     stop)
-        $JATTACH $PID load $PROFILER true stop$FILE,$OUTPUT > /dev/null
+        $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
         ;;
     status)
-        $JATTACH $PID load $PROFILER true status > /dev/null
+        $JATTACH $PID load $PROFILER true status,file=$FILE > /dev/null
         ;;
     collect)
-        $JATTACH $PID load $PROFILER true start$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         if [ $? -ne 0 ]; then
             exit 1
         fi
+        show_agent_output
         sleep $DURATION
-        $JATTACH $PID load $PROFILER true stop$FILE,$OUTPUT > /dev/null
+        $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
         ;;
 esac
+
+show_agent_output

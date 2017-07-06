@@ -357,11 +357,11 @@ void Profiler::setSignalHandler() {
     }
 }
 
-void Profiler::start(int interval, int frame_buffer_size) {
-    if (interval <= 0) return;
+bool Profiler::start(int interval, int frame_buffer_size) {
+    if (interval <= 0) return false;
 
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE) return false;
     _state = RUNNING;
     _start_time = time(NULL);
 
@@ -382,23 +382,16 @@ void Profiler::start(int interval, int frame_buffer_size) {
     setSignalHandler();
     
     PerfEvent::start(interval);
-    std::cout << "Profiling started with interval " << interval << " ns" << std::endl;
+    return true;
 }
 
-void Profiler::stop() {
+bool Profiler::stop() {
     MutexLocker ml(_state_lock);
-    if (_state != RUNNING) return;
+    if (_state != RUNNING) return false;
     _state = IDLE;
 
     PerfEvent::stop();
-    std::cout << "Profiling stopped" << std::endl;
-
-    if (_frame_buffer_overflow) {
-        std::cerr << "Frame buffer overflowed; consider increasing its size" << std::endl;
-    } else {
-        double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
-        std::cout << "Frame buffer usage = " << usage << "%" << std::endl;
-    }
+    return true;
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
@@ -417,7 +410,6 @@ void Profiler::dumpSummary(std::ostream& out) {
         "Skipped:"
     };
 
-    double percent = 100.0 / _samples;
     char buf[256];
     snprintf(buf, sizeof(buf),
             "--- Execution profile ---\n"
@@ -425,13 +417,21 @@ void Profiler::dumpSummary(std::ostream& out) {
             _samples);
     out << buf;
     
+    double percent = 100.0 / _samples;
     for (int i = 0; i < FAILURE_TYPES; i++) {
         if (_failures[i] > 0) {
             snprintf(buf, sizeof(buf), "%-22s %lld (%.2f%%)\n", title[i], _failures[i], _failures[i] * percent);
             out << buf;
         }
     }
+    out << std::endl;
 
+    if (_frame_buffer_overflow) {
+        out << "Frame buffer overflowed! Consider increasing its size." << std::endl;
+    } else {
+        double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
+        out << "Frame buffer usage:    " << usage << "%" << std::endl;
+    }
     out << std::endl;
 }
 
@@ -504,45 +504,51 @@ void Profiler::dumpMethods(std::ostream& out, int max_methods) {
     }
 }
 
-void Profiler::dump(std::ostream& out, Arguments& args) {
-    if (args._dump_flamegraph) dumpFlameGraph(out);
-    if (args._dump_summary) dumpSummary(out);
-    if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
-    if (args._dump_methods > 0) dumpMethods(out, args._dump_methods);
-}
-
-void Profiler::run(Arguments& args) {
+void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START:
-            start(args._interval, args._framebuf);
+            if (start(args._interval, args._framebuf)) {
+                out << "Profiling started with interval " << args._interval << " ns" << std::endl;
+            } else {
+                out << "Profiler is already running for " << uptime() << " seconds" << std::endl;
+            }
             break;
         case ACTION_STOP:
-            stop();
+            if (stop()) {
+                out << "Profiling stopped after " << uptime() << " seconds" << std::endl;
+            } else {
+                out << "Profiler is not active" << std::endl;
+            }
             break;
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
             if (_state == RUNNING) {
-                time_t sec = time(NULL) - _start_time;
-                std::cout << "Profiler is running for " << sec << " seconds" << std::endl;
+                out << "Profiler is running for " << uptime() << " seconds" << std::endl;
             } else {
-                std::cout << "Profiler is not active" << std::endl;
+                out << "Profiler is not active" << std::endl;
             }
             break;
         }
         case ACTION_DUMP:
             stop();
-            if (args._file == NULL) {
-                dump(std::cout, args);
-            } else {
-                std::ofstream out(args._file, std::ios::out | std::ios::trunc);
-                if (out.is_open()) {
-                    std::cout << "Dumping profile to " << args._file << std::endl;
-                    dump(out, args);
-                    out.close();
-                } else {
-                    std::cerr << "Could not open " << args._file << std::endl;
-                }
-            }
+            if (args._dump_flamegraph) dumpFlameGraph(out);
+            if (args._dump_summary) dumpSummary(out);
+            if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
+            if (args._dump_methods > 0) dumpMethods(out, args._dump_methods);
             break;
+    }
+}
+
+void Profiler::run(Arguments& args) {
+    if (args._file == NULL) {
+        runInternal(args, std::cout);
+    } else {
+        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        if (out.is_open()) {
+            runInternal(args, out);
+            out.close();
+        } else {
+            std::cerr << "Could not open " << args._file << std::endl;
+        }
     }
 }

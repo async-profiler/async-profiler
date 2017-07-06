@@ -149,6 +149,7 @@ class Profiler {
     void storeMethod(jmethodID method, jint bci);
     void resetSymbols();
     void setSignalHandler();
+    void runInternal(Arguments& args, std::ostream& out);
 
   public:
     static Profiler _instance;
@@ -165,13 +166,13 @@ class Profiler {
         pthread_mutex_init(&_state_lock, NULL);
     }
 
-    State state() { return _state; }
-    int samples() { return _samples; }
+    State state()   { return _state; }
+    int samples()   { return _samples; }
+    time_t uptime() { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    void start(int interval, int frame_buffer_size);
-    void stop();
-    void dump(std::ostream& out, Arguments& args);
+    bool start(int interval, int frame_buffer_size);
+    bool stop();
     void dumpSummary(std::ostream& out);
     void dumpFlameGraph(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
