@@ -61,8 +61,8 @@ Example:
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh --start 8983
-$ ./profiler.sh --stop 8983
+$ ./profiler.sh start 8983
+$ ./profiler.sh stop 8983
 ```
 
 Alternatively, you may specify `-d` (duration) argument to profile
@@ -119,6 +119,19 @@ $ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
 The following is a complete list of the command-line options accepted by
 `profiler.sh` script.
 
+* `start` - starts profiling in semi-automatic mode, i.e. profiler will run
+until `stop` command is explicitly called.
+
+* `stop` - stops profiling and prints the report.
+
+* `status` - prints profiling status: whether profiler is active and
+for how long.
+
+* `-d N` - the profiling duration, in seconds. If no `start`, `stop`
+or `status` option is given, the profiler will run for the specified period
+of time and then automatically stop.  
+Example: `./profiler.sh -d 30 8983`
+
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is
 1000000 (1ms).  
@@ -128,19 +141,6 @@ Example: `./profiler.sh -i 100000 8983`
 method ids that should fit in the buffer. If you receive messages about an
 insufficient frame buffer size, increase this value from the default.  
 Example: `./profiler.sh -b 5000000 8983`
-
-* `--start` - starts profiling in semi-automatic mode, i.e. profiler will run
-until `--stop` command is explicitly called.
-
-* `--stop` - stops profiling and prints the report.
-
-* `--status` - prints profiling status: whether profiler is active and
-for how long.
-
-* `-d N` - the profiling duration, in seconds. If no `--start`, `--stop`
-or `--status` option is given, the profiler will run for the specified period
-of time and then automatically stop.  
-Example: `./profiler.sh -d 30 8983`
 
 * `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
 This is a comma-separated list of the following options:
