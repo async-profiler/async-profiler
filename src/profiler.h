@@ -19,6 +19,8 @@
 
 #include <iostream>
 #include <pthread.h>
+#include <time.h>
+#include "arguments.h"
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -29,12 +31,6 @@ const int MAX_STACK_FRAMES  = 4096;
 const int MAX_NATIVE_FRAMES = 128;
 const int MAX_NATIVE_LIBS   = 4096;
 const int CONCURRENCY_LEVEL = 16;
-
-const int DEFAULT_FRAME_BUFFER_SIZE = 1024*1024;
-const int DEFAULT_INTERVAL          = 10000000; // 10M cycles
-const int DEFAULT_DURATION          = 3600;     // 1 hour
-const int DEFAULT_TRACES_TO_DUMP    = 500;
-
 
 typedef unsigned long long u64;
 
@@ -114,6 +110,7 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
+    time_t _start_time;
 
     u64 _samples;
     u64 _failures[FAILURE_TYPES];
@@ -136,9 +133,6 @@ class Profiler {
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     int _native_lib_count;
 
-    // Seconds resolution is enough
-    time_t _deadline;
-
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
@@ -153,9 +147,9 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci);
-    void checkDeadline();
     void resetSymbols();
     void setSignalHandler();
+    void runInternal(Arguments& args, std::ostream& out);
 
   public:
     static Profiler _instance;
@@ -163,7 +157,6 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _frame_buffer(NULL),
-        _frame_buffer_size(DEFAULT_FRAME_BUFFER_SIZE),
         _jit_lock(),
         _jit_min_address((const void*)-1),
         _jit_max_address((const void*)0),
@@ -173,16 +166,17 @@ class Profiler {
         pthread_mutex_init(&_state_lock, NULL);
     }
 
-    State state() { return _state; }
-    int samples() { return _samples; }
+    State state()   { return _state; }
+    int samples()   { return _samples; }
+    time_t uptime() { return time(NULL) - _start_time; }
 
-    void frameBufferSize(int size);
-    void start(int interval, int duration);
-    void stop();
-    void summary(std::ostream& out);
-    void dumpRawTraces(std::ostream& out);
+    void run(Arguments& args);
+    bool start(int interval, int frame_buffer_size);
+    bool stop();
+    void dumpSummary(std::ostream& out);
+    void dumpFlameGraph(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
-    void dumpMethods(std::ostream& out);
+    void dumpMethods(std::ostream& out, int max_methods);
     void recordSample(void* ucontext);
 
     static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {

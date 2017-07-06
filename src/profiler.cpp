@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+#include <fstream>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <cxxabi.h>
-#include <sys/time.h>
 #include <sys/param.h>
 #include "profiler.h"
 #include "perfEvent.h"
@@ -104,14 +104,6 @@ class MethodName {
     }
 };
 
-
-void Profiler::frameBufferSize(int size) {
-    if (size >= 0) {
-        _frame_buffer_size = size;
-    } else {
-        std::cerr << "Ignoring frame buffer size " << size << std::endl;
-    }
-}
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     const u64 M = 0xc6a4a7935bd1e995ULL;
@@ -209,22 +201,6 @@ void Profiler::storeMethod(jmethodID method, jint bci) {
 
     // Method found => atomically increment counter
     atomicInc(_methods[i]._counter);
-}
-
-void Profiler::checkDeadline() {
-    if (time(NULL) > _deadline) {
-        const char error[] = "Profiling duration elapsed. Disabling the "
-                             "profiler automatically is not currently "
-                             "supported. Use 'stop' explicitly.\n";
-        ssize_t w = write(STDERR_FILENO, error, sizeof(error) - 1);
-        (void) w;
-        _deadline = INT_MAX;    // Prevent further invocations
-
-        // FIXME Stopping the profiler is not safe from a signal handler. We
-        // need to refactor this to a separate thread that sleeps for the
-        // specified duration, or issue the stop command from a separate
-        // thread or after returning from the signal.
-    }
 }
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
@@ -344,8 +320,6 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
 }
 
 void Profiler::recordSample(void* ucontext) {
-    checkDeadline();
-
     u64 lock_index = atomicInc(_samples) % CONCURRENCY_LEVEL;
     if (!_locks[lock_index].tryLock()) {
         atomicInc(_failures[-ticks_skipped]);  // too many concurrent signals already
@@ -383,12 +357,13 @@ void Profiler::setSignalHandler() {
     }
 }
 
-void Profiler::start(int interval, int duration) {
-    if (interval <= 0 || duration <= 0) return;
+bool Profiler::start(int interval, int frame_buffer_size) {
+    if (interval <= 0) return false;
 
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE) return false;
     _state = RUNNING;
+    _start_time = time(NULL);
 
     _samples = 0;
     memset(_failures, 0, sizeof(_failures));
@@ -398,37 +373,28 @@ void Profiler::start(int interval, int duration) {
 
     // Reset frames
     free(_frame_buffer);
+    _frame_buffer_size = frame_buffer_size;
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
 
     resetSymbols();
-
-    _deadline = time(NULL) + duration;
     setSignalHandler();
     
     PerfEvent::start(interval);
+    return true;
 }
 
-void Profiler::stop() {
+bool Profiler::stop() {
     MutexLocker ml(_state_lock);
-    if (_state != RUNNING) return;
+    if (_state != RUNNING) return false;
     _state = IDLE;
 
     PerfEvent::stop();
-
-    if (_frame_buffer_overflow) {
-        std::cerr << "Frame buffer overflowed with size " << _frame_buffer_size
-                << ". Consider increasing its size." << std::endl;
-    } else {
-        std::cout << "Frame buffer usage "
-                << _frame_buffer_index << "/" << _frame_buffer_size
-                << "="
-                << 100.0 * _frame_buffer_index / _frame_buffer_size << "%" << std::endl;
-    }
+    return true;
 }
 
-void Profiler::summary(std::ostream& out) {
+void Profiler::dumpSummary(std::ostream& out) {
     static const char* title[FAILURE_TYPES] = {
         "Non-Java:",
         "JVM not initialized:",
@@ -444,7 +410,6 @@ void Profiler::summary(std::ostream& out) {
         "Skipped:"
     };
 
-    double percent = 100.0 / _samples;
     char buf[256];
     snprintf(buf, sizeof(buf),
             "--- Execution profile ---\n"
@@ -452,13 +417,21 @@ void Profiler::summary(std::ostream& out) {
             _samples);
     out << buf;
     
+    double percent = 100.0 / _samples;
     for (int i = 0; i < FAILURE_TYPES; i++) {
         if (_failures[i] > 0) {
             snprintf(buf, sizeof(buf), "%-22s %lld (%.2f%%)\n", title[i], _failures[i], _failures[i] * percent);
             out << buf;
         }
     }
+    out << std::endl;
 
+    if (_frame_buffer_overflow) {
+        out << "Frame buffer overflowed! Consider increasing its size." << std::endl;
+    } else {
+        double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
+        out << "Frame buffer usage:    " << usage << "%" << std::endl;
+    }
     out << std::endl;
 }
 
@@ -467,7 +440,7 @@ void Profiler::summary(std::ostream& out) {
  * 
  * <frame>;<frame>;...;<topmost frame> <count>
  */
-void Profiler::dumpRawTraces(std::ostream& out) {
+void Profiler::dumpFlameGraph(std::ostream& out) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
@@ -494,9 +467,9 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
-    for (int i = max_traces - 1; i >= 0; i--) {
+    for (int i = 0; i < max_traces; i++) {
         u64 samples = _traces[i]._counter;
-        if (samples == 0) continue;
+        if (samples == 0) break;
 
         snprintf(buf, sizeof(buf), "Samples: %lld (%.2f%%)\n", samples, samples * percent);
         out << buf;
@@ -511,7 +484,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     }
 }
 
-void Profiler::dumpMethods(std::ostream& out) {
+void Profiler::dumpMethods(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
@@ -519,13 +492,63 @@ void Profiler::dumpMethods(std::ostream& out) {
     char buf[1024];
 
     qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
+    if (max_methods > MAX_CALLTRACES) max_methods = MAX_CALLTRACES;
 
-    for (int i = MAX_CALLTRACES - 1; i >= 0; i--) {
+    for (int i = 0; i < max_methods; i++) {
         u64 samples = _methods[i]._counter;
-        if (samples == 0) continue;
+        if (samples == 0) break;
 
         MethodName mn(_methods[i]._method, true);
         snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", samples, samples * percent, mn.toString());
         out << buf;
+    }
+}
+
+void Profiler::runInternal(Arguments& args, std::ostream& out) {
+    switch (args._action) {
+        case ACTION_START:
+            if (start(args._interval, args._framebuf)) {
+                out << "Profiling started with interval " << args._interval << " ns" << std::endl;
+            } else {
+                out << "Profiler is already running for " << uptime() << " seconds" << std::endl;
+            }
+            break;
+        case ACTION_STOP:
+            if (stop()) {
+                out << "Profiling stopped after " << uptime() << " seconds" << std::endl;
+            } else {
+                out << "Profiler is not active" << std::endl;
+            }
+            break;
+        case ACTION_STATUS: {
+            MutexLocker ml(_state_lock);
+            if (_state == RUNNING) {
+                out << "Profiler is running for " << uptime() << " seconds" << std::endl;
+            } else {
+                out << "Profiler is not active" << std::endl;
+            }
+            break;
+        }
+        case ACTION_DUMP:
+            stop();
+            if (args._dump_flamegraph) dumpFlameGraph(out);
+            if (args._dump_summary) dumpSummary(out);
+            if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
+            if (args._dump_methods > 0) dumpMethods(out, args._dump_methods);
+            break;
+    }
+}
+
+void Profiler::run(Arguments& args) {
+    if (args._file == NULL) {
+        runInternal(args, std::cout);
+    } else {
+        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        if (out.is_open()) {
+            runInternal(args, out);
+            out.close();
+        } else {
+            std::cerr << "Could not open " << args._file << std::endl;
+        }
     }
 }
