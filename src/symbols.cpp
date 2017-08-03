@@ -62,9 +62,11 @@ class MemoryMapDesc {
           _offs = strchr(_perm, ' ') + 1;
           _device = strchr(_offs, ' ') + 1;
           _inode = strchr(_device, ' ') + 1;
-          _file = strchr(_inode, ' ') + 1;
+          _file = strchr(_inode, ' ');
 
-          while (*_file == ' ') _file++;
+          if (_file != NULL) {
+              while (*_file == ' ') _file++;
+          }
       }
 
       const char* file()    { return _file; }
@@ -252,7 +254,7 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
 
     while (count < size && std::getline(maps, str)) {
         MemoryMapDesc map(str.c_str());
-        if (map.isExecutable() && map.file()[0] != 0) {
+        if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
             NativeCodeCache* cc = new NativeCodeCache(map.file(), map.addr(), map.end());
             const char* base = map.addr() - map.offs();
 
