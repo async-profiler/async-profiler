@@ -18,11 +18,12 @@
 #define _STACKFRAME_H
 
 #include <stdint.h>
+#include <ucontext.h>
 
 
 class StackFrame {
   private:
-    void* _ucontext;
+    ucontext_t* _ucontext;
     uintptr_t _pc;
     uintptr_t _sp;
     uintptr_t _fp;
@@ -32,14 +33,14 @@ class StackFrame {
     }
 
   public:
-    static uintptr_t& pc(void* ucontext);
-    static uintptr_t& sp(void* ucontext);
-    static uintptr_t& fp(void* ucontext);
+    static uintptr_t& pc(ucontext_t* ucontext);
+    static uintptr_t& sp(ucontext_t* ucontext);
+    static uintptr_t& fp(ucontext_t* ucontext);
 
-    StackFrame(void* ucontext) : _ucontext(ucontext) {
-        _pc = pc(ucontext);
-        _sp = sp(ucontext);
-        _fp = fp(ucontext);
+    StackFrame(void* ucontext) : _ucontext((ucontext_t*)ucontext) {
+        _pc = pc(_ucontext);
+        _sp = sp(_ucontext);
+        _fp = fp(_ucontext);
     }
 
     ~StackFrame() {

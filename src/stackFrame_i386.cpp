@@ -16,24 +16,19 @@
 
 #ifdef __i386__
 
-#include <ucontext.h>
 #include "stackFrame.h"
 
 
-static inline uintptr_t* regs(void* ucontext) {
-    return (uintptr_t*)((ucontext_t*)ucontext)->uc_mcontext.gregs;
+uintptr_t& StackFrame::pc(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_EIP];
 }
 
-uintptr_t& StackFrame::pc(void* ucontext) {
-    return regs(ucontext)[REG_EIP];
+uintptr_t& StackFrame::sp(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_ESP];
 }
 
-uintptr_t& StackFrame::sp(void* ucontext) {
-    return regs(ucontext)[REG_ESP];
-}
-
-uintptr_t& StackFrame::fp(void* ucontext) {
-    return regs(ucontext)[REG_EBP];
+uintptr_t& StackFrame::fp(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_EBP];
 }
 
 

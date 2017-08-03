@@ -1,4 +1,5 @@
 /build/
 /nbproject/
+/.idea/
 *.class
 .vscode

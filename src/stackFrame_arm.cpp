@@ -16,20 +16,19 @@
 
 #if defined(__arm__) || defined(__thumb__)
 
-#include <ucontext.h>
 #include "stackFrame.h"
 
 
-uintptr_t& StackFrame::pc(void* ucontext) {
-    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_pc;
+uintptr_t& StackFrame::pc(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.arm_pc;
 }
 
-uintptr_t& StackFrame::sp(void* ucontext) {
-    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_sp;
+uintptr_t& StackFrame::sp(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.arm_sp;
 }
 
-uintptr_t& StackFrame::fp(void* ucontext) {
-    return (uintptr_t&)((ucontext_t*)ucontext)->uc_mcontext.arm_fp;
+uintptr_t& StackFrame::fp(ucontext_t* ucontext) {
+    return (uintptr_t&)ucontext->uc_mcontext.arm_fp;
 }
 
 bool StackFrame::pop() {
