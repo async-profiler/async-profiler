@@ -58,17 +58,33 @@ jmethodID CodeCache::find(const void* address) {
 }
 
 
+NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, const void* max_address) {
+    _name = strdup(name);
+    _min_address = min_address;
+    _max_address = max_address;
+}
+
 NativeCodeCache::~NativeCodeCache() {
     for (int i = 0; i < _count; i++) {
         free(_blobs[i]._method);
     }
+    free(_name);
 }
 
 void NativeCodeCache::add(const void* start, int length, const char* name) {
     CodeCache::add(start, length, (jmethodID)strdup(name));
 }
 
-const char* NativeCodeCache::binary_search(const void* address) {
+void NativeCodeCache::sort() {
+    if (_count == 0) return;
+
+    qsort(_blobs, _count, sizeof(CodeBlob), CodeBlob::comparator);
+
+    if (_min_address == NULL) _min_address = _blobs[0]._start;
+    if (_max_address == NULL) _max_address = _blobs[_count - 1]._end;
+}
+
+const char* NativeCodeCache::binarySearch(const void* address) {
     int low = 0;
     int high = _count - 1;
 
@@ -90,11 +106,12 @@ const char* NativeCodeCache::binary_search(const void* address) {
     return _name;
 }
 
-void NativeCodeCache::sort() {
-    if (_count == 0) return;
-    
-    qsort(_blobs, _count, sizeof(CodeBlob), CodeBlob::comparator);
-
-    if (_min_address == NULL) _min_address = _blobs[0]._start;
-    if (_max_address == NULL) _max_address = _blobs[_count - 1]._end;
+const void* NativeCodeCache::findSymbol(const char* symbol) {
+    for (int i = 0; i < _count; i++) {
+        const char* blob_name = (const char*)_blobs[i]._method;
+        if (blob_name != NULL && strcmp(blob_name, symbol) == 0) {
+            return _blobs[i]._start;
+        }
+    }
+    return NULL;
 }

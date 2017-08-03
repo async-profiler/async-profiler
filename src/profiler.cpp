@@ -231,7 +231,7 @@ void Profiler::updateJitRange(const void* min_address, const void* max_address) 
 const char* Profiler::findNativeMethod(const void* address) {
     for (int i = 0; i < _native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
-            return _native_libs[i]->binary_search(address);
+            return _native_libs[i]->binarySearch(address);
         }
     }
     return NULL;

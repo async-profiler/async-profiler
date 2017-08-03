@@ -72,26 +72,27 @@ class CodeCache {
 
 class NativeCodeCache : public CodeCache {
   private:
-    const char* _name;
+    char* _name;
     const void* _min_address;
     const void* _max_address;
   
   public:
-    NativeCodeCache(const char* name, const void* min_address = NULL, const void* max_address = NULL) : CodeCache() {
-        _name = name;
-        _min_address = min_address;
-        _max_address = max_address;
-    }
+    NativeCodeCache(const char* name, const void* min_address = NULL, const void* max_address = NULL);
 
     ~NativeCodeCache();
+
+    const char* name() {
+        return _name;
+    }
 
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
     }
 
     void add(const void* start, int length, const char* name);
-    const char* binary_search(const void* address);
     void sort();
+    const char* binarySearch(const void* address);
+    const void* findSymbol(const char* symbol);
 };
 
 #endif // _CODECACHE_H

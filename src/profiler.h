@@ -161,7 +161,7 @@ class Profiler {
         _jit_min_address((const void*)-1),
         _jit_max_address((const void*)0),
         _java_methods(),
-        _runtime_stubs(NULL),
+        _runtime_stubs("[stubs]"),
         _native_lib_count(0) {
         pthread_mutex_init(&_state_lock, NULL);
     }
