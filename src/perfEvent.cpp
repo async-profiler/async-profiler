@@ -24,6 +24,7 @@
 #include <sys/syscall.h>
 #include "arch.h"
 #include "perfEvent.h"
+#include "profiler.h"
 #include "vmEntry.h"
 
 
@@ -39,21 +40,23 @@ struct f_owner_ex {
 #endif // F_SETOWN_EX
 
 
-int PerfEvent::_max_events = 0;
-PerfEvent* PerfEvent::_events = NULL;
-int PerfEvent::_interval_cycles;
+const int PROF_SIGNAL = SIGPROF;
+
+int PerfEvents::_max_events = 0;
+PerfEvent* PerfEvents::_events = NULL;
+int PerfEvents::_interval;
 
 
-void PerfEvent::init() {
+void PerfEvents::init() {
     _max_events = getMaxPid();
     _events = (PerfEvent*)calloc(_max_events, sizeof(PerfEvent));
 }
 
-int PerfEvent::tid() {
+int PerfEvents::tid() {
     return syscall(__NR_gettid);
 }
 
-int PerfEvent::getMaxPid() {
+int PerfEvents::getMaxPid() {
     char buf[16] = "65536";
     int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
     if (fd != -1) {
@@ -64,12 +67,12 @@ int PerfEvent::getMaxPid() {
     return atoi(buf);
 }
 
-void PerfEvent::createForThread(int tid) {
+void PerfEvents::createForThread(int tid) {
     struct perf_event_attr attr = {0};
     attr.type = PERF_TYPE_SOFTWARE;
     attr.size = sizeof(attr);
     attr.config = PERF_COUNT_SW_CPU_CLOCK;
-    attr.sample_period = _interval_cycles;
+    attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
@@ -97,14 +100,14 @@ void PerfEvent::createForThread(int tid) {
     ex.pid = tid;
 
     fcntl(fd, F_SETFL, O_ASYNC);
-    fcntl(fd, F_SETSIG, SIGPROF);
+    fcntl(fd, F_SETSIG, PROF_SIGNAL);
     fcntl(fd, F_SETOWN_EX, &ex);
 
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-void PerfEvent::createForAllThreads() {
+void PerfEvents::createForAllThreads() {
     DIR* dir = opendir("/proc/self/task");
     if (dir == NULL) return;
 
@@ -119,7 +122,7 @@ void PerfEvent::createForAllThreads() {
     closedir(dir);
 }
 
-void PerfEvent::destroyForThread(int tid) {
+void PerfEvents::destroyForThread(int tid) {
     PerfEvent* event = &_events[tid];
     if (event->_fd != 0) {
         ioctl(event->_fd, PERF_EVENT_IOC_DISABLE, 0);
@@ -134,23 +137,46 @@ void PerfEvent::destroyForThread(int tid) {
     }
 }
 
-void PerfEvent::destroyForAllThreads() {
+void PerfEvents::destroyForAllThreads() {
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
 }
 
-void PerfEvent::start(int interval_cycles) {
-    _interval_cycles = interval_cycles;
+bool PerfEvents::installSignalHandler() {
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = NULL;
+    sa.sa_sigaction = signalHandler;
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+
+    if (sigaction(PROF_SIGNAL, &sa, NULL)) {
+        perror("sigaction failed");
+        return false;
+    }
+    return true;
+}
+
+void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    Profiler::_instance.recordSample(ucontext);
+    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+}
+
+bool PerfEvents::start(int interval) {
+    if (interval <= 0) return false;
+    _interval = interval;
+
+    if (!installSignalHandler()) return false;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     createForAllThreads();
+    return true;
 }
 
-void PerfEvent::stop() {
+void PerfEvents::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
@@ -158,11 +184,7 @@ void PerfEvent::stop() {
     destroyForAllThreads();
 }
 
-void PerfEvent::reenable(siginfo_t* siginfo) {
-    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
-}
-
-int PerfEvent::getCallChain(const void** callchain, int max_depth) {
+int PerfEvents::getCallChain(const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid()];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -198,12 +220,4 @@ int PerfEvent::getCallChain(const void** callchain, int max_depth) {
 
     event->unlock();
     return depth;
-}
-
-void JNICALL PerfEvent::ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    createForThread(tid());
-}
-
-void JNICALL PerfEvent::ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    destroyForThread(tid());
 }

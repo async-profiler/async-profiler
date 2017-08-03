@@ -50,8 +50,8 @@ bool VM::init(JavaVM* vm) {
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
-    callbacks.ThreadStart = PerfEvent::ThreadStart;
-    callbacks.ThreadEnd = PerfEvent::ThreadEnd;
+    callbacks.ThreadStart = PerfEvents::ThreadStart;
+    callbacks.ThreadEnd = PerfEvents::ThreadEnd;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
@@ -62,7 +62,7 @@ bool VM::init(JavaVM* vm) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
-    PerfEvent::init();
+    PerfEvents::init();
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {

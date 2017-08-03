@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 #include <cxxabi.h>
 #include <sys/param.h>
 #include "profiler.h"
@@ -29,11 +28,6 @@
 
 
 Profiler Profiler::_instance;
-
-static void sigprofHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    Profiler::_instance.recordSample(ucontext);
-    PerfEvent::reenable(siginfo);
-}
 
 static inline u64 atomicInc(u64& var) {
     return __sync_fetch_and_add(&var, 1);
@@ -239,7 +233,7 @@ const char* Profiler::findNativeMethod(const void* address) {
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = PerfEvent::getCallChain(native_callchain, MAX_NATIVE_FRAMES);
+    int native_frames = PerfEvents::getCallChain(native_callchain, MAX_NATIVE_FRAMES);
 
     for (int i = 0; i < native_frames; i++) {
         const void* address = native_callchain[i];
@@ -345,25 +339,9 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-void Profiler::setSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = sigprofHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    if (sigaction(SIGPROF, &sa, NULL)) {
-        perror("sigaction failed");
-    }
-}
-
 bool Profiler::start(int interval, int frame_buffer_size) {
-    if (interval <= 0) return false;
-
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return false;
-    _state = RUNNING;
-    _start_time = time(NULL);
 
     _samples = 0;
     memset(_failures, 0, sizeof(_failures));
@@ -379,9 +357,12 @@ bool Profiler::start(int interval, int frame_buffer_size) {
     _frame_buffer_overflow = false;
 
     resetSymbols();
-    setSignalHandler();
-    
-    PerfEvent::start(interval);
+
+    bool success = PerfEvents::start(interval);
+    if (!success) return false;
+
+    _state = RUNNING;
+    _start_time = time(NULL);
     return true;
 }
 
@@ -390,7 +371,7 @@ bool Profiler::stop() {
     if (_state != RUNNING) return false;
     _state = IDLE;
 
-    PerfEvent::stop();
+    PerfEvents::stop();
     return true;
 }
 
@@ -510,7 +491,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (start(args._interval, args._framebuf)) {
                 out << "Profiling started with interval " << args._interval << " ns" << std::endl;
             } else {
-                out << "Profiler is already running for " << uptime() << " seconds" << std::endl;
+                out << "Profiler failed to start" << std::endl;
             }
             break;
         case ACTION_STOP:

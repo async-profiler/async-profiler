@@ -52,12 +52,17 @@ class RingBuffer {
 
 class PerfEvent : public SpinLock {
   private:
-    static int _max_events;
-    static PerfEvent* _events;
-    static int _interval_cycles;
-
     int _fd;
     struct perf_event_mmap_page* _page;
+
+    friend class PerfEvents;
+};
+
+class PerfEvents {
+  private:
+    static int _max_events;
+    static PerfEvent* _events;
+    static int _interval;
 
     static int tid();
     static int getMaxPid();
@@ -65,16 +70,22 @@ class PerfEvent : public SpinLock {
     static void createForAllThreads();
     static void destroyForThread(int tid);
     static void destroyForAllThreads();
+    static bool installSignalHandler();
+    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
     static void init();
-    static void start(int interval_cycles);
+    static bool start(int interval);
     static void stop();
-    static void reenable(siginfo_t* siginfo);
     static int getCallChain(const void** callchain, int max_depth);
 
-    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
-    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        createForThread(tid());
+    }
+
+    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        destroyForThread(tid());
+    }
 };
 
 #endif // _PERFEVENT_H
