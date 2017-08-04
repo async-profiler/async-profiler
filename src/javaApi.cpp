@@ -21,7 +21,8 @@
 
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jint interval) {
-    Profiler::_instance.start(interval ? interval : DEFAULT_INTERVAL, DEFAULT_FRAMEBUF);
+    Mode mode = interval > 0 ? MODE_CPU : MODE_HEAP;
+    Profiler::_instance.start(mode, interval, DEFAULT_FRAMEBUF);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -31,7 +32,7 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
 
 extern "C" JNIEXPORT jint JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
-    return Profiler::_instance.samples();
+    return (jint)Profiler::_instance.samples();
 }
 
 extern "C" JNIEXPORT jstring JNICALL

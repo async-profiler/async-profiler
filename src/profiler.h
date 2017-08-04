@@ -24,6 +24,7 @@
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
+#include "vmStructs.h"
 
 
 const int MAX_CALLTRACES    = 32768;
@@ -110,9 +111,11 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
+    Mode _mode;
     time_t _start_time;
 
     u64 _samples;
+    u64 _total_counter;
     u64 _failures[FAILURE_TYPES];
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
@@ -141,12 +144,13 @@ class Profiler {
     const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
     int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    int makeAllocationFrame(VMKlass* alloc_class, ASGCT_CallFrame* frames);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
-    void storeCallTrace(int num_frames, ASGCT_CallFrame* frames);
+    void storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
-    void storeMethod(jmethodID method, jint bci);
+    void storeMethod(jmethodID method, jint bci, u64 counter);
     void resetSymbols();
     void setSignalHandler();
     void runInternal(Arguments& args, std::ostream& out);
@@ -166,18 +170,20 @@ class Profiler {
         pthread_mutex_init(&_state_lock, NULL);
     }
 
-    State state()   { return _state; }
-    int samples()   { return _samples; }
-    time_t uptime() { return time(NULL) - _start_time; }
+    u64 samples()       { return _samples; }
+    u64 total_counter() { return _total_counter; }
+    const char* mode()  { return _mode == MODE_CPU ? "CPU" : "HEAP"; }
+    time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    bool start(int interval, int frame_buffer_size);
+    bool start(Mode mode, int interval, int frame_buffer_size);
     bool stop();
     void dumpSummary(std::ostream& out);
     void dumpFlameGraph(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpMethods(std::ostream& out, int max_methods);
-    void recordSample(void* ucontext);
+    void recordSample(void* ucontext, u64 counter, VMKlass* alloc_class);
+    NativeCodeCache* jvmLibrary();
 
     static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
         MutexLocker ml(_instance._state_lock);
