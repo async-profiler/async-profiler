@@ -20,8 +20,11 @@
 #include <jvmti.h>
 
 
-// Denotes ASGCT_CallFrame with string name instead of Java method ID
-const jint BCI_NATIVE_FRAME = -2;
+// Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
+enum ASGCT_CallFrameType {
+    BCI_NATIVE_FRAME = -10, // method_id is native function name (char*)
+    BCI_SYMBOL       = -11, // method_id is Klass descriptor (VMSymbol*)
+};
 
 typedef struct {
     jint bci;
@@ -41,12 +44,13 @@ class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
-    static AsyncGetCallTrace _asyncGetCallTrace;
 
     static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti);
 
   public:
+    static AsyncGetCallTrace _asyncGetCallTrace;
+
     static bool init(JavaVM* vm);
     static bool attach(JavaVM* vm);
 
@@ -57,10 +61,6 @@ class VM {
     static JNIEnv* jni() {
         JNIEnv* jni;
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
-    }
-
-    static void asyncGetCallTrace(ASGCT_CallTrace* trace, jint depth, void* ucontext) {
-        _asyncGetCallTrace(trace, depth, ucontext);
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {

@@ -30,6 +30,11 @@ enum Action {
     ACTION_DUMP
 };
 
+enum Mode {
+    MODE_CPU,
+    MODE_HEAP
+};
+
 class Arguments {
   private:
     char _buf[1024];
@@ -38,20 +43,22 @@ class Arguments {
     const char* parse(char* args);
 
   public:
+    Action _action;
+    Mode _mode;
     int _interval;
     int _framebuf;
     char* _file;
-    Action _action;
     bool _dump_flamegraph;
     bool _dump_summary;
     int _dump_traces;
     int _dump_methods;
 
     Arguments(char* args) :
+        _action(ACTION_NONE),
+        _mode(MODE_CPU),
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
-        _action(ACTION_NONE),
         _dump_flamegraph(false),
         _dump_summary(false),
         _dump_traces(0),

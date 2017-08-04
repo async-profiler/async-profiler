@@ -143,22 +143,18 @@ void PerfEvents::destroyForAllThreads() {
     }
 }
 
-bool PerfEvents::installSignalHandler() {
+void PerfEvents::installSignalHandler() {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = NULL;
     sa.sa_sigaction = signalHandler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
 
-    if (sigaction(PROF_SIGNAL, &sa, NULL)) {
-        perror("sigaction failed");
-        return false;
-    }
-    return true;
+    sigaction(PROF_SIGNAL, &sa, NULL);
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    Profiler::_instance.recordSample(ucontext);
+    Profiler::_instance.recordSample(ucontext, 1, NULL);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
@@ -166,7 +162,7 @@ bool PerfEvents::start(int interval) {
     if (interval <= 0) return false;
     _interval = interval;
 
-    if (!installSignalHandler()) return false;
+    installSignalHandler();
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);

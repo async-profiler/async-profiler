@@ -27,6 +27,8 @@
 //     start         - start profiling
 //     stop          - stop profiling
 //     status        - print profiling status (inactive / running for X seconds)
+//     cpu           - profile CPU (default)
+//     heap          - profile heap allocations
 //     flamegraph    - dump profile in FlameGraph format
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
@@ -53,6 +55,10 @@ const char* Arguments::parse(char* args) {
             _action = ACTION_STOP;
         } else if (strcmp(arg, "status") == 0) {
             _action = ACTION_STATUS;
+        } else if (strcmp(arg, "cpu") == 0) {
+            _mode = MODE_CPU;
+        } else if (strcmp(arg, "heap") == 0) {
+            _mode = MODE_HEAP;
         } else if (strcmp(arg, "flamegraph") == 0) {
             _action = ACTION_DUMP;
             _dump_flamegraph = true;

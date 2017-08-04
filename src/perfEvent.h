@@ -70,7 +70,7 @@ class PerfEvents {
     static void createForAllThreads();
     static void destroyForThread(int tid);
     static void destroyForAllThreads();
-    static bool installSignalHandler();
+    static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
