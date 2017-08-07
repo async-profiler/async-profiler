@@ -20,27 +20,27 @@
 
 #if defined(__x86_64__) || defined(__i386__)
 
+typedef unsigned char instruction_t;
+const instruction_t BREAKPOINT = 0xcc;
+
 #define spinPause()       asm volatile("pause")
 #define rmb()             asm volatile("lfence" : : : "memory")
 #define flushCache(addr)  asm volatile("mfence; clflush (%0); mfence" : : "r"(addr) : "memory")
 
-typedef unsigned char instruction_t;
-const instruction_t BREAKPOINT = 0xcc;
-
 #elif defined(__arm__) || defined(__thumb__)
-
-#define spinPause()       asm volatile("yield")
-#define rmb()             asm volatile("dmb ish" : : : "memory")
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)((addr) + 1))
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xe7f001f0;
+
+#define spinPause()       asm volatile("yield")
+#define rmb()             asm volatile("dmb ish" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
 #else
 
 #define spinPause()
 #define rmb()             __sync_synchronize()
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)((addr) + 1))
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
 #endif
 
