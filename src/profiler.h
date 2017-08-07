@@ -179,9 +179,9 @@ class Profiler {
     bool start(Mode mode, int interval, int frame_buffer_size);
     bool stop();
     void dumpSummary(std::ostream& out);
-    void dumpFlameGraph(std::ostream& out);
+    void dumpCollapsed(std::ostream& out);
     void dumpTraces(std::ostream& out, int max_traces);
-    void dumpMethods(std::ostream& out, int max_methods);
+    void dumpFlat(std::ostream& out, int max_methods);
     void recordSample(void* ucontext, u64 counter, VMKlass* alloc_class);
     NativeCodeCache* jvmLibrary();
 

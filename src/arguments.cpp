@@ -29,10 +29,10 @@
 //     status        - print profiling status (inactive / running for X seconds)
 //     cpu           - profile CPU (default)
 //     heap          - profile heap allocations
-//     flamegraph    - dump profile in FlameGraph format
+//     collapsed     - dump collapsed stacks (the format used by FlameGraph script)
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
-//     methods[=N]   - dump top N methods (aka flat profile)
+//     flat[=N]      - dump top N methods (aka flat profile)
 //     interval=N    - sampling interval in ns (default: 1'000'000, i.e. 1 ms)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     file=FILENAME - output file name for dumping
@@ -59,18 +59,18 @@ const char* Arguments::parse(char* args) {
             _mode = MODE_CPU;
         } else if (strcmp(arg, "heap") == 0) {
             _mode = MODE_HEAP;
-        } else if (strcmp(arg, "flamegraph") == 0) {
+        } else if (strcmp(arg, "collapsed") == 0) {
             _action = ACTION_DUMP;
-            _dump_flamegraph = true;
+            _dump_collapsed = true;
         } else if (strcmp(arg, "summary") == 0) {
             _action = ACTION_DUMP;
             _dump_summary = true;
         } else if (strcmp(arg, "traces") == 0) {
             _action = ACTION_DUMP;
             _dump_traces = value == NULL ? INT_MAX : atoi(value);
-        } else if (strcmp(arg, "methods") == 0) {
+        } else if (strcmp(arg, "flat") == 0) {
             _action = ACTION_DUMP;
-            _dump_methods = value == NULL ? INT_MAX : atoi(value);
+            _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = atoi(value)) <= 0) {
                 return "interval must be > 0";

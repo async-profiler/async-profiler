@@ -14,11 +14,11 @@ usage() {
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -b bufsize        frame buffer size"
-    echo "  -o fmt[,fmt...]   output format: summary|traces|methods|flamegraph"
+    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed"
     echo ""
-    echo "Example: $0 -d 30 -f profile.fg -o flamegraph 3456"
+    echo "Example: $0 -d 30 -f profile.fg -o collapsed 3456"
     echo "         $0 start -i 999000 3456"
-    echo "         $0 stop -o summary,methods 3456"
+    echo "         $0 stop -o summary,flat 3456"
     exit 1
 }
 
@@ -44,7 +44,7 @@ FILE=""
 USE_TMP="true"
 INTERVAL=""
 FRAMEBUF=""
-OUTPUT="summary,traces=200,methods=200"
+OUTPUT="summary,traces=200,flat=200"
 
 while [[ $# -gt 0 ]]; do
     case $1 in

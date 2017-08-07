@@ -467,11 +467,11 @@ void Profiler::dumpSummary(std::ostream& out) {
 }
 
 /*
- * Dump traces in FlameGraph format:
+ * Dump stacks in FlameGraph input format:
  * 
  * <frame>;<frame>;...;<topmost frame> <count>
  */
-void Profiler::dumpFlameGraph(std::ostream& out) {
+void Profiler::dumpCollapsed(std::ostream& out) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
@@ -515,7 +515,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     }
 }
 
-void Profiler::dumpMethods(std::ostream& out, int max_methods) {
+void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
@@ -562,10 +562,10 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_DUMP:
             stop();
-            if (args._dump_flamegraph) dumpFlameGraph(out);
+            if (args._dump_collapsed) dumpCollapsed(out);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
-            if (args._dump_methods > 0) dumpMethods(out, args._dump_methods);
+            if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
             break;
     }
 }

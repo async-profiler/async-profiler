@@ -110,8 +110,8 @@ solution can be tailored to other visualization tools.
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -d 30 -o flamegraph -f /tmp/traces.txt 8983
-$ FlameGraph/flamegraph.pl --colors=java /tmp/traces.txt > /tmp/flamegraph.svg
+$ ./profiler.sh -d 30 -o collapsed -f /tmp/collapsed.txt 8983
+$ FlameGraph/flamegraph.pl --colors=java /tmp/collapsed.txt > /tmp/flamegraph.svg
 ```
 
 ## Profiler Options
@@ -146,18 +146,18 @@ Example: `./profiler.sh -b 5000000 8983`
 This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;
   - `traces[=N]` - dump call traces (at most N samples);
-  - `methods[=N]` - dump hot methods (at most N samples);
-  - `flamegraph` - dump raw call traces in the format used by
+  - `flat[=N]` - dump flat profile (top N hot methods);
+  - `collapsed` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by the sample count. For example:
   ```
   java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
   ```
-  The default format is `summary,traces=200,methods=200`.
+  The default format is `summary,traces=200,flat=200`.
 
 * `-f FILENAME` - the file name to dump the profile information to.  
-Example: `./profiler.sh -o flamegraph -f /tmp/traces.txt 8983`
+Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
 
 ## Restrictions/Limitations
 
