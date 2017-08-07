@@ -16,16 +16,22 @@
 
 #include <fstream>
 #include <stdint.h>
-#include <ucontext.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
 #include "codeCache.h"
 #include "profiler.h"
 #include "stackFrame.h"
+#include "vmStructs.h"
 
 
-Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandlemm");
-Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandlem");
+#ifdef __LP64__
+#define SZ  "m"
+#else
+#define SZ  "j"
+#endif
+
+Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandle" SZ SZ);
+Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandle" SZ);
 
 
 // Make the entry point writeable and insert breakpoint at the very first instruction
@@ -44,18 +50,6 @@ void Trap::uninstall() {
     flushCache(_entry);
 }
 
-
-void AllocTracer::inNewTLAB(VMKlass* alloc_class, unsigned long tlab_size, unsigned long obj_size) {
-    ucontext_t ucontext;
-    getcontext(&ucontext);
-    Profiler::_instance.recordSample(&ucontext, obj_size, alloc_class);
-}
-
-void AllocTracer::outsideTLAB(VMKlass* alloc_class, unsigned long obj_size) {
-    ucontext_t ucontext;
-    getcontext(&ucontext);
-    Profiler::_instance.recordSample(&ucontext, obj_size, alloc_class);
-}
 
 bool AllocTracer::checkTracerSymbols() {
     if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
@@ -78,14 +72,30 @@ void AllocTracer::installSignalHandler() {
     sigaction(SIGTRAP, &sa, NULL);
 }
 
+// Called whenever our breakpoint trap is hit
 void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    uintptr_t& pc = StackFrame::pc((ucontext_t*)ucontext);
+    StackFrame frame(ucontext);
+    VMKlass* alloc_class;
+    u64 obj_size;
 
-    if (pc == (uintptr_t)(_in_new_tlab._entry + 1)) {
-        pc = (uintptr_t)inNewTLAB;
-    } else if (pc == (uintptr_t)(_outside_tlab._entry + 1)) {
-        pc = (uintptr_t)outsideTLAB;
+    // PC points either to BREAKPOINT instruction or to the next one
+    if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
+        // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
+        alloc_class = (VMKlass*)frame.arg0();
+        obj_size = frame.arg2();
+    } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
+        // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
+        alloc_class = (VMKlass*)frame.arg0();
+        obj_size = frame.arg1();
+    } else {
+        // Not our trap; nothing to do
+        return;
     }
+
+    Profiler::_instance.recordSample(ucontext, obj_size, alloc_class);
+
+    // Leave the trapped function by simulating "ret" instruction
+    frame.ret();
 }
 
 bool AllocTracer::start() {

@@ -24,32 +24,31 @@
 class StackFrame {
   private:
     ucontext_t* _ucontext;
-    uintptr_t _pc;
-    uintptr_t _sp;
-    uintptr_t _fp;
 
     uintptr_t stackAt(int slot) {
-        return ((uintptr_t*)_sp)[slot];
+        return ((uintptr_t*)sp())[slot];
     }
 
   public:
-    static uintptr_t& pc(ucontext_t* ucontext);
-    static uintptr_t& sp(ucontext_t* ucontext);
-    static uintptr_t& fp(ucontext_t* ucontext);
-
-    StackFrame(void* ucontext) : _ucontext((ucontext_t*)ucontext) {
-        _pc = pc(_ucontext);
-        _sp = sp(_ucontext);
-        _fp = fp(_ucontext);
+    StackFrame(void* ucontext) {
+        _ucontext = (ucontext_t*)ucontext;
     }
 
-    ~StackFrame() {
-        pc(_ucontext) = _pc;
-        sp(_ucontext) = _sp;
-        fp(_ucontext) = _fp;
+    void restore(uintptr_t saved_pc, uintptr_t saved_sp, uintptr_t saved_fp) {
+        pc() = saved_pc;
+        sp() = saved_sp;
+        fp() = saved_fp;
     }
 
-    const void* pc() { return (const void*)_pc; }
+    uintptr_t& pc();
+    uintptr_t& sp();
+    uintptr_t& fp();
+
+    uintptr_t arg0();
+    uintptr_t arg1();
+    uintptr_t arg2();
+
+    void ret();
 
     bool pop();
 };

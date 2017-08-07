@@ -19,9 +19,9 @@
 
 #include <signal.h>
 #include "arch.h"
-#include "vmStructs.h"
 
 
+// Describes OpenJDK function being intercepted
 class Trap {
   private:
     const char* _func_name;
@@ -43,9 +43,6 @@ class AllocTracer {
   private:
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
-
-    static void inNewTLAB(VMKlass* alloc_class, unsigned long tlab_size, unsigned long obj_size);
-    static void outsideTLAB(VMKlass* alloc_class, unsigned long obj_size);
 
     static bool checkTracerSymbols();
     static void installSignalHandler();

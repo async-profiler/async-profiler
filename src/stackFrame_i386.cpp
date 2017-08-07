@@ -19,16 +19,33 @@
 #include "stackFrame.h"
 
 
-uintptr_t& StackFrame::pc(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_EIP];
+uintptr_t& StackFrame::pc() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EIP];
 }
 
-uintptr_t& StackFrame::sp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_ESP];
+uintptr_t& StackFrame::sp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_ESP];
 }
 
-uintptr_t& StackFrame::fp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_EBP];
+uintptr_t& StackFrame::fp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EBP];
+}
+
+uintptr_t StackFrame::arg0() {
+    return stackAt(1);
+}
+
+uintptr_t StackFrame::arg1() {
+    return stackAt(2);
+}
+
+uintptr_t StackFrame::arg2() {
+    return stackAt(3);
+}
+
+void StackFrame::ret() {
+    pc() = stackAt(0);
+    sp() += 4;
 }
 
 
@@ -39,17 +56,17 @@ static inline bool withinCurrentStack(uintptr_t value) {
 }
 
 bool StackFrame::pop() {
-    if (!withinCurrentStack(_sp)) {
+    if (!withinCurrentStack(sp())) {
         return false;
     }
 
-    if (_fp == _sp || withinCurrentStack(stackAt(0))) {
-        fp(_ucontext) = stackAt(0);
-        pc(_ucontext) = stackAt(1);
-        sp(_ucontext) = _sp + 8;
+    if (fp() == sp() || withinCurrentStack(stackAt(0))) {
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 8;
     } else {
-        pc(_ucontext) = stackAt(0);
-        sp(_ucontext) = _sp + 4;
+        pc() = stackAt(0);
+        sp() += 4;
     }
     return true;
 }

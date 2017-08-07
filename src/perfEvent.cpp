@@ -25,7 +25,6 @@
 #include "arch.h"
 #include "perfEvent.h"
 #include "profiler.h"
-#include "vmEntry.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures

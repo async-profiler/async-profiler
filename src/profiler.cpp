@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <unistd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -282,15 +283,20 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_dept
         // This is a temporary workaround for AsyncGetCallTrace issues,
         // see https://bugs.openjdk.java.net/browse/JDK-8178287
         StackFrame top_frame(ucontext);
+        uintptr_t pc = top_frame.pc(),
+                  sp = top_frame.sp(),
+                  fp = top_frame.fp();
+
         if (top_frame.pop()) {
             // Guess top method by PC and insert it manually into the call trace
-            if (fillTopFrame(top_frame.pc(), trace.frames)) {
+            if (fillTopFrame((const void*)pc, trace.frames)) {
                 trace.frames++;
                 max_depth--;
             }
 
             // Retry with the fixed context
             VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            top_frame.restore(pc, sp, fp);
 
             if (trace.num_frames > 0) {
                 return trace.num_frames + (trace.frames - frames);

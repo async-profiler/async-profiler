@@ -19,16 +19,33 @@
 #include "stackFrame.h"
 
 
-uintptr_t& StackFrame::pc(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_RIP];
+uintptr_t& StackFrame::pc() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RIP];
 }
 
-uintptr_t& StackFrame::sp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_RSP];
+uintptr_t& StackFrame::sp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RSP];
 }
 
-uintptr_t& StackFrame::fp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.gregs[REG_RBP];
+uintptr_t& StackFrame::fp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RBP];
+}
+
+uintptr_t StackFrame::arg0() {
+    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RDI];
+}
+
+uintptr_t StackFrame::arg1() {
+    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RSI];
+}
+
+uintptr_t StackFrame::arg2() {
+    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RDX];
+}
+
+void StackFrame::ret() {
+    pc() = stackAt(0);
+    sp() += 8;
 }
 
 
@@ -57,17 +74,17 @@ static inline bool isFramePrologueEpilogue(uintptr_t pc) {
 }
 
 bool StackFrame::pop() {
-    if (!withinCurrentStack(_sp)) {
+    if (!withinCurrentStack(sp())) {
         return false;
     }
 
-    if (_fp == _sp || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(_pc)) {
-        fp(_ucontext) = stackAt(0);
-        pc(_ucontext) = stackAt(1);
-        sp(_ucontext) = _sp + 16;
+    if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 16;
     } else {
-        pc(_ucontext) = stackAt(0);
-        sp(_ucontext) = _sp + 8;
+        pc() = stackAt(0);
+        sp() += 8;
     }
     return true;
 }

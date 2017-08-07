@@ -19,17 +19,34 @@
 #include "stackFrame.h"
 
 
-uintptr_t& StackFrame::pc(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.arm_pc;
+uintptr_t& StackFrame::pc() {
+    return (uintptr_t&)_ucontext->uc_mcontext.arm_pc;
 }
 
-uintptr_t& StackFrame::sp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.arm_sp;
+uintptr_t& StackFrame::sp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.arm_sp;
 }
 
-uintptr_t& StackFrame::fp(ucontext_t* ucontext) {
-    return (uintptr_t&)ucontext->uc_mcontext.arm_fp;
+uintptr_t& StackFrame::fp() {
+    return (uintptr_t&)_ucontext->uc_mcontext.arm_fp;
 }
+
+uintptr_t StackFrame::arg0() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
+}
+
+uintptr_t StackFrame::arg1() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r1;
+}
+
+uintptr_t StackFrame::arg2() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r2;
+}
+
+void StackFrame::ret() {
+    _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
+}
+
 
 bool StackFrame::pop() {
     return false;
