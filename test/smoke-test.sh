@@ -12,7 +12,7 @@ FILENAME=/tmp/java.trace
 JAVAPID=$!
 
 sleep 1     # allow the Java runtime to initialize
-../profiler.sh -f $FILENAME -o flamegraph -d 5 $JAVAPID
+../profiler.sh -f $FILENAME -o collapsed -d 5 $JAVAPID
 
 kill $JAVAPID
 

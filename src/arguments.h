@@ -48,10 +48,10 @@ class Arguments {
     int _interval;
     int _framebuf;
     char* _file;
-    bool _dump_flamegraph;
+    bool _dump_collapsed;
     bool _dump_summary;
     int _dump_traces;
-    int _dump_methods;
+    int _dump_flat;
 
     Arguments(char* args) :
         _action(ACTION_NONE),
@@ -59,10 +59,10 @@ class Arguments {
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
-        _dump_flamegraph(false),
+        _dump_collapsed(false),
         _dump_summary(false),
         _dump_traces(0),
-        _dump_methods(0) {
+        _dump_flat(0) {
         _error = parse(args);
     }
 
