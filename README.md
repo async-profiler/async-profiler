@@ -66,7 +66,15 @@ Unlike Java Mission Control which uses similar approach, async-profiler
 does not require Java Flight Recorder or any other JDK commercial feature.
 It is completely based on open source technologies and it works with OpenJDK.
 
-The minimum required JDK version is 7u40 where the TLAB callbacks appeared.
+The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
+
+Heap profiler requires HotSpot debug symbols. Oracle JDK already has them
+embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
+in a separate package. For example, to install OpenJDK debug symbols on
+Debian / Ubuntu, run
+```
+# apt-get install openjdk-8-dbg
+```
 
 ## Building
 
