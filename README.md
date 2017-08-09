@@ -8,7 +8,7 @@ OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
 
 There are two operating modes: CPU profiling and HEAP profiling.
 
-## CPU profiler
+## CPU profiling
 
 In this mode profiler collects stack trace samples that include **Java** methods,
 **native** calls, **JVM** code and **kernel** functions.
