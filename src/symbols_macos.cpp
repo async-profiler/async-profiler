@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef _SYMBOLS_H
-#define _SYMBOLS_H
+#ifdef __APPLE__
 
-#include "codeCache.h"
+#include "symbols.h"
 
 
-class Symbols {
-  private:
-    static void parseKernelSymbols(NativeCodeCache* cc);
+void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+}
 
-  public:
-    static int parseMaps(NativeCodeCache** array, int size);
-};
+int Symbols::parseMaps(NativeCodeCache** array, int size) {
+    return 0;
+}
 
-#endif // _SYMBOLS_H
+#endif // __APPLE__

@@ -25,9 +25,9 @@
 
 
 #ifdef __LP64__
-#define SZ  "m"
+#  define SZ  "m"
 #else
-#define SZ  "j"
+#  define SZ  "j"
 #endif
 
 Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandle" SZ SZ);
@@ -36,8 +36,8 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 
 // Make the entry point writeable and insert breakpoint at the very first instruction
 void Trap::install() {
-    uintptr_t page_start = (uintptr_t)_entry & ~0xfffULL;
-    mprotect((void*)page_start, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
+    uintptr_t page_start = (uintptr_t)_entry & ~PAGE_MASK;
+    mprotect((void*)page_start, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
 
     _saved_insn = *_entry;
     *_entry = BREAKPOINT;

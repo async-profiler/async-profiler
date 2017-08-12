@@ -26,12 +26,34 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
-#include <linux/limits.h>
 
+#define PATH_MAX 1024
 
-static const char* get_temp_directory() {
+// See hotspot/src/os/bsd/vm/os_bsd.cpp
+// This must be hard coded because it's the system's temporary
+// directory not the java application's temp directory, ala java.io.tmpdir.
+#ifdef __APPLE__
+// macosx has a secure per-user temporary directory
+
+char temp_path_storage[PATH_MAX];
+
+const char* get_temp_directory() {
+    static char *temp_path = NULL;
+    if (temp_path == NULL) {
+        int pathSize = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, PATH_MAX);
+        if (pathSize == 0 || pathSize > PATH_MAX) {
+            strlcpy(temp_path_storage, "/tmp", sizeof (temp_path_storage));
+        }
+        temp_path = temp_path_storage;
+    }
+    return temp_path;
+}
+#else // __APPLE__
+
+const char* get_temp_directory() {
     return "/tmp";
 }
+#endif // __APPLE__
 
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {

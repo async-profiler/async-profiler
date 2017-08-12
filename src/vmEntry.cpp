@@ -19,7 +19,7 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "profiler.h"
-#include "perfEvent.h"
+#include "perfEvents.h"
 #include "vmStructs.h"
 
 

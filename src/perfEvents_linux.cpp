@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#ifdef __linux__
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -22,9 +24,11 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#include <linux/perf_event.h>
 #include "arch.h"
-#include "perfEvent.h"
+#include "perfEvents.h"
 #include "profiler.h"
+#include "spinLock.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -39,7 +43,36 @@ struct f_owner_ex {
 #endif // F_SETOWN_EX
 
 
-const int PROF_SIGNAL = SIGPROF;
+class RingBuffer {
+  private:
+    const char* _start;
+    unsigned long _offset;
+
+  public:
+    RingBuffer(struct perf_event_mmap_page* page) {
+        _start = (const char*)page + PAGE_SIZE;
+    }
+
+    struct perf_event_header* seek(u64 offset) {
+        _offset = (unsigned long)offset & PAGE_MASK;
+        return (struct perf_event_header*)(_start + _offset);
+    }
+
+    u64 next() {
+        _offset = (_offset + sizeof(u64)) & PAGE_MASK;
+        return *(u64*)(_start + _offset);
+    }
+};
+
+
+class PerfEvent : public SpinLock {
+  private:
+    int _fd;
+    struct perf_event_mmap_page* _page;
+
+    friend class PerfEvents;
+};
+
 
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
@@ -99,7 +132,7 @@ void PerfEvents::createForThread(int tid) {
     ex.pid = tid;
 
     fcntl(fd, F_SETFL, O_ASYNC);
-    fcntl(fd, F_SETSIG, PROF_SIGNAL);
+    fcntl(fd, F_SETSIG, SIGPROF);
     fcntl(fd, F_SETOWN_EX, &ex);
 
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
@@ -149,7 +182,7 @@ void PerfEvents::installSignalHandler() {
     sa.sa_sigaction = signalHandler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
 
-    sigaction(PROF_SIGNAL, &sa, NULL);
+    sigaction(SIGPROF, &sa, NULL);
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -216,3 +249,13 @@ int PerfEvents::getCallChain(const void** callchain, int max_depth) {
     event->unlock();
     return depth;
 }
+
+void JNICALL PerfEvents::ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    createForThread(tid());
+}
+
+void JNICALL PerfEvents::ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    destroyForThread(tid());
+}
+
+#endif // __linux__

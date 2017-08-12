@@ -19,28 +19,35 @@
 #include "stackFrame.h"
 
 
+#ifdef __APPLE__
+#  define REG(l, m)  _ucontext->uc_mcontext->__ss.m
+#else
+#  define REG(l, m)  _ucontext->uc_mcontext.gregs[l]
+#endif
+
+
 uintptr_t& StackFrame::pc() {
-    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RIP];
+    return (uintptr_t&)REG(REG_RIP, __rip);
 }
 
 uintptr_t& StackFrame::sp() {
-    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RSP];
+    return (uintptr_t&)REG(REG_RSP, __rsp);
 }
 
 uintptr_t& StackFrame::fp() {
-    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_RBP];
+    return (uintptr_t&)REG(REG_RBP, __rbp);
 }
 
 uintptr_t StackFrame::arg0() {
-    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RDI];
+    return (uintptr_t)REG(REG_RDI, __rdi);
 }
 
 uintptr_t StackFrame::arg1() {
-    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RSI];
+    return (uintptr_t)REG(REG_RSI, __rsi);
 }
 
 uintptr_t StackFrame::arg2() {
-    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_RDX];
+    return (uintptr_t)REG(REG_RDX, __rdx);
 }
 
 void StackFrame::ret() {

@@ -23,7 +23,7 @@
 #include <cxxabi.h>
 #include <sys/param.h>
 #include "profiler.h"
-#include "perfEvent.h"
+#include "perfEvents.h"
 #include "allocTracer.h"
 #include "stackFrame.h"
 #include "symbols.h"
@@ -566,6 +566,8 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
+            break;
+        default:
             break;
     }
 }

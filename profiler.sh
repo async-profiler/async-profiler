@@ -35,8 +35,7 @@ show_agent_output() {
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
-# realpath is not present on all distros, notably on the Travis CI image
-PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
+PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 MODE="cpu"
 DURATION="60"
@@ -94,7 +93,7 @@ done
 
 # if no -f argument is given, use temporary file to transfer output to caller terminal
 if [[ $USE_TMP ]]; then
-    FILE=$(mktemp --tmpdir async-profiler.XXXXXXXX)
+    FILE=$(mktemp /tmp/async-profiler.XXXXXXXX)
 fi
 
 case $ACTION in

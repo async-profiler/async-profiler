@@ -18,6 +18,12 @@
 #define _ARCH_H
 
 
+typedef unsigned long long u64;
+
+const unsigned long PAGE_SIZE = 4096;
+const unsigned long PAGE_MASK = PAGE_SIZE - 1;
+
+
 #if defined(__x86_64__) || defined(__i386__)
 
 typedef unsigned char instruction_t;
