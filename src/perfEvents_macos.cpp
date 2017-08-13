@@ -28,8 +28,7 @@ int PerfEvents::_interval;
 
 void PerfEvents::init() {}
 
-int PerfEvents::tid()       { return 0; }
-int PerfEvents::getMaxPid() { return 0; }
+int PerfEvents::tid() { return 0; }
 
 void PerfEvents::createForThread(int tid)  {}
 void PerfEvents::createForAllThreads()     {}
@@ -73,8 +72,5 @@ void PerfEvents::stop() {
 int PerfEvents::getCallChain(const void** callchain, int max_depth) {
     return 0;
 }
-
-void JNICALL PerfEvents::ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {}
-void JNICALL PerfEvents::ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread)   {}
 
 #endif // __APPLE__

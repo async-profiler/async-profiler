@@ -30,7 +30,6 @@ class PerfEvents {
     static int _interval;
 
     static int tid();
-    static int getMaxPid();
     static void createForThread(int tid);
     static void createForAllThreads();
     static void destroyForThread(int tid);
@@ -44,8 +43,13 @@ class PerfEvents {
     static void stop();
     static int getCallChain(const void** callchain, int max_depth);
 
-    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
-    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        createForThread(tid());
+    }
+
+    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        destroyForThread(tid());
+    }
 };
 
 #endif // _PERFEVENTS_H

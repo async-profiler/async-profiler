@@ -74,21 +74,7 @@ class PerfEvent : public SpinLock {
 };
 
 
-int PerfEvents::_max_events = 0;
-PerfEvent* PerfEvents::_events = NULL;
-int PerfEvents::_interval;
-
-
-void PerfEvents::init() {
-    _max_events = getMaxPid();
-    _events = (PerfEvent*)calloc(_max_events, sizeof(PerfEvent));
-}
-
-int PerfEvents::tid() {
-    return syscall(__NR_gettid);
-}
-
-int PerfEvents::getMaxPid() {
+static int getMaxPID() {
     char buf[16] = "65536";
     int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
     if (fd != -1) {
@@ -97,6 +83,21 @@ int PerfEvents::getMaxPid() {
         close(fd);
     }
     return atoi(buf);
+}
+
+
+int PerfEvents::_max_events = 0;
+PerfEvent* PerfEvents::_events = NULL;
+int PerfEvents::_interval;
+
+
+void PerfEvents::init() {
+    _max_events = getMaxPID();
+    _events = (PerfEvent*)calloc(_max_events, sizeof(PerfEvent));
+}
+
+int PerfEvents::tid() {
+    return syscall(__NR_gettid);
 }
 
 void PerfEvents::createForThread(int tid) {
@@ -248,14 +249,6 @@ int PerfEvents::getCallChain(const void** callchain, int max_depth) {
 
     event->unlock();
     return depth;
-}
-
-void JNICALL PerfEvents::ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    createForThread(tid());
-}
-
-void JNICALL PerfEvents::ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    destroyForThread(tid());
 }
 
 #endif // __linux__
