@@ -231,7 +231,7 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
         str += "_[k]";
         SymbolDesc symbol(str.c_str());
         char type = symbol.type();
-        if (type == 'T' || type == 't' || type == 'V' || type == 'v' || type == 'W' || type == 'w') {
+        if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
             const char* addr = symbol.addr();
             if (addr != NULL) {
                 cc->add(addr, 0, symbol.name());
