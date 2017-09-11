@@ -106,10 +106,11 @@ const char* NativeCodeCache::binarySearch(const void* address) {
     return _name;
 }
 
-const void* NativeCodeCache::findSymbol(const char* symbol) {
+const void* NativeCodeCache::findSymbol(const char* prefix) {
+    int prefix_len = strlen(prefix);
     for (int i = 0; i < _count; i++) {
         const char* blob_name = (const char*)_blobs[i]._method;
-        if (blob_name != NULL && strcmp(blob_name, symbol) == 0) {
+        if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
             return _blobs[i]._start;
         }
     }

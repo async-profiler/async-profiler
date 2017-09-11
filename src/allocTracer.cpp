@@ -24,14 +24,8 @@
 #include "vmStructs.h"
 
 
-#ifdef __LP64__
-#define SZ  "m"
-#else
-#define SZ  "j"
-#endif
-
-Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandle" SZ SZ);
-Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandle" SZ);
+Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_event");
+Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_event");
 
 
 // Make the entry point writeable and insert breakpoint at the very first instruction
