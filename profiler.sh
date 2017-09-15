@@ -35,7 +35,14 @@ show_agent_output() {
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
-PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
+UNAME_S=$(uname -s)
+if [ "$UNAME_S" == "Darwin" ]; then
+    # jattach will make realpath call for mac os x
+    PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
+else
+    PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
+fi
+
 ACTION="collect"
 MODE="cpu"
 DURATION="60"
