@@ -5,14 +5,14 @@ set -x  # print all executed lines
 
 pushd $(dirname $0)
 
-javac Target.java
-java Target &
+javac AllocatingTarget.java
+java AllocatingTarget &
 
 FILENAME=/tmp/java.trace
 JAVAPID=$!
 
 sleep 1     # allow the Java runtime to initialize
-../profiler.sh -f $FILENAME -o collapsed -d 5 $JAVAPID
+../profiler.sh -f $FILENAME -o collapsed -d 5 -m heap $JAVAPID
 
 kill $JAVAPID
 
@@ -22,8 +22,7 @@ function assert_string() {
   fi
 }
 
-assert_string "Target.main;Target.method1 "
-assert_string "Target.main;Target.method2 "
-assert_string "Target.main;Target.method3;java/io/File"
+assert_string "AllocatingTarget.main;\[Ljava/lang/Integer;"
+assert_string "AllocatingTarget.allocate;\[I "
 
 popd

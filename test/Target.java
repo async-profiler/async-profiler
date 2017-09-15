@@ -16,8 +16,10 @@ class Target {
 
   private static void method3() throws Exception {
     for (int i = 0; i < 1000; ++i) {
-      new Scanner(new File("/proc/cpuinfo")).useDelimiter("\\Z").next();
-    }
+        for (String s : new File("/tmp").list()) {
+          value += s.hashCode();
+        }
+      }
   }
 
   public static void main(String[] args) throws Exception {
