@@ -207,6 +207,8 @@ class Profiler {
                                              const void* address, jint length) {
         _instance.addRuntimeStub(address, length, name);
     }
+
+    friend class VM;
 };
 
 #endif // _PROFILER_H
