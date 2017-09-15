@@ -13,31 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <dlfcn.h>
-#include <string.h>
+#include <unistd.h>
+#include <iostream>
 #include "vmStructs.h"
+#include "codeCache.h"
+#include <string.h>
 
 
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 
-
-uintptr_t VMStructs::getGlobalVar(const char* name) {
-    void* addr = dlsym(RTLD_DEFAULT, name);
-    if (addr == NULL) {
-        return 0;
-    }
-    return *(uintptr_t*)addr;
-}
-
-void VMStructs::init() {
-    uintptr_t entry = getGlobalVar("gHotSpotVMStructs");
-    uintptr_t stride = getGlobalVar("gHotSpotVMStructEntryArrayStride");
-    uintptr_t type_offset = getGlobalVar("gHotSpotVMStructEntryTypeNameOffset");
-    uintptr_t field_offset = getGlobalVar("gHotSpotVMStructEntryFieldNameOffset");
-    uintptr_t offset_offset = getGlobalVar("gHotSpotVMStructEntryOffsetOffset");
+void VMStructs::init(NativeCodeCache* libjvm) {
+    uintptr_t entry = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructs"));
+    uintptr_t stride = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryArrayStride"));
+    uintptr_t type_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryTypeNameOffset"));
+    uintptr_t field_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryFieldNameOffset"));
+    uintptr_t offset_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryOffsetOffset"));
 
     if (entry == 0 || stride == 0) {
         return;

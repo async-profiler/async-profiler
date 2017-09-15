@@ -395,8 +395,6 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
 
-    resetSymbols();
-
     bool success;
     if (mode == MODE_CPU) {
         success = PerfEvents::start(interval);
