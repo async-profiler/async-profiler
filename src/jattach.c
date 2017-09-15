@@ -150,6 +150,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+#ifdef __APPLE__
+    // On macosx full path is required, but there is no readlink -f analogue
+    char* path = argv[3];
+    char real_path[PATH_MAX];
+    if (!realpath(path, real_path)) {
+        perror("Cannot canonicalize agent path");
+        return 1;
+    }
+    argv[3] = real_path;
+#endif // __APPLE__
+
     // Make write() return EPIPE instead of silent process termination
     signal(SIGPIPE, SIG_IGN);
 
