@@ -105,15 +105,18 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
 
     size_t length = (size_t)lseek(fd, 0, SEEK_END);
     lseek(fd, 0, SEEK_SET);
-    void* mapped_lib_addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (mapped_lib_addr == MAP_FAILED) {
-        return 0;
-    }
 
     uint32_t magic_number;
     read(fd, &magic_number, sizeof(magic_number));
     if (magic_number != MH_MAGIC_64 && magic_number != MH_CIGAM_64) {
-        munmap(mapped_lib_addr, length);
+        close(fd);
+        return 0;
+    }
+
+    void* mapped_lib_addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+
+    if (mapped_lib_addr == MAP_FAILED) {
         return 0;
     }
 
@@ -121,7 +124,6 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
 
     NativeCodeCache* cc = new NativeCodeCache(lib_path);
     array[0] = cc;
-
 
     // There is a lot of private symbols in libjvm, register only required ones (until native stack walking is implemented)
     add_symbol(parser, loaded_lib_addr, "_AsyncGetCallTrace", cc);
