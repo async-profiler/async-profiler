@@ -37,8 +37,8 @@ SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
 UNAME_S=$(uname -s)
 if [ "$UNAME_S" == "Darwin" ]; then
-    # jattach will make realpath call for mac os x
     PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
+    PROFILER=$(perl -MCwd -e 'print Cwd::abs_path shift' $PROFILER)
 else
     PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
 fi
