@@ -69,24 +69,18 @@ void AllocTracer::installSignalHandler() {
 // Called whenever our breakpoint trap is hit
 void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
-    VMKlass* alloc_class;
-    u64 obj_size;
 
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        alloc_class = (VMKlass*)frame.arg0();
-        obj_size = frame.arg2();
+        Profiler::_instance.recordSample(ucontext, frame.arg2(), BCI_ALLOC_NEW, (jmethodID)frame.arg0());
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
-        alloc_class = (VMKlass*)frame.arg0();
-        obj_size = frame.arg1();
+        Profiler::_instance.recordSample(ucontext, frame.arg1(), BCI_ALLOC_OUT, (jmethodID)frame.arg0());
     } else {
         // Not our trap; nothing to do
         return;
     }
-
-    Profiler::_instance.recordSample(ucontext, obj_size, alloc_class);
 
     // Leave the trapped function by simulating "ret" instruction
     frame.ret();

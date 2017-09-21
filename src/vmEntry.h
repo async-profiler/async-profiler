@@ -23,7 +23,8 @@
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME = -10, // method_id is native function name (char*)
-    BCI_SYMBOL       = -11, // method_id is Klass descriptor (VMSymbol*)
+    BCI_ALLOC_NEW    = -11, // method_id is Klass descriptor (VMSymbol*)
+    BCI_ALLOC_OUT    = -12, // method_id is Klass descriptor (VMSymbol*)
 };
 
 typedef struct {

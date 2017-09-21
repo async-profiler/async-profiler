@@ -27,6 +27,7 @@
 #include "allocTracer.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 Profiler Profiler::_instance;
@@ -79,7 +80,7 @@ class MethodName {
             _str = "[unknown]";
         } else if (frame.bci == BCI_NATIVE_FRAME) {
             _str = demangle((const char*)frame.method_id);
-        } else if (frame.bci == BCI_SYMBOL) {
+        } else if (frame.bci == BCI_ALLOC_NEW || frame.bci == BCI_ALLOC_OUT) {
             _str = symbolName((VMSymbol*)frame.method_id);
         } else {
             jclass method_class;
@@ -150,6 +151,7 @@ void Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 count
     }
     
     // CallTrace hash found => atomically increment counter
+    atomicInc(_traces[i]._samples);
     atomicInc(_traces[i]._counter, counter);
 }
 
@@ -204,6 +206,7 @@ void Profiler::storeMethod(jmethodID method, jint bci, u64 counter) {
     }
 
     // Method found => atomically increment counter
+    atomicInc(_methods[i]._samples);
     atomicInc(_methods[i]._counter, counter);
 }
 
@@ -317,13 +320,13 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_dept
     return 0;
 }
 
-int Profiler::makeAllocationFrame(VMKlass* alloc_class, ASGCT_CallFrame* frames) {
-    if (alloc_class == NULL) {
+int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event) {
+    if (event == NULL) {
         return 0;
     }
-    
-    frames[0].bci = BCI_SYMBOL;
-    frames[0].method_id = (jmethodID)alloc_class->name();
+
+    frames[0].bci = event_type;
+    frames[0].method_id = event;
     return 1;
 }
 
@@ -348,8 +351,8 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
     return method != NULL;
 }
 
-void Profiler::recordSample(void* ucontext, u64 counter, VMKlass* alloc_class) {
-    u64 lock_index = atomicInc(_samples) % CONCURRENCY_LEVEL;
+void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event) {
+    u64 lock_index = atomicInc(_total_samples) % CONCURRENCY_LEVEL;
     if (!_locks[lock_index].tryLock()) {
         atomicInc(_failures[-ticks_skipped]);  // too many concurrent signals already
         return;
@@ -357,8 +360,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, VMKlass* alloc_class) {
 
     atomicInc(_total_counter, counter);
 
-    ASGCT_CallFrame* frames = _asgct_buffer[lock_index];
-    int num_frames = makeAllocationFrame(alloc_class, frames);
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
+    int num_frames = makeEventFrame(frames, event_type, event);
     num_frames += getNativeTrace(ucontext, frames + num_frames);
     num_frames += getJavaTrace(ucontext, frames + num_frames, MAX_STACK_FRAMES - num_frames);
 
@@ -381,7 +384,7 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return false;
 
-    _samples = 0;
+    _total_samples = 0;
     _total_counter = 0;
     memset(_failures, 0, sizeof(_failures));
     memset(_hashes, 0, sizeof(_hashes));
@@ -445,10 +448,10 @@ void Profiler::dumpSummary(std::ostream& out) {
     snprintf(buf, sizeof(buf),
             "--- Execution profile ---\n"
             "Total samples:         %lld\n",
-            _samples);
+            _total_samples);
     out << buf;
     
-    double percent = 100.0 / _samples;
+    double percent = 100.0 / _total_samples;
     for (int i = 0; i < FAILURE_TYPES; i++) {
         if (_failures[i] > 0) {
             snprintf(buf, sizeof(buf), "%-22s %lld (%.2f%%)\n", title[i], _failures[i], _failures[i] * percent);
@@ -476,15 +479,14 @@ void Profiler::dumpCollapsed(std::ostream& out) {
     if (_state != IDLE) return;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
-        u64 counter = _traces[i]._counter;
-        if (counter == 0) continue;
-        
         CallTraceSample& trace = _traces[i];
+        if (trace._counter == 0) continue;
+        
         for (int j = trace._num_frames - 1; j >= 0; j--) {
             MethodName mn(_frame_buffer[trace._start_frame + j]);
             out << mn.toString() << (j == 0 ? ' ' : ';');
         }
-        out << counter << "\n";
+        out << trace._counter << "\n";
     }
 }
 
@@ -499,13 +501,13 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
     for (int i = 0; i < max_traces; i++) {
-        u64 counter = _traces[i]._counter;
-        if (counter == 0) break;
+        CallTraceSample& trace = _traces[i];
+        if (trace._counter == 0) break;
 
-        snprintf(buf, sizeof(buf), "Counter: %lld (%.2f%%)\n", counter, counter * percent);
+        snprintf(buf, sizeof(buf), "Samples: %lld, Counter: %lld (%.2f%%)\n",
+                 trace._samples, trace._counter, trace._counter * percent);
         out << buf;
 
-        CallTraceSample& trace = _traces[i];
         for (int j = 0; j < trace._num_frames; j++) {
             MethodName mn(_frame_buffer[trace._start_frame + j], true);
             snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, mn.toString());

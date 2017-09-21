@@ -153,7 +153,7 @@ void PerfEvents::installSignalHandler() {
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    Profiler::_instance.recordSample(ucontext, 1, NULL);
+    Profiler::_instance.recordSample(ucontext, 1, 0, NULL);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
