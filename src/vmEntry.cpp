@@ -70,8 +70,6 @@ bool VM::init(JavaVM* vm) {
         return false;
     }
 
-    Profiler::_instance.resetSymbols();
-    VMStructs::init(Profiler::_instance.jvmLibrary());
     return true;
 }
 
