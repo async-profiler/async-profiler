@@ -20,14 +20,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <cxxabi.h>
 #include <sys/param.h>
 #include "profiler.h"
 #include "perfEvent.h"
 #include "allocTracer.h"
+#include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
-#include "vmStructs.h"
 
 
 Profiler Profiler::_instance;
@@ -35,79 +34,6 @@ Profiler Profiler::_instance;
 static inline u64 atomicInc(u64& var, u64 increment = 1) {
     return __sync_fetch_and_add(&var, increment);
 }
-
-
-class MethodName {
-  private:
-    char _buf[520];
-    const char* _str;
-
-    char* fixClassName(char* name, bool dotted) {
-        if (dotted) {
-            for (char* s = name + 1; *s; s++) {
-                if (*s == '/') *s = '.';
-            }
-        }
-
-        // Class signature is a string of form 'Ljava/lang/Thread;'
-        // So we have to remove the first 'L' and the last ';'
-        name[strlen(name) - 1] = 0;
-        return name + 1;
-    }
-
-    const char* demangle(const char* name) {
-        if (name != NULL && name[0] == '_' && name[1] == 'Z') {
-            int status;
-            char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
-            if (demangled != NULL) {
-                strncpy(_buf, demangled, sizeof(_buf));
-                free(demangled);
-                return _buf;
-            }
-        }
-        return name;
-    }
-
-    const char* symbolName(VMSymbol* symbol) {
-        strncpy(_buf, symbol->body(), symbol->length());
-        _buf[symbol->length()] = 0;
-        return _buf;
-    }
-
-  public:
-    MethodName(ASGCT_CallFrame& frame, bool dotted = false) {
-        if (frame.method_id == NULL) {
-            _str = "[unknown]";
-        } else if (frame.bci == BCI_NATIVE_FRAME) {
-            _str = demangle((const char*)frame.method_id);
-        } else if (frame.bci == BCI_ALLOC_NEW || frame.bci == BCI_ALLOC_OUT) {
-            _str = symbolName((VMSymbol*)frame.method_id);
-        } else {
-            jclass method_class;
-            char* class_name = NULL;
-            char* method_name = NULL;
-
-            jvmtiEnv* jvmti = VM::jvmti();
-            jvmtiError err;
-
-            if ((err = jvmti->GetMethodName(frame.method_id, &method_name, NULL, NULL)) == 0 &&
-                (err = jvmti->GetMethodDeclaringClass(frame.method_id, &method_class)) == 0 &&
-                (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
-                snprintf(_buf, sizeof(_buf), "%s.%s", fixClassName(class_name, dotted), method_name);
-            } else {
-                snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
-            }
-            _str = _buf;
-
-            jvmti->Deallocate((unsigned char*)class_name);
-            jvmti->Deallocate((unsigned char*)method_name);
-        }
-    }
-
-    const char* toString() {
-        return _str;
-    }
-};
 
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
@@ -483,8 +409,8 @@ void Profiler::dumpCollapsed(std::ostream& out) {
         if (trace._counter == 0) continue;
         
         for (int j = trace._num_frames - 1; j >= 0; j--) {
-            MethodName mn(_frame_buffer[trace._start_frame + j]);
-            out << mn.toString() << (j == 0 ? ' ' : ';');
+            FrameName fn(_frame_buffer[trace._start_frame + j]);
+            out << fn.toString() << (j == 0 ? ' ' : ';');
         }
         out << trace._counter << "\n";
     }
@@ -509,8 +435,8 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         out << buf;
 
         for (int j = 0; j < trace._num_frames; j++) {
-            MethodName mn(_frame_buffer[trace._start_frame + j], true);
-            snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, mn.toString());
+            FrameName fn(_frame_buffer[trace._start_frame + j], true);
+            snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, fn.toString());
             out << buf;
         }
         out << "\n";
@@ -531,8 +457,8 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
         u64 counter = _methods[i]._counter;
         if (counter == 0) break;
 
-        MethodName mn(_methods[i]._method, true);
-        snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", counter, counter * percent, mn.toString());
+        FrameName fn(_methods[i]._method, true);
+        snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", counter, counter * percent, fn.toString());
         out << buf;
     }
 }
