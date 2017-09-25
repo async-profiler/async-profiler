@@ -24,12 +24,22 @@ int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 
+uintptr_t dereferenceSymbol(NativeCodeCache* lib, const char* symbol_name) {
+    const void* symbol = lib->findSymbol(symbol_name);
+    if (symbol == NULL || symbol < 0) {
+        // Fallback to avoid jvm crash in case of missing symbols
+        return 0;
+    }
+
+    return *((uintptr_t*)symbol);
+}
+
 void VMStructs::init(NativeCodeCache* libjvm) {
-    uintptr_t entry = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructs"));
-    uintptr_t stride = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryArrayStride"));
-    uintptr_t type_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryTypeNameOffset"));
-    uintptr_t field_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryFieldNameOffset"));
-    uintptr_t offset_offset = *((uintptr_t*)libjvm->findSymbol("gHotSpotVMStructEntryOffsetOffset"));
+    uintptr_t entry = dereferenceSymbol(libjvm, "gHotSpotVMStructs");
+    uintptr_t stride = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
+    uintptr_t type_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
+    uintptr_t field_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryFieldNameOffset");
+    uintptr_t offset_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryOffsetOffset");
 
     if (entry == 0 || stride == 0) {
         return;
