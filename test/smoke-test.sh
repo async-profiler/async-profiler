@@ -9,6 +9,8 @@ then
 fi
 
 (
+  cd $(dirname $0)
+
   if [ "Target.class" -ot "Target.java" ]
   then
      ${JAVA_HOME}/bin/javac Target.java
