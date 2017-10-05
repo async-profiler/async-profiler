@@ -42,7 +42,17 @@ const instruction_t BREAKPOINT = 0xe7f001f0;
 #define rmb()             asm volatile("dmb ish" : : : "memory")
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
+#elif defined(__aarch64__)
+
+typedef unsigned int instruction_t;
+const instruction_t BREAKPOINT = 0xd4200000;
+
+#define spinPause()       asm volatile("yield")
+#define rmb()             asm volatile("dmb ish" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+
 #else
+#warning "Compiling on unsupported arch"
 
 #define spinPause()
 #define rmb()             __sync_synchronize()

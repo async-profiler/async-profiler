@@ -92,7 +92,7 @@ class NativeCodeCache : public CodeCache {
     void add(const void* start, int length, const char* name);
     void sort();
     const char* binarySearch(const void* address);
-    const void* findSymbol(const char* symbol);
+    const void* findSymbol(const char* prefix);
 };
 
 #endif // _CODECACHE_H

@@ -235,3 +235,12 @@ stack. For example, if `start_thread` called `JavaMain` and then your Java
 code started running, you will not see the first two frames in the resulting
 stack. On the other hand, you _will_ see non-Java frames (user and kernel)
 invoked by your Java code.
+
+## Troubleshooting
+
+If you see `Could not start attach mechanism: No such file or directory` message or similar, it means the profiler cannot establish communication with the target JVM through UNIX domain socket.
+
+For the profiler to be able to access JVM, make sure
+ 1. You run profiler under exactly the same user as the owner of target JVM process.
+ 2. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
+ 3. JVM is not run with `-XX:+DisableAttachMechanism` option.
