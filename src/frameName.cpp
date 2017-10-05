@@ -40,7 +40,7 @@ const char* FrameName::javaClassName(const char* symbol, int length, bool dotted
 
     int array_dimension = s - symbol;
     if (array_dimension != 0) {
-        switch (*s++) {
+        switch (*s) {
             case 'B': strcpy(_buf, "byte");    break;
             case 'C': strcpy(_buf, "char");    break;
             case 'I': strcpy(_buf, "int");     break;
@@ -49,42 +49,31 @@ const char* FrameName::javaClassName(const char* symbol, int length, bool dotted
             case 'Z': strcpy(_buf, "boolean"); break;
             case 'F': strcpy(_buf, "float");   break;
             case 'D': strcpy(_buf, "double");  break;
-            case 'L': _buf[0] = 0; length--;   break;
+            case 'L': strncpy(_buf, s + 1, length -= array_dimension -= 2); _buf[break;
         }
-        length -= arr + 1;
-    }
-     
-     
-     && *symbol == 'L') {
-        symbol++;
-        length--;
     }
 
+    while (array_dimension-- > 0) {
+        strcat(_buf, "[]");
+    }
 
-
-    if (arr
-
-
-        if (dotted) {
-            for (char* s = name; *s; s++) {
-                if (*s == '/') *s = '.';
-            }
+    if (dotted) {
+        for (char* s = name; *s; s++) {
+            if (*s == '/') *s = '.';
         }
-
-        // Class signature is a string of form 'Ljava/lang/Thread;'
-        // So we have to remove the first 'L' and the last ';'
-        name[strlen(name) - 1] = 0;
-        return name + 1;
     }
+
+    return _buf;
 }
 
 FrameName::FrameName(ASGCT_CallFrame& frame, bool dotted) {
         if (frame.method_id == NULL) {
             _str = "[unknown]";
         } else if (frame.bci == BCI_NATIVE_FRAME) {
-            _str = demangle((const char*)frame.method_id);
+            _str = cppDemangle((const char*)frame.method_id);
         } else if (frame.bci == BCI_ALLOC_NEW || frame.bci == BCI_ALLOC_OUT) {
-            _str = symbolName((VMSymbol*)frame.method_id);
+            VMSymbol* symbol = (VMSymbol*)frame.method_id;
+            _str = javaClassName(symbol->body(), symbol->length());
         } else {
             jclass method_class;
             char* class_name = NULL;
