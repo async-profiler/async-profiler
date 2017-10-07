@@ -3,26 +3,35 @@
 set -e  # exit on any failure
 set -x  # print all executed lines
 
-pushd $(dirname $0)
+if [ -z "${JAVA_HOME}" ]
+then
+  echo "JAVA_HOME is not set"
+fi
 
-javac AllocatingTarget.java
-java AllocatingTarget &
+(
+  cd $(dirname $0)
 
-FILENAME=/tmp/java.trace
-JAVAPID=$!
-
-sleep 1     # allow the Java runtime to initialize
-../profiler.sh -f $FILENAME -o collapsed -d 5 -m heap $JAVAPID
-
-kill $JAVAPID
-
-function assert_string() {
-  if ! grep -q "$1" $FILENAME; then
-    exit 1
+  if [ "AllocatingTarget.class" -ot "AllocatingTarget.java" ]
+  then
+     ${JAVA_HOME}/bin/javac AllocatingTarget.java
   fi
-}
 
-assert_string "AllocatingTarget.allocate;.*\[Ljava/lang/Integer"
-assert_string "AllocatingTarget.allocate;.*\[I"
+  ${JAVA_HOME}/bin/java AllocatingTarget &
 
-popd
+  FILENAME=/tmp/java.trace
+  JAVAPID=$!
+
+  sleep 1     # allow the Java runtime to initialize
+  ../profiler.sh -f $FILENAME -o collapsed -d 5 -m heap $JAVAPID
+
+  kill $JAVAPID
+
+  function assert_string() {
+    if ! grep -q "$1" $FILENAME; then
+      exit 1
+    fi
+  }
+
+  assert_string "AllocatingTarget.allocate;.*\[Ljava/lang/Integer"
+  assert_string "AllocatingTarget.allocate;.*\[I"
+)

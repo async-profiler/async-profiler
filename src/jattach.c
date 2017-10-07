@@ -197,7 +197,7 @@ static int enter_mount_ns(int pid) {
         return 1;
     }
 
-    return setns(newns, CLONE_NEWNS) < 0 ? 0 : 1;
+    return setns(newns, 0) < 0 ? 0 : 1;
 #else
     return 1;
 #endif
