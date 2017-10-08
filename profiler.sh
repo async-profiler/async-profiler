@@ -31,18 +31,20 @@ show_agent_output() {
     fi
 }
 
+function abspath() {
+    UNAME_S=$(uname -s)
+    if [ "$UNAME_S" == "Darwin" ]; then
+        perl -MCwd -e 'print Cwd::abs_path shift' $1
+    else
+        readlink -f $1
+    fi
+}
+
 
 OPTIND=1
 SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
-UNAME_S=$(uname -s)
-if [ "$UNAME_S" == "Darwin" ]; then
-    PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
-    PROFILER=$(perl -MCwd -e 'print Cwd::abs_path shift' $PROFILER)
-else
-    PROFILER=$(readlink -f $SCRIPT_DIR/build/libasyncProfiler.so)
-fi
-
+PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION="collect"
 MODE="cpu"
 DURATION="60"

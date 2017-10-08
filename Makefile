@@ -21,6 +21,7 @@ build/$(JATTACH): src/jattach.c
 
 test: all
 	test/smoke-test.sh
+	test/alloc-smoke-test.sh
 
 clean:
 	rm -rf build

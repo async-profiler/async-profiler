@@ -27,37 +27,32 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifdef __linux__
-#define _GNU_SOURCE
-#include <sched.h>
-#endif
-
 #define PATH_MAX 1024
 
-// See hotspot/src/os/bsd/vm/os_bsd.cpp
-// This must be hard coded because it's the system's temporary
-// directory not the java application's temp directory, ala java.io.tmpdir.
+
 #ifdef __APPLE__
-// macosx has a secure per-user temporary directory
 
-char temp_path_storage[PATH_MAX];
-
+// macOS has a secure per-user temporary directory
 const char* get_temp_directory() {
-    static char *temp_path = NULL;
-    if (temp_path == NULL) {
-        int pathSize = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, PATH_MAX);
-        if (pathSize == 0 || pathSize > PATH_MAX) {
-            strlcpy(temp_path_storage, "/tmp", sizeof (temp_path_storage));
+    static char temp_path_storage[PATH_MAX] = {0};
+
+    if (temp_path_storage[0] == 0) {
+        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, PATH_MAX);
+        if (path_size == 0 || path_size > PATH_MAX) {
+            strcpy(temp_path_storage, "/tmp");
         }
-        temp_path = temp_path_storage;
     }
-    return temp_path;
+    return temp_path_storage;
 }
+
 #else // __APPLE__
 
 const char* get_temp_directory() {
     return "/tmp";
 }
+
+int setns(int fd, int nstype);
+
 #endif // __APPLE__
 
 // Check if remote JVM has already opened socket for Dynamic Attach

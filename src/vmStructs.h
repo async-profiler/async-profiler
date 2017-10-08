@@ -17,9 +17,8 @@
 #ifndef _VMSTRUCTS_H
 #define _VMSTRUCTS_H
 
-#include <stdint.h>
+#include "codeCache.h"
 
-class NativeCodeCache;
 
 class VMStructs {
   protected:
@@ -32,7 +31,7 @@ class VMStructs {
     }
 
   public:
-    static void init(NativeCodeCache* libjvm);
+    static bool init(NativeCodeCache* libjvm);
 
     static bool available() {
         return _klass_name_offset >= 0

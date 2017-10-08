@@ -13,43 +13,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unistd.h>
-#include <iostream>
+
+#include <stdint.h>
+#include <string.h>
 #include "vmStructs.h"
 #include "codeCache.h"
-#include <string.h>
 
 
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 
-uintptr_t dereferenceSymbol(NativeCodeCache* lib, const char* symbol_name) {
+static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     const void* symbol = lib->findSymbol(symbol_name);
-    if (symbol == NULL || symbol < 0) {
-        // Fallback to avoid jvm crash in case of missing symbols
+    if (symbol == NULL) {
+        // Avoid JVM crash in case of missing symbols
         return 0;
     }
-
-    return *((uintptr_t*)symbol);
+    return *(uintptr_t*)symbol;
 }
 
-void VMStructs::init(NativeCodeCache* libjvm) {
-    uintptr_t entry = dereferenceSymbol(libjvm, "gHotSpotVMStructs");
-    uintptr_t stride = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
-    uintptr_t type_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
-    uintptr_t field_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryFieldNameOffset");
-    uintptr_t offset_offset = dereferenceSymbol(libjvm, "gHotSpotVMStructEntryOffsetOffset");
+bool VMStructs::init(NativeCodeCache* libjvm) {
+    if (available()) {
+        return true;
+    }
+
+    uintptr_t entry = readSymbol(libjvm, "gHotSpotVMStructs");
+    uintptr_t stride = readSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
+    uintptr_t type_offset = readSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
+    uintptr_t field_offset = readSymbol(libjvm, "gHotSpotVMStructEntryFieldNameOffset");
+    uintptr_t offset_offset = readSymbol(libjvm, "gHotSpotVMStructEntryOffsetOffset");
 
     if (entry == 0 || stride == 0) {
-        return;
+        return false;
     }
 
     while (true) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            break;
+            return available();
         }
 
         if (strcmp(type, "Klass") == 0) {

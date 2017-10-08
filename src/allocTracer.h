@@ -44,7 +44,6 @@ class AllocTracer {
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
 
-    static bool checkTracerSymbols();
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 

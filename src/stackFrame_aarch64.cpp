@@ -21,7 +21,6 @@
 
 #include "stackFrame.h"
 
-#include <stdio.h>
 
 #define REG_FP 29
 #define REG_LR 30
@@ -56,16 +55,15 @@ void StackFrame::ret() {
 
 bool StackFrame::pop() {
     if (fp() == sp()) {
-      // Expected frame layout:
-      // sp   000000nnnnnnnnnn  [stack]
-      // sp+8 000000nnnnnnnnnn  [link]
-      fp() = stackAt(0);
-      pc() = stackAt(1);
-      sp() += 16;
-    }
-    else {
-      // Hope LR holds correct value
-      pc() = _ucontext->uc_mcontext.regs[REG_LR];
+        // Expected frame layout:
+        // sp   000000nnnnnnnnnn  [stack]
+        // sp+8 000000nnnnnnnnnn  [link]
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 16;
+    } else {
+        // Hope LR holds correct value
+        pc() = _ucontext->uc_mcontext.regs[REG_LR];
     }
     return true;
 }
