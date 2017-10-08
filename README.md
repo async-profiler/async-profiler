@@ -37,10 +37,6 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
-Because of the requirement for `perf_events`, this tool works only on Linux
-platforms. Additionally, on some Linux versions, two runtime variables need to
-be tuned in order to allow non-root users to use `perf_events`.
-
 ## HEAP profiling
 
 Instead of detecting CPU-consuming code, the profiler can be configured
@@ -75,6 +71,13 @@ Debian / Ubuntu, run
 ```
 # apt-get install openjdk-8-dbg
 ```
+
+## Supported platforms
+
+- **Linux** / x64 / x86 / ARM / AArch64
+- **macOS** / x64
+
+Note: macOS profiling is limited only to Java code, since native stack walking relies on `perf_events` API which is available only on Linux platforms.
 
 ## Building
 
