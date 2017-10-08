@@ -19,11 +19,9 @@
 
 #include <stdint.h>
 
+class NativeCodeCache;
 
 class VMStructs {
-  private:
-    static uintptr_t getGlobalVar(const char* name);
-
   protected:
     static int _klass_name_offset;
     static int _symbol_length_offset;
@@ -34,7 +32,7 @@ class VMStructs {
     }
 
   public:
-    static void init();
+    static void init(NativeCodeCache* libjvm);
 
     static bool available() {
         return _klass_name_offset >= 0

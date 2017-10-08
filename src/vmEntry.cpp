@@ -19,7 +19,7 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "profiler.h"
-#include "perfEvent.h"
+#include "perfEvents.h"
 #include "vmStructs.h"
 
 
@@ -64,13 +64,12 @@ bool VM::init(JavaVM* vm) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
     PerfEvents::init();
-    VMStructs::init();
-
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {
         std::cerr << "Could not find AsyncGetCallTrace function" << std::endl;
         return false;
     }
+
     return true;
 }
 

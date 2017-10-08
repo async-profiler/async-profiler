@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-#ifdef __linux__
-#define _GNU_SOURCE
-#include <sched.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +26,11 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef __linux__
+#define _GNU_SOURCE
+#include <sched.h>
+#endif
 
 #define PATH_MAX 1024
 
@@ -197,7 +197,7 @@ static int enter_mount_ns(int pid) {
         return 1;
     }
 
-    return setns(newns, CLONE_NEWNS) < 0 ? 0 : 1;
+    return setns(newns, 0) < 0 ? 0 : 1;
 #else
     return 1;
 #endif

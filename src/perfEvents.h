@@ -14,49 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef _PERFEVENT_H
-#define _PERFEVENT_H
+#ifndef _PERFEVENTS_H
+#define _PERFEVENTS_H
 
 #include <jvmti.h>
 #include <signal.h>
-#include <linux/perf_event.h>
-#include "spinLock.h"
-
-typedef unsigned long long u64;
-typedef unsigned int u32;
-typedef unsigned short u16;
-
-const size_t PAGE_SIZE = 4096;
 
 
-class RingBuffer {
-  private:
-    const char* _start;
-    u32 _offset;
-
-  public:
-    RingBuffer(struct perf_event_mmap_page* page) {
-        _start = (const char*)page + PAGE_SIZE;
-    }
-
-    struct perf_event_header* seek(u64 offset) {
-        _offset = (u32)(offset & 0xfff);
-        return (struct perf_event_header*)(_start + _offset);
-    }
-
-    u64 next() {
-        _offset = (_offset + sizeof(u64)) & 0xfff;
-        return *(u64*)(_start + _offset);
-    }
-};
-
-class PerfEvent : public SpinLock {
-  private:
-    int _fd;
-    struct perf_event_mmap_page* _page;
-
-    friend class PerfEvents;
-};
+class PerfEvent;
 
 class PerfEvents {
   private:
@@ -65,7 +30,6 @@ class PerfEvents {
     static int _interval;
 
     static int tid();
-    static int getMaxPid();
     static void createForThread(int tid);
     static void createForAllThreads();
     static void destroyForThread(int tid);
@@ -88,4 +52,4 @@ class PerfEvents {
     }
 };
 
-#endif // _PERFEVENT_H
+#endif // _PERFEVENTS_H
