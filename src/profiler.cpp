@@ -22,7 +22,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include "profiler.h"
-#include "perfEvent.h"
+#include "perfEvents.h"
 #include "allocTracer.h"
 #include "frameName.h"
 #include "stackFrame.h"
@@ -325,7 +325,7 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
     _frame_buffer_overflow = false;
 
     resetSymbols();
-
+    VMStructs::init(jvmLibrary());
     bool success;
     if (mode == MODE_CPU) {
         success = PerfEvents::start(interval);
@@ -494,6 +494,8 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
+            break;
+        default:
             break;
     }
 }

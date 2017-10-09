@@ -17,13 +17,10 @@
 #ifndef _VMSTRUCTS_H
 #define _VMSTRUCTS_H
 
-#include <stdint.h>
+#include "codeCache.h"
 
 
 class VMStructs {
-  private:
-    static uintptr_t getGlobalVar(const char* name);
-
   protected:
     static int _klass_name_offset;
     static int _symbol_length_offset;
@@ -34,7 +31,7 @@ class VMStructs {
     }
 
   public:
-    static void init();
+    static bool init(NativeCodeCache* libjvm);
 
     static bool available() {
         return _klass_name_offset >= 0

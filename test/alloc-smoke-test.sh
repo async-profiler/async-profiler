@@ -11,18 +11,18 @@ fi
 (
   cd $(dirname $0)
 
-  if [ "Target.class" -ot "Target.java" ]
+  if [ "AllocatingTarget.class" -ot "AllocatingTarget.java" ]
   then
-     ${JAVA_HOME}/bin/javac Target.java
+     ${JAVA_HOME}/bin/javac AllocatingTarget.java
   fi
 
-  ${JAVA_HOME}/bin/java Target &
+  ${JAVA_HOME}/bin/java AllocatingTarget &
 
   FILENAME=/tmp/java.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../profiler.sh -f $FILENAME -o collapsed -d 5 $JAVAPID
+  ../profiler.sh -f $FILENAME -o collapsed -d 5 -m heap $JAVAPID
 
   kill $JAVAPID
 
@@ -32,7 +32,6 @@ fi
     fi
   }
 
-  assert_string "Target.main;Target.method1 "
-  assert_string "Target.main;Target.method2 "
-  assert_string "Target.main;Target.method3;java/io/File"
+  assert_string "AllocatingTarget.allocate;.*\[Ljava/lang/Integer"
+  assert_string "AllocatingTarget.allocate;.*\[I"
 )

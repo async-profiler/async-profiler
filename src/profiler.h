@@ -20,6 +20,7 @@
 #include <iostream>
 #include <pthread.h>
 #include <time.h>
+#include "arch.h"
 #include "arguments.h"
 #include "spinLock.h"
 #include "codeCache.h"
@@ -32,7 +33,6 @@ const int MAX_NATIVE_FRAMES = 128;
 const int MAX_NATIVE_LIBS   = 2048;
 const int CONCURRENCY_LEVEL = 16;
 
-typedef unsigned long long u64;
 
 static inline int cmp64(u64 a, u64 b) {
     return a > b ? 1 : a == b ? 0 : -1;

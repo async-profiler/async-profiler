@@ -3,8 +3,8 @@ JATTACH=jattach
 CC=gcc
 CFLAGS=-O2
 CPP=g++
-CPPFLAGS=-O2
-INCLUDES=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux
+CPPFLAGS=-O2 -D_XOPEN_SOURCE
+INCLUDES=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -I$(JAVA_HOME)/include/darwin
 
 .PHONY: test
 
@@ -21,6 +21,7 @@ build/$(JATTACH): src/jattach.c
 
 test: all
 	test/smoke-test.sh
+	test/alloc-smoke-test.sh
 
 clean:
 	rm -rf build

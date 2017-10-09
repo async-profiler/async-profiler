@@ -14,40 +14,45 @@
  * limitations under the License.
  */
 
-#include <dlfcn.h>
+#include <stdint.h>
 #include <string.h>
 #include "vmStructs.h"
+#include "codeCache.h"
 
 
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 
-
-uintptr_t VMStructs::getGlobalVar(const char* name) {
-    void* addr = dlsym(RTLD_DEFAULT, name);
-    if (addr == NULL) {
+static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
+    const void* symbol = lib->findSymbol(symbol_name);
+    if (symbol == NULL) {
+        // Avoid JVM crash in case of missing symbols
         return 0;
     }
-    return *(uintptr_t*)addr;
+    return *(uintptr_t*)symbol;
 }
 
-void VMStructs::init() {
-    uintptr_t entry = getGlobalVar("gHotSpotVMStructs");
-    uintptr_t stride = getGlobalVar("gHotSpotVMStructEntryArrayStride");
-    uintptr_t type_offset = getGlobalVar("gHotSpotVMStructEntryTypeNameOffset");
-    uintptr_t field_offset = getGlobalVar("gHotSpotVMStructEntryFieldNameOffset");
-    uintptr_t offset_offset = getGlobalVar("gHotSpotVMStructEntryOffsetOffset");
+bool VMStructs::init(NativeCodeCache* libjvm) {
+    if (available()) {
+        return true;
+    }
+
+    uintptr_t entry = readSymbol(libjvm, "gHotSpotVMStructs");
+    uintptr_t stride = readSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
+    uintptr_t type_offset = readSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
+    uintptr_t field_offset = readSymbol(libjvm, "gHotSpotVMStructEntryFieldNameOffset");
+    uintptr_t offset_offset = readSymbol(libjvm, "gHotSpotVMStructEntryOffsetOffset");
 
     if (entry == 0 || stride == 0) {
-        return;
+        return false;
     }
 
     while (true) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            break;
+            return available();
         }
 
         if (strcmp(type, "Klass") == 0) {

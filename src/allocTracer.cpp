@@ -30,8 +30,8 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 
 // Make the entry point writeable and insert breakpoint at the very first instruction
 void Trap::install() {
-    uintptr_t page_start = (uintptr_t)_entry & ~0xfffULL;
-    mprotect((void*)page_start, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
+    uintptr_t page_start = (uintptr_t)_entry & ~PAGE_MASK;
+    mprotect((void*)page_start, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
 
     _saved_insn = *_entry;
     *_entry = BREAKPOINT;
@@ -44,17 +44,6 @@ void Trap::uninstall() {
     flushCache(_entry);
 }
 
-
-bool AllocTracer::checkTracerSymbols() {
-    if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
-        NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-        if (libjvm != NULL) {
-            _in_new_tlab._entry = (instruction_t*)libjvm->findSymbol(_in_new_tlab._func_name);
-            _outside_tlab._entry = (instruction_t*)libjvm->findSymbol(_outside_tlab._func_name);
-        }
-    }
-    return _in_new_tlab._entry != NULL && _outside_tlab._entry != NULL;
-}
 
 void AllocTracer::installSignalHandler() {
     struct sigaction sa;
@@ -87,14 +76,24 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 bool AllocTracer::start() {
-    if (!VMStructs::available()) {
+    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
+    if (libjvm == NULL) {
+        std::cerr << "libjvm not found among loaded libraries" << std::endl;
+        return false;
+    }
+
+    if (!VMStructs::init(libjvm)) {
         std::cerr << "VMStructs unavailable. Unsupported JVM?" << std::endl;
         return false;
     }
 
-    if (!checkTracerSymbols()) {
-        std::cerr << "No AllocTracer symbols found. Are JDK debug symbols installed?" << std::endl;
-        return false;
+    if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
+        _in_new_tlab._entry = (instruction_t*)libjvm->findSymbol(_in_new_tlab._func_name);
+        _outside_tlab._entry = (instruction_t*)libjvm->findSymbol(_outside_tlab._func_name);
+        if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
+            std::cerr << "No AllocTracer symbols found. Are JDK debug symbols installed?" << std::endl;
+            return false;
+        }
     }
 
     installSignalHandler();

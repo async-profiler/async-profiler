@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#ifdef __linux__
+
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <elf.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -75,6 +78,65 @@ class MemoryMapDesc {
       const char* end()     { return (const char*)strtoul(_end, NULL, 16); }
       unsigned long offs()  { return strtoul(_offs, NULL, 16); }
       unsigned long inode() { return strtoul(_inode, NULL, 10); }
+};
+
+
+#ifdef __LP64__
+const unsigned char ELFCLASS_SUPPORTED = ELFCLASS64;
+typedef Elf64_Ehdr ElfHeader;
+typedef Elf64_Shdr ElfSection;
+typedef Elf64_Nhdr ElfNote;
+typedef Elf64_Sym  ElfSymbol;
+#else
+const unsigned char ELFCLASS_SUPPORTED = ELFCLASS32;
+typedef Elf32_Ehdr ElfHeader;
+typedef Elf32_Shdr ElfSection;
+typedef Elf32_Nhdr ElfNote;
+typedef Elf32_Sym  ElfSymbol;
+#endif // __LP64__
+
+
+class ElfParser {
+  private:
+    NativeCodeCache* _cc;
+    const char* _base;
+    const char* _file_name;
+    ElfHeader* _header;
+    const char* _sections;
+
+    ElfParser(NativeCodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
+        _cc = cc;
+        _base = base;
+        _file_name = file_name;
+        _header = (ElfHeader*)addr;
+        _sections = (const char*)addr + _header->e_shoff;
+    }
+
+    bool valid_header() {
+        unsigned char* ident = _header->e_ident;
+        return ident[0] == 0x7f && ident[1] == 'E' && ident[2] == 'L' && ident[3] == 'F'
+            && ident[4] == ELFCLASS_SUPPORTED && ident[5] == ELFDATA2LSB && ident[6] == EV_CURRENT
+            && _header->e_shstrndx != SHN_UNDEF;
+    }
+
+    ElfSection* section(int index) {
+        return (ElfSection*)(_sections + index * _header->e_shentsize);
+    }
+
+    const char* at(ElfSection* section) {
+        return (const char*)_header + section->sh_offset;
+    }
+
+    ElfSection* findSection(uint32_t type, const char* name);
+
+    void loadSymbols(bool use_debug);
+    bool loadSymbolsUsingBuildId();
+    bool loadSymbolsUsingDebugLink();
+    void loadSymbolTable(ElfSection* symtab);
+
+  public:
+    static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
+    static void parseMem(NativeCodeCache* cc, const char* base, const void* addr);
 };
 
 
@@ -271,3 +333,5 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
 
     return count;
 }
+
+#endif // __linux__
