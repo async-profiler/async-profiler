@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstdio>
 #include "arguments.h"
 
 
@@ -55,8 +56,31 @@ const char* Arguments::parse(char* args) {
             _action = ACTION_STOP;
         } else if (strcmp(arg, "status") == 0) {
             _action = ACTION_STATUS;
-        } else if (strcmp(arg, "cpu") == 0) {
+        } else if (strncmp(arg, "cpu", 3) == 0) {
             _mode = MODE_CPU;
+            char* event = strchr(arg, ':');
+            if (event != NULL) {
+                event = event + 1;
+                if (strcmp(event, "cycles") == 0) {
+                    _event_type = EVENT_TYPE_CYCLES;
+                } else if (strcmp(event, "context-switches") == 0) {
+                    _event_type = EVENT_TYPE_CTX_SWITCHES;
+                } else if (strcmp(event, "branch-misses") == 0) {
+                    _event_type = EVENT_TYPE_BRANCH_MISSES;
+                } else if (strcmp(event, "cache-misses") == 0) {
+                    _event_type = EVENT_TYPE_CACHE_MISSES;
+                } else if (strcmp(event, "L1-dcache-load-misses") == 0) {
+                    _event_type = EVENT_TYPE_L1D_LOAD_MISSES;
+                } else if (strcmp(event, "LLC-load-misses") == 0) {
+                    _event_type = EVENT_TYPE_LLC_LOAD_MISSES;
+                }
+                else {
+                    const char *pattern = "unknown event type :%s";
+                    char *err_msg = static_cast<char *>(malloc(strlen(pattern) + strlen(event)));
+                    sprintf(err_msg, pattern, event);
+                    return err_msg;
+                }
+            }
         } else if (strcmp(arg, "heap") == 0) {
             _mode = MODE_HEAP;
         } else if (strcmp(arg, "collapsed") == 0) {

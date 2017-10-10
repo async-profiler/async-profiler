@@ -35,6 +35,16 @@ enum Mode {
     MODE_HEAP
 };
 
+enum EventType {
+    EVENT_TYPE_CPU_CLOCK,
+    EVENT_TYPE_CTX_SWITCHES,
+    EVENT_TYPE_CYCLES,
+    EVENT_TYPE_BRANCH_MISSES,
+    EVENT_TYPE_CACHE_MISSES,
+    EVENT_TYPE_L1D_LOAD_MISSES,
+    EVENT_TYPE_LLC_LOAD_MISSES
+};
+
 class Arguments {
   private:
     char _buf[1024];
@@ -45,6 +55,7 @@ class Arguments {
   public:
     Action _action;
     Mode _mode;
+    EventType _event_type;
     int _interval;
     int _framebuf;
     char* _file;
@@ -56,6 +67,7 @@ class Arguments {
     Arguments(char* args) :
         _action(ACTION_NONE),
         _mode(MODE_CPU),
+        _event_type(EVENT_TYPE_CPU_CLOCK),
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
