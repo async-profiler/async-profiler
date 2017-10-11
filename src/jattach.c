@@ -141,30 +141,27 @@ static void read_response(int fd) {
 // On Linux, get the innermost pid namespace pid for the specified host pid
 static int nspid_for_pid(int pid) {
 #ifdef __linux__
-    int nspid = pid;
     char status[64];
-    char *line = NULL;
-    FILE *status_file;
-    size_t size;
-
     snprintf(status, sizeof(status), "/proc/%d/status", pid);
-    status_file = fopen(status, "r");
 
-    while (getline(&line, &size, status_file) != -1) {
-        if (strstr(line, "NStgid:") != NULL) {
-            // PID namespaces can be nested; the last one is the innermost one
-            nspid = (int)strtol(strrchr(line, '\t'), NULL, 10);
+    FILE* status_file = fopen(status, "r");
+    if (status_file != NULL) {
+        char* line = NULL;
+        size_t size;
+
+        while (getline(&line, &size, status_file) != -1) {
+            if (strstr(line, "NStgid:") != NULL) {
+                // PID namespaces can be nested; the last one is the innermost one
+                pid = (int)strtol(strrchr(line, '\t'), NULL, 10);
+            }
         }
-    }
 
-    if (line != NULL) {
         free(line);
+        fclose(status_file);
     }
-    fclose(status_file);
-    return nspid;
-#else
-    return pid;
 #endif
+
+    return pid;
 }
 
 static int enter_mount_ns(int pid) {
