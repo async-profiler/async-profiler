@@ -108,6 +108,7 @@ int PerfEvents::tid() {
 void PerfEvents::createForThread(int tid) {
     __u32 type;
     __u64 config;
+    int precise_ip = 2;
     switch (_event_type){
         case EVENT_TYPE_CPU_CLOCK:
             type = PERF_TYPE_SOFTWARE;
@@ -122,6 +123,7 @@ void PerfEvents::createForThread(int tid) {
             config = PERF_COUNT_HW_BRANCH_MISSES;
             break;
         case EVENT_TYPE_CACHE_MISSES:
+            precise_ip = 0;
             type = PERF_TYPE_HARDWARE;
             config = PERF_COUNT_HW_CACHE_MISSES;
             break;
@@ -130,12 +132,14 @@ void PerfEvents::createForThread(int tid) {
             config = PERF_COUNT_HW_CPU_CYCLES;
             break;
         case EVENT_TYPE_L1D_LOAD_MISSES:
+            precise_ip = 0;
             type = PERF_TYPE_HW_CACHE;
             config = hw_cache_event_config(PERF_COUNT_HW_CACHE_L1D,
                                            PERF_COUNT_HW_CACHE_OP_READ,
                                            PERF_COUNT_HW_CACHE_RESULT_MISS);
             break;
         case EVENT_TYPE_LLC_LOAD_MISSES:
+            precise_ip = 0;
             type = PERF_TYPE_HW_CACHE;
             config = hw_cache_event_config(PERF_COUNT_HW_CACHE_LL,
                                            PERF_COUNT_HW_CACHE_OP_READ,
@@ -151,7 +155,7 @@ void PerfEvents::createForThread(int tid) {
     attr.disabled = 1;
     attr.wakeup_events = 1;
     attr.exclude_idle = 1;
-    attr.precise_ip = 2;
+    attr.precise_ip = precise_ip;
 
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
