@@ -62,10 +62,15 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        Profiler::_instance.recordSample(ucontext, frame.arg2(), BCI_ALLOC_NEW, (jmethodID)frame.arg0());
+        jmethodID alloc_class = (jmethodID)frame.arg0();
+        u64 obj_size = frame.arg2();
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_NEW_TLAB, alloc_class);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
-        Profiler::_instance.recordSample(ucontext, frame.arg1(), BCI_ALLOC_OUT, (jmethodID)frame.arg0());
+        // Invert last bit to distinguish jmethodID from the allocation in new TLAB
+        jmethodID alloc_class = (jmethodID)(frame.arg0() ^ 1);
+        u64 obj_size = frame.arg1();
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_OUTSIDE_TLAB, alloc_class);
     } else {
         // Not our trap; nothing to do
         return;

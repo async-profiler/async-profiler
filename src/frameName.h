@@ -18,6 +18,7 @@
 #define _FRAMENAME_H
 
 #include "vmEntry.h"
+#include "vmStructs.h"
 
 
 class FrameName {
@@ -26,7 +27,8 @@ class FrameName {
     const char* _str;
 
     const char* cppDemangle(const char* name);
-    const char* javaClassName(const char* symbol, int length);
+    char* javaClassName(VMKlass* klass);
+    char* javaClassName(const char* symbol, int length, bool dotted);
 
   public:
     FrameName(ASGCT_CallFrame& frame, bool dotted = false);

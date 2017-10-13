@@ -325,7 +325,7 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
     _frame_buffer_overflow = false;
 
     resetSymbols();
-    VMStructs::init(jvmLibrary());
+
     bool success;
     if (mode == MODE_CPU) {
         success = PerfEvents::start(interval);
