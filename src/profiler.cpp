@@ -400,19 +400,19 @@ void Profiler::dumpSummary(std::ostream& out) {
  * 
  * <frame>;<frame>;...;<topmost frame> <count>
  */
-void Profiler::dumpCollapsed(std::ostream& out) {
+void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) continue;
-        
+
         for (int j = trace._num_frames - 1; j >= 0; j--) {
             FrameName fn(_frame_buffer[trace._start_frame + j]);
             out << fn.toString() << (j == 0 ? ' ' : ';');
         }
-        out << trace._samples << "\n";
+        out << (counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
     }
 }
 
@@ -491,7 +491,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_DUMP:
             stop();
-            if (args._dump_collapsed) dumpCollapsed(out);
+            if (args._dump_collapsed) dumpCollapsed(out, args._counter);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);

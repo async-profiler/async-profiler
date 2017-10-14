@@ -36,9 +36,9 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused) {
+Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused, jint counter) {
     std::ostringstream out;
-    Profiler::_instance.dumpCollapsed(out);
+    Profiler::_instance.dumpCollapsed(out, counter == COUNTER_SAMPLES ? COUNTER_SAMPLES : COUNTER_TOTAL);
     return env->NewStringUTF(out.str().c_str());
 }
 

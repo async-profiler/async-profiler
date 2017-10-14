@@ -35,6 +35,11 @@ enum Mode {
     MODE_HEAP
 };
 
+enum Counter {
+    COUNTER_SAMPLES,
+    COUNTER_TOTAL
+};
+
 class Arguments {
   private:
     char _buf[1024];
@@ -45,6 +50,7 @@ class Arguments {
   public:
     Action _action;
     Mode _mode;
+    Counter _counter;
     int _interval;
     int _framebuf;
     char* _file;
@@ -56,6 +62,7 @@ class Arguments {
     Arguments(char* args) :
         _action(ACTION_NONE),
         _mode(MODE_CPU),
+        _counter(COUNTER_SAMPLES),
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
