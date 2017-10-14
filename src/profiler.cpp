@@ -406,13 +406,13 @@ void Profiler::dumpCollapsed(std::ostream& out) {
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
-        if (trace._counter == 0) continue;
+        if (trace._samples == 0) continue;
         
         for (int j = trace._num_frames - 1; j >= 0; j--) {
             FrameName fn(_frame_buffer[trace._start_frame + j]);
             out << fn.toString() << (j == 0 ? ' ' : ';');
         }
-        out << trace._counter << "\n";
+        out << trace._samples << "\n";
     }
 }
 
@@ -428,10 +428,10 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
 
     for (int i = 0; i < max_traces; i++) {
         CallTraceSample& trace = _traces[i];
-        if (trace._counter == 0) break;
+        if (trace._samples == 0) break;
 
-        snprintf(buf, sizeof(buf), "Samples: %lld, Counter: %lld (%.2f%%)\n",
-                 trace._samples, trace._counter, trace._counter * percent);
+        snprintf(buf, sizeof(buf), "Total: %lld (%.2f%%)  samples: %lld\n",
+                 trace._counter, trace._counter * percent, trace._samples);
         out << buf;
 
         for (int j = 0; j < trace._num_frames; j++) {
@@ -454,11 +454,12 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     if (max_methods > MAX_CALLTRACES) max_methods = MAX_CALLTRACES;
 
     for (int i = 0; i < max_methods; i++) {
-        u64 counter = _methods[i]._counter;
-        if (counter == 0) break;
+        MethodSample& method = _methods[i];
+        if (method._samples == 0) break;
 
-        FrameName fn(_methods[i]._method, true);
-        snprintf(buf, sizeof(buf), "%10lld (%.2f%%) %s\n", counter, counter * percent, fn.toString());
+        FrameName fn(method._method, true);
+        snprintf(buf, sizeof(buf), "%12lld (%5.2f%%)  %6lld  %s\n",
+                 method._counter, method._counter * percent, method._samples, fn.toString());
         out << buf;
     }
 }

@@ -82,14 +82,18 @@ char* FrameName::javaClassName(const char* symbol, int length, bool dotted) {
 FrameName::FrameName(ASGCT_CallFrame& frame, bool dotted) {
     if (frame.method_id == NULL) {
         _str = "[unknown]";
+    
     } else if (frame.bci == BCI_NATIVE_FRAME) {
         _str = cppDemangle((const char*)frame.method_id);
+
     } else if (frame.bci == BCI_ALLOC_NEW_TLAB) {
         VMKlass* alloc_class = (VMKlass*)frame.method_id;
-        _str = strcat(javaClassName(alloc_class), "_[i]");
+        _str = strcat(javaClassName(alloc_class), dotted ? " (new)" : "_[i]");
+
     } else if (frame.bci == BCI_ALLOC_OUTSIDE_TLAB) {
         VMKlass* alloc_class = (VMKlass*)((uintptr_t)frame.method_id ^ 1);
-        _str = strcat(javaClassName(alloc_class), "_[k]");
+        _str = strcat(javaClassName(alloc_class), dotted ? " (out)" : "_[k]");
+
     } else {
         jclass method_class;
         char* class_name = NULL;
