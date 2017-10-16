@@ -17,7 +17,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <cstdio>
 #include "arguments.h"
 
 
@@ -75,10 +74,7 @@ const char* Arguments::parse(char* args) {
                     _event_type = EVENT_TYPE_LLC_LOAD_MISSES;
                 }
                 else {
-                    const char *pattern = "unknown event type :%s";
-                    char *err_msg = static_cast<char *>(malloc(strlen(pattern) + strlen(event)));
-                    sprintf(err_msg, pattern, event);
-                    return err_msg;
+                    return "unknown event type";
                 }
             }
         } else if (strcmp(arg, "heap") == 0) {
