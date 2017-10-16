@@ -32,6 +32,6 @@ fi
     fi
   }
 
-  assert_string "AllocatingTarget.allocate;.*\[Ljava/lang/Integer"
-  assert_string "AllocatingTarget.allocate;.*\[I"
+  assert_string "AllocatingTarget.allocate;.*java.lang.Integer\[\]"
+  assert_string "AllocatingTarget.allocate;.*int\[\]"
 )

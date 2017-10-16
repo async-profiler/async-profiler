@@ -47,7 +47,7 @@ void PerfEvents::installSignalHandler() {
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    Profiler::_instance.recordSample(ucontext, 1, NULL);
+    Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
 bool PerfEvents::start(int interval) {

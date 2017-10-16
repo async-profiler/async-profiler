@@ -203,13 +203,16 @@ This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;
   - `traces[=N]` - dump call traces (at most N samples);
   - `flat[=N]` - dump flat profile (top N hot methods);
-  - `collapsed` - dump collapsed call traces in the format used by
+  - `collapsed[=C]` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
-  of frames followed by the sample count. For example:
+  of frames followed by a counter. For example:
   ```
   java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
   ```
+  - `collapsed=samples` - the counter is a number of samples for the given trace;  
+  - `collaped=total` - the counter is a total value of collected metric, e.g. total allocation size.
+  
   The default format is `summary,traces=200,flat=200`.
 
 * `-f FILENAME` - the file name to dump the profile information to.  

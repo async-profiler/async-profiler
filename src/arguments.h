@@ -45,6 +45,11 @@ enum EventType {
     EVENT_TYPE_LLC_LOAD_MISSES
 };
 
+enum Counter {
+    COUNTER_SAMPLES,
+    COUNTER_TOTAL
+};
+
 class Arguments {
   private:
     char _buf[1024];
@@ -56,6 +61,7 @@ class Arguments {
     Action _action;
     Mode _mode;
     EventType _event_type;
+    Counter _counter;
     int _interval;
     int _framebuf;
     char* _file;
@@ -68,6 +74,7 @@ class Arguments {
         _action(ACTION_NONE),
         _mode(MODE_CPU),
         _event_type(EVENT_TYPE_CPU_CLOCK),
+        _counter(COUNTER_SAMPLES),
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),

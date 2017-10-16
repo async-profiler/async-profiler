@@ -25,13 +25,12 @@
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
-#include "vmStructs.h"
 
 
-const int MAX_CALLTRACES    = 32768;
-const int MAX_STACK_FRAMES  = 4096;
+const int MAX_CALLTRACES    = 65536;
+const int MAX_STACK_FRAMES  = 2048;
 const int MAX_NATIVE_FRAMES = 128;
-const int MAX_NATIVE_LIBS   = 4096;
+const int MAX_NATIVE_LIBS   = 2048;
 const int CONCURRENCY_LEVEL = 16;
 
 
@@ -40,8 +39,15 @@ static inline int cmp64(u64 a, u64 b) {
 }
 
 
+union CallTraceBuffer {
+    ASGCT_CallFrame _asgct_frames[MAX_STACK_FRAMES];
+    jvmtiFrameInfo _jvmti_frames[MAX_STACK_FRAMES];
+};
+
+
 class CallTraceSample {
   private:
+    u64 _samples;
     u64 _counter;
     int _start_frame; // Offset in frame buffer
     int _num_frames;
@@ -56,6 +62,7 @@ class CallTraceSample {
 
 class MethodSample {
   private:
+    u64 _samples;
     u64 _counter;
     ASGCT_CallFrame _method;
 
@@ -114,7 +121,7 @@ class Profiler {
     Mode _mode;
     time_t _start_time;
 
-    u64 _samples;
+    u64 _total_samples;
     u64 _total_counter;
     u64 _failures[FAILURE_TYPES];
     u64 _hashes[MAX_CALLTRACES];
@@ -122,7 +129,7 @@ class Profiler {
     MethodSample _methods[MAX_CALLTRACES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
-    ASGCT_CallFrame _asgct_buffer[CONCURRENCY_LEVEL][MAX_STACK_FRAMES];
+    CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
@@ -144,7 +151,7 @@ class Profiler {
     const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
     int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
-    int makeAllocationFrame(VMKlass* alloc_class, ASGCT_CallFrame* frames);
+    int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
@@ -170,7 +177,7 @@ class Profiler {
         pthread_mutex_init(&_state_lock, NULL);
     }
 
-    u64 samples()       { return _samples; }
+    u64 total_samples() { return _total_samples; }
     u64 total_counter() { return _total_counter; }
     const char* mode()  { return _mode == MODE_CPU ? "CPU" : "HEAP"; }
     time_t uptime()     { return time(NULL) - _start_time; }
@@ -179,10 +186,10 @@ class Profiler {
     bool start(Mode mode, int interval, int frame_buffer_size, EventType event_type = EVENT_TYPE_CPU_CLOCK);
     bool stop();
     void dumpSummary(std::ostream& out);
-    void dumpCollapsed(std::ostream& out);
+    void dumpCollapsed(std::ostream& out, Counter counter);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpFlat(std::ostream& out, int max_methods);
-    void recordSample(void* ucontext, u64 counter, VMKlass* alloc_class);
+    void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
 
     static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {

@@ -29,7 +29,9 @@
 //     status        - print profiling status (inactive / running for X seconds)
 //     cpu           - profile CPU (default)
 //     heap          - profile heap allocations
-//     collapsed     - dump collapsed stacks (the format used by FlameGraph script)
+//     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
+//                     C is counter type: 'samples' or 'total'
+//     folded[=C]    - synonym for collapsed
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)
@@ -79,9 +81,10 @@ const char* Arguments::parse(char* args) {
             }
         } else if (strcmp(arg, "heap") == 0) {
             _mode = MODE_HEAP;
-        } else if (strcmp(arg, "collapsed") == 0) {
+        } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
             _action = ACTION_DUMP;
             _dump_collapsed = true;
+            _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "summary") == 0) {
             _action = ACTION_DUMP;
             _dump_summary = true;
