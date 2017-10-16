@@ -35,6 +35,16 @@ enum Mode {
     MODE_HEAP
 };
 
+enum EventType {
+    EVENT_TYPE_CPU_CLOCK,
+    EVENT_TYPE_CTX_SWITCHES,
+    EVENT_TYPE_CYCLES,
+    EVENT_TYPE_BRANCH_MISSES,
+    EVENT_TYPE_CACHE_MISSES,
+    EVENT_TYPE_L1D_LOAD_MISSES,
+    EVENT_TYPE_LLC_LOAD_MISSES
+};
+
 enum Counter {
     COUNTER_SAMPLES,
     COUNTER_TOTAL
@@ -50,6 +60,7 @@ class Arguments {
   public:
     Action _action;
     Mode _mode;
+    EventType _event_type;
     Counter _counter;
     int _interval;
     int _framebuf;
@@ -62,6 +73,7 @@ class Arguments {
     Arguments(char* args) :
         _action(ACTION_NONE),
         _mode(MODE_CPU),
+        _event_type(EVENT_TYPE_CPU_CLOCK),
         _counter(COUNTER_SAMPLES),
         _interval(DEFAULT_INTERVAL),
         _framebuf(DEFAULT_FRAMEBUF),

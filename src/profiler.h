@@ -183,7 +183,7 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    bool start(Mode mode, int interval, int frame_buffer_size);
+    bool start(Mode mode, int interval, int frame_buffer_size, EventType event_type = EVENT_TYPE_CPU_CLOCK);
     bool stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Counter counter);

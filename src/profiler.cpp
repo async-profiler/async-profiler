@@ -306,7 +306,7 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
+bool Profiler::start(Mode mode, int interval, int frame_buffer_size, EventType event_type) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return false;
 
@@ -328,7 +328,7 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size) {
 
     bool success;
     if (mode == MODE_CPU) {
-        success = PerfEvents::start(interval);
+        success = PerfEvents::start(interval, event_type);
     } else {
         success = AllocTracer::start();
     }
@@ -467,7 +467,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START:
-            if (start(args._mode, args._interval, args._framebuf)) {
+            if (start(args._mode, args._interval, args._framebuf, args._event_type)) {
                 out << mode() << " profiling started" << std::endl;
             } else {
                 out << "Profiler failed to start" << std::endl;

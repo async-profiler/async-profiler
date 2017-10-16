@@ -42,6 +42,10 @@ struct f_owner_ex {
 };
 #endif // F_SETOWN_EX
 
+// see perf_event_open man page: http://man7.org/linux/man-pages/man2/perf_event_open.2.html
+__u64 hw_cache_event_config(perf_hw_cache_id cId, perf_hw_cache_op_id cOpId, perf_hw_cache_op_result_id cOpResultId) {
+    return (cId) | (cOpId << 8) | (cOpResultId << 16);
+}
 
 class RingBuffer {
   private:
@@ -89,6 +93,7 @@ static int getMaxPID() {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 int PerfEvents::_interval;
+EventType PerfEvents::_event_type;
 
 
 void PerfEvents::init() {
@@ -101,16 +106,56 @@ int PerfEvents::tid() {
 }
 
 void PerfEvents::createForThread(int tid) {
+    __u32 type;
+    __u64 config;
+    int precise_ip = 2;
+    switch (_event_type){
+        case EVENT_TYPE_CPU_CLOCK:
+            type = PERF_TYPE_SOFTWARE;
+            config = PERF_COUNT_HW_CPU_CYCLES;
+            break;
+        case EVENT_TYPE_CTX_SWITCHES:
+            type = PERF_TYPE_SOFTWARE;
+            config = PERF_COUNT_SW_CONTEXT_SWITCHES;
+            break;
+        case EVENT_TYPE_BRANCH_MISSES:
+            type = PERF_TYPE_HARDWARE;
+            config = PERF_COUNT_HW_BRANCH_MISSES;
+            break;
+        case EVENT_TYPE_CACHE_MISSES:
+            precise_ip = 0;
+            type = PERF_TYPE_HARDWARE;
+            config = PERF_COUNT_HW_CACHE_MISSES;
+            break;
+        case EVENT_TYPE_CYCLES:
+            type = PERF_TYPE_HARDWARE;
+            config = PERF_COUNT_HW_CPU_CYCLES;
+            break;
+        case EVENT_TYPE_L1D_LOAD_MISSES:
+            precise_ip = 0;
+            type = PERF_TYPE_HW_CACHE;
+            config = hw_cache_event_config(PERF_COUNT_HW_CACHE_L1D,
+                                           PERF_COUNT_HW_CACHE_OP_READ,
+                                           PERF_COUNT_HW_CACHE_RESULT_MISS);
+            break;
+        case EVENT_TYPE_LLC_LOAD_MISSES:
+            precise_ip = 0;
+            type = PERF_TYPE_HW_CACHE;
+            config = hw_cache_event_config(PERF_COUNT_HW_CACHE_LL,
+                                           PERF_COUNT_HW_CACHE_OP_READ,
+                                           PERF_COUNT_HW_CACHE_RESULT_MISS);
+            break;
+    }
     struct perf_event_attr attr = {0};
-    attr.type = PERF_TYPE_SOFTWARE;
+    attr.type = type;
     attr.size = sizeof(attr);
-    attr.config = PERF_COUNT_SW_CPU_CLOCK;
+    attr.config = config;
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
     attr.exclude_idle = 1;
-    attr.precise_ip = 2;
+    attr.precise_ip = precise_ip;
 
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
@@ -197,9 +242,10 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-bool PerfEvents::start(int interval) {
+bool PerfEvents::start(int interval, EventType type) {
     if (interval <= 0) return false;
     _interval = interval;
+    _event_type = type;
 
     installSignalHandler();
 
