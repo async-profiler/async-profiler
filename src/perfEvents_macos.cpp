@@ -50,8 +50,8 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
-bool PerfEvents::start(int interval) {
-    if (interval <= 0) return false;
+bool PerfEvents::start(int interval, EventType type) {
+    if (interval <= 0 || type != EVENT_TYPE_CPU_CLOCK) return false;
     _interval = interval;
 
     installSignalHandler();
