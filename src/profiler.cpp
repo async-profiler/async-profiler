@@ -196,7 +196,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames) {
     return native_frames;
 }
 
-int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         atomicInc(_failures[-ticks_no_Java_frame]);
@@ -246,11 +246,22 @@ int Profiler::getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_dept
     return 0;
 }
 
-int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event) {
-    if (event == NULL) {
-        return 0;
+int Profiler::getJavaTraceJVMTI(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
+    jint num_frames;
+    if (VM::jvmti()->GetStackTrace(NULL, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+        // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
+        for (int i = 0; i < num_frames; i++) {
+            frames[i].method_id = jvmti_frames[i].method;
+            frames[i].bci = 0;
+        }
+        return num_frames;
     }
 
+    atomicInc(_failures[-ticks_no_Java_frame]);
+    return 0;
+}
+
+int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event) {
     frames[0].bci = event_type;
     frames[0].method_id = event;
     return 1;
@@ -287,9 +298,17 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     atomicInc(_total_counter, counter);
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
-    int num_frames = makeEventFrame(frames, event_type, event);
-    num_frames += getNativeTrace(ucontext, frames + num_frames);
-    num_frames += getJavaTrace(ucontext, frames + num_frames, MAX_STACK_FRAMES - num_frames);
+    int num_frames;
+
+    if (event == NULL) {
+        num_frames = getNativeTrace(ucontext, frames);
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - num_frames);
+    } else {
+        // Events like object allocation happen at known places where it is safe to call JVM TI
+        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
+        num_frames = makeEventFrame(frames, event_type, event);
+        num_frames += getJavaTraceJVMTI(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - num_frames);
+    }
 
     if (num_frames > 0) {
         storeCallTrace(num_frames, frames, counter);

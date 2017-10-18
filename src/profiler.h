@@ -150,7 +150,8 @@ class Profiler {
 
     const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
-    int getJavaTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    int getJavaTraceJVMTI(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
