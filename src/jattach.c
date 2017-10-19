@@ -63,6 +63,19 @@ static int check_socket(int pid) {
     return stat(path, &stats) == 0 && S_ISSOCK(stats.st_mode);
 }
 
+// Check if a file is owned by current user
+static int check_file_owner(const char* path) {
+    struct stat stats;
+    if (stat(path, &stats) == 0 && stats.st_uid == geteuid()) {
+        return 1;
+    }
+
+    // Some mounted filesystems may change the ownership of the file.
+    // JVM will not trust such file, so it's better to remove it and try a different path
+    unlink(path);
+    return 0;
+}
+
 // Force remote JVM to start Attach listener.
 // HotSpot will start Attach listener in response to SIGQUIT if it sees .attach_pid file
 static int start_attach_mechanism(int pid, int nspid) {
@@ -70,14 +83,15 @@ static int start_attach_mechanism(int pid, int nspid) {
     snprintf(path, MAX_PATH, "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
     
     int fd = creat(path, 0660);
-    if (fd == -1) {
+    if (fd == -1 || close(fd) == 0 && !check_file_owner(path)) {
+        // Failed to create attach trigger in current directory. Retry in /tmp
         snprintf(path, MAX_PATH, "%s/.attach_pid%d", get_temp_directory(), nspid);
         fd = creat(path, 0660);
         if (fd == -1) {
             return 0;
         }
+        close(fd);
     }
-    close(fd);
     
     // We have to still use the host namespace pid here for the kill() call
     kill(pid, SIGQUIT);
