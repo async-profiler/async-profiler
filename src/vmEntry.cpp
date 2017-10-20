@@ -20,6 +20,7 @@
 #include "arguments.h"
 #include "profiler.h"
 #include "perfEvents.h"
+#include "lockTracer.h"
 
 
 JavaVM* VM::_vm;
@@ -40,6 +41,8 @@ bool VM::init(JavaVM* vm) {
     capabilities.can_get_source_file_name = 1;
     capabilities.can_get_line_numbers = 1;
     capabilities.can_generate_compiled_method_load_events = 1;
+    capabilities.can_generate_monitor_events = 1;
+    capabilities.can_tag_objects = 1;
     _jvmti->AddCapabilities(&capabilities);
 
     jvmtiEventCallbacks callbacks = {0};
@@ -52,6 +55,8 @@ bool VM::init(JavaVM* vm) {
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
     callbacks.ThreadStart = PerfEvents::ThreadStart;
     callbacks.ThreadEnd = PerfEvents::ThreadEnd;
+    callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
+    callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
