@@ -83,7 +83,7 @@ static int start_attach_mechanism(int pid, int nspid) {
     snprintf(path, MAX_PATH, "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
     
     int fd = creat(path, 0660);
-    if (fd == -1 || close(fd) == 0 && !check_file_owner(path)) {
+    if (fd == -1 || (close(fd) == 0 && !check_file_owner(path))) {
         // Failed to create attach trigger in current directory. Retry in /tmp
         snprintf(path, MAX_PATH, "%s/.attach_pid%d", get_temp_directory(), nspid);
         fd = creat(path, 0660);
