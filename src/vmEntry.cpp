@@ -112,8 +112,8 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     }
 
     Arguments args(options);
-    if (args.error() != NULL) {
-        std::cerr << args.error() << std::endl;
+    if (args.error()) {
+        std::cerr << args.error().message() << std::endl;
         return -1;
     }
 
@@ -128,8 +128,8 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     }
 
     Arguments args(options);
-    if (args.error() != NULL) {
-        std::cerr << args.error() << std::endl;
+    if (args.error()) {
+        std::cerr << args.error().message() << std::endl;
         return -1;
     }
 

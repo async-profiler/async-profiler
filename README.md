@@ -6,7 +6,7 @@ It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
 OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
 
-There are two operating modes: CPU profiling and HEAP profiling.
+There are two operating modes: CPU profiling and ALLOCATION profiling.
 
 ## CPU profiling
 
@@ -37,7 +37,7 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
-## HEAP profiling
+## ALLOCATION profiling
 
 Instead of detecting CPU-consuming code, the profiler can be configured
 to collect call sites where the largest amount of heap memory is allocated.
@@ -183,8 +183,8 @@ or `status` option is given, the profiler will run for the specified period
 of time and then automatically stop.  
 Example: `./profiler.sh -d 30 8983`
 
-* `-m mode` - the profiling mode: either `cpu` or `heap`.
-In heap profiling mode the top frame of every call trace will be the class
+* `-e event` - the profiling event: either `cpu` or `alloc`.
+In allocation profiling mode the top frame of every call trace will be the class
 of the allocated object, and the counter will be the total allocated bytes
 in all samples of the given call trace.
 

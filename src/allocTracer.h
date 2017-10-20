@@ -19,6 +19,7 @@
 
 #include <signal.h>
 #include "arch.h"
+#include "arguments.h"
 
 
 // Describes OpenJDK function being intercepted
@@ -48,7 +49,7 @@ class AllocTracer {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:  
-    static bool start();
+    static Error start();
     static void stop();
 };
 

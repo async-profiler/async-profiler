@@ -16,6 +16,7 @@
 
 #ifdef __APPLE__
 
+#include <string.h>
 #include <sys/time.h>
 #include "perfEvents.h"
 #include "profiler.h"
@@ -23,6 +24,7 @@
 
 int PerfEvents::_max_events;
 PerfEvent* PerfEvents::_events;
+PerfEventType* PerfEvents::_event_type;
 int PerfEvents::_interval;
 
 
@@ -50,18 +52,24 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
-bool PerfEvents::start(int interval, EventType type) {
-    if (interval <= 0 || type != EVENT_TYPE_CPU_CLOCK) return false;
-    _interval = interval;
+Error PerfEvents::start(const char* event, int interval) {
+    if (strcmp(event, EVENT_CPU) != 0) {
+        return Error("Only [cpu] event is supported on this platform");
+    }
+
+    if (interval < 0) {
+        return Error("interval must be positive");
+    }
+    _interval = interval ? interval : DEFAULT_INTERVAL;
 
     installSignalHandler();
 
-    int sec = interval / 1000000000;
-    int usec = (interval % 1000000000) / 1000;
+    int sec = _interval / 1000000000;
+    int usec = (_interval % 1000000000) / 1000;
     struct itimerval tv = {{sec, usec}, {sec, usec}};
     setitimer(ITIMER_PROF, &tv, NULL);
 
-    return true;
+    return Error::OK;
 }
 
 void PerfEvents::stop() {

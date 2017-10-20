@@ -325,9 +325,11 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-bool Profiler::start(Mode mode, int interval, int frame_buffer_size, EventType event_type) {
+Error Profiler::start(const char* event, int interval, int frame_buffer_size) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return false;
+    if (_state != IDLE) {
+        return Error("Profiler already started");
+    }
 
     _total_samples = 0;
     _total_counter = 0;
@@ -345,32 +347,38 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size, EventType e
 
     resetSymbols();
 
-    bool success;
-    if (mode == MODE_CPU) {
-        success = PerfEvents::start(interval, event_type);
+    Error error;
+    State state;
+    if (strcmp(event, EVENT_ALLOC) == 0) {
+        error = AllocTracer::start();
+        state = PROFILING_ALLOC;
     } else {
-        success = AllocTracer::start();
+        error = PerfEvents::start(event, interval);
+        state = PROFILING_CPU;
     }
 
-    if (!success) return false;
+    if (error) {
+        return error;
+    }
 
-    _state = RUNNING;
-    _mode = mode;
+    _state = state;
     _start_time = time(NULL);
-    return true;
+    return Error::OK;
 }
 
-bool Profiler::stop() {
+Error Profiler::stop() {
     MutexLocker ml(_state_lock);
-    if (_state != RUNNING) return false;
-    _state = IDLE;
 
-    if (_mode == MODE_CPU) {
+    if (_state == PROFILING_CPU) {
         PerfEvents::stop();
-    } else {
+    } else if (_state == PROFILING_ALLOC) {
         AllocTracer::stop();
+    } else {
+        return Error("Profiler is not active");
     }
-    return true;
+
+    _state = IDLE;
+    return Error::OK;
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
@@ -485,24 +493,30 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
-        case ACTION_START:
-            if (start(args._mode, args._interval, args._framebuf, args._event_type)) {
-                out << mode() << " profiling started" << std::endl;
+        case ACTION_START: {
+            Error error = start(args._event, args._interval, args._framebuf);
+            if (error) {
+                out << error.message() << std::endl;
             } else {
-                out << "Profiler failed to start" << std::endl;
+                out << "Started [" << args._event << "] profiling" << std::endl;
             }
             break;
-        case ACTION_STOP:
-            if (stop()) {
-                out << "Profiling stopped after " << uptime() << " seconds" << std::endl;
+        }
+        case ACTION_STOP: {
+            Error error = stop();
+            if (error) {
+                out << error.message() << std::endl;
             } else {
-                out << "Profiler is not active" << std::endl;
+                out << "Stopped profiling after " << uptime() << " seconds" << std::endl;
             }
             break;
+        }
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
-            if (_state == RUNNING) {
-                out << mode() << " profiler is running for " << uptime() << " seconds" << std::endl;
+            if (_state == PROFILING_CPU) {
+                out << "[cpu] profiling is running for " << uptime() << " seconds" << std::endl;
+            } else if (_state == PROFILING_ALLOC) {
+                out << "[alloc] profiling is running for " << uptime() << " seconds" << std::endl;
             } else {
                 out << "Profiler is not active" << std::endl;
             }

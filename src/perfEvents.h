@@ -21,14 +21,16 @@
 #include <signal.h>
 #include "arguments.h"
 
+
 class PerfEvent;
+class PerfEventType;
 
 class PerfEvents {
   private:
     static int _max_events;
     static PerfEvent* _events;
+    static PerfEventType* _event_type;
     static int _interval;
-    static EventType _event_type;
 
     static int tid();
     static void createForThread(int tid);
@@ -40,7 +42,7 @@ class PerfEvents {
 
   public:
     static void init();
-    static bool start(int interval, EventType type = EVENT_TYPE_CPU_CLOCK);
+    static Error start(const char* event, int interval);
     static void stop();
     static int getCallChain(const void** callchain, int max_depth);
 

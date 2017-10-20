@@ -9,7 +9,7 @@ usage() {
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
     echo "Options:"
-    echo "  -m mode           profiling mode: cpu|heap"
+    echo "  -e event          profiling event: cpu|alloc|cache-misses etc."
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
@@ -46,7 +46,7 @@ SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION="collect"
-MODE="cpu"
+EVENT="cpu"
 DURATION="60"
 FILE=""
 USE_TMP="true"
@@ -62,8 +62,8 @@ while [[ $# -gt 0 ]]; do
         start|stop|status|collect)
             ACTION="$1"
             ;;
-        -m)
-            MODE="$2"
+        -e)
+            EVENT="$2"
             shift
             ;;
         -d)
@@ -107,7 +107,7 @@ fi
 
 case $ACTION in
     start)
-        $JATTACH $PID load $PROFILER true start,$MODE,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         ;;
     stop)
         $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
@@ -116,7 +116,7 @@ case $ACTION in
         $JATTACH $PID load $PROFILER true status,file=$FILE > /dev/null
         ;;
     collect)
-        $JATTACH $PID load $PROFILER true start,$MODE,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         if [ $? -ne 0 ]; then
             exit 1
         fi
