@@ -3,10 +3,19 @@ JATTACH=jattach
 CC=gcc
 CFLAGS=-O2
 CPP=g++
-CPPFLAGS=-O2 -D_XOPEN_SOURCE
-INCLUDES=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/linux -I$(JAVA_HOME)/include/darwin
+CPPFLAGS=-O2
+INCLUDES=-I$(JAVA_HOME)/include
 
-.PHONY: test
+OS:=$(shell uname -s)
+ifeq ($(OS), Darwin)
+  CPPFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  INCLUDES += -I$(JAVA_HOME)/include/darwin
+else
+  INCLUDES += -I$(JAVA_HOME)/include/linux
+endif
+
+
+.PHONY: all test clean
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH)
 
