@@ -24,6 +24,7 @@
 #include "profiler.h"
 #include "perfEvents.h"
 #include "allocTracer.h"
+#include "lockTracer.h"
 #include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
@@ -350,7 +351,7 @@ Error Profiler::start(const char* event, int interval, int frame_buffer_size) {
     Error error;
     State state;
     if (strcmp(event, EVENT_ALLOC) == 0) {
-        error = AllocTracer::start();
+        error = LockTracer::start();
         state = PROFILING_ALLOC;
     } else {
         error = PerfEvents::start(event, interval);
@@ -372,7 +373,7 @@ Error Profiler::stop() {
     if (_state == PROFILING_CPU) {
         PerfEvents::stop();
     } else if (_state == PROFILING_ALLOC) {
-        AllocTracer::stop();
+        LockTracer::stop();
     } else {
         return Error("Profiler is not active");
     }

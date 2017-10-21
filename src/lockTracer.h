@@ -22,6 +22,9 @@
 
 
 class LockTracer {
+  private:
+    static jlong _start_time;
+
   public:
     static Error start();
     static void stop();

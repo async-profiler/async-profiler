@@ -16,12 +16,26 @@
 
 #include "lockTracer.h"
 #include "profiler.h"
+#include "vmStructs.h"
 
+
+jlong LockTracer::_start_time = 0;
 
 Error LockTracer::start() {
+    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
+    if (libjvm == NULL) {
+        return Error("libjvm not found among loaded libraries");
+    }
+
+    if (!VMStructs::init(libjvm)) {
+        return Error("VMStructs unavailable. Unsupported JVM?");
+    }
+
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+
+    jvmti->GetTime(&_start_time);
 
     return Error::OK;
 }
@@ -33,15 +47,22 @@ void LockTracer::stop() {
 }
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong begin_time;
-    jvmti->GetTime(&begin_time);
-    jvmti->SetTag(thread, begin_time);
+    jlong enter_time;
+    jvmti->GetTime(&enter_time);
+    jvmti->SetTag(thread, enter_time);
 }
 
 void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong begin_time, end_time;
-    jvmti->GetTime(&end_time);
-    jvmti->GetTag(thread, &begin_time);
+    jlong enter_time, entered_time;
+    jvmti->GetTime(&entered_time);
+    jvmti->GetTag(thread, &enter_time);
 
-    Profiler::_instance.recordSample(NULL, end_time - begin_time, 0, NULL);
+    // Time is meaningless if lock attempt has started before profiling
+    if (enter_time < _start_time) {
+        return;
+    }
+
+    jclass lock_class = env->GetObjectClass(object);
+    VMKlass* klass = (*(java_lang_Class**)lock_class)->klass();
+    Profiler::_instance.recordSample(NULL, entered_time - enter_time, BCI_KLASS, (jmethodID)klass);
 }

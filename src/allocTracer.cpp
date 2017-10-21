@@ -63,13 +63,13 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
         jmethodID alloc_class = (jmethodID)frame.arg0();
         u64 obj_size = frame.arg2();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_NEW_TLAB, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS, alloc_class);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
         // Invert last bit to distinguish jmethodID from the allocation in new TLAB
         jmethodID alloc_class = (jmethodID)(frame.arg0() ^ 1);
         u64 obj_size = frame.arg1();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_OUTSIDE_TLAB, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS_OUTSIDE_TLAB, alloc_class);
     } else {
         // Not our trap; nothing to do
         return;

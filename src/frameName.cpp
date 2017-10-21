@@ -86,11 +86,11 @@ FrameName::FrameName(ASGCT_CallFrame& frame, bool dotted) {
     } else if (frame.bci == BCI_NATIVE_FRAME) {
         _str = cppDemangle((const char*)frame.method_id);
 
-    } else if (frame.bci == BCI_ALLOC_NEW_TLAB) {
+    } else if (frame.bci == BCI_KLASS) {
         VMKlass* alloc_class = (VMKlass*)frame.method_id;
-        _str = strcat(javaClassName(alloc_class), dotted ? " (new)" : "_[i]");
+        _str = strcat(javaClassName(alloc_class), dotted ? "" : "_[i]");
 
-    } else if (frame.bci == BCI_ALLOC_OUTSIDE_TLAB) {
+    } else if (frame.bci == BCI_KLASS_OUTSIDE_TLAB) {
         VMKlass* alloc_class = (VMKlass*)((uintptr_t)frame.method_id ^ 1);
         _str = strcat(javaClassName(alloc_class), dotted ? " (out)" : "_[k]");
 
