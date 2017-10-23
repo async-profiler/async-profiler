@@ -82,7 +82,7 @@ char* FrameName::javaClassName(const char* symbol, int length, bool dotted) {
 FrameName::FrameName(ASGCT_CallFrame& frame, bool dotted) {
     if (frame.method_id == NULL) {
         _str = "[unknown]";
-    
+
     } else if (frame.bci == BCI_NATIVE_FRAME) {
         _str = cppDemangle((const char*)frame.method_id);
 

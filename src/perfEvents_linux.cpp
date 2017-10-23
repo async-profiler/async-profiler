@@ -45,15 +45,13 @@ struct f_owner_ex {
 
 
 struct PerfEventType {
-  private:
-    static PerfEventType AVAILABLE_EVENTS[];
-
-  public:
     const char* name;
     int default_interval;
     __u32 type;
     __u64 config;
     __u32 precise_ip;
+
+    static PerfEventType AVAILABLE_EVENTS[];
 
     static PerfEventType* forName(const char* name) {
         for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
@@ -271,6 +269,17 @@ void PerfEvents::stop() {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     destroyForAllThreads();
+}
+
+const char** PerfEvents::getAvailableEvents() {
+    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
+    const char** available_events = new const char*[count];
+
+    for (int i = 0; i < count; i++) {
+        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
+    }
+
+    return available_events;
 }
 
 int PerfEvents::getCallChain(const void** callchain, int max_depth) {

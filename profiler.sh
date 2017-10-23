@@ -3,13 +3,14 @@
 usage() {
     echo "Usage: $0 [action] [options] <pid>"
     echo "Actions:"
+    echo "  list              list available profiling events"
     echo "  start             start profiling and return immediately"
     echo "  stop              stop profiling"
     echo "  status            print profiling status"
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
     echo "Options:"
-    echo "  -e event          profiling event: cpu|alloc|cache-misses etc."
+    echo "  -e event          profiling event: cpu|alloc|lock|cache-misses etc."
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
@@ -59,7 +60,7 @@ while [[ $# -gt 0 ]]; do
         -h|"-?")
             usage
             ;;
-        start|stop|status|collect)
+        list|start|stop|status|collect)
             ACTION="$1"
             ;;
         -e)
@@ -106,6 +107,9 @@ if [[ $USE_TMP ]]; then
 fi
 
 case $ACTION in
+    list)
+        $JATTACH $PID load $PROFILER true list,file=$FILE > /dev/null
+        ;;
     start)
         $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         ;;

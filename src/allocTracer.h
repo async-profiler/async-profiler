@@ -19,7 +19,7 @@
 
 #include <signal.h>
 #include "arch.h"
-#include "arguments.h"
+#include "engine.h"
 
 
 // Describes OpenJDK function being intercepted
@@ -40,7 +40,7 @@ class Trap {
 };
 
 
-class AllocTracer {
+class AllocTracer : public Engine {
   private:
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
@@ -48,9 +48,13 @@ class AllocTracer {
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
-  public:  
-    static Error start();
-    static void stop();
+  public:
+    const char* name() {
+        return "alloc";
+    }
+
+    Error start(const char* event, int interval);
+    void stop();
 };
 
 #endif // _ALLOCTRACER_H

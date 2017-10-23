@@ -348,35 +348,33 @@ Error Profiler::start(const char* event, int interval, int frame_buffer_size) {
 
     resetSymbols();
 
-    Error error;
-    State state;
     if (strcmp(event, EVENT_ALLOC) == 0) {
-        error = LockTracer::start();
-        state = PROFILING_ALLOC;
+        _engine = new AllocTracer();
+    } else if (strcmp(event, EVENT_LOCK) == 0) {
+        _engine = new LockTracer();
     } else {
-        error = PerfEvents::start(event, interval);
-        state = PROFILING_CPU;
+        _engine = new PerfEvents();
     }
 
+    Error error = _engine->start(event, interval);
     if (error) {
+        delete _engine;
         return error;
     }
 
-    _state = state;
+    _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
 }
 
 Error Profiler::stop() {
     MutexLocker ml(_state_lock);
-
-    if (_state == PROFILING_CPU) {
-        PerfEvents::stop();
-    } else if (_state == PROFILING_ALLOC) {
-        LockTracer::stop();
-    } else {
+    if (_state != RUNNING) {
         return Error("Profiler is not active");
     }
+
+    _engine->stop();
+    delete _engine;
 
     _state = IDLE;
     return Error::OK;
@@ -514,13 +512,24 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
-            if (_state == PROFILING_CPU) {
-                out << "[cpu] profiling is running for " << uptime() << " seconds" << std::endl;
-            } else if (_state == PROFILING_ALLOC) {
-                out << "[alloc] profiling is running for " << uptime() << " seconds" << std::endl;
+            if (_state == RUNNING) {
+                out << "[" << _engine->name() << "] profiling is running for " << uptime() << " seconds" << std::endl;
             } else {
                 out << "Profiler is not active" << std::endl;
             }
+            break;
+        }
+        case ACTION_LIST: {
+            out << "Perf events:" << std::endl;
+            const char** perf_events = PerfEvents::getAvailableEvents();
+            for (const char** event = perf_events; *event != NULL; event++) {
+                out << "  " << *event << std::endl;
+            }
+            delete[] perf_events;
+
+            out << "Java events:" << std::endl;
+            out << "  " << EVENT_ALLOC << std::endl;
+            out << "  " << EVENT_LOCK << std::endl;
             break;
         }
         case ACTION_DUMP:

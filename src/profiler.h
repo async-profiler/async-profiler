@@ -22,6 +22,7 @@
 #include <time.h>
 #include "arch.h"
 #include "arguments.h"
+#include "engine.h"
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -92,8 +93,7 @@ class MutexLocker {
 
 enum State {
     IDLE,
-    PROFILING_CPU,
-    PROFILING_ALLOC,
+    RUNNING,
     TERMINATED
 };
 
@@ -119,6 +119,7 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
+    Engine* _engine;
     time_t _start_time;
 
     u64 _total_samples;

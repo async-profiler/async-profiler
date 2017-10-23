@@ -23,14 +23,16 @@
 const int DEFAULT_INTERVAL = 1000000;  // 1 ms
 const int DEFAULT_FRAMEBUF = 1000000;
 
-const char* const EVENT_CPU = "cpu";
+const char* const EVENT_CPU   = "cpu";
 const char* const EVENT_ALLOC = "alloc";
+const char* const EVENT_LOCK  = "lock";
 
 enum Action {
     ACTION_NONE,
     ACTION_START,
     ACTION_STOP,
     ACTION_STATUS,
+    ACTION_LIST,
     ACTION_DUMP
 };
 

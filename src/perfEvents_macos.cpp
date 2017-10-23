@@ -54,7 +54,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 Error PerfEvents::start(const char* event, int interval) {
     if (strcmp(event, EVENT_CPU) != 0) {
-        return Error("Only [cpu] event is supported on this platform");
+        return Error("Event is not supported on this platform");
     }
 
     if (interval < 0) {
@@ -75,6 +75,13 @@ Error PerfEvents::start(const char* event, int interval) {
 void PerfEvents::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
+}
+
+const char** PerfEvents::getAvailableEvents() {
+    const char** available_events = new const char*[2];
+    available_events[0] = "cpu";
+    available_events[1] = NULL;
+    return available_events;
 }
 
 int PerfEvents::getCallChain(const void** callchain, int max_depth) {

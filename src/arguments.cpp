@@ -31,7 +31,8 @@ const Error Error::OK(NULL);
 //     start         - start profiling
 //     stop          - stop profiling
 //     status        - print profiling status (inactive / running for X seconds)
-//     event=EVENT   - which event to trace (cpu, alloc, cache-misses etc.)
+//     list          - show the list of available profiling events
+//     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
 //                     C is counter type: 'samples' or 'total'
 //     folded[=C]    - synonym for collapsed
@@ -60,6 +61,8 @@ Error Arguments::parse(char* args) {
             _action = ACTION_STOP;
         } else if (strcmp(arg, "status") == 0) {
             _action = ACTION_STATUS;
+        } else if (strcmp(arg, "list") == 0) {
+            _action = ACTION_LIST;
         } else if (strcmp(arg, "event") == 0) {
             if (value == NULL || value[0] == 0) {
                 return Error("event must not be empty");

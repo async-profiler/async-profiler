@@ -178,15 +178,22 @@ until `stop` command is explicitly called.
 * `status` - prints profiling status: whether profiler is active and
 for how long.
 
+* `list` - show the list of available profiling events.
+
 * `-d N` - the profiling duration, in seconds. If no `start`, `stop`
 or `status` option is given, the profiler will run for the specified period
 of time and then automatically stop.  
 Example: `./profiler.sh -d 30 8983`
 
-* `-e event` - the profiling event: either `cpu` or `alloc`.
-In allocation profiling mode the top frame of every call trace will be the class
-of the allocated object, and the counter will be the total allocated bytes
+* `-e event` - the profiling event: `cpu`, `alloc`, `lock`, `cache-misses` etc.
+Use `list` to see the complete list of available events.
+
+  In allocation profiling mode the top frame of every call trace is the class
+of the allocated object, and the counter is the total allocated bytes
 in all samples of the given call trace.
+
+  In lock profiling mode the top frame is the class of monitor object, and
+the counter is number of nanoseconds it took to enter the monitor.  
 
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is

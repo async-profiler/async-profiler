@@ -14,27 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef _LOCKTRACER_H
-#define _LOCKTRACER_H
+#ifndef _ENGINE_H
+#define _ENGINE_H
 
-#include <jvmti.h>
-#include "engine.h"
+#include "arguments.h"
 
 
-class LockTracer : public Engine {
-  private:
-    static jlong _start_time;
-
+class Engine {
   public:
-    const char* name() {
-        return "lock";
-    }
+    virtual const char* name() = 0;
 
-    Error start(const char* event, int interval);
-    void stop();
+    virtual Error start(const char* event, int interval) = 0;
+    virtual void stop() = 0;
 
-    static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
-    static void JNICALL MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
+    virtual ~Engine() {}
 };
 
-#endif // _LOCKTRACER_H
+#endif // _ENGINE_H

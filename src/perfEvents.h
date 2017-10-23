@@ -19,13 +19,13 @@
 
 #include <jvmti.h>
 #include <signal.h>
-#include "arguments.h"
+#include "engine.h"
 
 
 class PerfEvent;
 class PerfEventType;
 
-class PerfEvents {
+class PerfEvents : public Engine {
   private:
     static int _max_events;
     static PerfEvent* _events;
@@ -41,9 +41,15 @@ class PerfEvents {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
+    const char* name() {
+        return "perf";
+    }
+
+    Error start(const char* event, int interval);
+    void stop();
+
     static void init();
-    static Error start(const char* event, int interval);
-    static void stop();
+    static const char** getAvailableEvents();
     static int getCallChain(const void** callchain, int max_depth);
 
     static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
