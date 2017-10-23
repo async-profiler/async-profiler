@@ -6,7 +6,11 @@ It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
 OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
 
-There are two operating modes: CPU profiling and ALLOCATION profiling.
+async-profiler can trace the following kinds of events:
+ - CPU cycles
+ - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
+ - Allocations in Java Heap
+ - Contented lock attempts of Java monitors
 
 ## CPU profiling
 
