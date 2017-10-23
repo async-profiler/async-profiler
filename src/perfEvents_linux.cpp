@@ -44,6 +44,38 @@ struct f_owner_ex {
 #endif // F_SETOWN_EX
 
 
+static int getMaxPID() {
+    char buf[16] = "65536";
+    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
+    if (fd != -1) {
+        ssize_t r = read(fd, buf, sizeof(buf) - 1);
+        (void) r;
+        close(fd);
+    }
+    return atoi(buf);
+}
+
+static int getTracepointId(const char* name) {
+    char buf[256];
+    if (snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+        return 0;
+    }
+
+    *strchr(buf, ':') = '/';  // make path from event name
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    char id[16] = "0";
+    ssize_t r = read(fd, id, sizeof(id) - 1);
+    (void) r;
+    close(fd);
+    return atoi(id);
+}
+
+
 struct PerfEventType {
     const char* name;
     int default_interval;
@@ -52,13 +84,25 @@ struct PerfEventType {
     __u32 precise_ip;
 
     static PerfEventType AVAILABLE_EVENTS[];
+    static PerfEventType KERNEL_TRACEPOINT;
 
     static PerfEventType* forName(const char* name) {
+        // First, look through the table of predefined perf events
         for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
             if (strcmp(name, event->name) == 0) {
                 return event;
             }
         }
+
+        // Second, try kernel tracepoints defined in debugfs
+        if (strchr(name, ':') != NULL) {
+            int tracepoint_id = getTracepointId(name);
+            if (tracepoint_id > 0) {
+                KERNEL_TRACEPOINT.config = tracepoint_id;
+                return  &KERNEL_TRACEPOINT;
+            }
+        }
+
         return NULL;
     }
 };
@@ -86,6 +130,8 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
 
     {NULL}
 };
+
+PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, PERF_TYPE_TRACEPOINT, 0, 0};
 
 
 class RingBuffer {
@@ -117,18 +163,6 @@ class PerfEvent : public SpinLock {
 
     friend class PerfEvents;
 };
-
-
-static int getMaxPID() {
-    char buf[16] = "65536";
-    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
-    if (fd != -1) {
-        ssize_t r = read(fd, buf, sizeof(buf) - 1);
-        (void) r;
-        close(fd);
-    }
-    return atoi(buf);
-}
 
 
 int PerfEvents::_max_events = 0;
