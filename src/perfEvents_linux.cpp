@@ -55,6 +55,8 @@ static int getMaxPID() {
     return atoi(buf);
 }
 
+// Get perf_event_attr.config numeric value of the given tracepoint name
+// by reading /sys/kernel/debug/tracing/events/<name>/id file
 static int getTracepointId(const char* name) {
     char buf[256];
     if (snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
