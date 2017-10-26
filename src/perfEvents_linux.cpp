@@ -16,6 +16,7 @@
 
 #ifdef __linux__
 
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
@@ -42,10 +43,98 @@ struct f_owner_ex {
 };
 #endif // F_SETOWN_EX
 
-// see perf_event_open man page: http://man7.org/linux/man-pages/man2/perf_event_open.2.html
-__u64 hw_cache_event_config(perf_hw_cache_id cId, perf_hw_cache_op_id cOpId, perf_hw_cache_op_result_id cOpResultId) {
-    return (cId) | (cOpId << 8) | (cOpResultId << 16);
+
+static int getMaxPID() {
+    char buf[16] = "65536";
+    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
+    if (fd != -1) {
+        ssize_t r = read(fd, buf, sizeof(buf) - 1);
+        (void) r;
+        close(fd);
+    }
+    return atoi(buf);
 }
+
+// Get perf_event_attr.config numeric value of the given tracepoint name
+// by reading /sys/kernel/debug/tracing/events/<name>/id file
+static int getTracepointId(const char* name) {
+    char buf[256];
+    if (snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+        return 0;
+    }
+
+    *strchr(buf, ':') = '/';  // make path from event name
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    char id[16] = "0";
+    ssize_t r = read(fd, id, sizeof(id) - 1);
+    (void) r;
+    close(fd);
+    return atoi(id);
+}
+
+
+struct PerfEventType {
+    const char* name;
+    int default_interval;
+    __u32 type;
+    __u64 config;
+    __u32 precise_ip;
+
+    static PerfEventType AVAILABLE_EVENTS[];
+    static PerfEventType KERNEL_TRACEPOINT;
+
+    static PerfEventType* forName(const char* name) {
+        // First, look through the table of predefined perf events
+        for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
+            if (strcmp(name, event->name) == 0) {
+                return event;
+            }
+        }
+
+        // Second, try kernel tracepoints defined in debugfs
+        if (strchr(name, ':') != NULL) {
+            int tracepoint_id = getTracepointId(name);
+            if (tracepoint_id > 0) {
+                KERNEL_TRACEPOINT.config = tracepoint_id;
+                return  &KERNEL_TRACEPOINT;
+            }
+        }
+
+        return NULL;
+    }
+};
+
+// See perf_event_open(2)
+#define LOAD_MISS(perf_hw_cache_id) \
+    ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
+
+PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
+    {"cpu",                   1000000, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK, 2},
+    {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS, 2},
+    {"context-switches",            1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES, 2},
+
+    {"cycles",                1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, 2},
+    {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, 2},
+    {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, 0},
+    {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, 0},
+    {"branches",              1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS, 2},
+    {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES, 2},
+    {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES, 0},
+
+    {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D), 0},
+    {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL), 0},
+    {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB), 0},
+
+    {NULL}
+};
+
+PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, PERF_TYPE_TRACEPOINT, 0, 0};
+
 
 class RingBuffer {
   private:
@@ -78,23 +167,10 @@ class PerfEvent : public SpinLock {
 };
 
 
-static int getMaxPID() {
-    char buf[16] = "65536";
-    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
-    if (fd != -1) {
-        ssize_t r = read(fd, buf, sizeof(buf) - 1);
-        (void) r;
-        close(fd);
-    }
-    return atoi(buf);
-}
-
-
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
+PerfEventType* PerfEvents::_event_type = NULL;
 int PerfEvents::_interval;
-EventType PerfEvents::_event_type;
-
 
 void PerfEvents::init() {
     _max_events = getMaxPID();
@@ -106,56 +182,16 @@ int PerfEvents::tid() {
 }
 
 void PerfEvents::createForThread(int tid) {
-    __u32 type;
-    __u64 config;
-    int precise_ip = 2;
-    switch (_event_type){
-        case EVENT_TYPE_CPU_CLOCK:
-            type = PERF_TYPE_SOFTWARE;
-            config = PERF_COUNT_HW_CPU_CYCLES;
-            break;
-        case EVENT_TYPE_CTX_SWITCHES:
-            type = PERF_TYPE_SOFTWARE;
-            config = PERF_COUNT_SW_CONTEXT_SWITCHES;
-            break;
-        case EVENT_TYPE_BRANCH_MISSES:
-            type = PERF_TYPE_HARDWARE;
-            config = PERF_COUNT_HW_BRANCH_MISSES;
-            break;
-        case EVENT_TYPE_CACHE_MISSES:
-            precise_ip = 0;
-            type = PERF_TYPE_HARDWARE;
-            config = PERF_COUNT_HW_CACHE_MISSES;
-            break;
-        case EVENT_TYPE_CYCLES:
-            type = PERF_TYPE_HARDWARE;
-            config = PERF_COUNT_HW_CPU_CYCLES;
-            break;
-        case EVENT_TYPE_L1D_LOAD_MISSES:
-            precise_ip = 0;
-            type = PERF_TYPE_HW_CACHE;
-            config = hw_cache_event_config(PERF_COUNT_HW_CACHE_L1D,
-                                           PERF_COUNT_HW_CACHE_OP_READ,
-                                           PERF_COUNT_HW_CACHE_RESULT_MISS);
-            break;
-        case EVENT_TYPE_LLC_LOAD_MISSES:
-            precise_ip = 0;
-            type = PERF_TYPE_HW_CACHE;
-            config = hw_cache_event_config(PERF_COUNT_HW_CACHE_LL,
-                                           PERF_COUNT_HW_CACHE_OP_READ,
-                                           PERF_COUNT_HW_CACHE_RESULT_MISS);
-            break;
-    }
     struct perf_event_attr attr = {0};
-    attr.type = type;
     attr.size = sizeof(attr);
-    attr.config = config;
+    attr.type = _event_type->type;
+    attr.config = _event_type->config;
+    attr.precise_ip = _event_type->precise_ip;
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
     attr.exclude_idle = 1;
-    attr.precise_ip = precise_ip;
 
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
@@ -242,10 +278,16 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-bool PerfEvents::start(int interval, EventType type) {
-    if (interval <= 0) return false;
-    _interval = interval;
-    _event_type = type;
+Error PerfEvents::start(const char* event, int interval) {
+    _event_type = PerfEventType::forName(event);
+    if (_event_type == NULL) {
+        return Error("Unsupported event type");
+    }
+
+    if (interval < 0) {
+        return Error("interval must be positive");
+    }
+    _interval = interval ? interval : _event_type->default_interval;
 
     installSignalHandler();
 
@@ -254,7 +296,7 @@ bool PerfEvents::start(int interval, EventType type) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     createForAllThreads();
-    return true;
+    return Error::OK;
 }
 
 void PerfEvents::stop() {
@@ -263,6 +305,17 @@ void PerfEvents::stop() {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     destroyForAllThreads();
+}
+
+const char** PerfEvents::getAvailableEvents() {
+    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
+    const char** available_events = new const char*[count];
+
+    for (int i = 0; i < count; i++) {
+        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
+    }
+
+    return available_events;
 }
 
 int PerfEvents::getCallChain(const void** callchain, int max_depth) {

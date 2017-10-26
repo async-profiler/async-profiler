@@ -25,6 +25,7 @@ class VMStructs {
     static int _klass_name_offset;
     static int _symbol_length_offset;
     static int _symbol_body_offset;
+    static int _class_klass_offset;
 
     const char* at(int offset) {
         return (const char*)this + offset;
@@ -36,7 +37,8 @@ class VMStructs {
     static bool available() {
         return _klass_name_offset >= 0
             && _symbol_length_offset >= 0
-            && _symbol_body_offset >= 0;
+            && _symbol_body_offset >= 0
+            && _class_klass_offset >= 0;
     }
 };
 
@@ -56,6 +58,13 @@ class VMKlass : VMStructs {
   public:
     VMSymbol* name() {
         return *(VMSymbol**) at(_klass_name_offset);
+    }
+};
+
+class java_lang_Class : VMStructs {
+  public:
+    VMKlass* klass() {
+        return *(VMKlass**) at(_class_klass_offset);
     }
 };
 

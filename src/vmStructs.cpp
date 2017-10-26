@@ -23,6 +23,7 @@
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
+int VMStructs::_class_klass_offset = -1;
 
 static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     const void* symbol = lib->findSymbol(symbol_name);
@@ -43,6 +44,7 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
     uintptr_t type_offset = readSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
     uintptr_t field_offset = readSymbol(libjvm, "gHotSpotVMStructEntryFieldNameOffset");
     uintptr_t offset_offset = readSymbol(libjvm, "gHotSpotVMStructEntryOffsetOffset");
+    uintptr_t address_offset = readSymbol(libjvm, "gHotSpotVMStructEntryAddressOffset");
 
     if (entry == 0 || stride == 0) {
         return false;
@@ -64,6 +66,10 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
                 _symbol_length_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_body") == 0) {
                 _symbol_body_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "java_lang_Class") == 0) {
+            if (strcmp(field, "_klass_offset") == 0) {
+                _class_klass_offset = **(int**)(entry + address_offset);
             }
         }
 

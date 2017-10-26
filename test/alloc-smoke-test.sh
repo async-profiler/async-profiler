@@ -22,7 +22,7 @@ fi
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../profiler.sh -f $FILENAME -o collapsed -d 5 -m heap $JAVAPID
+  ../profiler.sh -f $FILENAME -o collapsed -d 5 -e alloc $JAVAPID
 
   kill $JAVAPID
 

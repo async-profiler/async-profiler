@@ -6,7 +6,11 @@ It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
 OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
 
-There are two operating modes: CPU profiling and HEAP profiling.
+async-profiler can trace the following kinds of events:
+ - CPU cycles
+ - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
+ - Allocations in Java Heap
+ - Contented lock attempts of Java monitors
 
 ## CPU profiling
 
@@ -37,7 +41,7 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
-## HEAP profiling
+## ALLOCATION profiling
 
 Instead of detecting CPU-consuming code, the profiler can be configured
 to collect call sites where the largest amount of heap memory is allocated.
@@ -178,15 +182,23 @@ until `stop` command is explicitly called.
 * `status` - prints profiling status: whether profiler is active and
 for how long.
 
+* `list` - show the list of available profiling events. This option still
+requires PID, since supported events may differ depending on JVM version.
+
 * `-d N` - the profiling duration, in seconds. If no `start`, `stop`
 or `status` option is given, the profiler will run for the specified period
 of time and then automatically stop.  
 Example: `./profiler.sh -d 30 8983`
 
-* `-m mode` - the profiling mode: either `cpu` or `heap`.
-In heap profiling mode the top frame of every call trace will be the class
-of the allocated object, and the counter will be the total allocated bytes
+* `-e event` - the profiling event: `cpu`, `alloc`, `lock`, `cache-misses` etc.
+Use `list` to see the complete list of available events.
+
+  In allocation profiling mode the top frame of every call trace is the class
+of the allocated object, and the counter is the total allocated bytes
 in all samples of the given call trace.
+
+  In lock profiling mode the top frame is the class of monitor object, and
+the counter is number of nanoseconds it took to enter the monitor.  
 
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is

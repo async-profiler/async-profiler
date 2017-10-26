@@ -22,6 +22,7 @@
 #include <time.h>
 #include "arch.h"
 #include "arguments.h"
+#include "engine.h"
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -118,7 +119,7 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
-    Mode _mode;
+    Engine* _engine;
     time_t _start_time;
 
     u64 _total_samples;
@@ -180,12 +181,11 @@ class Profiler {
 
     u64 total_samples() { return _total_samples; }
     u64 total_counter() { return _total_counter; }
-    const char* mode()  { return _mode == MODE_CPU ? "CPU" : "HEAP"; }
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    bool start(Mode mode, int interval, int frame_buffer_size, EventType event_type = EVENT_TYPE_CPU_CLOCK);
-    bool stop();
+    Error start(const char* event, int interval, int frame_buffer_size);
+    Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Counter counter);
     void dumpTraces(std::ostream& out, int max_traces);

@@ -6,19 +6,23 @@ usage() {
     echo "  start             start profiling and return immediately"
     echo "  stop              stop profiling"
     echo "  status            print profiling status"
+    echo "  list              list profiling events supported by the target JVM"
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
     echo "Options:"
-    echo "  -m mode           profiling mode: cpu|heap"
+    echo "  -e event          profiling event: cpu|alloc|lock|cache-misses etc."
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -b bufsize        frame buffer size"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed"
     echo ""
+    echo "<pid> is a numeric process ID of the target JVM"
+    echo "      or 'jps' keyword to find running JVM automatically using jps tool"
+    echo ""
     echo "Example: $0 -d 30 -f profile.fg -o collapsed 3456"
-    echo "         $0 start -i 999000 3456"
-    echo "         $0 stop -o summary,flat 3456"
+    echo "         $0 start -i 999000 jps"
+    echo "         $0 stop -o summary,flat jps"
     exit 1
 }
 
@@ -46,7 +50,7 @@ SCRIPT_DIR=$(dirname $0)
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION="collect"
-MODE="cpu"
+EVENT="cpu"
 DURATION="60"
 FILE=""
 USE_TMP="true"
@@ -59,11 +63,11 @@ while [[ $# -gt 0 ]]; do
         -h|"-?")
             usage
             ;;
-        start|stop|status|collect)
+        start|stop|status|list|collect)
             ACTION="$1"
             ;;
-        -m)
-            MODE="$2"
+        -e)
+            EVENT="$2"
             shift
             ;;
         -d)
@@ -90,6 +94,11 @@ while [[ $# -gt 0 ]]; do
         [0-9]*)
             PID="$1"
             ;;
+        jps)
+            # A shortcut for getting PID of a running Java application
+            # -XX:+PerfDisableSharedMem prevents jps from appearing in its own list
+            PID=$(jps -q -J-XX:+PerfDisableSharedMem)
+            ;;
         *)
         	echo "Unrecognized option: $1"
         	usage
@@ -107,7 +116,7 @@ fi
 
 case $ACTION in
     start)
-        $JATTACH $PID load $PROFILER true start,$MODE,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         ;;
     stop)
         $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
@@ -115,8 +124,11 @@ case $ACTION in
     status)
         $JATTACH $PID load $PROFILER true status,file=$FILE > /dev/null
         ;;
+    list)
+        $JATTACH $PID load $PROFILER true list,file=$FILE > /dev/null
+        ;;
     collect)
-        $JATTACH $PID load $PROFILER true start,$MODE,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
+        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
         if [ $? -ne 0 ]; then
             exit 1
         fi

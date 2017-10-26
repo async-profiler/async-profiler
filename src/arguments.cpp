@@ -20,6 +20,10 @@
 #include "arguments.h"
 
 
+// Predefined value that denotes successful operation
+const Error Error::OK(NULL);
+
+
 // Parses agent arguments.
 // The format of the string is:
 //     arg[,arg...]
@@ -27,8 +31,8 @@
 //     start         - start profiling
 //     stop          - stop profiling
 //     status        - print profiling status (inactive / running for X seconds)
-//     cpu           - profile CPU (default)
-//     heap          - profile heap allocations
+//     list          - show the list of available profiling events
+//     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
 //                     C is counter type: 'samples' or 'total'
 //     folded[=C]    - synonym for collapsed
@@ -41,9 +45,9 @@
 //
 // It is possible to specify multiple dump options at the same time
 
-const char* Arguments::parse(char* args) {
+Error Arguments::parse(char* args) {
     if (strlen(args) >= sizeof(_buf)) {
-        return "Argument list too long";
+        return Error("Argument list too long");
     }
     strcpy(_buf, args);
 
@@ -57,30 +61,13 @@ const char* Arguments::parse(char* args) {
             _action = ACTION_STOP;
         } else if (strcmp(arg, "status") == 0) {
             _action = ACTION_STATUS;
-        } else if (strncmp(arg, "cpu", 3) == 0) {
-            _mode = MODE_CPU;
-            char* event = strchr(arg, ':');
-            if (event != NULL) {
-                event = event + 1;
-                if (strcmp(event, "cycles") == 0) {
-                    _event_type = EVENT_TYPE_CYCLES;
-                } else if (strcmp(event, "context-switches") == 0) {
-                    _event_type = EVENT_TYPE_CTX_SWITCHES;
-                } else if (strcmp(event, "branch-misses") == 0) {
-                    _event_type = EVENT_TYPE_BRANCH_MISSES;
-                } else if (strcmp(event, "cache-misses") == 0) {
-                    _event_type = EVENT_TYPE_CACHE_MISSES;
-                } else if (strcmp(event, "L1-dcache-load-misses") == 0) {
-                    _event_type = EVENT_TYPE_L1D_LOAD_MISSES;
-                } else if (strcmp(event, "LLC-load-misses") == 0) {
-                    _event_type = EVENT_TYPE_LLC_LOAD_MISSES;
-                }
-                else {
-                    return "unknown event type";
-                }
+        } else if (strcmp(arg, "list") == 0) {
+            _action = ACTION_LIST;
+        } else if (strcmp(arg, "event") == 0) {
+            if (value == NULL || value[0] == 0) {
+                return Error("event must not be empty");
             }
-        } else if (strcmp(arg, "heap") == 0) {
-            _mode = MODE_HEAP;
+            _event = value;
         } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
             _action = ACTION_DUMP;
             _dump_collapsed = true;
@@ -104,11 +91,11 @@ const char* Arguments::parse(char* args) {
             }
         } else if (strcmp(arg, "file") == 0) {
             if (value == NULL || value[0] == 0) {
-                return "file must not be empty";
+                return Error("file must not be empty");
             }
             _file = value;
         }
     }
 
-    return NULL;
+    return Error::OK;
 }

@@ -17,32 +17,23 @@
 #ifndef _ARGUMENTS_H
 #define _ARGUMENTS_H
 
+#include <stddef.h>
+
 
 const int DEFAULT_INTERVAL = 1000000;  // 1 ms
 const int DEFAULT_FRAMEBUF = 1000000;
 
+const char* const EVENT_CPU   = "cpu";
+const char* const EVENT_ALLOC = "alloc";
+const char* const EVENT_LOCK  = "lock";
 
 enum Action {
     ACTION_NONE,
     ACTION_START,
     ACTION_STOP,
     ACTION_STATUS,
+    ACTION_LIST,
     ACTION_DUMP
-};
-
-enum Mode {
-    MODE_CPU,
-    MODE_HEAP
-};
-
-enum EventType {
-    EVENT_TYPE_CPU_CLOCK,
-    EVENT_TYPE_CTX_SWITCHES,
-    EVENT_TYPE_CYCLES,
-    EVENT_TYPE_BRANCH_MISSES,
-    EVENT_TYPE_CACHE_MISSES,
-    EVENT_TYPE_L1D_LOAD_MISSES,
-    EVENT_TYPE_LLC_LOAD_MISSES
 };
 
 enum Counter {
@@ -50,18 +41,41 @@ enum Counter {
     COUNTER_TOTAL
 };
 
+
+class Error {
+  private:
+    const char* _message;
+
+  public:
+    static const Error OK;
+
+    Error() {
+    }
+
+    Error(const char* message) : _message(message) {
+    }
+
+    const char* message() {
+        return _message;
+    }
+
+    operator bool() {
+        return _message != NULL;
+    }
+};
+
+
 class Arguments {
   private:
     char _buf[1024];
-    const char* _error;
+    Error _error;
 
-    const char* parse(char* args);
+    Error parse(char* args);
 
   public:
     Action _action;
-    Mode _mode;
-    EventType _event_type;
     Counter _counter;
+    const char* _event;
     int _interval;
     int _framebuf;
     char* _file;
@@ -72,10 +86,9 @@ class Arguments {
 
     Arguments(char* args) :
         _action(ACTION_NONE),
-        _mode(MODE_CPU),
-        _event_type(EVENT_TYPE_CPU_CLOCK),
         _counter(COUNTER_SAMPLES),
-        _interval(DEFAULT_INTERVAL),
+        _event(EVENT_CPU),
+        _interval(0),
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
         _dump_collapsed(false),
@@ -85,7 +98,9 @@ class Arguments {
         _error = parse(args);
     }
 
-    const char* error() { return _error; }
+    Error error() {
+        return _error;
+    }
 };
 
 #endif // _ARGUMENTS_H

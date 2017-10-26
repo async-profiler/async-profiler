@@ -14,47 +14,27 @@
  * limitations under the License.
  */
 
-#ifndef _ALLOCTRACER_H
-#define _ALLOCTRACER_H
+#ifndef _LOCKTRACER_H
+#define _LOCKTRACER_H
 
-#include <signal.h>
-#include "arch.h"
+#include <jvmti.h>
 #include "engine.h"
 
 
-// Describes OpenJDK function being intercepted
-class Trap {
+class LockTracer : public Engine {
   private:
-    const char* _func_name;
-    instruction_t* _entry;
-    instruction_t _saved_insn;
-
-  public:
-    Trap(const char* func_name) : _func_name(func_name), _entry(NULL) {
-    }
-
-    void install();
-    void uninstall();
-
-    friend class AllocTracer;
-};
-
-
-class AllocTracer : public Engine {
-  private:
-    static Trap _in_new_tlab;
-    static Trap _outside_tlab;
-
-    static void installSignalHandler();
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static jlong _start_time;
 
   public:
     const char* name() {
-        return "alloc";
+        return "lock";
     }
 
     Error start(const char* event, int interval);
     void stop();
+
+    static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
+    static void JNICALL MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
 };
 
-#endif // _ALLOCTRACER_H
+#endif // _LOCKTRACER_H

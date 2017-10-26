@@ -24,6 +24,7 @@
 #include "profiler.h"
 #include "perfEvents.h"
 #include "allocTracer.h"
+#include "lockTracer.h"
 #include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
@@ -325,9 +326,11 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-bool Profiler::start(Mode mode, int interval, int frame_buffer_size, EventType event_type) {
+Error Profiler::start(const char* event, int interval, int frame_buffer_size) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return false;
+    if (_state != IDLE) {
+        return Error("Profiler already started");
+    }
 
     _total_samples = 0;
     _total_counter = 0;
@@ -345,32 +348,36 @@ bool Profiler::start(Mode mode, int interval, int frame_buffer_size, EventType e
 
     resetSymbols();
 
-    bool success;
-    if (mode == MODE_CPU) {
-        success = PerfEvents::start(interval, event_type);
+    if (strcmp(event, EVENT_ALLOC) == 0) {
+        _engine = new AllocTracer();
+    } else if (strcmp(event, EVENT_LOCK) == 0) {
+        _engine = new LockTracer();
     } else {
-        success = AllocTracer::start();
+        _engine = new PerfEvents();
     }
 
-    if (!success) return false;
+    Error error = _engine->start(event, interval);
+    if (error) {
+        delete _engine;
+        return error;
+    }
 
     _state = RUNNING;
-    _mode = mode;
     _start_time = time(NULL);
-    return true;
+    return Error::OK;
 }
 
-bool Profiler::stop() {
+Error Profiler::stop() {
     MutexLocker ml(_state_lock);
-    if (_state != RUNNING) return false;
-    _state = IDLE;
-
-    if (_mode == MODE_CPU) {
-        PerfEvents::stop();
-    } else {
-        AllocTracer::stop();
+    if (_state != RUNNING) {
+        return Error("Profiler is not active");
     }
-    return true;
+
+    _engine->stop();
+    delete _engine;
+
+    _state = IDLE;
+    return Error::OK;
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
@@ -485,27 +492,44 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
-        case ACTION_START:
-            if (start(args._mode, args._interval, args._framebuf, args._event_type)) {
-                out << mode() << " profiling started" << std::endl;
+        case ACTION_START: {
+            Error error = start(args._event, args._interval, args._framebuf);
+            if (error) {
+                out << error.message() << std::endl;
             } else {
-                out << "Profiler failed to start" << std::endl;
+                out << "Started [" << args._event << "] profiling" << std::endl;
             }
             break;
-        case ACTION_STOP:
-            if (stop()) {
-                out << "Profiling stopped after " << uptime() << " seconds" << std::endl;
+        }
+        case ACTION_STOP: {
+            Error error = stop();
+            if (error) {
+                out << error.message() << std::endl;
             } else {
-                out << "Profiler is not active" << std::endl;
+                out << "Stopped profiling after " << uptime() << " seconds" << std::endl;
             }
             break;
+        }
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
             if (_state == RUNNING) {
-                out << mode() << " profiler is running for " << uptime() << " seconds" << std::endl;
+                out << "[" << _engine->name() << "] profiling is running for " << uptime() << " seconds" << std::endl;
             } else {
                 out << "Profiler is not active" << std::endl;
             }
+            break;
+        }
+        case ACTION_LIST: {
+            out << "Perf events:" << std::endl;
+            const char** perf_events = PerfEvents::getAvailableEvents();
+            for (const char** event = perf_events; *event != NULL; event++) {
+                out << "  " << *event << std::endl;
+            }
+            delete[] perf_events;
+
+            out << "Java events:" << std::endl;
+            out << "  " << EVENT_ALLOC << std::endl;
+            out << "  " << EVENT_LOCK << std::endl;
             break;
         }
         case ACTION_DUMP:

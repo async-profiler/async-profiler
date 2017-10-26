@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <fstream>
 #include <stdint.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
@@ -64,13 +63,13 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
         jmethodID alloc_class = (jmethodID)frame.arg0();
         u64 obj_size = frame.arg2();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_NEW_TLAB, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS, alloc_class);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
         // Invert last bit to distinguish jmethodID from the allocation in new TLAB
         jmethodID alloc_class = (jmethodID)(frame.arg0() ^ 1);
         u64 obj_size = frame.arg1();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_ALLOC_OUTSIDE_TLAB, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS_OUTSIDE_TLAB, alloc_class);
     } else {
         // Not our trap; nothing to do
         return;
@@ -80,24 +79,21 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     frame.ret();
 }
 
-bool AllocTracer::start() {
+Error AllocTracer::start(const char* event, int interval) {
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
     if (libjvm == NULL) {
-        std::cerr << "libjvm not found among loaded libraries" << std::endl;
-        return false;
+        return Error("libjvm not found among loaded libraries");
     }
 
     if (!VMStructs::init(libjvm)) {
-        std::cerr << "VMStructs unavailable. Unsupported JVM?" << std::endl;
-        return false;
+        return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
     if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
         _in_new_tlab._entry = (instruction_t*)libjvm->findSymbol(_in_new_tlab._func_name);
         _outside_tlab._entry = (instruction_t*)libjvm->findSymbol(_outside_tlab._func_name);
         if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
-            std::cerr << "No AllocTracer symbols found. Are JDK debug symbols installed?" << std::endl;
-            return false;
+            return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
         }
     }
 
@@ -106,7 +102,7 @@ bool AllocTracer::start() {
     _in_new_tlab.install();
     _outside_tlab.install();
 
-    return true;
+    return Error::OK;
 }
 
 void AllocTracer::stop() {
