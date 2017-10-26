@@ -256,9 +256,15 @@ invoked by your Java code.
 
 ## Troubleshooting
 
-If you see `Could not start attach mechanism: No such file or directory` message or similar, it means the profiler cannot establish communication with the target JVM through UNIX domain socket.
+`Could not start attach mechanism: No such file or directory` means that the profiler cannot establish communication with the target JVM through UNIX domain socket.
 
 For the profiler to be able to access JVM, make sure
  1. You run profiler under exactly the same user as the owner of target JVM process.
  2. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
  3. JVM is not run with `-XX:+DisableAttachMechanism` option.
+
+---
+
+`[frame_buffer_overflow]` in the output means there was not enough space
+to store all call traces. Consider increasing frame buffer size
+with `-b` option.

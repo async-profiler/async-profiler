@@ -430,15 +430,26 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
+    u64 unknown = 0;
+
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) continue;
+
+        if (trace._num_frames == 0) {
+            unknown += (counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
+            continue;
+        }
 
         for (int j = trace._num_frames - 1; j >= 0; j--) {
             FrameName fn(_frame_buffer[trace._start_frame + j]);
             out << fn.toString() << (j == 0 ? ' ' : ';');
         }
         out << (counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
+    }
+
+    if (unknown != 0) {
+        out << "[frame_buffer_overflow] " << unknown << "\n";
     }
 }
 
@@ -459,6 +470,10 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         snprintf(buf, sizeof(buf), "Total: %lld (%.2f%%)  samples: %lld\n",
                  trace._counter, trace._counter * percent, trace._samples);
         out << buf;
+
+        if (trace._num_frames == 0) {
+            out << "  [ 0] [frame_buffer_overflow]\n";
+        }
 
         for (int j = 0; j < trace._num_frames; j++) {
             FrameName fn(_frame_buffer[trace._start_frame + j], true);
