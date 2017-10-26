@@ -21,7 +21,7 @@
 
 jlong LockTracer::_start_time = 0;
 
-Error LockTracer::start(const char* event, int interval) {
+Error LockTracer::start(const char* event, long interval) {
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
     if (libjvm == NULL) {
         return Error("libjvm not found among loaded libraries");

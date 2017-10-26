@@ -53,7 +53,7 @@ class AllocTracer : public Engine {
         return "alloc";
     }
 
-    Error start(const char* event, int interval);
+    Error start(const char* event, long interval);
     void stop();
 };
 

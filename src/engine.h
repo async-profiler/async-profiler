@@ -24,7 +24,7 @@ class Engine {
   public:
     virtual const char* name() = 0;
 
-    virtual Error start(const char* event, int interval) = 0;
+    virtual Error start(const char* event, long interval) = 0;
     virtual void stop() = 0;
 
     virtual ~Engine() {}

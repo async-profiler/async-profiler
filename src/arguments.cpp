@@ -82,7 +82,7 @@ Error Arguments::parse(char* args) {
             _action = ACTION_DUMP;
             _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
-            if (value == NULL || (_interval = atoi(value)) <= 0) {
+            if (value == NULL || (_interval = atol(value)) <= 0) {
                 return "interval must be > 0";
             }
         } else if (strcmp(arg, "framebuf") == 0) {

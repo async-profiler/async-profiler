@@ -30,7 +30,7 @@ class PerfEvents : public Engine {
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
-    static int _interval;
+    static long _interval;
 
     static int tid();
     static void createForThread(int tid);
@@ -45,7 +45,7 @@ class PerfEvents : public Engine {
         return "perf";
     }
 
-    Error start(const char* event, int interval);
+    Error start(const char* event, long interval);
     void stop();
 
     static void init();

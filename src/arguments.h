@@ -20,7 +20,7 @@
 #include <stddef.h>
 
 
-const int DEFAULT_INTERVAL = 1000000;  // 1 ms
+const long DEFAULT_INTERVAL = 1000000;  // 1 ms
 const int DEFAULT_FRAMEBUF = 1000000;
 
 const char* const EVENT_CPU   = "cpu";
@@ -76,7 +76,7 @@ class Arguments {
     Action _action;
     Counter _counter;
     const char* _event;
-    int _interval;
+    long _interval;
     int _framebuf;
     char* _file;
     bool _dump_collapsed;

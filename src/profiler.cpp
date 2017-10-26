@@ -326,7 +326,7 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-Error Profiler::start(const char* event, int interval, int frame_buffer_size) {
+Error Profiler::start(const char* event, long interval, int frame_buffer_size) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");

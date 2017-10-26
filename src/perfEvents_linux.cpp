@@ -80,10 +80,10 @@ static int getTracepointId(const char* name) {
 
 struct PerfEventType {
     const char* name;
-    int default_interval;
+    long default_interval;
+    __u32 precise_ip;
     __u32 type;
     __u64 config;
-    __u32 precise_ip;
 
     static PerfEventType AVAILABLE_EVENTS[];
     static PerfEventType KERNEL_TRACEPOINT;
@@ -114,26 +114,26 @@ struct PerfEventType {
     ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
 
 PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
-    {"cpu",                   1000000, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK, 2},
-    {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS, 2},
-    {"context-switches",            1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES, 2},
+    {"cpu",                   1000000, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
+    {"page-faults",                 1, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
+    {"context-switches",            1, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
 
-    {"cycles",                1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES, 2},
-    {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, 2},
-    {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, 0},
-    {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, 0},
-    {"branches",              1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS, 2},
-    {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES, 2},
-    {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES, 0},
+    {"cycles",                1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
+    {"instructions",          1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
+    {"cache-references",      1000000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
+    {"cache-misses",             1000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
+    {"branches",              1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {"branch-misses",            1000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
+    {"bus-cycles",            1000000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
 
-    {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D), 0},
-    {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL), 0},
-    {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB), 0},
+    {"L1-dcache-load-misses", 1000000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
+    {"LLC-load-misses",          1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
+    {"dTLB-load-misses",         1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
     {NULL}
 };
 
-PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, PERF_TYPE_TRACEPOINT, 0, 0};
+PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, 0, PERF_TYPE_TRACEPOINT, 0};
 
 
 class RingBuffer {
@@ -170,7 +170,7 @@ class PerfEvent : public SpinLock {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
-int PerfEvents::_interval;
+long PerfEvents::_interval;
 
 void PerfEvents::init() {
     _max_events = getMaxPID();
@@ -278,7 +278,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-Error PerfEvents::start(const char* event, int interval) {
+Error PerfEvents::start(const char* event, long interval) {
     _event_type = PerfEventType::forName(event);
     if (_event_type == NULL) {
         return Error("Unsupported event type");

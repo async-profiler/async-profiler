@@ -184,7 +184,7 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    Error start(const char* event, int interval, int frame_buffer_size);
+    Error start(const char* event, long interval, int frame_buffer_size);
     Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Counter counter);

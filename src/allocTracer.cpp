@@ -79,7 +79,7 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     frame.ret();
 }
 
-Error AllocTracer::start(const char* event, int interval) {
+Error AllocTracer::start(const char* event, long interval) {
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
     if (libjvm == NULL) {
         return Error("libjvm not found among loaded libraries");

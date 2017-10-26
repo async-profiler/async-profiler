@@ -16,6 +16,7 @@
 
 ### Changes
  - Replaced `-m` modes with `-e` events
+ - Interval changed from 'int' to 'long'
 
 ## [1.0] - 2017-10-09
 

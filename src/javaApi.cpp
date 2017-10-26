@@ -19,21 +19,37 @@
 #include "profiler.h"
 
 
+static void throw_illegal_state(JNIEnv* env, const char* message) {
+    jclass cls = env->FindClass("java/lang/IllegalStateException");
+    if (cls != NULL) {
+        env->ThrowNew(cls, message);
+    }
+}
+
+
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jint interval) {
+Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval) {
     const char* event_str = env->GetStringUTFChars(event, NULL);
-    Profiler::_instance.start(event_str, interval, DEFAULT_FRAMEBUF);
+    Error error = Profiler::_instance.start(event_str, interval, DEFAULT_FRAMEBUF);
     env->ReleaseStringUTFChars(event, event_str);
+
+    if (error) {
+        throw_illegal_state(env, error.message());
+    }
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
-    Profiler::_instance.stop();
+    Error error = Profiler::_instance.stop();
+
+    if (error) {
+        throw_illegal_state(env, error.message());
+    }
 }
 
-extern "C" JNIEXPORT jint JNICALL
+extern "C" JNIEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
-    return (jint)Profiler::_instance.total_samples();
+    return (jlong)Profiler::_instance.total_samples();
 }
 
 extern "C" JNIEXPORT jstring JNICALL

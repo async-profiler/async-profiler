@@ -25,7 +25,7 @@
 int PerfEvents::_max_events;
 PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
-int PerfEvents::_interval;
+long PerfEvents::_interval;
 
 
 void PerfEvents::init() {}
@@ -52,7 +52,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
-Error PerfEvents::start(const char* event, int interval) {
+Error PerfEvents::start(const char* event, long interval) {
     if (strcmp(event, EVENT_CPU) != 0) {
         return Error("Event is not supported on this platform");
     }
@@ -64,8 +64,8 @@ Error PerfEvents::start(const char* event, int interval) {
 
     installSignalHandler();
 
-    int sec = _interval / 1000000000;
-    int usec = (_interval % 1000000000) / 1000;
+    long sec = _interval / 1000000000;
+    long usec = (_interval % 1000000000) / 1000;
     struct itimerval tv = {{sec, usec}, {sec, usec}};
     setitimer(ITIMER_PROF, &tv, NULL);
 
