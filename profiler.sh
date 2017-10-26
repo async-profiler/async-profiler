@@ -6,7 +6,7 @@ usage() {
     echo "  start             start profiling and return immediately"
     echo "  stop              stop profiling"
     echo "  status            print profiling status"
-    echo "  list              list available profiling events"
+    echo "  list              list profiling events supported by the target JVM"
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
     echo "Options:"
@@ -17,9 +17,12 @@ usage() {
     echo "  -b bufsize        frame buffer size"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed"
     echo ""
+    echo "<pid> is a numeric process ID of the target JVM"
+    echo "      or 'jps' keyword to find running JVM automatically using jps tool"
+    echo ""
     echo "Example: $0 -d 30 -f profile.fg -o collapsed 3456"
-    echo "         $0 start -i 999000 3456"
-    echo "         $0 stop -o summary,flat 3456"
+    echo "         $0 start -i 999000 jps"
+    echo "         $0 stop -o summary,flat jps"
     exit 1
 }
 

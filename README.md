@@ -182,7 +182,8 @@ until `stop` command is explicitly called.
 * `status` - prints profiling status: whether profiler is active and
 for how long.
 
-* `list` - show the list of available profiling events.
+* `list` - show the list of available profiling events. This option still
+requires PID, since supported events may differ depending on JVM version.
 
 * `-d N` - the profiling duration, in seconds. If no `start`, `stop`
 or `status` option is given, the profiler will run for the specified period
