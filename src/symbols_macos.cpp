@@ -18,14 +18,12 @@
 
 #include <string.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/mman.h>
-#include <mach-o/dyld_images.h>
+#include <mach-o/dyld.h>
 #include <mach-o/loader.h>
 #include <mach-o/nlist.h>
 #include "symbols.h"
-
-// Workaround for newer macosx versions: since 10.12.x _dyld_get_all_image_infos exists, but is not exported
-extern "C" const struct dyld_all_image_infos* _dyld_get_all_image_infos();
 
 
 class MachOParser {
@@ -93,11 +91,11 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 
 int Symbols::parseMaps(NativeCodeCache** array, int size) {
     int count = 0;
-    const dyld_all_image_infos* all_images = _dyld_get_all_image_infos();
+    uint32_t images = _dyld_image_count();
 
-    for (int i = 0; i < all_images->infoArrayCount && count < size; i++) {
-        const char* path = all_images->infoArray[i].imageFilePath;
-        const char* base = (const char*)all_images->infoArray[i].imageLoadAddress;
+    for (uint32_t i = 0; i < images && count < size; i++) {
+        const char* path = _dyld_get_image_name(i);
+        const char* base = (const char*)_dyld_get_image_vmaddr_slide(i);
 
         // For now load only libjvm symbols. As soon as native stack traces
         // are supported on macOS, we'll take care about other native libraries
