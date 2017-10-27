@@ -34,7 +34,12 @@ jattach() {
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            ldd $PROFILER
+            UNAME_S=$(uname -s)
+            if [ "$UNAME_S" == "Darwin" ]; then
+                otool -L $PROFILER
+            else
+                ldd $PROFILER
+            fi
         fi
         exit $RET
     fi
