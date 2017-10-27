@@ -26,7 +26,20 @@ usage() {
     exit 1
 }
 
-show_agent_output() {
+jattach() {
+    $JATTACH $PID load $PROFILER true $1 > /dev/null
+    RET=$?
+
+    # Check if jattach failed
+    if [ $RET -ne 0 ]; then
+        if [ $RET -eq 255 ]; then
+            echo "Failed to inject profiler into $PID"
+            ldd $PROFILER
+        fi
+        exit $RET
+    fi
+
+    # Duplicate output from temporary file to local terminal
     if [[ $USE_TMP ]]; then
         if [[ -f $FILE ]]; then
             cat $FILE
@@ -116,26 +129,20 @@ fi
 
 case $ACTION in
     start)
-        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF
         ;;
     stop)
-        $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
+        jattach stop,file=$FILE,$OUTPUT
         ;;
     status)
-        $JATTACH $PID load $PROFILER true status,file=$FILE > /dev/null
+        jattach status,file=$FILE
         ;;
     list)
-        $JATTACH $PID load $PROFILER true list,file=$FILE > /dev/null
+        jattach list,file=$FILE
         ;;
     collect)
-        $JATTACH $PID load $PROFILER true start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF > /dev/null
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
-        show_agent_output
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF
         sleep $DURATION
-        $JATTACH $PID load $PROFILER true stop,file=$FILE,$OUTPUT > /dev/null
+        jattach stop,file=$FILE,$OUTPUT
         ;;
 esac
-
-show_agent_output

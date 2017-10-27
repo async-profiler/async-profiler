@@ -83,11 +83,11 @@ Error Arguments::parse(char* args) {
             _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = atol(value)) <= 0) {
-                return "interval must be > 0";
+                return Error("interval must be > 0");
             }
         } else if (strcmp(arg, "framebuf") == 0) {
             if (value == NULL || (_framebuf = atoi(value)) <= 0) {
-                return "framebuf must be > 0";
+                return Error("framebuf must be > 0");
             }
         } else if (strcmp(arg, "file") == 0) {
             if (value == NULL || value[0] == 0) {

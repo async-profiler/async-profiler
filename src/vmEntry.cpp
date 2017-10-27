@@ -28,8 +28,8 @@ jvmtiEnv* VM::_jvmti = NULL;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 
 
-bool VM::init(JavaVM* vm) {
-    if (_jvmti != NULL) return true;
+void VM::init(JavaVM* vm, bool attach) {
+    if (_jvmti != NULL) return;
 
     _vm = vm;
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
@@ -70,24 +70,12 @@ bool VM::init(JavaVM* vm) {
     PerfEvents::init();
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
-    if (_asyncGetCallTrace == NULL) {
-        std::cerr << "Could not find AsyncGetCallTrace function" << std::endl;
-        return false;
+
+    if (attach) {
+        loadAllMethodIDs(_jvmti);
+        _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
+        _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     }
-
-    return true;
-}
-
-bool VM::attach(JavaVM* vm) {
-    if (_jvmti != NULL) return true;
-    
-    if (!init(vm)) return false;
-
-    loadAllMethodIDs(_jvmti);
-    _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
-    _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
-
-    return true;
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
@@ -112,9 +100,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    if (!VM::init(vm)) {
-        return -1;
-    }
+    VM::init(vm, false);
 
     Arguments args(options);
     if (args.error()) {
@@ -128,9 +114,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    if (!VM::attach(vm)) {
-        return -1;
-    }
+    VM::init(vm, true);
 
     Arguments args(options);
     if (args.error()) {
@@ -144,8 +128,6 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
-    if (!VM::attach(vm)) {
-        return -1;
-    }
+    VM::init(vm, true);
     return JNI_VERSION_1_6;
 }

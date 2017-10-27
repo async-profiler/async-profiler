@@ -52,8 +52,7 @@ class VM {
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;
 
-    static bool init(JavaVM* vm);
-    static bool attach(JavaVM* vm);
+    static void init(JavaVM* vm, bool attach);
 
     static jvmtiEnv* jvmti() {
         return _jvmti;

@@ -52,7 +52,7 @@ class Error {
     Error() {
     }
 
-    Error(const char* message) : _message(message) {
+    explicit Error(const char* message) : _message(message) {
     }
 
     const char* message() {

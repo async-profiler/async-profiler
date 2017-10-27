@@ -332,6 +332,10 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size) {
         return Error("Profiler already started");
     }
 
+    if (VM::_asyncGetCallTrace == NULL) {
+        return Error("Could not find AsyncGetCallTrace function");
+    }
+
     _total_samples = 0;
     _total_counter = 0;
     memset(_failures, 0, sizeof(_failures));
