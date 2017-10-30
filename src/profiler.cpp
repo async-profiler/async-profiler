@@ -217,13 +217,13 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                   sp = top_frame.sp(),
                   fp = top_frame.fp();
 
-        if (top_frame.pop()) {
-            // Guess top method by PC and insert it manually into the call trace
-            if (fillTopFrame((const void*)pc, trace.frames)) {
-                trace.frames++;
-                max_depth--;
-            }
+        // Guess top method by PC and insert it manually into the call trace
+        if (fillTopFrame((const void*)pc, trace.frames)) {
+            trace.frames++;
+            max_depth--;
+        }
 
+        if (top_frame.pop()) {
             // Retry with the fixed context
             VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             top_frame.restore(pc, sp, fp);
