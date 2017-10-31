@@ -70,6 +70,14 @@ void VM::init(JavaVM* vm, bool attach) {
     PerfEvents::init();
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
+    if (_asyncGetCallTrace == NULL) {
+        void* libjvm_handle = dlopen("libjvm.so", RTLD_NOW);
+        if (!libjvm_handle) {
+            std::cerr << "Failed to load libjvm.so: " << dlerror() << std::endl;
+        }
+	// try loading AsyncGetCallTrace after opening libjvm.so
+        _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm_handle, "AsyncGetCallTrace");
+    }
 
     if (attach) {
         loadAllMethodIDs(_jvmti);
