@@ -71,11 +71,13 @@ void VM::init(JavaVM* vm, bool attach) {
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {
+	// Unable to locate AsyncGetCallTrace, it is likely that JVM has been started
+	// by JNI_CreateJavaVM() via dynamically loaded libjvm.so from a C/C++ program
         void* libjvm_handle = dlopen("libjvm.so", RTLD_NOW);
         if (!libjvm_handle) {
             std::cerr << "Failed to load libjvm.so: " << dlerror() << std::endl;
         }
-	// try loading AsyncGetCallTrace after opening libjvm.so
+	// Try loading AGCT after opening libjvm.so
         _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm_handle, "AsyncGetCallTrace");
     }
 
