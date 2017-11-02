@@ -14,13 +14,13 @@ class Target {
             ++value;
     }
 
-  private static void method3() throws Exception {
-    for (int i = 0; i < 1000; ++i) {
-      for (String s :new File("/tmp").list()) {
-        value += s.hashCode();
-      }
+    private static void method3() throws Exception {
+        for (int i = 0; i < 1000; ++i) {
+            for (String s : new File("/tmp").list()) {
+                value += s.hashCode();
+            }
+        }
     }
-  }
 
     public static void main(String[] args) throws Exception {
         while (true) {
