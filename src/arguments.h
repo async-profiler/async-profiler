@@ -78,6 +78,7 @@ class Arguments {
     const char* _event;
     long _interval;
     int _framebuf;
+    bool _threads;
     char* _file;
     bool _dump_collapsed;
     bool _dump_summary;
@@ -90,6 +91,7 @@ class Arguments {
         _event(EVENT_CPU),
         _interval(0),
         _framebuf(DEFAULT_FRAMEBUF),
+        _threads(false),
         _file(NULL),
         _dump_collapsed(false),
         _dump_summary(false),

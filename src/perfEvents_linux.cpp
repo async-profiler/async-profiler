@@ -318,8 +318,8 @@ const char** PerfEvents::getAvailableEvents() {
     return available_events;
 }
 
-int PerfEvents::getCallChain(const void** callchain, int max_depth) {
-    PerfEvent* event = &_events[tid()];
+int PerfEvents::getCallChain(int tid, const void** callchain, int max_depth) {
+    PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
     }

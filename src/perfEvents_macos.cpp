@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include "perfEvents.h"
 #include "profiler.h"
 
@@ -30,7 +31,9 @@ long PerfEvents::_interval;
 
 void PerfEvents::init() {}
 
-int PerfEvents::tid() { return 0; }
+int PerfEvents::tid() {
+    return pthread_mach_thread_np(pthread_self());
+}
 
 void PerfEvents::createForThread(int tid)  {}
 void PerfEvents::createForAllThreads()     {}
@@ -84,7 +87,7 @@ const char** PerfEvents::getAvailableEvents() {
     return available_events;
 }
 
-int PerfEvents::getCallChain(const void** callchain, int max_depth) {
+int PerfEvents::getCallChain(int tid, const void** callchain, int max_depth) {
     return 0;
 }
 

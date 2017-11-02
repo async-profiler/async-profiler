@@ -15,6 +15,7 @@ usage() {
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -b bufsize        frame buffer size"
+    echo "  -t                profile different threads separately"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
@@ -74,6 +75,7 @@ FILE=""
 USE_TMP="true"
 INTERVAL=""
 FRAMEBUF=""
+THREADS=""
 OUTPUT="summary,traces=200,flat=200"
 
 while [[ $# -gt 0 ]]; do
@@ -105,6 +107,9 @@ while [[ $# -gt 0 ]]; do
             FRAMEBUF=",framebuf=$2"
             shift
             ;;
+        -t)
+            THREADS=",threads"
+            ;;
         -o)
             OUTPUT="$2"
             shift
@@ -134,7 +139,7 @@ fi
 
 case $ACTION in
     start)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS
         ;;
     stop)
         jattach stop,file=$FILE,$OUTPUT
@@ -146,7 +151,7 @@ case $ACTION in
         jattach list,file=$FILE
         ;;
     collect)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS
         sleep $DURATION
         jattach stop,file=$FILE,$OUTPUT
         ;;

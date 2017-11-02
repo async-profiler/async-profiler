@@ -135,6 +135,7 @@ class Profiler {
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
+    bool _threads;
 
     SpinLock _jit_lock;
     const void* _jit_min_address;
@@ -150,7 +151,7 @@ class Profiler {
     void updateJitRange(const void* min_address, const void* max_address);
 
     const char* findNativeMethod(const void* address);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames);
+    int getNativeTrace(int tid, ASGCT_CallFrame* frames);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJVMTI(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
@@ -184,7 +185,7 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    Error start(const char* event, long interval, int frame_buffer_size);
+    Error start(const char* event, long interval, int frame_buffer_size, bool threads);
     Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Counter counter);

@@ -25,6 +25,7 @@ enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME       = -10,  // method_id is native function name (char*)
     BCI_KLASS              = -11,  // method_id is Klass descriptor (VMKlass*)
     BCI_KLASS_OUTSIDE_TLAB = -12,  // VMKlass* specifically for allocations outside TLAB
+    BCI_THREAD_ID          = -13,  // method_id designates a thread
 };
 
 typedef struct {

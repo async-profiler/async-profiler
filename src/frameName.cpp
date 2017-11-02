@@ -94,6 +94,10 @@ FrameName::FrameName(ASGCT_CallFrame& frame, bool dotted) {
         VMKlass* alloc_class = (VMKlass*)((uintptr_t)frame.method_id ^ 1);
         _str = strcat(javaClassName(alloc_class), dotted ? " (out)" : "_[k]");
 
+    } else if (frame.bci == BCI_THREAD_ID) {
+        snprintf(_buf, sizeof(_buf), "[thread %d]", (int)(uintptr_t)frame.method_id);
+        _str = _buf;
+
     } else {
         jclass method_class;
         char* class_name = NULL;
