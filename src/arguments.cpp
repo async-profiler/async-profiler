@@ -41,6 +41,7 @@ const Error Error::OK(NULL);
 //     flat[=N]      - dump top N methods (aka flat profile)
 //     interval=N    - sampling interval in ns (default: 1'000'000, i.e. 1 ms)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
+//     threads       - profile different threads separately
 //     file=FILENAME - output file name for dumping
 //
 // It is possible to specify multiple dump options at the same time
@@ -89,6 +90,8 @@ Error Arguments::parse(char* args) {
             if (value == NULL || (_framebuf = atoi(value)) <= 0) {
                 return Error("framebuf must be > 0");
             }
+        } else if (strcmp(arg, "threads") == 0) {
+            _threads = true;
         } else if (strcmp(arg, "file") == 0) {
             if (value == NULL || value[0] == 0) {
                 return Error("file must not be empty");

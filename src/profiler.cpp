@@ -181,9 +181,9 @@ const char* Profiler::findNativeMethod(const void* address) {
     return NULL;
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames) {
+int Profiler::getNativeTrace(int tid, ASGCT_CallFrame* frames) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = PerfEvents::getCallChain(native_callchain, MAX_NATIVE_FRAMES);
+    int native_frames = PerfEvents::getCallChain(tid, native_callchain, MAX_NATIVE_FRAMES);
 
     for (int i = 0; i < native_frames; i++) {
         const void* address = native_callchain[i];
@@ -300,15 +300,20 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
     int num_frames;
+    int tid = PerfEvents::tid();
 
     if (event == NULL) {
-        num_frames = getNativeTrace(ucontext, frames);
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - num_frames);
+        num_frames = getNativeTrace(tid, frames);
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
         num_frames = makeEventFrame(frames, event_type, event);
-        num_frames += getJavaTraceJVMTI(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - num_frames);
+        num_frames += getJavaTraceJVMTI(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
+    }
+
+    if (_threads) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
     }
 
     if (num_frames > 0) {
@@ -326,7 +331,7 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-Error Profiler::start(const char* event, long interval, int frame_buffer_size) {
+Error Profiler::start(const char* event, long interval, int frame_buffer_size, bool threads) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
@@ -349,6 +354,7 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size) {
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
+    _threads = threads;
 
     resetSymbols();
 
@@ -512,7 +518,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-            Error error = start(args._event, args._interval, args._framebuf);
+            Error error = start(args._event, args._interval, args._framebuf, args._threads);
             if (error) {
                 out << error.message() << std::endl;
             } else {

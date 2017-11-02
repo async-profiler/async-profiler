@@ -210,6 +210,10 @@ method ids that should fit in the buffer. If you receive messages about an
 insufficient frame buffer size, increase this value from the default.  
 Example: `./profiler.sh -b 5000000 8983`
 
+* `-t` - profile threads separately. Each stack trace will end with a frame
+that denotes a single thread.
+Example: `./profiler.sh -t 8983`
+
 * `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
 This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;
