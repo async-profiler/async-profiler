@@ -440,6 +440,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
+    FrameName fn;
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -452,8 +453,8 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
         }
 
         for (int j = trace._num_frames - 1; j >= 0; j--) {
-            FrameName fn(_frame_buffer[trace._start_frame + j]);
-            out << fn.toString() << (j == 0 ? ' ' : ';');
+            const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+            out << frame_name << (j == 0 ? ' ' : ';');
         }
         out << (counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
     }
@@ -467,6 +468,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
+    FrameName fn(true);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -486,8 +488,8 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         }
 
         for (int j = 0; j < trace._num_frames; j++) {
-            FrameName fn(_frame_buffer[trace._start_frame + j], true);
-            snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, fn.toString());
+            const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+            snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, frame_name);
             out << buf;
         }
         out << "\n";
@@ -498,6 +500,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
+    FrameName fn(true);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -508,9 +511,9 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
         MethodSample& method = _methods[i];
         if (method._samples == 0) break;
 
-        FrameName fn(method._method, true);
+        const char* frame_name = fn.name(method._method);
         snprintf(buf, sizeof(buf), "%12lld (%5.2f%%)  %6lld  %s\n",
-                 method._counter, method._counter * percent, method._samples, fn.toString());
+                 method._counter, method._counter * percent, method._samples, frame_name);
         out << buf;
     }
 }

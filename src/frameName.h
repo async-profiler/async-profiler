@@ -17,25 +17,42 @@
 #ifndef _FRAMENAME_H
 #define _FRAMENAME_H
 
+#include <jvmti.h>
 #include "vmEntry.h"
 #include "vmStructs.h"
+
+
+class ThreadId {
+  private:
+    int _id;
+    const char* _name;
+
+  public:
+    static int comparator(const void* t1, const void* t2) {
+        return ((ThreadId*)t1)->_id - ((ThreadId*)t2)->_id;
+    }
+
+    friend class FrameName;
+};
 
 
 class FrameName {
   private:
     char _buf[520];
-    const char* _str;
+    bool _dotted;
+    int _thread_count;
+    ThreadId* _threads;
 
+    const char* findThreadName(int tid);
     const char* cppDemangle(const char* name);
     char* javaClassName(VMKlass* klass);
     char* javaClassName(const char* symbol, int length, bool dotted);
 
   public:
-    FrameName(ASGCT_CallFrame& frame, bool dotted = false);
+    FrameName(bool dotted = false);
+    ~FrameName();
 
-    const char* toString() {
-        return _str;
-    }
+    const char* name(ASGCT_CallFrame& frame);
 };
 
 #endif // _FRAMENAME_H

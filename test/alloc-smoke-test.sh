@@ -22,7 +22,7 @@ fi
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../profiler.sh -f $FILENAME -o collapsed -d 5 -e alloc $JAVAPID
+  ../profiler.sh -f $FILENAME -o collapsed -d 5 -e alloc -t $JAVAPID
 
   kill $JAVAPID
 
@@ -32,6 +32,6 @@ fi
     fi
   }
 
-  assert_string "AllocatingTarget.allocate;.*java.lang.Integer\[\]"
-  assert_string "AllocatingTarget.allocate;.*int\[\]"
+  assert_string "AllocThread-1;.*AllocatingTarget.allocate;.*java.lang.Integer\[\]"
+  assert_string "AllocThread-2;.*AllocatingTarget.allocate;.*int\[\]"
 )
