@@ -87,7 +87,7 @@ void Profiler::copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTr
     int start_frame;
     do {
         start_frame = _frame_buffer_index;
-        if (start_frame + num_frames > _frame_buffer_size) {
+        if (start_frame + num_frames > _args._framebuf) {
             _frame_buffer_overflow = true;  // not enough space to store full trace
             return;
         }
@@ -312,7 +312,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames += getJavaTraceJVMTI(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
     }
 
-    if (_threads) {
+    if (_args._threads) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
     }
 
@@ -331,7 +331,7 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-Error Profiler::start(const char* event, long interval, int frame_buffer_size, bool threads) {
+Error Profiler::start(Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
@@ -341,6 +341,7 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size, b
         return Error("Could not find AsyncGetCallTrace function");
     }
 
+    _args = args;
     _total_samples = 0;
     _total_counter = 0;
     memset(_failures, 0, sizeof(_failures));
@@ -350,23 +351,21 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size, b
 
     // Reset frames
     free(_frame_buffer);
-    _frame_buffer_size = frame_buffer_size;
-    _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
+    _frame_buffer = (ASGCT_CallFrame*)malloc(_args._framebuf * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
-    _threads = threads;
 
     resetSymbols();
 
-    if (strcmp(event, EVENT_ALLOC) == 0) {
+    if (strcmp(args._event, EVENT_ALLOC) == 0) {
         _engine = new AllocTracer();
-    } else if (strcmp(event, EVENT_LOCK) == 0) {
+    } else if (strcmp(args._event, EVENT_LOCK) == 0) {
         _engine = new LockTracer();
     } else {
         _engine = new PerfEvents();
     }
 
-    Error error = _engine->start(event, interval);
+    Error error = _engine->start(args._event, args._interval);
     if (error) {
         delete _engine;
         return error;
@@ -388,6 +387,18 @@ Error Profiler::stop() {
 
     _state = IDLE;
     return Error::OK;
+}
+
+void Profiler::shutdown() {
+    MutexLocker ml(_state_lock);
+
+    // The last chance to dump profile before VM terminates
+    if (_state == RUNNING && _args.dumpRequested()) {
+        _args._action = ACTION_DUMP;
+        run(_args);
+    }
+
+    _state = TERMINATED;
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
@@ -425,7 +436,7 @@ void Profiler::dumpSummary(std::ostream& out) {
     if (_frame_buffer_overflow) {
         out << "Frame buffer overflowed! Consider increasing its size." << std::endl;
     } else {
-        double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
+        double usage = 100.0 * _frame_buffer_index / _args._framebuf;
         out << "Frame buffer usage:    " << usage << "%" << std::endl;
     }
     out << std::endl;
@@ -521,7 +532,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-            Error error = start(args._event, args._interval, args._framebuf, args._threads);
+            Error error = start(args);
             if (error) {
                 out << error.message() << std::endl;
             } else {

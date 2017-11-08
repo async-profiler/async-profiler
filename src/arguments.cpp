@@ -46,10 +46,13 @@ const Error Error::OK(NULL);
 //
 // It is possible to specify multiple dump options at the same time
 
-Error Arguments::parse(char* args) {
-    if (strlen(args) >= sizeof(_buf)) {
+Error Arguments::parse(const char* args) {
+    if (args == NULL) {
+        return Error::OK;
+    } else if (strlen(args) >= sizeof(_buf)) {
         return Error("Argument list too long");
     }
+
     strcpy(_buf, args);
 
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {

@@ -23,6 +23,8 @@
 #include "lockTracer.h"
 
 
+static Arguments _startup_args;
+
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -71,13 +73,13 @@ void VM::init(JavaVM* vm, bool attach) {
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {
-	// Unable to locate AsyncGetCallTrace, it is likely that JVM has been started
-	// by JNI_CreateJavaVM() via dynamically loaded libjvm.so from a C/C++ program
+        // Unable to locate AsyncGetCallTrace, it is likely that JVM has been started
+        // by JNI_CreateJavaVM() via dynamically loaded libjvm.so from a C/C++ program
         void* libjvm_handle = dlopen("libjvm.so", RTLD_NOW);
         if (!libjvm_handle) {
             std::cerr << "Failed to load libjvm.so: " << dlerror() << std::endl;
         }
-	// Try loading AGCT after opening libjvm.so
+        // Try loading AGCT after opening libjvm.so
         _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm_handle, "AsyncGetCallTrace");
     }
 
@@ -96,7 +98,7 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
     }
 }
 
-void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
+void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     jint class_count;
     jclass* classes;
     if (jvmti->GetLoadedClasses(&class_count, &classes) == 0) {
@@ -105,6 +107,9 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
         }
         jvmti->Deallocate((unsigned char*)classes);
     }
+
+    // Delayed start of profiler if agent has been loaded at VM bootstrap
+    Profiler::_instance.run(_startup_args);
 }
 
 
@@ -112,13 +117,12 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm, false);
 
-    Arguments args(options);
-    if (args.error()) {
-        std::cerr << args.error().message() << std::endl;
+    Error error = _startup_args.parse(options);
+    if (error) {
+        std::cerr << error.message() << std::endl;
         return -1;
     }
 
-    Profiler::_instance.run(args);
     return 0;
 }
 
@@ -126,9 +130,10 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm, true);
 
-    Arguments args(options);
-    if (args.error()) {
-        std::cerr << args.error().message() << std::endl;
+    Arguments args;
+    Error error = args.parse(options);
+    if (error) {
+        std::cerr << error.message() << std::endl;
         return -1;
     }
 
