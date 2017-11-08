@@ -23,7 +23,7 @@
 #include "lockTracer.h"
 
 
-static Arguments _startup_args;
+static Arguments _agent_args;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
@@ -49,7 +49,7 @@ void VM::init(JavaVM* vm, bool attach) {
 
     jvmtiEventCallbacks callbacks = {0};
     callbacks.VMInit = VMInit;
-    callbacks.VMDeath = Profiler::VMDeath;
+    callbacks.VMDeath = VMDeath;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
@@ -112,7 +112,11 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     loadAllMethodIDs(jvmti);
     // Delayed start of profiler if agent has been loaded at VM bootstrap
-    Profiler::_instance.run(_startup_args);
+    Profiler::_instance.run(_agent_args);
+}
+
+void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
+    Profiler::_instance.shutdown(_agent_args);
 }
 
 
@@ -120,7 +124,7 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm, false);
 
-    Error error = _startup_args.parse(options);
+    Error error = _agent_args.parse(options);
     if (error) {
         std::cerr << error.message() << std::endl;
         return -1;
@@ -133,14 +137,13 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm, true);
 
-    Arguments args;
-    Error error = args.parse(options);
+    Error error = _agent_args.parse(options);
     if (error) {
         std::cerr << error.message() << std::endl;
         return -1;
     }
 
-    Profiler::_instance.run(args);
+    Profiler::_instance.run(_agent_args);
     return 0;
 }
 

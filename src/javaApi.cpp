@@ -29,12 +29,9 @@ static void throw_illegal_state(JNIEnv* env, const char* message) {
 
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval) {
-    Arguments args;
-    args._event = env->GetStringUTFChars(event, NULL);
-    args._interval = interval;
-
-    Error error = Profiler::_instance.start(args);
-    env->ReleaseStringUTFChars(event, args._event);
+    const char* event_str = env->GetStringUTFChars(event, NULL);
+    Error error = Profiler::_instance.start(event_str, interval, DEFAULT_FRAMEBUF, false);
+    env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
         throw_illegal_state(env, error.message());

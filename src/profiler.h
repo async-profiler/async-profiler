@@ -119,7 +119,6 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
-    Arguments _args;
     Engine* _engine;
     time_t _start_time;
 
@@ -133,8 +132,10 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
+    int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
+    bool _threads;
 
     SpinLock _jit_lock;
     const void* _jit_min_address;
@@ -160,6 +161,7 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
+    void initStateLock();
     void resetSymbols();
     void setSignalHandler();
     void runInternal(Arguments& args, std::ostream& out);
@@ -176,11 +178,7 @@ class Profiler {
         _java_methods(),
         _runtime_stubs("[stubs]"),
         _native_lib_count(0) {
-        
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&_state_lock, &attr);
+        initStateLock();
     }
 
     u64 total_samples() { return _total_samples; }
@@ -188,19 +186,15 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
-    Error start(Arguments& args);
+    void shutdown(Arguments& args);
+    Error start(const char* event, long interval, int frame_buffer_size, bool threads);
     Error stop();
-    void shutdown();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Counter counter);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpFlat(std::ostream& out, int max_methods);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
-
-    static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
-        _instance.shutdown();
-    }
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
