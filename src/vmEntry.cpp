@@ -98,7 +98,7 @@ void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
     }
 }
 
-void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
     jint class_count;
     jclass* classes;
     if (jvmti->GetLoadedClasses(&class_count, &classes) == 0) {
@@ -107,7 +107,10 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         }
         jvmti->Deallocate((unsigned char*)classes);
     }
+}
 
+void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    loadAllMethodIDs(jvmti);
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Profiler::_instance.run(_startup_args);
 }
