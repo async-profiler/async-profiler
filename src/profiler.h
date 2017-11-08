@@ -40,12 +40,6 @@ static inline int cmp64(u64 a, u64 b) {
 }
 
 
-union CallTraceBuffer {
-    ASGCT_CallFrame _asgct_frames[MAX_STACK_FRAMES];
-    jvmtiFrameInfo _jvmti_frames[MAX_STACK_FRAMES];
-};
-
-
 class CallTraceSample {
   private:
     u64 _samples;
@@ -130,7 +124,7 @@ class Profiler {
     MethodSample _methods[MAX_CALLTRACES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
-    CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
+    ASGCT_CallFrame _calltrace_buffer[CONCURRENCY_LEVEL][MAX_STACK_FRAMES];
     ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
@@ -153,7 +147,6 @@ class Profiler {
     const char* findNativeMethod(const void* address);
     int getNativeTrace(int tid, ASGCT_CallFrame* frames);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
-    int getJavaTraceJVMTI(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);

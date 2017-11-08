@@ -247,21 +247,6 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     return 0;
 }
 
-int Profiler::getJavaTraceJVMTI(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
-    jint num_frames;
-    if (VM::jvmti()->GetStackTrace(NULL, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
-        // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
-        for (int i = 0; i < num_frames; i++) {
-            frames[i].method_id = jvmti_frames[i].method;
-            frames[i].bci = 0;
-        }
-        return num_frames;
-    }
-
-    atomicInc(_failures[-ticks_no_Java_frame]);
-    return 0;
-}
-
 int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event) {
     frames[0].bci = event_type;
     frames[0].method_id = event;
@@ -298,19 +283,12 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     atomicInc(_total_counter, counter);
 
-    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
-    int num_frames;
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index];
     int tid = PerfEvents::tid();
 
-    if (event == NULL) {
-        num_frames = getNativeTrace(tid, frames);
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
-    } else {
-        // Events like object allocation happen at known places where it is safe to call JVM TI
-        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
-        num_frames = makeEventFrame(frames, event_type, event);
-        num_frames += getJavaTraceJVMTI(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
-    }
+    int num_frames = event != NULL ? makeEventFrame(frames, event_type, event) : 0;
+    num_frames += getNativeTrace(tid, frames);
+    num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
 
     if (_threads) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
