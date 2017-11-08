@@ -73,17 +73,13 @@ Error Arguments::parse(const char* args) {
             }
             _event = value;
         } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
-            _action = ACTION_DUMP;
             _dump_collapsed = true;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "summary") == 0) {
-            _action = ACTION_DUMP;
             _dump_summary = true;
         } else if (strcmp(arg, "traces") == 0) {
-            _action = ACTION_DUMP;
             _dump_traces = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "flat") == 0) {
-            _action = ACTION_DUMP;
             _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = atol(value)) <= 0) {
@@ -101,6 +97,10 @@ Error Arguments::parse(const char* args) {
             }
             _file = value;
         }
+    }
+
+    if (dumpRequested() && (_action == ACTION_NONE || _action == ACTION_STOP)) {
+        _action = ACTION_DUMP;
     }
 
     return Error::OK;
