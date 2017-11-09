@@ -27,8 +27,25 @@ usage() {
     exit 1
 }
 
+mirror_output() {
+    # Mirror output from temporary file to local terminal
+    if [[ $USE_TMP ]]; then
+        if [[ -f $FILE ]]; then
+            cat $FILE
+            rm $FILE
+        fi
+    fi
+}
+
+check_if_terminated() {
+    if ! kill -0 $PID 2> /dev/null; then
+        mirror_output
+        exit 0
+    fi
+}
+
 jattach() {
-    $JATTACH $PID load $PROFILER true $1 > /dev/null
+    $JATTACH $PID load "$PROFILER" true $1 > /dev/null
     RET=$?
 
     # Check if jattach failed
@@ -37,21 +54,15 @@ jattach() {
             echo "Failed to inject profiler into $PID"
             UNAME_S=$(uname -s)
             if [ "$UNAME_S" == "Darwin" ]; then
-                otool -L $PROFILER
+                otool -L "$PROFILER"
             else
-                ldd $PROFILER
+                ldd "$PROFILER"
             fi
         fi
         exit $RET
     fi
 
-    # Duplicate output from temporary file to local terminal
-    if [[ $USE_TMP ]]; then
-        if [[ -f $FILE ]]; then
-            cat $FILE
-            rm $FILE
-        fi
-    fi
+    mirror_output
 }
 
 function abspath() {
@@ -139,7 +150,7 @@ fi
 
 case $ACTION in
     start)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT
         ;;
     stop)
         jattach stop,file=$FILE,$OUTPUT
@@ -151,8 +162,11 @@ case $ACTION in
         jattach list,file=$FILE
         ;;
     collect)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS
-        sleep $DURATION
+        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT
+        while (( DURATION-- > 0 )); do
+            check_if_terminated
+            sleep 1
+        done
         jattach stop,file=$FILE,$OUTPUT
         ;;
 esac

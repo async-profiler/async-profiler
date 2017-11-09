@@ -64,9 +64,8 @@ class VM {
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
     }
 
-    static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        loadAllMethodIDs(jvmti);
-    }
+    static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni);
 
     static void JNICALL ClassLoad(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
         // Needed only for AsyncGetCallTrace support

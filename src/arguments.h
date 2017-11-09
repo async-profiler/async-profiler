@@ -49,9 +49,6 @@ class Error {
   public:
     static const Error OK;
 
-    Error() {
-    }
-
     explicit Error(const char* message) : _message(message) {
     }
 
@@ -68,9 +65,6 @@ class Error {
 class Arguments {
   private:
     char _buf[1024];
-    Error _error;
-
-    Error parse(char* args);
 
   public:
     Action _action;
@@ -85,7 +79,7 @@ class Arguments {
     int _dump_traces;
     int _dump_flat;
 
-    Arguments(char* args) :
+    Arguments() :
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _event(EVENT_CPU),
@@ -97,12 +91,13 @@ class Arguments {
         _dump_summary(false),
         _dump_traces(0),
         _dump_flat(0) {
-        _error = parse(args);
     }
 
-    Error error() {
-        return _error;
+    bool dumpRequested() {
+        return _dump_collapsed || _dump_summary || _dump_traces > 0 || _dump_flat > 0;
     }
+
+    Error parse(const char* args);
 };
 
 #endif // _ARGUMENTS_H
