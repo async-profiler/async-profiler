@@ -38,14 +38,14 @@ mirror_output() {
 }
 
 check_if_terminated() {
-    if ! kill -0 $PID &> /dev/null; then
+    if ! kill -0 $PID 2> /dev/null; then
         mirror_output
         exit 0
     fi
 }
 
 jattach() {
-    $JATTACH $PID load $PROFILER true $1 > /dev/null
+    $JATTACH $PID load "$PROFILER" true $1 > /dev/null
     RET=$?
 
     # Check if jattach failed
@@ -54,9 +54,9 @@ jattach() {
             echo "Failed to inject profiler into $PID"
             UNAME_S=$(uname -s)
             if [ "$UNAME_S" == "Darwin" ]; then
-                otool -L $PROFILER
+                otool -L "$PROFILER"
             else
-                ldd $PROFILER
+                ldd "$PROFILER"
             fi
         fi
         exit $RET
