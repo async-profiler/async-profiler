@@ -137,13 +137,17 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     VM::init(vm, true);
 
-    Error error = _agent_args.parse(options);
+    Arguments args;
+    Error error = args.parse(options);
     if (error) {
         std::cerr << error.message() << std::endl;
         return -1;
     }
 
-    Profiler::_instance.run(_agent_args);
+    // Save the arguments in case of shutdown
+    _agent_args = args;
+    Profiler::_instance.run(args);
+
     return 0;
 }
 
