@@ -1,7 +1,7 @@
 #!/bin/bash
 
 usage() {
-    echo "This utility allows to run async-profiler's (https://github.com/jvm-profiling-tools/async-profiler)"
+    echo "This utility allows running async-profiler's (https://github.com/jvm-profiling-tools/async-profiler)"
     echo "  profiling iterations (sessions) infinitely while the target process is available."
     echo ""
     echo "Usage: ${0} [options] <pid>"
