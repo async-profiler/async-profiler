@@ -12,6 +12,7 @@ usage() {
     echo "  -e event                    Profiling event: cpu|alloc|lock|cache-misses etc."
     echo "  -d duration                 Duration of a single profiling session in seconds."
     echo "  -f filenamePrefix           Output filename prefix."
+    echo "  -ff filenamePostfix         Output filename postfix. Default: '.txt'"
     echo "  -i interval                 Sampling interval in nanoseconds."
     echo "  -b bufsize                  Frame buffer size in bytes."
     echo "  -t                          Profile different threads separately."
@@ -21,7 +22,7 @@ usage() {
     echo "  or 'jps' keyword to find running JVM automatically using jps tool."
     echo ""
     echo "Example:"
-    echo "  ${0} --profiler profiler.sh --history 5 -d 30 -i 1000000 -f /home/me/prof_ -o summary,traces=200,flat=200,collapsed=samples -e cpu -t -b 5000000 1234"
+    echo "  ${0} -d 600 -e cpu -o summary,traces=200,flat=200,collapsed=samples -f /home/me/prof_ -ff _pid<pid>.txt --history 450 <pid>"
     echo "  ${0} jps"
     exit 1
 }
@@ -46,12 +47,14 @@ ensure_running() {
     fi
 }
 
-SCRIPT_DIR=$(pwd)
-PROFILER="${SCRIPT_DIR}/profiler.sh"
+CURRERNT_WORKING_DIR=$(pwd)
+CURRENT_SCRIPT=$(readlink -f "${0}")
+CURRENT_SCRIPT_DIR=$(dirname "${CURRENT_SCRIPT}")
+PROFILER="${CURRENT_SCRIPT_DIR}/profiler.sh"
 PRESERVE="5"
 DURATION="30"
 INTERVAL="1000000"
-FILE_PREFIX="${SCRIPT_DIR}/prof_"
+FILE_PREFIX="${CURRERNT_WORKING_DIR}/prof_"
 FILE_POSTFIX=".txt"
 OUTPUT="summary,traces=200,flat=200,collapsed=samples"
 EVENT="cpu"
@@ -82,6 +85,10 @@ while [[ $# -gt 0 ]]; do
             FILE_PREFIX="${2}"
             shift
             ;;
+        -ff)
+            FILE_POSTFIX="${2}"
+            shift
+            ;;
         -i)
             INTERVAL="${2}"
             shift
@@ -101,7 +108,7 @@ while [[ $# -gt 0 ]]; do
             PID="${1}"
             ;;
         jps)
-            # A shortcut for getting PID of a running Java application
+            # A shortcut for getting PID of a running Java application.
             # -XX:+PerfDisableSharedMem prevents jps from appearing in its own list.
             PID=$(jps -q -J-XX:+PerfDisableSharedMem)
             ;;
@@ -119,10 +126,10 @@ while true; do
     # start next profiling session
     timestamp=$(date +"%FT%H-%M-%S")
     ${PROFILER} -d ${DURATION} -i ${INTERVAL} -f ${FILE_PREFIX}${timestamp}${FILE_POSTFIX} -o ${OUTPUT} -e ${EVENT} ${THREADS} -b ${FRAMEBUF} ${PID}
-    if [ ${?} -eq 1 ]; then
+    if ! [ ${?} -eq 0 ]; then
         echo "Failed to start profiling session"
         exit 1
     fi
     # delete outdated gathered data
-    ls ${FILE_PREFIX}*${FILE_POSTFIX} -t | tail -n +${PRESERVE} | xargs -d '\n' rm 2>&1 /dev/null
+    ls ${FILE_PREFIX}* -t | tail -n +${PRESERVE} | xargs -d '\n' rm >/dev/null 2>&1
 done
