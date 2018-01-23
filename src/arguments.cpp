@@ -75,6 +75,9 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
             _dump_collapsed = true;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
+        } else if (strcmp(arg, "flamegraph") == 0 || strcmp(arg, "svg") == 0) {
+            _dump_flamegraph = true;
+            _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "summary") == 0) {
             _dump_summary = true;
         } else if (strcmp(arg, "traces") == 0) {
