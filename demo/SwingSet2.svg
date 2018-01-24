@@ -1,0 +1,2247 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="966" onload="init(evt)" viewBox="0 0 1200 966" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:black; }
+	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	var details, searchbtn, matchedtxt, svg;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	// mouse-over for info
+	function s(node) {		// show
+		info = g_to_text(node);
+		details.nodeValue = "Function: " + info;
+	}
+	function c() {			// clear
+		details.nodeValue = ' ';
+	}
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	})
+
+	// functions
+	function find_child(parent, name, attr) {
+		var children = parent.childNodes;
+		for (var i=0; i<children.length;i++) {
+			if (children[i].tagName == name)
+				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+		}
+		return;
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_"+attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes["width"].value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2*12*0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x=txt.length-2; x>0; x--) {
+			if (t.getSubStringLength(0, x+2) <= w) {
+				t.textContent = txt.substring(0,x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
+				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_child(c[i], x-10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes["x"] != undefined) {
+				orig_save(e, "x");
+				e.attributes["x"].value = 10;
+			}
+			if (e.attributes["width"] != undefined) {
+				orig_save(e, "width");
+				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for(var i=0, c=e.childNodes; i<c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr["width"].value);
+		var xmin = parseFloat(attr["x"].value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr["y"].value);
+		var ratio = (svg.width.baseVal.value - 2*10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "1.0";
+
+		var el = document.getElementsByTagName("g");
+		for(var i=0;i<el.length;i++){
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a["x"].value);
+			var ew = parseFloat(a["width"].value);
+			// Is it an ancestor
+			if (0 == 0) {
+				var upstack = parseFloat(a["y"].value) > ymin;
+			} else {
+				var upstack = parseFloat(a["y"].value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.style["opacity"] = "0.5";
+					zoom_parent(e);
+					e.onclick = function(e){unzoom(); zoom(this);};
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.style["display"] = "none";
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.style["display"] = "none";
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					e.onclick = function(e){zoom(this);};
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		var unzoombtn = document.getElementById("unzoom");
+		unzoombtn.style["opacity"] = "0.0";
+
+		var el = document.getElementsByTagName("g");
+		for(i=0;i<el.length;i++) {
+			el[i].style["display"] = "block";
+			el[i].style["opacity"] = "1";
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.getElementsByTagName("rect");
+		for (var i=0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.style["opacity"] = "0.1";
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.style["opacity"] = "0.0";
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementsByTagName("g");
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			if (e.attributes["class"].value != "func_g")
+				continue;
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (rect == null) {
+				// the rect might be wrapped in an anchor
+				// if nameattr href is being used
+				if (rect = find_child(e, "a")) {
+				    rect = find_child(r, "rect");
+				}
+			}
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes["width"].value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes["x"].value);
+				orig_save(rect, "fill");
+				rect.attributes["fill"].value =
+				    "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.style["opacity"] = "1.0";
+		searchbtn.firstChild.nodeValue = "Reset Search"
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.style["opacity"] = "1.0";
+		pct = 100 * count / maxwidth;
+		if (pct == 100)
+			pct = "100"
+		else
+			pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+	function searchover(e) {
+		searchbtn.style["opacity"] = "1.0";
+	}
+	function searchout(e) {
+		if (searching) {
+			searchbtn.style["opacity"] = "1.0";
+		} else {
+			searchbtn.style["opacity"] = "0.1";
+		}
+	}
+]]>
+</script>
+<rect x="0" y="0" width="100%" height="100%" fill="rgb(240,240,220)"/>
+<text x="600" y="24" text-anchor="middle" style="font-size:17px">Flame Graph</text>
+<text x="10" y="2821" id="details"> </text>
+<text x="10" y="24" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer">Reset Zoom</text>
+<text x="1090" y="24" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer">Search</text>
+<text x="1090" y="2821" id="matched"> </text>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>CompileBroker::compiler_thread_loop() (517 samples, 39.38%)</title><rect x="610.3" y="837" width="464.7" height="15.0" fill="rgb(196,196,57)" rx="2" ry="2" />
+<text x="613.34" y="847.5">CompileBroker::compiler_thread_loop()</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XDecoratedPeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="581" width="27.8" height="15.0" fill="rgb(79,227,79)" rx="2" ry="2" />
+<text x="374.28" y="591.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (34 samples, 2.59%)</title><rect x="450.4" y="453" width="30.5" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="453.37" y="463.5">ja..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ComboBoxDemo.createComboBoxDemo (20 samples, 1.52%)</title><rect x="52.2" y="773" width="18.0" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="55.24" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/ClassLoader.loadClass (9 samples, 0.69%)</title><rect x="12.7" y="789" width="8.1" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="15.70" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="117" width="10.8" height="15.0" fill="rgb(106,251,106)" rx="2" ry="2" />
+<text x="353.61" y="127.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_one_bytecode() (9 samples, 0.69%)</title><rect x="889.8" y="613" width="8.1" height="15.0" fill="rgb(223,223,67)" rx="2" ry="2" />
+<text x="892.83" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::post_allocate_copy_removal() (15 samples, 1.14%)</title><rect x="740.6" y="741" width="13.5" height="15.0" fill="rgb(184,184,53)" rx="2" ry="2" />
+<text x="743.65" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ip_output (10 samples, 0.76%)</title><rect x="484.5" y="197" width="9.0" height="15.0" fill="rgb(233,133,0)" rx="2" ry="2" />
+<text x="487.52" y="207.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/GlobalCursorManager.updateCursorImmediately (10 samples, 0.76%)</title><rect x="484.5" y="533" width="9.0" height="15.0" fill="rgb(72,220,72)" rx="2" ry="2" />
+<text x="487.52" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TableDemo.createTable (16 samples, 1.22%)</title><rect x="142.1" y="773" width="14.4" height="15.0" fill="rgb(80,228,80)" rx="2" ry="2" />
+<text x="145.11" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/font/FontDesignMetrics.&lt;init&gt; (9 samples, 0.69%)</title><rect x="298.5" y="597" width="8.1" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="301.48" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTree.updateUI (9 samples, 0.69%)</title><rect x="166.4" y="693" width="8.1" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="169.37" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Frame.addNotify (59 samples, 4.49%)</title><rect x="346.1" y="629" width="53.0" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="349.12" y="639.5">java/..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.dispatchEvent (45 samples, 3.43%)</title><rect x="497.1" y="613" width="40.4" height="15.0" fill="rgb(81,228,81)" rx="2" ry="2" />
+<text x="500.10" y="623.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JvmtiExport::post_compiled_method_load(nmethod*) (8 samples, 0.61%)</title><rect x="1075.9" y="805" width="7.2" height="15.0" fill="rgb(181,181,52)" rx="2" ry="2" />
+<text x="1078.86" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicButtonUI.getPreferredSize (12 samples, 0.91%)</title><rect x="297.6" y="677" width="10.8" height="15.0" fill="rgb(54,204,54)" rx="2" ry="2" />
+<text x="300.59" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTextField.&lt;init&gt; (12 samples, 0.91%)</title><rect x="260.7" y="837" width="10.8" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="263.74" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/GraphicsCallback$PaintCallback.run (8 samples, 0.61%)</title><rect x="433.3" y="469" width="7.2" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="436.29" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ip_finish_output2 (10 samples, 0.76%)</title><rect x="484.5" y="165" width="9.0" height="15.0" fill="rgb(202,102,0)" rx="2" ry="2" />
+<text x="487.52" y="175.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2$DemoLoadThread.run (184 samples, 14.01%)</title><rect x="11.8" y="901" width="165.4" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="14.80" y="911.5">SwingSet2$DemoLoadThr..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame$JDesktopIcon.updateUI (14 samples, 1.07%)</title><rect x="297.6" y="773" width="12.6" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="300.59" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.setUI (8 samples, 0.61%)</title><rect x="264.3" y="773" width="7.2" height="15.0" fill="rgb(79,226,79)" rx="2" ry="2" />
+<text x="267.33" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>inet_sendmsg (10 samples, 0.76%)</title><rect x="484.5" y="325" width="9.0" height="15.0" fill="rgb(237,137,0)" rx="2" ry="2" />
+<text x="487.52" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$3.run (48 samples, 3.66%)</title><rect x="497.1" y="677" width="43.1" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="500.10" y="687.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compile::fill_buffer(CodeBuffer*, unsigned int*) (8 samples, 0.61%)</title><rect x="621.1" y="757" width="7.2" height="15.0" fill="rgb(189,189,55)" rx="2" ry="2" />
+<text x="624.12" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIterGVN::transform_old(Node*) (9 samples, 0.69%)</title><rect x="871.9" y="741" width="8.0" height="15.0" fill="rgb(221,221,66)" rx="2" ry="2" />
+<text x="874.86" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$4.run (48 samples, 3.66%)</title><rect x="497.1" y="741" width="43.1" height="15.0" fill="rgb(70,218,70)" rx="2" ry="2" />
+<text x="500.10" y="751.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JScrollPane.&lt;init&gt; (8 samples, 0.61%)</title><rect x="246.4" y="837" width="7.1" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="249.36" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.dispatchEventImpl (28 samples, 2.13%)</title><rect x="510.6" y="453" width="25.1" height="15.0" fill="rgb(99,245,99)" rx="2" ry="2" />
+<text x="513.58" y="463.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/GlobalCursorManager._updateCursor (10 samples, 0.76%)</title><rect x="484.5" y="517" width="9.0" height="15.0" fill="rgb(66,215,66)" rx="2" ry="2" />
+<text x="487.52" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/JPEGImageDecoder.produceImage (36 samples, 2.74%)</title><rect x="1137.0" y="853" width="32.3" height="15.0" fill="rgb(88,235,88)" rx="2" ry="2" />
+<text x="1139.98" y="863.5">su..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::iterate_all_blocks(bool) (33 samples, 2.51%)</title><rect x="927.6" y="677" width="29.6" height="15.0" fill="rgb(182,182,52)" rx="2" ry="2" />
+<text x="930.58" y="687.5">Gr..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="485" width="12.6" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="351.81" y="495.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/reflect/Constructor.newInstance (174 samples, 13.25%)</title><rect x="20.8" y="853" width="156.4" height="15.0" fill="rgb(64,213,64)" rx="2" ry="2" />
+<text x="23.78" y="863.5">java/lang/reflect/Co..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTable.&lt;init&gt; (8 samples, 0.61%)</title><rect x="146.6" y="741" width="7.2" height="15.0" fill="rgb(70,218,70)" rx="2" ry="2" />
+<text x="149.60" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame$JDesktopIcon.&lt;init&gt; (14 samples, 1.07%)</title><rect x="297.6" y="789" width="12.6" height="15.0" fill="rgb(64,213,64)" rx="2" ry="2" />
+<text x="300.59" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusDefaults.&lt;init&gt; (28 samples, 2.13%)</title><rect x="182.6" y="709" width="25.1" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="185.55" y="719.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Window.paint (8 samples, 0.61%)</title><rect x="433.3" y="533" width="7.2" height="15.0" fill="rgb(90,237,90)" rx="2" ry="2" />
+<text x="436.29" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseCFG::global_code_motion() (9 samples, 0.69%)</title><rect x="645.4" y="741" width="8.1" height="15.0" fill="rgb(184,184,53)" rx="2" ry="2" />
+<text x="648.38" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JRootPane.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="277" width="10.8" height="15.0" fill="rgb(85,232,85)" rx="2" ry="2" />
+<text x="353.61" y="287.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>do_readv_writev (10 samples, 0.76%)</title><rect x="484.5" y="373" width="9.0" height="15.0" fill="rgb(240,140,0)" rx="2" ry="2" />
+<text x="487.52" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/text/JTextComponent.setUI (8 samples, 0.61%)</title><rect x="264.3" y="789" width="7.2" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="267.33" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::GraphBuilder(Compilation*, IRScope*) (42 samples, 3.20%)</title><rect x="919.5" y="693" width="37.7" height="15.0" fill="rgb(206,206,61)" rx="2" ry="2" />
+<text x="922.49" y="703.5">Gra..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::link_class_impl(instanceKlassHandle, bool, Thread*) (11 samples, 0.84%)</title><rect x="185.2" y="517" width="9.9" height="15.0" fill="rgb(191,191,55)" rx="2" ry="2" />
+<text x="188.25" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>DemoModule.&lt;init&gt; (9 samples, 0.69%)</title><rect x="130.4" y="773" width="8.1" height="15.0" fill="rgb(84,231,84)" rx="2" ry="2" />
+<text x="133.43" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ParseGenerator::generate(JVMState*) (19 samples, 1.45%)</title><rect x="885.3" y="773" width="17.1" height="15.0" fill="rgb(205,205,61)" rx="2" ry="2" />
+<text x="888.34" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/ImageDecoder.setPixels (11 samples, 0.84%)</title><rect x="1116.3" y="789" width="9.9" height="15.0" fill="rgb(67,215,67)" rx="2" ry="2" />
+<text x="1119.31" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/AccessController.doPrivileged (48 samples, 3.66%)</title><rect x="497.1" y="693" width="43.1" height="15.0" fill="rgb(79,226,79)" rx="2" ry="2" />
+<text x="500.10" y="703.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::try_inline_full(ciMethod*, bool, Bytecodes::Code, Instruction*) (20 samples, 1.52%)</title><rect x="931.2" y="613" width="17.9" height="15.0" fill="rgb(192,192,56)" rx="2" ry="2" />
+<text x="934.17" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::gather_lrg_masks(bool) (9 samples, 0.69%)</title><rect x="731.7" y="741" width="8.0" height="15.0" fill="rgb(209,209,62)" rx="2" ry="2" />
+<text x="734.66" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InternalFrameDemo.createInternalFrame (11 samples, 0.84%)</title><rect x="282.3" y="837" width="9.9" height="15.0" fill="rgb(81,229,81)" rx="2" ry="2" />
+<text x="285.31" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XBaseWindow.init (31 samples, 2.36%)</title><rect x="371.3" y="469" width="27.8" height="15.0" fill="rgb(101,247,101)" rx="2" ry="2" />
+<text x="374.28" y="479.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ButtonDemo.addButtons (23 samples, 1.75%)</title><rect x="20.8" y="773" width="20.7" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="23.78" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JvmtiEnv::GetClassMethods(oopDesc*, int*, _jmethodID***) (9 samples, 0.69%)</title><rect x="186.1" y="469" width="8.1" height="15.0" fill="rgb(180,180,52)" rx="2" ry="2" />
+<text x="189.15" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__tcp_push_pending_frames (10 samples, 0.76%)</title><rect x="484.5" y="277" width="9.0" height="15.0" fill="rgb(202,102,0)" rx="2" ry="2" />
+<text x="487.52" y="287.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_one_block() (9 samples, 0.69%)</title><rect x="889.8" y="629" width="8.1" height="15.0" fill="rgb(201,201,59)" rx="2" ry="2" />
+<text x="892.83" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/JPEGImageDecoder.readImage (30 samples, 2.28%)</title><rect x="1142.4" y="837" width="26.9" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="1145.37" y="847.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ServiceThread::service_thread_entry(JavaThread*, Thread*) (15 samples, 1.14%)</title><rect x="1075.9" y="837" width="13.4" height="15.0" fill="rgb(208,208,62)" rx="2" ry="2" />
+<text x="1078.86" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.paint (8 samples, 0.61%)</title><rect x="433.3" y="517" width="7.2" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="436.29" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::invoke(Bytecodes::Code) (9 samples, 0.69%)</title><rect x="933.9" y="565" width="8.1" height="15.0" fill="rgb(222,222,67)" rx="2" ry="2" />
+<text x="936.87" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusDefaults.register (24 samples, 1.83%)</title><rect x="183.5" y="693" width="21.5" height="15.0" fill="rgb(76,224,76)" rx="2" ry="2" />
+<text x="186.45" y="703.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Window.pack (74 samples, 5.64%)</title><rect x="333.5" y="645" width="66.5" height="15.0" fill="rgb(56,205,56)" rx="2" ry="2" />
+<text x="336.53" y="655.5">java/aw..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::emit_code_epilog(LIR_Assembler*) (8 samples, 0.61%)</title><rect x="964.4" y="725" width="7.2" height="15.0" fill="rgb(208,208,62)" rx="2" ry="2" />
+<text x="967.42" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::Compilation(AbstractCompiler*, ciEnv*, ciMethod*, int, BufferBlob*) (160 samples, 12.19%)</title><rect x="913.2" y="789" width="143.8" height="15.0" fill="rgb(226,226,68)" rx="2" ry="2" />
+<text x="916.20" y="799.5">Compilation::Compi..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (20 samples, 1.52%)</title><rect x="455.8" y="389" width="17.9" height="15.0" fill="rgb(88,235,88)" rx="2" ry="2" />
+<text x="458.76" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIdealLoop::build_and_optimize(bool, bool) (85 samples, 6.47%)</title><rect x="795.5" y="757" width="76.4" height="15.0" fill="rgb(214,214,64)" rx="2" ry="2" />
+<text x="798.47" y="767.5">PhaseIde..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Class.forName (10 samples, 0.76%)</title><rect x="11.8" y="853" width="9.0" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="14.80" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>find_class_from_class_loader(JNIEnv_*, Symbol*, unsigned char, Handle, Handle, unsigned char, Thread*) (11 samples, 0.84%)</title><rect x="185.2" y="565" width="9.9" height="15.0" fill="rgb(230,94,94)" rx="2" ry="2" />
+<text x="188.25" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/metal/MetalDesktopIconUI.installComponents (14 samples, 1.07%)</title><rect x="297.6" y="709" width="12.6" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="300.59" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager$4.run (53 samples, 4.04%)</title><rect x="433.3" y="549" width="47.6" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="436.29" y="559.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XInputMethod.openXIMNative (17 samples, 1.29%)</title><rect x="520.5" y="293" width="15.2" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="523.46" y="303.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/AbstractButton.init (11 samples, 0.84%)</title><rect x="31.6" y="725" width="9.9" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="34.57" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XBaseWindow.dispatchEvent (27 samples, 2.06%)</title><rect x="551.9" y="821" width="24.3" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="554.92" y="831.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Monitor::IWait(Thread*, long) (8 samples, 0.61%)</title><rect x="1061.5" y="789" width="7.2" height="15.0" fill="rgb(214,214,64)" rx="2" ry="2" />
+<text x="1064.49" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InterpreterRuntime::_new(JavaThread*, ConstantPool*, int) (10 samples, 0.76%)</title><rect x="361.4" y="597" width="9.0" height="15.0" fill="rgb(185,185,53)" rx="2" ry="2" />
+<text x="364.39" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.createLafMenuItem (31 samples, 2.36%)</title><rect x="181.7" y="837" width="27.8" height="15.0" fill="rgb(54,204,54)" rx="2" ry="2" />
+<text x="184.65" y="847.5">S..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/java2d/xr/XRSurfaceData.createData (10 samples, 0.76%)</title><rect x="378.5" y="341" width="9.0" height="15.0" fill="rgb(59,208,59)" rx="2" ry="2" />
+<text x="381.47" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>jvmti_GetClassMethods (9 samples, 0.69%)</title><rect x="186.1" y="485" width="8.1" height="15.0" fill="rgb(210,65,65)" rx="2" ry="2" />
+<text x="189.15" y="495.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicTextUI.installUI (8 samples, 0.61%)</title><rect x="264.3" y="757" width="7.2" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="267.33" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.updateCursorImmediately (10 samples, 0.76%)</title><rect x="484.5" y="565" width="9.0" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="487.52" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintToOffscreen (34 samples, 2.59%)</title><rect x="450.4" y="469" width="30.5" height="15.0" fill="rgb(108,254,108)" rx="2" ry="2" />
+<text x="453.37" y="479.5">ja..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.&lt;init&gt; (169 samples, 12.87%)</title><rect x="177.2" y="885" width="151.8" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="180.16" y="895.5">SwingSet2.&lt;init&gt;</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TabbedPaneDemo.&lt;init&gt; (8 samples, 0.61%)</title><rect x="123.2" y="789" width="7.2" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="126.24" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="469" width="12.6" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="351.81" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_all_blocks() (9 samples, 0.69%)</title><rect x="889.8" y="645" width="8.1" height="15.0" fill="rgb(196,196,57)" rx="2" ry="2" />
+<text x="892.83" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager$3.run (13 samples, 0.99%)</title><rect x="484.5" y="613" width="11.7" height="15.0" fill="rgb(89,235,89)" rx="2" ry="2" />
+<text x="487.52" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComboBox.setUI (8 samples, 0.61%)</title><rect x="56.7" y="693" width="7.2" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="59.73" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="405" width="12.6" height="15.0" fill="rgb(70,219,70)" rx="2" ry="2" />
+<text x="351.81" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sock_write_iter (10 samples, 0.76%)</title><rect x="484.5" y="357" width="9.0" height="15.0" fill="rgb(209,109,0)" rx="2" ry="2" />
+<text x="487.52" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (11 samples, 0.84%)</title><rect x="455.8" y="69" width="9.8" height="15.0" fill="rgb(107,252,107)" rx="2" ry="2" />
+<text x="458.76" y="79.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/GifImageDecoder.parseImage (13 samples, 0.99%)</title><rect x="1114.5" y="821" width="11.7" height="15.0" fill="rgb(53,203,53)" rx="2" ry="2" />
+<text x="1117.51" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JButton.&lt;init&gt; (11 samples, 0.84%)</title><rect x="31.6" y="757" width="9.9" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="34.57" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/ImageFetcher.run (88 samples, 6.70%)</title><rect x="1109.1" y="901" width="79.1" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="1112.12" y="911.5">sun/awt/i..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/ImageFetcher.fetchloop (88 samples, 6.70%)</title><rect x="1109.1" y="885" width="79.1" height="15.0" fill="rgb(83,231,83)" rx="2" ry="2" />
+<text x="1112.12" y="895.5">sun/awt/i..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (10 samples, 0.76%)</title><rect x="484.5" y="453" width="9.0" height="15.0" fill="rgb(225,87,87)" rx="2" ry="2" />
+<text x="487.52" y="463.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/font/CompositeStrike.getStrikeForSlot (8 samples, 0.61%)</title><rect x="298.5" y="549" width="7.2" height="15.0" fill="rgb(66,215,66)" rx="2" ry="2" />
+<text x="301.48" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11InputMethod.&lt;init&gt; (17 samples, 1.29%)</title><rect x="520.5" y="341" width="15.2" height="15.0" fill="rgb(80,228,80)" rx="2" ry="2" />
+<text x="523.46" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (11 samples, 0.84%)</title><rect x="455.8" y="37" width="9.8" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="458.76" y="47.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="421" width="12.6" height="15.0" fill="rgb(109,254,109)" rx="2" ry="2" />
+<text x="351.81" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/text/html/HTMLEditorKit.createDefaultDocument (15 samples, 1.14%)</title><rect x="228.4" y="805" width="13.5" height="15.0" fill="rgb(101,247,101)" rx="2" ry="2" />
+<text x="231.39" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$4.run (48 samples, 3.66%)</title><rect x="497.1" y="757" width="43.1" height="15.0" fill="rgb(96,242,96)" rx="2" ry="2" />
+<text x="500.10" y="767.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/NativeConstructorAccessorImpl.newInstance0 (174 samples, 13.25%)</title><rect x="20.8" y="805" width="156.4" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="23.78" y="815.5">sun/reflect/NativeCo..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.dispatchEventImpl (43 samples, 3.27%)</title><rect x="498.0" y="581" width="38.6" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="501.00" y="591.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/im/InputContext.getInputMethod (19 samples, 1.45%)</title><rect x="518.7" y="405" width="17.0" height="15.0" fill="rgb(97,243,97)" rx="2" ry="2" />
+<text x="521.67" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/BufferStrategyPaintManager.paint (8 samples, 0.61%)</title><rect x="433.3" y="421" width="7.2" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="436.29" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ip_local_out (10 samples, 0.76%)</title><rect x="484.5" y="213" width="9.0" height="15.0" fill="rgb(194,94,0)" rx="2" ry="2" />
+<text x="487.52" y="223.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (13 samples, 0.99%)</title><rect x="455.8" y="133" width="11.6" height="15.0" fill="rgb(74,222,74)" rx="2" ry="2" />
+<text x="458.76" y="143.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.run (235 samples, 17.90%)</title><rect x="333.5" y="901" width="211.2" height="15.0" fill="rgb(54,204,54)" rx="2" ry="2" />
+<text x="336.53" y="911.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>CompileQueue::get() (15 samples, 1.14%)</title><rect x="1061.5" y="821" width="13.5" height="15.0" fill="rgb(193,193,56)" rx="2" ry="2" />
+<text x="1064.49" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/AccessController.doPrivileged (8 samples, 0.61%)</title><rect x="13.6" y="757" width="7.2" height="15.0" fill="rgb(89,235,89)" rx="2" ry="2" />
+<text x="16.59" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/DelegatingConstructorAccessorImpl.newInstance (28 samples, 2.13%)</title><rect x="182.6" y="773" width="25.1" height="15.0" fill="rgb(61,210,61)" rx="2" ry="2" />
+<text x="185.55" y="783.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/font/FontDesignMetrics.getMetrics (9 samples, 0.69%)</title><rect x="298.5" y="613" width="8.1" height="15.0" fill="rgb(69,218,69)" rx="2" ry="2" />
+<text x="301.48" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.getFontMetrics (10 samples, 0.76%)</title><rect x="297.6" y="645" width="9.0" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="300.59" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager$4.run (53 samples, 4.04%)</title><rect x="433.3" y="565" width="47.6" height="15.0" fill="rgb(64,213,64)" rx="2" ry="2" />
+<text x="436.29" y="575.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/LightweightDispatcher.retargetMouseEnterExit (29 samples, 2.21%)</title><rect x="509.7" y="517" width="26.0" height="15.0" fill="rgb(75,222,75)" rx="2" ry="2" />
+<text x="512.68" y="527.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIFG::SquareUp() (8 samples, 0.61%)</title><rect x="758.6" y="741" width="7.2" height="15.0" fill="rgb(202,202,60)" rx="2" ry="2" />
+<text x="761.62" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>writev (10 samples, 0.76%)</title><rect x="484.5" y="437" width="9.0" height="15.0" fill="rgb(207,60,60)" rx="2" ry="2" />
+<text x="487.52" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="501" width="12.6" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="351.81" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/LightweightDispatcher.trackMouseEnterExit (30 samples, 2.28%)</title><rect x="509.7" y="533" width="26.9" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="512.68" y="543.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.prePaintDirtyRegions (58 samples, 4.42%)</title><rect x="431.5" y="645" width="52.1" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="434.49" y="655.5">javax..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane.access$300 (15 samples, 1.14%)</title><rect x="418.0" y="661" width="13.5" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="421.01" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicGraphicsUtils.getPreferredButtonSize (12 samples, 0.91%)</title><rect x="297.6" y="661" width="10.8" height="15.0" fill="rgb(72,220,72)" rx="2" ry="2" />
+<text x="300.59" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLConnection.getContentEncoding (14 samples, 1.07%)</title><rect x="418.0" y="629" width="12.6" height="15.0" fill="rgb(99,245,99)" rx="2" ry="2" />
+<text x="421.01" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>DemoModule.loadSourceCode (9 samples, 0.69%)</title><rect x="130.4" y="757" width="8.1" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="133.43" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/GifImageDecoder.produceImage (26 samples, 1.98%)</title><rect x="1113.6" y="853" width="23.4" height="15.0" fill="rgb(109,254,109)" rx="2" ry="2" />
+<text x="1116.61" y="863.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane$3.run (15 samples, 1.14%)</title><rect x="418.0" y="677" width="13.5" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="421.01" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>tcp_sendmsg (10 samples, 0.76%)</title><rect x="484.5" y="309" width="9.0" height="15.0" fill="rgb(199,99,0)" rx="2" ry="2" />
+<text x="487.52" y="319.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/im/InputContext.getInstance (8 samples, 0.61%)</title><rect x="511.5" y="341" width="7.2" height="15.0" fill="rgb(97,243,97)" rx="2" ry="2" />
+<text x="514.48" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Matcher::xform(Node*, int) (14 samples, 1.07%)</title><rect x="630.1" y="741" width="12.6" height="15.0" fill="rgb(216,216,64)" rx="2" ry="2" />
+<text x="633.11" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (16 samples, 1.22%)</title><rect x="347.0" y="549" width="14.4" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="350.01" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="245" width="10.8" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="353.61" y="255.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JavaThread::thread_main_inner() (533 samples, 40.59%)</title><rect x="610.3" y="853" width="479.0" height="15.0" fill="rgb(202,202,59)" rx="2" ry="2" />
+<text x="613.34" y="863.5">JavaThread::thread_main_inner()</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindowPeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="565" width="27.8" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="374.28" y="575.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLClassLoader.defineClass (8 samples, 0.61%)</title><rect x="13.6" y="693" width="7.2" height="15.0" fill="rgb(82,229,82)" rx="2" ry="2" />
+<text x="16.59" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (8 samples, 0.61%)</title><rect x="433.3" y="261" width="7.2" height="15.0" fill="rgb(71,219,71)" rx="2" ry="2" />
+<text x="436.29" y="271.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (18 samples, 1.37%)</title><rect x="455.8" y="357" width="16.1" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="458.76" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>IR::IR(Compilation*, ciMethod*, int) (43 samples, 3.27%)</title><rect x="919.5" y="725" width="38.6" height="15.0" fill="rgb(190,190,55)" rx="2" ry="2" />
+<text x="922.49" y="735.5">IR:..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (8 samples, 0.61%)</title><rect x="433.3" y="309" width="7.2" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="436.29" y="319.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTree.&lt;init&gt; (12 samples, 0.91%)</title><rect x="163.7" y="725" width="10.8" height="15.0" fill="rgb(97,243,97)" rx="2" ry="2" />
+<text x="166.68" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.updateCursorImmediately (9 samples, 0.69%)</title><rect x="498.0" y="533" width="8.1" height="15.0" fill="rgb(99,245,99)" rx="2" ry="2" />
+<text x="501.00" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateUnconditionally (13 samples, 0.99%)</title><rect x="334.4" y="629" width="11.7" height="15.0" fill="rgb(92,239,92)" rx="2" ry="2" />
+<text x="337.43" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/net/www/protocol/file/FileURLConnection.initializeHeaders (14 samples, 1.07%)</title><rect x="418.0" y="581" width="12.6" height="15.0" fill="rgb(89,236,89)" rx="2" ry="2" />
+<text x="421.01" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue.dispatchEvent (230 samples, 17.52%)</title><rect x="333.5" y="805" width="206.7" height="15.0" fill="rgb(103,249,103)" rx="2" ry="2" />
+<text x="336.53" y="815.5">java/awt/EventQueue.dispatc..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::compile_method() (160 samples, 12.19%)</title><rect x="913.2" y="773" width="143.8" height="15.0" fill="rgb(183,183,53)" rx="2" ry="2" />
+<text x="916.20" y="783.5">Compilation::compi..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.loadDemos (184 samples, 14.01%)</title><rect x="11.8" y="885" width="165.4" height="15.0" fill="rgb(54,203,54)" rx="2" ry="2" />
+<text x="14.80" y="895.5">SwingSet2.loadDemos</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>VMThread::loop() (20 samples, 1.52%)</title><rect x="1089.3" y="853" width="18.0" height="15.0" fill="rgb(196,196,57)" rx="2" ry="2" />
+<text x="1092.35" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XDecoratedPeer.handleConfigureNotifyEvent (17 samples, 1.29%)</title><rect x="558.2" y="805" width="15.3" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="561.21" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseLive::compute(unsigned int) (11 samples, 0.84%)</title><rect x="767.6" y="741" width="9.9" height="15.0" fill="rgb(213,213,64)" rx="2" ry="2" />
+<text x="770.61" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (16 samples, 1.22%)</title><rect x="347.0" y="565" width="14.4" height="15.0" fill="rgb(88,235,88)" rx="2" ry="2" />
+<text x="350.01" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue.access$500 (182 samples, 13.86%)</title><rect x="333.5" y="725" width="163.6" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="336.53" y="735.5">java/awt/EventQueue.a..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/NativeConstructorAccessorImpl.newInstance (28 samples, 2.13%)</title><rect x="182.6" y="757" width="25.1" height="15.0" fill="rgb(76,224,76)" rx="2" ry="2" />
+<text x="185.55" y="767.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_call() (14 samples, 1.07%)</title><rect x="886.2" y="693" width="12.6" height="15.0" fill="rgb(211,211,63)" rx="2" ry="2" />
+<text x="889.24" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintImmediately (45 samples, 3.43%)</title><rect x="440.5" y="533" width="40.4" height="15.0" fill="rgb(71,219,71)" rx="2" ry="2" />
+<text x="443.48" y="543.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::build_hir() (57 samples, 4.34%)</title><rect x="913.2" y="741" width="51.2" height="15.0" fill="rgb(219,219,66)" rx="2" ry="2" />
+<text x="916.20" y="751.5">Compi..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTable.&lt;init&gt; (8 samples, 0.61%)</title><rect x="146.6" y="757" width="7.2" height="15.0" fill="rgb(105,251,105)" rx="2" ry="2" />
+<text x="149.60" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::initialize_impl(instanceKlassHandle, Thread*) (11 samples, 0.84%)</title><rect x="185.2" y="533" width="9.9" height="15.0" fill="rgb(226,226,68)" rx="2" ry="2" />
+<text x="188.25" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::Split(unsigned int, ResourceArea*) (17 samples, 1.29%)</title><rect x="681.3" y="741" width="15.3" height="15.0" fill="rgb(223,223,67)" rx="2" ry="2" />
+<text x="684.33" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XFramePeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="597" width="27.8" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="374.28" y="607.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusDefaults$LazyStyle.&lt;init&gt; (23 samples, 1.75%)</title><rect x="184.3" y="677" width="20.7" height="15.0" fill="rgb(85,232,85)" rx="2" ry="2" />
+<text x="187.35" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/URLImageSource.getDecoder (21 samples, 1.60%)</title><rect x="1169.3" y="853" width="18.9" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="1172.33" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XInputMethod.&lt;init&gt; (17 samples, 1.29%)</title><rect x="520.5" y="357" width="15.2" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="523.46" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TableDemo.&lt;init&gt; (33 samples, 2.51%)</title><rect x="130.4" y="789" width="29.7" height="15.0" fill="rgb(84,231,84)" rx="2" ry="2" />
+<text x="133.43" y="799.5">Ta..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/AccessController.doPrivileged (230 samples, 17.52%)</title><rect x="333.5" y="773" width="206.7" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="336.53" y="783.5">java/security/AccessControl..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/BufferStrategyPaintManager.paint (43 samples, 3.27%)</title><rect x="442.3" y="485" width="38.6" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="445.28" y="495.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.createMenus (37 samples, 2.82%)</title><rect x="179.9" y="853" width="33.2" height="15.0" fill="rgb(81,228,81)" rx="2" ry="2" />
+<text x="182.86" y="863.5">Sw..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>CompileBroker::invoke_compiler_on_method(CompileTask*) (501 samples, 38.16%)</title><rect x="611.2" y="821" width="450.3" height="15.0" fill="rgb(219,219,66)" rx="2" ry="2" />
+<text x="614.23" y="831.5">CompileBroker::invoke_compiler_on_method(CompileTask*)</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.addDropTarget (11 samples, 0.84%)</title><rect x="351.5" y="69" width="9.9" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="354.51" y="79.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.pumpEvents (235 samples, 17.90%)</title><rect x="333.5" y="885" width="211.2" height="15.0" fill="rgb(104,249,104)" rx="2" ry="2" />
+<text x="336.53" y="895.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/LightweightDispatcher.processMouseEvent (34 samples, 2.59%)</title><rect x="506.1" y="549" width="30.5" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="509.09" y="559.5">ja..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ciEnv::register_method(ciMethod*, int, CodeOffsets*, int, CodeBuffer*, int, OopMapSet*, ExceptionHandlerTable*, ImplicitExceptionTable*, AbstractCompiler*, int, bool, bool, RTMState) (15 samples, 1.14%)</title><rect x="1042.6" y="741" width="13.5" height="15.0" fill="rgb(217,217,65)" rx="2" ry="2" />
+<text x="1045.61" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JVM_FindClassFromCaller (11 samples, 0.84%)</title><rect x="185.2" y="581" width="9.9" height="15.0" fill="rgb(242,111,111)" rx="2" ry="2" />
+<text x="188.25" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame.&lt;init&gt; (11 samples, 0.84%)</title><rect x="282.3" y="821" width="9.9" height="15.0" fill="rgb(56,205,56)" rx="2" ry="2" />
+<text x="285.31" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compile::Compile(ciEnv*, C2Compiler*, ciMethod*, int, bool, bool, bool) (332 samples, 25.29%)</title><rect x="611.2" y="789" width="298.4" height="15.0" fill="rgb(222,222,67)" rx="2" ry="2" />
+<text x="614.23" y="799.5">Compile::Compile(ciEnv*, C2Compiler*, ci..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Matcher::match_tree(Node const*) (8 samples, 0.61%)</title><rect x="633.7" y="725" width="7.2" height="15.0" fill="rgb(210,210,62)" rx="2" ry="2" />
+<text x="636.70" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ButtonDemo.&lt;init&gt; (34 samples, 2.59%)</title><rect x="20.8" y="789" width="30.5" height="15.0" fill="rgb(70,219,70)" rx="2" ry="2" />
+<text x="23.78" y="799.5">Bu..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="549" width="10.8" height="15.0" fill="rgb(66,215,66)" rx="2" ry="2" />
+<text x="338.33" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Class.newInstance (28 samples, 2.13%)</title><rect x="182.6" y="805" width="25.1" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="185.55" y="815.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane.handleConnectionProperties (15 samples, 1.14%)</title><rect x="418.0" y="645" width="13.5" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="421.01" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/InputStreamImageSource.doFetch (83 samples, 6.32%)</title><rect x="1113.6" y="869" width="74.6" height="15.0" fill="rgb(52,201,52)" rx="2" ry="2" />
+<text x="1116.61" y="879.5">sun/awt/..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.setUI (14 samples, 1.07%)</title><rect x="297.6" y="741" width="12.6" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="300.59" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicComboBoxUI.installUI (8 samples, 0.61%)</title><rect x="56.7" y="661" width="7.2" height="15.0" fill="rgb(90,236,90)" rx="2" ry="2" />
+<text x="59.73" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="597" width="10.8" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="338.33" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="149" width="10.8" height="15.0" fill="rgb(101,246,101)" rx="2" ry="2" />
+<text x="353.61" y="159.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege (48 samples, 3.66%)</title><rect x="497.1" y="709" width="43.1" height="15.0" fill="rgb(96,242,96)" rx="2" ry="2" />
+<text x="500.10" y="719.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindowPeer.updateIconImages (8 samples, 0.61%)</title><rect x="387.5" y="405" width="7.1" height="15.0" fill="rgb(81,229,81)" rx="2" ry="2" />
+<text x="390.46" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScan::allocate_registers() (12 samples, 0.91%)</title><rect x="996.8" y="709" width="10.8" height="15.0" fill="rgb(222,222,67)" rx="2" ry="2" />
+<text x="999.78" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindowPeer.recursivelySetIcon (8 samples, 0.61%)</title><rect x="387.5" y="389" width="7.1" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="390.46" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (22 samples, 1.68%)</title><rect x="1142.4" y="821" width="19.7" height="15.0" fill="rgb(215,72,72)" rx="2" ry="2" />
+<text x="1145.37" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>e1000_xmit_frame	[e1000] (10 samples, 0.76%)</title><rect x="484.5" y="85" width="9.0" height="15.0" fill="rgb(246,146,0)" rx="2" ry="2" />
+<text x="487.52" y="95.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIdealLoop::build_loop_late(VectorSet&amp;, Node_List&amp;, Node_Stack&amp;) (56 samples, 4.27%)</title><rect x="809.8" y="741" width="50.4" height="15.0" fill="rgb(184,184,53)" rx="2" ry="2" />
+<text x="812.85" y="751.5">Phase..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Monitor::wait(bool, long, bool) (10 samples, 0.76%)</title><rect x="1061.5" y="805" width="9.0" height="15.0" fill="rgb(188,188,54)" rx="2" ry="2" />
+<text x="1064.49" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>VM::loadMethodIDs(_jvmtiEnv*, _jclass*) (9 samples, 0.69%)</title><rect x="186.1" y="501" width="8.1" height="15.0" fill="rgb(225,225,68)" rx="2" ry="2" />
+<text x="189.15" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SafepointSynchronize::begin() (10 samples, 0.76%)</title><rect x="1091.1" y="837" width="9.0" height="15.0" fill="rgb(203,203,60)" rx="2" ry="2" />
+<text x="1094.14" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::iterate_all_blocks(bool) (10 samples, 0.76%)</title><rect x="933.0" y="597" width="9.0" height="15.0" fill="rgb(206,206,61)" rx="2" ry="2" />
+<text x="935.97" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::initialize(Thread*) (10 samples, 0.76%)</title><rect x="361.4" y="581" width="9.0" height="15.0" fill="rgb(201,201,59)" rx="2" ry="2" />
+<text x="364.39" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComboBox.&lt;init&gt; (10 samples, 0.76%)</title><rect x="55.8" y="741" width="9.0" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="58.83" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.dispatchEvent (28 samples, 2.13%)</title><rect x="510.6" y="485" width="25.1" height="15.0" fill="rgb(59,208,59)" rx="2" ry="2" />
+<text x="513.58" y="495.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (13 samples, 0.99%)</title><rect x="349.7" y="309" width="11.7" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="352.71" y="319.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/im/InputMethodContext.dispatchEvent (19 samples, 1.45%)</title><rect x="518.7" y="437" width="17.0" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="521.67" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (8 samples, 0.61%)</title><rect x="433.3" y="341" width="7.2" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="436.29" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="357" width="12.6" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="351.81" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/GlobalCursorManager.updateCursorImmediately (9 samples, 0.69%)</title><rect x="498.0" y="517" width="8.1" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="501.00" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/SunGraphicsCallback.runOneComponent (8 samples, 0.61%)</title><rect x="433.3" y="485" width="7.2" height="15.0" fill="rgb(66,215,66)" rx="2" ry="2" />
+<text x="436.29" y="495.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIdealLoop::build_loop_late_post(Node*) (48 samples, 3.66%)</title><rect x="816.1" y="725" width="43.2" height="15.0" fill="rgb(203,203,60)" rx="2" ry="2" />
+<text x="819.14" y="735.5">Phas..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager$3.run (13 samples, 0.99%)</title><rect x="484.5" y="597" width="11.7" height="15.0" fill="rgb(104,250,104)" rx="2" ry="2" />
+<text x="487.52" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>dev_queue_xmit (10 samples, 0.76%)</title><rect x="484.5" y="149" width="9.0" height="15.0" fill="rgb(249,149,0)" rx="2" ry="2" />
+<text x="487.52" y="159.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScan::build_intervals() (10 samples, 0.76%)</title><rect x="1017.4" y="709" width="9.0" height="15.0" fill="rgb(218,218,65)" rx="2" ry="2" />
+<text x="1020.45" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/LightweightDispatcher.dispatchEvent (43 samples, 3.27%)</title><rect x="498.0" y="565" width="38.6" height="15.0" fill="rgb(56,206,56)" rx="2" ry="2" />
+<text x="501.00" y="575.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusDefaults$LazyStyle.&lt;init&gt; (23 samples, 1.75%)</title><rect x="184.3" y="661" width="20.7" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="187.35" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.dispatchEventImpl (28 samples, 2.13%)</title><rect x="510.6" y="469" width="25.1" height="15.0" fill="rgb(76,224,76)" rx="2" ry="2" />
+<text x="513.58" y="479.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/reflect/Constructor.newInstance (28 samples, 2.13%)</title><rect x="182.6" y="789" width="25.1" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="185.55" y="799.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/font/CompositeStrike.getFontMetrics (8 samples, 0.61%)</title><rect x="298.5" y="565" width="7.2" height="15.0" fill="rgb(56,206,56)" rx="2" ry="2" />
+<text x="301.48" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java_start(Thread*) (581 samples, 44.25%)</title><rect x="587.0" y="885" width="522.1" height="15.0" fill="rgb(203,54,54)" rx="2" ry="2" />
+<text x="589.97" y="895.5">java_start(Thread*)</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/java2d/xr/XRGraphicsConfig.createSurfaceData (10 samples, 0.76%)</title><rect x="378.5" y="357" width="9.0" height="15.0" fill="rgb(101,247,101)" rx="2" ry="2" />
+<text x="381.47" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (15 samples, 1.14%)</title><rect x="455.8" y="325" width="13.4" height="15.0" fill="rgb(106,252,106)" rx="2" ry="2" />
+<text x="458.76" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/GlobalCursorManager._updateCursor (9 samples, 0.69%)</title><rect x="498.0" y="501" width="8.1" height="15.0" fill="rgb(80,227,80)" rx="2" ry="2" />
+<text x="501.00" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>start_thread (581 samples, 44.25%)</title><rect x="587.0" y="901" width="522.1" height="15.0" fill="rgb(217,75,75)" rx="2" ry="2" />
+<text x="589.97" y="911.5">start_thread</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="197" width="10.8" height="15.0" fill="rgb(97,243,97)" rx="2" ry="2" />
+<text x="353.61" y="207.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/GifImageDecoder.sendPixels (11 samples, 0.84%)</title><rect x="1116.3" y="805" width="9.9" height="15.0" fill="rgb(87,234,87)" rx="2" ry="2" />
+<text x="1119.31" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compile::Code_Gen() (188 samples, 14.32%)</title><rect x="612.1" y="773" width="169.0" height="15.0" fill="rgb(204,204,60)" rx="2" ry="2" />
+<text x="615.13" y="783.5">Compile::Code_Gen()</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (18 samples, 1.37%)</title><rect x="1144.2" y="773" width="16.1" height="15.0" fill="rgb(205,57,57)" rx="2" ry="2" />
+<text x="1147.17" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ListDemo.&lt;init&gt; (10 samples, 0.76%)</title><rect x="84.6" y="789" width="9.0" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="87.59" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (8 samples, 0.61%)</title><rect x="433.3" y="325" width="7.2" height="15.0" fill="rgb(107,252,107)" rx="2" ry="2" />
+<text x="436.29" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue.dispatchEventImpl (48 samples, 3.66%)</title><rect x="497.1" y="629" width="43.1" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="500.10" y="639.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JButton.&lt;init&gt; (11 samples, 0.84%)</title><rect x="31.6" y="741" width="9.9" height="15.0" fill="rgb(53,203,53)" rx="2" ry="2" />
+<text x="34.57" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JavaThread::run() (533 samples, 40.59%)</title><rect x="610.3" y="869" width="479.0" height="15.0" fill="rgb(185,185,53)" rx="2" ry="2" />
+<text x="613.34" y="879.5">JavaThread::run()</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/text/JTextComponent.&lt;init&gt; (12 samples, 0.91%)</title><rect x="260.7" y="821" width="10.8" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="263.74" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="133" width="10.8" height="15.0" fill="rgb(67,215,67)" rx="2" ry="2" />
+<text x="353.61" y="143.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JLayeredPane.paint (13 samples, 0.99%)</title><rect x="455.8" y="213" width="11.6" height="15.0" fill="rgb(62,211,62)" rx="2" ry="2" />
+<text x="458.76" y="223.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (18 samples, 1.37%)</title><rect x="455.8" y="341" width="16.1" height="15.0" fill="rgb(85,232,85)" rx="2" ry="2" />
+<text x="458.76" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XGlobalCursorManager.setCursor (10 samples, 0.76%)</title><rect x="484.5" y="501" width="9.0" height="15.0" fill="rgb(72,220,72)" rx="2" ry="2" />
+<text x="487.52" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::Parse(JVMState*, ciMethod*, float) (9 samples, 0.69%)</title><rect x="889.8" y="661" width="8.1" height="15.0" fill="rgb(192,192,56)" rx="2" ry="2" />
+<text x="892.83" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLClassLoader.findClass (8 samples, 0.61%)</title><rect x="13.6" y="773" width="7.2" height="15.0" fill="rgb(93,239,93)" rx="2" ry="2" />
+<text x="16.59" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/LightweightDispatcher.retargetMouseEvent (29 samples, 2.21%)</title><rect x="509.7" y="501" width="26.0" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="512.68" y="511.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_all_blocks() (18 samples, 1.37%)</title><rect x="886.2" y="741" width="16.2" height="15.0" fill="rgb(187,187,54)" rx="2" ry="2" />
+<text x="889.24" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/AbstractButton.setUI (10 samples, 0.76%)</title><rect x="31.6" y="693" width="9.0" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="34.57" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicDesktopIconUI.installUI (14 samples, 1.07%)</title><rect x="297.6" y="725" width="12.6" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="300.59" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.paint (8 samples, 0.61%)</title><rect x="433.3" y="437" width="7.2" height="15.0" fill="rgb(61,210,61)" rx="2" ry="2" />
+<text x="436.29" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validate (13 samples, 0.99%)</title><rect x="484.5" y="581" width="11.7" height="15.0" fill="rgb(104,249,104)" rx="2" ry="2" />
+<text x="487.52" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ip_finish_output (10 samples, 0.76%)</title><rect x="484.5" y="181" width="9.0" height="15.0" fill="rgb(244,144,0)" rx="2" ry="2" />
+<text x="487.52" y="191.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.updateCursorImmediately (10 samples, 0.76%)</title><rect x="484.5" y="549" width="9.0" height="15.0" fill="rgb(89,236,89)" rx="2" ry="2" />
+<text x="487.52" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compiler::compile_method(ciEnv*, ciMethod*, int) (160 samples, 12.19%)</title><rect x="913.2" y="805" width="143.8" height="15.0" fill="rgb(199,199,58)" rx="2" ry="2" />
+<text x="916.20" y="815.5">Compiler::compile_..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JLayeredPane.paint (8 samples, 0.61%)</title><rect x="433.3" y="373" width="7.2" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="436.29" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XBaseWindow.dispatchToWindow (29 samples, 2.21%)</title><rect x="551.9" y="837" width="26.1" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="554.92" y="847.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="165" width="10.8" height="15.0" fill="rgb(71,219,71)" rx="2" ry="2" />
+<text x="353.61" y="175.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLClassLoader.access$100 (8 samples, 0.61%)</title><rect x="13.6" y="709" width="7.2" height="15.0" fill="rgb(106,251,106)" rx="2" ry="2" />
+<text x="16.59" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.pumpEventsForHierarchy (235 samples, 17.90%)</title><rect x="333.5" y="853" width="211.2" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="336.53" y="863.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindow.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="501" width="27.8" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="374.28" y="511.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$3.run (182 samples, 13.86%)</title><rect x="333.5" y="741" width="163.6" height="15.0" fill="rgb(89,235,89)" rx="2" ry="2" />
+<text x="336.53" y="751.5">java/awt/EventQueue$3..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue.dispatchEventImpl (182 samples, 13.86%)</title><rect x="333.5" y="709" width="163.6" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="336.53" y="719.5">java/awt/EventQueue.d..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.setDemo (9 samples, 0.69%)</title><rect x="320.1" y="853" width="8.0" height="15.0" fill="rgb(89,235,89)" rx="2" ry="2" />
+<text x="323.05" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::Select() (8 samples, 0.61%)</title><rect x="662.5" y="741" width="7.1" height="15.0" fill="rgb(200,200,59)" rx="2" ry="2" />
+<text x="665.46" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintComponent (8 samples, 0.61%)</title><rect x="473.7" y="437" width="7.2" height="15.0" fill="rgb(103,249,103)" rx="2" ry="2" />
+<text x="476.73" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XDropTargetRegistry.registerDropSite (10 samples, 0.76%)</title><rect x="352.4" y="37" width="9.0" height="15.0" fill="rgb(68,216,68)" rx="2" ry="2" />
+<text x="355.41" y="47.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>JvmtiDeferredEvent::post() (8 samples, 0.61%)</title><rect x="1075.9" y="821" width="7.2" height="15.0" fill="rgb(190,190,55)" rx="2" ry="2" />
+<text x="1078.86" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="405" width="8.1" height="15.0" fill="rgb(94,240,94)" rx="2" ry="2" />
+<text x="513.58" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScan::assign_reg_num() (11 samples, 0.84%)</title><rect x="1007.6" y="709" width="9.8" height="15.0" fill="rgb(193,193,56)" rx="2" ry="2" />
+<text x="1010.56" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>entry_SYSCALL_64_fastpath (10 samples, 0.76%)</title><rect x="484.5" y="421" width="9.0" height="15.0" fill="rgb(227,127,0)" rx="2" ry="2" />
+<text x="487.52" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (19 samples, 1.45%)</title><rect x="1144.2" y="805" width="17.0" height="15.0" fill="rgb(210,65,65)" rx="2" ry="2" />
+<text x="1147.17" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.access$1200 (58 samples, 4.42%)</title><rect x="431.5" y="661" width="52.1" height="15.0" fill="rgb(56,206,56)" rx="2" ry="2" />
+<text x="434.49" y="671.5">javax..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/AccessController.doPrivileged (14 samples, 1.07%)</title><rect x="483.6" y="629" width="12.6" height="15.0" fill="rgb(84,231,84)" rx="2" ry="2" />
+<text x="486.62" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/net/www/protocol/file/FileURLConnection.getHeaderField (14 samples, 1.07%)</title><rect x="418.0" y="597" width="12.6" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="421.01" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/net/www/protocol/jar/JarURLConnection.getHeaderField (14 samples, 1.07%)</title><rect x="418.0" y="613" width="12.6" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="421.01" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TreeDemo.&lt;init&gt; (17 samples, 1.29%)</title><rect x="161.9" y="789" width="15.3" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="164.88" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseCFG::do_global_code_motion() (9 samples, 0.69%)</title><rect x="645.4" y="757" width="8.1" height="15.0" fill="rgb(190,190,55)" rx="2" ry="2" />
+<text x="648.38" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::initialize_impl(instanceKlassHandle, Thread*) (10 samples, 0.76%)</title><rect x="361.4" y="565" width="9.0" height="15.0" fill="rgb(194,194,57)" rx="2" ry="2" />
+<text x="364.39" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="325" width="12.6" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="351.81" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::iterate_bytecodes_for_block(int) (33 samples, 2.51%)</title><rect x="927.6" y="661" width="29.6" height="15.0" fill="rgb(215,215,64)" rx="2" ry="2" />
+<text x="930.58" y="671.5">Gr..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScan::assign_reg_num(LIR_OpList*, IntervalWalker*) (11 samples, 0.84%)</title><rect x="1007.6" y="693" width="9.8" height="15.0" fill="rgb(229,229,69)" rx="2" ry="2" />
+<text x="1010.56" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="533" width="10.8" height="15.0" fill="rgb(53,202,53)" rx="2" ry="2" />
+<text x="338.33" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusDefaults$LazyStyle$Part.&lt;init&gt; (21 samples, 1.60%)</title><rect x="185.2" y="645" width="18.9" height="15.0" fill="rgb(87,234,87)" rx="2" ry="2" />
+<text x="188.25" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTree.&lt;init&gt; (11 samples, 0.84%)</title><rect x="164.6" y="709" width="9.9" height="15.0" fill="rgb(107,252,107)" rx="2" ry="2" />
+<text x="167.58" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XToolkit.run (43 samples, 3.27%)</title><rect x="547.4" y="885" width="38.7" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="550.43" y="895.5">sun..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (16 samples, 1.22%)</title><rect x="347.0" y="597" width="14.4" height="15.0" fill="rgb(87,234,87)" rx="2" ry="2" />
+<text x="350.01" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Window.addNotify (16 samples, 1.22%)</title><rect x="347.0" y="613" width="14.4" height="15.0" fill="rgb(88,234,88)" rx="2" ry="2" />
+<text x="350.01" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Class.forName0 (16 samples, 1.22%)</title><rect x="185.2" y="613" width="14.4" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="188.25" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::link_class_impl(instanceKlassHandle, bool, Thread*) (10 samples, 0.76%)</title><rect x="361.4" y="549" width="9.0" height="15.0" fill="rgb(193,193,56)" rx="2" ry="2" />
+<text x="364.39" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="421" width="8.1" height="15.0" fill="rgb(67,216,67)" rx="2" ry="2" />
+<text x="513.58" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>vfs_writev (10 samples, 0.76%)</title><rect x="484.5" y="389" width="9.0" height="15.0" fill="rgb(252,152,0)" rx="2" ry="2" />
+<text x="487.52" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XBaseWindow.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="485" width="27.8" height="15.0" fill="rgb(83,231,83)" rx="2" ry="2" />
+<text x="374.28" y="495.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InternalFrameDemo.&lt;init&gt; (53 samples, 4.04%)</title><rect x="271.5" y="853" width="47.7" height="15.0" fill="rgb(80,227,80)" rx="2" ry="2" />
+<text x="274.52" y="863.5">Inte..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIterGVN::optimize() (9 samples, 0.69%)</title><rect x="871.9" y="757" width="8.0" height="15.0" fill="rgb(227,227,69)" rx="2" ry="2" />
+<text x="874.86" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InternalFrameDemo.createInternalFramePalette (29 samples, 2.21%)</title><rect x="292.2" y="837" width="26.1" height="15.0" fill="rgb(83,231,83)" rx="2" ry="2" />
+<text x="295.19" y="847.5">I..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::iterate_bytecodes_for_block(int) (10 samples, 0.76%)</title><rect x="933.0" y="581" width="9.0" height="15.0" fill="rgb(216,216,64)" rx="2" ry="2" />
+<text x="935.97" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/BufferStrategyPaintManager.prepare (9 samples, 0.69%)</title><rect x="442.3" y="469" width="8.1" height="15.0" fill="rgb(61,210,61)" rx="2" ry="2" />
+<text x="445.28" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/text/JTextComponent.updateUI (12 samples, 0.91%)</title><rect x="260.7" y="805" width="10.8" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="263.74" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XCanvasPeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="533" width="27.8" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="374.28" y="543.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XDecoratedPeer.setIconHints (8 samples, 0.61%)</title><rect x="387.5" y="373" width="7.1" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="390.46" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2$1.run (81 samples, 6.17%)</title><rect x="333.5" y="677" width="72.8" height="15.0" fill="rgb(104,249,104)" rx="2" ry="2" />
+<text x="336.53" y="687.5">SwingSet..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::try_inline(ciMethod*, bool, Bytecodes::Code, Instruction*) (20 samples, 1.52%)</title><rect x="931.2" y="629" width="17.9" height="15.0" fill="rgb(177,177,50)" rx="2" ry="2" />
+<text x="934.17" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/NativeConstructorAccessorImpl.newInstance (174 samples, 13.25%)</title><rect x="20.8" y="821" width="156.4" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="23.78" y="831.5">sun/reflect/NativeCo..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (21 samples, 1.60%)</title><rect x="454.9" y="437" width="18.8" height="15.0" fill="rgb(77,224,77)" rx="2" ry="2" />
+<text x="457.86" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TreeDemo.createTree (17 samples, 1.29%)</title><rect x="161.9" y="773" width="15.3" height="15.0" fill="rgb(96,242,96)" rx="2" ry="2" />
+<text x="164.88" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>VMThread::run() (20 samples, 1.52%)</title><rect x="1089.3" y="869" width="18.0" height="15.0" fill="rgb(199,199,59)" rx="2" ry="2" />
+<text x="1092.35" y="879.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (17 samples, 1.29%)</title><rect x="1145.1" y="757" width="15.2" height="15.0" fill="rgb(221,81,81)" rx="2" ry="2" />
+<text x="1148.06" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::install_code(int) (15 samples, 1.14%)</title><rect x="1042.6" y="757" width="13.5" height="15.0" fill="rgb(213,213,64)" rx="2" ry="2" />
+<text x="1045.61" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.paintDirtyRegions (58 samples, 4.42%)</title><rect x="431.5" y="629" width="52.1" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="434.49" y="639.5">javax..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/font/FontDesignMetrics.initMatrixAndMetrics (9 samples, 0.69%)</title><rect x="298.5" y="581" width="8.1" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="301.48" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Class.forName0 (10 samples, 0.76%)</title><rect x="11.8" y="837" width="9.0" height="15.0" fill="rgb(72,220,72)" rx="2" ry="2" />
+<text x="14.80" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="581" width="10.8" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="338.33" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTextField.&lt;init&gt; (12 samples, 0.91%)</title><rect x="260.7" y="853" width="10.8" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="263.74" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JLayeredPane.paint (11 samples, 0.84%)</title><rect x="455.8" y="101" width="9.8" height="15.0" fill="rgb(96,242,96)" rx="2" ry="2" />
+<text x="458.76" y="111.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XFramePeer.postInit (27 samples, 2.06%)</title><rect x="371.3" y="453" width="24.2" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="374.28" y="463.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Window.dispatchEventImpl (44 samples, 3.35%)</title><rect x="498.0" y="597" width="39.5" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="501.00" y="607.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::emit_code_body() (27 samples, 2.06%)</title><rect x="964.4" y="741" width="24.3" height="15.0" fill="rgb(223,223,67)" rx="2" ry="2" />
+<text x="967.42" y="751.5">C..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue.access$500 (48 samples, 3.66%)</title><rect x="497.1" y="645" width="43.1" height="15.0" fill="rgb(104,250,104)" rx="2" ry="2" />
+<text x="500.10" y="655.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Window.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="357" width="8.1" height="15.0" fill="rgb(90,236,90)" rx="2" ry="2" />
+<text x="513.58" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.initializeDemo (105 samples, 8.00%)</title><rect x="177.2" y="869" width="94.3" height="15.0" fill="rgb(105,251,105)" rx="2" ry="2" />
+<text x="180.16" y="879.5">SwingSet2.i..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="389" width="8.1" height="15.0" fill="rgb(99,245,99)" rx="2" ry="2" />
+<text x="513.58" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="341" width="12.6" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="351.81" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame.&lt;init&gt; (21 samples, 1.60%)</title><rect x="297.6" y="821" width="18.9" height="15.0" fill="rgb(82,229,82)" rx="2" ry="2" />
+<text x="300.59" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/ClassLoader.loadClass (9 samples, 0.69%)</title><rect x="12.7" y="821" width="8.1" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="15.70" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="213" width="10.8" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="353.61" y="223.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.paint (43 samples, 3.27%)</title><rect x="442.3" y="501" width="38.6" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="445.28" y="511.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sys_writev (10 samples, 0.76%)</title><rect x="484.5" y="405" width="9.0" height="15.0" fill="rgb(203,103,0)" rx="2" ry="2" />
+<text x="487.52" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JLayeredPane.paint (20 samples, 1.52%)</title><rect x="455.8" y="421" width="17.9" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="458.76" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/misc/Launcher$AppClassLoader.loadClass (9 samples, 0.69%)</title><rect x="12.7" y="805" width="8.1" height="15.0" fill="rgb(77,224,77)" rx="2" ry="2" />
+<text x="15.70" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindowPeer.postInit (23 samples, 1.75%)</title><rect x="374.0" y="421" width="20.6" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="376.98" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.pSetCursor (10 samples, 0.76%)</title><rect x="484.5" y="485" width="9.0" height="15.0" fill="rgb(69,217,69)" rx="2" ry="2" />
+<text x="487.52" y="495.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (8 samples, 0.61%)</title><rect x="433.3" y="453" width="7.2" height="15.0" fill="rgb(74,222,74)" rx="2" ry="2" />
+<text x="436.29" y="463.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.showSwingSet2 (81 samples, 6.17%)</title><rect x="333.5" y="661" width="72.8" height="15.0" fill="rgb(93,239,93)" rx="2" ry="2" />
+<text x="336.53" y="671.5">SwingSet..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GCTaskThread::run() (26 samples, 1.98%)</title><rect x="587.0" y="869" width="23.3" height="15.0" fill="rgb(212,212,63)" rx="2" ry="2" />
+<text x="589.97" y="879.5">G..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.updateCursorImmediately (9 samples, 0.69%)</title><rect x="498.0" y="549" width="8.1" height="15.0" fill="rgb(92,238,92)" rx="2" ry="2" />
+<text x="501.00" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (13 samples, 0.99%)</title><rect x="520.5" y="277" width="11.6" height="15.0" fill="rgb(241,110,110)" rx="2" ry="2" />
+<text x="523.46" y="287.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::build_ifg_physical(ResourceArea*) (34 samples, 2.59%)</title><rect x="696.6" y="741" width="30.6" height="15.0" fill="rgb(201,201,59)" rx="2" ry="2" />
+<text x="699.61" y="751.5">Ph..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JScrollPane.&lt;init&gt; (8 samples, 0.61%)</title><rect x="246.4" y="853" width="7.1" height="15.0" fill="rgb(54,204,54)" rx="2" ry="2" />
+<text x="249.36" y="863.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScanWalker::activate_current() (10 samples, 0.76%)</title><rect x="996.8" y="677" width="9.0" height="15.0" fill="rgb(194,194,57)" rx="2" ry="2" />
+<text x="999.78" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLClassLoader$1.run (8 samples, 0.61%)</title><rect x="13.6" y="741" width="7.2" height="15.0" fill="rgb(90,237,90)" rx="2" ry="2" />
+<text x="16.59" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LinearScan::do_linear_scan() (46 samples, 3.50%)</title><rect x="995.0" y="725" width="41.3" height="15.0" fill="rgb(188,188,55)" rx="2" ry="2" />
+<text x="997.98" y="735.5">Lin..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JTree.&lt;init&gt; (12 samples, 0.91%)</title><rect x="163.7" y="741" width="10.8" height="15.0" fill="rgb(109,254,109)" rx="2" ry="2" />
+<text x="166.68" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Matcher::match() (18 samples, 1.37%)</title><rect x="628.3" y="757" width="16.2" height="15.0" fill="rgb(225,225,68)" rx="2" ry="2" />
+<text x="631.31" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_one_bytecode() (18 samples, 1.37%)</title><rect x="886.2" y="709" width="16.2" height="15.0" fill="rgb(199,199,58)" rx="2" ry="2" />
+<text x="889.24" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (11 samples, 0.84%)</title><rect x="455.8" y="85" width="9.8" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="458.76" y="95.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/net/www/protocol/jar/JarURLConnection.getContentType (11 samples, 0.84%)</title><rect x="1174.7" y="837" width="9.9" height="15.0" fill="rgb(53,203,53)" rx="2" ry="2" />
+<text x="1177.72" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.doLayout (8 samples, 0.61%)</title><rect x="335.3" y="485" width="7.2" height="15.0" fill="rgb(74,222,74)" rx="2" ry="2" />
+<text x="338.33" y="495.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComboBox.updateUI (9 samples, 0.69%)</title><rect x="56.7" y="709" width="8.1" height="15.0" fill="rgb(59,209,59)" rx="2" ry="2" />
+<text x="59.73" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.pumpOneEventForFilters (235 samples, 17.90%)</title><rect x="333.5" y="821" width="211.2" height="15.0" fill="rgb(69,217,69)" rx="2" ry="2" />
+<text x="336.53" y="831.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/DelegatingConstructorAccessorImpl.newInstance (174 samples, 13.25%)</title><rect x="20.8" y="837" width="156.4" height="15.0" fill="rgb(78,226,78)" rx="2" ry="2" />
+<text x="23.78" y="847.5">sun/reflect/Delegati..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XlibWrapper.XFlush (10 samples, 0.76%)</title><rect x="484.5" y="469" width="9.0" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="487.52" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindowPeer.addDropTarget (11 samples, 0.84%)</title><rect x="351.5" y="53" width="9.9" height="15.0" fill="rgb(92,239,92)" rx="2" ry="2" />
+<text x="354.51" y="63.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (8 samples, 0.61%)</title><rect x="433.3" y="277" width="7.2" height="15.0" fill="rgb(65,214,65)" rx="2" ry="2" />
+<text x="436.29" y="287.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/GifImageDecoder.readImage (18 samples, 1.37%)</title><rect x="1114.5" y="837" width="16.2" height="15.0" fill="rgb(68,217,68)" rx="2" ry="2" />
+<text x="1117.51" y="847.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/reflect/NativeConstructorAccessorImpl.newInstance0 (28 samples, 2.13%)</title><rect x="182.6" y="741" width="25.1" height="15.0" fill="rgb(52,202,52)" rx="2" ry="2" />
+<text x="185.55" y="751.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Java_java_lang_Class_forName0 (11 samples, 0.84%)</title><rect x="185.2" y="597" width="9.9" height="15.0" fill="rgb(253,128,128)" rx="2" ry="2" />
+<text x="188.25" y="607.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::emit_lir() (53 samples, 4.04%)</title><rect x="988.7" y="741" width="47.6" height="15.0" fill="rgb(219,219,66)" rx="2" ry="2" />
+<text x="991.69" y="751.5">Comp..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>__dev_queue_xmit (10 samples, 0.76%)</title><rect x="484.5" y="133" width="9.0" height="15.0" fill="rgb(208,108,0)" rx="2" ry="2" />
+<text x="487.52" y="143.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>all (1,313 samples, 100%)</title><rect x="10.0" y="917" width="1180.0" height="15.0" fill="rgb(208,62,62)" rx="2" ry="2" />
+<text x="13.00" y="927.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/AccessController.doPrivileged (53 samples, 4.04%)</title><rect x="433.3" y="581" width="47.6" height="15.0" fill="rgb(103,249,103)" rx="2" ry="2" />
+<text x="436.29" y="591.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane.&lt;init&gt; (32 samples, 2.44%)</title><rect x="217.6" y="853" width="28.8" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="220.60" y="863.5">ja..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="501" width="10.8" height="15.0" fill="rgb(80,227,80)" rx="2" ry="2" />
+<text x="338.33" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintToOffscreen (8 samples, 0.61%)</title><rect x="433.3" y="405" width="7.2" height="15.0" fill="rgb(66,215,66)" rx="2" ry="2" />
+<text x="436.29" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.preloadFirstDemo (64 samples, 4.87%)</title><rect x="271.5" y="869" width="57.5" height="15.0" fill="rgb(79,226,79)" rx="2" ry="2" />
+<text x="274.52" y="879.5">SwingS..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::link_class_impl(instanceKlassHandle, bool, Thread*) (9 samples, 0.69%)</title><rect x="361.4" y="517" width="8.1" height="15.0" fill="rgb(222,222,67)" rx="2" ry="2" />
+<text x="364.39" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege (48 samples, 3.66%)</title><rect x="497.1" y="725" width="43.1" height="15.0" fill="rgb(89,235,89)" rx="2" ry="2" />
+<text x="500.10" y="735.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Class.forName (17 samples, 1.29%)</title><rect x="185.2" y="629" width="15.3" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="188.25" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/im/InputContext.getInputMethodInstance (19 samples, 1.45%)</title><rect x="518.7" y="389" width="17.0" height="15.0" fill="rgb(85,232,85)" rx="2" ry="2" />
+<text x="521.67" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>tcp_transmit_skb (10 samples, 0.76%)</title><rect x="484.5" y="245" width="9.0" height="15.0" fill="rgb(227,127,0)" rx="2" ry="2" />
+<text x="487.52" y="255.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="389" width="12.6" height="15.0" fill="rgb(90,237,90)" rx="2" ry="2" />
+<text x="351.81" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.layout (8 samples, 0.61%)</title><rect x="335.3" y="469" width="7.2" height="15.0" fill="rgb(76,224,76)" rx="2" ry="2" />
+<text x="338.33" y="479.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (20 samples, 1.52%)</title><rect x="455.8" y="405" width="17.9" height="15.0" fill="rgb(59,208,59)" rx="2" ry="2" />
+<text x="458.76" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="517" width="10.8" height="15.0" fill="rgb(91,238,91)" rx="2" ry="2" />
+<text x="338.33" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>dev_hard_start_xmit (10 samples, 0.76%)</title><rect x="484.5" y="101" width="9.0" height="15.0" fill="rgb(253,153,0)" rx="2" ry="2" />
+<text x="487.52" y="111.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XDecoratedPeer.postInit (26 samples, 1.98%)</title><rect x="371.3" y="437" width="23.3" height="15.0" fill="rgb(79,227,79)" rx="2" ry="2" />
+<text x="374.28" y="447.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::initialize(Thread*) (11 samples, 0.84%)</title><rect x="185.2" y="549" width="9.9" height="15.0" fill="rgb(186,186,54)" rx="2" ry="2" />
+<text x="188.25" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$3.run (182 samples, 13.86%)</title><rect x="333.5" y="757" width="163.6" height="15.0" fill="rgb(91,237,91)" rx="2" ry="2" />
+<text x="336.53" y="767.5">java/awt/EventQueue$3..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compilation::compile_java_method() (142 samples, 10.81%)</title><rect x="913.2" y="757" width="127.6" height="15.0" fill="rgb(181,181,52)" rx="2" ry="2" />
+<text x="916.20" y="767.5">Compilation::com..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/nimbus/NimbusLookAndFeel.&lt;init&gt; (28 samples, 2.13%)</title><rect x="182.6" y="725" width="25.1" height="15.0" fill="rgb(104,249,104)" rx="2" ry="2" />
+<text x="185.55" y="735.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JButton.updateUI (11 samples, 0.84%)</title><rect x="31.6" y="709" width="9.9" height="15.0" fill="rgb(107,252,107)" rx="2" ry="2" />
+<text x="34.57" y="719.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SplitPaneDemo.&lt;init&gt; (9 samples, 0.69%)</title><rect x="115.1" y="789" width="8.1" height="15.0" fill="rgb(85,232,85)" rx="2" ry="2" />
+<text x="118.15" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.setUI (8 samples, 0.61%)</title><rect x="56.7" y="677" width="7.2" height="15.0" fill="rgb(55,205,55)" rx="2" ry="2" />
+<text x="59.73" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::get_jmethod_id(instanceKlassHandle, methodHandle) (9 samples, 0.69%)</title><rect x="186.1" y="453" width="8.1" height="15.0" fill="rgb(184,184,53)" rx="2" ry="2" />
+<text x="189.15" y="463.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="517" width="27.8" height="15.0" fill="rgb(101,247,101)" rx="2" ry="2" />
+<text x="374.28" y="527.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XWindow.postInit (13 samples, 0.99%)</title><rect x="375.8" y="373" width="11.7" height="15.0" fill="rgb(90,236,90)" rx="2" ry="2" />
+<text x="378.77" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compile::Optimize() (114 samples, 8.68%)</title><rect x="781.1" y="773" width="102.4" height="15.0" fill="rgb(219,219,66)" rx="2" ry="2" />
+<text x="784.09" y="783.5">Compile::Opt..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicHTML.updateRenderer (10 samples, 0.76%)</title><rect x="31.6" y="645" width="9.0" height="15.0" fill="rgb(90,236,90)" rx="2" ry="2" />
+<text x="34.57" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.getPreferredSize (12 samples, 0.91%)</title><rect x="297.6" y="693" width="10.8" height="15.0" fill="rgb(82,229,82)" rx="2" ry="2" />
+<text x="300.59" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (11 samples, 0.84%)</title><rect x="455.8" y="117" width="9.8" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="458.76" y="127.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XInputMethod.openXIM (17 samples, 1.29%)</title><rect x="520.5" y="309" width="15.2" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="523.46" y="319.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame$JDesktopIcon.setUI (14 samples, 1.07%)</title><rect x="297.6" y="757" width="12.6" height="15.0" fill="rgb(106,251,106)" rx="2" ry="2" />
+<text x="300.59" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.pumpEvents (235 samples, 17.90%)</title><rect x="333.5" y="869" width="211.2" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="336.53" y="879.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/text/SimpleDateFormat.&lt;init&gt; (10 samples, 0.76%)</title><rect x="420.7" y="565" width="9.0" height="15.0" fill="rgb(59,209,59)" rx="2" ry="2" />
+<text x="423.71" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11InputMethod.initXIM (17 samples, 1.29%)</title><rect x="520.5" y="325" width="15.2" height="15.0" fill="rgb(77,225,77)" rx="2" ry="2" />
+<text x="523.46" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>GraphBuilder::invoke(Bytecodes::Code) (28 samples, 2.13%)</title><rect x="931.2" y="645" width="25.1" height="15.0" fill="rgb(217,217,65)" rx="2" ry="2" />
+<text x="934.17" y="655.5">G..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="229" width="10.8" height="15.0" fill="rgb(60,209,60)" rx="2" ry="2" />
+<text x="353.61" y="239.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane.setContentType (24 samples, 1.83%)</title><rect x="220.3" y="837" width="21.6" height="15.0" fill="rgb(62,211,62)" rx="2" ry="2" />
+<text x="223.30" y="847.5">j..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege (14 samples, 1.07%)</title><rect x="483.6" y="645" width="12.6" height="15.0" fill="rgb(78,225,78)" rx="2" ry="2" />
+<text x="486.62" y="655.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager$ProcessingRunnable.run (72 samples, 5.48%)</title><rect x="431.5" y="677" width="64.7" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="434.49" y="687.5">javax/s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sock_sendmsg (10 samples, 0.76%)</title><rect x="484.5" y="341" width="9.0" height="15.0" fill="rgb(254,154,0)" rx="2" ry="2" />
+<text x="487.52" y="351.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XToolkit.createFrame (42 samples, 3.20%)</title><rect x="361.4" y="613" width="37.7" height="15.0" fill="rgb(68,217,68)" rx="2" ry="2" />
+<text x="364.39" y="623.5">sun..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicButtonUI.installUI (10 samples, 0.76%)</title><rect x="31.6" y="661" width="9.0" height="15.0" fill="rgb(64,213,64)" rx="2" ry="2" />
+<text x="34.57" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Method::make_jmethod_id(ClassLoaderData*, Method*) (9 samples, 0.69%)</title><rect x="186.1" y="437" width="8.1" height="15.0" fill="rgb(207,207,61)" rx="2" ry="2" />
+<text x="189.15" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XComponentPeer.postInit (14 samples, 1.07%)</title><rect x="374.9" y="389" width="12.6" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="377.87" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame.&lt;init&gt; (21 samples, 1.60%)</title><rect x="297.6" y="805" width="18.9" height="15.0" fill="rgb(109,254,109)" rx="2" ry="2" />
+<text x="300.59" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="517" width="12.6" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="351.81" y="527.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (20 samples, 1.52%)</title><rect x="455.8" y="373" width="17.9" height="15.0" fill="rgb(62,211,62)" rx="2" ry="2" />
+<text x="458.76" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XInputMethodDescriptor.createInputMethod (19 samples, 1.45%)</title><rect x="518.7" y="373" width="17.0" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="521.67" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="437" width="8.1" height="15.0" fill="rgb(101,246,101)" rx="2" ry="2" />
+<text x="513.58" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/swing/SwingUtilities2.getFontMetrics (10 samples, 0.76%)</title><rect x="297.6" y="629" width="9.0" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="300.59" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/SunGraphicsCallback.runComponents (8 samples, 0.61%)</title><rect x="433.3" y="501" width="7.2" height="15.0" fill="rgb(105,251,105)" rx="2" ry="2" />
+<text x="436.29" y="511.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.isAvailableLookAndFeel (29 samples, 2.21%)</title><rect x="181.7" y="821" width="26.0" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="184.65" y="831.5">S..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>C2Compiler::compile_method(ciEnv*, ciMethod*, int) (332 samples, 25.29%)</title><rect x="611.2" y="805" width="298.4" height="15.0" fill="rgb(177,177,50)" rx="2" ry="2" />
+<text x="614.23" y="815.5">C2Compiler::compile_method(ciEnv*, ciMet..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (13 samples, 0.99%)</title><rect x="455.8" y="261" width="11.6" height="15.0" fill="rgb(70,218,70)" rx="2" ry="2" />
+<text x="458.76" y="271.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.validateInvalidComponents (14 samples, 1.07%)</title><rect x="483.6" y="661" width="12.6" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="486.62" y="671.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::Simplify() (13 samples, 0.99%)</title><rect x="669.6" y="741" width="11.7" height="15.0" fill="rgb(202,202,60)" rx="2" ry="2" />
+<text x="672.65" y="751.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventDispatchThread.pumpEventsForFilter (235 samples, 17.90%)</title><rect x="333.5" y="837" width="211.2" height="15.0" fill="rgb(73,221,73)" rx="2" ry="2" />
+<text x="336.53" y="847.5">java/awt/EventDispatchThrea..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="261" width="10.8" height="15.0" fill="rgb(84,232,84)" rx="2" ry="2" />
+<text x="353.61" y="271.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JRootPane.addNotify (16 samples, 1.22%)</title><rect x="347.0" y="581" width="14.4" height="15.0" fill="rgb(62,211,62)" rx="2" ry="2" />
+<text x="350.01" y="591.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (11 samples, 0.84%)</title><rect x="455.8" y="53" width="9.8" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="458.76" y="63.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::Parse(JVMState*, ciMethod*, float) (19 samples, 1.45%)</title><rect x="885.3" y="757" width="17.1" height="15.0" fill="rgb(179,179,51)" rx="2" ry="2" />
+<text x="888.34" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/lang/Thread.run (46 samples, 3.50%)</title><rect x="544.7" y="901" width="41.4" height="15.0" fill="rgb(67,215,67)" rx="2" ry="2" />
+<text x="547.73" y="911.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>[unknown] (18 samples, 1.37%)</title><rect x="1144.2" y="789" width="16.1" height="15.0" fill="rgb(212,68,68)" rx="2" ry="2" />
+<text x="1147.17" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/java2d/xr/XRSurfaceData$XRWindowSurfaceData.&lt;init&gt; (10 samples, 0.76%)</title><rect x="378.5" y="325" width="9.0" height="15.0" fill="rgb(68,216,68)" rx="2" ry="2" />
+<text x="381.47" y="335.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (8 samples, 0.61%)</title><rect x="433.3" y="389" width="7.2" height="15.0" fill="rgb(100,246,100)" rx="2" ry="2" />
+<text x="436.29" y="399.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XPanelPeer.&lt;init&gt; (31 samples, 2.36%)</title><rect x="371.3" y="549" width="27.8" height="15.0" fill="rgb(78,226,78)" rx="2" ry="2" />
+<text x="374.28" y="559.5">s..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/image/ImageRepresentation.setPixels (10 samples, 0.76%)</title><rect x="1117.2" y="773" width="9.0" height="15.0" fill="rgb(107,252,107)" rx="2" ry="2" />
+<text x="1120.20" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="373" width="12.6" height="15.0" fill="rgb(70,218,70)" rx="2" ry="2" />
+<text x="351.81" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="437" width="12.6" height="15.0" fill="rgb(80,228,80)" rx="2" ry="2" />
+<text x="351.81" y="447.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.getInputContext (9 samples, 0.69%)</title><rect x="510.6" y="373" width="8.1" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="513.58" y="383.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ip_queue_xmit (10 samples, 0.76%)</title><rect x="484.5" y="229" width="9.0" height="15.0" fill="rgb(249,149,0)" rx="2" ry="2" />
+<text x="487.52" y="239.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (13 samples, 0.99%)</title><rect x="455.8" y="149" width="11.6" height="15.0" fill="rgb(94,241,94)" rx="2" ry="2" />
+<text x="458.76" y="159.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sch_direct_xmit (10 samples, 0.76%)</title><rect x="484.5" y="117" width="9.0" height="15.0" fill="rgb(194,94,0)" rx="2" ry="2" />
+<text x="487.52" y="127.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>IntervalWalker::walk_to(int) (10 samples, 0.76%)</title><rect x="996.8" y="693" width="9.0" height="15.0" fill="rgb(212,212,63)" rx="2" ry="2" />
+<text x="999.78" y="703.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="453" width="12.6" height="15.0" fill="rgb(104,250,104)" rx="2" ry="2" />
+<text x="351.81" y="463.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Parse::do_one_block() (18 samples, 1.37%)</title><rect x="886.2" y="725" width="16.2" height="15.0" fill="rgb(214,214,64)" rx="2" ry="2" />
+<text x="889.24" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.setUI (10 samples, 0.76%)</title><rect x="31.6" y="677" width="9.0" height="15.0" fill="rgb(106,251,106)" rx="2" ry="2" />
+<text x="34.57" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::Register_Allocate() (139 samples, 10.59%)</title><rect x="654.4" y="757" width="124.9" height="15.0" fill="rgb(225,225,68)" rx="2" ry="2" />
+<text x="657.37" y="767.5">PhaseChaitin::R..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLClassLoader$1.run (8 samples, 0.61%)</title><rect x="13.6" y="725" width="7.2" height="15.0" fill="rgb(91,238,91)" rx="2" ry="2" />
+<text x="16.59" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>TreeDemo$1.&lt;init&gt; (12 samples, 0.91%)</title><rect x="163.7" y="757" width="10.8" height="15.0" fill="rgb(81,228,81)" rx="2" ry="2" />
+<text x="166.68" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege (53 samples, 4.04%)</title><rect x="433.3" y="597" width="47.6" height="15.0" fill="rgb(90,237,90)" rx="2" ry="2" />
+<text x="436.29" y="607.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (13 samples, 0.99%)</title><rect x="455.8" y="165" width="11.6" height="15.0" fill="rgb(91,238,91)" rx="2" ry="2" />
+<text x="458.76" y="175.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (13 samples, 0.99%)</title><rect x="455.8" y="181" width="11.6" height="15.0" fill="rgb(53,203,53)" rx="2" ry="2" />
+<text x="458.76" y="191.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>LIR_Assembler::emit_code(BlockList*) (16 samples, 1.22%)</title><rect x="972.5" y="725" width="14.4" height="15.0" fill="rgb(214,214,64)" rx="2" ry="2" />
+<text x="975.51" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/plaf/basic/BasicHTML.createHTMLView (10 samples, 0.76%)</title><rect x="31.6" y="629" width="9.0" height="15.0" fill="rgb(84,231,84)" rx="2" ry="2" />
+<text x="34.57" y="639.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/security/ProtectionDomain$JavaSecurityAccessImpl.doIntersectionPrivilege (230 samples, 17.52%)</title><rect x="333.5" y="789" width="206.7" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="336.53" y="799.5">java/security/ProtectionDom..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JEditorPane.setEditorKit (19 samples, 1.45%)</title><rect x="224.8" y="821" width="17.1" height="15.0" fill="rgb(93,239,93)" rx="2" ry="2" />
+<text x="227.79" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validateTree (12 samples, 0.91%)</title><rect x="335.3" y="565" width="10.8" height="15.0" fill="rgb(64,213,64)" rx="2" ry="2" />
+<text x="338.33" y="575.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>tcp_write_xmit (10 samples, 0.76%)</title><rect x="484.5" y="261" width="9.0" height="15.0" fill="rgb(202,102,0)" rx="2" ry="2" />
+<text x="487.52" y="271.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/im/InputContext.dispatchEvent (19 samples, 1.45%)</title><rect x="518.7" y="421" width="17.0" height="15.0" fill="rgb(59,208,59)" rx="2" ry="2" />
+<text x="521.67" y="431.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (13 samples, 0.99%)</title><rect x="349.7" y="293" width="11.7" height="15.0" fill="rgb(78,226,78)" rx="2" ry="2" />
+<text x="352.71" y="303.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XToolkit.dispatchEvent (32 samples, 2.44%)</title><rect x="551.9" y="853" width="28.8" height="15.0" fill="rgb(105,251,105)" rx="2" ry="2" />
+<text x="554.92" y="863.5">su..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent._paintImmediately (45 samples, 3.43%)</title><rect x="440.5" y="517" width="40.4" height="15.0" fill="rgb(54,203,54)" rx="2" ry="2" />
+<text x="443.48" y="527.5">jav..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>Compile::Output() (10 samples, 0.76%)</title><rect x="612.1" y="757" width="9.0" height="15.0" fill="rgb(193,193,56)" rx="2" ry="2" />
+<text x="615.13" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseChaitin::interfere_with_live(unsigned int, IndexSet*) (14 samples, 1.07%)</title><rect x="708.3" y="725" width="12.6" height="15.0" fill="rgb(203,203,60)" rx="2" ry="2" />
+<text x="711.29" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/text/SimpleDateFormat.initializeCalendar (9 samples, 0.69%)</title><rect x="421.6" y="549" width="8.1" height="15.0" fill="rgb(106,251,106)" rx="2" ry="2" />
+<text x="424.61" y="559.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.loadDemo (184 samples, 14.01%)</title><rect x="11.8" y="869" width="165.4" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="14.80" y="879.5">SwingSet2.loadDemo</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XToolkit.run (43 samples, 3.27%)</title><rect x="547.4" y="869" width="38.7" height="15.0" fill="rgb(61,210,61)" rx="2" ry="2" />
+<text x="550.43" y="879.5">sun..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (8 samples, 0.61%)</title><rect x="433.3" y="357" width="7.2" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="436.29" y="367.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (13 samples, 0.99%)</title><rect x="455.8" y="277" width="11.6" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="458.76" y="287.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SwingSet2.main (169 samples, 12.87%)</title><rect x="177.2" y="901" width="151.8" height="15.0" fill="rgb(66,214,66)" rx="2" ry="2" />
+<text x="180.16" y="911.5">SwingSet2.main</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.validate (12 samples, 0.91%)</title><rect x="335.3" y="613" width="10.8" height="15.0" fill="rgb(68,217,68)" rx="2" ry="2" />
+<text x="338.33" y="623.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/EventQueue$3.run (48 samples, 3.66%)</title><rect x="497.1" y="661" width="43.1" height="15.0" fill="rgb(98,244,98)" rx="2" ry="2" />
+<text x="500.10" y="671.5">java..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>IRScope::IRScope(Compilation*, IRScope*, int, ciMethod*, int, bool) (43 samples, 3.27%)</title><rect x="919.5" y="709" width="38.6" height="15.0" fill="rgb(178,178,51)" rx="2" ry="2" />
+<text x="922.49" y="719.5">IRS..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>tcp_push (10 samples, 0.76%)</title><rect x="484.5" y="293" width="9.0" height="15.0" fill="rgb(196,96,0)" rx="2" ry="2" />
+<text x="487.52" y="303.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (13 samples, 0.99%)</title><rect x="455.8" y="229" width="11.6" height="15.0" fill="rgb(51,201,51)" rx="2" ry="2" />
+<text x="458.76" y="239.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (13 samples, 0.99%)</title><rect x="455.8" y="245" width="11.6" height="15.0" fill="rgb(50,200,50)" rx="2" ry="2" />
+<text x="458.76" y="255.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ParseGenerator::generate(JVMState*) (9 samples, 0.69%)</title><rect x="889.8" y="677" width="8.1" height="15.0" fill="rgb(182,182,52)" rx="2" ry="2" />
+<text x="892.83" y="687.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/net/URLConnection.guessContentTypeFromStream (8 samples, 0.61%)</title><rect x="1174.7" y="821" width="7.2" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="1177.72" y="831.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (8 samples, 0.61%)</title><rect x="433.3" y="293" width="7.2" height="15.0" fill="rgb(95,241,95)" rx="2" ry="2" />
+<text x="436.29" y="303.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ComboBoxDemo.createPresetComboBox (11 samples, 0.84%)</title><rect x="55.8" y="757" width="9.9" height="15.0" fill="rgb(90,237,90)" rx="2" ry="2" />
+<text x="58.83" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Container.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="181" width="10.8" height="15.0" fill="rgb(93,239,93)" rx="2" ry="2" />
+<text x="353.61" y="191.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/text/html/HTMLEditorKit.getStyleSheet (10 samples, 0.76%)</title><rect x="232.9" y="789" width="9.0" height="15.0" fill="rgb(86,233,86)" rx="2" ry="2" />
+<text x="235.88" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/RepaintManager.paintDirtyRegions (58 samples, 4.42%)</title><rect x="431.5" y="613" width="52.1" height="15.0" fill="rgb(108,253,108)" rx="2" ry="2" />
+<text x="434.49" y="623.5">javax..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.addNotify (14 samples, 1.07%)</title><rect x="348.8" y="533" width="12.6" height="15.0" fill="rgb(63,212,63)" rx="2" ry="2" />
+<text x="351.81" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ComboBoxDemo.&lt;init&gt; (22 samples, 1.68%)</title><rect x="52.2" y="789" width="19.8" height="15.0" fill="rgb(54,203,54)" rx="2" ry="2" />
+<text x="55.24" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SliderDemo.&lt;init&gt; (10 samples, 0.76%)</title><rect x="106.2" y="789" width="8.9" height="15.0" fill="rgb(75,223,75)" rx="2" ry="2" />
+<text x="109.16" y="799.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>PhaseIdealLoop::get_late_ctrl(Node*, Node*) (39 samples, 2.97%)</title><rect x="824.2" y="709" width="35.1" height="15.0" fill="rgb(177,177,51)" rx="2" ry="2" />
+<text x="827.23" y="719.5">Ph..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComboBox.init (9 samples, 0.69%)</title><rect x="56.7" y="725" width="8.1" height="15.0" fill="rgb(61,210,61)" rx="2" ry="2" />
+<text x="59.73" y="735.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/Component.addNotify (12 samples, 0.91%)</title><rect x="350.6" y="101" width="10.8" height="15.0" fill="rgb(71,219,71)" rx="2" ry="2" />
+<text x="353.61" y="111.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>SliderDemo.createSliderDemo (9 samples, 0.69%)</title><rect x="107.1" y="773" width="8.0" height="15.0" fill="rgb(54,204,54)" rx="2" ry="2" />
+<text x="110.06" y="783.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JInternalFrame.&lt;init&gt; (11 samples, 0.84%)</title><rect x="282.3" y="805" width="9.9" height="15.0" fill="rgb(91,237,91)" rx="2" ry="2" />
+<text x="285.31" y="815.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/event/InvocationEvent.dispatch (182 samples, 13.86%)</title><rect x="333.5" y="693" width="163.6" height="15.0" fill="rgb(58,207,58)" rx="2" ry="2" />
+<text x="336.53" y="703.5">java/awt/event/Invoca..</text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>ButtonDemo.createControls (8 samples, 0.61%)</title><rect x="20.8" y="757" width="7.2" height="15.0" fill="rgb(104,249,104)" rx="2" ry="2" />
+<text x="23.78" y="767.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (15 samples, 1.14%)</title><rect x="455.8" y="309" width="13.4" height="15.0" fill="rgb(90,236,90)" rx="2" ry="2" />
+<text x="458.76" y="319.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paintChildren (13 samples, 0.99%)</title><rect x="455.8" y="293" width="11.6" height="15.0" fill="rgb(102,248,102)" rx="2" ry="2" />
+<text x="458.76" y="303.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>InstanceKlass::link_class_impl(instanceKlassHandle, bool, Thread*) (9 samples, 0.69%)</title><rect x="361.4" y="533" width="8.1" height="15.0" fill="rgb(216,216,65)" rx="2" ry="2" />
+<text x="364.39" y="543.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>java/awt/dnd/DropTarget.addNotify (11 samples, 0.84%)</title><rect x="351.5" y="85" width="9.9" height="15.0" fill="rgb(83,230,83)" rx="2" ry="2" />
+<text x="354.51" y="95.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>sun/awt/X11/XPanelPeer.postInit (14 samples, 1.07%)</title><rect x="374.9" y="405" width="12.6" height="15.0" fill="rgb(57,206,57)" rx="2" ry="2" />
+<text x="377.87" y="415.5"></text>
+</g>
+<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
+<title>javax/swing/JComponent.paint (13 samples, 0.99%)</title><rect x="455.8" y="197" width="11.6" height="15.0" fill="rgb(87,234,87)" rx="2" ry="2" />
+<text x="458.76" y="207.5"></text>
+</g>
+</svg>

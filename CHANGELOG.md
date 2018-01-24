@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+ - Produce SVG files out of the box; flamegraph.pl is no longer needed
+
 ## [1.1] - 2017-12-03
 
 ### Features

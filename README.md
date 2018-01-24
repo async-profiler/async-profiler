@@ -153,20 +153,19 @@ Samples: 679 (98.84%)
 This indicates that the hottest method was `Primes.isPrime`, and the hottest
 call stack leading to it comes from `Primes.primesThread`.
 
-## Generating Flame Graphs
+## Flame Graph visualization
 
-To generate flame graphs or other visualizations from the collected profiling
-information, you will need to dump the raw collected traces to a file and then
-post-process it. The following example uses Brendan Gregg's
-[FlameGraph](https://github.com/BrendanGregg/FlameGraph) scripts, but a similar
-solution can be tailored to other visualization tools.
+async-profiler provides out-of-the-box [Flame Graph](https://github.com/BrendanGregg/FlameGraph) support.
+Specify `-o svg` argument to dump profiling results as an interactive SVG
+immediately viewable in all mainstream browsers.
+Also, SVG output format will be chosen automatically if the target
+filename ends with `.svg`.
 
 ```
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -d 30 -o collapsed -f /tmp/collapsed.txt 8983
-$ FlameGraph/flamegraph.pl --colors=java /tmp/collapsed.txt > /tmp/flamegraph.svg
+$ ./profiler.sh -d 30 -f /tmp/flamegraph.svg 8983
 ```
 
 ## Profiler Options
@@ -226,8 +225,10 @@ This is a comma-separated list of the following options:
   ```
   java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
   ```
-  - `collapsed=samples` - the counter is a number of samples for the given trace;  
-  - `collaped=total` - the counter is a total value of collected metric, e.g. total allocation size.
+  - `collapsed=samples` - the counter is a number of samples for the given trace;
+  - `collaped=total` - the counter is a total value of collected metric, e.g. total allocation size;
+
+  - `svg[=C]` - produce Flame Graph in SVG format. `C` is a counter (samples or total).
   
   The default format is `summary,traces=200,flat=200`.
 

@@ -35,7 +35,8 @@ const Error Error::OK(NULL);
 //     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
 //                     C is counter type: 'samples' or 'total'
-//     folded[=C]    - synonym for collapsed
+//     svg[=C]       - produce Flame Graph in SVG format
+//                     C is counter type: 'samples' or 'total'
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)

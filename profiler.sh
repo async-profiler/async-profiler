@@ -16,12 +16,12 @@ usage() {
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
-    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed"
+    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically using jps tool"
     echo ""
-    echo "Example: $0 -d 30 -f profile.fg -o collapsed 3456"
+    echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
     echo "         $0 stop -o summary,flat jps"
     exit 1
@@ -87,7 +87,7 @@ USE_TMP="true"
 INTERVAL=""
 FRAMEBUF=""
 THREADS=""
-OUTPUT="summary,traces=200,flat=200"
+OUTPUT=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -146,6 +146,17 @@ done
 # if no -f argument is given, use temporary file to transfer output to caller terminal
 if [[ $USE_TMP ]]; then
     FILE=$(mktemp /tmp/async-profiler.XXXXXXXX)
+fi
+
+# select default output format
+if [[ "$OUTPUT" == "" ]]; then
+    if [[ $FILE == *.svg ]]; then
+        OUTPUT="svg"
+    elif [[ $FILE == *.collapsed ]] || [[ $FILE == *.folded ]]; then
+        OUTPUT="collapsed"
+    else
+        OUTPUT="summary,traces=200,flat=200"
+    fi
 fi
 
 case $ACTION in
