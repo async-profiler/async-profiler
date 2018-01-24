@@ -35,11 +35,12 @@
 #include "flameGraph.h"
 
 
-static const char SVG_HEADER[] = "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+static const char SVG_HEADER[] =
+    "<?xml version=\"1.0\" standalone=\"no\"?>\n"
     "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
     "<svg version=\"1.1\" width=\"%d\" height=\"%d\" onload=\"init(evt)\" viewBox=\"0 0 %d %d\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n"
     "<style type=\"text/css\">\n"
-    "    text { font-family:Verdana; font-size:12px; fill:#000; }\n"
+    "\ttext { font-family:Verdana; font-size:12px; fill:black; }\n"
     "\t.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }\n"
     "</style>\n"
     "<script type=\"text/ecmascript\">\n"
@@ -359,7 +360,7 @@ static const char SVG_HEADER[] = "<?xml version=\"1.0\" standalone=\"no\"?>\n"
     "\t}\n"
     "]]>\n"
     "</script>\n"
-    "<rect x=\"0\" y=\"0\" width=\"%d\" height=\"%d\" fill=\"rgb(240,240,220)\"/>\n"
+    "<rect x=\"0\" y=\"0\" width=\"100%%\" height=\"100%%\" fill=\"rgb(240,240,220)\"/>\n"
     "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" style=\"font-size:17px\">Flame Graph</text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"details\"> </text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"unzoom\" onclick=\"unzoom()\" style=\"opacity:0.0;cursor:pointer\">Reset Zoom</text>\n"
@@ -384,17 +385,16 @@ class StringUtils {
         }
     }
 
-    static void escape(std::string& s, char c, const char* replacement) {
+    static void replace(std::string& s, char c, const char* replacement) {
         for (int i = 0; (i = s.find(c, i)) != std::string::npos; i++) {
             s.replace(i, 1, replacement);
         }
     }
 
-    static std::string& escape(std::string& s) {
-        escape(s, '&', "&amp;");
-        escape(s, '<', "&lt;");
-        escape(s, '>', "&gt;");
-        return s;
+    static void escape(std::string& s) {
+        replace(s, '&', "&amp;");
+        replace(s, '<', "&lt;");
+        replace(s, '>', "&gt;");
     }
 };
 
@@ -434,8 +434,8 @@ void FlameGraph::printHeader(std::ostream& out) {
     int y1 = _imageheight - 17;
 
     sprintf(buf, SVG_HEADER,
-        _imagewidth, _imageheight, _imagewidth, _imageheight, _imagewidth, _imageheight,
-        x0, y0, x1, y1, x1, y0, x2, y0, x2, y1);
+            _imagewidth, _imageheight, _imagewidth, _imageheight,
+            x0, y0, x1, y1, x1, y0, x2, y0, x2, y1);
     out << buf;
 }
 
@@ -451,17 +451,20 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         std::string full_title = name;
         int color = selectFrameColor(full_title);
         std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
+        StringUtils::escape(full_title);
+        StringUtils::escape(short_title);
 
         // Compensate rounding error in frame width
         double w = (round((x + framewidth) * 10) - round(x * 10)) / 10.0;
 
-        out << "<g class=\"func_g\" onmouseover=\"s(this)\" onmouseout=\"c()\" onclick=\"zoom(this)\">\n<title>"
-            << StringUtils::escape(full_title) << " (" << f._total << " samples, "
-            << std::fixed << std::setprecision(2) << (f._total * _scale) << std::setprecision(1)
-            << "%)</title><rect x=\"" << x << "\" y=\"" << y << "\" width=\"" << w << "\" height=\""
-            << (_frameheight - 1) << "\" fill=\"#" << std::hex << std::setw(6) << std::setfill('0') << color
-            << std::dec << "\" rx=\"2\" ry=\"2\"/>\n<text x=\"" << (x + 3) << "\" y=\"" << (y + 3 + _frameheight * 0.5)
-            << "\">" << StringUtils::escape(short_title) << "</text>\n</g>\n";
+        snprintf(_buf, sizeof(_buf),
+            "<g class=\"func_g\" onmouseover=\"s(this)\" onmouseout=\"c()\" onclick=\"zoom(this)\">\n"
+            "<title>%s (%lld samples, %.2f%%)</title><rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n"
+            "<text x=\"%.1f\" y=\"%.1f\">%s</text>\n"
+            "</g>\n",
+            full_title.c_str(), f._total, f._total * _pct, x, y, w, _frameheight - 1, color,
+            x + 3, y + 3 + _frameheight * 0.5, short_title.c_str());
+        out << _buf;
 
         x += f._self * _scale;
         y -= _frameheight;

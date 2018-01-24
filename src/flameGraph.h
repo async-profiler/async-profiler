@@ -47,6 +47,7 @@ class Trie {
 class FlameGraph {
   private:
     Trie _root;
+    char _buf[4096];
 
     int _maxdepth;
     int _imagewidth;
@@ -69,7 +70,7 @@ class FlameGraph {
         _frameheight(16),
         _minwidth(1) {
     }
-    
+
     Trie* root() {
         return &_root;
     }
