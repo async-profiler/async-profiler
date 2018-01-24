@@ -168,6 +168,8 @@ $ jps
 $ ./profiler.sh -d 30 -f /tmp/flamegraph.svg 8983
 ```
 
+![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/flamegraph/demo/SwingSet2.svg)
+
 ## Profiler Options
 
 The following is a complete list of the command-line options accepted by
@@ -221,14 +223,12 @@ This is a comma-separated list of the following options:
   - `collapsed[=C]` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
-  of frames followed by a counter. For example:
-  ```
-  java/lang/Thread.run;Primes$1.run;Primes.access$000;Primes.primesThread;Primes.isPrime 1056
-  ```
-  - `collapsed=samples` - the counter is a number of samples for the given trace;
-  - `collaped=total` - the counter is a total value of collected metric, e.g. total allocation size;
-
-  - `svg[=C]` - produce Flame Graph in SVG format. `C` is a counter (samples or total).
+  of frames followed by a counter.
+  - `svg[=C]` - produce Flame Graph in SVG format.
+  
+  `C` is a counter type:
+  - `samples` - the counter is a number of samples for the given trace;
+  - `total` - the counter is a total value of collected metric, e.g. total allocation size.
   
   The default format is `summary,traces=200,flat=200`.
 
