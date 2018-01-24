@@ -168,7 +168,7 @@ $ jps
 $ ./profiler.sh -d 30 -f /tmp/flamegraph.svg 8983
 ```
 
-![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/flamegraph/demo/SwingSet2.svg)
+![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/SwingSet2.svg)
 
 ## Profiler Options
 
