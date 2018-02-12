@@ -499,7 +499,7 @@ int FlameGraph::selectFrameColor(std::string& name) {
     } else if (name.find("::") != std::string::npos) {
         // C++ function
         return yellow.getColor();
-    } else if ((int)name.find('/') > 0 || (int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z') {
+    } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
         return green.getColor();
     } else {
