@@ -44,6 +44,15 @@ class AllocTracer : public Engine {
   private:
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
+    static bool _klass_is_oop;
+
+    static uintptr_t resolveKlassHandle(uintptr_t klass_handle) {
+        if (_klass_is_oop) {
+            // On JDK 7 KlassHandle is a pointer to klassOop, hence one more indirection
+            return *(uintptr_t*)klass_handle + 2 * sizeof(uintptr_t);
+        }
+        return klass_handle;
+    }
 
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);

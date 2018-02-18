@@ -25,6 +25,7 @@
 
 Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_event");
 Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_event");
+bool AllocTracer::_klass_is_oop;
 
 
 // Make the entry point writeable and insert breakpoint at the very first instruction
@@ -61,13 +62,13 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        jmethodID alloc_class = (jmethodID)frame.arg0();
+        jmethodID alloc_class = (jmethodID)resolveKlassHandle(frame.arg0());
         u64 obj_size = frame.arg2();
         Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS, alloc_class);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
         // Invert last bit to distinguish jmethodID from the allocation in new TLAB
-        jmethodID alloc_class = (jmethodID)(frame.arg0() ^ 1);
+        jmethodID alloc_class = (jmethodID)(resolveKlassHandle(frame.arg0()) ^ 1);
         u64 obj_size = frame.arg1();
         Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS_OUTSIDE_TLAB, alloc_class);
     } else {
@@ -95,6 +96,9 @@ Error AllocTracer::start(const char* event, long interval) {
         if (_in_new_tlab._entry == NULL || _outside_tlab._entry == NULL) {
             return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
         }
+
+        // klassOop is defined only in JDK 7 and earlier
+        _klass_is_oop = libjvm->findSymbol("_ZNK7oopDesc4is_aEP12klassOopDesc") != NULL;
     }
 
     installSignalHandler();
