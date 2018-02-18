@@ -17,11 +17,13 @@
 #ifndef _VMSTRUCTS_H
 #define _VMSTRUCTS_H
 
+#include <stdint.h>
 #include "codeCache.h"
 
 
 class VMStructs {
   protected:
+    static bool _klass_is_oop;
     static int _klass_name_offset;
     static int _symbol_length_offset;
     static int _symbol_body_offset;
@@ -58,6 +60,15 @@ class VMSymbol : VMStructs {
 
 class VMKlass : VMStructs {
   public:
+    static VMKlass* fromHandle(uintptr_t handle) {
+        if (_klass_is_oop) {
+            // On JDK 7 KlassHandle is a pointer to klassOop, hence one more indirection
+            return (VMKlass*)(*(uintptr_t**)handle + 2);
+        } else {
+            return (VMKlass*)handle;
+        }
+    }
+
     VMSymbol* name() {
         return *(VMSymbol**) at(_klass_name_offset);
     }

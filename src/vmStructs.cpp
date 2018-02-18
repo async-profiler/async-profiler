@@ -19,7 +19,7 @@
 #include "vmStructs.h"
 #include "codeCache.h"
 
-
+bool VMStructs::_klass_is_oop = false;
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
@@ -56,7 +56,7 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            return available();
+            break;
         }
 
         if (strcmp(type, "Klass") == 0) {
@@ -85,4 +85,9 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
 
         entry += stride;
     }
+
+    // klassOop is defined only in JDK 7 and earlier
+    _klass_is_oop = libjvm->findSymbol("_ZNK7oopDesc4is_aEP12klassOopDesc") != NULL;
+
+    return available();
 }

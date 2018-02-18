@@ -20,7 +20,6 @@
 #include <signal.h>
 #include "arch.h"
 #include "engine.h"
-#include "vmStructs.h"
 
 
 // Describes OpenJDK function being intercepted
@@ -45,15 +44,6 @@ class AllocTracer : public Engine {
   private:
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
-    static bool _klass_is_oop;
-
-    static VMSymbol* resolveKlassHandle(uintptr_t klass_handle) {
-        if (_klass_is_oop) {
-            // On JDK 7 KlassHandle is a pointer to klassOop, hence one more indirection
-            klass_handle = *(uintptr_t*)klass_handle + 2 * sizeof(uintptr_t);
-        }
-        return ((VMKlass*)klass_handle)->name();
-    }
 
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
