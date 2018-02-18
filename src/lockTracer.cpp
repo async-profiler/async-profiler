@@ -63,6 +63,6 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     }
 
     jclass lock_class = env->GetObjectClass(object);
-    VMKlass* klass = (*(java_lang_Class**)lock_class)->klass();
-    Profiler::_instance.recordSample(NULL, entered_time - enter_time, BCI_KLASS, (jmethodID)klass);
+    VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
+    Profiler::_instance.recordSample(NULL, entered_time - enter_time, BCI_SYMBOL, (jmethodID)lock_name);
 }
