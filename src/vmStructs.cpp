@@ -19,13 +19,13 @@
 #include "vmStructs.h"
 #include "codeCache.h"
 
-bool VMStructs::_klass_is_oop = false;
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 int VMStructs::_class_klass_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
+bool VMStructs::_has_perm_gen = false;
 
 static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     const void* symbol = lib->findSymbol(symbol_name);
@@ -56,7 +56,7 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            break;
+            return available();
         }
 
         if (strcmp(type, "Klass") == 0) {
@@ -81,13 +81,10 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
             if (strcmp(field, "_thread_id") == 0) {
                 _osthread_id_offset = *(int*)(entry + offset_offset);
             }
+        } else if (strcmp(type, "PermGen") == 0) {
+            _has_perm_gen = true;
         }
 
         entry += stride;
     }
-
-    // klassOop is defined only in JDK 7 and earlier
-    _klass_is_oop = libjvm->findSymbol("_ZNK7oopDesc4is_aEP12klassOopDesc") != NULL;
-
-    return available();
 }

@@ -23,13 +23,13 @@
 
 class VMStructs {
   protected:
-    static bool _klass_is_oop;
     static int _klass_name_offset;
     static int _symbol_length_offset;
     static int _symbol_body_offset;
     static int _class_klass_offset;
     static int _thread_osthread_offset;
     static int _osthread_id_offset;
+    static bool _has_perm_gen;
 
     const char* at(int offset) {
         return (const char*)this + offset;
@@ -43,6 +43,10 @@ class VMStructs {
             && _symbol_length_offset >= 0
             && _symbol_body_offset >= 0
             && _class_klass_offset >= 0;
+    }
+
+    static bool hasPermGen() {
+        return _has_perm_gen;
     }
 };
 
@@ -61,7 +65,7 @@ class VMSymbol : VMStructs {
 class VMKlass : VMStructs {
   public:
     static VMKlass* fromHandle(uintptr_t handle) {
-        if (_klass_is_oop) {
+        if (_has_perm_gen) {
             // On JDK 7 KlassHandle is a pointer to klassOop, hence one more indirection
             return (VMKlass*)(*(uintptr_t**)handle + 2);
         } else {

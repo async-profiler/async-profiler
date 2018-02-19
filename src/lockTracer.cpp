@@ -31,6 +31,10 @@ Error LockTracer::start(const char* event, long interval) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
+    if (VMStructs::hasPermGen()) {
+        return Error("Lock profiling is supported on JDK 8+");
+    }
+
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
