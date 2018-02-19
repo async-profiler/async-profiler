@@ -19,6 +19,7 @@
 #include "vmStructs.h"
 #include "codeCache.h"
 
+
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
