@@ -18,6 +18,8 @@
 #define _FRAMENAME_H
 
 #include <jvmti.h>
+#include <map>
+#include <string>
 #include "vmEntry.h"
 #include "vmStructs.h"
 
@@ -36,8 +38,11 @@ class ThreadId {
 };
 
 
+typedef std::map<jmethodID, std::string> JMethodCache;
+
 class FrameName {
   private:
+    JMethodCache _cache;
     char _buf[520];
     bool _dotted;
     int _thread_count;
@@ -45,6 +50,7 @@ class FrameName {
 
     const char* findThreadName(int tid);
     const char* cppDemangle(const char* name);
+    const char* javaMethodName(jmethodID method, bool dotted);
     char* javaClassName(VMKlass* klass);
     char* javaClassName(const char* symbol, int length, bool dotted);
 

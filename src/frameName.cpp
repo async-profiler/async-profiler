@@ -21,7 +21,7 @@
 #include "frameName.h"
 
 
-FrameName::FrameName(bool dotted) : _dotted(dotted), _thread_count(0), _threads(NULL) {
+FrameName::FrameName(bool dotted) : _cache(), _dotted(dotted), _thread_count(0), _threads(NULL) {
     if (!VMThread::available()) {
         return;
     }
@@ -95,6 +95,31 @@ const char* FrameName::cppDemangle(const char* name) {
         }
     }
     return name;
+}
+
+const char* FrameName::javaMethodName(jmethodID method, bool dotted) {
+    jclass method_class;
+    char* class_name = NULL;
+    char* method_name = NULL;
+
+    jvmtiEnv* jvmti = VM::jvmti();
+    jvmtiError err;
+
+    if ((err = jvmti->GetMethodName(method, &method_name, NULL, NULL)) == 0 &&
+        (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
+        (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
+        // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
+        char* s = javaClassName(class_name + 1, strlen(class_name) - 2, dotted);
+        strcat(s, ".");
+        strcat(s, method_name);
+    } else {
+        snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+    }
+
+    jvmti->Deallocate((unsigned char*)class_name);
+    jvmti->Deallocate((unsigned char*)method_name);
+
+    return _buf;
 }
 
 char* FrameName::javaClassName(VMKlass* klass) {
@@ -173,27 +198,14 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
         }
 
         default: {
-            jclass method_class;
-            char* class_name = NULL;
-            char* method_name = NULL;
-
-            jvmtiEnv* jvmti = VM::jvmti();
-            jvmtiError err;
-
-            if ((err = jvmti->GetMethodName(frame.method_id, &method_name, NULL, NULL)) == 0 &&
-                (err = jvmti->GetMethodDeclaringClass(frame.method_id, &method_class)) == 0 &&
-                (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
-                // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
-                char* s = javaClassName(class_name + 1, strlen(class_name) - 2, _dotted);
-                strcat(s, ".");
-                strcat(s, method_name);
-            } else {
-                snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+            JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
+            if (it != _cache.end() && it->first == frame.method_id) {
+                return it->second.c_str();
             }
 
-            jvmti->Deallocate((unsigned char*)class_name);
-            jvmti->Deallocate((unsigned char*)method_name);
-            return _buf;
+            const char* newName = javaMethodName(frame.method_id, _dotted);
+            _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
+            return newName;
         }
     }
 }
