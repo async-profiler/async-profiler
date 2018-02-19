@@ -20,7 +20,9 @@
 
 typedef unsigned long long u64;
 
+#ifndef PAGE_SIZE
 const unsigned long PAGE_SIZE = 4096;
+#endif
 const unsigned long PAGE_MASK = PAGE_SIZE - 1;
 
 
