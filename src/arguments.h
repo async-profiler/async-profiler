@@ -79,6 +79,11 @@ class Arguments {
     bool _dump_summary;
     int _dump_traces;
     int _dump_flat;
+    // FlameGraph parameters
+    const char* _title;
+    int _width;
+    int _height;
+    double _minwidth;
 
     Arguments() :
         _action(ACTION_NONE),
@@ -92,7 +97,11 @@ class Arguments {
         _dump_flamegraph(false),
         _dump_summary(false),
         _dump_traces(0),
-        _dump_flat(0) {
+        _dump_flat(0),
+        _title("Flame Graph"),
+        _width(1200),
+        _height(16),
+        _minwidth(1) {
     }
 
     bool dumpRequested() {

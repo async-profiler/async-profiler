@@ -49,6 +49,7 @@ class FlameGraph {
     Trie _root;
     char _buf[4096];
 
+    const char* _title;
     int _maxdepth;
     int _imagewidth;
     int _imageheight;
@@ -63,12 +64,13 @@ class FlameGraph {
     int selectFrameColor(std::string& name);
 
   public:
-    FlameGraph() :
+    FlameGraph(const char* title, int width, int height, double minwidth) :
         _root(),
         _maxdepth(0),
-        _imagewidth(1200),
-        _frameheight(16),
-        _minwidth(1) {
+        _title(title),
+        _imagewidth(width),
+        _frameheight(height),
+        _minwidth(minwidth) {
     }
 
     Trie* root() {

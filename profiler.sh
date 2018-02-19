@@ -45,7 +45,7 @@ check_if_terminated() {
 }
 
 jattach() {
-    $JATTACH $PID load "$PROFILER" true $1 > /dev/null
+    $JATTACH $PID load "$PROFILER" true "$1" > /dev/null
     RET=$?
 
     # Check if jattach failed
@@ -88,6 +88,7 @@ INTERVAL=""
 FRAMEBUF=""
 THREADS=""
 OUTPUT=""
+FLAMEGRAPH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -123,6 +124,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -o)
             OUTPUT="$2"
+            shift
+            ;;
+        --title|--width|--height|--minwidth)
+            FLAMEGRAPH="$FLAMEGRAPH,${1:2}=$2"
             shift
             ;;
         [0-9]*)
@@ -161,23 +166,23 @@ fi
 
 case $ACTION in
     start)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FLAMEGRAPH"
         ;;
     stop)
-        jattach stop,file=$FILE,$OUTPUT
+        jattach "stop,file=$FILE,$OUTPUT"
         ;;
     status)
-        jattach status,file=$FILE
+        jattach "status,file=$FILE"
         ;;
     list)
-        jattach list,file=$FILE
+        jattach "list,file=$FILE"
         ;;
     collect)
-        jattach start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FLAMEGRAPH"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1
         done
-        jattach stop,file=$FILE,$OUTPUT
+        jattach "stop,file=$FILE,$OUTPUT$FLAMEGRAPH"
         ;;
 esac

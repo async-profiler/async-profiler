@@ -450,11 +450,11 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
     }
 }
 
-void Profiler::dumpFlameGraph(std::ostream& out, Counter counter) {
+void Profiler::dumpFlameGraph(std::ostream& out, Counter counter, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FlameGraph flamegraph;
+    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth);
     FrameName fn;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -574,7 +574,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         case ACTION_DUMP:
             stop();
             if (args._dump_collapsed) dumpCollapsed(out, args._counter);
-            if (args._dump_flamegraph) dumpFlameGraph(out, args._counter);
+            if (args._dump_flamegraph) dumpFlameGraph(out, args._counter, args);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);

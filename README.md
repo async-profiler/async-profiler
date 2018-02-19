@@ -212,7 +212,7 @@ insufficient frame buffer size, increase this value from the default.
 Example: `./profiler.sh -b 5000000 8983`
 
 * `-t` - profile threads separately. Each stack trace will end with a frame
-that denotes a single thread.
+that denotes a single thread.  
 Example: `./profiler.sh -t 8983`
 
 * `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
@@ -231,6 +231,9 @@ This is a comma-separated list of the following options:
   - `total` - the counter is a total value of collected metric, e.g. total allocation size.
   
   The default format is `summary,traces=200,flat=200`.
+
+* `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX` - FlameGraph parameters.  
+Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  
 Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`

@@ -361,7 +361,7 @@ static const char SVG_HEADER[] =
     "]]>\n"
     "</script>\n"
     "<rect x=\"0\" y=\"0\" width=\"100%%\" height=\"100%%\" fill=\"rgb(240,240,220)\"/>\n"
-    "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" style=\"font-size:17px\">Flame Graph</text>\n"
+    "<text x=\"%d\" y=\"%d\" text-anchor=\"middle\" style=\"font-size:17px\">%s</text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"details\"> </text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"unzoom\" onclick=\"unzoom()\" style=\"opacity:0.0;cursor:pointer\">Reset Zoom</text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"search\" onmouseover=\"searchover()\" onmouseout=\"searchout()\" onclick=\"search_prompt()\" style=\"opacity:0.1;cursor:pointer\">Search</text>\n"
@@ -435,7 +435,7 @@ void FlameGraph::printHeader(std::ostream& out) {
 
     sprintf(buf, SVG_HEADER,
             _imagewidth, _imageheight, _imagewidth, _imageheight,
-            x0, y0, x1, y1, x1, y0, x2, y0, x2, y1);
+            x0, y0, _title, x1, y1, x1, y0, x2, y0, x2, y1);
     out << buf;
 }
 
