@@ -21,7 +21,6 @@
 #include <map>
 #include <string>
 #include "vmEntry.h"
-#include "vmStructs.h"
 
 
 class ThreadId {
@@ -51,7 +50,6 @@ class FrameName {
     const char* findThreadName(int tid);
     const char* cppDemangle(const char* name);
     const char* javaMethodName(jmethodID method, bool dotted);
-    char* javaClassName(VMKlass* klass);
     char* javaClassName(const char* symbol, int length, bool dotted);
 
   public:

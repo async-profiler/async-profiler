@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "frameName.h"
+#include "vmStructs.h"
 
 
 FrameName::FrameName(bool dotted) : _cache(), _dotted(dotted), _thread_count(0), _threads(NULL) {
@@ -122,11 +123,6 @@ const char* FrameName::javaMethodName(jmethodID method, bool dotted) {
     return _buf;
 }
 
-char* FrameName::javaClassName(VMKlass* klass) {
-    VMSymbol* symbol = klass->name();
-    return javaClassName(symbol->body(), symbol->length(), true);
-}
-
 char* FrameName::javaClassName(const char* symbol, int length, bool dotted) {
     int array_dimension = 0;
     while (*symbol == '[') {
@@ -176,14 +172,16 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
         case BCI_NATIVE_FRAME:
             return cppDemangle((const char*)frame.method_id);
 
-        case BCI_KLASS: {
-            VMKlass* alloc_class = (VMKlass*)frame.method_id;
-            return strcat(javaClassName(alloc_class), _dotted ? "" : "_[i]");
+        case BCI_SYMBOL: {
+            VMSymbol* symbol = (VMSymbol*)frame.method_id;
+            char* class_name = javaClassName(symbol->body(), symbol->length(), true);
+            return strcat(class_name, _dotted ? "" : "_[i]");
         }
 
-        case BCI_KLASS_OUTSIDE_TLAB: {
-            VMKlass* alloc_class = (VMKlass*)((uintptr_t)frame.method_id ^ 1);
-            return strcat(javaClassName(alloc_class), _dotted ? " (out)" : "_[k]");
+        case BCI_SYMBOL_OUTSIDE_TLAB: {
+            VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
+            char* class_name = javaClassName(symbol->body(), symbol->length(), true);
+            return strcat(class_name, _dotted ? " (out)" : "_[k]");
         }
 
         case BCI_THREAD_ID: {

@@ -31,6 +31,10 @@ Error LockTracer::start(const char* event, long interval) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
+    if (VMStructs::hasPermGen()) {
+        return Error("Lock profiling is supported on JDK 8+");
+    }
+
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
@@ -63,6 +67,6 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     }
 
     jclass lock_class = env->GetObjectClass(object);
-    VMKlass* klass = (*(java_lang_Class**)lock_class)->klass();
-    Profiler::_instance.recordSample(NULL, entered_time - enter_time, BCI_KLASS, (jmethodID)klass);
+    VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
+    Profiler::_instance.recordSample(NULL, entered_time - enter_time, BCI_SYMBOL, (jmethodID)lock_name);
 }

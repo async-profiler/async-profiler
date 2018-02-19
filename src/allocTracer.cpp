@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <stdint.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
 #include "codeCache.h"
@@ -61,15 +60,17 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        jmethodID alloc_class = (jmethodID)frame.arg0();
+        VMKlass* alloc_class = VMKlass::fromHandle(frame.arg0());
+        jmethodID symbol = (jmethodID)alloc_class->name();
         u64 obj_size = frame.arg2();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_SYMBOL, symbol);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
+        VMKlass* alloc_class = VMKlass::fromHandle(frame.arg0());
         // Invert last bit to distinguish jmethodID from the allocation in new TLAB
-        jmethodID alloc_class = (jmethodID)(frame.arg0() ^ 1);
+        jmethodID symbol = (jmethodID)((uintptr_t)alloc_class->name() ^ 1);
         u64 obj_size = frame.arg1();
-        Profiler::_instance.recordSample(ucontext, obj_size, BCI_KLASS_OUTSIDE_TLAB, alloc_class);
+        Profiler::_instance.recordSample(ucontext, obj_size, BCI_SYMBOL_OUTSIDE_TLAB, symbol);
     } else {
         // Not our trap; nothing to do
         return;
