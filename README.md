@@ -232,7 +232,7 @@ This is a comma-separated list of the following options:
   
   The default format is `summary,traces=200,flat=200`.
 
-* `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX` - FlameGraph parameters.  
+* `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
 Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  

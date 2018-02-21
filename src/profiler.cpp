@@ -465,9 +465,16 @@ void Profiler::dumpFlameGraph(std::ostream& out, Counter counter, Arguments& arg
         flamegraph.depth(trace._num_frames);
 
         Trie* f = flamegraph.root();
-        for (int j = trace._num_frames - 1; j >= 0; j--) {
-            const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
-            f = f->addChild(frame_name, samples);
+        if (args._reverse) {
+            for (int j = 0; j < trace._num_frames; j++) {
+                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+                f = f->addChild(frame_name, samples);
+            }
+        } else {
+            for (int j = trace._num_frames - 1; j >= 0; j--) {
+                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+                f = f->addChild(frame_name, samples);
+            }
         }
         f->addLeaf(samples);
     }

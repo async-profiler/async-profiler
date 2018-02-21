@@ -47,6 +47,7 @@ const Error Error::OK(NULL);
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
 //     minwidth=PX   - FlameGraph minimum frame width
+//     reverse       - generate stack-reversed FlameGraph
 //     file=FILENAME - output file name for dumping
 //
 // It is possible to specify multiple dump options at the same time
@@ -107,6 +108,8 @@ Error Arguments::parse(const char* args) {
             _height = atoi(value);
         } else if (strcmp(arg, "minwidth") == 0 && value != NULL) {
             _minwidth = atof(value);
+        } else if (strcmp(arg, "reverse") == 0) {
+            _reverse = true;
         } else if (strcmp(arg, "file") == 0) {
             if (value == NULL || value[0] == 0) {
                 return Error("file must not be empty");

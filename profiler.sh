@@ -126,9 +126,21 @@ while [[ $# -gt 0 ]]; do
             OUTPUT="$2"
             shift
             ;;
-        --title|--width|--height|--minwidth)
+        --title)
+            # escape XML special characters and comma
+            TITLE=${2//&/&amp;}
+            TITLE=${TITLE//</&lt;}
+            TITLE=${TITLE//>/&gt;}
+            TITLE=${TITLE//,/&#44;}
+            FLAMEGRAPH="$FLAMEGRAPH,title=$TITLE"
+            shift
+            ;;
+        --width|--height|--minwidth)
             FLAMEGRAPH="$FLAMEGRAPH,${1:2}=$2"
             shift
+            ;;
+        --reverse)
+            FLAMEGRAPH="$FLAMEGRAPH,reverse"
             ;;
         [0-9]*)
             PID="$1"

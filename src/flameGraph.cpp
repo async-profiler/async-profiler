@@ -421,7 +421,7 @@ void FlameGraph::dump(std::ostream& out) {
     _imageheight = _frameheight * (_maxdepth + 1) + 70;
 
     printHeader(out);
-    printFrame(out, "all", _root, 10, _imageheight - 50);
+    printFrame(out, "all", _root, 10, _imageheight - _frameheight - 35);
     printFooter(out);
 }
 

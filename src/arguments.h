@@ -84,6 +84,7 @@ class Arguments {
     int _width;
     int _height;
     double _minwidth;
+    bool _reverse;
 
     Arguments() :
         _action(ACTION_NONE),
@@ -101,7 +102,8 @@ class Arguments {
         _title("Flame Graph"),
         _width(1200),
         _height(16),
-        _minwidth(1) {
+        _minwidth(1),
+        _reverse(false) {
     }
 
     bool dumpRequested() {
