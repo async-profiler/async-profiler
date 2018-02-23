@@ -215,6 +215,8 @@ Example: `./profiler.sh -b 5000000 8983`
 that denotes a single thread.  
 Example: `./profiler.sh -t 8983`
 
+* `-s` - print simple class names instead of FQN.
+
 * `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
 This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;

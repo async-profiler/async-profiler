@@ -57,6 +57,7 @@ class FlameGraph {
     double _minwidth;
     double _scale;
     double _pct;
+    bool _reverse;
 
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
@@ -64,13 +65,14 @@ class FlameGraph {
     int selectFrameColor(std::string& name);
 
   public:
-    FlameGraph(const char* title, int width, int height, double minwidth) :
+    FlameGraph(const char* title, int width, int height, double minwidth, bool reverse) :
         _root(),
         _maxdepth(0),
         _title(title),
         _imagewidth(width),
         _frameheight(height),
-        _minwidth(minwidth) {
+        _minwidth(minwidth),
+        _reverse(reverse) {
     }
 
     Trie* root() {

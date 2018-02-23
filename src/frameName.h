@@ -43,17 +43,22 @@ class FrameName {
   private:
     JMethodCache _cache;
     char _buf[520];
+    bool _simple;
     bool _dotted;
     int _thread_count;
     ThreadId* _threads;
 
+    void initThreadMap();
     const char* findThreadName(int tid);
     const char* cppDemangle(const char* name);
-    const char* javaMethodName(jmethodID method, bool dotted);
-    char* javaClassName(const char* symbol, int length, bool dotted);
+    char* javaMethodName(jmethodID method);
+    char* javaClassName(const char* symbol, int length, bool simple, bool dotted);
 
   public:
-    FrameName(bool dotted = false);
+    FrameName(bool simple, bool dotted) : _cache(), _simple(simple), _dotted(dotted), _thread_count(0), _threads(NULL) {
+        initThreadMap();
+    }
+
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame);

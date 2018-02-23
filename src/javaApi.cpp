@@ -19,8 +19,8 @@
 #include "profiler.h"
 
 
-static void throw_illegal_state(JNIEnv* env, const char* message) {
-    jclass cls = env->FindClass("java/lang/IllegalStateException");
+static void throw_new(JNIEnv* env, const char* exception_class, const char* message) {
+    jclass cls = env->FindClass(exception_class);
     if (cls != NULL) {
         env->ThrowNew(cls, message);
     }
@@ -34,7 +34,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
     env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
-        throw_illegal_state(env, error.message());
+        throw_new(env, "java/lang/IllegalStateException", error.message());
     }
 }
 
@@ -43,7 +43,7 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     Error error = Profiler::_instance.stop();
 
     if (error) {
-        throw_illegal_state(env, error.message());
+        throw_new(env, "java/lang/IllegalStateException", error.message());
     }
 }
 
@@ -53,9 +53,32 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused, jint counter) {
+Java_one_profiler_AsyncProfiler_dump0(JNIEnv* env, jobject unused, jstring options) {
+    Arguments args;
+    const char* options_str = env->GetStringUTFChars(options, NULL);
+    Error error = args.parse(options_str);
+    env->ReleaseStringUTFChars(options, options_str);
+
+    if (error) {
+        throw_new(env, "java/lang/IllegalArgumentException", error.message());
+        return NULL;
+    } else if (args._action != ACTION_DUMP) {
+        throw_new(env, "java/lang/IllegalArgumentException", "Unrecognized output format");
+        return NULL;
+    }
+
     std::ostringstream out;
-    Profiler::_instance.dumpCollapsed(out, counter == COUNTER_SAMPLES ? COUNTER_SAMPLES : COUNTER_TOTAL);
+    Profiler::_instance.runInternal(args, out);
+    return env->NewStringUTF(out.str().c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused, jint counter) {
+    Arguments args;
+    args._counter = counter == COUNTER_SAMPLES ? COUNTER_SAMPLES : COUNTER_TOTAL;
+
+    std::ostringstream out;
+    Profiler::_instance.dumpCollapsed(out, args);
     return env->NewStringUTF(out.str().c_str());
 }
 

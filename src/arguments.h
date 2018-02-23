@@ -73,6 +73,7 @@ class Arguments {
     long _interval;
     int _framebuf;
     bool _threads;
+    bool _simple;
     char* _file;
     bool _dump_collapsed;
     bool _dump_flamegraph;
@@ -93,6 +94,7 @@ class Arguments {
         _interval(0),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
+        _simple(false),
         _file(NULL),
         _dump_collapsed(false),
         _dump_flamegraph(false),

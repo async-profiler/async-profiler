@@ -422,11 +422,11 @@ void Profiler::dumpSummary(std::ostream& out) {
  * 
  * <frame>;<frame>;...;<topmost frame> <count>
  */
-void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
+void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn;
+    FrameName fn(args._simple, false);
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -434,7 +434,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
         if (trace._samples == 0) continue;
 
         if (trace._num_frames == 0) {
-            unknown += (counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
+            unknown += (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
             continue;
         }
 
@@ -442,7 +442,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
             const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << (counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
+        out << (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
     }
 
     if (unknown != 0) {
@@ -450,18 +450,18 @@ void Profiler::dumpCollapsed(std::ostream& out, Counter counter) {
     }
 }
 
-void Profiler::dumpFlameGraph(std::ostream& out, Counter counter, Arguments& args) {
+void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth);
-    FrameName fn;
+    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth, args._reverse);
+    FrameName fn(args._simple, false);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) continue;
 
-        u64 samples = (counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
+        u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
         flamegraph.depth(trace._num_frames);
 
         Trie* f = flamegraph.root();
@@ -486,7 +486,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn(true);
+    FrameName fn(false, true);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -518,7 +518,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn(true);
+    FrameName fn(false, true);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -580,8 +580,8 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_DUMP:
             stop();
-            if (args._dump_collapsed) dumpCollapsed(out, args._counter);
-            if (args._dump_flamegraph) dumpFlameGraph(out, args._counter, args);
+            if (args._dump_collapsed) dumpCollapsed(out, args);
+            if (args._dump_flamegraph) dumpFlameGraph(out, args);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);

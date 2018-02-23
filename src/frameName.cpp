@@ -22,7 +22,7 @@
 #include "vmStructs.h"
 
 
-FrameName::FrameName(bool dotted) : _cache(), _dotted(dotted), _thread_count(0), _threads(NULL) {
+void FrameName::initThreadMap() {
     if (!VMThread::available()) {
         return;
     }
@@ -98,10 +98,11 @@ const char* FrameName::cppDemangle(const char* name) {
     return name;
 }
 
-const char* FrameName::javaMethodName(jmethodID method, bool dotted) {
+char* FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
     char* method_name = NULL;
+    char* result;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
@@ -110,20 +111,23 @@ const char* FrameName::javaMethodName(jmethodID method, bool dotted) {
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
         // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
-        char* s = javaClassName(class_name + 1, strlen(class_name) - 2, dotted);
-        strcat(s, ".");
-        strcat(s, method_name);
+        result = javaClassName(class_name + 1, strlen(class_name) - 2, _simple, _dotted);
+        strcat(result, ".");
+        strcat(result, method_name);
     } else {
         snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+        result = _buf;
     }
 
     jvmti->Deallocate((unsigned char*)class_name);
     jvmti->Deallocate((unsigned char*)method_name);
 
-    return _buf;
+    return result;
 }
 
-char* FrameName::javaClassName(const char* symbol, int length, bool dotted) {
+char* FrameName::javaClassName(const char* symbol, int length, bool simple, bool dotted) {
+    char* result = _buf;
+
     int array_dimension = 0;
     while (*symbol == '[') {
         array_dimension++;
@@ -131,36 +135,42 @@ char* FrameName::javaClassName(const char* symbol, int length, bool dotted) {
     }
 
     if (array_dimension == 0) {
-        strncpy(_buf, symbol, length);
-        _buf[length] = 0;
+        strncpy(result, symbol, length);
+        result[length] = 0;
     } else {
         switch (*symbol) {
-            case 'B': strcpy(_buf, "byte");    break;
-            case 'C': strcpy(_buf, "char");    break;
-            case 'I': strcpy(_buf, "int");     break;
-            case 'J': strcpy(_buf, "long");    break;
-            case 'S': strcpy(_buf, "short");   break;
-            case 'Z': strcpy(_buf, "boolean"); break;
-            case 'F': strcpy(_buf, "float");   break;
-            case 'D': strcpy(_buf, "double");  break;
+            case 'B': strcpy(result, "byte");    break;
+            case 'C': strcpy(result, "char");    break;
+            case 'I': strcpy(result, "int");     break;
+            case 'J': strcpy(result, "long");    break;
+            case 'S': strcpy(result, "short");   break;
+            case 'Z': strcpy(result, "boolean"); break;
+            case 'F': strcpy(result, "float");   break;
+            case 'D': strcpy(result, "double");  break;
             default:
                 length -= array_dimension + 2;
-                strncpy(_buf, symbol + 1, length);
-                _buf[length] = 0;
+                strncpy(result, symbol + 1, length);
+                result[length] = 0;
         }
 
         do {
-            strcat(_buf, "[]");
+            strcat(result, "[]");
         } while (--array_dimension > 0);
     }
 
+    if (simple) {
+        for (char* s = result; *s; s++) {
+            if (*s == '/') result = s + 1;
+        }
+    }
+
     if (dotted) {
-        for (char* s = _buf; *s; s++) {
+        for (char* s = result; *s; s++) {
             if (*s == '/') *s = '.';
         }
     }
 
-    return _buf;
+    return result;
 }
 
 const char* FrameName::name(ASGCT_CallFrame& frame) {
@@ -174,13 +184,13 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
 
         case BCI_SYMBOL: {
             VMSymbol* symbol = (VMSymbol*)frame.method_id;
-            char* class_name = javaClassName(symbol->body(), symbol->length(), true);
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
             return strcat(class_name, _dotted ? "" : "_[i]");
         }
 
         case BCI_SYMBOL_OUTSIDE_TLAB: {
             VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
-            char* class_name = javaClassName(symbol->body(), symbol->length(), true);
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
             return strcat(class_name, _dotted ? " (out)" : "_[k]");
         }
 
@@ -201,7 +211,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
                 return it->second.c_str();
             }
 
-            const char* newName = javaMethodName(frame.method_id, _dotted);
+            const char* newName = javaMethodName(frame.method_id);
             _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
             return newName;
         }

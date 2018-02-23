@@ -194,7 +194,7 @@ static const char SVG_HEADER[] =
     "\t\t\tvar ex = parseFloat(a[\"x\"].value);\n"
     "\t\t\tvar ew = parseFloat(a[\"width\"].value);\n"
     "\t\t\t// Is it an ancestor\n"
-    "\t\t\tif (0 == 0) {\n"
+    "\t\t\tif (%d == 0) {\n"
     "\t\t\t\tvar upstack = parseFloat(a[\"y\"].value) > ymin;\n"
     "\t\t\t} else {\n"
     "\t\t\t\tvar upstack = parseFloat(a[\"y\"].value) < ymin;\n"
@@ -421,7 +421,7 @@ void FlameGraph::dump(std::ostream& out) {
     _imageheight = _frameheight * (_maxdepth + 1) + 70;
 
     printHeader(out);
-    printFrame(out, "all", _root, 10, _imageheight - _frameheight - 35);
+    printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
     printFooter(out);
 }
 
@@ -434,7 +434,7 @@ void FlameGraph::printHeader(std::ostream& out) {
     int y1 = _imageheight - 17;
 
     sprintf(buf, SVG_HEADER,
-            _imagewidth, _imageheight, _imagewidth, _imageheight,
+            _imagewidth, _imageheight, _imagewidth, _imageheight, _reverse,
             x0, y0, _title, x1, y1, x1, y0, x2, y0, x2, y1);
     out << buf;
 }
@@ -467,7 +467,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         out << _buf;
 
         x += f._self * _scale;
-        y -= _frameheight;
+        y += _reverse ? _frameheight : -_frameheight;
 
         for (std::map<std::string, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
             x += printFrame(out, it->first, it->second, x, y);

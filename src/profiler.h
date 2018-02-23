@@ -157,7 +157,6 @@ class Profiler {
     void initStateLock();
     void resetSymbols();
     void setSignalHandler();
-    void runInternal(Arguments& args, std::ostream& out);
 
   public:
     static Profiler _instance;
@@ -179,12 +178,13 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     void run(Arguments& args);
+    void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
     Error start(const char* event, long interval, int frame_buffer_size, bool threads);
     Error stop();
     void dumpSummary(std::ostream& out);
-    void dumpCollapsed(std::ostream& out, Counter counter);
-    void dumpFlameGraph(std::ostream& out, Counter counter, Arguments& args);
+    void dumpCollapsed(std::ostream& out, Arguments& args);
+    void dumpFlameGraph(std::ostream& out, Arguments& args);
     void dumpTraces(std::ostream& out, int max_traces);
     void dumpFlat(std::ostream& out, int max_methods);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);

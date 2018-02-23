@@ -16,7 +16,14 @@ usage() {
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
+    echo "  -s                simple class names instead of FQN"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg"
+    echo ""
+    echo "  --title string    SVG title"
+    echo "  --width px        SVG width"
+    echo "  --height px       SVG frame height"
+    echo "  --minwidth px     skip frames smaller than px"
+    echo "  --reverse         generate stack-reversed FlameGraph"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically using jps tool"
@@ -88,7 +95,7 @@ INTERVAL=""
 FRAMEBUF=""
 THREADS=""
 OUTPUT=""
-FLAMEGRAPH=""
+FORMAT=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -122,6 +129,9 @@ while [[ $# -gt 0 ]]; do
         -t)
             THREADS=",threads"
             ;;
+        -s)
+            FORMAT="$FORMAT,simple"
+            ;;
         -o)
             OUTPUT="$2"
             shift
@@ -132,15 +142,15 @@ while [[ $# -gt 0 ]]; do
             TITLE=${TITLE//</&lt;}
             TITLE=${TITLE//>/&gt;}
             TITLE=${TITLE//,/&#44;}
-            FLAMEGRAPH="$FLAMEGRAPH,title=$TITLE"
+            FORMAT="$FORMAT,title=$TITLE"
             shift
             ;;
         --width|--height|--minwidth)
-            FLAMEGRAPH="$FLAMEGRAPH,${1:2}=$2"
+            FORMAT="$FORMAT,${1:2}=$2"
             shift
             ;;
         --reverse)
-            FLAMEGRAPH="$FLAMEGRAPH,reverse"
+            FORMAT="$FORMAT,reverse"
             ;;
         [0-9]*)
             PID="$1"
@@ -178,10 +188,10 @@ fi
 
 case $ACTION in
     start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FLAMEGRAPH"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
         ;;
     stop)
-        jattach "stop,file=$FILE,$OUTPUT"
+        jattach "stop,file=$FILE,$OUTPUT$FORMAT"
         ;;
     status)
         jattach "status,file=$FILE"
@@ -190,11 +200,11 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FLAMEGRAPH"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1
         done
-        jattach "stop,file=$FILE,$OUTPUT$FLAMEGRAPH"
+        jattach "stop,file=$FILE,$OUTPUT$FORMAT"
         ;;
 esac

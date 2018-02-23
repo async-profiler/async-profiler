@@ -43,6 +43,7 @@ const Error Error::OK(NULL);
 //     interval=N    - sampling interval in ns (default: 1'000'000, i.e. 1 ms)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     threads       - profile different threads separately
+//     simple        - simple class names instead of FQN
 //     title=TITLE   - FlameGraph title
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
@@ -100,6 +101,8 @@ Error Arguments::parse(const char* args) {
             }
         } else if (strcmp(arg, "threads") == 0) {
             _threads = true;
+        } else if (strcmp(arg, "simple") == 0) {
+            _simple = true;
         } else if (strcmp(arg, "title") == 0 && value != NULL) {
             _title = value;
         } else if (strcmp(arg, "width") == 0 && value != NULL) {
