@@ -149,6 +149,7 @@ class Profiler {
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
+    bool addressInCode(const void* pc);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     void storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);

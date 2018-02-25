@@ -225,8 +225,11 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         }
 
         if (top_frame.pop()) {
-            // Retry with the fixed context
-            VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            // Retry with the fixed context, but only if PC looks reasonable,
+            // otherwise AsyncGetCallTrace may crash
+            if (addressInCode((const void*)top_frame.pc())) {
+                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            }
             top_frame.restore(pc, sp, fp);
 
             if (trace.num_frames > 0) {
@@ -273,6 +276,27 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
 
     _jit_lock.unlockShared();
     return method != NULL;
+}
+
+bool Profiler::addressInCode(const void* pc) {
+    // 1. Check if PC lies within JVM's compiled code cache
+    // Address in CodeCache is executable if it belongs to a Java method or a runtime stub
+    if (pc >= _jit_min_address && pc < _jit_max_address) {
+        _jit_lock.lockShared();
+        bool valid = _java_methods.find(pc) != NULL || _runtime_stubs.find(pc) != NULL;
+        _jit_lock.unlockShared();
+        return valid;
+    }
+
+    // 2. Check if PC belongs to executable code of shared libraries
+    for (int i = 0; i < _native_lib_count; i++) {
+        if (_native_libs[i]->contains(pc)) {
+            return true;
+        }
+    }
+    
+    // This can be some other dynamically generated code, but we don't know it. Better stay safe.
+    return false;
 }
 
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event) {
