@@ -53,17 +53,14 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dump0(JNIEnv* env, jobject unused, jstring options) {
+Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring command) {
     Arguments args;
-    const char* options_str = env->GetStringUTFChars(options, NULL);
-    Error error = args.parse(options_str);
-    env->ReleaseStringUTFChars(options, options_str);
+    const char* command_str = env->GetStringUTFChars(command, NULL);
+    Error error = args.parse(command_str);
+    env->ReleaseStringUTFChars(command, command_str);
 
     if (error) {
         throw_new(env, "java/lang/IllegalArgumentException", error.message());
-        return NULL;
-    } else if (args._action != ACTION_DUMP) {
-        throw_new(env, "java/lang/IllegalArgumentException", "Unrecognized output format");
         return NULL;
     }
 
