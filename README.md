@@ -264,6 +264,9 @@ code started running, you will not see the first two frames in the resulting
 stack. On the other hand, you _will_ see non-Java frames (user and kernel)
 invoked by your Java code.
 
+* No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
+or negative.
+
 ## Troubleshooting
 
 `Could not start attach mechanism: No such file or directory` means that the profiler cannot establish communication with the target JVM through UNIX domain socket.
