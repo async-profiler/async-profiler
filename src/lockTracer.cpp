@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <dlfcn.h>
 #include <string.h>
 #include "lockTracer.h"
 #include "profiler.h"
