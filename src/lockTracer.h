@@ -21,9 +21,18 @@
 #include "engine.h"
 
 
+typedef void (JNICALL *UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
+
 class LockTracer : public Engine {
   private:
     static jlong _start_time;
+    static jclass _LockSupport;
+    static jmethodID _getBlocker;
+    static UnsafeParkFunc _original_Unsafe_Park;
+
+    static jclass getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env);
+    static void recordContendedLock(jclass lock_class, jlong time);
+    static void bindUnsafePark(UnsafeParkFunc entry);
 
   public:
     const char* name() {
@@ -35,6 +44,7 @@ class LockTracer : public Engine {
 
     static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
     static void JNICALL MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
+    static void JNICALL UnsafeParkTrap(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time);
 };
 
 #endif // _LOCKTRACER_H
