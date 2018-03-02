@@ -15,14 +15,16 @@
  */
 
 #include <dlfcn.h>
+#include <string.h>
 #include "lockTracer.h"
 #include "profiler.h"
 #include "vmStructs.h"
 
 
 jlong LockTracer::_start_time = 0;
-UnsafeParkFunc LockTracer::_real_unsafe_park = NULL;
-jfieldID LockTracer::_thread_parkBlocker = NULL;
+jclass LockTracer::_LockSupport = NULL;
+jmethodID LockTracer::_getBlocker = NULL;
+UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
 
 Error LockTracer::start(const char* event, long interval) {
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
@@ -40,44 +42,34 @@ Error LockTracer::start(const char* event, long interval) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
     jvmti->GetTime(&_start_time);
 
-    // Intercent Unsafe.park() for tracing contended ReentrantLocks
-    if (_real_unsafe_park == NULL) {
-        _real_unsafe_park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
+    if (_getBlocker == NULL) {
+        JNIEnv* env = VM::jni();
+        _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));
+        _getBlocker = env->GetStaticMethodID(_LockSupport, "getBlocker", "(Ljava/lang/Thread;)Ljava/lang/Object;");
     }
 
-    JNIEnv* env = VM::jni();
-    if (env != NULL && _real_unsafe_park != NULL) {
-        // Cache Thread.parkBlocker field
-        if (_thread_parkBlocker == NULL) {
-            jclass thread = env->FindClass("java/lang/Thread");
-            if (thread != NULL) {
-                _thread_parkBlocker = env->GetFieldID(thread, "parkBlocker", "Ljava/lang/Object;");
-                env->DeleteLocalRef(thread);
-            }
+    if (_original_Unsafe_Park == NULL) {
+        _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
+    }
 
-            if (_thread_parkBlocker == NULL) {
-                return Error::OK;
-            }
-        }
-
-        // Try JDK 9+ package first, then fallback to JDK 8 package
-        jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
-        if (unsafe == NULL) unsafe = env->FindClass("sun/misc/Unsafe");
-        if (unsafe != NULL) {
-            const JNINativeMethod unsafe_park = {(char*)"park", (char*)"(ZJ)V", (void*)LockTracer::UnsafePark};
-            jint result = env->RegisterNatives(unsafe, &unsafe_park, 1);
-            printf("Registered Unsafe native: %d\n", result);
-            env->DeleteLocalRef(unsafe);
-        }
+    // Intercent Unsafe.park() for tracing contended ReentrantLocks
+    if (_original_Unsafe_Park != NULL) {
+        bindUnsafePark(UnsafeParkTrap);
     }
 
     return Error::OK;
 }
 
 void LockTracer::stop() {
+    // Disable Java Monitor events
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
+
+    // Reset Unsafe.park() trap
+    if (_original_Unsafe_Park != NULL) {
+        bindUnsafePark(_original_Unsafe_Park);
+    }
 }
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
@@ -93,40 +85,76 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
 
     // Time is meaningless if lock attempt has started before profiling
     if (enter_time >= _start_time) {
-        recordContendedLock(env, entered_time - enter_time, object);
+        recordContendedLock(env->GetObjectClass(object), entered_time - enter_time);
     }
 }
 
-void JNICALL LockTracer::UnsafePark(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
-    jobject park_blocker = NULL;
+void JNICALL LockTracer::UnsafeParkTrap(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
+    jvmtiEnv* jvmti = VM::jvmti();
+    jclass lock_class = getParkBlockerClass(jvmti, env);
     jlong park_start_time, park_end_time;
 
-    jvmtiEnv* jvmti = VM::jvmti();
-    jthread thread;
-    if (jvmti->GetCurrentThread(&thread) == 0) {
-        park_blocker = env->GetObjectField(thread, _thread_parkBlocker);
-    }
-
-    if (park_blocker != NULL) {
+    if (lock_class != NULL) {
         jvmti->GetTime(&park_start_time);
     }
     
-    _real_unsafe_park(env, instance, isAbsolute, time);
+    _original_Unsafe_Park(env, instance, isAbsolute, time);
 
-    if (park_blocker != NULL) {
+    if (lock_class != NULL) {
         jvmti->GetTime(&park_end_time);
-        recordContendedLock(env, park_end_time - park_start_time, park_blocker);
+        recordContendedLock(lock_class, park_end_time - park_start_time);
     }
 }
 
-void LockTracer::recordContendedLock(JNIEnv* env, jlong time, jobject lock) {
+jclass LockTracer::getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env) {
+    jthread thread;
+    if (jvmti->GetCurrentThread(&thread) != 0) {
+        return NULL;
+    }
+
+    // Call LockSupport.getBlocker(Thread.currentThread())
+    jobject park_blocker = env->CallStaticObjectMethod(_LockSupport, _getBlocker, thread);
+    if (park_blocker == NULL) {
+        return NULL;
+    }
+
+    jclass lock_class = env->GetObjectClass(park_blocker);
+    char* class_name;
+    if (jvmti->GetClassSignature(lock_class, &class_name, NULL) != 0) {
+        return NULL;
+    }
+
+    // Do not count synchronizers other than ReentrantLock, ReentrantReadWriteLock and Semaphore
+    if (strncmp(class_name, "Ljava/util/concurrent/locks/ReentrantLock", 41) != 0 &&
+        strncmp(class_name, "Ljava/util/concurrent/locks/ReentrantReadWriteLock", 50) != 0 &&
+        strncmp(class_name, "Ljava/util/concurrent/Semaphore", 31) != 0) {
+        lock_class = NULL;
+    }
+
+    jvmti->Deallocate((unsigned char*)class_name);
+    return lock_class;
+}
+
+void LockTracer::recordContendedLock(jclass lock_class, jlong time) {
     if (VMStructs::hasPermGen()) {
         // PermGen in JDK 7 makes difficult to get symbol name from jclass.
         // Let's just skip it and record stack trace without lock class.
         Profiler::_instance.recordSample(NULL, time, 0, NULL);
     } else {
-        jclass lock_class = env->GetObjectClass(lock);
         VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, (jmethodID)lock_name);
+    }
+}
+
+void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {
+    JNIEnv* env = VM::jni();
+
+    // Try JDK 9+ package first, then fallback to JDK 8 package
+    jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
+    if (unsafe == NULL) unsafe = env->FindClass("sun/misc/Unsafe");
+
+    if (unsafe != NULL) {
+        const JNINativeMethod unsafe_park = {(char*)"park", (char*)"(ZJ)V", (void*)entry};
+        env->RegisterNatives(unsafe, &unsafe_park, 1);
     }
 }
