@@ -50,6 +50,10 @@ uintptr_t StackFrame::arg2() {
     return (uintptr_t)REG(REG_RDX, __rdx);
 }
 
+uintptr_t StackFrame::arg3() {
+    return (uintptr_t)REG(REG_RCX, __rcx);
+}
+
 void StackFrame::ret() {
     pc() = stackAt(0);
     sp() += 8;

@@ -43,6 +43,10 @@ uintptr_t StackFrame::arg2() {
     return stackAt(3);
 }
 
+uintptr_t StackFrame::arg3() {
+    return stackAt(4);
+}
+
 void StackFrame::ret() {
     pc() = stackAt(0);
     sp() += 4;

@@ -43,6 +43,10 @@ uintptr_t StackFrame::arg2() {
     return (uintptr_t)_ucontext->uc_mcontext.arm_r2;
 }
 
+uintptr_t StackFrame::arg3() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r3;
+}
+
 void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }

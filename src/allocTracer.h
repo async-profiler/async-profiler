@@ -18,7 +18,9 @@
 #define _ALLOCTRACER_H
 
 #include <signal.h>
+#include <stdint.h>
 #include "arch.h"
+#include "codeCache.h"
 #include "engine.h"
 
 
@@ -33,6 +35,7 @@ class Trap {
     Trap(const char* func_name) : _func_name(func_name), _entry(NULL) {
     }
 
+    bool resolve(NativeCodeCache* libjvm);
     void install();
     void uninstall();
 
@@ -42,11 +45,16 @@ class Trap {
 
 class AllocTracer : public Engine {
   private:
+    // JDK 7-9
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
+    // JDK 10+
+    static Trap _in_new_tlab2;
+    static Trap _outside_tlab2;
 
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab); 
 
   public:
     const char* name() {
