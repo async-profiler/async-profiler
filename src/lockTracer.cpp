@@ -156,4 +156,6 @@ void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {
         const JNINativeMethod unsafe_park = {(char*)"park", (char*)"(ZJ)V", (void*)entry};
         env->RegisterNatives(unsafe, &unsafe_park, 1);
     }
+
+    env->ExceptionClear();
 }
