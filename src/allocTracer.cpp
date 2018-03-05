@@ -81,13 +81,13 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        recordAllocation(ucontext, frame.arg0(), frame.arg2(), false);
+        recordAllocation(ucontext, frame.arg0(), frame.arg1(), false);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
         recordAllocation(ucontext, frame.arg0(), frame.arg1(), true);
     } else if (frame.pc() - (uintptr_t)_in_new_tlab2._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab(Klass* klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread)
-        recordAllocation(ucontext, frame.arg0(), frame.arg3(), false);
+        recordAllocation(ucontext, frame.arg0(), frame.arg2(), false);
     } else if (frame.pc() - (uintptr_t)_outside_tlab2._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab(Klass* klass, HeapWord* obj, size_t alloc_size, Thread* thread)
         recordAllocation(ucontext, frame.arg0(), frame.arg2(), true);
