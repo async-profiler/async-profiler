@@ -10,7 +10,7 @@ async-profiler can trace the following kinds of events:
  - CPU cycles
  - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
  - Allocations in Java Heap
- - Contented lock attempts of Java monitors
+ - Contented lock attempts, including both Java object monitors and ReentrantLocks
 
 ## CPU profiling
 
@@ -195,11 +195,11 @@ Example: `./profiler.sh -d 30 8983`
 Use `list` to see the complete list of available events.
 
   In allocation profiling mode the top frame of every call trace is the class
-of the allocated object, and the counter is the total allocated bytes
-in all samples of the given call trace.
+of the allocated object, and the counter is the heap pressure (the total size
+of allocated TLABs or objects outside TLAB).
 
-  In lock profiling mode the top frame is the class of monitor object, and
-the counter is number of nanoseconds it took to enter the monitor.  
+  In lock profiling mode the top frame is the class of lock/monitor, and
+the counter is number of nanoseconds it took to enter this lock/monitor.  
 
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is
