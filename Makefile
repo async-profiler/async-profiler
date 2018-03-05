@@ -1,4 +1,4 @@
-RELEASE_TAG=1.1
+RELEASE_TAG=1.2
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar

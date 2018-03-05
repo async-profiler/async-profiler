@@ -1,9 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [1.2] - 2018-03-05
 
 ### Features
  - Produce SVG files out of the box; flamegraph.pl is no longer needed
+ - Profile ReentrantLock contention
+ - Java API
+ 
+### Improvements
+ - Allocation and Lock profiler now works on JDK 7, too
+ - Faster dumping of results
+
+### Changes
+ - `total` counter of allocation profiler now measures heap pressure (like JMC)
 
 ## [1.1] - 2017-12-03
 
