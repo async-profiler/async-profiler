@@ -23,7 +23,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH)
+all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(PROFILER_JAR)
 
 release: async-profiler-$(RELEASE_TAG).zip
 
