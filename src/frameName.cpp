@@ -22,11 +22,32 @@
 #include "vmStructs.h"
 
 
-void FrameName::initThreadMap() {
-    if (!VMThread::available()) {
-        return;
-    }
+FrameName::FrameName(bool simple, bool dotted, bool use_thread_names) :
+    _cache(),
+    _simple(simple),
+    _dotted(dotted),
+    _thread_count(0),
+    _threads(NULL) {
 
+    // Require printf to use standard C format regardless of system locale
+    _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
+
+    if (use_thread_names && VMThread::available()) {
+        initThreadMap();
+    }
+}
+
+FrameName::~FrameName() {
+    jvmtiEnv* jvmti = VM::jvmti();
+    for (int i = 0; i < _thread_count; i++) {
+        jvmti->Deallocate((unsigned char*)_threads[i]._name);
+    }
+    free(_threads);
+
+    freelocale(uselocale(_saved_locale));
+}
+
+void FrameName::initThreadMap() {
     JNIEnv* env = VM::jni();
     jclass threadClass = env->FindClass("java/lang/Thread");
     if (threadClass == NULL) {
@@ -57,14 +78,6 @@ void FrameName::initThreadMap() {
 
     qsort(_threads, _thread_count, sizeof(ThreadId), ThreadId::comparator);
     jvmti->Deallocate((unsigned char*)thread_objects);
-}
-
-FrameName::~FrameName() {
-    jvmtiEnv* jvmti = VM::jvmti();
-    for (int i = 0; i < _thread_count; i++) {
-        jvmti->Deallocate((unsigned char*)_threads[i]._name);
-    }
-    free(_threads);
 }
 
 const char* FrameName::findThreadName(int tid) {

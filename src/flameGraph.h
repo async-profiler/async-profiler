@@ -30,6 +30,9 @@ class Trie {
     u64 _self;
 
   public:
+    Trie() : _children(), _total(0), _self(0) {
+    }
+    
     Trie* addChild(const std::string& key, u64 value) {
         _total += value;
         return &_children[key];

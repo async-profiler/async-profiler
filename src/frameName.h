@@ -18,9 +18,14 @@
 #define _FRAMENAME_H
 
 #include <jvmti.h>
+#include <locale.h>
 #include <map>
 #include <string>
 #include "vmEntry.h"
+
+#ifdef __APPLE__
+#  include <xlocale.h>
+#endif
 
 
 class ThreadId {
@@ -45,6 +50,7 @@ class FrameName {
     char _buf[520];
     bool _simple;
     bool _dotted;
+    locale_t _saved_locale;
     int _thread_count;
     ThreadId* _threads;
 
@@ -55,10 +61,7 @@ class FrameName {
     char* javaClassName(const char* symbol, int length, bool simple, bool dotted);
 
   public:
-    FrameName(bool simple, bool dotted) : _cache(), _simple(simple), _dotted(dotted), _thread_count(0), _threads(NULL) {
-        initThreadMap();
-    }
-
+    FrameName(bool simple, bool dotted, bool use_thread_names);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame);

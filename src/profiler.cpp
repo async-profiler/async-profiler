@@ -450,7 +450,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn(args._simple, false);
+    FrameName fn(args._simple, false, _threads);
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -479,7 +479,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
     if (_state != IDLE) return;
 
     FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth, args._reverse);
-    FrameName fn(args._simple, false);
+    FrameName fn(args._simple, false, _threads);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
@@ -510,7 +510,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn(false, true);
+    FrameName fn(false, true, _threads);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -542,7 +542,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FrameName fn(false, true);
+    FrameName fn(false, true, _threads);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
