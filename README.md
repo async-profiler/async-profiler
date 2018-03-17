@@ -279,7 +279,7 @@ For the profiler to be able to access JVM, make sure
 ---
 
 `Failed to inject profiler into <pid>` means that the connection with the target JVM has been established, but JVM is unable to load profiler shared library.
-Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path. For more information see #78.
+Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path. For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
 
 ---
 
