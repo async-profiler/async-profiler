@@ -268,6 +268,11 @@ void PerfEvents::installSignalHandler() {
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    if (siginfo->si_code <= 0) {
+        // Looks like an external signal; don't treat as a profiling event
+        return;
+    }
+
     u64 counter;
     if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
         counter = 1;
