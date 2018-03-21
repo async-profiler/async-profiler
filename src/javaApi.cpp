@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+#include <fstream>
 #include <sstream>
+#include <errno.h>
+#include <string.h>
 #include "arguments.h"
 #include "profiler.h"
 
@@ -64,9 +67,21 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
-    std::ostringstream out;
-    Profiler::_instance.runInternal(args, out);
-    return env->NewStringUTF(out.str().c_str());
+    if (args._file == NULL) {
+        std::ostringstream out;
+        Profiler::_instance.runInternal(args, out);
+        return env->NewStringUTF(out.str().c_str());
+    } else {
+        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        if (out.is_open()) {
+            Profiler::_instance.runInternal(args, out);
+            out.close();
+            return env->NewStringUTF("OK");
+        } else {
+            throw_new(env, "java/io/IOException", strerror(errno));
+            return NULL;
+        }
+    }
 }
 
 extern "C" JNIEXPORT jstring JNICALL

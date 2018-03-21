@@ -33,7 +33,7 @@ public interface AsyncProfilerMXBean {
 
     long getSamples();
 
-    String execute(String command) throws IllegalArgumentException;
+    String execute(String command) throws IllegalArgumentException, java.io.IOException;
 
     String dumpCollapsed(Counter counter);
     String dumpTraces(int maxTraces);

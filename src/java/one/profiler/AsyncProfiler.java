@@ -48,12 +48,12 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     }
 
     @Override
-    public void start(String event, long interval) {
+    public void start(String event, long interval) throws IllegalStateException {
         start0(event, interval);
     }
 
     @Override
-    public void stop() {
+    public void stop() throws IllegalStateException {
         stop0();
     }
 
@@ -61,7 +61,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     public native long getSamples();
 
     @Override
-    public String execute(String command) {
+    public String execute(String command) throws IllegalArgumentException, java.io.IOException {
         return execute0(command);
     }
 
@@ -80,9 +80,9 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return dumpFlat0(maxMethods);
     }
 
-    private native void start0(String event, long interval);
-    private native void stop0();
-    private native String execute0(String command);
+    private native void start0(String event, long interval) throws IllegalStateException;
+    private native void stop0() throws IllegalStateException;
+    private native String execute0(String command) throws IllegalArgumentException, java.io.IOException;
     private native String dumpCollapsed0(int counter);
     private native String dumpTraces0(int maxTraces);
     private native String dumpFlat0(int maxMethods);
