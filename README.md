@@ -267,6 +267,11 @@ invoked by your Java code.
 * No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
 or negative.
 
+* Too short profiling interval may cause continuous interruption of heavy
+system calls like `clone()`, so that it will never complete;
+see [#97](https://github.com/jvm-profiling-tools/async-profiler/issues/97).
+The workaround is simply to increase the interval.
+
 ## Troubleshooting
 
 `Could not start attach mechanism: No such file or directory` means that the profiler cannot establish communication with the target JVM through UNIX domain socket.
