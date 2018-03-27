@@ -576,7 +576,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (error) {
                 out << error.message() << std::endl;
             } else {
-                out << "Stopped profiling after " << uptime() << " seconds" << std::endl;
+                out << "Stopped profiling after " << uptime() << " seconds. No dump options specified" << std::endl;
             }
             break;
         }
