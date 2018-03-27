@@ -17,18 +17,18 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
-#ifdef __linux__
+#ifdef __unix__
 #include <unistd.h>
-#endif //__linux__
+#endif //__unix__
 
 typedef unsigned long long u64;
 
 #ifndef PAGE_SIZE
-#ifdef __linux__
+#ifdef __unix__
 const unsigned long PAGE_SIZE = sysconf(_SC_PAGESIZE);
 #else
 const unsigned long PAGE_SIZE = 4096;
-#endif //__linux__
+#endif //__unix__
 #endif //PAGE_SIZE
 const unsigned long PAGE_MASK = PAGE_SIZE - 1;
 
