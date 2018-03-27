@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <unistd.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
 #include "profiler.h"
@@ -38,8 +39,9 @@ bool Trap::resolve(NativeCodeCache* libjvm) {
     _entry = (instruction_t*)libjvm->findSymbol(_func_name);
     if (_entry != NULL) {
         // Make the entry point writable, so we can rewrite instructions
-        uintptr_t page_start = (uintptr_t)_entry & ~PAGE_MASK;
-        mprotect((void*)page_start, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
+        long page_size = sysconf(_SC_PAGESIZE);
+        uintptr_t page_start = (uintptr_t)_entry & -page_size;
+        mprotect((void*)page_start, page_size, PROT_READ | PROT_WRITE | PROT_EXEC);
         return true;
     }
 

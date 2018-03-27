@@ -44,6 +44,8 @@ struct f_owner_ex {
 #endif // F_SETOWN_EX
 
 
+static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
+
 static int getMaxPID() {
     char buf[16] = "65536";
     int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
@@ -143,16 +145,16 @@ class RingBuffer {
 
   public:
     RingBuffer(struct perf_event_mmap_page* page) {
-        _start = (const char*)page + PAGE_SIZE;
+        _start = (const char*)page + PERF_PAGE_SIZE;
     }
 
     struct perf_event_header* seek(u64 offset) {
-        _offset = (unsigned long)offset & PAGE_MASK;
+        _offset = (unsigned long)offset & (PERF_PAGE_SIZE - 1);
         return (struct perf_event_header*)(_start + _offset);
     }
 
     u64 next() {
-        _offset = (_offset + sizeof(u64)) & PAGE_MASK;
+        _offset = (_offset + sizeof(u64)) & (PERF_PAGE_SIZE - 1);
         return *(u64*)(_start + _offset);
     }
 };
@@ -199,7 +201,7 @@ void PerfEvents::createForThread(int tid) {
         return;
     }
 
-    void* page = mmap(NULL, 2 * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
         perror("perf_event mmap failed");
         page = NULL;
@@ -245,7 +247,7 @@ void PerfEvents::destroyForThread(int tid) {
     }
     if (event->_page != NULL) {
         event->lock();
-        munmap(event->_page, 2 * PAGE_SIZE);
+        munmap(event->_page, 2 * PERF_PAGE_SIZE);
         event->_page = NULL;
         event->unlock();
     }
