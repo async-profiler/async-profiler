@@ -47,34 +47,78 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return instance;
     }
 
+    /**
+     * Start profiling
+     *
+     * @param event Profiling event, see {@link Events}
+     * @param interval Sampling interval, e.g. nanoseconds for Events.CPU
+     * @throws IllegalStateException If profiler is already running
+     */
     @Override
     public void start(String event, long interval) throws IllegalStateException {
         start0(event, interval);
     }
 
+    /**
+     * Stop profiling (without dumping results)
+     *
+     * @throws IllegalStateException If profiler is not running
+     */
     @Override
     public void stop() throws IllegalStateException {
         stop0();
     }
 
+    /**
+     * Get the number of samples collected during the profiling session
+     *
+     * @return Number of samples
+     */
     @Override
     public native long getSamples();
 
+    /**
+     * Execute an agent-compatible profiling command -
+     * the comma-separated list of arguments described in arguments.cpp
+     *
+     * @param command Profiling command
+     * @return The command result
+     * @throws IllegalArgumentException If failed to parse the command
+     * @throws java.io.IOException If failed to create output file
+     */
     @Override
     public String execute(String command) throws IllegalArgumentException, java.io.IOException {
         return execute0(command);
     }
 
+    /**
+     * Dump profile in 'collapsed stacktraces' format
+     *
+     * @param counter Which counter to display in the output
+     * @return Textual representation of the profile
+     */
     @Override
     public String dumpCollapsed(Counter counter) {
         return dumpCollapsed0(counter.ordinal());
     }
 
+    /**
+     * Dump collected stack traces
+     *
+     * @param maxTraces Maximum number of stack traces to dump. 0 means no limit
+     * @return Textual representation of the profile
+     */
     @Override
     public String dumpTraces(int maxTraces) {
         return dumpTraces0(maxTraces);
     }
 
+    /**
+     * Dump flat profile, i.e. the histogram of the hottest methods
+     *
+     * @param maxMethods Maximum number of methods to dump. 0 means no limit
+     * @return Textual representation of the profile
+     */
     @Override
     public String dumpFlat(int maxMethods) {
         return dumpFlat0(maxMethods);
