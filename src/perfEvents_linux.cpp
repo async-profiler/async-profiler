@@ -17,15 +17,18 @@
 #ifdef __linux__
 
 #include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
+#include <linux/hw_breakpoint.h>
 #include "arch.h"
 #include "perfEvents.h"
 #include "profiler.h"
@@ -86,9 +89,64 @@ struct PerfEventType {
     __u32 precise_ip;
     __u32 type;
     __u64 config;
+    __u32 bp_type;
+    __u32 bp_len;
 
     static PerfEventType AVAILABLE_EVENTS[];
+    static PerfEventType BREAKPOINT;
     static PerfEventType KERNEL_TRACEPOINT;
+
+    // Breakpoint format: func[+offset][/len][:rwx]
+    static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
+        char buf[256];
+        strncpy(buf, name, sizeof(buf));
+        
+        // Parse access type [:rwx]
+        char* c = strrchr(buf, ':');
+        if (c != NULL) {
+            *c++ = 0;
+            if (strcmp(c, "r") == 0) {
+                bp_type = HW_BREAKPOINT_R;
+            } else if (strcmp(c, "w") == 0) {
+                bp_type = HW_BREAKPOINT_W;
+            } else if (strcmp(c, "x") == 0) {
+                bp_type = HW_BREAKPOINT_X;
+            } else {
+                bp_type = HW_BREAKPOINT_RW;
+            }
+        }
+
+        // Parse length [/8]
+        c = strrchr(buf, '/');
+        if (c != NULL) {
+            *c++ = 0;
+            bp_len = (__u32)strtol(c, NULL, 0);
+        }
+
+        // Parse offset [+0x1234]
+        __u64 offset = 0;
+        c = strrchr(buf, '+');
+        if (c != NULL) {
+            *c++ = 0;
+            offset = (__u64)strtoll(c, NULL, 0);
+        }
+
+        // Parse symbol or absolute address
+        __u64 addr;
+        if (strncmp(buf, "0x", 2) == 0) {
+            addr = (__u64)strtoll(buf, NULL, 0);
+        } else {
+            addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
+            if (addr == 0) {
+                return NULL;
+            }
+        }
+
+        BREAKPOINT.config = addr + offset;
+        BREAKPOINT.bp_type = bp_type;
+        BREAKPOINT.bp_len = bp_len;
+        return &BREAKPOINT;
+    }
 
     static PerfEventType* forName(const char* name) {
         // First, look through the table of predefined perf events
@@ -98,7 +156,12 @@ struct PerfEventType {
             }
         }
 
-        // Second, try kernel tracepoints defined in debugfs
+        // Second, look for a symbol to set a breakpoint
+        if (strncmp(name, "mem:", 4) == 0) {
+            return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
+        }
+
+        // Third, try kernel tracepoints defined in debugfs
         if (strchr(name, ':') != NULL) {
             int tracepoint_id = getTracepointId(name);
             if (tracepoint_id > 0) {
@@ -107,7 +170,8 @@ struct PerfEventType {
             }
         }
 
-        return NULL;
+        // Finally, treat event as a function name and return an execution breakpoint
+        return getBreakpoint(name, HW_BREAKPOINT_X, sizeof(long));
     }
 };
 
@@ -135,6 +199,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {NULL}
 };
 
+PerfEventType PerfEventType::BREAKPOINT        = {"breakpoint", 1, 0, PERF_TYPE_BREAKPOINT, 0};
 PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, 0, PERF_TYPE_TRACEPOINT, 0};
 
 
@@ -187,7 +252,15 @@ void PerfEvents::createForThread(int tid) {
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
     attr.type = _event_type->type;
-    attr.config = _event_type->config;
+
+    if (attr.type == PERF_TYPE_BREAKPOINT) {
+        attr.bp_addr = _event_type->config;
+        attr.bp_type = _event_type->bp_type;
+        attr.bp_len = _event_type->bp_len;
+    } else {
+        attr.config = _event_type->config;
+    }
+    
     attr.precise_ip = _event_type->precise_ip;
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
