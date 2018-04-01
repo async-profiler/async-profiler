@@ -203,7 +203,7 @@ the counter is number of nanoseconds it took to enter this lock/monitor.
 
   Two special event types are supported on Linux: hardware breakpoints
 and kernel tracepoints:
-  - `-e mem:<func>:[rwx]` sets read/write/exec breakpoint at function
+  - `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
   `<func>`. The format of `mem` event is the same as in `perf-record`.
   Execution breakpoints can be also specified by the function name,
   e.g. `-e malloc` will trace all calls of native `malloc` function.
