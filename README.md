@@ -201,6 +201,16 @@ of allocated TLABs or objects outside TLAB).
   In lock profiling mode the top frame is the class of lock/monitor, and
 the counter is number of nanoseconds it took to enter this lock/monitor.  
 
+  Two special event types are supported on Linux: hardware breakpoints
+and kernel tracepoints:
+  - `-e mem:<func>:[rwx]` sets read/write/exec breakpoint at function
+  `<func>`. The format of `mem` event is the same as in `perf-record`.
+  Execution breakpoints can be also specified by the function name,
+  e.g. `-e malloc` will trace all calls of native `malloc` function.
+  - `-e trace:<id>` sets a kernel tracepoint. It is possible to specify
+  tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
+  all `open` syscalls.
+
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is
 1000000 (1ms).  
