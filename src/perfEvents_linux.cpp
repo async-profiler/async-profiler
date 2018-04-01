@@ -31,6 +31,7 @@
 #include <linux/hw_breakpoint.h>
 #include "arch.h"
 #include "perfEvents.h"
+#include "stackFrame.h"
 #include "profiler.h"
 #include "spinLock.h"
 
@@ -91,6 +92,7 @@ struct PerfEventType {
     __u64 config;
     __u32 bp_type;
     __u32 bp_len;
+    int counter_arg;
 
     static PerfEventType AVAILABLE_EVENTS[];
     static PerfEventType BREAKPOINT;
@@ -152,6 +154,16 @@ struct PerfEventType {
         // First, look through the table of predefined perf events
         for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
             if (strcmp(name, event->name) == 0) {
+                // Resolve well-known aliases
+                if (event->type == PERF_TYPE_BREAKPOINT) {
+                    if (event->config == 0 && (event->config = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, name)) == 0) {
+                        return NULL;
+                    }
+                } else if (event->type == PERF_TYPE_TRACEPOINT && strcmp(name, "mmap") == 0) {
+                    if (event->config == 0 && (event->config = getTracepointId("syscalls:sys_enter_mmap")) <= 0) {
+                        return NULL;
+                    }
+                }
                 return event;
             }
         }
@@ -166,7 +178,7 @@ struct PerfEventType {
             int tracepoint_id = getTracepointId(name);
             if (tracepoint_id > 0) {
                 KERNEL_TRACEPOINT.config = tracepoint_id;
-                return  &KERNEL_TRACEPOINT;
+                return &KERNEL_TRACEPOINT;
             }
         }
 
@@ -195,6 +207,9 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"L1-dcache-load-misses", 1000000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
     {"LLC-load-misses",          1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
     {"dTLB-load-misses",         1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
+
+    {"malloc",                      1, 0, PERF_TYPE_BREAKPOINT, 0, HW_BREAKPOINT_X, sizeof(long), 1},
+    {"mmap",                        1, 0, PERF_TYPE_TRACEPOINT, 0, 0, 0, 2},
 
     {NULL}
 };
@@ -349,8 +364,13 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     u64 counter;
-    if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
-        counter = 1;
+    if (_event_type->counter_arg == 0) {
+        if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
+            counter = 1;
+        }
+    } else {
+        StackFrame frame(ucontext);
+        counter = _event_type->counter_arg > 1 ? frame.arg1() : frame.arg0();
     }
 
     Profiler::_instance.recordSample(ucontext, counter, 0, NULL);
