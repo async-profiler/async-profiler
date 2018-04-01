@@ -63,7 +63,7 @@ static int getMaxPID() {
 
 // Get perf_event_attr.config numeric value of the given tracepoint name
 // by reading /sys/kernel/debug/tracing/events/<name>/id file
-static int getTracepointId(const char* name) {
+static int findTracepointId(const char* name) {
     char buf[256];
     if (snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
         return 0;
@@ -84,7 +84,7 @@ static int getTracepointId(const char* name) {
 }
 
 
-struct FunctionCounter {
+struct FunctionWithCounter {
     const char* name;
     int counter_arg;
 };
@@ -100,19 +100,25 @@ struct PerfEventType {
     int counter_arg;
 
     static PerfEventType AVAILABLE_EVENTS[];
-    static PerfEventType BREAKPOINT;
-    static PerfEventType KERNEL_TRACEPOINT;
-    static FunctionCounter KNOWN_FUNCTIONS[];
+    static FunctionWithCounter KNOWN_FUNCTIONS[];
 
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size 
     static int findCounterArg(const char* name) {
-        for (FunctionCounter* func = KNOWN_FUNCTIONS; func->name != NULL; func++) {
+        for (FunctionWithCounter* func = KNOWN_FUNCTIONS; func->name != NULL; func++) {
             if (strcmp(name, func->name) == 0) {
                 return func->counter_arg;
             }
         }
         return 0;
+    }
+
+    static PerfEventType* findByType(__u32 type) {
+        for (PerfEventType* event = AVAILABLE_EVENTS; ; event++) {
+            if (event->type == type) {
+                return event;
+            }
+        }
     }
 
     // Breakpoint format: func[+offset][/len][:rwx]
@@ -162,21 +168,21 @@ struct PerfEventType {
             }
         }
 
-        BREAKPOINT.config = addr + offset;
-        BREAKPOINT.bp_type = bp_type;
-        BREAKPOINT.bp_len = bp_len;
-        BREAKPOINT.counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
-        return &BREAKPOINT;
+        PerfEventType* breakpoint = findByType(PERF_TYPE_BREAKPOINT);
+        breakpoint->config = addr + offset;
+        breakpoint->bp_type = bp_type;
+        breakpoint->bp_len = bp_len;
+        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
+        return breakpoint;
+    }
+
+    static PerfEventType* getTracepoint(int tracepoint_id) {
+        PerfEventType* tracepoint = findByType(PERF_TYPE_TRACEPOINT);
+        tracepoint->config = tracepoint_id;
+        return tracepoint;
     }
 
     static PerfEventType* forName(const char* name) {
-        // Look through the table of predefined perf events
-        for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
-            if (strcmp(name, event->name) == 0) {
-                return event;
-            }
-        }
-
         // Hardware breakpoint
         if (strncmp(name, "mem:", 4) == 0) {
             return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
@@ -184,16 +190,22 @@ struct PerfEventType {
 
         // Raw tracepoint ID
         if (strncmp(name, "trace:", 6) == 0) {
-            KERNEL_TRACEPOINT.config = atoi(name + 6);
-            return &KERNEL_TRACEPOINT;
+            int tracepoint_id = atoi(name + 6);
+            return tracepoint_id > 0 ? getTracepoint(tracepoint_id) : NULL;
+        }
+
+        // Look through the table of predefined perf events
+        for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
+            if (strcmp(name, event->name) == 0) {
+                return event;
+            }
         }
 
         // Kernel tracepoints defined in debugfs
         if (strchr(name, ':') != NULL) {
-            int tracepoint_id = getTracepointId(name);
+            int tracepoint_id = findTracepointId(name);
             if (tracepoint_id > 0) {
-                KERNEL_TRACEPOINT.config = tracepoint_id;
-                return &KERNEL_TRACEPOINT;
+                return getTracepoint(tracepoint_id);
             }
         }
 
@@ -223,13 +235,13 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"LLC-load-misses",          1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
     {"dTLB-load-misses",         1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
+    {"mem:breakpoint",              1, 0, PERF_TYPE_BREAKPOINT, 0},
+    {"trace:tracepoint",            1, 0, PERF_TYPE_TRACEPOINT, 0},
+
     {NULL}
 };
 
-PerfEventType PerfEventType::BREAKPOINT        = {"breakpoint", 1, 0, PERF_TYPE_BREAKPOINT, 0};
-PerfEventType PerfEventType::KERNEL_TRACEPOINT = {"tracepoint", 1, 0, PERF_TYPE_TRACEPOINT, 0};
-
-FunctionCounter PerfEventType::KNOWN_FUNCTIONS[] = {
+FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {"malloc",   1},
     {"mmap",     2},
     {"read",     3},
