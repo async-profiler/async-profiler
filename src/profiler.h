@@ -40,6 +40,12 @@ static inline int cmp64(u64 a, u64 b) {
 }
 
 
+union CallTraceBuffer {
+    ASGCT_CallFrame _asgct_frames[MAX_STACK_FRAMES];
+    jvmtiFrameInfo _jvmti_frames[MAX_STACK_FRAMES];
+};
+
+
 class CallTraceSample {
   private:
     u64 _samples;
@@ -124,7 +130,7 @@ class Profiler {
     MethodSample _methods[MAX_CALLTRACES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
-    ASGCT_CallFrame _calltrace_buffer[CONCURRENCY_LEVEL][MAX_STACK_FRAMES];
+    CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
@@ -139,6 +145,10 @@ class Profiler {
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     int _native_lib_count;
 
+    void* (*_ThreadLocalStorage_thread)();
+    jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
+                                          jvmtiFrameInfo* frame_buffer, jint* count_ptr);
+
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
@@ -147,6 +157,7 @@ class Profiler {
     const char* findNativeMethod(const void* address);
     int getNativeTrace(int tid, ASGCT_CallFrame* frames);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     bool addressInCode(const void* pc);
@@ -157,6 +168,7 @@ class Profiler {
     void storeMethod(jmethodID method, jint bci, u64 counter);
     void initStateLock();
     void resetSymbols();
+    void initJvmtiFunctions();
     void setSignalHandler();
 
   public:

@@ -251,6 +251,25 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     return 0;
 }
 
+int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
+    // We cannot call pure JVM TI here, because it assumes _thread_in_native state,
+    // but allocation events happen in _thread_in_vm state,
+    // see https://github.com/jvm-profiling-tools/async-profiler/issues/64
+    void* thread = _ThreadLocalStorage_thread();
+    int num_frames;
+    if (_JvmtiEnv_GetStackTrace(NULL, thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+        // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
+        for (int i = 0; i < num_frames; i++) {
+            frames[i].method_id = jvmti_frames[i].method;
+            frames[i].bci = 0;
+        }
+        return num_frames;
+    }
+
+    atomicInc(_failures[-ticks_no_Java_frame]);
+    return 0;
+}
+
 int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event) {
     frames[0].bci = event_type;
     frames[0].method_id = event;
@@ -308,12 +327,23 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     atomicInc(_total_counter, counter);
 
-    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index];
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
     int tid = PerfEvents::tid();
 
-    int num_frames = event != NULL ? makeEventFrame(frames, event_type, event) : 0;
-    num_frames += getNativeTrace(tid, frames);
-    num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
+    int num_frames;
+    if (event == NULL) {
+        num_frames = getNativeTrace(tid, frames);
+    } else {
+        num_frames = makeEventFrame(frames, event_type, event);
+    }
+
+    if (event == NULL || _JvmtiEnv_GetStackTrace == NULL) {
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
+    } else {
+        // Events like object allocation happen at known places where it is safe to call JVM TI
+        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
+    }
 
     if (_threads) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
@@ -339,6 +369,27 @@ void Profiler::resetSymbols() {
         delete _native_libs[i];
     }
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
+}
+
+void Profiler::initJvmtiFunctions() {
+    if (_JvmtiEnv_GetStackTrace == NULL) {
+        NativeCodeCache* libjvm = jvmLibrary();
+        if (libjvm != NULL) {
+            // Find ThreadLocalStorage::thread() if exists
+            if (_ThreadLocalStorage_thread == NULL) {
+                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
+            }
+            // Fallback to ThreadLocalStorage::get_thread_slow()
+            if (_ThreadLocalStorage_thread == NULL) {
+                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
+            }
+            // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
+            if (_ThreadLocalStorage_thread != NULL) {
+                _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
+                    libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
+            }
+        }
+    }
 }
 
 Error Profiler::start(const char* event, long interval, int frame_buffer_size, bool threads) {
@@ -367,6 +418,7 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size, b
     _threads = threads;
 
     resetSymbols();
+    initJvmtiFunctions();
 
     if (strcmp(event, EVENT_ALLOC) == 0) {
         _engine = new AllocTracer();
