@@ -418,7 +418,9 @@ class Palette {
 void FlameGraph::dump(std::ostream& out) {
     _scale = (_imagewidth - 20) / (double)_root._total;
     _pct = 100 / (double)_root._total;
-    _imageheight = _frameheight * (_maxdepth + 1) + 70;
+
+    u64 cutoff = (u64)(_minwidth / _scale);
+    _imageheight = _frameheight * _root.depth(cutoff) + 70;
 
     printHeader(out);
     printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));

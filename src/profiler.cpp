@@ -538,7 +538,6 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
         if (trace._samples == 0) continue;
 
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
-        flamegraph.depth(trace._num_frames);
 
         Trie* f = flamegraph.root();
         if (args._reverse) {

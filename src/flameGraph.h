@@ -43,6 +43,19 @@ class Trie {
         _self += value;
     }
 
+    int depth(u64 cutoff) const {
+        if (_total < cutoff) {
+            return 0;
+        }
+
+        int max_depth = 0;
+        for (std::map<std::string, Trie>::const_iterator it = _children.begin(); it != _children.end(); ++it) {
+            int d = it->second.depth(cutoff);
+            if (d > max_depth) max_depth = d;
+        }
+        return max_depth + 1;
+    }
+
     friend class FlameGraph;
 };
 
@@ -53,7 +66,6 @@ class FlameGraph {
     char _buf[4096];
 
     const char* _title;
-    int _maxdepth;
     int _imagewidth;
     int _imageheight;
     int _frameheight;
@@ -70,7 +82,6 @@ class FlameGraph {
   public:
     FlameGraph(const char* title, int width, int height, double minwidth, bool reverse) :
         _root(),
-        _maxdepth(0),
         _title(title),
         _imagewidth(width),
         _frameheight(height),
@@ -80,10 +91,6 @@ class FlameGraph {
 
     Trie* root() {
         return &_root;
-    }
-
-    void depth(int d) {
-        if (d > _maxdepth) _maxdepth = d;
     }
 
     void dump(std::ostream& out);

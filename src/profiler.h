@@ -182,7 +182,9 @@ class Profiler {
         _jit_max_address((const void*)0),
         _java_methods(),
         _runtime_stubs("[stubs]"),
-        _native_lib_count(0) {
+        _native_lib_count(0),
+        _ThreadLocalStorage_thread(NULL),
+        _JvmtiEnv_GetStackTrace(NULL) {
         initStateLock();
     }
 
