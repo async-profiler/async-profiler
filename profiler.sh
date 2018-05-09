@@ -14,6 +14,7 @@ usage() {
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
+    echo "  -j jstackdepth    java stack depth"
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"

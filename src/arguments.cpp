@@ -40,6 +40,7 @@ const Error Error::OK(NULL);
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)
 //     interval=N    - sampling interval in ns (default: 1'000'000, i.e. 1 ms)
+//     jstackdepth=N - java stack depth (default: MAX_STACK_FRAMES, will be ignored if the option is greater than default)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     threads       - profile different threads separately
 //     simple        - simple class names instead of FQN
