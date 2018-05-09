@@ -144,7 +144,7 @@ class Profiler {
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     int _native_lib_count;
-
+    long _jstackdepth;
     void* (*_ThreadLocalStorage_thread)();
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
                                           jvmtiFrameInfo* frame_buffer, jint* count_ptr);
@@ -184,7 +184,8 @@ class Profiler {
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
         _ThreadLocalStorage_thread(NULL),
-        _JvmtiEnv_GetStackTrace(NULL) {
+        _JvmtiEnv_GetStackTrace(NULL),
+	_jstackdepth(0) {
         initStateLock();
     }
 

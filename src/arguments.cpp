@@ -19,7 +19,6 @@
 #include <string.h>
 #include "arguments.h"
 
-
 // Predefined value that denotes successful operation
 const Error Error::OK(NULL);
 
@@ -94,6 +93,10 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = atol(value)) <= 0) {
                 return Error("interval must be > 0");
+            }
+        } else if (strcmp(arg, "jstackdepth") == 0) {
+            if (value == NULL || (_jstackdepth = atol(value)) <= 0) {
+                return Error("jstackdepth must be > 0");
             }
         } else if (strcmp(arg, "framebuf") == 0) {
             if (value == NULL || (_framebuf = atoi(value)) <= 0) {

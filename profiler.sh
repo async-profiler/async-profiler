@@ -96,6 +96,7 @@ FRAMEBUF=""
 THREADS=""
 OUTPUT=""
 FORMAT=""
+JSTACKDEPTH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -111,6 +112,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -d)
             DURATION="$2"
+            shift
+            ;;
+        -j)
+            JSTACKDEPTH=",jstackdepth=$2"
             shift
             ;;
         -f)
@@ -188,7 +193,7 @@ fi
 
 case $ACTION in
     start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -200,7 +205,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1
