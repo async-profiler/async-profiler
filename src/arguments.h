@@ -93,7 +93,7 @@ class Arguments {
         _counter(COUNTER_SAMPLES),
         _event(EVENT_CPU),
         _interval(0),
-	_jstackdepth(0),
+        _jstackdepth(0),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
         _simple(false),

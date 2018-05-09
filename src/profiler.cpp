@@ -338,11 +338,11 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     }
 
     if (event == NULL || _JvmtiEnv_GetStackTrace == NULL) {
-	int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
-	if( _jstackdepth != 0 && _jstackdepth < max_depth) {
+        int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
+        if( _jstackdepth != 0 && _jstackdepth < max_depth) {
 		max_depth =  _jstackdepth + 1 + num_frames;
-	}
-       	num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
+        }
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
@@ -617,7 +617,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-	    if(strcmp(args._event,"cpu") == 0) { _jstackdepth = args._jstackdepth; }
+            if(strcmp(args._event,"cpu") == 0) { _jstackdepth = args._jstackdepth; }
             Error error = start(args._event, args._interval, args._framebuf, args._threads);
             if (error) {
                 out << error.message() << std::endl;
