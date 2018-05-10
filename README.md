@@ -217,7 +217,7 @@ is counted. No samples are collected while CPU is idle. The default is
 Example: `./profiler.sh -i 100000 8983`
 
 * `-j N` - sets the java stack profiling depth. This option will be ignored if N is greater 
-than default MAX_STACK_FRAMES.
+than default MAX_STACK_FRAMES. 
 Example: `./profiler.sh -j 30 8983`
 
 * `-b N` - sets the frame buffer size, in the number of Java
