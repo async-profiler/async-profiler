@@ -63,7 +63,12 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
     return 1;
 }
 
-#else // __APPLE__
+// This is a Linux-specific API; nothing to do on macOS
+int enter_mount_ns(int pid) {
+    return 1;
+}
+
+#else // Linux
 
 const char* get_temp_directory() {
     return "/tmp";
@@ -99,7 +104,35 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
     return 1;
 }
 
-#endif // __APPLE__
+int enter_mount_ns(int pid) {
+    // We're leaking the oldns and newns descriptors, but this is a short-running
+    // tool, so they will be closed when the process exits anyway.
+    int oldns, newns;
+    char curnspath[128], newnspath[128];
+    struct stat oldns_stat, newns_stat;
+
+    snprintf(curnspath, sizeof(curnspath), "/proc/self/ns/mnt");
+    snprintf(newnspath, sizeof(newnspath), "/proc/%d/ns/mnt", pid);
+
+    if ((oldns = open(curnspath, O_RDONLY)) < 0 ||
+        (newns = open(newnspath, O_RDONLY)) < 0) {
+        return 0;
+    }
+
+    if (fstat(oldns, &oldns_stat) < 0 || fstat(newns, &newns_stat) < 0) {
+        return 0;
+    }
+    if (oldns_stat.st_ino == newns_stat.st_ino) {
+        // Don't try to call setns() if we're in the same namespace already.
+        return 1;
+    }
+
+    // Some ancient Linux distributions do not have setns() function
+    return syscall(__NR_setns, newns, 0) < 0 ? 0 : 1;
+}
+
+#endif
+
 
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
@@ -211,37 +244,6 @@ static int read_response(int fd) {
     return result;
 }
 
-static int enter_mount_ns(int pid) {
-#ifdef __linux__
-    // We're leaking the oldns and newns descriptors, but this is a short-running
-    // tool, so they will be closed when the process exits anyway.
-    int oldns, newns;
-    char curnspath[128], newnspath[128];
-    struct stat oldns_stat, newns_stat;
-
-    snprintf(curnspath, sizeof(curnspath), "/proc/self/ns/mnt");
-    snprintf(newnspath, sizeof(newnspath), "/proc/%d/ns/mnt", pid);
-
-    if ((oldns = open(curnspath, O_RDONLY)) < 0 ||
-        (newns = open(newnspath, O_RDONLY)) < 0) {
-        return 0;
-    }
-
-    if (fstat(oldns, &oldns_stat) < 0 || fstat(newns, &newns_stat) < 0) {
-        return 0;
-    }
-    if (oldns_stat.st_ino == newns_stat.st_ino) {
-        // Don't try to call setns() if we're in the same namespace already.
-        return 1;
-    }
-
-    // Some ancient Linux distributions do not have setns() function
-    return syscall(__NR_setns, newns, 0) < 0 ? 0 : 1;
-#else
-    return 1;
-#endif
-}
-
 int main(int argc, char** argv) {
     if (argc < 3) {
         printf("Usage: jattach <pid> <cmd> <args> ...\n");
@@ -260,7 +262,8 @@ int main(int argc, char** argv) {
     gid_t target_gid = my_gid;
     int nspid = pid;
     if (!get_process_info(pid, &target_uid, &target_gid, &nspid)) {
-        fprintf(stderr, "WARNING: couldn't get target process information\n");
+        fprintf(stderr, "Process %d not found\n", pid);
+        return 1;
     }
 
     // Make sure our /tmp and target /tmp is the same
