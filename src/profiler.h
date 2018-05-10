@@ -132,6 +132,7 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
+    int _jstackdepth;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
@@ -195,7 +196,7 @@ class Profiler {
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
-    Error start(const char* event, long interval, int frame_buffer_size, bool threads);
+    Error start(const char* event, long interval, int jstackdepth, int frame_buffer_size, bool threads);
     Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);

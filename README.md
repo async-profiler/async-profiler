@@ -217,6 +217,10 @@ is counted. No samples are collected while CPU is idle. The default is
 1000000 (1ms).  
 Example: `./profiler.sh -i 100000 8983`
 
+* `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater 
+than default MAX_STACK_FRAMES.  
+Example: `./profiler.sh -j 30 8983`
+
 * `-b N` - sets the frame buffer size, in the number of Java
 method ids that should fit in the buffer. If you receive messages about an
 insufficient frame buffer size, increase this value from the default.  
