@@ -71,7 +71,7 @@ class Arguments {
     Counter _counter;
     const char* _event;
     long _interval;
-    long _jstackdepth;
+    int  _jstackdepth;
     int _framebuf;
     bool _threads;
     bool _simple;

@@ -617,7 +617,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-            if(strcmp(args._event,"cpu") == 0) { _jstackdepth = args._jstackdepth; }
+            _jstackdepth = args._jstackdepth;//this is used in AsyncGetCallTrace to control java stack depth
             Error error = start(args._event, args._interval, args._framebuf, args._threads);
             if (error) {
                 out << error.message() << std::endl;
