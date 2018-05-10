@@ -340,7 +340,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     if (event == NULL || _JvmtiEnv_GetStackTrace == NULL) {
         int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
         if( _jstackdepth != 0 && _jstackdepth < max_depth) {
-		max_depth =  _jstackdepth + 1 + num_frames;
+		max_depth =  _jstackdepth;
         }
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
     } else {
