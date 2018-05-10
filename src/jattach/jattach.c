@@ -33,6 +33,8 @@
 
 #ifdef __APPLE__
 
+#include <sys/sysctl.h>
+
 // macOS has a secure per-user temporary directory
 const char* get_temp_directory() {
     static char temp_path_storage[MAX_PATH] = {0};
@@ -46,10 +48,55 @@ const char* get_temp_directory() {
     return temp_path_storage;
 }
 
+int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+    struct kinfo_proc info;
+    size_t len = sizeof(info);
+
+    if (sysctl(mib, 4, &info, &len, NULL, 0) < 0 || len <= 0) {
+        return 0;
+    }
+
+    *uid = info.kp_eproc.e_ucred.cr_uid;
+    *gid = info.kp_eproc.e_ucred.cr_gid;
+    *nspid = pid;
+    return 1;
+}
+
 #else // __APPLE__
 
 const char* get_temp_directory() {
     return "/tmp";
+}
+
+int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
+    char status[64];
+    snprintf(status, sizeof(status), "/proc/%d/status", pid);
+
+    FILE* status_file = fopen(status, "r");
+    if (status_file == NULL) {
+        return 0;
+    }
+
+    char* line = NULL;
+    size_t size;
+
+    while (getline(&line, &size, status_file) != -1) {
+        if (strncmp(line, "Uid:", 4) == 0) {
+            // Get the effective UID, which is the second value in the line
+            *uid = (uid_t)atoi(strchr(line + 5, '\t'));
+        } else if (strncmp(line, "Gid:", 4) == 0) {
+            // Get the effective GID, which is the second value in the line
+            *gid = (gid_t)atoi(strchr(line + 5, '\t'));
+        } else if (strncmp(line, "NStgid:", 7) == 0) {
+            // PID namespaces can be nested; the last one is the innermost one
+            *nspid = atoi(strrchr(line, '\t'));
+        }
+    }
+
+    free(line);
+    fclose(status_file);
+    return 1;
 }
 
 #endif // __APPLE__
@@ -164,32 +211,6 @@ static int read_response(int fd) {
     return result;
 }
 
-// On Linux, get the innermost pid namespace pid for the specified host pid
-static int nspid_for_pid(int pid) {
-#ifdef __linux__
-    char status[64];
-    snprintf(status, sizeof(status), "/proc/%d/status", pid);
-
-    FILE* status_file = fopen(status, "r");
-    if (status_file != NULL) {
-        char* line = NULL;
-        size_t size;
-
-        while (getline(&line, &size, status_file) != -1) {
-            if (strstr(line, "NStgid:") != NULL) {
-                // PID namespaces can be nested; the last one is the innermost one
-                pid = (int)strtol(strrchr(line, '\t'), NULL, 10);
-            }
-        }
-
-        free(line);
-        fclose(status_file);
-    }
-#endif
-
-    return pid;
-}
-
 static int enter_mount_ns(int pid) {
 #ifdef __linux__
     // We're leaking the oldns and newns descriptors, but this is a short-running
@@ -202,7 +223,7 @@ static int enter_mount_ns(int pid) {
     snprintf(newnspath, sizeof(newnspath), "/proc/%d/ns/mnt", pid);
 
     if ((oldns = open(curnspath, O_RDONLY)) < 0 ||
-        ((newns = open(newnspath, O_RDONLY)) < 0)) {
+        (newns = open(newnspath, O_RDONLY)) < 0) {
         return 0;
     }
 
@@ -233,9 +254,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    int nspid = nspid_for_pid(pid);
+    uid_t my_uid = geteuid();
+    gid_t my_gid = getegid();
+    uid_t target_uid = my_uid;
+    gid_t target_gid = my_gid;
+    int nspid = pid;
+    if (!get_process_info(pid, &target_uid, &target_gid, &nspid)) {
+        fprintf(stderr, "WARNING: couldn't get target process information\n");
+    }
+
+    // Make sure our /tmp and target /tmp is the same
     if (enter_mount_ns(pid) < 0) {
         fprintf(stderr, "WARNING: couldn't enter target process mnt namespace\n");
+    }
+    
+    // Dynamic attach is allowed only for the clients with the same euid/egid.
+    // If we are running under root, switch to the required euid/egid automatically.
+    if ((my_gid != target_gid && setegid(target_gid) != 0) ||
+        (my_uid != target_uid && seteuid(target_uid) != 0)) {
+        perror("Failed to change credentials to match the target process");
+        return 1;
     }
 
     // Make write() return EPIPE instead of silent process termination
