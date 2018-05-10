@@ -14,7 +14,7 @@ usage() {
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
-    echo "  -j jstackdepth    java stack depth"
+    echo "  -j jstackdepth    maximum Java stack depth"
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
@@ -93,11 +93,11 @@ DURATION="60"
 FILE=""
 USE_TMP="true"
 INTERVAL=""
+JSTACKDEPTH=""
 FRAMEBUF=""
 THREADS=""
 OUTPUT=""
 FORMAT=""
-JSTACKDEPTH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -115,10 +115,6 @@ while [[ $# -gt 0 ]]; do
             DURATION="$2"
             shift
             ;;
-        -j)
-            JSTACKDEPTH=",jstackdepth=$2"
-            shift
-            ;;
         -f)
             FILE="$2"
             unset USE_TMP
@@ -126,6 +122,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -i)
             INTERVAL=",interval=$2"
+            shift
+            ;;
+        -j)
+            JSTACKDEPTH=",jstackdepth=$2"
             shift
             ;;
         -b)

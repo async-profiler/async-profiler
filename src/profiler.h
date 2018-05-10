@@ -132,6 +132,7 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
+    int _jstackdepth;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
@@ -144,7 +145,7 @@ class Profiler {
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     int _native_lib_count;
-    int _jstackdepth;
+
     void* (*_ThreadLocalStorage_thread)();
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
                                           jvmtiFrameInfo* frame_buffer, jint* count_ptr);
@@ -184,8 +185,7 @@ class Profiler {
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
         _ThreadLocalStorage_thread(NULL),
-        _JvmtiEnv_GetStackTrace(NULL),
-        _jstackdepth(0) {
+        _JvmtiEnv_GetStackTrace(NULL) {
         initStateLock();
     }
 
@@ -196,7 +196,7 @@ class Profiler {
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
-    Error start(const char* event, long interval, int frame_buffer_size, bool threads);
+    Error start(const char* event, long interval, int jstackdepth, int frame_buffer_size, bool threads);
     Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);
