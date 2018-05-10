@@ -19,7 +19,6 @@
 #include <string.h>
 #include "arguments.h"
 
-
 // Predefined value that denotes successful operation
 const Error Error::OK(NULL);
 
@@ -41,6 +40,7 @@ const Error Error::OK(NULL);
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)
 //     interval=N    - sampling interval in ns (default: 1'000'000, i.e. 1 ms)
+//     jstackdepth=N - java stack depth (default: MAX_STACK_FRAMES, will be ignored if the option is greater than default)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     threads       - profile different threads separately
 //     simple        - simple class names instead of FQN
@@ -94,6 +94,10 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = atol(value)) <= 0) {
                 return Error("interval must be > 0");
+            }
+        } else if (strcmp(arg, "jstackdepth") == 0) {
+            if (value == NULL || (_jstackdepth = atol(value)) <= 0) {
+                return Error("jstackdepth must be > 0");
             }
         } else if (strcmp(arg, "framebuf") == 0) {
             if (value == NULL || (_framebuf = atoi(value)) <= 0) {
