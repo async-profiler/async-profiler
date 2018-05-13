@@ -12,6 +12,15 @@ async-profiler can trace the following kinds of events:
  - Allocations in Java Heap
  - Contented lock attempts, including both Java object monitors and ReentrantLocks
 
+## Download
+
+Latest release:
+
+ - Linux x64: [async-profiler-1.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.3/async-profiler-1.3-linux-x64.tar.gz)
+ - macOS x64: [async-profiler-1.3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.3/async-profiler-1.3-macos-x64.tar.gz)
+
+[Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
+
 ## CPU profiling
 
 In this mode profiler collects stack trace samples that include **Java** methods,

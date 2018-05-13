@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3] - 2018-05-13
+
+### Features
+ - Profiling of native functions, e.g. malloc
+ 
+### Improvements
+ - JDK 9, 10, 11 support for heap profiling with accurate stack traces
+ - `root` can now profile Java processes of any user
+ - `-j` option for limiting Java stack depth
+
 ## [1.2] - 2018-03-05
 
 ### Features
