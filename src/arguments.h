@@ -113,7 +113,7 @@ class Arguments {
     }
 
     bool dumpRequested() {
-        return _dump_collapsed || _dump_flamegraph || _dump_summary || _dump_traces > 0 || _dump_flat > 0;
+        return _dump_collapsed || _dump_flamegraph || _dump_summary || _dump_traces > 0 || _dump_flat > 0 || _dump_calltree;
     }
 
     Error parse(const char* args);

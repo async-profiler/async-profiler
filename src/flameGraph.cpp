@@ -27,14 +27,15 @@
  *
  * CDDL HEADER END
  */
-
 #include <iomanip>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include <algorithm>
 #include <utility>
 #include "flameGraph.h"
+using namespace std;
 
 static const char TREE_HEADER[] = 
 "<html>\n"
@@ -562,7 +563,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     return framewidth;
 }
 
-bool FlameGraph::sortMap(std::pair<std::string, Trie>& a, std::pair<std::string, Trie>& b)  {
+bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b)  {
     return a.second._total > b.second._total; 
 }
 
@@ -578,7 +579,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
         StringUtils::escape(short_title);
 
         std::vector< std::pair<std::string, Trie> > pairs;
-        for (auto itr = f._children.begin(); itr != f._children.end(); ++itr)
+        for (std::map<std::string, Trie>::const_iterator itr = f._children.begin(); itr != f._children.end(); ++itr)
             pairs.push_back(*itr);
 
         std::sort(pairs.begin(), pairs.end(), sortMap);
