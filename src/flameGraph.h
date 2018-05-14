@@ -101,7 +101,6 @@ class FlameGraph {
     }
 
     void dump(std::ostream& out, int type);
-    void dumpTree(std::ostream& out);
 };
 
 #endif // _FLAMEGRAPH_H

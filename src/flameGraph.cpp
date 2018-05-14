@@ -592,12 +592,6 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
 
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
-        std::string full_title = name;
-        int color = selectFrameColor(full_title,false);
-        std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
-        StringUtils::escape(full_title);
-        StringUtils::escape(short_title);
-
         std::vector< std::pair<std::string, Trie> > pairs;
         for (std::map<std::string, Trie>::const_iterator itr = f._children.begin(); itr != f._children.end(); ++itr)
             pairs.push_back(*itr);
@@ -607,10 +601,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
         for (size_t i = 0; i < pairs.size(); ++i) { 
             std::string full_title = pairs[i].first;
             int color = selectFrameColor(full_title,false);
-            std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
             StringUtils::escape(full_title);
-            StringUtils::escape(short_title);
-                       
             bool format = true;
             if(pairs[i].second._children.size() == 0) {
                 format = false;
