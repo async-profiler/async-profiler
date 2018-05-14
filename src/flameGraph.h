@@ -76,8 +76,12 @@ class FlameGraph {
 
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
+    void printTreeHeader(std::ostream& out, long total);
+    void printTreeFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
+    double printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth);
     int selectFrameColor(std::string& name);
+    bool static sortMap(std::pair<std::string, Trie>& a, std::pair<std::string, Trie>& b);
 
   public:
     FlameGraph(const char* title, int width, int height, double minwidth, bool reverse) :
@@ -94,6 +98,7 @@ class FlameGraph {
     }
 
     void dump(std::ostream& out);
+    void dumpTree(std::ostream& out);
 };
 
 #endif // _FLAMEGRAPH_H

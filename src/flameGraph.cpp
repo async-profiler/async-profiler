@@ -32,8 +32,69 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
+#include <utility>
 #include "flameGraph.h"
 
+static const char TREE_HEADER[] = 
+"<html>\n"
+"<style>\n"
+"	body {\n"
+"   font-family: Arial;\n"
+"}\n"
+"ul.tree li {\n"
+"    list-style-type: none;\n"
+"    position: relative;\n"
+"}\n"
+"ul.tree li ul {\n"
+"    display: none;\n"
+"}\n"
+"ul.tree li.open > ul {\n"
+"    display: block;\n"
+"}\n"
+"ul.tree li a {\n"
+"    color: black;\n"
+"    text-decoration: none;\n"
+"}\n"
+"ul.tree li a:before {\n"
+"    height: 1em;\n"
+"    padding:0 .1em;\n"
+"    font-size: .8em;\n"
+"    display: block;\n"
+"    position: absolute;\n"
+"    left: -1.3em;\n"
+"    top: .2em;\n"
+"}\n"
+"ul.tree li > a:not(:last-child):before {\n"
+"    content: '+';\n"
+"}\n"
+"ul.tree li.open > a:not(:last-child):before {\n"
+"    content: '-';\n"
+"}\n"
+"</style>\n"
+"<body>\n";
+static const char TREE_FOOTER[] = 
+"</ul>\n"
+"<script>\n"
+"var tree = document.querySelectorAll('ul.tree a:not(:last-child)');\n"
+"for(var i = 0; i < tree.length; i++){\n"
+"    tree[i].addEventListener('click', function(e) {\n"
+"        var parent = e.target.parentElement;\n"
+"        var classList = parent.classList;\n"
+"        if(classList.contains(\"open\")) {\n"
+"            classList.remove('open');\n"
+"            var opensubs = parent.querySelectorAll(':scope .open');\n"
+"            for(var i = 0; i < opensubs.length; i++){\n"
+"                opensubs[i].classList.remove('open');\n"
+"            }\n"
+"        } else {\n"
+"           classList.add('open');\n"
+"        }\n"
+"    });\n"
+"}\n"
+"</script>\n"
+"</body>\n"
+"</html>\n";
 
 static const char SVG_HEADER[] =
     "<?xml version=\"1.0\" standalone=\"no\"?>\n"
@@ -445,6 +506,28 @@ void FlameGraph::printFooter(std::ostream& out) {
     out << "</svg>\n";
 }
 
+void FlameGraph::dumpTree(std::ostream& out) {
+    _scale = (_imagewidth - 20) / (double)_root._total;
+    _pct = 100 / (double)_root._total;
+
+    u64 cutoff = (u64)(_minwidth / _scale);
+    _imageheight = _frameheight * _root.depth(cutoff) + 70;
+
+    printTreeHeader(out,_root._total);
+    printTreeFrame(out, "all", _root, 0);
+    printTreeFooter(out);
+}
+
+void FlameGraph::printTreeHeader(std::ostream& out,long total) {
+    out << TREE_HEADER;
+    out << "<p>Call tree, total [samples/counter]: " << total << "\n";        
+    out << "<ul class=\"tree\">\n";
+}
+
+void FlameGraph::printTreeFooter(std::ostream& out) {
+    out << TREE_FOOTER;
+}
+
 double FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y) {
     double framewidth = f._total * _scale;
 
@@ -476,6 +559,57 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         }
     }
 
+    return framewidth;
+}
+
+bool FlameGraph::sortMap(std::pair<std::string, Trie>& a, std::pair<std::string, Trie>& b)  {
+    return a.second._total > b.second._total; 
+}
+
+double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
+    double framewidth = f._total * _scale;
+
+    // Skip too narrow frames, they are not important
+    if (framewidth >= _minwidth) {
+        std::string full_title = name;
+        int color = selectFrameColor(full_title);
+        std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
+        StringUtils::escape(full_title);
+        StringUtils::escape(short_title);
+
+        std::vector< std::pair<std::string, Trie> > pairs;
+        for (auto itr = f._children.begin(); itr != f._children.end(); ++itr)
+            pairs.push_back(*itr);
+
+        std::sort(pairs.begin(), pairs.end(), sortMap);
+
+        for (size_t i = 0; i < pairs.size(); ++i) { 
+            std::string full_title = pairs[i].first;
+            int color = selectFrameColor(full_title);
+            std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
+            StringUtils::escape(full_title);
+            StringUtils::escape(short_title);
+                       
+            bool format = true;
+            if(pairs[i].second._children.size() == 0) {
+                format = false;
+            }
+            snprintf(_buf, sizeof(_buf),
+            "<li><a href=\"#\">%.2f%% [%lld] <span style=\"color: #%06x\">%s</span></a>",
+              pairs[i].second._total * _pct,pairs[i].second._total,color,full_title.c_str());        
+            if(format) { 
+                out << _buf << "\n<ul>";
+            } else {
+                out << _buf;
+            }
+            printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
+            if(format) {
+                out << "</ul></li>\n";
+            }else {
+                out << "</li>\n";
+            }
+        }
+    }
     return framewidth;
 }
 

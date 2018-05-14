@@ -560,6 +560,37 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
     flamegraph.dump(out);
 }
 
+void Profiler::dumpTree(std::ostream& out, Arguments& args) {
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) return;
+
+    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth, args._reverse);
+    FrameName fn(args._simple, false, _threads);
+
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        CallTraceSample& trace = _traces[i];
+        if (trace._samples == 0) continue;
+
+        u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
+
+        Trie* f = flamegraph.root();
+        if (args._reverse) {
+            for (int j = 0; j < trace._num_frames; j++) {
+                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+                f = f->addChild(frame_name, samples);
+            }
+        } else {
+            for (int j = trace._num_frames - 1; j >= 0; j--) {
+                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+                f = f->addChild(frame_name, samples);
+            }
+        }
+        f->addLeaf(samples);
+    }
+
+    flamegraph.dumpTree(out);
+}
+
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
@@ -664,6 +695,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
+            if (args._dump_calltree) dumpTree(out, args);
             break;
         default:
             break;
