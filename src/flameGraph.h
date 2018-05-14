@@ -22,6 +22,9 @@
 #include <iostream>
 #include "arch.h"
 
+const int FLAME_GRAPH = 0;
+const int CALL_TREE = 1;
+const int BACK_TRACE = 2;
 
 class Trie {
   private:
@@ -80,7 +83,7 @@ class FlameGraph {
     void printTreeFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
     double printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth);
-    int selectFrameColor(std::string& name);
+    int selectFrameColor(std::string& name, bool palette);
     bool static sortMap(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b);
 
   public:
@@ -97,7 +100,7 @@ class FlameGraph {
         return &_root;
     }
 
-    void dump(std::ostream& out);
+    void dump(std::ostream& out, int type);
     void dumpTree(std::ostream& out);
 };
 

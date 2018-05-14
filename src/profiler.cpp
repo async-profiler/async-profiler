@@ -529,7 +529,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     }
 }
 
-void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
+void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, int type) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
@@ -543,7 +543,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
 
         Trie* f = flamegraph.root();
-        if (args._reverse) {
+        if ((args._reverse && type == FLAME_GRAPH) || (type == BACK_TRACE)) {
             for (int j = 0; j < trace._num_frames; j++) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
                 f = f->addChild(frame_name, samples);
@@ -557,38 +557,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args) {
         f->addLeaf(samples);
     }
 
-    flamegraph.dump(out);
-}
-
-void Profiler::dumpTree(std::ostream& out, Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
-
-    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth, args._reverse);
-    FrameName fn(args._simple, false, _threads);
-
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
-        CallTraceSample& trace = _traces[i];
-        if (trace._samples == 0) continue;
-
-        u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
-
-        Trie* f = flamegraph.root();
-        if (args._reverse) {
-            for (int j = 0; j < trace._num_frames; j++) {
-                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
-                f = f->addChild(frame_name, samples);
-            }
-        } else {
-            for (int j = trace._num_frames - 1; j >= 0; j--) {
-                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
-                f = f->addChild(frame_name, samples);
-            }
-        }
-        f->addLeaf(samples);
-    }
-
-    flamegraph.dumpTree(out);
+    flamegraph.dump(out,type);
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
@@ -691,11 +660,12 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         case ACTION_DUMP:
             stop();
             if (args._dump_collapsed) dumpCollapsed(out, args);
-            if (args._dump_flamegraph) dumpFlameGraph(out, args);
+            if (args._dump_flamegraph) dumpFlameGraph(out, args, FLAME_GRAPH);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
-            if (args._dump_calltree) dumpTree(out, args);
+            if (args._dump_calltree) dumpFlameGraph(out, args, CALL_TREE);
+            if (args._dump_backtrace) dumpFlameGraph(out, args, BACK_TRACE);
             break;
         default:
             break;

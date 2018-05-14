@@ -77,6 +77,18 @@ static const char TREE_HEADER[] =
 static const char TREE_FOOTER[] = 
 "</ul>\n"
 "<script>\n"
+"function treeView(opt) {\n"
+"   var tree = document.querySelectorAll('ul.tree a:not(:last-child)');\n"
+"    for(var i = 0; i < tree.length; i++){\n"
+"        var parent = tree[i].parentElement;\n"
+"       var classList = parent.classList;\n"
+"        if(opt == 0) {\n"
+"            classList.add('open');\n"
+"        }else {\n"
+"            classList.remove('open');\n"
+"        }\n"
+"    }\n"
+"}\n"
 "var tree = document.querySelectorAll('ul.tree a:not(:last-child)');\n"
 "for(var i = 0; i < tree.length; i++){\n"
 "    tree[i].addEventListener('click', function(e) {\n"
@@ -474,19 +486,34 @@ class Palette {
         double value = double(rand()) / RAND_MAX;
         return _base + (int(_r * value) << 16 | int(_g * value) << 8 | int(_b * value));
     }
+
+    int getBaseColor() const {
+        return _base;
+    }
 };
 
 
-void FlameGraph::dump(std::ostream& out) {
+void FlameGraph::dump(std::ostream& out, int type) {
     _scale = (_imagewidth - 20) / (double)_root._total;
     _pct = 100 / (double)_root._total;
 
     u64 cutoff = (u64)(_minwidth / _scale);
     _imageheight = _frameheight * _root.depth(cutoff) + 70;
-
-    printHeader(out);
-    printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
-    printFooter(out);
+    switch (type) {
+       case FLAME_GRAPH: {
+          printHeader(out);
+          printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
+          printFooter(out);
+          break;
+       }
+       case CALL_TREE: 
+       case BACK_TRACE: {
+          printTreeHeader(out,_root._total);
+          printTreeFrame(out, "all", _root, 0);
+          printTreeFooter(out);
+          break;
+       }
+    }
 }
 
 void FlameGraph::printHeader(std::ostream& out) {
@@ -507,25 +534,14 @@ void FlameGraph::printFooter(std::ostream& out) {
     out << "</svg>\n";
 }
 
-void FlameGraph::dumpTree(std::ostream& out) {
-    _scale = (_imagewidth - 20) / (double)_root._total;
-    _pct = 100 / (double)_root._total;
-
-    u64 cutoff = (u64)(_minwidth / _scale);
-    _imageheight = _frameheight * _root.depth(cutoff) + 70;
-
-    printTreeHeader(out,_root._total);
-    printTreeFrame(out, "all", _root, 0);
-    printTreeFooter(out);
-}
-
 void FlameGraph::printTreeHeader(std::ostream& out,long total) {
     out << TREE_HEADER;
     if(_reverse){
-      out << "<p>Backtrace tree, total [sample/counter]: " << total << "\n";        
+      out << "<p>&nbsp;Backtrace tree, total [sample/counter]: " << total << "\n";        
     } else {
-      out << "<p>Call tree, total [sample/counter]: " << total << "\n";
+      out << "<p>&nbsp;Call tree, total [sample/counter]: " << total << "\n";
     }
+    out << "</br><button type=\"button\" onclick=\"treeView(0)\">Expand all</button><button type=\"button\" onclick=\"treeView(1)\">Compress all</button>\n";
     out << "<ul class=\"tree\">\n";
 }
 
@@ -539,7 +555,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
         std::string full_title = name;
-        int color = selectFrameColor(full_title);
+        int color = selectFrameColor(full_title,true);
         std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
@@ -577,7 +593,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
         std::string full_title = name;
-        int color = selectFrameColor(full_title);
+        int color = selectFrameColor(full_title,false);
         std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
@@ -590,7 +606,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
 
         for (size_t i = 0; i < pairs.size(); ++i) { 
             std::string full_title = pairs[i].first;
-            int color = selectFrameColor(full_title);
+            int color = selectFrameColor(full_title,false);
             std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
             StringUtils::escape(full_title);
             StringUtils::escape(short_title);
@@ -600,7 +616,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
                 format = false;
             }
             snprintf(_buf, sizeof(_buf),
-            "<li><a href=\"#\">%.2f%% [%lld] <span style=\"color: #%06x\">%s</span></a>",
+            "<li><a href=\"#\">%.2f%% [%lld]</a><span style=\"color: #%06x\"> %s</span>",
               pairs[i].second._total * _pct,pairs[i].second._total,color,full_title.c_str());        
             if(format) { 
                 out << _buf << "\n<ul>";
@@ -618,7 +634,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
     return framewidth;
 }
 
-int FlameGraph::selectFrameColor(std::string& name) {
+int FlameGraph::selectFrameColor(std::string& name, bool palette) {
     static const Palette green(0x32c832, 60, 55, 60);
     static const Palette aqua(0x32a5a5, 60, 55, 55);
     static const Palette brown(0xbe5a00, 65, 65, 0);
@@ -628,23 +644,23 @@ int FlameGraph::selectFrameColor(std::string& name) {
     if (StringUtils::endsWith(name, "_[j]", 4)) {
         // Java compiled frame
         name = name.substr(0, name.length() - 4);
-        return green.getColor();
+        return palette ? green.getColor() : green.getBaseColor();
     } else if (StringUtils::endsWith(name, "_[i]", 4)) {
         // Java inlined frame
         name = name.substr(0, name.length() - 4);
-        return aqua.getColor();
+        return palette ? aqua.getColor() : aqua.getBaseColor();
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
         // Kernel function
         name = name.substr(0, name.length() - 4);
-        return brown.getColor();
+        return palette ?  brown.getColor() : brown.getBaseColor();
     } else if (name.find("::") != std::string::npos) {
         // C++ function
-        return yellow.getColor();
+        return palette ? yellow.getColor() : yellow.getBaseColor();
     } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
-        return green.getColor();
+        return palette ? green.getColor() : green.getBaseColor();
     } else {
         // Other native code
-        return red.getColor();
+        return palette ? red.getColor() : red.getBaseColor();
     }
 }
