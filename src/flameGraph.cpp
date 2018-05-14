@@ -521,7 +521,11 @@ void FlameGraph::dumpTree(std::ostream& out) {
 
 void FlameGraph::printTreeHeader(std::ostream& out,long total) {
     out << TREE_HEADER;
-    out << "<p>Call tree, total [samples/counter]: " << total << "\n";        
+    if(_reverse){
+      out << "<p>Backtrace tree, total [sample/counter]: " << total << "\n";        
+    } else {
+      out << "<p>Call tree, total [sample/counter]: " << total << "\n";
+    }
     out << "<ul class=\"tree\">\n";
 }
 
