@@ -337,16 +337,18 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames = makeEventFrame(frames, event_type, event);
     }
 
+    // It is possible to limit Java stack walking depth for performance reasons
+    int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
+    if (_jstackdepth > 0 && _jstackdepth < max_depth) {
+        max_depth = _jstackdepth;
+    }
+
     if (event == NULL || _JvmtiEnv_GetStackTrace == NULL) {
-        int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
-        if( _jstackdepth != 0 && _jstackdepth < max_depth) {
-		max_depth =  _jstackdepth;
-        }
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
-        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, MAX_STACK_FRAMES - 1 - num_frames);
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, max_depth);
     }
 
     if (_threads) {
@@ -396,7 +398,7 @@ void Profiler::initJvmtiFunctions() {
     }
 }
 
-Error Profiler::start(const char* event, long interval, int frame_buffer_size, bool threads) {
+Error Profiler::start(const char* event, long interval, int jstackdepth, int frame_buffer_size, bool threads) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
@@ -414,6 +416,7 @@ Error Profiler::start(const char* event, long interval, int frame_buffer_size, b
 
     // Reset frames
     free(_frame_buffer);
+    _jstackdepth = jstackdepth;
     _frame_buffer_size = frame_buffer_size;
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
@@ -617,8 +620,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-            _jstackdepth = args._jstackdepth;//this is used in AsyncGetCallTrace to control java stack depth
-            Error error = start(args._event, args._interval, args._framebuf, args._threads);
+            Error error = start(args._event, args._interval, args._jstackdepth, args._framebuf, args._threads);
             if (error) {
                 out << error.message() << std::endl;
             } else {

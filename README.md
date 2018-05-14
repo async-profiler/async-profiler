@@ -12,6 +12,15 @@ async-profiler can trace the following kinds of events:
  - Allocations in Java Heap
  - Contented lock attempts, including both Java object monitors and ReentrantLocks
 
+## Download
+
+Latest release:
+
+ - Linux x64: [async-profiler-1.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-linux-x64.tar.gz)
+ - macOS x64: [async-profiler-1.3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-macos-x64.tar.gz)
+
+[Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
+
 ## CPU profiling
 
 In this mode profiler collects stack trace samples that include **Java** methods,
@@ -81,7 +90,8 @@ Debian / Ubuntu, run
 - **Linux** / x64 / x86 / ARM / AArch64
 - **macOS** / x64
 
-Note: macOS profiling is limited only to Java code, since native stack walking relies on `perf_events` API which is available only on Linux platforms.
+Note: macOS profiling is limited only to Java code, since native stack walking
+relies on `perf_events` API which is available only on Linux platforms.
 
 ## Building
 
@@ -216,7 +226,7 @@ is counted. No samples are collected while CPU is idle. The default is
 1000000 (1ms).  
 Example: `./profiler.sh -i 100000 8983`
 
-* `-j N` - sets the java stack profiling depth. This option will be ignored if N is greater 
+* `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater 
 than default MAX_STACK_FRAMES.  
 Example: `./profiler.sh -j 30 8983`
 
@@ -290,20 +300,34 @@ The workaround is simply to increase the interval.
 
 ## Troubleshooting
 
-`Could not start attach mechanism: No such file or directory` means that the profiler cannot establish communication with the target JVM through UNIX domain socket.
+```
+Failed to change credentials to match the target process: Operation not permitted
+```
+Due to limitation of HotSpot Dynamic Attach mechanism, the profiler must be run
+by exactly the same user (and group) as the owner of target JVM process.
+If profiler is run by a different user, it will try to automatically change
+current user and group. This will likely succeed for `root`, but not for
+other users, resulting in the above error.
+
+```
+Could not start attach mechanism: No such file or directory
+```
+The profiler cannot establish communication with the target JVM through UNIX domain socket.
 
 For the profiler to be able to access JVM, make sure
- 1. You run profiler under exactly the same user as the owner of target JVM process.
- 2. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
+ 1. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
+ 2. Attach socket `/tmp/.java_pidNNN` has not been deleted.
  3. JVM is not run with `-XX:+DisableAttachMechanism` option.
 
----
+```
+Failed to inject profiler into <pid>
+```
+The connection with the target JVM has been established, but JVM is unable to load profiler shared library.
+Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path.
+For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
 
-`Failed to inject profiler into <pid>` means that the connection with the target JVM has been established, but JVM is unable to load profiler shared library.
-Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path. For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
-
----
-
-`[frame_buffer_overflow]` in the output means there was not enough space
-to store all call traces. Consider increasing frame buffer size
-with `-b` option.
+```
+[frame_buffer_overflow]
+```
+This message in the output means there was not enough space to store all call traces.
+Consider increasing frame buffer size with `-b` option.

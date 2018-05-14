@@ -14,7 +14,7 @@ usage() {
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
-    echo "  -j jstackdepth    java stack depth"
+    echo "  -j jstackdepth    maximum Java stack depth"
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
@@ -27,7 +27,7 @@ usage() {
     echo "  --reverse         generate stack-reversed FlameGraph"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
-    echo "      or 'jps' keyword to find running JVM automatically using jps tool"
+    echo "      or 'jps' keyword to find running JVM automatically"
     echo ""
     echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
@@ -93,6 +93,7 @@ DURATION="60"
 FILE=""
 USE_TMP="true"
 INTERVAL=""
+JSTACKDEPTH=""
 FRAMEBUF=""
 THREADS=""
 OUTPUT=""
@@ -126,6 +127,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -i)
             INTERVAL=",interval=$2"
+            shift
+            ;;
+        -j)
+            JSTACKDEPTH=",jstackdepth=$2"
             shift
             ;;
         -b)
@@ -164,7 +169,7 @@ while [[ $# -gt 0 ]]; do
         jps)
             # A shortcut for getting PID of a running Java application
             # -XX:+PerfDisableSharedMem prevents jps from appearing in its own list
-            PID=$(jps -q -J-XX:+PerfDisableSharedMem)
+            PID=$(pgrep -n java || jps -q -J-XX:+PerfDisableSharedMem)
             ;;
         *)
         	echo "Unrecognized option: $1"
@@ -176,9 +181,10 @@ done
 
 [[ "$PID" == "" ]] && usage
 
-# if no -f argument is given, use temporary file to transfer output to caller terminal
+# If no -f argument is given, use temporary file to transfer output to caller terminal.
+# Let the target process create the file in case this script is run by superuser.
 if [[ $USE_TMP ]]; then
-    FILE=$(mktemp /tmp/async-profiler.XXXXXXXX)
+    FILE=/tmp/async-profiler.$$.$PID
 fi
 
 # select default output format

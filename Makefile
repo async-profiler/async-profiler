@@ -1,4 +1,4 @@
-RELEASE_TAG=1.2
+RELEASE_TAG=1.3
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
@@ -25,11 +25,11 @@ endif
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(PROFILER_JAR)
 
-release: async-profiler-$(RELEASE_TAG).zip
+release: build async-profiler-$(RELEASE_TAG).tar.gz
 
-async-profiler-$(RELEASE_TAG).zip: build build/$(LIB_PROFILER) build/$(JATTACH) \
-                                   build/$(PROFILER_JAR) profiler.sh LICENSE *.md
-	zip -r $@ $^
+async-profiler-$(RELEASE_TAG).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
+                                      build/$(PROFILER_JAR) profiler.sh LICENSE *.md
+	tar cvzf $@ $^
 
 build:
 	mkdir -p build
