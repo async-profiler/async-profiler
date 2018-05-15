@@ -184,8 +184,7 @@ class Profiler {
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
         _ThreadLocalStorage_thread(NULL),
-        _JvmtiEnv_GetStackTrace(NULL),
-        _jstackdepth(0) {
+        _JvmtiEnv_GetStackTrace(NULL) {
         initStateLock();
     }
 
