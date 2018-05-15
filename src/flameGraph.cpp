@@ -509,7 +509,7 @@ void FlameGraph::dump(std::ostream& out, int type) {
        case CALL_TREE: 
        case BACK_TRACE: {
           printTreeHeader(out,_root._total);
-          printTreeFrame(out, "all", _root, 0);
+          printTreeFrame(out, "all", _root);
           printTreeFooter(out);
           break;
        }
@@ -587,9 +587,8 @@ bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, 
     return a.second._total > b.second._total; 
 }
 
-double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
+void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f) {
     double framewidth = f._total * _scale;
-
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
         std::vector< std::pair<std::string, Trie> > pairs;
@@ -614,7 +613,7 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
             } else {
                 out << _buf;
             }
-            printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
+            printTreeFrame(out, pairs[i].first, pairs[i].second);
             if(format) {
                 out << "</ul></li>\n";
             }else {
@@ -622,7 +621,6 @@ double FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, co
             }
         }
     }
-    return framewidth;
 }
 
 int FlameGraph::selectFrameColor(std::string& name, bool palette) {
