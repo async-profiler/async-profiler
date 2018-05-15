@@ -22,9 +22,7 @@
 #include <iostream>
 #include "arch.h"
 
-const int FLAME_GRAPH = 0;
-const int CALL_TREE = 1;
-const int BACK_TRACE = 2;
+enum dump{FLAME_GRAPH, CALL_TREE, BACK_TRACE};
 
 class Trie {
   private:
