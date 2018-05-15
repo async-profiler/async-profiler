@@ -591,6 +591,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
     double framewidth = f._total * _scale;
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
+        long childtotal = 0;
         std::vector< std::pair<std::string, Trie> > pairs;
         for (std::map<std::string, Trie>::const_iterator itr = f._children.begin(); itr != f._children.end(); ++itr)
             pairs.push_back(*itr);
@@ -605,9 +606,14 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             if(pairs[i].second._children.size() == 0) {
                 format = false;
             }
+            long childtotal = 0;
+            for (std::map<std::string, Trie>::const_iterator itr = pairs[i].second._children.begin(); itr != pairs[i].second._children.end(); ++itr)
+            {
+                childtotal +=  itr->second._total;
+            }
             snprintf(_buf, sizeof(_buf),
-            "<li><a href=\"#\">%.2f%% [%lld]</a><span style=\"color: #%06x\"> %s</span>",
-              pairs[i].second._total * _pct,pairs[i].second._total,color,full_title.c_str());        
+            "<li><a href=\"#\">%.2f%% %lld [%.2f%% %lld]</a><span style=\"color: #%06x\"> %s</span>",
+              pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,childtotal,color,full_title.c_str());        
             if(format) { 
                 out << _buf << "\n<ul>";
             } else {
