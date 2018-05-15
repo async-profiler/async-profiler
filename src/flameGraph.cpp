@@ -613,7 +613,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             }
             snprintf(_buf, sizeof(_buf),
             "<li><a href=\"#\">%.2f%% %lld [%.2f%% %lld]</a><span style=\"color: #%06x\"> %s</span>",
-              pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,childtotal,color,full_title.c_str());        
+              pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color,full_title.c_str());        
             if(format) { 
                 out << _buf << "\n<ul>";
             } else {
