@@ -116,10 +116,6 @@ while [[ $# -gt 0 ]]; do
             DURATION="$2"
             shift
             ;;
-        -j)
-            JSTACKDEPTH=",jstackdepth=$2"
-            shift
-            ;;
         -f)
             FILE="$2"
             unset USE_TMP
