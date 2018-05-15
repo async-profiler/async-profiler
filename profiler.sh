@@ -98,7 +98,6 @@ FRAMEBUF=""
 THREADS=""
 OUTPUT=""
 FORMAT=""
-JSTACKDEPTH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
