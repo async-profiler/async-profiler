@@ -66,10 +66,10 @@ static const char TREE_HEADER[] =
 "    left: -1.3em;\n"
 "    top: .2em;\n"
 "}\n"
-"ul.tree li > a:not(:last-child):before {\n"
+"ul.tree li > a:not(:nth-last-child(2)):before {\n"
 "    content: '+';\n"
 "}\n"
-"ul.tree li.open > a:not(:last-child):before {\n"
+"ul.tree li.open > a:not(:nth-last-child(2)):before {\n"
 "    content: '-';\n"
 "}\n"
 "</style>\n"
@@ -541,8 +541,8 @@ void FlameGraph::printTreeHeader(std::ostream& out,long total) {
     } else {
       out << "<p>&nbsp;Call tree, total [sample/counter]: " << total << "\n";
     }
-    out << "</br><button type=\"button\" onclick=\"treeView(0)\">Expand all</button><button type=\"button\" onclick=\"treeView(1)\">Compress all</button>\n";
     out << "<ul class=\"tree\">\n";
+    out << "<button type=\"button\" onclick=\"treeView(0)\">++</button><button type=\"button\" onclick=\"treeView(1)\">--</button>\n";
 }
 
 void FlameGraph::printTreeFooter(std::ostream& out) {
