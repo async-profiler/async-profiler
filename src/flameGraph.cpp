@@ -72,6 +72,9 @@ static const char TREE_HEADER[] =
 "ul.tree li.open > a:not(:nth-last-child(2)):before {\n"
 "    content: '-';\n"
 "}\n"
+".sc {\n"
+"    background-color:#F6FCBE;\n"
+"}\n"
 "</style>\n"
 "<body>\n";
 static const char TREE_FOOTER[] = 
@@ -86,6 +89,24 @@ static const char TREE_FOOTER[] =
 "            classList.add('open');\n"
 "        }else {\n"
 "            classList.remove('open');\n"
+"        }\n"
+"    }\n"
+"}\n"
+"function openParent(p,t) {\n"
+"    if(p.parentElement.classList.contains(\"tree\")) {\n"
+"        return;\n"
+"    }\n"
+"    p.parentElement.classList.add('open');\n"
+"    openParent(p.parentElement,t);\n"
+"}\n"
+"function search() {\n"
+"   var tree = document.querySelectorAll('ul.tree span');\n"
+"   var check = document.getElementById('check');\n"
+"    for(var i = 0; i < tree.length; i++){\n"
+"        tree[i].classList.remove('sc');\n"
+"        if(tree[i].innerHTML.includes(document.getElementById(\"search\").value)) {\n"
+"            tree[i].classList.add('sc');\n"
+"            openParent(tree[i].parentElement,tree);\n"
 "        }\n"
 "    }\n"
 "}\n"
@@ -537,12 +558,14 @@ void FlameGraph::printFooter(std::ostream& out) {
 void FlameGraph::printTreeHeader(std::ostream& out, long total, int type) {
     out << TREE_HEADER;
     if(type == BACK_TRACE){
-      out << "<p>&nbsp;Backtrace view, total [sample/counter]: " << total << "\n";        
+      out << "<ul>Backtrace view, total [sample/counter]: " << total << "</ul>\n";        
     } else {
-      out << "<p>&nbsp;Call tree view, total [sample/counter]: " << total << "\n";
+      out << "<ul>Call tree view, total [sample/counter]: " << total << "</ul>\n";
     }
     out << "<ul class=\"tree\">\n";
-    out << "<button type=\"button\" onclick=\"treeView(0)\">++</button><button type=\"button\" onclick=\"treeView(1)\">--</button>\n";
+    out << "<button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n";
+    out << "<input type='text' id='search' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn').click()\">\n";
+    out << "<button type='button' id='searchBtn' onclick='search()'>search</button>\n";
 }
 
 void FlameGraph::printTreeFooter(std::ostream& out) {
