@@ -77,7 +77,7 @@ class FlameGraph {
 
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
-    void printTreeHeader(std::ostream& out, long total);
+    void printTreeHeader(std::ostream& out, long total, int type);
     void printTreeFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
     void  printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int type, int depth);
