@@ -508,7 +508,7 @@ void FlameGraph::dump(std::ostream& out, int type) {
        }
        case CALL_TREE: 
        case BACK_TRACE: {
-          printTreeHeader(out,_root._total);
+          printTreeHeader(out, _root._total, type);
           printTreeFrame(out, "all", _root, type, 0);
           printTreeFooter(out);
           break;
@@ -534,12 +534,12 @@ void FlameGraph::printFooter(std::ostream& out) {
     out << "</svg>\n";
 }
 
-void FlameGraph::printTreeHeader(std::ostream& out,long total) {
+void FlameGraph::printTreeHeader(std::ostream& out, long total, int type) {
     out << TREE_HEADER;
-    if(_reverse){
-      out << "<p>&nbsp;Backtrace tree, total [sample/counter]: " << total << "\n";        
+    if(type == BACK_TRACE){
+      out << "<p>&nbsp;Backtrace view, total [sample/counter]: " << total << "\n";        
     } else {
-      out << "<p>&nbsp;Call tree, total [sample/counter]: " << total << "\n";
+      out << "<p>&nbsp;Call tree view, total [sample/counter]: " << total << "\n";
     }
     out << "<ul class=\"tree\">\n";
     out << "<button type=\"button\" onclick=\"treeView(0)\">++</button><button type=\"button\" onclick=\"treeView(1)\">--</button>\n";
