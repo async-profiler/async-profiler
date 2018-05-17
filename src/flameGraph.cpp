@@ -611,7 +611,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             {
                 childtotal +=  itr->second._total;
             }
-	    if(type == BACK_TRACE) {
+	    if(type == CALL_TREE) {
                 snprintf(_buf, sizeof(_buf),
                 "<li><a href=\"#\">[%d] %.2f%% %lld self: %.2f%% %lld</a><span style=\"color: #%06x\"> %s</span>",
                 depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color,full_title.c_str()); 
