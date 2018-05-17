@@ -75,6 +75,7 @@ static const char TREE_HEADER[] =
 ".sc {\n"
 "    text-decoration: underline;\n"
 "    text-decoration-color: black;\n"
+"    font-weight: bold;\n"
 "}\n"
 "</style>\n"
 "<body>\n";
