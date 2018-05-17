@@ -73,7 +73,8 @@ static const char TREE_HEADER[] =
 "    content: '-';\n"
 "}\n"
 ".sc {\n"
-"    background-color:#F6FCBE;\n"
+"    text-decoration: underline;\n"
+"    text-decoration-color: black;\n"
 "}\n"
 "</style>\n"
 "<body>\n";
