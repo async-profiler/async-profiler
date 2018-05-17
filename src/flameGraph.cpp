@@ -509,7 +509,7 @@ void FlameGraph::dump(std::ostream& out, int type) {
        case CALL_TREE: 
        case BACK_TRACE: {
           printTreeHeader(out,_root._total);
-          printTreeFrame(out, "all", _root);
+          printTreeFrame(out, "all", _root, type, 0);
           printTreeFooter(out);
           break;
        }
@@ -587,7 +587,7 @@ bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, 
     return a.second._total > b.second._total; 
 }
 
-void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f) {
+void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int type, int depth) {
     double framewidth = f._total * _scale;
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
@@ -611,15 +611,20 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             {
                 childtotal +=  itr->second._total;
             }
-            snprintf(_buf, sizeof(_buf),
-            "<li><a href=\"#\">%.2f%% %lld [%.2f%% %lld]</a><span style=\"color: #%06x\"> %s</span>",
-              pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color,full_title.c_str());        
+	    if(type == BACK_TRACE) {
+                snprintf(_buf, sizeof(_buf),
+                "<li><a href=\"#\">[%d] %.2f%% %lld self: %.2f%% %lld</a><span style=\"color: #%06x\"> %s</span>",
+                depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color,full_title.c_str()); 
+            }else {
+               snprintf(_buf, sizeof(_buf), 
+               "<li><a href=\"#\">[%d] %.2f%% %lld</a><span style=\"color: #%06x\"> %s</span>", depth, pairs[i].second._total * _pct,pairs[i].second._total,color,full_title.c_str());
+            }
             if(format) { 
                 out << _buf << "\n<ul>";
             } else {
                 out << _buf;
             }
-            printTreeFrame(out, pairs[i].first, pairs[i].second);
+            printTreeFrame(out, pairs[i].first, pairs[i].second, type, depth+1);
             if(format) {
                 out << "</ul></li>\n";
             }else {

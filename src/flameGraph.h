@@ -80,7 +80,7 @@ class FlameGraph {
     void printTreeHeader(std::ostream& out, long total);
     void printTreeFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
-    void  printTreeFrame(std::ostream& out, const std::string& name, const Trie& f);
+    void  printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int type, int depth);
     int selectFrameColor(std::string& name, bool palette);
     bool static sortMap(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b);
 
