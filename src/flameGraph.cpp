@@ -673,7 +673,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             }
 	    if(type == CALL_TREE) {
                 snprintf(_buf, sizeof(_buf),
-                "<li><a href=\"#\">[%d] %.2f%% %lld self: %.2f%% %lld</a><span class=\"%s\"> %s</span>",
+                "<li><div class=\"node\">[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
                 depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color.c_str(),full_title.c_str()); 
             }else {
                snprintf(_buf, sizeof(_buf), 
