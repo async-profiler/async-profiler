@@ -666,7 +666,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
-            if (args._dump_calltree) dumpFlameGraph(out, args, CALL_TREE);
+            if (args._dump_tree) dumpFlameGraph(out, args, CALL_TREE);
             break;
         default:
             break;

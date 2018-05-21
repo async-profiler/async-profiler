@@ -250,7 +250,7 @@ This is a comma-separated list of the following options:
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by a counter.
-  - `calltree[=C]`  - produce call tree in HTML format. C is counter type: 'samples' or 'total', 
+  - `tree[=C]`  - produce call tree in HTML format. C is counter type: 'samples' or 'total', 
      --reverse option will generate backtrace view.  
   - `svg[=C]` - produce Flame Graph in SVG format.
   
