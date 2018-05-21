@@ -403,12 +403,6 @@ static const char TREE_HEADER[] =
     "ul.tree%d li.open > div:not(:nth-last-child(2)):before {\n"
     "    content: '-';\n"
     "}\n"
-    ".node {\n"
-    "    display: inline;\n"
-    "    cursor: pointer;\n"
-    "    color: black;\n"
-    "    text-decoration: none;\n"
-    "}\n"
     ".sc {\n"
     "    text-decoration: underline;\n"
     "    text-decoration-color: black;\n"
@@ -429,6 +423,12 @@ static const char TREE_HEADER[] =
     "}\n"
     ".red {\n"
     "    color: #c83232;\n"
+    "}\n"
+    "ul.tree1 li > div {\n"
+    "    display: inline;\n"
+    "    cursor: pointer;\n"
+    "    color: black;\n"
+    "    text-decoration: none;\n"
     "}\n"
     "</style>\n"
     "<script>\n"
@@ -682,12 +682,13 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             }
 	    if(_reverse) {
                 snprintf(_buf, sizeof(_buf),
-                "<li><div class=\"node\">[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
+                "<li><div>[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
                 depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color.c_str(),full_title.c_str()); 
             }else {
                snprintf(_buf, sizeof(_buf), 
-               "<li><div class=\"node\">[%d] %.2f%% %lld</div><span class=\"%s\"> %s</span>", depth, pairs[i].second._total * _pct,pairs[i].second._total,color.c_str(),full_title.c_str());
+               "<li><div>[%d] %.2f%% %lld</div><span class=\"%s\"> %s</span>", depth, pairs[i].second._total * _pct,pairs[i].second._total,color.c_str(),full_title.c_str());
             }
+            
             if(format) { 
                 out << _buf << "\n<ul>";
             } else {
