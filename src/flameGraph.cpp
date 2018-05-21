@@ -43,20 +43,20 @@ static const char TREE_HEADER[] =
 "	body {\n"
 "   font-family: Arial;\n"
 "}\n"
-"ul.tree li {\n"
+"ul.tree%d li {\n"
 "    list-style-type: none;\n"
 "    position: relative;\n"
 "}\n"
-"ul.tree ul {\n"
+"ul.tree%d ul {\n"
 "    margin-left: 20px; padding-left: 0;\n"
 "}\n"
-"ul.tree li ul {\n"
+"ul.tree%d li ul {\n"
 "    display: none;\n"
 "}\n"
-"ul.tree li.open > ul {\n"
+"ul.tree%d li.open > ul {\n"
 "    display: block;\n"
 "}\n"
-"ul.tree li div:before {\n"
+"ul.tree%d li div:before {\n"
 "    height: 1em;\n"
 "    padding:0 .1em;\n"
 "    font-size: .8em;\n"
@@ -65,10 +65,10 @@ static const char TREE_HEADER[] =
 "    left: -1.3em;\n"
 "    top: .2em;\n"
 "}\n"
-"ul.tree li > div:not(:nth-last-child(2)):before {\n"
+"ul.tree%d li > div:not(:nth-last-child(2)):before {\n"
 "    content: '+';\n"
 "}\n"
-"ul.tree li.open > div:not(:nth-last-child(2)):before {\n"
+"ul.tree%d li.open > div:not(:nth-last-child(2)):before {\n"
 "    content: '-';\n"
 "}\n"
 ".node {\n"
@@ -99,18 +99,9 @@ static const char TREE_HEADER[] =
 "    color: #c83232;\n"
 "}\n"
 "</style>\n"
-"<body>\n"
-"<ul>%s view, total [sample/counter]: %ld </ul>\n"
-"<ul class=\"tree\">\n"
-"<button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n"
-"<input type='text' id='search' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn').click()\">\n"
-"<button type='button' id='searchBtn' onclick='search()'>search</button>\n";
-
-static const char TREE_FOOTER[] = 
-"</ul>\n"
 "<script>\n"
-"function treeView(opt) {\n"
-"   var tree = document.querySelectorAll('ul.tree div:not(:last-child)');\n"
+"function treeView%d(opt) {\n"
+"   var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
 "    for(var i = 0; i < tree.length; i++){\n"
 "        var parent = tree[i].parentElement;\n"
 "       var classList = parent.classList;\n"
@@ -121,34 +112,35 @@ static const char TREE_FOOTER[] =
 "        }\n"
 "    }\n"
 "}\n"
-"function openParent(p,t) {\n"
-"    if(p.parentElement.classList.contains(\"tree\")) {\n"
+"function openParent%d(p,t) {\n"
+"    if(p.parentElement.classList.contains(\"tree%d\")) {\n"
 "        return;\n"
 "    }\n"
 "    p.parentElement.classList.add('open');\n"
-"    openParent(p.parentElement,t);\n"
+"    openParent%d(p.parentElement,t);\n"
 "}\n"
-"function search() {\n"
-"   var tree = document.querySelectorAll('ul.tree span');\n"
+"function search%d() {\n"
+"   var tree = document.querySelectorAll('ul.tree%d span');\n"
 "   var check = document.getElementById('check');\n"
 "    for(var i = 0; i < tree.length; i++){\n"
 "        tree[i].classList.remove('sc');\n"
-"        if(tree[i].innerHTML.includes(document.getElementById(\"search\").value)) {\n"
+"        if(tree[i].innerHTML.includes(document.getElementById(\"search%d\").value)) {\n"
 "            tree[i].classList.add('sc');\n"
-"            openParent(tree[i].parentElement,tree);\n"
+"            openParent%d(tree[i].parentElement,tree);\n"
 "        }\n"
 "    }\n"
 "}\n"
-"function openNode(n) {\n"
+"function openNode%d(n) {\n"
 "    var opensubs = n.querySelectorAll('ul li');\n"
 "    if(opensubs.length > 1) {\n"
 "        n.classList.add('open');\n"
 "        for(var i = 0; i < opensubs.length; i++){\n"
-"            openNode(opensubs[i]);\n"
+"            openNode%d(opensubs[i]);\n"
 "        }\n"
 "    }\n"
 "}\n"
-"var tree = document.querySelectorAll('ul.tree div:not(:last-child)');\n"
+"function addClickActions%d() {\n"
+"var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
 "for(var i = 0; i < tree.length; i++){\n"
 "    tree[i].addEventListener('click', function(e) {\n"
 "        var parent = e.target.parentElement;\n"
@@ -162,14 +154,27 @@ static const char TREE_FOOTER[] =
 "        } else {\n"
 "            if(event.altKey) {\n"
 "                classList.add('open');\n"
-"                openNode(parent);\n"
+"                openNode%d(parent);\n"
 "            } else {\n"
 "                classList.add('open');\n"
 "            }\n"
 "        }\n"
 "    });\n"
 "}\n"
+"}\n"
 "</script>\n"
+"<body>\n"
+"<ul>%s view, total [sample/counter]: %ld </ul>\n"
+"<ul class=\"tree%d\">\n"
+"<button type='button' onclick='treeView%d(0)'>++</button><button type='button' onclick='treeView%d(1)'>--</button>\n"
+"<input type='text' id='search%d' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn%d').click()\">\n"
+"<button type='button' id='searchBtn%d' onclick='search%d()'>search</button>\n";
+
+static const char TREE_FOOTER[] = 
+"<script>\n"
+"addClickActions%d();\n"
+"</script>\n"
+"</ul>\n"
 "</body>\n"
 "</html>\n";
 
@@ -571,7 +576,7 @@ void FlameGraph::dump(std::ostream& out, int type) {
        case BACK_TRACE: {
           printTreeHeader(out, _root._total, type);
           printTreeFrame(out, "all", _root, type, 0);
-          printTreeFooter(out);
+          printTreeFooter(out, type);
           break;
        }
     }
@@ -597,16 +602,18 @@ void FlameGraph::printFooter(std::ostream& out) {
 
 void FlameGraph::printTreeHeader(std::ostream& out, long total, int type) {
     char buf[sizeof(TREE_HEADER) + 256];
+    std::string treeName = "Calltree";
     if(type == BACK_TRACE){
-      sprintf(buf, TREE_HEADER, "Backtrace", total);     
-    } else {
-      sprintf(buf, TREE_HEADER, "Calltree", total);
-    }
+        treeName = "Backtrace";
+    } 
+    sprintf(buf, TREE_HEADER, type, type, type, type, type, type, type, type, type, type,type, type, type, type, type, type, type, type, type, type, type, treeName.c_str(), total, type, type, type, type, type, type, type);     
     out << buf;
 }
 
-void FlameGraph::printTreeFooter(std::ostream& out) {
-    out << TREE_FOOTER;
+void FlameGraph::printTreeFooter(std::ostream& out, int type) {
+    char buf[sizeof(TREE_FOOTER) + 256];
+    sprintf(buf, TREE_FOOTER, type);     
+    out << buf;
 }
 
 double FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y) {
