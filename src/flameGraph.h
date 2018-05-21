@@ -60,6 +60,9 @@ class Trie {
 };
 
 
+class Palette;
+
+
 class FlameGraph {
   private:
     Trie _root;
@@ -77,7 +80,7 @@ class FlameGraph {
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
-    int selectFrameColor(std::string& name);
+    const Palette& selectFramePalette(std::string& name);
 
   public:
     FlameGraph(const char* title, int width, int height, double minwidth, bool reverse) :

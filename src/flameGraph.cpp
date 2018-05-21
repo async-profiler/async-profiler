@@ -401,14 +401,19 @@ class StringUtils {
 
 class Palette {
   private:
+    const char* _name;
     int _base;
     int _r, _g, _b;
 
   public:
-    Palette(int base, int r, int g, int b) : _base(base), _r(r), _g(g), _b(b) {
+    Palette(const char* name, int base, int r, int g, int b) : _name(name), _base(base), _r(r), _g(g), _b(b) {
     }
 
-    int getColor() const {
+    const char* name() const {
+        return _name;
+    }
+
+    int pickColor() const {
         double value = double(rand()) / RAND_MAX;
         return _base + (int(_r * value) << 16 | int(_g * value) << 8 | int(_b * value));
     }
@@ -451,7 +456,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
         std::string full_title = name;
-        int color = selectFrameColor(full_title);
+        int color = selectFramePalette(full_title).pickColor();
         std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
@@ -479,33 +484,34 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     return framewidth;
 }
 
-int FlameGraph::selectFrameColor(std::string& name) {
-    static const Palette green(0x32c832, 60, 55, 60);
-    static const Palette aqua(0x32a5a5, 60, 55, 55);
-    static const Palette brown(0xbe5a00, 65, 65, 0);
-    static const Palette yellow(0xafaf32, 55, 55, 20);
-    static const Palette red(0xc83232, 55, 80, 80);
+const Palette& FlameGraph::selectFramePalette(std::string& name) {
+    static const Palette
+        green ("green",  0x32c832, 60, 55, 60),
+        aqua  ("aqua",   0x32a5a5, 60, 55, 55),
+        brown ("brown",  0xbe5a00, 65, 65,  0),
+        yellow("yellow", 0xafaf32, 55, 55, 20),
+        red   ("red",    0xc83232, 55, 80, 80);
 
     if (StringUtils::endsWith(name, "_[j]", 4)) {
         // Java compiled frame
         name = name.substr(0, name.length() - 4);
-        return green.getColor();
+        return green;
     } else if (StringUtils::endsWith(name, "_[i]", 4)) {
         // Java inlined frame
         name = name.substr(0, name.length() - 4);
-        return aqua.getColor();
+        return aqua;
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
         // Kernel function
         name = name.substr(0, name.length() - 4);
-        return brown.getColor();
+        return brown;
     } else if (name.find("::") != std::string::npos) {
         // C++ function
-        return yellow.getColor();
+        return yellow;
     } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
-        return green.getColor();
+        return green;
     } else {
         // Other native code
-        return red.getColor();
+        return red;
     }
 }
