@@ -27,6 +27,7 @@
  *
  * CDDL HEADER END
  */
+
 #include <iomanip>
 #include <math.h>
 #include <stdio.h>
@@ -35,149 +36,6 @@
 #include <algorithm>
 #include <utility>
 #include "flameGraph.h"
-using namespace std;
-
-static const char TREE_HEADER[] = 
-"<html>\n"
-"<style>\n"
-"	body {\n"
-"   font-family: Arial;\n"
-"}\n"
-"ul.tree%d li {\n"
-"    list-style-type: none;\n"
-"    position: relative;\n"
-"}\n"
-"ul.tree%d ul {\n"
-"    margin-left: 20px; padding-left: 0;\n"
-"}\n"
-"ul.tree%d li ul {\n"
-"    display: none;\n"
-"}\n"
-"ul.tree%d li.open > ul {\n"
-"    display: block;\n"
-"}\n"
-"ul.tree%d li div:before {\n"
-"    height: 1em;\n"
-"    padding:0 .1em;\n"
-"    font-size: .8em;\n"
-"    display: block;\n"
-"    position: absolute;\n"
-"    left: -1.3em;\n"
-"    top: .2em;\n"
-"}\n"
-"ul.tree%d li > div:not(:nth-last-child(2)):before {\n"
-"    content: '+';\n"
-"}\n"
-"ul.tree%d li.open > div:not(:nth-last-child(2)):before {\n"
-"    content: '-';\n"
-"}\n"
-".node {\n"
-"    display: inline;\n"
-"    cursor: pointer;\n"
-"    color: black;\n"
-"    text-decoration: none;\n"
-"}\n"
-".sc {\n"
-"    text-decoration: underline;\n"
-"    text-decoration-color: black;\n"
-"    font-weight: bold;\n"
-"    background-color: #D9D9D9;\n"
-"}\n"
-".green {\n"
-"    color: #32c832;\n"
-"}\n"
-".aqua {\n"
-"    color: #32a5a5;\n"
-"}\n"
-".brown {\n"
-"    color: #be5a00;\n"
-"}\n"
-".yellow {\n"
-"    color: #afaf32;\n"
-"}\n"
-".red {\n"
-"    color: #c83232;\n"
-"}\n"
-"</style>\n"
-"<script>\n"
-"function treeView%d(opt) {\n"
-"   var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
-"    for(var i = 0; i < tree.length; i++){\n"
-"        var parent = tree[i].parentElement;\n"
-"       var classList = parent.classList;\n"
-"        if(opt == 0) {\n"
-"            classList.add('open');\n"
-"        }else {\n"
-"            classList.remove('open');\n"
-"        }\n"
-"    }\n"
-"}\n"
-"function openParent%d(p,t) {\n"
-"    if(p.parentElement.classList.contains(\"tree%d\")) {\n"
-"        return;\n"
-"    }\n"
-"    p.parentElement.classList.add('open');\n"
-"    openParent%d(p.parentElement,t);\n"
-"}\n"
-"function search%d() {\n"
-"   var tree = document.querySelectorAll('ul.tree%d span');\n"
-"   var check = document.getElementById('check');\n"
-"    for(var i = 0; i < tree.length; i++){\n"
-"        tree[i].classList.remove('sc');\n"
-"        if(tree[i].innerHTML.includes(document.getElementById(\"search%d\").value)) {\n"
-"            tree[i].classList.add('sc');\n"
-"            openParent%d(tree[i].parentElement,tree);\n"
-"        }\n"
-"    }\n"
-"}\n"
-"function openNode%d(n) {\n"
-"    var opensubs = n.querySelectorAll('ul li');\n"
-"    for(var i = 0; i < opensubs.length; i++){\n"
-"        var children = opensubs[i].parentElement.children;\n"
-"        if(children.length > 1) {\n"
-"            opensubs[i].classList.add('open');\n"
-"            openNode%d(opensubs[i]);\n"
-"        }\n"
-"    }\n"
-"}\n"
-"function addClickActions%d() {\n"
-"var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
-"for(var i = 0; i < tree.length; i++){\n"
-"    tree[i].addEventListener('click', function(e) {\n"
-"        var parent = e.target.parentElement;\n"
-"        var classList = parent.classList;\n"
-"        if(classList.contains(\"open\")) {\n"
-"            classList.remove('open');\n"
-"            var opensubs = parent.querySelectorAll(':scope .open');\n"
-"            for(var i = 0; i < opensubs.length; i++){\n"
-"                opensubs[i].classList.remove('open');\n"
-"            }\n"
-"        } else {\n"
-"            if(event.altKey) {\n"
-"                classList.add('open');\n"
-"                openNode%d(parent);\n"
-"            } else {\n"
-"                classList.add('open');\n"
-"            }\n"
-"        }\n"
-"    });\n"
-"}\n"
-"}\n"
-"</script>\n"
-"<body>\n"
-"<ul>%s view, total [sample/counter]: %ld </ul>\n"
-"<ul class=\"tree%d\">\n"
-"<button type='button' onclick='treeView%d(0)'>++</button><button type='button' onclick='treeView%d(1)'>--</button>\n"
-"<input type='text' id='search%d' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn%d').click()\">\n"
-"<button type='button' id='searchBtn%d' onclick='search%d()'>search</button>\n";
-
-static const char TREE_FOOTER[] = 
-"<script>\n"
-"addClickActions%d();\n"
-"</script>\n"
-"</ul>\n"
-"</body>\n"
-"</html>\n";
 
 static const char SVG_HEADER[] =
     "<?xml version=\"1.0\" standalone=\"no\"?>\n"
@@ -511,6 +369,148 @@ static const char SVG_HEADER[] =
     "<text x=\"%d\" y=\"%d\" id=\"search\" onmouseover=\"searchover()\" onmouseout=\"searchout()\" onclick=\"search_prompt()\" style=\"opacity:0.1;cursor:pointer\">Search</text>\n"
     "<text x=\"%d\" y=\"%d\" id=\"matched\"> </text>\n";
 
+static const char TREE_HEADER[] = 
+"<html>\n"
+"<style>\n"
+"	body {\n"
+"   font-family: Arial;\n"
+"}\n"
+"ul.tree%d li {\n"
+"    list-style-type: none;\n"
+"    position: relative;\n"
+"}\n"
+"ul.tree%d ul {\n"
+"    margin-left: 20px; padding-left: 0;\n"
+"}\n"
+"ul.tree%d li ul {\n"
+"    display: none;\n"
+"}\n"
+"ul.tree%d li.open > ul {\n"
+"    display: block;\n"
+"}\n"
+"ul.tree%d li div:before {\n"
+"    height: 1em;\n"
+"    padding:0 .1em;\n"
+"    font-size: .8em;\n"
+"    display: block;\n"
+"    position: absolute;\n"
+"    left: -1.3em;\n"
+"    top: .2em;\n"
+"}\n"
+"ul.tree%d li > div:not(:nth-last-child(2)):before {\n"
+"    content: '+';\n"
+"}\n"
+"ul.tree%d li.open > div:not(:nth-last-child(2)):before {\n"
+"    content: '-';\n"
+"}\n"
+".node {\n"
+"    display: inline;\n"
+"    cursor: pointer;\n"
+"    color: black;\n"
+"    text-decoration: none;\n"
+"}\n"
+".sc {\n"
+"    text-decoration: underline;\n"
+"    text-decoration-color: black;\n"
+"    font-weight: bold;\n"
+"    background-color: #D9D9D9;\n"
+"}\n"
+".green {\n"
+"    color: #32c832;\n"
+"}\n"
+".aqua {\n"
+"    color: #32a5a5;\n"
+"}\n"
+".brown {\n"
+"    color: #be5a00;\n"
+"}\n"
+".yellow {\n"
+"    color: #afaf32;\n"
+"}\n"
+".red {\n"
+"    color: #c83232;\n"
+"}\n"
+"</style>\n"
+"<script>\n"
+"function treeView%d(opt) {\n"
+"   var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
+"    for(var i = 0; i < tree.length; i++){\n"
+"        var parent = tree[i].parentElement;\n"
+"       var classList = parent.classList;\n"
+"        if(opt == 0) {\n"
+"            classList.add('open');\n"
+"        }else {\n"
+"            classList.remove('open');\n"
+"        }\n"
+"    }\n"
+"}\n"
+"function openParent%d(p,t) {\n"
+"    if(p.parentElement.classList.contains(\"tree%d\")) {\n"
+"        return;\n"
+"    }\n"
+"    p.parentElement.classList.add('open');\n"
+"    openParent%d(p.parentElement,t);\n"
+"}\n"
+"function search%d() {\n"
+"   var tree = document.querySelectorAll('ul.tree%d span');\n"
+"   var check = document.getElementById('check');\n"
+"    for(var i = 0; i < tree.length; i++){\n"
+"        tree[i].classList.remove('sc');\n"
+"        if(tree[i].innerHTML.includes(document.getElementById(\"search%d\").value)) {\n"
+"            tree[i].classList.add('sc');\n"
+"            openParent%d(tree[i].parentElement,tree);\n"
+"        }\n"
+"    }\n"
+"}\n"
+"function openNode%d(n) {\n"
+"    var opensubs = n.querySelectorAll('ul li');\n"
+"    for(var i = 0; i < opensubs.length; i++){\n"
+"        var children = opensubs[i].parentElement.children;\n"
+"        if(children.length > 1) {\n"
+"            opensubs[i].classList.add('open');\n"
+"            openNode%d(opensubs[i]);\n"
+"        }\n"
+"    }\n"
+"}\n"
+"function addClickActions%d() {\n"
+"var tree = document.querySelectorAll('ul.tree%d div:not(:last-child)');\n"
+"for(var i = 0; i < tree.length; i++){\n"
+"    tree[i].addEventListener('click', function(e) {\n"
+"        var parent = e.target.parentElement;\n"
+"        var classList = parent.classList;\n"
+"        if(classList.contains(\"open\")) {\n"
+"            classList.remove('open');\n"
+"            var opensubs = parent.querySelectorAll(':scope .open');\n"
+"            for(var i = 0; i < opensubs.length; i++){\n"
+"                opensubs[i].classList.remove('open');\n"
+"            }\n"
+"        } else {\n"
+"            if(event.altKey) {\n"
+"                classList.add('open');\n"
+"                openNode%d(parent);\n"
+"            } else {\n"
+"                classList.add('open');\n"
+"            }\n"
+"        }\n"
+"    });\n"
+"}\n"
+"}\n"
+"</script>\n"
+"<body>\n"
+"<ul>%s view, total [sample/counter]: %ld </ul>\n"
+"<ul class=\"tree%d\">\n"
+"<button type='button' onclick='treeView%d(0)'>++</button><button type='button' onclick='treeView%d(1)'>--</button>\n"
+"<input type='text' id='search%d' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn%d').click()\">\n"
+"<button type='button' id='searchBtn%d' onclick='search%d()'>search</button>\n";
+
+static const char TREE_FOOTER[] = 
+"<script>\n"
+"addClickActions%d();\n"
+"</script>\n"
+"</ul>\n"
+"</body>\n"
+"</html>\n";
+
 class StringUtils {
   public:
     static bool endsWith(const std::string& s, const char* suffix, int suffixlen) {
@@ -541,22 +541,24 @@ class StringUtils {
     }
 };
 
+
 class Palette {
   private:
+    const char* _name;
     int _base;
     int _r, _g, _b;
 
   public:
-    Palette(int base, int r, int g, int b) : _base(base), _r(r), _g(g), _b(b) {
+    Palette(const char* name, int base, int r, int g, int b) : _name(name), _base(base), _r(r), _g(g), _b(b) {
     }
 
-    int getColor() const {
+    const char* name() const {
+        return _name;
+    }
+
+    int pickColor() const {
         double value = double(rand()) / RAND_MAX;
         return _base + (int(_r * value) << 16 | int(_g * value) << 8 | int(_b * value));
-    }
-
-    int getBaseColor() const {
-        return _base;
     }
 };
 
@@ -572,12 +574,11 @@ void FlameGraph::dump(std::ostream& out, int type) {
           printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
           printFooter(out);
           break;
-       }
-       case CALL_TREE: 
-       case BACK_TRACE: {
-          printTreeHeader(out, _root._total, type);
-          printTreeFrame(out, "all", _root, type, 0);
-          printTreeFooter(out, type);
+       } 
+       case CALL_TREE: {
+          printTreeHeader(out, _root._total);
+          printTreeFrame(out, "all", _root, 0);
+          printTreeFooter(out);
           break;
        }
     }
@@ -601,29 +602,13 @@ void FlameGraph::printFooter(std::ostream& out) {
     out << "</svg>\n";
 }
 
-void FlameGraph::printTreeHeader(std::ostream& out, long total, int type) {
-    char buf[sizeof(TREE_HEADER) + 256];
-    std::string treeName = "Calltree";
-    if(type == BACK_TRACE){
-        treeName = "Backtrace";
-    } 
-    sprintf(buf, TREE_HEADER, type, type, type, type, type, type, type, type, type, type,type, type, type, type, type, type, type, type, type, type, type, treeName.c_str(), total, type, type, type, type, type, type, type);     
-    out << buf;
-}
-
-void FlameGraph::printTreeFooter(std::ostream& out, int type) {
-    char buf[sizeof(TREE_FOOTER) + 256];
-    sprintf(buf, TREE_FOOTER, type);     
-    out << buf;
-}
-
 double FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y) {
     double framewidth = f._total * _scale;
 
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
         std::string full_title = name;
-        int color = selectFrameColor(full_title,true);
+        int color = selectFramePalette(full_title).pickColor();
         std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
@@ -651,11 +636,27 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     return framewidth;
 }
 
+void FlameGraph::printTreeHeader(std::ostream& out, long total) {
+    char buf[sizeof(TREE_HEADER) + 256];
+    std::string treeName = "Calltree";
+    if(_reverse){
+        treeName = "Backtrace";
+    } 
+    sprintf(buf, TREE_HEADER, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse,_reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, treeName.c_str(), total, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse, _reverse);     
+    out << buf;
+}
+
+void FlameGraph::printTreeFooter(std::ostream& out) {
+    char buf[sizeof(TREE_FOOTER) + 256];
+    sprintf(buf, TREE_FOOTER, _reverse);     
+    out << buf;
+}
+
 bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b)  {
     return a.second._total > b.second._total; 
 }
 
-void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int type, int depth) {
+void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
     double framewidth = f._total * _scale;
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
@@ -668,7 +669,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
 
         for (size_t i = 0; i < pairs.size(); ++i) { 
             std::string full_title = pairs[i].first;
-            std::string color = getFrameBaseColorName(selectFrameColor(full_title,false));
+            std::string color = selectFramePalette(full_title).name();
             StringUtils::escape(full_title);
             bool format = true;
             if(pairs[i].second._children.size() == 0) {
@@ -679,7 +680,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             {
                 childtotal +=  itr->second._total;
             }
-	    if(type == CALL_TREE) {
+	    if(_reverse) {
                 snprintf(_buf, sizeof(_buf),
                 "<li><div class=\"node\">[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
                 depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color.c_str(),full_title.c_str()); 
@@ -692,7 +693,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             } else {
                 out << _buf;
             }
-            printTreeFrame(out, pairs[i].first, pairs[i].second, type, depth+1);
+            printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
             if(format) {
                 out << "</ul></li>\n";
             }else {
@@ -702,61 +703,34 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
     }
 }
 
-int FlameGraph::selectFrameColor(std::string& name, bool palette) {
-    static const Palette green(0x32c832, 60, 55, 60);
-    static const Palette aqua(0x32a5a5, 60, 55, 55);
-    static const Palette brown(0xbe5a00, 65, 65, 0);
-    static const Palette yellow(0xafaf32, 55, 55, 20);
-    static const Palette red(0xc83232, 55, 80, 80);
+const Palette& FlameGraph::selectFramePalette(std::string& name) {
+    static const Palette
+        green ("green",  0x32c832, 60, 55, 60),
+        aqua  ("aqua",   0x32a5a5, 60, 55, 55),
+        brown ("brown",  0xbe5a00, 65, 65,  0),
+        yellow("yellow", 0xafaf32, 55, 55, 20),
+        red   ("red",    0xc83232, 55, 80, 80);
 
     if (StringUtils::endsWith(name, "_[j]", 4)) {
         // Java compiled frame
         name = name.substr(0, name.length() - 4);
-        return palette ? green.getColor() : GREEN;
+        return green;
     } else if (StringUtils::endsWith(name, "_[i]", 4)) {
         // Java inlined frame
         name = name.substr(0, name.length() - 4);
-        return palette ? aqua.getColor() : AQUA;
+        return aqua;
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
         // Kernel function
         name = name.substr(0, name.length() - 4);
-        return palette ?  brown.getColor() : BROWN;
+        return brown;
     } else if (name.find("::") != std::string::npos) {
         // C++ function
-        return palette ? yellow.getColor() : YELLOW;
+        return yellow;
     } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
-        return palette ? green.getColor() : GREEN;
+        return green;
     } else {
         // Other native code
-        return palette ? red.getColor() : RED;
+        return red;
     }
 }
-
-std::string FlameGraph::getFrameBaseColorName(int color) {
-    std::string baseColorName = "unknown";
-    switch (color) {
-        case GREEN: {
-            baseColorName = "green";
-            break;
-        }
-        case AQUA: {
-            baseColorName = "aqua";
-            break;
-        }
-        case BROWN: {
-            baseColorName = "brown";
-            break;
-        }
-        case YELLOW: {
-            baseColorName = "yellow";
-            break;
-        }
-        case RED: {
-            baseColorName = "red";
-            break;
-        }
-    };
-    return baseColorName;
-}
-

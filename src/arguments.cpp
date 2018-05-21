@@ -38,8 +38,6 @@ const Error Error::OK(NULL);
 //                     C is counter type: 'samples' or 'total'
 //     calltree[=C]  - produce produces call tree in HTML format
 //                     C is counter type: 'samples' or 'total'
-//     backtrace[=C]  - produce produces backtrace tree in HTML format
-//                     C is counter type: 'samples' or 'total'
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)
@@ -52,7 +50,7 @@ const Error Error::OK(NULL);
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
 //     minwidth=PX   - FlameGraph minimum frame width
-//     reverse       - generate stack-reversed FlameGraph
+//     reverse       - generate stack-reversed FlameGraph/Calltree
 //     file=FILENAME - output file name for dumping
 //
 // It is possible to specify multiple dump options at the same time
@@ -91,9 +89,6 @@ Error Arguments::parse(const char* args) {
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "calltree") == 0) {
             _dump_calltree = true;
-            _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
-        } else if (strcmp(arg, "backtrace") == 0) {
-            _dump_backtrace = true;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "summary") == 0) {
             _dump_summary = true;

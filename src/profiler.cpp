@@ -546,7 +546,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, int type) {
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
 
         Trie* f = flamegraph.root();
-        if ((args._reverse && type == FLAME_GRAPH) || (type == BACK_TRACE)) {
+        if (args._reverse) {
             for (int j = 0; j < trace._num_frames; j++) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
                 f = f->addChild(frame_name, samples);
@@ -667,7 +667,6 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
             if (args._dump_calltree) dumpFlameGraph(out, args, CALL_TREE);
-            if (args._dump_backtrace) dumpFlameGraph(out, args, BACK_TRACE);
             break;
         default:
             break;
