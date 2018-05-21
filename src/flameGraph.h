@@ -23,7 +23,7 @@
 #include "arch.h"
 
 enum dump{FLAME_GRAPH, CALL_TREE, BACK_TRACE};
-enum paletteBaseColor{GREEN,AQUA,BROWN,YELLOW,RED};
+enum PaletteBase{GREEN,AQUA,BROWN,YELLOW,RED};
 
 class Trie {
   private:
@@ -79,7 +79,7 @@ class FlameGraph {
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
     void printTreeHeader(std::ostream& out, long total, int type);
-    void printTreeFooter(std::ostream& out);
+    void printTreeFooter(std::ostream& out, int type);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
     void  printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int type, int depth);
     int selectFrameColor(std::string& name, bool palette);
