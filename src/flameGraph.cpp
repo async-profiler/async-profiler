@@ -489,7 +489,7 @@ static const char TREE_HEADER[] =
     "                opensubs[i].classList.remove('open');\n"
     "            }\n"
     "        } else {\n"
-    "            if(event.altKey) {\n"
+    "            if(e.altKey) {\n"
     "                classList.add('open');\n"
     "                var opensubs = parent.querySelectorAll('li');\n"
     "                for(var i = 0; i < opensubs.length; i++){\n"
