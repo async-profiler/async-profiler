@@ -370,7 +370,11 @@ static const char SVG_HEADER[] =
     "<text x=\"%d\" y=\"%d\" id=\"matched\"> </text>\n";
 
 static const char TREE_HEADER[] = 
-    "<html>\n"
+    "<!DOCTYPE html>\n"
+    "<html lang=\"en\">\n"
+    "<head>\n"
+    "<title>Title</title>\n"
+    "<meta charset=\"utf-8\"/>\n"
     "<style>\n"
     "	body {\n"
     "   font-family: Arial;\n"
@@ -500,12 +504,13 @@ static const char TREE_HEADER[] =
     "}\n"
     "}\n"
     "</script>\n"
+    "</head>\n"
     "<body>\n"
-    "<ul>%s view, total [sample/counter]: %ld </ul>\n"
-    "<ul class=\"tree\">\n"
-    "<button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n"
+    "<div style=\"padding-left: 25px;\">%s view, total [sample/counter]: %ld </div>\n"
+    "<div style=\"padding-left: 25px;\"><button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n"
     "<input type='text' id='search' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn').click()\">\n"
-    "<button type='button' id='searchBtn' onclick='search()'>search</button>\n";
+    "<button type='button' id='searchBtn' onclick='search()'>search</button></div>\n"
+    "<ul class=\"tree\">\n";
 
 static const char TREE_FOOTER[] = 
     "<script>\n"
