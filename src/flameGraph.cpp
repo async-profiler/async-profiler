@@ -373,7 +373,7 @@ static const char TREE_HEADER[] =
     "<!DOCTYPE html>\n"
     "<html lang=\"en\">\n"
     "<head>\n"
-    "<title>Title</title>\n"
+    "<title>Tree view</title>\n"
     "<meta charset=\"utf-8\"/>\n"
     "<style>\n"
     "	body {\n"
