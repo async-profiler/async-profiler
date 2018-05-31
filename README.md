@@ -175,7 +175,7 @@ filename ends with `.svg`.
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -d 30 -f /tmp/flamegraph.svg 8983
+$ ./profiler.sh -d 30 -o svg -f /tmp/flamegraph.svg 8983
 ```
 
 ![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/SwingSet2.svg)
