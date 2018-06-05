@@ -163,6 +163,20 @@ Samples: 679 (98.84%)
 This indicates that the hottest method was `Primes.isPrime`, and the hottest
 call stack leading to it comes from `Primes.primesThread`.
 
+## Launching as an Agent
+
+If you need to profile some code as soon as the JVM starts up, instead of using the `profiler.sh` script,
+it is possible to attach async-profiler as an agent on the command line. For example:
+
+```
+$ java -agentpath:/path/to/libasyncProfiler.so=start,svg,file=profile.svg ...
+```
+
+Agent library is configured through the JVMTI argument interface. The format of the arguments string is described [in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/af94b0e55178c46e17c573a65c498d25b58b641b/src/arguments.cpp#L26). The `profiler.sh` script actually
+converts command line arguments to the that format.
+
+For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg` is converted to `file=profile.svg` and so on. But some arguments are processed directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions: 1) attaching profiler agent with start command, sleeping for 5 seconds, and then attaching the agent again with stop command.
+
 ## Flame Graph visualization
 
 async-profiler provides out-of-the-box [Flame Graph](https://github.com/BrendanGregg/FlameGraph) support.
