@@ -466,14 +466,19 @@ static const char TREE_HEADER[] =
     "        }\n"
     "    }\n"
     "}\n"
+    "function openUL(n) {\n"
+    "    var children = n.children;\n"
+    "    if(children.length == 1) {\n"
+    "        openNode(children[0]);\n"
+    "    }\n"
+    "}\n"
     "function openNode(n) {\n"
-    "    var opensubs = n.querySelectorAll('ul li');\n"
-    "    for(var i = 0; i < opensubs.length; i++){\n"
-    "        var children = opensubs[i].parentElement.children;\n"
-    "        if(children.length < 2) {\n"
-    "            opensubs[i].classList.add('open');\n"
-    "            openNode(opensubs[i]);\n"
-    "        }\n"
+    "    var children = n.children;\n"
+    "    for(var i = 0; i < children.length; i++){\n"
+    "            if(children[i].nodeName == 'UL') {\n"
+    "                n.classList.add('open');\n"
+    "                openUL(children[i]);\n"
+    "            }\n"
     "    }\n"
     "}\n"
     "function addClickActions() {\n"
@@ -496,7 +501,6 @@ static const char TREE_HEADER[] =
     "                    opensubs[i].classList.add('open');\n"
     "                }\n"
     "            } else {\n"
-    "                classList.add('open');\n"
     "                openNode(parent);\n"
     "            }\n"
     "        }\n"
@@ -663,7 +667,7 @@ bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, 
     return a.second._total > b.second._total; 
 }
 
-void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
+bool FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
     double framewidth = f._total * _scale;
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
@@ -701,14 +705,18 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             } else {
                 out << _buf;
             }
-            printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
-            if(format) {
+            bool res = printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
+            if(format && res) {
                 out << "</ul></li>\n";
+            }else if(format) {
+                out << "...</ul></li>\n";
             }else {
                 out << "</li>\n";
             }
         }
+        return true;
     }
+    return false;
 }
 
 const Palette& FlameGraph::selectFramePalette(std::string& name) {
