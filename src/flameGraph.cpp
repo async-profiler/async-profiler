@@ -667,7 +667,7 @@ bool FlameGraph::sortMap(std::pair<std::string, Trie> a, std::pair<std::string, 
     return a.second._total > b.second._total; 
 }
 
-void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
+bool FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth) {
     double framewidth = f._total * _scale;
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
@@ -705,14 +705,18 @@ void FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             } else {
                 out << _buf;
             }
-            printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
-            if(format) {
+            bool res = printTreeFrame(out, pairs[i].first, pairs[i].second, depth+1);
+            if(format && res) {
                 out << "</ul></li>\n";
+            }else if(format) {
+                out << "...</ul></li>\n";
             }else {
                 out << "</li>\n";
             }
         }
+        return true;
     }
+    return false;
 }
 
 const Palette& FlameGraph::selectFramePalette(std::string& name) {
