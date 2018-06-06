@@ -691,7 +691,7 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             {
                 childtotal +=  itr->second._total;
             }
-	    if(_reverse) {
+	    if(!_reverse) {
                 snprintf(_buf, sizeof(_buf),
                 "<li><div>[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
                 depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color.c_str(),full_title.c_str()); 
