@@ -686,15 +686,10 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const std::string& name, cons
             if(pairs[i].second._children.size() == 0) {
                 format = false;
             }
-            long childtotal = 0;
-            for (std::map<std::string, Trie>::const_iterator itr = pairs[i].second._children.begin(); itr != pairs[i].second._children.end(); ++itr)
-            {
-                childtotal +=  itr->second._total;
-            }
-	    if(_reverse) {
+	    if(!_reverse) {
                 snprintf(_buf, sizeof(_buf),
                 "<li><div>[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>",
-                depth, pairs[i].second._total * _pct,pairs[i].second._total,(pairs[i].second._total-childtotal)* _pct,(pairs[i].second._total-childtotal),color.c_str(),full_title.c_str()); 
+                depth, pairs[i].second._total * _pct,pairs[i].second._total,pairs[i].second._self * _pct,pairs[i].second._self,color.c_str(),full_title.c_str()); 
             }else {
                snprintf(_buf, sizeof(_buf), 
                "<li><div>[%d] %.2f%% %lld</div><span class=\"%s\"> %s</span>", depth, pairs[i].second._total * _pct,pairs[i].second._total,color.c_str(),full_title.c_str());
