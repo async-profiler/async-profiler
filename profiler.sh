@@ -24,7 +24,7 @@ usage() {
     echo "  --width px        SVG width"
     echo "  --height px       SVG frame height"
     echo "  --minwidth px     skip frames smaller than px"
-    echo "  --reverse         generate stack-reversed FlameGraph/Calltree"
+    echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -186,6 +186,8 @@ fi
 if [[ "$OUTPUT" == "" ]]; then
     if [[ $FILE == *.svg ]]; then
         OUTPUT="svg"
+    elif [[ $FILE == *.html ]]; then
+        OUTPUT="tree"
     elif [[ $FILE == *.collapsed ]] || [[ $FILE == *.folded ]]; then
         OUTPUT="collapsed"
     else

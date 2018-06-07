@@ -21,8 +21,8 @@
 #include <string>
 #include <iostream>
 #include "arch.h"
+#include "arguments.h"
 
-enum dump{FLAME_GRAPH, CALL_TREE};
 
 class Trie {
   private:
@@ -70,6 +70,7 @@ class FlameGraph {
     char _buf[4096];
 
     const char* _title;
+    Counter _counter;
     int _imagewidth;
     int _imageheight;
     int _frameheight;
@@ -81,15 +82,19 @@ class FlameGraph {
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
-    void printTreeHeader(std::ostream& out, long total);
+    void printTreeHeader(std::ostream& out);
     void printTreeFooter(std::ostream& out);
-    bool  printTreeFrame(std::ostream& out, const std::string& name, const Trie& f, int depth);
-    bool static sortMap(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b);
+    bool printTreeFrame(std::ostream& out, const Trie& f, int depth);
     const Palette& selectFramePalette(std::string& name);
 
+    static bool sortByTotal(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b) {
+        return a.second._total > b.second._total;
+    }
+
   public:
-    FlameGraph(const char* title, int width, int height, double minwidth, bool reverse) :
+    FlameGraph(const char* title, Counter counter, int width, int height, double minwidth, bool reverse) :
         _root(),
+        _counter(counter),
         _title(title),
         _imagewidth(width),
         _frameheight(height),
@@ -101,7 +106,7 @@ class FlameGraph {
         return &_root;
     }
 
-    void dump(std::ostream& out, int type);
+    void dump(std::ostream& out, bool tree);
 };
 
 #endif // _FLAMEGRAPH_H
