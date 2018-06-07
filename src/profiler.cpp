@@ -403,6 +403,7 @@ Error Profiler::start(const char* event, long interval, int jstackdepth, int fra
     if (_state != IDLE) {
         return Error("Profiler already started");
     }
+
     if (VM::_asyncGetCallTrace == NULL) {
         return Error("Could not find AsyncGetCallTrace function");
     }
@@ -532,11 +533,11 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     }
 }
 
-void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, int type) {
+void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) return;
 
-    FlameGraph flamegraph(args._title, args._width, args._height, args._minwidth, args._reverse);
+    FlameGraph flamegraph(args._title, args._counter, args._width, args._height, args._minwidth, args._reverse);
     FrameName fn(args._simple, false, _threads);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -560,7 +561,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, int type) {
         f->addLeaf(samples);
     }
 
-    flamegraph.dump(out,type);
+    flamegraph.dump(out, tree);
 }
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
@@ -662,11 +663,11 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
         case ACTION_DUMP:
             stop();
             if (args._dump_collapsed) dumpCollapsed(out, args);
-            if (args._dump_flamegraph) dumpFlameGraph(out, args, FLAME_GRAPH);
+            if (args._dump_flamegraph) dumpFlameGraph(out, args, false);
+            if (args._dump_tree) dumpFlameGraph(out, args, true);
             if (args._dump_summary) dumpSummary(out);
             if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
             if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
-            if (args._dump_tree) dumpFlameGraph(out, args, CALL_TREE);
             break;
         default:
             break;

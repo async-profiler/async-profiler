@@ -19,6 +19,7 @@
 #include <string.h>
 #include "arguments.h"
 
+
 // Predefined value that denotes successful operation
 const Error Error::OK(NULL);
 
@@ -33,10 +34,8 @@ const Error Error::OK(NULL);
 //     list          - show the list of available profiling events
 //     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
-//                     C is counter type: 'samples' or 'total'
 //     svg[=C]       - produce Flame Graph in SVG format
-//                     C is counter type: 'samples' or 'total'
-//     tree[=C]  - produce produces call tree in HTML format
+//     tree[=C]      - produce call tree in HTML format
 //                     C is counter type: 'samples' or 'total'
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
@@ -50,7 +49,7 @@ const Error Error::OK(NULL);
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
 //     minwidth=PX   - FlameGraph minimum frame width
-//     reverse       - generate stack-reversed FlameGraph/Calltree
+//     reverse       - generate stack-reversed FlameGraph / Call tree
 //     file=FILENAME - output file name for dumping
 //
 // It is possible to specify multiple dump options at the same time
