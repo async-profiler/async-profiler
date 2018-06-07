@@ -20,6 +20,10 @@
 
 typedef unsigned long long u64;
 
+static inline u64 atomicInc(u64& var, u64 increment = 1) {
+    return __sync_fetch_and_add(&var, increment);
+}
+
 
 #if defined(__x86_64__) || defined(__i386__)
 

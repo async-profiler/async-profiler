@@ -18,7 +18,7 @@ usage() {
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
-    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg|tree"
+    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo ""
     echo "  --title string    SVG title"
     echo "  --width px        SVG width"
@@ -188,6 +188,8 @@ if [[ "$OUTPUT" == "" ]]; then
         OUTPUT="svg"
     elif [[ $FILE == *.html ]]; then
         OUTPUT="tree"
+    elif [[ $FILE == *.jfr ]]; then
+        OUTPUT="jfr"
     elif [[ $FILE == *.collapsed ]] || [[ $FILE == *.folded ]]; then
         OUTPUT="collapsed"
     else

@@ -23,6 +23,7 @@
 #include "arch.h"
 #include "arguments.h"
 #include "engine.h"
+#include "flightRecorder.h"
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -59,6 +60,7 @@ class CallTraceSample {
     }
 
     friend class Profiler;
+    friend class Recording;
 };
 
 class MethodSample {
@@ -119,6 +121,7 @@ class Profiler {
 
     pthread_mutex_t _state_lock;
     State _state;
+    FlightRecorder _jfr;
     Engine* _engine;
     time_t _start_time;
 
@@ -163,7 +166,7 @@ class Profiler {
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     bool addressInCode(const void* pc);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
-    void storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    int storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
@@ -177,6 +180,7 @@ class Profiler {
 
     Profiler() :
         _state(IDLE),
+        _jfr(),
         _frame_buffer(NULL),
         _jit_lock(),
         _jit_min_address((const void*)-1),
@@ -196,7 +200,7 @@ class Profiler {
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
-    Error start(const char* event, long interval, int jstackdepth, int frame_buffer_size, bool threads);
+    Error start(Arguments& args);
     Error stop();
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);
@@ -223,6 +227,8 @@ class Profiler {
                                              const void* address, jint length) {
         _instance.addRuntimeStub(address, length, name);
     }
+
+    friend class Recording;
 };
 
 #endif // _PROFILER_H

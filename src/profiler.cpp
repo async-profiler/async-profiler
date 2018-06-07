@@ -26,16 +26,13 @@
 #include "allocTracer.h"
 #include "lockTracer.h"
 #include "flameGraph.h"
+#include "flightRecorder.h"
 #include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
 
 
 Profiler Profiler::_instance;
-
-static inline u64 atomicInc(u64& var, u64 increment = 1) {
-    return __sync_fetch_and_add(&var, increment);
-}
 
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
@@ -60,7 +57,7 @@ u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     return h;
 }
 
-void Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
+int Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
     u64 hash = hashCallTrace(num_frames, frames);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
@@ -75,12 +72,13 @@ void Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 count
         }
 
         if (++i == MAX_CALLTRACES) i = 0;  // move to next slot
-        if (i == bucket) return;           // the table is full
+        if (i == bucket) return 0;         // the table is full
     }
     
     // CallTrace hash found => atomically increment counter
     atomicInc(_traces[i]._samples);
     atomicInc(_traces[i]._counter, counter);
+    return i;
 }
 
 void Profiler::copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace) {
@@ -356,8 +354,9 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     }
 
     if (num_frames > 0) {
-        storeCallTrace(num_frames, frames, counter);
         storeMethod(frames[0].method_id, frames[0].bci, counter);
+        int call_trace_id = storeCallTrace(num_frames, frames, counter);
+        _jfr.recordExecutionSample(lock_index, tid, call_trace_id);
     }
 
     _locks[lock_index].unlock();
@@ -398,7 +397,7 @@ void Profiler::initJvmtiFunctions() {
     }
 }
 
-Error Profiler::start(const char* event, long interval, int jstackdepth, int frame_buffer_size, bool threads) {
+Error Profiler::start(Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
@@ -415,29 +414,40 @@ Error Profiler::start(const char* event, long interval, int jstackdepth, int fra
     memset(_traces, 0, sizeof(_traces));
     memset(_methods, 0, sizeof(_methods));
 
+    // Index 0 denotes special call trace with no frames
+    _hashes[0] = (u64)-1;
+
     // Reset frames
     free(_frame_buffer);
-    _jstackdepth = jstackdepth;
-    _frame_buffer_size = frame_buffer_size;
+    _jstackdepth = args._jstackdepth;
+    _frame_buffer_size = args._framebuf;
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
-    _threads = threads;
+    _threads = args._threads && !args._dump_jfr;
 
     resetSymbols();
     initJvmtiFunctions();
 
-    if (strcmp(event, EVENT_ALLOC) == 0) {
+    if (args._dump_jfr) {
+        Error error = _jfr.start(args._file);
+        if (error) {
+            return error;
+        }
+    }
+
+    if (strcmp(args._event, EVENT_ALLOC) == 0) {
         _engine = new AllocTracer();
-    } else if (strcmp(event, EVENT_LOCK) == 0) {
+    } else if (strcmp(args._event, EVENT_LOCK) == 0) {
         _engine = new LockTracer();
     } else {
         _engine = new PerfEvents();
     }
 
-    Error error = _engine->start(event, interval);
+    Error error = _engine->start(args._event, args._interval);
     if (error) {
         delete _engine;
+        _jfr.stop();
         return error;
     }
 
@@ -454,6 +464,11 @@ Error Profiler::stop() {
 
     _engine->stop();
     delete _engine;
+
+    // Acquire all spinlocks to avoid race with remaining signals
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    _jfr.stop();
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
 
     _state = IDLE;
     return Error::OK;
@@ -621,7 +636,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START: {
-            Error error = start(args._event, args._interval, args._jstackdepth, args._framebuf, args._threads);
+            Error error = start(args);
             if (error) {
                 out << error.message() << std::endl;
             } else {
@@ -675,7 +690,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
 }
 
 void Profiler::run(Arguments& args) {
-    if (args._file == NULL) {
+    if (args._file == NULL || args._dump_jfr) {
         runInternal(args, std::cout);
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);

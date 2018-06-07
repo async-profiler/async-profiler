@@ -79,6 +79,7 @@ class Arguments {
     bool _dump_collapsed;
     bool _dump_flamegraph;
     bool _dump_tree;
+    bool _dump_jfr;
     bool _dump_summary;
     int _dump_traces;
     int _dump_flat;
@@ -102,6 +103,7 @@ class Arguments {
         _dump_collapsed(false),
         _dump_flamegraph(false),
         _dump_tree(false),
+        _dump_jfr(false),
         _dump_summary(false),
         _dump_traces(0),
         _dump_flat(0),
@@ -113,7 +115,7 @@ class Arguments {
     }
 
     bool dumpRequested() {
-        return _dump_collapsed || _dump_flamegraph || _dump_summary || _dump_traces > 0 || _dump_flat > 0 || _dump_tree;
+        return _dump_collapsed || _dump_flamegraph || _dump_tree || _dump_jfr || _dump_summary || _dump_traces > 0 || _dump_flat > 0;
     }
 
     Error parse(const char* args);

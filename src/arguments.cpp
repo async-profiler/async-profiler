@@ -37,6 +37,7 @@ const Error Error::OK(NULL);
 //     svg[=C]       - produce Flame Graph in SVG format
 //     tree[=C]      - produce call tree in HTML format
 //                     C is counter type: 'samples' or 'total'
+//     jfr           - dump events in Java Flight Recorder format
 //     summary       - dump profiling summary (number of collected samples of each type)
 //     traces[=N]    - dump top N call traces
 //     flat[=N]      - dump top N methods (aka flat profile)
@@ -89,6 +90,8 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "tree") == 0) {
             _dump_tree = true;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
+        } else if (strcmp(arg, "jfr") == 0) {
+            _dump_jfr = true;
         } else if (strcmp(arg, "summary") == 0) {
             _dump_summary = true;
         } else if (strcmp(arg, "traces") == 0) {
