@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/syscall.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -68,6 +69,11 @@ int enter_mount_ns(int pid) {
     return 1;
 }
 
+// Not used on macOS
+int alt_lookup_nspid(int pid) {
+    return pid;
+}
+
 #else // Linux
 
 const char* get_temp_directory() {
@@ -105,20 +111,17 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
 }
 
 int enter_mount_ns(int pid) {
+    char path[128];
+    snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+
     // We're leaking the oldns and newns descriptors, but this is a short-running
     // tool, so they will be closed when the process exits anyway.
     int oldns, newns;
-    char curnspath[128], newnspath[128];
-    struct stat oldns_stat, newns_stat;
-
-    snprintf(curnspath, sizeof(curnspath), "/proc/self/ns/mnt");
-    snprintf(newnspath, sizeof(newnspath), "/proc/%d/ns/mnt", pid);
-
-    if ((oldns = open(curnspath, O_RDONLY)) < 0 ||
-        (newns = open(newnspath, O_RDONLY)) < 0) {
+    if ((oldns = open("/proc/self/ns/mnt", O_RDONLY)) < 0 || (newns = open(path, O_RDONLY)) < 0) {
         return 0;
     }
 
+    struct stat oldns_stat, newns_stat;
     if (fstat(oldns, &oldns_stat) < 0 || fstat(newns, &newns_stat) < 0) {
         return 0;
     }
@@ -129,6 +132,65 @@ int enter_mount_ns(int pid) {
 
     // Some ancient Linux distributions do not have setns() function
     return syscall(__NR_setns, newns, 0) < 0 ? 0 : 1;
+}
+
+// The first line of /proc/pid/sched looks like
+// java (1234, #threads: 12)
+// where 1234 is the required host PID
+int sched_get_host_pid(const char* path) {
+    static char* line = NULL;
+    size_t size;
+    int result = -1;
+
+    FILE* sched_file = fopen(path, "r");
+    if (sched_file != NULL) {
+        if (getline(&line, &size, sched_file) != -1) {
+            char* c = strrchr(line, '(');
+            if (c != NULL) {
+                result = atoi(c + 1);
+            }
+        }
+        fclose(sched_file);
+    }
+
+    return result;
+}
+
+// Linux kernels < 4.1 do not export NStgid field in /proc/pid/status.
+// Fortunately, /proc/pid/sched in a container exposes a host PID,
+// so the idea is to scan all container PIDs to find which one matches the host PID.
+int alt_lookup_nspid(int pid) {
+    char path[128];
+    snprintf(path, sizeof(path), "/proc/%d/ns/pid", pid);
+
+    // Don't bother looking for container PID if we are already in the same PID namespace
+    struct stat oldns_stat, newns_stat;
+    if (stat("/proc/self/ns/pid", &oldns_stat) == 0 && stat(path, &newns_stat) == 0) {
+        if (oldns_stat.st_ino == newns_stat.st_ino) {
+            return pid;
+        }
+    }
+
+    // Otherwise browse all PIDs in the namespace of the target process
+    // trying to find which one corresponds to the host PID
+    snprintf(path, sizeof(path), "/proc/%d/root/proc", pid);
+    DIR* dir = opendir(path);
+    if (dir != NULL) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
+                // Check if /proc/<container-pid>/sched points back to <host-pid>
+                snprintf(path, sizeof(path), "/proc/%d/root/proc/%s/sched", pid, entry->d_name);
+                if (sched_get_host_pid(path) == pid) {
+                    closedir(dir);
+                    return atoi(entry->d_name);
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    return -1;
 }
 
 #endif
@@ -260,14 +322,19 @@ int main(int argc, char** argv) {
     gid_t my_gid = getegid();
     uid_t target_uid = my_uid;
     gid_t target_gid = my_gid;
-    int nspid = pid;
+    int nspid = -1;
     if (!get_process_info(pid, &target_uid, &target_gid, &nspid)) {
         fprintf(stderr, "Process %d not found\n", pid);
         return 1;
     }
 
+    if (nspid < 0 && (nspid = alt_lookup_nspid(pid)) < 0) {
+        fprintf(stderr, "WARNING: couldn't find container pid of the target process\n");
+        nspid = pid;
+    }
+
     // Make sure our /tmp and target /tmp is the same
-    if (enter_mount_ns(pid) < 0) {
+    if (!enter_mount_ns(pid)) {
         fprintf(stderr, "WARNING: couldn't enter target process mnt namespace\n");
     }
     
