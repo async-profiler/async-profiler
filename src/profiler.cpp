@@ -436,12 +436,18 @@ Error Profiler::start(Arguments& args) {
         }
     }
 
-    if (strcmp(args._event, EVENT_ALLOC) == 0) {
+    if (strcmp(args._event, EVENT_CPU) == 0) {
+        _engine = new PerfEvents();
+        _units = "ns";
+    } else if (strcmp(args._event, EVENT_ALLOC) == 0) {
         _engine = new AllocTracer();
+        _units = "bytes";
     } else if (strcmp(args._event, EVENT_LOCK) == 0) {
         _engine = new LockTracer();
+        _units = "ns";
     } else {
         _engine = new PerfEvents();
+        _units = "events";
     }
 
     Error error = _engine->start(args._event, args._interval);
@@ -596,8 +602,9 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) break;
 
-        snprintf(buf, sizeof(buf), "Total: %lld (%.2f%%)  samples: %lld\n",
-                 trace._counter, trace._counter * percent, trace._samples);
+        snprintf(buf, sizeof(buf), "--- %lld (%.2f%%) %s, %lld sample%s\n",
+                 trace._counter, trace._counter * percent, _units,
+                 trace._samples, trace._samples == 1 ? "" : "s");
         out << buf;
 
         if (trace._num_frames == 0) {
@@ -624,12 +631,16 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
     if (max_methods > MAX_CALLTRACES) max_methods = MAX_CALLTRACES;
 
+    snprintf(buf, sizeof(buf), "%12s  percent  samples  top\n"
+                               "  ----------  -------  -------  ---\n", _units);
+    out << buf;
+
     for (int i = 0; i < max_methods; i++) {
         MethodSample& method = _methods[i];
         if (method._samples == 0) break;
 
         const char* frame_name = fn.name(method._method);
-        snprintf(buf, sizeof(buf), "%12lld (%5.2f%%)  %6lld  %s\n",
+        snprintf(buf, sizeof(buf), "%12lld  %6.2f%%  %7lld  %s\n",
                  method._counter, method._counter * percent, method._samples, frame_name);
         out << buf;
     }

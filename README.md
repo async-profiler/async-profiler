@@ -142,20 +142,22 @@ Here is a sample of the output printed to the Java application's terminal:
 
 ```
 --- Execution profile ---
-Total:                   687
+Total samples:           687
 Unknown (native):        1 (0.15%)
 
-Samples: 679 (98.84%)
-    [ 0] Primes.isPrime
-    [ 1] Primes.primesThread
-    [ 2] Primes.access$000
-    [ 3] Primes$1.run
-    [ 4] java.lang.Thread.run
+--- 6790000000 (98.84%) ns, 679 samples
+  [ 0] Primes.isPrime
+  [ 1] Primes.primesThread
+  [ 2] Primes.access$000
+  [ 3] Primes$1.run
+  [ 4] java.lang.Thread.run
 
 ... a lot of output omitted for brevity ...
 
-         679 (98.84%) Primes.isPrime
-           4 (0.58%)  __do_softirq
+          ns  percent  samples  top
+  ----------  -------  -------  ---
+  6790000000   98.84%      679  Primes.isPrime
+    40000000    0.58%        4  __do_softirq
 
 ... more output omitted ...
 ```

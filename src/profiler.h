@@ -123,6 +123,7 @@ class Profiler {
     State _state;
     FlightRecorder _jfr;
     Engine* _engine;
+    const char* _units;
     time_t _start_time;
 
     u64 _total_samples;
@@ -181,6 +182,7 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _jfr(),
+        _units("events"),
         _frame_buffer(NULL),
         _jit_lock(),
         _jit_min_address((const void*)-1),
