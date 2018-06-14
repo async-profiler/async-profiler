@@ -20,7 +20,7 @@
 #include <stddef.h>
 
 
-const long DEFAULT_INTERVAL = 1000000;  // 1 ms
+const long DEFAULT_INTERVAL = 10000019;  // prime number ~10 ms
 const int DEFAULT_FRAMEBUF = 1000000;
 
 const char* const EVENT_CPU   = "cpu";

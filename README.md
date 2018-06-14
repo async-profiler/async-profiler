@@ -137,7 +137,7 @@ the application for a fixed period of time with a single command.
 $ ./profiler.sh -d 30 8983
 ```
 
-By default, the profiling frequency is 1000Hz (every 1ms of CPU time).
+By default, the profiling frequency is 100Hz (every 10ms of CPU time).
 Here is a sample of the output printed to the Java application's terminal:
 
 ```
@@ -237,7 +237,7 @@ and kernel tracepoints:
 
 * `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
 is counted. No samples are collected while CPU is idle. The default is
-1000000 (1ms).  
+10000000 (10ms).  
 Example: `./profiler.sh -i 100000 8983`
 
 * `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater 
