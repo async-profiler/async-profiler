@@ -299,7 +299,7 @@ int PerfEvents::tid() {
     return syscall(__NR_gettid);
 }
 
-void PerfEvents::createForThread(int tid) {
+bool PerfEvents::createForThread(int tid) {
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
     attr.type = _event_type->type;
@@ -322,7 +322,7 @@ void PerfEvents::createForThread(int tid) {
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
         perror("perf_event_open failed");
-        return;
+        return false;
     }
 
     void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -345,21 +345,26 @@ void PerfEvents::createForThread(int tid) {
 
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
+
+    return true;
 }
 
-void PerfEvents::createForAllThreads() {
-    DIR* dir = opendir("/proc/self/task");
-    if (dir == NULL) return;
+bool PerfEvents::createForAllThreads() {
+    bool success = false;
 
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != '.') {
-            int tid = atoi(entry->d_name);
-            createForThread(tid);
+    DIR* dir = opendir("/proc/self/task");
+    if (dir != NULL) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] != '.') {
+                int tid = atoi(entry->d_name);
+                success |= createForThread(tid);
+            }
         }
+        closedir(dir);
     }
 
-    closedir(dir);
+    return success;
 }
 
 void PerfEvents::destroyForThread(int tid) {
@@ -433,7 +438,9 @@ Error PerfEvents::start(const char* event, long interval) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
-    createForAllThreads();
+    if (!createForAllThreads()) {
+        return Error("Perf events unavailble. See stderr of the target process.");
+    }
     return Error::OK;
 }
 

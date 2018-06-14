@@ -343,6 +343,18 @@ Make sure the user of JVM process has permissions to access `libasyncProfiler.so
 For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
 
 ```
+Perf events unavailble. See stderr of the target process.
+```
+`perf_event_open()` syscall has failed. The error message is printed to the error stream
+of the target JVM.
+
+Typical reasons include:
+ 1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
+ 2. seccomp disables perf_event_open API in a container.
+ 3. OS runs under a hypervisor that does not virtualize performance counters.
+ 4. perf_event_open API is not supported on this system, e.g. WSL.
+
+```
 [frame_buffer_overflow]
 ```
 This message in the output means there was not enough space to store all call traces.

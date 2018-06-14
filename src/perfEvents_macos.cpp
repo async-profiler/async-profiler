@@ -35,8 +35,8 @@ int PerfEvents::tid() {
     return pthread_mach_thread_np(pthread_self());
 }
 
-void PerfEvents::createForThread(int tid)  {}
-void PerfEvents::createForAllThreads()     {}
+bool PerfEvents::createForThread(int tid)  { return false; }
+bool PerfEvents::createForAllThreads()     { return false; }
 void PerfEvents::destroyForThread(int tid) {}
 void PerfEvents::destroyForAllThreads()    {}
 

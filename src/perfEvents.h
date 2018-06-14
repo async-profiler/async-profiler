@@ -32,8 +32,8 @@ class PerfEvents : public Engine {
     static PerfEventType* _event_type;
     static long _interval;
 
-    static void createForThread(int tid);
-    static void createForAllThreads();
+    static bool createForThread(int tid);
+    static bool createForAllThreads();
     static void destroyForThread(int tid);
     static void destroyForAllThreads();
     static void installSignalHandler();
