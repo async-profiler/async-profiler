@@ -602,8 +602,8 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) break;
 
-        snprintf(buf, sizeof(buf), "--- %lld (%.2f%%) %s, %lld sample%s\n",
-                 trace._counter, trace._counter * percent, _units,
+        snprintf(buf, sizeof(buf), "--- %lld %s (%.2f%%), %lld sample%s\n",
+                 trace._counter, _units, trace._counter * percent,
                  trace._samples, trace._samples == 1 ? "" : "s");
         out << buf;
 
