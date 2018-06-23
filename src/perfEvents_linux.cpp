@@ -296,7 +296,7 @@ int PerfEvents::tid() {
 
 bool PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
-        fprintf(stderr, "Warning: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max.\n", tid, _max_events);
+        fprintf(stderr, "WARNING: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max\n", tid, _max_events);
         return false;
     }
 

@@ -394,6 +394,10 @@ void Profiler::initJvmtiFunctions() {
                     libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
             }
         }
+
+        if (_JvmtiEnv_GetStackTrace == NULL) {
+            fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
+        }
     }
 }
 
