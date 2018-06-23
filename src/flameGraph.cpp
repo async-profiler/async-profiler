@@ -556,6 +556,33 @@ class StringUtils {
 };
 
 
+class Format {
+  private:
+    char _buf[32];
+
+  public:
+    const char* thousands(u64 value) {
+        char* p = _buf + sizeof(_buf) - 1;
+        *p = 0;
+
+        while (value >= 1000) {
+            p -= 4;
+            p[0] = ',';
+            p[1] = '0' + char(value % 1000 / 100);
+            p[2] = '0' + char(value % 100 / 10);
+            p[3] = '0' + char(value % 10);
+            value /= 1000;
+        }
+
+        do {
+            *--p = '0' + char(value % 10);
+        } while ((value /= 10) > 0);
+
+        return p;
+    }
+};
+
+
 class Palette {
   private:
     const char* _name;
@@ -629,10 +656,10 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
 
         snprintf(_buf, sizeof(_buf),
             "<g class=\"func_g\" onmouseover=\"s(this)\" onmouseout=\"c()\" onclick=\"zoom(this)\">\n"
-            "<title>%s (%lld samples, %.2f%%)</title><rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n"
+            "<title>%s (%s samples, %.2f%%)</title><rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n"
             "<text x=\"%.1f\" y=\"%.1f\">%s</text>\n"
             "</g>\n",
-            full_title.c_str(), f._total, f._total * _pct, x, y, w, _frameheight - 1, color,
+            full_title.c_str(), Format().thousands(f._total), f._total * _pct, x, y, w, _frameheight - 1, color,
             x + 3, y + 3 + _frameheight * 0.5, short_title.c_str());
         out << _buf;
 
