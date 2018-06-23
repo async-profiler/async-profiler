@@ -66,6 +66,8 @@ class Arguments {
   private:
     char _buf[1024];
 
+    long parseUnits(const char* str);
+
   public:
     Action _action;
     Counter _counter;

@@ -237,10 +237,11 @@ and kernel tracepoints:
   tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
   all `open` syscalls.
 
-* `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
-is counted. No samples are collected while CPU is idle. The default is
-10000000 (10ms).  
-Example: `./profiler.sh -i 100000 8983`
+* `-i N` - sets the profiling interval in nanoseconds or in other units,
+if N is followed by `ms` (for milliseconds), `us` (for microseconds)
+or `s` (for seconds). Only CPU active time is counted. No samples
+are collected while CPU is idle. The default is 10000000 (10ms).  
+Example: `./profiler.sh -i 500us 8983`
 
 * `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater 
 than default MAX_STACK_FRAMES.  

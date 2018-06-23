@@ -99,7 +99,7 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "flat") == 0) {
             _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
-            if (value == NULL || (_interval = atol(value)) <= 0) {
+            if (value == NULL || (_interval = parseUnits(value)) <= 0) {
                 return Error("interval must be > 0");
             }
         } else if (strcmp(arg, "jstackdepth") == 0) {
@@ -137,4 +137,24 @@ Error Arguments::parse(const char* args) {
     }
 
     return Error::OK;
+}
+
+long Arguments::parseUnits(const char* str) {
+    char* end;
+    long result = strtol(str, &end, 0);
+
+    if (*end) {
+        switch (*end) {
+            case 'K': case 'k':
+            case 'U': case 'u': // microseconds
+                return result * 1000;
+            case 'M': case 'm': // million, megabytes or milliseconds
+                return result * 1000000;
+            case 'G': case 'g':
+            case 'S': case 's': // seconds
+                return result * 1000000000;
+        }
+    }
+
+    return result;
 }
