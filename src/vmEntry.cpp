@@ -69,8 +69,6 @@ void VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
-    PerfEvents::init();
-
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {
         // Unable to locate AsyncGetCallTrace, it is likely that JVM has been started

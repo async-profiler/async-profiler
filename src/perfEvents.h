@@ -47,7 +47,6 @@ class PerfEvents : public Engine {
     Error start(const char* event, long interval);
     void stop();
 
-    static void init();
     static int tid();
     static const char** getAvailableEvents();
     static int getCallChain(int tid, const void** callchain, int max_depth);

@@ -29,8 +29,6 @@ PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 
 
-void PerfEvents::init() {}
-
 int PerfEvents::tid() {
     return pthread_mach_thread_np(pthread_self());
 }

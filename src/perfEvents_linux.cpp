@@ -290,16 +290,16 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
 
-void PerfEvents::init() {
-    _max_events = getMaxPID();
-    _events = (PerfEvent*)calloc(_max_events, sizeof(PerfEvent));
-}
-
 int PerfEvents::tid() {
     return syscall(__NR_gettid);
 }
 
 bool PerfEvents::createForThread(int tid) {
+    if (tid >= _max_events) {
+        fprintf(stderr, "Warning: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max.\n", tid, _max_events);
+        return false;
+    }
+
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
     attr.type = _event_type->type;
@@ -368,6 +368,10 @@ bool PerfEvents::createForAllThreads() {
 }
 
 void PerfEvents::destroyForThread(int tid) {
+    if (tid >= _max_events) {
+        return;
+    }
+
     PerfEvent* event = &_events[tid];
     if (event->_fd != 0) {
         ioctl(event->_fd, PERF_EVENT_IOC_DISABLE, 0);
@@ -432,6 +436,13 @@ Error PerfEvents::start(const char* event, long interval) {
     }
     _interval = interval ? interval : _event_type->default_interval;
 
+    int max_events = getMaxPID();
+    if (max_events != _max_events) {
+        free(_events);
+        _events = (PerfEvent*)calloc(max_events, sizeof(PerfEvent));
+        _max_events = max_events;
+    }
+    
     installSignalHandler();
 
     jvmtiEnv* jvmti = VM::jvmti();
