@@ -524,6 +524,7 @@ static const char TREE_FOOTER[] =
     "</body>\n"
     "</html>\n";
 
+
 class StringUtils {
   public:
     static bool endsWith(const std::string& s, const char* suffix, int suffixlen) {
@@ -664,15 +665,15 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
         return false;
     }
 
-    std::vector< std::pair<std::string, Trie> > pairs;
+    std::vector<Node> subnodes;
     for (std::map<std::string, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
-        pairs.push_back(*it);
+        subnodes.push_back(Node(it->first, it->second));
     }
+    std::sort(subnodes.begin(), subnodes.end());
 
-    std::sort(pairs.begin(), pairs.end(), sortByTotal);
-
-    for (size_t i = 0; i < pairs.size(); i++) {
-        std::string full_title = pairs[i].first;
+    for (size_t i = 0; i < subnodes.size(); i++) {
+        std::string full_title = subnodes[i]._name;
+        const Trie* trie = subnodes[i]._trie;
         const char* color = selectFramePalette(full_title).name();
         StringUtils::escape(full_title);
 
@@ -680,21 +681,21 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
             snprintf(_buf, sizeof(_buf),
                      "<li><div>[%d] %.2f%% %lld</div><span class=\"%s\"> %s</span>\n",
                      depth,
-                     pairs[i].second._total * _pct, pairs[i].second._total,
+                     trie->_total * _pct, trie->_total,
                      color, full_title.c_str());
         } else {
             snprintf(_buf, sizeof(_buf),
                      "<li><div>[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>\n",
                      depth,
-                     pairs[i].second._total * _pct, pairs[i].second._total,
-                     pairs[i].second._self * _pct, pairs[i].second._self,
+                     trie->_total * _pct, trie->_total,
+                     trie->_self * _pct, trie->_self,
                      color, full_title.c_str());
         }
         out << _buf;
 
-        if (pairs[i].second._children.size() > 0) {
+        if (trie->_children.size() > 0) {
             out << "<ul>\n";
-            if (!printTreeFrame(out, pairs[i].second, depth + 1)) {
+            if (!printTreeFrame(out, *trie, depth + 1)) {
                 out << "<li>...\n";
             }
             out << "</ul>\n";

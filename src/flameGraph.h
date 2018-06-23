@@ -25,12 +25,11 @@
 
 
 class Trie {
-  private:
+  public:
     std::map<std::string, Trie> _children;
     u64 _total;
     u64 _self;
 
-  public:
     Trie() : _children(), _total(0), _self(0) {
     }
     
@@ -56,8 +55,19 @@ class Trie {
         }
         return max_depth + 1;
     }
+};
 
-    friend class FlameGraph;
+class Node {
+  public:
+    std::string _name;
+    const Trie* _trie;
+
+    Node(std::string name, const Trie& trie) : _name(name), _trie(&trie) {
+    }
+
+    bool operator<(const Node& other) const {
+        return _trie->_total > other._trie->_total;
+    }
 };
 
 
@@ -86,10 +96,6 @@ class FlameGraph {
     void printTreeFooter(std::ostream& out);
     bool printTreeFrame(std::ostream& out, const Trie& f, int depth);
     const Palette& selectFramePalette(std::string& name);
-
-    static bool sortByTotal(std::pair<std::string, Trie> a, std::pair<std::string, Trie> b) {
-        return a.second._total > b.second._total;
-    }
 
   public:
     FlameGraph(const char* title, Counter counter, int width, int height, double minwidth, bool reverse) :
