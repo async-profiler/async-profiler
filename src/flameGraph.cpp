@@ -510,7 +510,7 @@ static const char TREE_HEADER[] =
     "</script>\n"
     "</head>\n"
     "<body>\n"
-    "<div style=\"padding-left: 25px;\">%s view, total %s: %lld </div>\n"
+    "<div style=\"padding-left: 25px;\">%s view, total %s: %s </div>\n"
     "<div style=\"padding-left: 25px;\"><button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n"
     "<input type='text' id='search' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn').click()\">\n"
     "<button type='button' id='searchBtn' onclick='search()'>search</button></div>\n"
@@ -678,7 +678,7 @@ void FlameGraph::printTreeHeader(std::ostream& out) {
     char buf[sizeof(TREE_HEADER) + 256];
     const char* title = _reverse ? "Backtrace" : "Call tree";
     const char* counter = _counter ==  COUNTER_SAMPLES ? "samples" : "counter";
-    sprintf(buf, TREE_HEADER, title, counter, _root._total);
+    sprintf(buf, TREE_HEADER, title, counter, Format().thousands(_root._total));
     out << buf;
 }
 
@@ -706,16 +706,16 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
 
         if (_reverse) {
             snprintf(_buf, sizeof(_buf),
-                     "<li><div>[%d] %.2f%% %lld</div><span class=\"%s\"> %s</span>\n",
+                     "<li><div>[%d] %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
                      depth,
-                     trie->_total * _pct, trie->_total,
+                     trie->_total * _pct, Format().thousands(trie->_total),
                      color, full_title.c_str());
         } else {
             snprintf(_buf, sizeof(_buf),
-                     "<li><div>[%d] %.2f%% %lld self: %.2f%% %lld</div><span class=\"%s\"> %s</span>\n",
+                     "<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
                      depth,
-                     trie->_total * _pct, trie->_total,
-                     trie->_self * _pct, trie->_self,
+                     trie->_total * _pct, Format().thousands(trie->_total),
+                     trie->_self * _pct, Format().thousands(trie->_self),
                      color, full_title.c_str());
         }
         out << _buf;
