@@ -283,6 +283,9 @@ Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0
 * `-f FILENAME` - the file name to dump the profile information to.  
 Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
 
+* `-v`, `--version` - prints the version of profiler library. If PID is specified,
+gets the version of the library loaded into the given process.   
+
 ## Restrictions/Limitations
 
 * On most Linux systems, `perf_events` captures call stacks with a maximum depth

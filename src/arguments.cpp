@@ -32,6 +32,7 @@ const Error Error::OK(NULL);
 //     stop          - stop profiling
 //     status        - print profiling status (inactive / running for X seconds)
 //     list          - show the list of available profiling events
+//     version       - display the agent version
 //     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
 //     svg[=C]       - produce Flame Graph in SVG format
@@ -76,6 +77,8 @@ Error Arguments::parse(const char* args) {
             _action = ACTION_STATUS;
         } else if (strcmp(arg, "list") == 0) {
             _action = ACTION_LIST;
+        } else if (strcmp(arg, "version") == 0) {
+            _action = ACTION_VERSION;
         } else if (strcmp(arg, "event") == 0) {
             if (value == NULL || value[0] == 0) {
                 return Error("event must not be empty");

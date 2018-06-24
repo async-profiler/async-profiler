@@ -1,4 +1,4 @@
-RELEASE_TAG=1.3
+PROFILER_VERSION=1.4
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
@@ -16,12 +16,13 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS), Darwin)
-  CPPFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
-  RELEASE_TAG:=$(RELEASE_TAG)-macos-x64
+  RELEASE_TAG:=$(PROFILER_VERSION)-macos-x64
 else
+  CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
   INCLUDES += -I$(JAVA_HOME)/include/linux
-  RELEASE_TAG:=$(RELEASE_TAG)-linux-x64
+  RELEASE_TAG:=$(PROFILER_VERSION)-linux-x64
 endif
 
 

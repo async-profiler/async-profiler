@@ -111,3 +111,8 @@ Java_one_profiler_AsyncProfiler_dumpFlat0(JNIEnv* env, jobject unused, jint max_
     Profiler::_instance.dumpFlat(out, max_methods ? max_methods : MAX_CALLTRACES);
     return env->NewStringUTF(out.str().c_str());
 }
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
+    return env->NewStringUTF(PROFILER_VERSION);
+}

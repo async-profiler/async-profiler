@@ -26,6 +26,8 @@ usage() {
     echo "  --minwidth px     skip frames smaller than px"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
+    echo "  -v, --version     display version string"
+    echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
     echo ""
@@ -107,6 +109,9 @@ while [[ $# -gt 0 ]]; do
         start|stop|status|list|collect)
             ACTION="$1"
             ;;
+        -v|--version)
+            ACTION="version"
+            ;;
         -e)
             EVENT="$2"
             shift
@@ -174,7 +179,9 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-[[ "$PID" == "" ]] && usage
+if [[ "$PID" == "" && "$ACTION" != "version" ]]; then
+    usage
+fi
 
 # If no -f argument is given, use temporary file to transfer output to caller terminal.
 # Let the target process create the file in case this script is run by superuser.
@@ -217,5 +224,12 @@ case $ACTION in
             sleep 1
         done
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
+        ;;
+    version)
+        if [[ "$PID" == "" ]]; then
+            java "-agentpath:$PROFILER=version" -version 2> /dev/null
+        else
+            jattach "version,file=$FILE"
+        fi
         ;;
 esac

@@ -33,6 +33,7 @@ enum Action {
     ACTION_STOP,
     ACTION_STATUS,
     ACTION_LIST,
+    ACTION_VERSION,
     ACTION_DUMP
 };
 

@@ -32,6 +32,7 @@ public interface AsyncProfilerMXBean {
     void stop() throws IllegalStateException;
 
     long getSamples();
+    String getVersion();
 
     String execute(String command) throws IllegalArgumentException, java.io.IOException;
 

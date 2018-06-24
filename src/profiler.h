@@ -29,6 +29,10 @@
 #include "vmEntry.h"
 
 
+const char FULL_VERSION_STRING[] =
+    "Async-profiler " PROFILER_VERSION " built on " __DATE__ "\n"
+    "Copyright 2018 Andrei Pangin\n";
+
 const int MAX_CALLTRACES    = 65536;
 const int MAX_STACK_FRAMES  = 2048;
 const int MAX_NATIVE_FRAMES = 128;

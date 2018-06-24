@@ -25,7 +25,10 @@ package one.profiler;
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
 
+    private final String version;
+
     private AsyncProfiler() {
+        this.version = version0();
     }
 
     public static AsyncProfiler getInstance() {
@@ -76,6 +79,16 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public native long getSamples();
+
+    /**
+     * Get profiler agent version, e.g. "1.0"
+     *
+     * @return Version string
+     */
+    @Override
+    public String getVersion() {
+        return version;
+    }
 
     /**
      * Execute an agent-compatible profiling command -
@@ -130,4 +143,5 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native String dumpCollapsed0(int counter);
     private native String dumpTraces0(int maxTraces);
     private native String dumpFlat0(int maxMethods);
+    private native String version0();
 }

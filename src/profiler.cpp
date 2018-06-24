@@ -692,6 +692,9 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_LOCK << std::endl;
             break;
         }
+        case ACTION_VERSION:
+            out << FULL_VERSION_STRING;
+            break;
         case ACTION_DUMP:
             stop();
             if (args._dump_collapsed) dumpCollapsed(out, args);
