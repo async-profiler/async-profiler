@@ -16,8 +16,8 @@ async-profiler can trace the following kinds of events:
 
 Latest release:
 
- - Linux x64: [async-profiler-1.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-linux-x64.tar.gz)
- - macOS x64: [async-profiler-1.3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-macos-x64.tar.gz)
+ - Linux x64: [async-profiler-1.4-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.4/async-profiler-1.4-linux-x64.tar.gz)
+ - macOS x64: [async-profiler-1.4-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.4/async-profiler-1.4-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
@@ -263,6 +263,8 @@ This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;
   - `traces[=N]` - dump call traces (at most N samples);
   - `flat[=N]` - dump flat profile (top N hot methods);
+  - `jfr` - dump events in Java Flight Recorder format readable by Java Mission Control.
+  This *does not* require JDK commercial features to be enabled.
   - `collapsed[=C]` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
@@ -284,7 +286,7 @@ Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0
 Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
 
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
-gets the version of the library loaded into the given process.   
+gets the version of the library loaded into the given process.
 
 ## Restrictions/Limitations
 
