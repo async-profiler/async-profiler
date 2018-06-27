@@ -3,16 +3,15 @@
 set -e  # exit on any failure
 set -x  # print all executed lines
 
-if [ -z "${JAVA_HOME}" ]
-then
+if [ -z "${JAVA_HOME}" ]; then
   echo "JAVA_HOME is not set"
+  exit 1
 fi
 
 (
   cd $(dirname $0)
 
-  if [ "Target.class" -ot "Target.java" ]
-  then
+  if [ "Target.class" -ot "Target.java" ]; then
      ${JAVA_HOME}/bin/javac Target.java
   fi
 
