@@ -11,7 +11,7 @@ JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
 
 ifeq ($(JAVA_HOME),)
-  JAVA_HOME:=$(shell java -cp . JavaHome)
+  export JAVA_HOME:=$(shell java -cp . JavaHome)
 endif
 
 OS:=$(shell uname -s)
