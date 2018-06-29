@@ -1,4 +1,5 @@
 PROFILER_VERSION=1.4
+JATTACH_VERSION=1.3
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
@@ -16,11 +17,10 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS), Darwin)
-  CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  CPPFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   RELEASE_TAG:=$(PROFILER_VERSION)-macos-x64
 else
-  CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
   INCLUDES += -I$(JAVA_HOME)/include/linux
   RELEASE_TAG:=$(PROFILER_VERSION)-linux-x64
 endif
@@ -40,10 +40,10 @@ build:
 	mkdir -p build
 
 build/$(LIB_PROFILER): src/*.cpp src/*.h
-	$(CPP) $(CPPFLAGS) $(INCLUDES) -fPIC -shared -o $@ src/*.cpp -ldl -lpthread
+	$(CPP) $(CPPFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ src/*.cpp -ldl -lpthread
 
 build/$(JATTACH): src/jattach/jattach.c
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(JATTACH_VERSION)\" -o $@ $^
 
 build/$(PROFILER_JAR): src/java/one/profiler/*.java
 	mkdir -p build/classes
