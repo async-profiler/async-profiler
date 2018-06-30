@@ -90,8 +90,7 @@ Debian / Ubuntu, run
 - **Linux** / x64 / x86 / ARM / AArch64
 - **macOS** / x64
 
-Note: macOS profiling is limited only to Java code, since native stack walking
-relies on `perf_events` API which is available only on Linux platforms.
+Note: macOS profiling is limited to user space code only.
 
 ## Building
 
