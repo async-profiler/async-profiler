@@ -180,17 +180,14 @@ const char* Profiler::findNativeMethod(const void* address) {
     return NULL;
 }
 
-int Profiler::getNativeTrace(int tid, ASGCT_CallFrame* frames) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = PerfEvents::getCallChain(tid, native_callchain, MAX_NATIVE_FRAMES);
+    int native_frames = PerfEvents::getCallChain(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
+                                                 _jit_min_address, _jit_max_address);
 
     for (int i = 0; i < native_frames; i++) {
-        const void* address = native_callchain[i];
-        if (address >= _jit_min_address && address < _jit_max_address) {
-            return i;
-        }
         frames[i].bci = BCI_NATIVE_FRAME;
-        frames[i].method_id = (jmethodID)findNativeMethod(address);
+        frames[i].method_id = (jmethodID)findNativeMethod(native_callchain[i]);
     }
 
     return native_frames;
@@ -330,7 +327,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     int num_frames;
     if (event == NULL) {
-        num_frames = getNativeTrace(tid, frames);
+        num_frames = getNativeTrace(ucontext, frames, tid);
     } else {
         num_frames = makeEventFrame(frames, event_type, event);
     }

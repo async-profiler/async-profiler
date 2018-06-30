@@ -752,8 +752,8 @@ const Palette& FlameGraph::selectFramePalette(std::string& name) {
         // Kernel function
         name = name.substr(0, name.length() - 4);
         return brown;
-    } else if (name.find("::") != std::string::npos) {
-        // C++ function
+    } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
+        // C++ function or Objective C method
         return yellow;
     } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method

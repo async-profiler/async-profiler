@@ -164,7 +164,7 @@ class Profiler {
     void updateJitRange(const void* min_address, const void* max_address);
 
     const char* findNativeMethod(const void* address);
-    int getNativeTrace(int tid, ASGCT_CallFrame* frames);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
