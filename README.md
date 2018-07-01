@@ -84,6 +84,8 @@ Debian / Ubuntu, run
 ```
 # apt-get install openjdk-8-dbg
 ```
+On Gentoo the ``icedtea`` OpenJDK package can be built with the per-package setting
+``FEATURES="nostrip"`` to retain symbols.
 
 ## Supported platforms
 
