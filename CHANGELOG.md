@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5 Early Access]
+
+### Features
+ - Native stack traces on macOS
+ 
 ## [1.4] - 2018-06-24
 
 ### Features

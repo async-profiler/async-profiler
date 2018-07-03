@@ -21,6 +21,7 @@
 #include <pthread.h>
 #include "perfEvents.h"
 #include "profiler.h"
+#include "stackFrame.h"
 
 
 int PerfEvents::_max_events;
@@ -85,8 +86,31 @@ const char** PerfEvents::getAvailableEvents() {
     return available_events;
 }
 
-int PerfEvents::getCallChain(int tid, const void** callchain, int max_depth) {
-    return 0;
+int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
+                             const void* jit_min_address, const void* jit_max_address) {
+    StackFrame frame(ucontext);
+    const void* pc = (const void*)frame.pc();
+    uintptr_t fp = frame.fp();
+    uintptr_t prev_fp = (uintptr_t)&fp;
+
+    int depth = 0;
+    const void* const valid_pc = (const void*)0x1000;
+
+    // Walk until the bottom of the stack or until the first Java frame
+    while (depth < max_depth && pc >= valid_pc && !(pc >= jit_min_address && pc < jit_max_address)) {
+        callchain[depth++] = pc;
+
+        // Check if the next frame is below on the current stack
+        if (fp <= prev_fp || fp >= prev_fp + 0x40000) {
+            break;
+        }
+
+        prev_fp = fp;
+        pc = ((const void**)fp)[1];
+        fp = ((uintptr_t*)fp)[0];
+    }
+
+    return depth;
 }
 
 #endif // __APPLE__

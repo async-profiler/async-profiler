@@ -49,7 +49,8 @@ class PerfEvents : public Engine {
 
     static int tid();
     static const char** getAvailableEvents();
-    static int getCallChain(int tid, const void** callchain, int max_depth);
+    static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
+                            const void* jit_min_address, const void* jit_max_address);
 
     static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         createForThread(tid());

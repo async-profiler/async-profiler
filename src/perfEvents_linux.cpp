@@ -474,7 +474,8 @@ const char** PerfEvents::getAvailableEvents() {
     return available_events;
 }
 
-int PerfEvents::getCallChain(int tid, const void** callchain, int max_depth) {
+int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
+                             const void* jit_min_address, const void* jit_max_address) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -494,10 +495,15 @@ int PerfEvents::getCallChain(int tid, const void** callchain, int max_depth) {
             struct perf_event_header* hdr = ring.seek(tail);
             if (hdr->type == PERF_RECORD_SAMPLE) {
                 u64 nr = ring.next();
-                while (nr-- > 0) {
+                while (nr-- > 0 && depth < max_depth) {
                     u64 ip = ring.next();
-                    if (ip < PERF_CONTEXT_MAX && depth < max_depth) {
-                        callchain[depth++] = (const void*)ip;
+                    if (ip < PERF_CONTEXT_MAX) {
+                        const void* iptr = (const void*)ip;
+                        if (iptr >= jit_min_address && iptr < jit_max_address) {
+                            // Stop at the first Java frame
+                            break;
+                        }
+                        callchain[depth++] = iptr;
                     }
                 }
                 break;
