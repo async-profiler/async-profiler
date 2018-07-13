@@ -54,6 +54,7 @@ build/$(PROFILER_JAR): src/java/one/profiler/*.java
 test: all
 	test/smoke-test.sh
 	test/alloc-smoke-test.sh
+	test/thread-smoke-test.sh
 
 clean:
 	rm -rf build
