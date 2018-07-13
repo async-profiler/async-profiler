@@ -4,6 +4,7 @@
 #include <jvmti.h>
 #include <pthread.h>
 #include <map>
+#include <string>
 #include "vmStructs.h"
 #include "vmEntry.h"
 
