@@ -31,6 +31,6 @@ fi
     fi
   }
 
-  assert_string "AllocThread-1;.*AllocatingTarget.allocate;.*java.lang.Integer\[\]"
-  assert_string "AllocThread-2;.*AllocatingTarget.allocate;.*int\[\]"
+  assert_string "\[AllocThread-1 tid=[0-9]\+\];.*AllocatingTarget.allocate;.*java.lang.Integer\[\]"
+  assert_string "\[AllocThread-2 tid=[0-9]\+\];.*AllocatingTarget.allocate;.*int\[\]"
 )
