@@ -390,6 +390,8 @@ void Profiler::initJvmtiFunctions() {
                 _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
                     libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
             }
+            // Optional: we need this to extract JVM thread names in addition to ids
+            VMStructs::init(libjvm);
         }
 
         if (_JvmtiEnv_GetStackTrace == NULL) {
