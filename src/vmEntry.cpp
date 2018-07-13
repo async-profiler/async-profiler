@@ -21,6 +21,7 @@
 #include "profiler.h"
 #include "perfEvents.h"
 #include "lockTracer.h"
+#include "threadNames.h"
 
 
 static Arguments _agent_args;
@@ -55,8 +56,8 @@ void VM::init(JavaVM* vm, bool attach) {
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
-    callbacks.ThreadStart = PerfEvents::ThreadStart;
-    callbacks.ThreadEnd = PerfEvents::ThreadEnd;
+    callbacks.ThreadStart = ThreadStart;
+    callbacks.ThreadEnd = ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
@@ -68,6 +69,8 @@ void VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
     if (_asyncGetCallTrace == NULL) {
@@ -117,6 +120,15 @@ void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
     Profiler::_instance.shutdown(_agent_args);
 }
 
+void JNICALL VM::ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    ThreadNames::_instance.update(thread);
+    PerfEvents::onThreadStart();
+}
+
+void JNICALL VM::ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    ThreadNames::_instance.update(thread); //report last name if thread was renamed
+    PerfEvents::onThreadEnd();
+}
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {

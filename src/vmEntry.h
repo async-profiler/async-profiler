@@ -74,6 +74,9 @@ class VM {
     static void JNICALL ClassPrepare(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
         loadMethodIDs(jvmti, klass);
     }
+
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 };
 
 #endif // _VMENTRY_H

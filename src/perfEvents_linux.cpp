@@ -289,6 +289,7 @@ int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
+bool PerfEvents::_is_active = false;
 
 int PerfEvents::tid() {
     return syscall(__NR_gettid);
@@ -445,21 +446,15 @@ Error PerfEvents::start(const char* event, long interval) {
     
     installSignalHandler();
 
-    jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
-
     if (!createForAllThreads()) {
         return Error("Perf events unavailble. See stderr of the target process.");
     }
+    setActive(true);
     return Error::OK;
 }
 
 void PerfEvents::stop() {
-    jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
-
+    setActive(false);
     destroyForAllThreads();
 }
 

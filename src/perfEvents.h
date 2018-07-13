@@ -20,6 +20,7 @@
 #include <jvmti.h>
 #include <signal.h>
 #include "engine.h"
+#include "threadNames.h"
 
 
 class PerfEvent;
@@ -31,6 +32,7 @@ class PerfEvents : public Engine {
     static PerfEvent* _events;
     static PerfEventType* _event_type;
     static long _interval;
+    static bool _is_active;
 
     static bool createForThread(int tid);
     static bool createForAllThreads();
@@ -38,6 +40,10 @@ class PerfEvents : public Engine {
     static void destroyForAllThreads();
     static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+
+    static void setActive(bool value) {
+        __atomic_store_n(&_is_active, value, __ATOMIC_SEQ_CST);
+    }
 
   public:
     const char* name() {
@@ -52,12 +58,20 @@ class PerfEvents : public Engine {
     static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
                             const void* jit_min_address, const void* jit_max_address);
 
-    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        createForThread(tid());
+    static bool isActive() {
+        return __atomic_load_n(&_is_active, __ATOMIC_SEQ_CST);
     }
 
-    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        destroyForThread(tid());
+    static void onThreadStart() {
+        if (isActive()) {
+            createForThread(tid());
+        }
+    }
+
+    static void onThreadEnd() {
+        if (isActive()) {
+            destroyForThread(tid());
+        }
     }
 };
 
