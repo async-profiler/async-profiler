@@ -425,7 +425,7 @@ Error Profiler::start(Arguments& args) {
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
-    _threads = args._threads && !args._dump_jfr;
+    __atomic_store_n(&_threads, args._threads && !args._dump_jfr, __ATOMIC_SEQ_CST);
 
     resetSymbols();
     initJvmtiFunctions();
