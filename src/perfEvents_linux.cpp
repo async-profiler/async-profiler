@@ -28,7 +28,6 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
-#include <linux/hw_breakpoint.h>
 #include "arch.h"
 #include "perfEvents.h"
 #include "stackFrame.h"
@@ -46,6 +45,14 @@ struct f_owner_ex {
     pid_t pid;
 };
 #endif // F_SETOWN_EX
+
+
+enum {
+    HW_BREAKPOINT_R  = 1,
+    HW_BREAKPOINT_W  = 2,
+    HW_BREAKPOINT_RW = 3,
+    HW_BREAKPOINT_X  = 4
+};
 
 
 static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
