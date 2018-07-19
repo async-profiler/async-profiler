@@ -1,9 +1,17 @@
 public class ThreadsTarget {
     public static void main(String[] args) {
-        new Thread(ThreadsTarget::methodForThreadEarlyEnd, "ThreadEarlyEnd").start();
-        new Thread(() -> {
-            Thread.currentThread().setName("RenamedThread");
-            methodForRenamedThread();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                methodForThreadEarlyEnd();
+            }
+        }, "ThreadEarlyEnd").start();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Thread.currentThread().setName("RenamedThread");
+                methodForRenamedThread();
+            }
         }, "ThreadWillBeRenamed").start();
     }
 
