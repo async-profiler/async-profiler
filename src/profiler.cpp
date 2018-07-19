@@ -30,6 +30,7 @@
 #include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "concurrencyUtil.h"
 
 
 Profiler Profiler::_instance;
@@ -359,13 +360,6 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     _locks[lock_index].unlock();
 }
 
-void Profiler::initStateLock() {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&_state_lock, &attr);
-}
-
 void Profiler::resetSymbols() {
     for (int i = 0; i < _native_lib_count; i++) {
         delete _native_libs[i];
@@ -400,6 +394,18 @@ void Profiler::initJvmtiFunctions() {
     }
 }
 
+void Profiler::enableThreadStateChangedCallbacks() {
+    jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
+}
+
+void Profiler::disableThreadStateChangedCallbacks() {
+    jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
+}
+
 Error Profiler::start(Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
@@ -428,6 +434,9 @@ Error Profiler::start(Arguments& args) {
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
     _threads = args._threads && !args._dump_jfr;
+
+    // Reset names map
+    _thread_names = ThreadNames();
 
     resetSymbols();
     initJvmtiFunctions();
@@ -460,6 +469,9 @@ Error Profiler::start(Arguments& args) {
         return error;
     }
 
+    //PerfEvents::onThreadStart and onThreadEnd rely on initialization that happened in PerfEvents::start()
+    enableThreadStateChangedCallbacks();
+
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
@@ -470,6 +482,8 @@ Error Profiler::stop() {
     if (_state != RUNNING) {
         return Error("Profiler is not active");
     }
+
+    disableThreadStateChangedCallbacks();
 
     _engine->stop();
     delete _engine;

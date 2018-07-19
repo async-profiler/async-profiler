@@ -27,6 +27,7 @@
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
+#include "threadNames.h"
 
 
 const char FULL_VERSION_STRING[] =
@@ -82,21 +83,6 @@ class MethodSample {
 };
 
 
-class MutexLocker {
-  private:
-    pthread_mutex_t* _mutex;
-
-  public:
-    MutexLocker(pthread_mutex_t& mutex) : _mutex(&mutex) {
-        pthread_mutex_lock(_mutex);
-    }
-
-    ~MutexLocker() {
-        pthread_mutex_unlock(_mutex);
-    }
-};
-
-
 enum State {
     IDLE,
     RUNNING,
@@ -127,6 +113,7 @@ class Profiler {
     State _state;
     FlightRecorder _jfr;
     Engine* _engine;
+    ThreadNames _thread_names;
     const char* _units;
     time_t _start_time;
 
@@ -175,9 +162,10 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void initStateLock();
     void resetSymbols();
     void initJvmtiFunctions();
+    void enableThreadStateChangedCallbacks();
+    void disableThreadStateChangedCallbacks();
     void setSignalHandler();
 
   public:
@@ -186,6 +174,7 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _jfr(),
+        _thread_names(),
         _units("events"),
         _frame_buffer(NULL),
         _jit_lock(),
@@ -196,7 +185,7 @@ class Profiler {
         _native_lib_count(0),
         _ThreadLocalStorage_thread(NULL),
         _JvmtiEnv_GetStackTrace(NULL) {
-        initStateLock();
+        initLock(&_state_lock);
     }
 
     u64 total_samples() { return _total_samples; }
@@ -215,6 +204,7 @@ class Profiler {
     void dumpFlat(std::ostream& out, int max_methods);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
+    ThreadNames threadNames() { return _thread_names; }
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
@@ -232,6 +222,16 @@ class Profiler {
     static void JNICALL DynamicCodeGenerated(jvmtiEnv* jvmti, const char* name,
                                              const void* address, jint length) {
         _instance.addRuntimeStub(address, length, name);
+    }
+
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        _instance._thread_names.update(thread);
+        _instance._engine->onThreadStart();
+    }
+
+    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        _instance._thread_names.update(thread);
+        _instance._engine->onThreadEnd();
     }
 
     friend class Recording;

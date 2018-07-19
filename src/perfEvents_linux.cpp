@@ -289,7 +289,6 @@ int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
-bool PerfEvents::_is_active = false;
 
 int PerfEvents::tid() {
     return syscall(__NR_gettid);
@@ -449,12 +448,10 @@ Error PerfEvents::start(const char* event, long interval) {
     if (!createForAllThreads()) {
         return Error("Perf events unavailble. See stderr of the target process.");
     }
-    setActive(true);
     return Error::OK;
 }
 
 void PerfEvents::stop() {
-    setActive(false);
     destroyForAllThreads();
 }
 

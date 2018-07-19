@@ -28,7 +28,6 @@ int PerfEvents::_max_events;
 PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
-bool PerfEvents::_is_active = false;
 
 int PerfEvents::tid() {
     return pthread_mach_thread_np(pthread_self());
@@ -71,12 +70,10 @@ Error PerfEvents::start(const char* event, long interval) {
     struct itimerval tv = {{sec, usec}, {sec, usec}};
     setitimer(ITIMER_PROF, &tv, NULL);
 
-    setActive(true);
     return Error::OK;
 }
 
 void PerfEvents::stop() {
-    setActive(false);
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
 }

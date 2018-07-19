@@ -21,6 +21,7 @@
 #include "frameName.h"
 #include "vmStructs.h"
 #include "threadNames.h"
+#include "profiler.h"
 
 
 FrameName::FrameName(bool simple, bool dotted, bool use_thread_names) :
@@ -32,8 +33,9 @@ FrameName::FrameName(bool simple, bool dotted, bool use_thread_names) :
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
 
     if (use_thread_names) {
-        updateAllKnownThreads();
-        _thread_names = ThreadNames::_instance.getNames();
+        ThreadNames storage = Profiler::_instance.threadNames();
+        storage.updateAllKnownThreads();
+        _thread_names = storage.getNames();
     }
 }
 

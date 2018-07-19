@@ -27,6 +27,9 @@ class Engine {
     virtual Error start(const char* event, long interval) = 0;
     virtual void stop() = 0;
 
+    virtual void onThreadStart() {}
+    virtual void onThreadEnd() {}
+
     virtual ~Engine() {}
 };
 

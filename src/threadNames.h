@@ -7,27 +7,30 @@
 #include <string>
 #include "vmStructs.h"
 #include "vmEntry.h"
+#include "concurrencyUtil.h"
 
 
 typedef std::map<int, std::string> NamesMap;
 
 class ThreadNames {
   private:
-    pthread_mutex_t _lock;
     NamesMap _storage;
-    jclass _threadClass;
-    jfieldID _eetop;
-  public:
-    static ThreadNames _instance;
+    pthread_mutex_t _storage_lock;
+    jfieldID _cached_eetop;
+    pthread_mutex_t _cached_eetop_lock;
+    jfieldID _get_eetop(JNIEnv *env);
 
+  public:
     ThreadNames() :
-        _threadClass(NULL),
-        _eetop(NULL) {}
+        _cached_eetop(NULL) {
+        initLock(&_storage_lock);
+        initLock(&_cached_eetop_lock);
+    }
 
     void update(jthread thread);
+    void updateAllKnownThreads();
     NamesMap getNames();
 };
 
-void updateAllKnownThreads();
 
 #endif //_THREADNAME_H
