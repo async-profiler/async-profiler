@@ -32,30 +32,12 @@
 #define MAX_PATH 1024
 
 
-#ifdef __APPLE__
-
-// macOS has a secure per-user temporary directory
-const char* get_temp_directory() {
-    static char temp_path_storage[MAX_PATH] = {0};
-
-    if (temp_path_storage[0] == 0) {
-        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, MAX_PATH);
-        if (path_size == 0 || path_size > MAX_PATH) {
-            strcpy(temp_path_storage, "/tmp");
-        }
-    }
-    return temp_path_storage;
-}
-
-#else // Linux and FreeBSD
-
-const char* get_temp_directory() {
-    return "/tmp";
-}
-
-#endif
-
 #ifdef __linux__
+
+// Use /proc/pid/root/tmp instead of /tmp in case the process works in chroot
+void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
+    snprintf(dest, size, "/proc/%d/root/tmp/%s%d", pid, filename, pid);
+}
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
     char status[64];
@@ -169,13 +151,23 @@ int alt_lookup_nspid(int pid) {
     return -1;
 }
 
-#else // macOS and FreeBSD
+#elif defined(__APPLE__)
 
 #include <sys/sysctl.h>
 
-#ifdef __FreeBSD__
-#include <sys/user.h>
-#endif
+// macOS has a secure per-user temporary directory
+void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
+    static char temp_path_storage[MAX_PATH] = {0};
+
+    if (temp_path_storage[0] == 0) {
+        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, MAX_PATH);
+        if (path_size == 0 || path_size > MAX_PATH) {
+            strcpy(temp_path_storage, "/tmp");
+        }
+    }
+
+    snprintf(dest, size, "%s/%s%d", temp_path_storage, filename, pid);
+}
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
     int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
@@ -186,13 +178,42 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
         return 0;
     }
 
-#ifdef __FreeBSD__
-    *uid = info.ki_uid;
-    *gid = info.ki_groups[0];
-#else // macOS
     *uid = info.kp_eproc.e_ucred.cr_uid;
     *gid = info.kp_eproc.e_ucred.cr_gid;
-#endif
+    *nspid = pid;
+    return 1;
+}
+
+// This is a Linux-specific API; nothing to do on macOS and FreeBSD
+int enter_mount_ns(int pid) {
+    return 1;
+}
+
+// Not used on macOS and FreeBSD
+int alt_lookup_nspid(int pid) {
+    return pid;
+}
+
+#else // __FreeBSD__
+
+#include <sys/sysctl.h>
+#include <sys/user.h>
+
+void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
+    snprintf(dest, size, "/tmp/%s%d", filename, pid);
+}
+
+int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+    struct kinfo_proc info;
+    size_t len = sizeof(info);
+
+    if (sysctl(mib, 4, &info, &len, NULL, 0) < 0 || len <= 0) {
+        return 0;
+    }
+
+    *uid = info.ki_uid;
+    *gid = info.ki_groups[0];
     *nspid = pid;
     return 1;
 }
@@ -213,7 +234,7 @@ int alt_lookup_nspid(int pid) {
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
     char path[MAX_PATH];
-    snprintf(path, MAX_PATH, "%s/.java_pid%d", get_temp_directory(), pid);
+    make_temp_path(path, MAX_PATH, ".java_pid", pid);
 
     struct stat stats;
     return stat(path, &stats) == 0 && S_ISSOCK(stats.st_mode);
@@ -241,7 +262,7 @@ static int start_attach_mechanism(int pid, int nspid) {
     int fd = creat(path, 0660);
     if (fd == -1 || (close(fd) == 0 && !check_file_owner(path))) {
         // Failed to create attach trigger in current directory. Retry in /tmp
-        snprintf(path, MAX_PATH, "%s/.attach_pid%d", get_temp_directory(), nspid);
+        make_temp_path(path, MAX_PATH, ".attach_pid", nspid);
         fd = creat(path, 0660);
         if (fd == -1) {
             return 0;
@@ -273,7 +294,7 @@ static int connect_socket(int pid) {
     
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/.java_pid%d", get_temp_directory(), pid);
+    make_temp_path(addr.sun_path, sizeof(addr.sun_path), ".java_pid", pid);
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
