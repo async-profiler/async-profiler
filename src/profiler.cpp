@@ -25,6 +25,7 @@
 #include "perfEvents.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
+#include "wallClock.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
@@ -182,8 +183,8 @@ const char* Profiler::findNativeMethod(const void* address) {
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = PerfEvents::getCallChain(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                                 _jit_min_address, _jit_max_address);
+    int native_frames = WallClock::getCallChain(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
+                                                _jit_min_address, _jit_max_address);
 
     for (int i = 0; i < native_frames; i++) {
         frames[i].bci = BCI_NATIVE_FRAME;
@@ -445,6 +446,9 @@ Error Profiler::start(Arguments& args) {
         _units = "bytes";
     } else if (strcmp(args._event, EVENT_LOCK) == 0) {
         _engine = new LockTracer();
+        _units = "ns";
+    } else if (strcmp(args._event, EVENT_WALL) == 0) {
+        _engine = new WallClock();
         _units = "ns";
     } else {
         _engine = new PerfEvents();

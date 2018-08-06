@@ -26,6 +26,7 @@ const int DEFAULT_FRAMEBUF = 1000000;
 const char* const EVENT_CPU   = "cpu";
 const char* const EVENT_ALLOC = "alloc";
 const char* const EVENT_LOCK  = "lock";
+const char* const EVENT_WALL  = "wall";
 
 enum Action {
     ACTION_NONE,
