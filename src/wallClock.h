@@ -35,6 +35,7 @@ class WallClock : public Engine {
 
     static void* threadEntry(void* wall_clock) {
         ((WallClock*)wall_clock)->timerLoop();
+        return NULL;
     }
 
     static void installSignalHandler();
