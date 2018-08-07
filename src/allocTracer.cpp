@@ -36,7 +36,7 @@ bool Trap::resolve(NativeCodeCache* libjvm) {
         return true;
     }
 
-    _entry = (instruction_t*)libjvm->findSymbol(_func_name);
+    _entry = (instruction_t*)libjvm->findSymbolByPrefix(_func_name);
     if (_entry != NULL) {
         // Make the entry point writable, so we can rewrite instructions
         long page_size = sysconf(_SC_PAGESIZE);

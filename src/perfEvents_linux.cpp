@@ -171,6 +171,9 @@ struct PerfEventType {
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
+                addr = (__u64)(uintptr_t)Profiler::_instance.findSymbol(buf);
+            }
+            if (addr == 0) {
                 return NULL;
             }
         }
