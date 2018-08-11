@@ -172,6 +172,16 @@ NativeCodeCache* Profiler::jvmLibrary() {
     return NULL;
 }
 
+const void* Profiler::findSymbol(const char* name) {
+    for (int i = 0; i < _native_lib_count; i++) {
+        const void* address = _native_libs[i]->findSymbol(name);
+        if (address != NULL) {
+            return address;
+        }
+    }
+    return NULL;
+}
+
 const char* Profiler::findNativeMethod(const void* address) {
     for (int i = 0; i < _native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {

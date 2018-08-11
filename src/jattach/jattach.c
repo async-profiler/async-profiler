@@ -118,6 +118,7 @@ int sched_get_host_pid(const char* path) {
 // Fortunately, /proc/pid/sched in a container exposes a host PID,
 // so the idea is to scan all container PIDs to find which one matches the host PID.
 int alt_lookup_nspid(int pid) {
+    int namespace_differs = 0;
     char path[128];
     snprintf(path, sizeof(path), "/proc/%d/ns/pid", pid);
 
@@ -127,6 +128,7 @@ int alt_lookup_nspid(int pid) {
         if (oldns_stat.st_ino == newns_stat.st_ino) {
             return pid;
         }
+        namespace_differs = 1;
     }
 
     // Otherwise browse all PIDs in the namespace of the target process
@@ -148,7 +150,11 @@ int alt_lookup_nspid(int pid) {
         closedir(dir);
     }
 
-    return -1;
+    if (namespace_differs) {
+        printf("WARNING: couldn't find container pid of the target process\n");
+    }
+
+    return pid;
 }
 
 #elif defined(__APPLE__)
@@ -366,9 +372,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (nspid < 0 && (nspid = alt_lookup_nspid(pid)) < 0) {
-        printf("WARNING: couldn't find container pid of the target process\n");
-        nspid = pid;
+    if (nspid < 0) {
+        nspid = alt_lookup_nspid(pid);
     }
 
     // Make sure our /tmp and target /tmp is the same

@@ -215,6 +215,7 @@ class Profiler {
     void dumpFlat(std::ostream& out, int max_methods);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
+    const void* findSymbol(const char* name);
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,

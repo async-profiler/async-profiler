@@ -1,5 +1,5 @@
 PROFILER_VERSION=1.5-ea
-JATTACH_VERSION=1.3
+JATTACH_VERSION=1.4
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
