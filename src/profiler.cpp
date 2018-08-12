@@ -29,6 +29,7 @@
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
+#include "os.h"
 #include "stackFrame.h"
 #include "symbols.h"
 
@@ -334,7 +335,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     atomicInc(_total_counter, counter);
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
-    int tid = PerfEvents::tid();
+    int tid = OS::threadId();
 
     int num_frames;
     if (event == NULL) {

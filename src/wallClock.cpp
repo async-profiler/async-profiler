@@ -14,33 +14,20 @@
  * limitations under the License.
  */
 
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
 #include <poll.h>
-#include <dirent.h>
-#include <sys/eventfd.h>
-#include <sys/syscall.h>
+#include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "wallClock.h"
+#include "os.h"
 #include "profiler.h"
 #include "stackFrame.h"
 
 
-const int THREADS_PER_TICK = 5;
+const int THREADS_PER_TICK = 7;
 
 long WallClock::_interval;
-
-void WallClock::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGPROF, &sa, NULL);
-}
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
@@ -52,16 +39,15 @@ Error WallClock::start(const char* event, long interval) {
     }
     _interval = interval ? interval : DEFAULT_INTERVAL;
 
-    installSignalHandler();
+    OS::installSignalHandler(SIGPROF, signalHandler);
 
-    _pid = getpid();
-    _eventfd = eventfd(0, 0);
-    if (_eventfd == -1) {
-        return Error("Unable to create timer event");
+    if (pipe(_pipefd) != 0) {
+        return Error("Unable to create poll pipe");
     }
 
     if (pthread_create(&_thread, NULL, threadEntry, this) != 0) {
-        close(_eventfd);
+        close(_pipefd[1]);
+        close(_pipefd[0]);
         return Error("Unable to create timer thread");
     }
 
@@ -69,43 +55,40 @@ Error WallClock::start(const char* event, long interval) {
 }
 
 void WallClock::stop() {
-    u64 val = 1;
-    ssize_t r = write(_eventfd, &val, sizeof(val));
+    char val = 1;
+    ssize_t r = write(_pipefd[1], &val, sizeof(val));
     (void)r;
 
+    close(_pipefd[1]);
     pthread_join(_thread, NULL);
+    close(_pipefd[0]);
 }
 
 void WallClock::timerLoop() {
-    DIR* dir = NULL;
+    ThreadList* thread_list = NULL;
 
-    struct timespec ts = {_interval / 1000000000, _interval % 1000000000};
-    struct pollfd fds = {_eventfd, POLLIN, 0};
+    int self = OS::threadId();
+    struct pollfd fds = {_pipefd[0], POLLIN, 0};
+    int timeout = _interval > 1000000 ? (int)(_interval / 1000000) : 1;
 
-    while (ppoll(&fds, 1, &ts, NULL) == 0) {
-        if (dir == NULL && (dir = opendir("/proc/self/task")) == NULL) {
-            return;
+    while (poll(&fds, 1, timeout) == 0) {
+        if (thread_list == NULL) {
+            thread_list = OS::listThreads();
         }
 
-        for (int thread_count = 0; thread_count < THREADS_PER_TICK; ) {
-            struct dirent* entry = readdir(dir);
-            if (entry == NULL) {
-                closedir(dir);
-                dir = NULL;
+        for (int i = 0; i < THREADS_PER_TICK; i++) {
+            int thread_id = thread_list->next();
+            if (thread_id == -1) {
+                delete thread_list;
+                thread_list = NULL;
                 break;
-            }
-
-            if (entry->d_name[0] != '.') {
-                int tid = atoi(entry->d_name);
-                syscall(__NR_tgkill, _pid, tid, SIGPROF);
-                thread_count++;
+            } else if (thread_id != self) {
+                OS::sendSignalToThread(thread_id, SIGPROF);
             }
         }
     }
 
-    if (dir != NULL) {
-        closedir(dir);
-    }
+    delete thread_list;
 }
 
 int WallClock::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,

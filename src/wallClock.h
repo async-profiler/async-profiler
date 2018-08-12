@@ -27,8 +27,7 @@ class WallClock : public Engine {
   private:
     static long _interval;
 
-    int _pid;
-    int _eventfd;
+    int _pipefd[2];
     pthread_t _thread;
 
     void timerLoop();
@@ -38,7 +37,6 @@ class WallClock : public Engine {
         return NULL;
     }
 
-    static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:

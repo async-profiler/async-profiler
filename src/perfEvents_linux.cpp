@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -300,10 +299,6 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
 
-int PerfEvents::tid() {
-    return syscall(__NR_gettid);
-}
-
 bool PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
         fprintf(stderr, "WARNING: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max\n", tid, _max_events);
@@ -362,17 +357,11 @@ bool PerfEvents::createForThread(int tid) {
 bool PerfEvents::createForAllThreads() {
     bool success = false;
 
-    DIR* dir = opendir("/proc/self/task");
-    if (dir != NULL) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.') {
-                int tid = atoi(entry->d_name);
-                success |= createForThread(tid);
-            }
-        }
-        closedir(dir);
+    ThreadList* thread_list = OS::listThreads();
+    for (int tid; (tid = thread_list->next()) != -1; ) {
+        success |= createForThread(tid);
     }
+    delete thread_list;
 
     return success;
 }
@@ -400,16 +389,6 @@ void PerfEvents::destroyForAllThreads() {
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
-}
-
-void PerfEvents::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGPROF, &sa, NULL);
 }
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -453,7 +432,7 @@ Error PerfEvents::start(const char* event, long interval) {
         _max_events = max_events;
     }
     
-    installSignalHandler();
+    OS::installSignalHandler(SIGPROF, signalHandler);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);

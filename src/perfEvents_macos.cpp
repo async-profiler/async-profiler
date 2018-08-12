@@ -18,7 +18,6 @@
 
 #include <string.h>
 #include <sys/time.h>
-#include <pthread.h>
 #include "perfEvents.h"
 #include "profiler.h"
 #include "stackFrame.h"
@@ -30,25 +29,11 @@ PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 
 
-int PerfEvents::tid() {
-    return pthread_mach_thread_np(pthread_self());
-}
-
 bool PerfEvents::createForThread(int tid)  { return false; }
 bool PerfEvents::createForAllThreads()     { return false; }
 void PerfEvents::destroyForThread(int tid) {}
 void PerfEvents::destroyForAllThreads()    {}
 
-
-void PerfEvents::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGPROF, &sa, NULL);
-}
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
@@ -64,7 +49,7 @@ Error PerfEvents::start(const char* event, long interval) {
     }
     _interval = interval ? interval : DEFAULT_INTERVAL;
 
-    installSignalHandler();
+    OS::installSignalHandler(SIGPROF, signalHandler);
 
     long sec = _interval / 1000000000;
     long usec = (_interval % 1000000000) / 1000;
