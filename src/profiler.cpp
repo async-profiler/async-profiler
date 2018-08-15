@@ -224,12 +224,15 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                   fp = top_frame.fp();
 
         // Guess top method by PC and insert it manually into the call trace
+        bool is_entry_frame = false;
         if (fillTopFrame((const void*)pc, trace.frames)) {
+            is_entry_frame = trace.frames->bci == BCI_NATIVE_FRAME &&
+                             strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
             trace.frames++;
             max_depth--;
         }
 
-        if (top_frame.pop()) {
+        if (top_frame.pop(is_entry_frame)) {
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
             if (addressInCode((const void*)top_frame.pc())) {

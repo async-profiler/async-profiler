@@ -51,7 +51,7 @@ class StackFrame {
 
     void ret();
 
-    bool pop();
+    bool pop(bool trust_frame_pointer);
 };
 
 #endif // _STACKFRAME_H
