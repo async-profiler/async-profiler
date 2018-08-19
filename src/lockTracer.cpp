@@ -26,12 +26,7 @@ jmethodID LockTracer::_getBlocker = NULL;
 UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
 
 Error LockTracer::start(const char* event, long interval) {
-    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-    if (libjvm == NULL) {
-        return Error("libjvm not found among loaded libraries");
-    }
-
-    if (!VMStructs::init(libjvm)) {
+    if (!VMStructs::available()) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
@@ -48,6 +43,7 @@ Error LockTracer::start(const char* event, long interval) {
     }
 
     if (_original_Unsafe_Park == NULL) {
+        NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
         _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
     }
 

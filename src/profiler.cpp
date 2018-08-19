@@ -30,6 +30,7 @@
 #include "frameName.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 Profiler Profiler::_instance;
@@ -386,23 +387,20 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-void Profiler::initJvmtiFunctions() {
+void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
     if (_JvmtiEnv_GetStackTrace == NULL) {
-        NativeCodeCache* libjvm = jvmLibrary();
-        if (libjvm != NULL) {
-            // Find ThreadLocalStorage::thread() if exists
-            if (_ThreadLocalStorage_thread == NULL) {
-                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
-            }
-            // Fallback to ThreadLocalStorage::get_thread_slow()
-            if (_ThreadLocalStorage_thread == NULL) {
-                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
-            }
-            // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
-            if (_ThreadLocalStorage_thread != NULL) {
-                _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
-                    libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
-            }
+        // Find ThreadLocalStorage::thread() if exists
+        if (_ThreadLocalStorage_thread == NULL) {
+            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
+        }
+        // Fallback to ThreadLocalStorage::get_thread_slow()
+        if (_ThreadLocalStorage_thread == NULL) {
+            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
+        }
+        // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
+        if (_ThreadLocalStorage_thread != NULL) {
+            _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
+                libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
         }
 
         if (_JvmtiEnv_GetStackTrace == NULL) {
@@ -441,7 +439,12 @@ Error Profiler::start(Arguments& args) {
     _threads = args._threads && !args._dump_jfr;
 
     resetSymbols();
-    initJvmtiFunctions();
+    NativeCodeCache* libjvm = jvmLibrary();
+    if (libjvm == NULL) {
+        return Error("libjvm not found among loaded libraries");
+    }
+    VMStructs::init(libjvm);
+    initJvmtiFunctions(libjvm);
 
     if (args._dump_jfr) {
         Error error = _jfr.start(args._file);

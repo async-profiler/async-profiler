@@ -177,7 +177,7 @@ class Profiler {
     void storeMethod(jmethodID method, jint bci, u64 counter);
     void initStateLock();
     void resetSymbols();
-    void initJvmtiFunctions();
+    void initJvmtiFunctions(NativeCodeCache* libjvm);
     void setSignalHandler();
 
   public:

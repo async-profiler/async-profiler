@@ -608,7 +608,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     _scale = (_imagewidth - 20) / (double)_root._total;
     _pct = 100 / (double)_root._total;
 
-    u64 cutoff = (u64)(_minwidth / _scale);
+    u64 cutoff = (u64)ceil(_minwidth / _scale);
     _imageheight = _frameheight * _root.depth(cutoff) + 70;
 
     if (tree) {
