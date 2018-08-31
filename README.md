@@ -327,7 +327,6 @@ Without those flags the profiler will still work correctly but results might be
 less accurate e.g. without `-XX:+DebugNonSafepoints` there is a high chance that simple inlined methods will not appear in the profile. When agent is attached at runtime `CompiledMethodLoad` JVMTI event
 enables debug info, but only for methods compiled after the event is turned on.
 
-
 ## Troubleshooting
 
 ```
