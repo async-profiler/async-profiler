@@ -321,6 +321,12 @@ system calls like `clone()`, so that it will never complete;
 see [#97](https://github.com/jvm-profiling-tools/async-profiler/issues/97).
 The workaround is simply to increase the interval.
 
+* When agent is not loaded at JVM startup (by using -agentpath option) it is
+highly recommended to use `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` JVM flags.
+Without those flags the profiler will still work correctly but results might be
+less accurate e.g. without `-XX:+DebugNonSafepoints` there is a high chance that simple inlined methods will not appear in the profile. When agent is attached at runtime `CompiledMethodLoad` JVMTI event
+enables debug info, but only for methods compiled after the event is turned on.
+
 ## Troubleshooting
 
 ```
