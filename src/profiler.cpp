@@ -339,10 +339,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
     int tid = PerfEvents::tid();
 
-    int num_frames;
-    if (event == NULL) {
+    int num_frames = 0;
+    if (event_type == 0) {
         num_frames = getNativeTrace(ucontext, frames, tid);
-    } else {
+    } else if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
     }
 

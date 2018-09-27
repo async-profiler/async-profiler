@@ -134,7 +134,7 @@ void LockTracer::recordContendedLock(jclass lock_class, jlong time) {
     if (VMStructs::hasPermGen()) {
         // PermGen in JDK 7 makes difficult to get symbol name from jclass.
         // Let's just skip it and record stack trace without lock class.
-        Profiler::_instance.recordSample(NULL, time, 0, NULL);
+        Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, NULL);
     } else {
         VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, (jmethodID)lock_name);
