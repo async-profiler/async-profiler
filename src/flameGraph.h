@@ -100,8 +100,8 @@ class FlameGraph {
   public:
     FlameGraph(const char* title, Counter counter, int width, int height, double minwidth, bool reverse) :
         _root(),
-        _counter(counter),
         _title(title),
+        _counter(counter),
         _imagewidth(width),
         _frameheight(height),
         _minwidth(minwidth),
