@@ -75,8 +75,9 @@ jattach() {
     mirror_output
 }
 
+UNAME_S=$(uname -s)
+
 function abspath() {
-    UNAME_S=$(uname -s)
     if [ "$UNAME_S" == "Darwin" ]; then
         perl -MCwd -e 'print Cwd::abs_path shift' $1
     else
@@ -88,7 +89,7 @@ function abspath() {
 OPTIND=1
 SCRIPT_DIR=$(dirname $(abspath $0))
 JATTACH=$SCRIPT_DIR/build/jattach
-PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
+PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 EVENT="cpu"
 DURATION="60"
@@ -206,7 +207,7 @@ fi
 
 # using absolute path name is required
 # otherwise if -f argument value is relative we don't generate expected output file
-FILE=$(abspath ${FILE})
+FILE=$(abspath $FILE)
 
 case $ACTION in
     start)
