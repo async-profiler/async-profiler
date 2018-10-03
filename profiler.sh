@@ -86,7 +86,7 @@ function abspath() {
 
 
 OPTIND=1
-SCRIPT_DIR=$(dirname $0)
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
 ACTION="collect"
