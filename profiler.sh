@@ -204,6 +204,10 @@ if [[ "$OUTPUT" == "" ]]; then
     fi
 fi
 
+# using absolute path name is required
+# otherwise if -f argument value is relative we don't generate expected output file
+FILE=$(abspath ${FILE})
+
 case $ACTION in
     start)
         jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
