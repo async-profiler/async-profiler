@@ -62,7 +62,6 @@ jattach() {
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            UNAME_S=$(uname -s)
             if [ "$UNAME_S" == "Darwin" ]; then
                 otool -L "$PROFILER"
             else
@@ -75,8 +74,6 @@ jattach() {
     mirror_output
 }
 
-UNAME_S=$(uname -s)
-
 function abspath() {
     if [ "$UNAME_S" == "Darwin" ]; then
         perl -MCwd -e 'print Cwd::abs_path shift' $1
@@ -87,6 +84,7 @@ function abspath() {
 
 
 OPTIND=1
+UNAME_S=$(uname -s)
 SCRIPT_DIR=$(dirname $(abspath $0))
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
@@ -204,10 +202,6 @@ if [[ "$OUTPUT" == "" ]]; then
         OUTPUT="summary,traces=200,flat=200"
     fi
 fi
-
-# using absolute path name is required
-# otherwise if -f argument value is relative we don't generate expected output file
-FILE=$(abspath $FILE)
 
 case $ACTION in
     start)
