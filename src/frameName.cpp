@@ -211,10 +211,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
             int tid = (int)(uintptr_t)frame.method_id;
             const char* name = findThreadName(tid);
             if (name != NULL) {
-                return name;
+                snprintf(_buf, sizeof(_buf), "[%s tid=%d]", name, tid);
+            } else {
+                snprintf(_buf, sizeof(_buf), "[tid=%d]", tid);
             }
-
-            snprintf(_buf, sizeof(_buf), "[thread %d]", tid);
             return _buf;
         }
 
