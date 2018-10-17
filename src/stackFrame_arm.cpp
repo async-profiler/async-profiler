@@ -51,8 +51,7 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }
 
-
-bool StackFrame::pop() {
+bool StackFrame::pop(bool trust_frame_pointer) {
     return false;
 }
 

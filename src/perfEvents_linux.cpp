@@ -71,7 +71,7 @@ static int getMaxPID() {
 // by reading /sys/kernel/debug/tracing/events/<name>/id file
 static int findTracepointId(const char* name) {
     char buf[256];
-    if (snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
         return 0;
     }
 
@@ -130,7 +130,7 @@ struct PerfEventType {
     // Breakpoint format: func[+offset][/len][:rwx]
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
-        strncpy(buf, name, sizeof(buf));
+        strncpy(buf, name, sizeof(buf) - 1);
         
         // Parse access type [:rwx]
         char* c = strrchr(buf, ':');

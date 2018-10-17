@@ -32,6 +32,7 @@
 #include "os.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 Profiler Profiler::_instance;
@@ -226,12 +227,15 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                   fp = top_frame.fp();
 
         // Guess top method by PC and insert it manually into the call trace
+        bool is_entry_frame = false;
         if (fillTopFrame((const void*)pc, trace.frames)) {
+            is_entry_frame = trace.frames->bci == BCI_NATIVE_FRAME &&
+                             strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
             trace.frames++;
             max_depth--;
         }
 
-        if (top_frame.pop()) {
+        if (top_frame.pop(is_entry_frame)) {
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
             if (addressInCode((const void*)top_frame.pc())) {
@@ -337,10 +341,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
     int tid = OS::threadId();
 
-    int num_frames;
-    if (event == NULL) {
+    int num_frames = 0;
+    if (event_type == 0) {
         num_frames = getNativeTrace(ucontext, frames, tid);
-    } else {
+    } else if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
     }
 
@@ -385,23 +389,20 @@ void Profiler::resetSymbols() {
     _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
 }
 
-void Profiler::initJvmtiFunctions() {
+void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
     if (_JvmtiEnv_GetStackTrace == NULL) {
-        NativeCodeCache* libjvm = jvmLibrary();
-        if (libjvm != NULL) {
-            // Find ThreadLocalStorage::thread() if exists
-            if (_ThreadLocalStorage_thread == NULL) {
-                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
-            }
-            // Fallback to ThreadLocalStorage::get_thread_slow()
-            if (_ThreadLocalStorage_thread == NULL) {
-                _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
-            }
-            // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
-            if (_ThreadLocalStorage_thread != NULL) {
-                _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
-                    libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
-            }
+        // Find ThreadLocalStorage::thread() if exists
+        if (_ThreadLocalStorage_thread == NULL) {
+            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
+        }
+        // Fallback to ThreadLocalStorage::get_thread_slow()
+        if (_ThreadLocalStorage_thread == NULL) {
+            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
+        }
+        // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
+        if (_ThreadLocalStorage_thread != NULL) {
+            _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
+                libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
         }
 
         if (_JvmtiEnv_GetStackTrace == NULL) {
@@ -440,7 +441,12 @@ Error Profiler::start(Arguments& args) {
     _threads = args._threads && !args._dump_jfr;
 
     resetSymbols();
-    initJvmtiFunctions();
+    NativeCodeCache* libjvm = jvmLibrary();
+    if (libjvm == NULL) {
+        return Error("libjvm not found among loaded libraries");
+    }
+    VMStructs::init(libjvm);
+    initJvmtiFunctions(libjvm);
 
     if (args._dump_jfr) {
         Error error = _jfr.start(args._file);

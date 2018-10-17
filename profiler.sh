@@ -62,7 +62,6 @@ jattach() {
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            UNAME_S=$(uname -s)
             if [ "$UNAME_S" == "Darwin" ]; then
                 otool -L "$PROFILER"
             else
@@ -76,7 +75,6 @@ jattach() {
 }
 
 function abspath() {
-    UNAME_S=$(uname -s)
     if [ "$UNAME_S" == "Darwin" ]; then
         perl -MCwd -e 'print Cwd::abs_path shift' $1
     else
@@ -86,9 +84,10 @@ function abspath() {
 
 
 OPTIND=1
-SCRIPT_DIR=$(dirname $0)
+UNAME_S=$(uname -s)
+SCRIPT_DIR=$(dirname $(abspath $0))
 JATTACH=$SCRIPT_DIR/build/jattach
-PROFILER=$(abspath $SCRIPT_DIR/build/libasyncProfiler.so)
+PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 EVENT="cpu"
 DURATION="60"

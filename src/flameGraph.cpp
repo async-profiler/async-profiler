@@ -527,12 +527,12 @@ static const char TREE_FOOTER[] =
 
 class StringUtils {
   public:
-    static bool endsWith(const std::string& s, const char* suffix, int suffixlen) {
-        int len = s.length();
+    static bool endsWith(const std::string& s, const char* suffix, size_t suffixlen) {
+        size_t len = s.length();
         return len >= suffixlen && s.compare(len - suffixlen, suffixlen, suffix) == 0; 
     }
 
-    static std::string trim(const std::string& s, int maxchars) {
+    static std::string trim(const std::string& s, size_t maxchars) {
         if (maxchars < 3) {
             return "";
         } else if (s.length() > maxchars) {
@@ -543,7 +543,7 @@ class StringUtils {
     }
 
     static void replace(std::string& s, char c, const char* replacement) {
-        for (int i = 0; (i = s.find(c, i)) != std::string::npos; i++) {
+        for (size_t i = 0; (i = s.find(c, i)) != std::string::npos; i++) {
             s.replace(i, 1, replacement);
         }
     }
@@ -608,7 +608,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     _scale = (_imagewidth - 20) / (double)_root._total;
     _pct = 100 / (double)_root._total;
 
-    u64 cutoff = (u64)(_minwidth / _scale);
+    u64 cutoff = (u64)ceil(_minwidth / _scale);
     _imageheight = _frameheight * _root.depth(cutoff) + 70;
 
     if (tree) {
@@ -647,7 +647,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     if (framewidth >= _minwidth) {
         std::string full_title = name;
         int color = selectFramePalette(full_title).pickColor();
-        std::string short_title = StringUtils::trim(full_title, int(framewidth / 7));
+        std::string short_title = StringUtils::trim(full_title, size_t(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
 

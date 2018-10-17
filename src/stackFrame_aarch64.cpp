@@ -57,7 +57,7 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.pc = _ucontext->uc_mcontext.regs[REG_LR];
 }
 
-bool StackFrame::pop() {
+bool StackFrame::pop(bool trust_frame_pointer) {
     if (fp() == sp()) {
         // Expected frame layout:
         // sp   000000nnnnnnnnnn  [stack]

@@ -36,7 +36,7 @@ class VMStructs {
     }
 
   public:
-    static bool init(NativeCodeCache* libjvm);
+    static void init(NativeCodeCache* libjvm);
 
     static bool available() {
         return _klass_name_offset >= 0

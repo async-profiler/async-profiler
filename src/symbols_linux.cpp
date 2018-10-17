@@ -252,17 +252,17 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
 
     // 1. /path/to/libjvm.so.debug
     if (strcmp(debuglink, basename + 1) != 0 &&
-        snprintf(path, sizeof(path), "%s/%s", dirname, debuglink) < sizeof(path)) {
+        snprintf(path, PATH_MAX, "%s/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 
     // 2. /path/to/.debug/libjvm.so.debug
-    if (!result && snprintf(path, sizeof(path), "%s/.debug/%s", dirname, debuglink) < sizeof(path)) {
+    if (!result && snprintf(path, PATH_MAX, "%s/.debug/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 
     // 3. /usr/lib/debug/path/to/libjvm.so.debug
-    if (!result && snprintf(path, sizeof(path), "/usr/lib/debug%s/%s", dirname, debuglink) < sizeof(path)) {
+    if (!result && snprintf(path, PATH_MAX, "/usr/lib/debug%s/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 

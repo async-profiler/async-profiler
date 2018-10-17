@@ -30,20 +30,29 @@
 #include <unistd.h>
 
 #define MAX_PATH 1024
+#define TMP_PATH (MAX_PATH - 64)
+
+static char temp_path_storage[TMP_PATH] = {0};
 
 
 #ifdef __linux__
 
-// Use /proc/pid/root/tmp instead of /tmp in case the process works in chroot
-void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
-    snprintf(dest, size, "/proc/%d/root/tmp/%s%d", pid, filename, pid);
+const char* get_temp_path() {
+    return temp_path_storage;
 }
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
-    char status[64];
-    snprintf(status, sizeof(status), "/proc/%d/status", pid);
+    // A process may have its own root path (when running in chroot environment)
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/root", pid);
 
-    FILE* status_file = fopen(status, "r");
+    // Append /tmp to the resolved root symlink
+    ssize_t path_size = readlink(path, temp_path_storage, sizeof(temp_path_storage) - 10);
+    strcpy(temp_path_storage + (path_size > 1 ? path_size : 0), "/tmp");
+
+    // Parse /proc/pid/status to find process credentials
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    FILE* status_file = fopen(path, "r");
     if (status_file == NULL) {
         return 0;
     }
@@ -119,7 +128,7 @@ int sched_get_host_pid(const char* path) {
 // so the idea is to scan all container PIDs to find which one matches the host PID.
 int alt_lookup_nspid(int pid) {
     int namespace_differs = 0;
-    char path[128];
+    char path[300];
     snprintf(path, sizeof(path), "/proc/%d/ns/pid", pid);
 
     // Don't bother looking for container PID if we are already in the same PID namespace
@@ -162,17 +171,15 @@ int alt_lookup_nspid(int pid) {
 #include <sys/sysctl.h>
 
 // macOS has a secure per-user temporary directory
-void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
-    static char temp_path_storage[MAX_PATH] = {0};
-
+const char* get_temp_path() {
     if (temp_path_storage[0] == 0) {
-        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, MAX_PATH);
-        if (path_size == 0 || path_size > MAX_PATH) {
+        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, sizeof(temp_path_storage));
+        if (path_size == 0 || path_size > sizeof(temp_path_storage)) {
             strcpy(temp_path_storage, "/tmp");
         }
     }
 
-    snprintf(dest, size, "%s/%s%d", temp_path_storage, filename, pid);
+    return temp_path_storage;
 }
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
@@ -205,8 +212,8 @@ int alt_lookup_nspid(int pid) {
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
-void make_temp_path(char* dest, size_t size, const char* filename, int pid) {
-    snprintf(dest, size, "/tmp/%s%d", filename, pid);
+const char* get_temp_path() {
+    return "/tmp";
 }
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
@@ -240,7 +247,7 @@ int alt_lookup_nspid(int pid) {
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
     char path[MAX_PATH];
-    make_temp_path(path, MAX_PATH, ".java_pid", pid);
+    snprintf(path, sizeof(path), "%s/.java_pid%d", get_temp_path(), pid);
 
     struct stat stats;
     return stat(path, &stats) == 0 && S_ISSOCK(stats.st_mode);
@@ -263,12 +270,12 @@ static int check_file_owner(const char* path) {
 // HotSpot will start Attach listener in response to SIGQUIT if it sees .attach_pid file
 static int start_attach_mechanism(int pid, int nspid) {
     char path[MAX_PATH];
-    snprintf(path, MAX_PATH, "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
+    snprintf(path, sizeof(path), "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
     
     int fd = creat(path, 0660);
     if (fd == -1 || (close(fd) == 0 && !check_file_owner(path))) {
         // Failed to create attach trigger in current directory. Retry in /tmp
-        make_temp_path(path, MAX_PATH, ".attach_pid", nspid);
+        snprintf(path, sizeof(path), "%s/.attach_pid%d", get_temp_path(), nspid);
         fd = creat(path, 0660);
         if (fd == -1) {
             return 0;
@@ -300,7 +307,10 @@ static int connect_socket(int pid) {
     
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
-    make_temp_path(addr.sun_path, sizeof(addr.sun_path), ".java_pid", pid);
+    int bytes = snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/.java_pid%d", get_temp_path(), pid);
+    if (bytes >= sizeof(addr.sun_path)) {
+        addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
+    }
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
@@ -380,7 +390,7 @@ int main(int argc, char** argv) {
     if (!enter_mount_ns(pid)) {
         printf("WARNING: couldn't enter target process mnt namespace\n");
     }
-    
+
     // Dynamic attach is allowed only for the clients with the same euid/egid.
     // If we are running under root, switch to the required euid/egid automatically.
     if ((my_gid != target_gid && setegid(target_gid) != 0) ||

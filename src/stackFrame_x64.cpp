@@ -84,12 +84,16 @@ static inline bool isFramePrologueEpilogue(uintptr_t pc) {
     return false;
 }
 
-bool StackFrame::pop() {
+bool StackFrame::pop(bool trust_frame_pointer) {
     if (!withinCurrentStack(sp())) {
         return false;
     }
 
-    if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
+    if (trust_frame_pointer && withinCurrentStack(fp())) {
+        sp() = fp() + 16;
+        fp() = stackAt(-2);
+        pc() = stackAt(-1);
+    } else if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
         fp() = stackAt(0);
         pc() = stackAt(1);
         sp() += 16;

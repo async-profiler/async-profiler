@@ -59,12 +59,16 @@ static inline bool withinCurrentStack(uintptr_t value) {
     return value - (uintptr_t)&real_sp <= 0xffff;
 }
 
-bool StackFrame::pop() {
+bool StackFrame::pop(bool trust_frame_pointer) {
     if (!withinCurrentStack(sp())) {
         return false;
     }
 
-    if (fp() == sp() || withinCurrentStack(stackAt(0))) {
+    if (trust_frame_pointer && withinCurrentStack(fp())) {
+        sp() = fp() + 8;
+        fp() = stackAt(-2);
+        pc() = stackAt(-1);
+    } else if (fp() == sp() || withinCurrentStack(stackAt(0))) {
         fp() = stackAt(0);
         pc() = stackAt(1);
         sp() += 8;

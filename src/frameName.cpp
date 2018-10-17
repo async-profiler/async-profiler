@@ -103,7 +103,7 @@ const char* FrameName::cppDemangle(const char* name) {
         int status;
         char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
         if (demangled != NULL) {
-            strncpy(_buf, demangled, sizeof(_buf));
+            strncpy(_buf, demangled, sizeof(_buf) - 1);
             free(demangled);
             return _buf;
         }
@@ -211,10 +211,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
             int tid = (int)(uintptr_t)frame.method_id;
             const char* name = findThreadName(tid);
             if (name != NULL) {
-                return name;
+                snprintf(_buf, sizeof(_buf), "[%s tid=%d]", name, tid);
+            } else {
+                snprintf(_buf, sizeof(_buf), "[tid=%d]", tid);
             }
-
-            snprintf(_buf, sizeof(_buf), "[thread %d]", tid);
             return _buf;
         }
 

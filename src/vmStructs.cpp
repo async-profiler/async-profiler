@@ -37,9 +37,9 @@ static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     return *(uintptr_t*)symbol;
 }
 
-bool VMStructs::init(NativeCodeCache* libjvm) {
+void VMStructs::init(NativeCodeCache* libjvm) {
     if (available()) {
-        return true;
+        return;
     }
 
     uintptr_t entry = readSymbol(libjvm, "gHotSpotVMStructs");
@@ -50,14 +50,14 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
     uintptr_t address_offset = readSymbol(libjvm, "gHotSpotVMStructEntryAddressOffset");
 
     if (entry == 0 || stride == 0) {
-        return false;
+        return;
     }
 
     while (true) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            return available();
+            return;
         }
 
         if (strcmp(type, "Klass") == 0) {

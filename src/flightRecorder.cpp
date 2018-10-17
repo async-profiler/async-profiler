@@ -27,7 +27,6 @@
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "profiler.h"
-#include "vmEntry.h"
 #include "vmStructs.h"
 
 
@@ -41,6 +40,29 @@ static inline u64 htonll(u64 x) {
 }
 
 #endif // htonll 
+
+
+#ifdef __APPLE__
+#include <mach/mach_time.h>
+
+static mach_timebase_info_data_t timebase = {0, 0};
+
+static inline u64 pd_nanotime() {
+    if (timebase.denom == 0) {
+        mach_timebase_info(&timebase);
+    }
+    return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
+}
+
+#else
+
+static inline u64 pd_nanotime() {
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return (u64)tp.tv_sec * 1000000000 + tp.tv_nsec;
+}
+
+#endif // __APPLE__
 
 
 const int RECORDING_BUFFER_SIZE = 65536;
@@ -360,10 +382,7 @@ class Recording {
     }
 
     u64 nanotime() {
-        // There is no clock_gettime() on OS X El Capitan and some exotic Linux distributions
-        jlong nanos;
-        VM::jvmti()->GetTime(&nanos);
-        return nanos;
+        return pd_nanotime();
     }
 
     int lookup(std::map<std::string, int>& map, std::string key) {

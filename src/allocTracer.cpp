@@ -104,15 +104,11 @@ void AllocTracer::recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t r
 }
 
 Error AllocTracer::start(const char* event, long interval) {
-    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-    if (libjvm == NULL) {
-        return Error("libjvm not found among loaded libraries");
-    }
-
-    if (!VMStructs::init(libjvm)) {
+    if (!VMStructs::available()) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
+    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
     if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
