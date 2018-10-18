@@ -33,7 +33,17 @@
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
 
 #ifndef htonll
+
+#ifdef __APPLE__
+
+#include <libkern/OSByteOrder.h>
+#define bswap_64(x) OSSwapInt64(x)
+
+#else
+
 #include <byteswap.h>
+
+#endif // __APPLE__
 
 static inline u64 htonll(u64 x) {
     return htonl(1) == 1 ? x : bswap_64(x);
