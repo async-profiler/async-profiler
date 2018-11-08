@@ -559,7 +559,7 @@ class Recording {
                 buf->put64(i);  // stack trace key
                 buf->put8(0);   // truncated
                 buf->put32(trace._num_frames);
-                for (int j = trace._num_frames - 1; j >= 0; j--) {
+                for (int j = 0; j < trace._num_frames; j++) {
                     MethodInfo* mi = resolveMethod(frame_buffer[trace._start_frame + j]);
                     buf->put64(mi->_key);  // method key
                     buf->put32(0);         // bci
