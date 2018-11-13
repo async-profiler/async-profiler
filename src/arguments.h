@@ -77,6 +77,8 @@ class Arguments {
     int  _jstackdepth;
     int _framebuf;
     bool _threads;
+    bool _allkernel;
+    bool _alluser;
     bool _simple;
     char* _file;
     bool _dump_collapsed;
@@ -101,6 +103,8 @@ class Arguments {
         _jstackdepth(0),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
+        _allkernel(false),
+        _alluser(false),
         _simple(false),
         _file(NULL),
         _dump_collapsed(false),

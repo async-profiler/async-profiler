@@ -46,6 +46,8 @@ const Error Error::OK(NULL);
 //     jstackdepth=N - maximum Java stack depth (default: MAX_STACK_FRAMES)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     threads       - profile different threads separately
+//     allkernel     - include only kernel-mode events
+//     alluser       - include only user-mode events
 //     simple        - simple class names instead of FQN
 //     title=TITLE   - FlameGraph title
 //     width=PX      - FlameGraph image width
@@ -115,6 +117,10 @@ Error Arguments::parse(const char* args) {
             }
         } else if (strcmp(arg, "threads") == 0) {
             _threads = true;
+        } else if (strcmp(arg, "allkernel") == 0) {
+            _allkernel = true;
+        } else if (strcmp(arg, "alluser") == 0) {
+            _alluser = true;
         } else if (strcmp(arg, "simple") == 0) {
             _simple = true;
         } else if (strcmp(arg, "title") == 0 && value != NULL) {

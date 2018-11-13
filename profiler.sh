@@ -26,6 +26,8 @@ usage() {
     echo "  --minwidth px     skip frames smaller than px"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
+    echo "  --all-kernel      only include kernel-mode events"
+    echo "  --all-user        only include user-mode events"
     echo "  -v, --version     display version string"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
@@ -170,6 +172,12 @@ while [[ $# -gt 0 ]]; do
             # -XX:+PerfDisableSharedMem prevents jps from appearing in its own list
             PID=$(pgrep -n java || jps -q -J-XX:+PerfDisableSharedMem)
             ;;
+	--all-kernel)
+	    ALLKERNEL=",allkernel"
+	    ;;
+	--all-user)
+	    ALLUSER=",alluser"
+	    ;;
         *)
         	echo "Unrecognized option: $1"
         	usage
@@ -205,7 +213,7 @@ fi
 
 case $ACTION in
     start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$ALLKERNEL$ALLUSER,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -217,7 +225,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$ALLKERNEL$ALLUSER,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1
