@@ -454,7 +454,7 @@ Error Profiler::start(Arguments& args) {
     }
 
     if (strcmp(args._event, EVENT_CPU) == 0) {
-        _engine = new PerfEvents(args);
+        _engine = new PerfEvents();
         _units = "ns";
     } else if (strcmp(args._event, EVENT_ALLOC) == 0) {
         _engine = new AllocTracer();
@@ -463,11 +463,11 @@ Error Profiler::start(Arguments& args) {
         _engine = new LockTracer();
         _units = "ns";
     } else {
-        _engine = new PerfEvents(args);
+        _engine = new PerfEvents();
         _units = "events";
     }
 
-    Error error = _engine->start(args._event, args._interval);
+    Error error = _engine->start(args);
     if (error) {
         delete _engine;
         _jfr.stop();

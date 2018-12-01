@@ -286,6 +286,10 @@ Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0
 * `-f FILENAME` - the file name to dump the profile information to.  
 Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
 
+* `--all-user` - include only user-mode events. This option is helpful when kernel profiling
+is restricted by `perf_event_paranoid` settings.  
+`--all-kernel` is its counterpart option for including only kernel-mode events.
+
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
 gets the version of the library loaded into the given process.
 

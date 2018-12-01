@@ -118,9 +118,9 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "threads") == 0) {
             _threads = true;
         } else if (strcmp(arg, "allkernel") == 0) {
-            _allkernel = true;
+            _ring = RING_KERNEL;
         } else if (strcmp(arg, "alluser") == 0) {
-            _alluser = true;
+            _ring = RING_USER;
         } else if (strcmp(arg, "simple") == 0) {
             _simple = true;
         } else if (strcmp(arg, "title") == 0 && value != NULL) {

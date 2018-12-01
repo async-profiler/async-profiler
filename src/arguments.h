@@ -42,6 +42,12 @@ enum Counter {
     COUNTER_TOTAL
 };
 
+enum Ring {
+    RING_ANY,
+    RING_KERNEL,
+    RING_USER
+};
+
 
 class Error {
   private:
@@ -72,13 +78,12 @@ class Arguments {
   public:
     Action _action;
     Counter _counter;
+    Ring _ring;
     const char* _event;
     long _interval;
     int  _jstackdepth;
     int _framebuf;
     bool _threads;
-    bool _allkernel;
-    bool _alluser;
     bool _simple;
     char* _file;
     bool _dump_collapsed;
@@ -98,13 +103,12 @@ class Arguments {
     Arguments() :
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
+        _ring(RING_ANY),
         _event(EVENT_CPU),
         _interval(0),
         _jstackdepth(0),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
-        _allkernel(false),
-        _alluser(false),
         _simple(false),
         _file(NULL),
         _dump_collapsed(false),
