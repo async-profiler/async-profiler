@@ -79,6 +79,7 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
 }
 
 int enter_mount_ns(int pid) {
+#ifdef __NR_setns
     char path[128];
     snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
 
@@ -97,6 +98,7 @@ int enter_mount_ns(int pid) {
             return result < 0 ? 0 : 1;
         }
     }
+#endif // __NR_setns
 
     return 1;
 }

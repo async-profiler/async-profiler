@@ -472,7 +472,7 @@ Error Profiler::start(Arguments& args) {
         _units = "events";
     }
 
-    Error error = _engine->start(args._event, args._interval);
+    Error error = _engine->start(args);
     if (error) {
         delete _engine;
         _jfr.stop();

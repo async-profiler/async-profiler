@@ -19,6 +19,7 @@ usage() {
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg|tree|jfr"
+    echo "  -v, --version     display version string"
     echo ""
     echo "  --title string    SVG title"
     echo "  --width px        SVG width"
@@ -26,7 +27,8 @@ usage() {
     echo "  --minwidth px     skip frames smaller than px"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
-    echo "  -v, --version     display version string"
+    echo "  --all-kernel      only include kernel-mode events"
+    echo "  --all-user        only include user-mode events"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -97,6 +99,7 @@ INTERVAL=""
 JSTACKDEPTH=""
 FRAMEBUF=""
 THREADS=""
+RING=""
 OUTPUT=""
 FORMAT=""
 
@@ -162,6 +165,12 @@ while [[ $# -gt 0 ]]; do
         --reverse)
             FORMAT="$FORMAT,reverse"
             ;;
+        --all-kernel)
+            RING=",allkernel"
+            ;;
+        --all-user)
+            RING=",alluser"
+            ;;
         [0-9]*)
             PID="$1"
             ;;
@@ -171,9 +180,9 @@ while [[ $# -gt 0 ]]; do
             PID=$(pgrep -n java || jps -q -J-XX:+PerfDisableSharedMem)
             ;;
         *)
-        	echo "Unrecognized option: $1"
-        	usage
-        	;;
+            echo "Unrecognized option: $1"
+            usage
+            ;;
     esac
     shift
 done
@@ -205,7 +214,7 @@ fi
 
 case $ACTION in
     start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -217,7 +226,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1

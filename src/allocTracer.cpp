@@ -103,7 +103,7 @@ void AllocTracer::recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t r
     }
 }
 
-Error AllocTracer::start(const char* event, long interval) {
+Error AllocTracer::start(Arguments& args) {
     if (!VMStructs::available()) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }

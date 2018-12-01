@@ -1,4 +1,4 @@
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 
 public class AllocatingTarget implements Runnable {
     public static volatile Object sink;
@@ -10,13 +10,14 @@ public class AllocatingTarget implements Runnable {
 
     @Override
     public void run() {
+        Random random = new Random();
         while (true) {
-            allocate();
+            allocate(random);
         }
     }
 
-    private static void allocate() {
-        if (ThreadLocalRandom.current().nextBoolean()) {
+    private static void allocate(Random random) {
+        if (random.nextBoolean()) {
             sink = new int[128 * 1000];
         } else {
             sink = new Integer[128 * 1000];

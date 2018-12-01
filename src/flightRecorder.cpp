@@ -32,18 +32,10 @@
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
 
-#ifndef htonll
-#include <byteswap.h>
-
-static inline u64 htonll(u64 x) {
-    return htonl(1) == 1 ? x : bswap_64(x);
-}
-
-#endif // htonll 
-
-
 #ifdef __APPLE__
+
 #include <mach/mach_time.h>
+#include <libkern/OSByteOrder.h>
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -54,12 +46,22 @@ static inline u64 pd_nanotime() {
     return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
 }
 
-#else
+static inline u64 pd_hton64(u64 x) {
+    return OSSwapHostToBigInt64(x);
+}
+
+#else // !__APPLE__
+
+#include <byteswap.h>
 
 static inline u64 pd_nanotime() {
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC, &tp);
     return (u64)tp.tv_sec * 1000000000 + tp.tv_nsec;
+}
+
+static inline u64 pd_hton64(u64 x) {
+    return htonl(1) == 1 ? x : bswap_64(x);
 }
 
 #endif // __APPLE__
@@ -291,7 +293,7 @@ class Buffer {
     }
 
     void put64(u64 v) {
-        *(u64*)(_data + _offset) = htonll(v);
+        *(u64*)(_data + _offset) = pd_hton64(v);
         _offset += 8;
     }
 
@@ -368,7 +370,7 @@ class Recording {
         (void)result;
 
         // Patch metadata offset
-        metadata_offset = htonll(metadata_offset);
+        metadata_offset = pd_hton64(metadata_offset);
         result = pwrite(_fd, &metadata_offset, sizeof(metadata_offset), 8);
         (void)result;
 
@@ -557,7 +559,7 @@ class Recording {
                 buf->put64(i);  // stack trace key
                 buf->put8(0);   // truncated
                 buf->put32(trace._num_frames);
-                for (int j = trace._num_frames - 1; j >= 0; j--) {
+                for (int j = 0; j < trace._num_frames; j++) {
                     MethodInfo* mi = resolveMethod(frame_buffer[trace._start_frame + j]);
                     buf->put64(mi->_key);  // method key
                     buf->put32(0);         // bci

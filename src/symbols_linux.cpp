@@ -136,7 +136,7 @@ class ElfParser {
 
   public:
     static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(NativeCodeCache* cc, const char* base, const void* addr);
+    static void parseMem(NativeCodeCache* cc, const char* base);
 };
 
 
@@ -173,8 +173,8 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     return true;
 }
 
-void ElfParser::parseMem(NativeCodeCache* cc, const char* base, const void* addr) {
-    ElfParser elf(cc, base, addr);
+void ElfParser::parseMem(NativeCodeCache* cc, const char* base) {
+    ElfParser elf(cc, base, base);
     elf.loadSymbols(false);
 }
 
@@ -318,12 +318,11 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
         MemoryMapDesc map(str.c_str());
         if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
             NativeCodeCache* cc = new NativeCodeCache(map.file(), map.addr(), map.end());
-            const char* base = map.addr() - map.offs();
 
             if (map.inode() != 0) {
-                ElfParser::parseFile(cc, base, map.file(), true);
+                ElfParser::parseFile(cc, map.addr() - map.offs(), map.file(), true);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, base, base);
+                ElfParser::parseMem(cc, map.addr());
             }
 
             cc->sort();

@@ -39,7 +39,7 @@ class LockTracer : public Engine {
         return "lock";
     }
 
-    Error start(const char* event, long interval);
+    Error start(Arguments& args);
     void stop();
 
     static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);

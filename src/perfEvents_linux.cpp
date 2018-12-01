@@ -23,6 +23,7 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -298,6 +299,8 @@ int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
+Ring PerfEvents::_ring;
+bool PerfEvents::_print_extended_warning;
 
 bool PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
@@ -316,7 +319,7 @@ bool PerfEvents::createForThread(int tid) {
     } else {
         attr.config = _event_type->config;
     }
-    
+
     attr.precise_ip = _event_type->precise_ip;
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
@@ -324,9 +327,21 @@ bool PerfEvents::createForThread(int tid) {
     attr.wakeup_events = 1;
     attr.exclude_idle = 1;
 
+    if (_ring == RING_USER) {
+        attr.exclude_kernel = 1;
+    } else if (_ring == RING_KERNEL) {
+        attr.exclude_user = 1;
+    }
+
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
+        int err = errno;
         perror("perf_event_open failed");
+        if (err == EACCES && _print_extended_warning) {
+            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n");
+            fprintf(stderr, "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
+            _print_extended_warning = false;
+        }
         return false;
     }
 
@@ -414,16 +429,19 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-Error PerfEvents::start(const char* event, long interval) {
-    _event_type = PerfEventType::forName(event);
+Error PerfEvents::start(Arguments& args) {
+    _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
         return Error("Unsupported event type");
     }
 
-    if (interval < 0) {
+    if (args._interval < 0) {
         return Error("interval must be positive");
     }
-    _interval = interval ? interval : _event_type->default_interval;
+    _interval = args._interval ? args._interval : _event_type->default_interval;
+
+    _ring = args._ring;
+    _print_extended_warning = _ring != RING_USER;
 
     int max_events = getMaxPID();
     if (max_events != _max_events) {
@@ -439,7 +457,7 @@ Error PerfEvents::start(const char* event, long interval) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     if (!createForAllThreads()) {
-        return Error("Perf events unavailble. See stderr of the target process.");
+        return Error("Perf events unavailable. See stderr of the target process.");
     }
     return Error::OK;
 }

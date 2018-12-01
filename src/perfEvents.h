@@ -32,6 +32,8 @@ class PerfEvents : public Engine {
     static PerfEvent* _events;
     static PerfEventType* _event_type;
     static long _interval;
+    static Ring _ring;
+    static bool _print_extended_warning;
 
     static bool createForThread(int tid);
     static bool createForAllThreads();
@@ -44,7 +46,7 @@ class PerfEvents : public Engine {
         return "perf";
     }
 
-    Error start(const char* event, long interval);
+    Error start(Arguments& args);
     void stop();
 
     static const char** getAvailableEvents();

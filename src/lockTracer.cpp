@@ -25,7 +25,7 @@ jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
 UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
 
-Error LockTracer::start(const char* event, long interval) {
+Error LockTracer::start(Arguments& args) {
     if (!VMStructs::available()) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
