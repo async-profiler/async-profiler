@@ -44,7 +44,7 @@ class WallClock : public Engine {
         return "wall";
     }
 
-    Error start(const char* event, long interval);
+    Error start(Arguments& args);
     void stop();
 
     static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,

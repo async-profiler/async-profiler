@@ -33,11 +33,11 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
-Error WallClock::start(const char* event, long interval) {
-    if (interval < 0) {
+Error WallClock::start(Arguments& args) {
+    if (args._interval < 0) {
         return Error("interval must be positive");
     }
-    _interval = interval ? interval : DEFAULT_INTERVAL;
+    _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 
