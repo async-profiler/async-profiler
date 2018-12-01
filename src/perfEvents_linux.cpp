@@ -24,6 +24,7 @@
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -295,6 +296,8 @@ class PerfEvent : public SpinLock {
 };
 
 
+bool PerfEvents::_alluser = false;
+bool PerfEvents::_allkernel = false;
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
@@ -328,9 +331,17 @@ bool PerfEvents::createForThread(int tid) {
     attr.disabled = 1;
     attr.wakeup_events = 1;
     attr.exclude_idle = 1;
+    if (_alluser)
+      attr.exclude_kernel = 1;
+    if (_allkernel)
+      attr.exclude_user = 1;
 
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
+        if (errno == EACCES) {
+            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n");
+            fprintf(stderr, "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
+        }
         perror("perf_event_open failed");
         return false;
     }

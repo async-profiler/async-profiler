@@ -27,6 +27,8 @@ class PerfEventType;
 
 class PerfEvents : public Engine {
   private:
+    static bool _allkernel;
+    static bool _alluser;
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
@@ -40,6 +42,10 @@ class PerfEvents : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
+    PerfEvents(Arguments& args) {
+      _allkernel = args._allkernel;
+      _alluser = args._alluser;
+    }
     const char* name() {
         return "perf";
     }
