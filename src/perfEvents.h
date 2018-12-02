@@ -46,12 +46,15 @@ class PerfEvents : public Engine {
         return "perf";
     }
 
+    const char* units();
+
     Error start(Arguments& args);
     void stop();
 
+    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                       const void* jit_min_address, const void* jit_max_address);
+
     static const char** getAvailableEvents();
-    static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                            const void* jit_min_address, const void* jit_max_address);
 
     static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         createForThread(OS::threadId());

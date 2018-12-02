@@ -195,7 +195,7 @@ const char* Profiler::findNativeMethod(const void* address) {
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = WallClock::getCallChain(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
+    int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
                                                 _jit_min_address, _jit_max_address);
 
     for (int i = 0; i < native_frames; i++) {
@@ -411,6 +411,25 @@ void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
     }
 }
 
+Engine* Profiler::selectEngine(const char* event_name) {
+    static Engine* PERF_EVENTS = new PerfEvents();
+    static Engine* ALLOC_TRACER = new AllocTracer();
+    static Engine* LOCK_TRACER = new LockTracer();
+    static Engine* WALL_CLOCK = new WallClock();
+
+    if (strcmp(event_name, EVENT_CPU) == 0) {
+        return PERF_EVENTS;
+    } else if (strcmp(event_name, EVENT_ALLOC) == 0) {
+        return ALLOC_TRACER;
+    } else if (strcmp(event_name, EVENT_LOCK) == 0) {
+        return LOCK_TRACER;
+    } else if (strcmp(event_name, EVENT_WALL) == 0) {
+        return WALL_CLOCK;
+    } else {
+        return PERF_EVENTS;
+    }
+}
+
 Error Profiler::start(Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
@@ -455,26 +474,9 @@ Error Profiler::start(Arguments& args) {
         }
     }
 
-    if (strcmp(args._event, EVENT_CPU) == 0) {
-        _engine = new PerfEvents();
-        _units = "ns";
-    } else if (strcmp(args._event, EVENT_ALLOC) == 0) {
-        _engine = new AllocTracer();
-        _units = "bytes";
-    } else if (strcmp(args._event, EVENT_LOCK) == 0) {
-        _engine = new LockTracer();
-        _units = "ns";
-    } else if (strcmp(args._event, EVENT_WALL) == 0) {
-        _engine = new WallClock();
-        _units = "ns";
-    } else {
-        _engine = new PerfEvents();
-        _units = "events";
-    }
-
+    _engine = selectEngine(args._event);
     Error error = _engine->start(args);
     if (error) {
-        delete _engine;
         _jfr.stop();
         return error;
     }
@@ -491,7 +493,6 @@ Error Profiler::stop() {
     }
 
     _engine->stop();
-    delete _engine;
 
     // Acquire all spinlocks to avoid race with remaining signals
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
@@ -550,7 +551,7 @@ void Profiler::dumpSummary(std::ostream& out) {
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE || _engine == NULL) return;
 
     FrameName fn(args._simple, false, _threads);
     u64 unknown = 0;
@@ -578,7 +579,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
 void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE || _engine == NULL) return;
 
     FlameGraph flamegraph(args._title, args._counter, args._width, args._height, args._minwidth, args._reverse);
     FrameName fn(args._simple, false, _threads);
@@ -611,7 +612,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 
 void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE || _engine == NULL) return;
 
     FrameName fn(false, true, _threads);
     double percent = 100.0 / _total_counter;
@@ -625,7 +626,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
         if (trace._samples == 0) break;
 
         snprintf(buf, sizeof(buf), "--- %lld %s (%.2f%%), %lld sample%s\n",
-                 trace._counter, _units, trace._counter * percent,
+                 trace._counter, _engine->units(), trace._counter * percent,
                  trace._samples, trace._samples == 1 ? "" : "s");
         out << buf;
 
@@ -644,7 +645,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
 
 void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) return;
+    if (_state != IDLE || _engine == NULL) return;
 
     FrameName fn(false, true, _threads);
     double percent = 100.0 / _total_counter;
@@ -654,7 +655,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     if (max_methods > MAX_CALLTRACES) max_methods = MAX_CALLTRACES;
 
     snprintf(buf, sizeof(buf), "%12s  percent  samples  top\n"
-                               "  ----------  -------  -------  ---\n", _units);
+                               "  ----------  -------  -------  ---\n", _engine->units());
     out << buf;
 
     for (int i = 0; i < max_methods; i++) {
@@ -708,6 +709,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "Java events:" << std::endl;
             out << "  " << EVENT_ALLOC << std::endl;
             out << "  " << EVENT_LOCK << std::endl;
+            out << "  " << EVENT_WALL << std::endl;
             break;
         }
         case ACTION_VERSION:

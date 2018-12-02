@@ -23,11 +23,13 @@
 class Engine {
   public:
     virtual const char* name() = 0;
+    virtual const char* units() = 0;
 
     virtual Error start(Arguments& args) = 0;
     virtual void stop() = 0;
 
-    virtual ~Engine() {}
+    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                               const void* jit_min_address, const void* jit_max_address);
 };
 
 #endif // _ENGINE_H

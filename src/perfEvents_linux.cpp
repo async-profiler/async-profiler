@@ -429,6 +429,17 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
+const char* PerfEvents::units() {
+    if (_event_type == NULL || _event_type->name == EVENT_CPU) {
+        return "ns";
+    } else if (_event_type->type == PERF_TYPE_BREAKPOINT || _event_type->type == PERF_TYPE_TRACEPOINT) {
+        return "events";
+    }
+
+    const char* dash = strrchr(_event_type->name, '-');
+    return dash != NULL ? dash + 1 : _event_type->name;
+}
+
 Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
@@ -470,19 +481,8 @@ void PerfEvents::stop() {
     destroyForAllThreads();
 }
 
-const char** PerfEvents::getAvailableEvents() {
-    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
-    const char** available_events = new const char*[count];
-
-    for (int i = 0; i < count; i++) {
-        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
-    }
-
-    return available_events;
-}
-
-int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                             const void* jit_min_address, const void* jit_max_address) {
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                               const void* jit_min_address, const void* jit_max_address) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -523,6 +523,17 @@ int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, in
 
     event->unlock();
     return depth;
+}
+
+const char** PerfEvents::getAvailableEvents() {
+    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
+    const char** available_events = new const char*[count];
+
+    for (int i = 0; i < count; i++) {
+        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
+    }
+
+    return available_events;
 }
 
 #endif // __linux__

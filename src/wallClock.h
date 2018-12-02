@@ -44,11 +44,12 @@ class WallClock : public Engine {
         return "wall";
     }
 
+    const char* units() {
+        return "ns";
+    }
+
     Error start(Arguments& args);
     void stop();
-
-    static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                            const void* jit_min_address, const void* jit_max_address);
 };
 
 #endif // _WALLCLOCK_H

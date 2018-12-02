@@ -60,6 +60,10 @@ class AllocTracer : public Engine {
         return "alloc";
     }
 
+    const char* units() {
+        return "bytes";
+    }
+
     Error start(Arguments& args);
     void stop();
 };
