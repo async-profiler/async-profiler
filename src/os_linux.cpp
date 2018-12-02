@@ -16,10 +16,14 @@
 
 #ifdef __linux__
 
+#include <arpa/inet.h>
+#include <byteswap.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #include "os.h"
 
@@ -52,6 +56,22 @@ class LinuxThreadList : public ThreadList {
     }
 };
 
+
+u64 OS::nanotime() {
+    struct timespec tp;
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    return (u64)tp.tv_sec * 1000000000 + tp.tv_nsec;
+}
+
+u64 OS::millis() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+u64 OS::hton64(u64 x) {
+    return htonl(1) == 1 ? x : bswap_64(x);
+}
 
 int OS::threadId() {
     return syscall(__NR_gettid);

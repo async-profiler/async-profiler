@@ -16,9 +16,12 @@
 
 #ifdef __APPLE__
 
+#include <libkern/OSByteOrder.h>
 #include <mach/mach_init.h>
 #include <mach/mach_interface.h>
+#include <mach/mach_time.h>
 #include <pthread.h>
+#include <sys/time.h>
 #include "os.h"
 
 
@@ -45,6 +48,25 @@ class MacThreadList : public ThreadList {
     }
 };
 
+
+static mach_timebase_info_data_t timebase = {0, 0};
+
+u64 OS::nanotime() {
+    if (timebase.denom == 0) {
+        mach_timebase_info(&timebase);
+    }
+    return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
+}
+
+u64 OS::millis() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+u64 OS::hton64(u64 x) {
+    return OSSwapHostToBigInt64(x);
+}
 
 int OS::threadId() {
     return pthread_mach_thread_np(pthread_self());

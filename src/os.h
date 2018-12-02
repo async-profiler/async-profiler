@@ -18,6 +18,7 @@
 #define _OS_H
 
 #include <signal.h>
+#include "arch.h"
 
 
 class ThreadList {
@@ -29,6 +30,9 @@ class ThreadList {
 
 class OS {
   public:
+    static u64 nanotime();
+    static u64 millis();
+    static u64 hton64(u64 x);
     static int threadId();
     static void installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*));
     static void sendSignalToThread(int thread_id, int signo);
