@@ -127,7 +127,6 @@ class Profiler {
     State _state;
     FlightRecorder _jfr;
     Engine* _engine;
-    const char* _units;
     time_t _start_time;
 
     u64 _total_samples;
@@ -178,7 +177,7 @@ class Profiler {
     void initStateLock();
     void resetSymbols();
     void initJvmtiFunctions(NativeCodeCache* libjvm);
-    void setSignalHandler();
+    Engine* selectEngine(const char* event_name);
 
   public:
     static Profiler _instance;
@@ -186,7 +185,6 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _jfr(),
-        _units("events"),
         _frame_buffer(NULL),
         _jit_lock(),
         _jit_min_address((const void*)-1),

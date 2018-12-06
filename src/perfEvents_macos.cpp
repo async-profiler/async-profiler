@@ -18,10 +18,8 @@
 
 #include <string.h>
 #include <sys/time.h>
-#include <pthread.h>
 #include "perfEvents.h"
 #include "profiler.h"
-#include "stackFrame.h"
 
 
 int PerfEvents::_max_events;
@@ -32,28 +30,18 @@ Ring PerfEvents::_ring;
 bool PerfEvents::_print_extended_warning;
 
 
-int PerfEvents::tid() {
-    return pthread_mach_thread_np(pthread_self());
-}
-
 bool PerfEvents::createForThread(int tid)  { return false; }
 bool PerfEvents::createForAllThreads()     { return false; }
 void PerfEvents::destroyForThread(int tid) {}
 void PerfEvents::destroyForAllThreads()    {}
 
 
-void PerfEvents::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGPROF, &sa, NULL);
-}
-
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
+}
+
+const char* PerfEvents::units() {
+    return "ns";
 }
 
 Error PerfEvents::start(Arguments& args) {
@@ -66,7 +54,7 @@ Error PerfEvents::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
 
-    installSignalHandler();
+    OS::installSignalHandler(SIGPROF, signalHandler);
 
     long sec = _interval / 1000000000;
     long usec = (_interval % 1000000000) / 1000;
@@ -81,38 +69,16 @@ void PerfEvents::stop() {
     setitimer(ITIMER_PROF, &tv, NULL);
 }
 
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                               const void* jit_min_address, const void* jit_max_address) {
+    return Engine::getNativeTrace(ucontext, tid, callchain, max_depth, jit_min_address, jit_max_address);
+}
+
 const char** PerfEvents::getAvailableEvents() {
     const char** available_events = new const char*[2];
     available_events[0] = "cpu";
     available_events[1] = NULL;
     return available_events;
-}
-
-int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                             const void* jit_min_address, const void* jit_max_address) {
-    StackFrame frame(ucontext);
-    const void* pc = (const void*)frame.pc();
-    uintptr_t fp = frame.fp();
-    uintptr_t prev_fp = (uintptr_t)&fp;
-
-    int depth = 0;
-    const void* const valid_pc = (const void*)0x1000;
-
-    // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= valid_pc && !(pc >= jit_min_address && pc < jit_max_address)) {
-        callchain[depth++] = pc;
-
-        // Check if the next frame is below on the current stack
-        if (fp <= prev_fp || fp >= prev_fp + 0x40000) {
-            break;
-        }
-
-        prev_fp = fp;
-        pc = ((const void**)fp)[1];
-        fp = ((uintptr_t*)fp)[0];
-    }
-
-    return depth;
 }
 
 #endif // __APPLE__

@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
+#include "os.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
@@ -66,16 +67,6 @@ void Trap::uninstall() {
 }
 
 
-void AllocTracer::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGTRAP, &sa, NULL);
-}
-
 // Called whenever our breakpoint trap is hit
 void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
@@ -123,7 +114,7 @@ Error AllocTracer::start(Arguments& args) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
 
-    installSignalHandler();
+    OS::installSignalHandler(SIGTRAP, signalHandler);
 
     _in_new_tlab.install();
     _outside_tlab.install();

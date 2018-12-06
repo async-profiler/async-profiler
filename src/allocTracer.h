@@ -52,13 +52,16 @@ class AllocTracer : public Engine {
     static Trap _in_new_tlab2;
     static Trap _outside_tlab2;
 
-    static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab); 
 
   public:
     const char* name() {
         return "alloc";
+    }
+
+    const char* units() {
+        return "bytes";
     }
 
     Error start(Arguments& args);

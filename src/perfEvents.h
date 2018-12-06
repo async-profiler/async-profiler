@@ -20,6 +20,7 @@
 #include <jvmti.h>
 #include <signal.h>
 #include "engine.h"
+#include "os.h"
 
 
 class PerfEvent;
@@ -38,7 +39,6 @@ class PerfEvents : public Engine {
     static bool createForAllThreads();
     static void destroyForThread(int tid);
     static void destroyForAllThreads();
-    static void installSignalHandler();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
@@ -46,20 +46,22 @@ class PerfEvents : public Engine {
         return "perf";
     }
 
+    const char* units();
+
     Error start(Arguments& args);
     void stop();
 
-    static int tid();
+    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                       const void* jit_min_address, const void* jit_max_address);
+
     static const char** getAvailableEvents();
-    static int getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                            const void* jit_min_address, const void* jit_max_address);
 
     static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        createForThread(tid());
+        createForThread(OS::threadId());
     }
 
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        destroyForThread(tid());
+        destroyForThread(OS::threadId());
     }
 };
 

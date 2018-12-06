@@ -39,6 +39,10 @@ class LockTracer : public Engine {
         return "lock";
     }
 
+    const char* units() {
+        return "ns";
+    }
+
     Error start(Arguments& args);
     void stop();
 

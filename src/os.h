@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Andrei Pangin
+ * Copyright 2018 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,29 @@
  * limitations under the License.
  */
 
-#ifndef _ENGINE_H
-#define _ENGINE_H
+#ifndef _OS_H
+#define _OS_H
 
-#include "arguments.h"
+#include <signal.h>
+#include "arch.h"
 
 
-class Engine {
+class ThreadList {
   public:
-    virtual const char* name() = 0;
-    virtual const char* units() = 0;
-
-    virtual Error start(Arguments& args) = 0;
-    virtual void stop() = 0;
-
-    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               const void* jit_min_address, const void* jit_max_address);
+    virtual ~ThreadList() {}
+    virtual int next() = 0;
 };
 
-#endif // _ENGINE_H
+
+class OS {
+  public:
+    static u64 nanotime();
+    static u64 millis();
+    static u64 hton64(u64 x);
+    static int threadId();
+    static void installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*));
+    static void sendSignalToThread(int thread_id, int signo);
+    static ThreadList* listThreads();
+};
+
+#endif // _OS_H

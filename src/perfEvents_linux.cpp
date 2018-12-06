@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -303,10 +302,6 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 bool PerfEvents::_print_extended_warning;
 
-int PerfEvents::tid() {
-    return syscall(__NR_gettid);
-}
-
 bool PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
         fprintf(stderr, "WARNING: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max\n", tid, _max_events);
@@ -377,17 +372,11 @@ bool PerfEvents::createForThread(int tid) {
 bool PerfEvents::createForAllThreads() {
     bool success = false;
 
-    DIR* dir = opendir("/proc/self/task");
-    if (dir != NULL) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.') {
-                int tid = atoi(entry->d_name);
-                success |= createForThread(tid);
-            }
-        }
-        closedir(dir);
+    ThreadList* thread_list = OS::listThreads();
+    for (int tid; (tid = thread_list->next()) != -1; ) {
+        success |= createForThread(tid);
     }
+    delete thread_list;
 
     return success;
 }
@@ -417,16 +406,6 @@ void PerfEvents::destroyForAllThreads() {
     }
 }
 
-void PerfEvents::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGPROF, &sa, NULL);
-}
-
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
@@ -450,6 +429,17 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
+const char* PerfEvents::units() {
+    if (_event_type == NULL || _event_type->name == EVENT_CPU) {
+        return "ns";
+    } else if (_event_type->type == PERF_TYPE_BREAKPOINT || _event_type->type == PERF_TYPE_TRACEPOINT) {
+        return "events";
+    }
+
+    const char* dash = strrchr(_event_type->name, '-');
+    return dash != NULL ? dash + 1 : _event_type->name;
+}
+
 Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
@@ -471,7 +461,7 @@ Error PerfEvents::start(Arguments& args) {
         _max_events = max_events;
     }
     
-    installSignalHandler();
+    OS::installSignalHandler(SIGPROF, signalHandler);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
@@ -491,19 +481,8 @@ void PerfEvents::stop() {
     destroyForAllThreads();
 }
 
-const char** PerfEvents::getAvailableEvents() {
-    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
-    const char** available_events = new const char*[count];
-
-    for (int i = 0; i < count; i++) {
-        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
-    }
-
-    return available_events;
-}
-
-int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, int max_depth,
-                             const void* jit_min_address, const void* jit_max_address) {
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
+                               const void* jit_min_address, const void* jit_max_address) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -544,6 +523,17 @@ int PerfEvents::getCallChain(void* ucontext, int tid, const void** callchain, in
 
     event->unlock();
     return depth;
+}
+
+const char** PerfEvents::getAvailableEvents() {
+    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
+    const char** available_events = new const char*[count];
+
+    for (int i = 0; i < count; i++) {
+        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
+    }
+
+    return available_events;
 }
 
 #endif // __linux__
