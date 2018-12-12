@@ -67,20 +67,26 @@ static inline bool withinCurrentStack(uintptr_t value) {
 }
 
 static inline bool isFramePrologueEpilogue(uintptr_t pc) {
-    unsigned int opcode = *(unsigned int*)(pc - 1);
-    if (opcode == 0xec834855) {
-        // push rbp
-        // sub  rsp, $const
-        return true;
-    } else if (opcode == 0xec8b4855) {
-        // push rbp
-        // mov  rbp, rsp
-        return true;
-    } else if ((opcode & 0xffffff00) == 0x05855d00) {
+    if (pc & 0xfff) {
+        // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
+        unsigned int opcode = *(unsigned int*)(pc - 1);
+        if (opcode == 0xec834855) {
+            // push rbp
+            // sub  rsp, $const
+            return true;
+        } else if (opcode == 0xec8b4855) {
+            // push rbp
+            // mov  rbp, rsp
+            return true;
+        }
+    }
+
+    if (*(unsigned char*)pc == 0x5d && *(unsigned short*)(pc + 1) == 0x0585) {
         // pop  rbp
         // test [polling_page], eax
         return true;
     }
+
     return false;
 }
 
