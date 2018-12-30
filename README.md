@@ -21,6 +21,13 @@ Latest release:
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
+## Supported platforms
+
+- **Linux** / x64 / x86 / ARM / AArch64
+- **macOS** / x64
+
+Note: macOS profiling is limited to user space code only.
+
 ## CPU profiling
 
 In this mode profiler collects stack trace samples that include **Java** methods,
@@ -87,12 +94,15 @@ Debian / Ubuntu, run
 On Gentoo the ``icedtea`` OpenJDK package can be built with the per-package setting
 ``FEATURES="nostrip"`` to retain symbols.
 
-## Supported platforms
+### Wall-clock profiling
 
-- **Linux** / x64 / x86 / ARM / AArch64
-- **macOS** / x64
+`-e wall` option tells async-profiler to sample all threads equally every given
+period of time regardless of thread status: Running, Sleeping or Blocked.
+For instance, this can be helpful when profiling application start-up time.
 
-Note: macOS profiling is limited to user space code only.
+Wall-clock profiler is most useful in per-thread mode: `-t`.
+
+Example: `./profiler.sh -e wall -t -i 5ms -f result.svg 8983`
 
 ## Building
 
