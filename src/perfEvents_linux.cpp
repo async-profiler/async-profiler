@@ -110,7 +110,7 @@ struct PerfEventType {
     static FunctionWithCounter KNOWN_FUNCTIONS[];
 
     // Find which argument of a known function serves as a profiling counter,
-    // e.g. the first argument of malloc() is allocation size 
+    // e.g. the first argument of malloc() is allocation size
     static int findCounterArg(const char* name) {
         for (FunctionWithCounter* func = KNOWN_FUNCTIONS; func->name != NULL; func++) {
             if (strcmp(name, func->name) == 0) {
@@ -308,19 +308,24 @@ bool PerfEvents::createForThread(int tid) {
         return false;
     }
 
-    struct perf_event_attr attr = {0};
-    attr.size = sizeof(attr);
-    attr.type = _event_type->type;
-
-    if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_addr = _event_type->config;
-        attr.bp_type = _event_type->bp_type;
-        attr.bp_len = _event_type->bp_len;
-    } else {
-        attr.config = _event_type->config;
+    PerfEventType* event_type = _event_type;
+    if (event_type == NULL) {
+        return false;
     }
 
-    attr.precise_ip = _event_type->precise_ip;
+    struct perf_event_attr attr = {0};
+    attr.size = sizeof(attr);
+    attr.type = event_type->type;
+
+    if (attr.type == PERF_TYPE_BREAKPOINT) {
+        attr.bp_addr = event_type->config;
+        attr.bp_type = event_type->bp_type;
+        attr.bp_len = event_type->bp_len;
+    } else {
+        attr.config = event_type->config;
+    }
+
+    attr.precise_ip = event_type->precise_ip;
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
@@ -468,6 +473,8 @@ Error PerfEvents::start(Arguments& args) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
 
     if (!createForAllThreads()) {
+        jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
+        jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
         return Error("Perf events unavailable. See stderr of the target process.");
     }
     return Error::OK;
@@ -525,15 +532,15 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
     return depth;
 }
 
-const char** PerfEvents::getAvailableEvents() {
-    int count = sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType);
-    const char** available_events = new const char*[count];
+bool PerfEvents::supported() {
+    return true;
+}
 
-    for (int i = 0; i < count; i++) {
-        available_events[i] = PerfEventType::AVAILABLE_EVENTS[i].name;
+const char* PerfEvents::getEventName(int event_id) {
+    if (event_id >= 0 && event_id < sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType)) {
+        return PerfEventType::AVAILABLE_EVENTS[event_id].name;
     }
-
-    return available_events;
+    return NULL;
 }
 
 #endif // __linux__

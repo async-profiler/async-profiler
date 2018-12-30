@@ -16,10 +16,7 @@
 
 #ifdef __APPLE__
 
-#include <string.h>
-#include <sys/time.h>
 #include "perfEvents.h"
-#include "profiler.h"
 
 
 int PerfEvents::_max_events;
@@ -37,7 +34,6 @@ void PerfEvents::destroyForAllThreads()    {}
 
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
 const char* PerfEvents::units() {
@@ -45,40 +41,23 @@ const char* PerfEvents::units() {
 }
 
 Error PerfEvents::start(Arguments& args) {
-    if (strcmp(args._event, EVENT_CPU) != 0) {
-        return Error("Event is not supported on this platform");
-    }
-
-    if (args._interval < 0) {
-        return Error("interval must be positive");
-    }
-    _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
-
-    OS::installSignalHandler(SIGPROF, signalHandler);
-
-    long sec = _interval / 1000000000;
-    long usec = (_interval % 1000000000) / 1000;
-    struct itimerval tv = {{sec, usec}, {sec, usec}};
-    setitimer(ITIMER_PROF, &tv, NULL);
-
-    return Error::OK;
+    return Error("PerfEvents are unsupported on macOS");
 }
 
 void PerfEvents::stop() {
-    struct itimerval tv = {{0, 0}, {0, 0}};
-    setitimer(ITIMER_PROF, &tv, NULL);
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                                const void* jit_min_address, const void* jit_max_address) {
-    return Engine::getNativeTrace(ucontext, tid, callchain, max_depth, jit_min_address, jit_max_address);
+    return 0;
 }
 
-const char** PerfEvents::getAvailableEvents() {
-    const char** available_events = new const char*[2];
-    available_events[0] = "cpu";
-    available_events[1] = NULL;
-    return available_events;
+bool PerfEvents::supported() {
+    return false;
+}
+
+const char* PerfEvents::getEventName(int event_id) {
+    return NULL;
 }
 
 #endif // __APPLE__

@@ -26,6 +26,7 @@
 #include "allocTracer.h"
 #include "lockTracer.h"
 #include "wallClock.h"
+#include "itimer.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
@@ -412,21 +413,24 @@ void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
 }
 
 Engine* Profiler::selectEngine(const char* event_name) {
-    static Engine* PERF_EVENTS = new PerfEvents();
-    static Engine* ALLOC_TRACER = new AllocTracer();
-    static Engine* LOCK_TRACER = new LockTracer();
-    static Engine* WALL_CLOCK = new WallClock();
+    static PerfEvents perf_events;
+    static AllocTracer alloc_tracer;
+    static LockTracer lock_tracer;
+    static WallClock wall_clock;
+    static ITimer itimer;
 
     if (strcmp(event_name, EVENT_CPU) == 0) {
-        return PERF_EVENTS;
+        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&itimer;
     } else if (strcmp(event_name, EVENT_ALLOC) == 0) {
-        return ALLOC_TRACER;
+        return &alloc_tracer;
     } else if (strcmp(event_name, EVENT_LOCK) == 0) {
-        return LOCK_TRACER;
+        return &lock_tracer;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
-        return WALL_CLOCK;
+        return &wall_clock;
+    } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
+        return &itimer;
     } else {
-        return PERF_EVENTS;
+        return &perf_events;
     }
 }
 
@@ -699,17 +703,21 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             break;
         }
         case ACTION_LIST: {
-            out << "Perf events:" << std::endl;
-            const char** perf_events = PerfEvents::getAvailableEvents();
-            for (const char** event = perf_events; *event != NULL; event++) {
-                out << "  " << *event << std::endl;
-            }
-            delete[] perf_events;
-
-            out << "Java events:" << std::endl;
+            out << "Basic events:" << std::endl;
+            out << "  " << EVENT_CPU << std::endl;
             out << "  " << EVENT_ALLOC << std::endl;
             out << "  " << EVENT_LOCK << std::endl;
             out << "  " << EVENT_WALL << std::endl;
+            out << "  " << EVENT_ITIMER << std::endl;
+
+            if (PerfEvents::supported()) {
+                out << "Perf events:" << std::endl;
+                for (int event_id = 1; ; event_id++) {
+                    const char* event_name = PerfEvents::getEventName(event_id);
+                    if (event_name == NULL) break;
+                    out << "  " << event_name << std::endl;
+                }
+            }
             break;
         }
         case ACTION_VERSION:
