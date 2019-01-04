@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Andrei Pangin
+ * Copyright 2018 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef _ENGINE_H
-#define _ENGINE_H
+#ifndef _MUTEX_H
+#define _MUTEX_H
 
-#include "arguments.h"
+#include <pthread.h>
 
 
-class Engine {
+class Mutex {
+  private:
+    pthread_mutex_t _mutex;
+
   public:
-    virtual const char* name() = 0;
-    virtual const char* units() = 0;
+    Mutex();
 
-    virtual Error start(Arguments& args) = 0;
-    virtual void stop() = 0;
-
-    virtual void onThreadStart() {}
-    virtual void onThreadEnd() {}
-
-    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               const void* jit_min_address, const void* jit_max_address);
+    void lock();
+    void unlock();
 };
 
-#endif // _ENGINE_H
+
+class MutexLocker {
+  private:
+    Mutex* _mutex;
+
+  public:
+    MutexLocker(Mutex& mutex) : _mutex(&mutex) {
+        _mutex->lock();
+    }
+
+    ~MutexLocker() {
+        _mutex->unlock();
+    }
+};
+
+#endif // _MUTEX_H

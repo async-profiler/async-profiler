@@ -27,14 +27,9 @@ Ring PerfEvents::_ring;
 bool PerfEvents::_print_extended_warning;
 
 
-bool PerfEvents::createForThread(int tid)  { return false; }
-bool PerfEvents::createForAllThreads()     { return false; }
+bool PerfEvents::createForThread(int tid) { return false; }
 void PerfEvents::destroyForThread(int tid) {}
-void PerfEvents::destroyForAllThreads()    {}
-
-
-void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-}
+void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {}
 
 const char* PerfEvents::units() {
     return "ns";
@@ -45,6 +40,12 @@ Error PerfEvents::start(Arguments& args) {
 }
 
 void PerfEvents::stop() {
+}
+
+void PerfEvents::onThreadStart() {
+}
+
+void PerfEvents::onThreadEnd() {
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,

@@ -38,6 +38,12 @@
 
 Profiler Profiler::_instance;
 
+static PerfEvents perf_events;
+static AllocTracer alloc_tracer;
+static LockTracer lock_tracer;
+static WallClock wall_clock;
+static ITimer itimer;
+
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     const u64 M = 0xc6a4a7935bd1e995ULL;
@@ -376,13 +382,6 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     _locks[lock_index].unlock();
 }
 
-void Profiler::initStateLock() {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&_state_lock, &attr);
-}
-
 void Profiler::resetSymbols() {
     for (int i = 0; i < _native_lib_count; i++) {
         delete _native_libs[i];
@@ -412,13 +411,41 @@ void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
     }
 }
 
-Engine* Profiler::selectEngine(const char* event_name) {
-    static PerfEvents perf_events;
-    static AllocTracer alloc_tracer;
-    static LockTracer lock_tracer;
-    static WallClock wall_clock;
-    static ITimer itimer;
+void Profiler::setThreadName(int tid, const char* name) {
+    MutexLocker ml(_thread_names_lock);
+    _thread_names[tid] = name;
+}
 
+void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    if (_threads && VMThread::available()) {
+        VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
+        jvmtiThreadInfo thread_info;
+        if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
+            setThreadName(vm_thread->osThreadId(), thread_info.name);
+            jvmti->Deallocate((unsigned char*)thread_info.name);
+        }
+    }
+}
+
+void Profiler::updateAllThreadNames() {
+    if (_threads && VMThread::available()) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jint thread_count;
+        jthread* thread_objects;
+        if (jvmti->GetAllThreads(&thread_count, &thread_objects) != 0) {
+            return;
+        }
+
+        JNIEnv* jni = VM::jni();
+        for (int i = 0; i < thread_count; i++) {
+            updateThreadName(jvmti, jni, thread_objects[i]);
+        }
+
+        jvmti->Deallocate((unsigned char*)thread_objects);
+    }
+}
+
+Engine* Profiler::selectEngine(const char* event_name) {
     if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&itimer;
     } else if (strcmp(event_name, EVENT_ALLOC) == 0) {
@@ -463,6 +490,12 @@ Error Profiler::start(Arguments& args) {
     _frame_buffer_overflow = false;
     _threads = args._threads && !args._dump_jfr;
 
+    // Reset thread names
+    {
+        MutexLocker ml(_thread_names_lock);
+        _thread_names.clear();
+    }
+
     resetSymbols();
     NativeCodeCache* libjvm = jvmLibrary();
     if (libjvm == NULL) {
@@ -485,6 +518,11 @@ Error Profiler::start(Arguments& args) {
         return error;
     }
 
+    if (_threads) {
+        // Thread events might be already enabled by PerfEvents::start
+        switchThreadEvents(JVMTI_ENABLE);
+    }
+
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
@@ -503,8 +541,20 @@ Error Profiler::stop() {
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
 
+    switchThreadEvents(JVMTI_DISABLE);
+    updateAllThreadNames();
+
     _state = IDLE;
     return Error::OK;
+}
+
+void Profiler::switchThreadEvents(jvmtiEventMode mode) {
+    if (_thread_events_state != mode) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
+        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
+        _thread_events_state = mode;
+    }
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
@@ -557,7 +607,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(args._simple, false, _threads);
+    FrameName fn(args._simple, false, _thread_names_lock, _thread_names);
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -586,7 +636,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     if (_state != IDLE || _engine == NULL) return;
 
     FlameGraph flamegraph(args._title, args._counter, args._width, args._height, args._minwidth, args._reverse);
-    FrameName fn(args._simple, false, _threads);
+    FrameName fn(args._simple, false, _thread_names_lock, _thread_names);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
@@ -618,7 +668,7 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(false, true, _threads);
+    FrameName fn(false, true, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -651,7 +701,7 @@ void Profiler::dumpFlat(std::ostream& out, int max_methods) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(false, true, _threads);
+    FrameName fn(false, true, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
@@ -712,6 +762,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
 
             if (PerfEvents::supported()) {
                 out << "Perf events:" << std::endl;
+                // The first perf event is "cpu" which is already printed
                 for (int event_id = 1; ; event_id++) {
                     const char* event_name = PerfEvents::getEventName(event_id);
                     if (event_name == NULL) break;

@@ -18,12 +18,13 @@
 #define _PROFILER_H
 
 #include <iostream>
-#include <pthread.h>
+#include <map>
 #include <time.h>
 #include "arch.h"
 #include "arguments.h"
 #include "engine.h"
 #include "flightRecorder.h"
+#include "mutex.h"
 #include "spinLock.h"
 #include "codeCache.h"
 #include "vmEntry.h"
@@ -82,21 +83,6 @@ class MethodSample {
 };
 
 
-class MutexLocker {
-  private:
-    pthread_mutex_t* _mutex;
-
-  public:
-    MutexLocker(pthread_mutex_t& mutex) : _mutex(&mutex) {
-        pthread_mutex_lock(_mutex);
-    }
-
-    ~MutexLocker() {
-        pthread_mutex_unlock(_mutex);
-    }
-};
-
-
 enum State {
     IDLE,
     RUNNING,
@@ -123,8 +109,10 @@ class Profiler {
         FAILURE_TYPES               = 12
     };
 
-    pthread_mutex_t _state_lock;
+    Mutex _state_lock;
     State _state;
+    Mutex _thread_names_lock;
+    std::map<int, std::string> _thread_names;
     FlightRecorder _jfr;
     Engine* _engine;
     time_t _start_time;
@@ -144,6 +132,7 @@ class Profiler {
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
     bool _threads;
+    volatile bool _thread_events_state;
 
     SpinLock _jit_lock;
     const void* _jit_min_address;
@@ -174,9 +163,11 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void initStateLock();
     void resetSymbols();
     void initJvmtiFunctions(NativeCodeCache* libjvm);
+    void setThreadName(int tid, const char* name);
+    void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    void updateAllThreadNames();
     Engine* selectEngine(const char* event_name);
 
   public:
@@ -186,6 +177,7 @@ class Profiler {
         _state(IDLE),
         _jfr(),
         _frame_buffer(NULL),
+        _thread_events_state(JVMTI_DISABLE),
         _jit_lock(),
         _jit_min_address((const void*)-1),
         _jit_max_address((const void*)0),
@@ -194,7 +186,6 @@ class Profiler {
         _native_lib_count(0),
         _ThreadLocalStorage_thread(NULL),
         _JvmtiEnv_GetStackTrace(NULL) {
-        initStateLock();
     }
 
     u64 total_samples() { return _total_samples; }
@@ -206,6 +197,7 @@ class Profiler {
     void shutdown(Arguments& args);
     Error start(Arguments& args);
     Error stop();
+    void switchThreadEvents(jvmtiEventMode mode);
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
@@ -231,6 +223,16 @@ class Profiler {
     static void JNICALL DynamicCodeGenerated(jvmtiEnv* jvmti, const char* name,
                                              const void* address, jint length) {
         _instance.addRuntimeStub(address, length, name);
+    }
+
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        _instance.updateThreadName(jvmti, jni, thread);
+        _instance._engine->onThreadStart();
+    }
+
+    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+        _instance.updateThreadName(jvmti, jni, thread);
+        _instance._engine->onThreadEnd();
     }
 
     friend class Recording;

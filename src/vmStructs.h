@@ -17,6 +17,7 @@
 #ifndef _VMSTRUCTS_H
 #define _VMSTRUCTS_H
 
+#include <jvmti.h>
 #include <stdint.h>
 #include "codeCache.h"
 
@@ -30,6 +31,7 @@ class VMStructs {
     static int _thread_osthread_offset;
     static int _osthread_id_offset;
     static bool _has_perm_gen;
+    static jfieldID _eetop;
 
     const char* at(int offset) {
         return (const char*)this + offset;
@@ -88,7 +90,11 @@ class java_lang_Class : VMStructs {
 class VMThread : VMStructs {
   public:
     static bool available() {
-        return _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
+        return _eetop != NULL;
+    }
+
+    static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
+        return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
 
     int osThreadId() {

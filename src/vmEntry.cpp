@@ -19,7 +19,6 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "profiler.h"
-#include "perfEvents.h"
 #include "lockTracer.h"
 
 
@@ -55,8 +54,8 @@ void VM::init(JavaVM* vm, bool attach) {
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
-    callbacks.ThreadStart = PerfEvents::ThreadStart;
-    callbacks.ThreadEnd = PerfEvents::ThreadEnd;
+    callbacks.ThreadStart = Profiler::ThreadStart;
+    callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));

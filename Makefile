@@ -55,6 +55,7 @@ build/$(PROFILER_JAR): src/java/one/profiler/*.java
 
 test: all
 	test/smoke-test.sh
+	test/thread-smoke-test.sh
 	test/alloc-smoke-test.sh
 	echo "All tests passed"
 

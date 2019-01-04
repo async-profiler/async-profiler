@@ -16,6 +16,7 @@
 
 #ifdef __linux__
 
+#include <jvmti.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,10 +30,11 @@
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"
+#include "os.h"
 #include "perfEvents.h"
-#include "stackFrame.h"
 #include "profiler.h"
 #include "spinLock.h"
+#include "stackFrame.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -374,18 +376,6 @@ bool PerfEvents::createForThread(int tid) {
     return true;
 }
 
-bool PerfEvents::createForAllThreads() {
-    bool success = false;
-
-    ThreadList* thread_list = OS::listThreads();
-    for (int tid; (tid = thread_list->next()) != -1; ) {
-        success |= createForThread(tid);
-    }
-    delete thread_list;
-
-    return success;
-}
-
 void PerfEvents::destroyForThread(int tid) {
     if (tid >= _max_events) {
         return;
@@ -402,12 +392,6 @@ void PerfEvents::destroyForThread(int tid) {
         munmap(event->_page, 2 * PERF_PAGE_SIZE);
         event->_page = NULL;
         event->unlock();
-    }
-}
-
-void PerfEvents::destroyForAllThreads() {
-    for (int i = 0; i < _max_events; i++) {
-        destroyForThread(i);
     }
 }
 
@@ -468,24 +452,36 @@ Error PerfEvents::start(Arguments& args) {
     
     OS::installSignalHandler(SIGPROF, signalHandler);
 
-    jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_START, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_THREAD_END, NULL);
+    // Enable thread events before traversing currently running threads
+    Profiler::_instance.switchThreadEvents(JVMTI_ENABLE);
 
-    if (!createForAllThreads()) {
-        jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
-        jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
+    // Create perf_events for all existing threads
+    bool created = false;
+    ThreadList* thread_list = OS::listThreads();
+    for (int tid; (tid = thread_list->next()) != -1; ) {
+        created |= createForThread(tid);
+    }
+    delete thread_list;
+
+    if (!created) {
+        Profiler::_instance.switchThreadEvents(JVMTI_DISABLE);
         return Error("Perf events unavailable. See stderr of the target process.");
     }
     return Error::OK;
 }
 
 void PerfEvents::stop() {
-    jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_START, NULL);
-    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_THREAD_END, NULL);
+    for (int i = 0; i < _max_events; i++) {
+        destroyForThread(i);
+    }
+}
 
-    destroyForAllThreads();
+void PerfEvents::onThreadStart() {
+    createForThread(OS::threadId());
+}
+
+void PerfEvents::onThreadEnd() {
+    destroyForThread(OS::threadId());
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
@@ -537,7 +533,7 @@ bool PerfEvents::supported() {
 }
 
 const char* PerfEvents::getEventName(int event_id) {
-    if (event_id >= 0 && event_id < sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType)) {
+    if (event_id >= 0 && (size_t)event_id < sizeof(PerfEventType::AVAILABLE_EVENTS) / sizeof(PerfEventType)) {
         return PerfEventType::AVAILABLE_EVENTS[event_id].name;
     }
     return NULL;

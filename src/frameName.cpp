@@ -22,80 +22,19 @@
 #include "vmStructs.h"
 
 
-FrameName::FrameName(bool simple, bool dotted, bool use_thread_names) :
+FrameName::FrameName(bool simple, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names) :
     _cache(),
     _simple(simple),
     _dotted(dotted),
-    _thread_count(0),
-    _threads(NULL) {
-
+    _thread_names_lock(thread_names_lock),
+    _thread_names(thread_names)
+{
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
-
-    if (use_thread_names && VMThread::available()) {
-        initThreadMap();
-    }
 }
 
 FrameName::~FrameName() {
-    jvmtiEnv* jvmti = VM::jvmti();
-    for (int i = 0; i < _thread_count; i++) {
-        jvmti->Deallocate((unsigned char*)_threads[i]._name);
-    }
-    free(_threads);
-
     freelocale(uselocale(_saved_locale));
-}
-
-void FrameName::initThreadMap() {
-    JNIEnv* env = VM::jni();
-    jclass threadClass = env->FindClass("java/lang/Thread");
-    if (threadClass == NULL) {
-        return;
-    }
-    jfieldID eetop = env->GetFieldID(threadClass, "eetop", "J");
-    if (eetop == NULL) {
-        return;
-    }
-
-    jvmtiEnv* jvmti = VM::jvmti();
-    jthread* thread_objects;
-    if (jvmti->GetAllThreads(&_thread_count, &thread_objects) != 0) {
-        return;
-    }
-
-    _threads = (ThreadId*)calloc(_thread_count, sizeof(ThreadId));
-
-    // Create a map [OS thread ID] -> [Java thread name] backed by a sorted array
-    for (int i = 0; i < _thread_count; i++) {
-        VMThread* vm_thread = (VMThread*)(uintptr_t)env->GetLongField(thread_objects[i], eetop);
-        jvmtiThreadInfo thread_info;
-        if (vm_thread != NULL && jvmti->GetThreadInfo(thread_objects[i], &thread_info) == 0) {
-            _threads[i]._id = vm_thread->osThreadId();
-            _threads[i]._name = thread_info.name;
-        }
-    }
-
-    qsort(_threads, _thread_count, sizeof(ThreadId), ThreadId::comparator);
-    jvmti->Deallocate((unsigned char*)thread_objects);
-}
-
-const char* FrameName::findThreadName(int tid) {
-    int low = 0;
-    int high = _thread_count - 1;
-
-    while (low <= high) {
-        int mid = (unsigned int)(low + high) >> 1;
-        if (_threads[mid]._id < tid) {
-            low = mid + 1;
-        } else if (_threads[mid]._id > tid) {
-            high = mid - 1;
-        } else {
-            return _threads[mid]._name;
-        }
-    }
-
-    return NULL;
 }
 
 const char* FrameName::cppDemangle(const char* name) {
@@ -209,9 +148,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
 
         case BCI_THREAD_ID: {
             int tid = (int)(uintptr_t)frame.method_id;
-            const char* name = findThreadName(tid);
-            if (name != NULL) {
-                snprintf(_buf, sizeof(_buf), "[%s tid=%d]", name, tid);
+            MutexLocker ml(_thread_names_lock);
+            ThreadMap::iterator it = _thread_names.find(tid);
+            if (it != _thread_names.end()) {
+                snprintf(_buf, sizeof(_buf), "[%s tid=%d]", it->second.c_str(), tid);
             } else {
                 snprintf(_buf, sizeof(_buf), "[tid=%d]", tid);
             }

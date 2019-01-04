@@ -17,10 +17,8 @@
 #ifndef _PERFEVENTS_H
 #define _PERFEVENTS_H
 
-#include <jvmti.h>
 #include <signal.h>
 #include "engine.h"
-#include "os.h"
 
 
 class PerfEvent;
@@ -36,9 +34,7 @@ class PerfEvents : public Engine {
     static bool _print_extended_warning;
 
     static bool createForThread(int tid);
-    static bool createForAllThreads();
     static void destroyForThread(int tid);
-    static void destroyForAllThreads();
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
@@ -51,19 +47,14 @@ class PerfEvents : public Engine {
     Error start(Arguments& args);
     void stop();
 
+    void onThreadStart();
+    void onThreadEnd();
+
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                        const void* jit_min_address, const void* jit_max_address);
 
     static bool supported();
     static const char* getEventName(int event_id);
-
-    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        createForThread(OS::threadId());
-    }
-
-    static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        destroyForThread(OS::threadId());
-    }
 };
 
 #endif // _PERFEVENTS_H
