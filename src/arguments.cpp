@@ -48,7 +48,8 @@ const Error Error::OK(NULL);
 //     threads       - profile different threads separately
 //     allkernel     - include only kernel-mode events
 //     alluser       - include only user-mode events
-//     simple        - simple class names instead of FQN
+//     simple[=bool] - simple class names instead of FQN
+//     ann[=bool]    - annotate Java method names
 //     title=TITLE   - FlameGraph title
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
@@ -122,7 +123,9 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "alluser") == 0) {
             _ring = RING_USER;
         } else if (strcmp(arg, "simple") == 0) {
-            _simple = true;
+            _simple = value == NULL || strcmp(value, "true") == 0;
+        } else if (strcmp(arg, "ann") == 0) {
+            _annotate = value == NULL || strcmp(value, "true") == 0;
         } else if (strcmp(arg, "title") == 0 && value != NULL) {
             _title = value;
         } else if (strcmp(arg, "width") == 0 && value != NULL) {

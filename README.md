@@ -269,6 +269,8 @@ Example: `./profiler.sh -t 8983`
 
 * `-s` - print simple class names instead of FQN.
 
+* `-a` - annotate Java method names by adding `_[j]` suffix.
+
 * `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
 This is a comma-separated list of the following options:
   - `summary` - dump basic profiling statistics;

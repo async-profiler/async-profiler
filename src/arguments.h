@@ -87,6 +87,7 @@ class Arguments {
     int _framebuf;
     bool _threads;
     bool _simple;
+    bool _annotate;
     char* _file;
     bool _dump_collapsed;
     bool _dump_flamegraph;

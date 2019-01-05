@@ -37,6 +37,7 @@ class FrameName {
     JMethodCache _cache;
     char _buf[520];
     bool _simple;
+    bool _annotate;
     bool _dotted;
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
@@ -47,7 +48,7 @@ class FrameName {
     char* javaClassName(const char* symbol, int length, bool simple, bool dotted);
 
   public:
-    FrameName(bool simple, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names);
+    FrameName(bool simple, bool annotate, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame);

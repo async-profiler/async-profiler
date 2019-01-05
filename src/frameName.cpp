@@ -22,9 +22,10 @@
 #include "vmStructs.h"
 
 
-FrameName::FrameName(bool simple, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names) :
+FrameName::FrameName(bool simple, bool annotate, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names) :
     _cache(),
     _simple(simple),
+    _annotate(annotate),
     _dotted(dotted),
     _thread_names_lock(thread_names_lock),
     _thread_names(thread_names)
@@ -66,6 +67,7 @@ char* FrameName::javaMethodName(jmethodID method) {
         result = javaClassName(class_name + 1, strlen(class_name) - 2, _simple, _dotted);
         strcat(result, ".");
         strcat(result, method_name);
+        if (_annotate) strcat(result, "_[j]");
     } else {
         snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
         result = _buf;
