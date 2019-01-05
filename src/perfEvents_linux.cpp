@@ -159,11 +159,11 @@ struct PerfEventType {
         }
 
         // Parse offset [+0x1234]
-        __u64 offset = 0;
+        long long offset = 0;
         c = strrchr(buf, '+');
         if (c != NULL) {
             *c++ = 0;
-            offset = (__u64)strtoll(c, NULL, 0);
+            offset = strtoll(c, NULL, 0);
         }
 
         // Parse symbol or absolute address
