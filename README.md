@@ -305,6 +305,21 @@ is restricted by `perf_event_paranoid` settings.
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
 gets the version of the library loaded into the given process.
 
+## Profiling Java in a container
+
+It is possible to profile Java processes running in a Docker or LXC container
+both from within a container and from the host system. When profiling
+from the host, async-profiler should be run by a privileged user -
+it will automatically switch to the proper pid/mount namespace and change
+user credentials to match the target process.
+
+By default, Docker container restricts the access to `perf_event_open`
+syscall. You'll need to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
+or disable it altogether with `--security-opt=seccomp:unconfined` option.
+
+Alternatively, if changing Docker configuration is not possible,
+you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
+
 ## Restrictions/Limitations
 
 * On most Linux systems, `perf_events` captures call stacks with a maximum depth
@@ -359,10 +374,23 @@ Could not start attach mechanism: No such file or directory
 ```
 The profiler cannot establish communication with the target JVM through UNIX domain socket.
 
-For the profiler to be able to access JVM, make sure
- 1. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
- 2. Attach socket `/tmp/.java_pidNNN` has not been deleted.
- 3. JVM is not run with `-XX:+DisableAttachMechanism` option.
+Usually this happens in one of the following cases:
+ 1. Attach socket `/tmp/.java_pidNNN` has been deleted. It is a common
+ practice to clean `/tmp` automatically with some scheduled script.
+ Configure the cleanup software to exclude `.java_pid*` files from deletion.  
+ How to check: run `lsof -p PID | grep java_pid`  
+ If it lists a socket file, but the file does not exist, then this is exactly
+ the described problem.
+ 2. JVM is started with `-XX:+DisableAttachMechanism` option.
+ 3. `/tmp` directory of Java process is not physically the same directory
+ as `/tmp` of your shell, because Java is running in a container or in
+ `chroot` environment. `jattach` attempts to solve this automatically,
+ but it might lack the required permissions to do so.  
+ Check `strace build/jattach PID properties`
+ 4. JVM is busy and cannot reach a safepoint. For instance,
+ JVM is in the middle of long-running garbage collection.  
+ How to check: run `kill -3 PID`. Healthy JVM process should print
+ a thread dump and heap info in its console.
 
 ```
 Failed to inject profiler into <pid>
@@ -382,6 +410,11 @@ Typical reasons include:
  2. seccomp disables perf_event_open API in a container.
  3. OS runs under a hypervisor that does not virtualize performance counters.
  4. perf_event_open API is not supported on this system, e.g. WSL.
+
+If changing the configuration is not possible, you may fall back to
+`-e itimer` profiling mode. It is similar to `cpu` mode, but does not
+require perf_events support. As a drawback, there will be no kernel
+stack traces. 
 
 ```
 [frame_buffer_overflow]
