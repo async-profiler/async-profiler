@@ -113,6 +113,7 @@ class Arguments {
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
         _simple(false),
+        _annotate(false),
         _file(NULL),
         _dump_collapsed(false),
         _dump_flamegraph(false),
