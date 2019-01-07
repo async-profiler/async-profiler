@@ -24,11 +24,13 @@ jlong LockTracer::_start_time = 0;
 jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
 UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
+bool LockTracer::_supports_lock_names = false;
 
 Error LockTracer::start(Arguments& args) {
-    if (!VMStructs::available()) {
-        return Error("VMStructs unavailable. Unsupported JVM?");
-    }
+    // PermGen in JDK 7 makes difficult to get symbol name from jclass.
+    // Also some JVMs do not support VMStructs at all.
+    // Let's just record stack traces without lock names in these cases.
+    _supports_lock_names = VMStructs::available() && !VMStructs::hasPermGen();
 
     // Enable Java Monitor events
     jvmtiEnv* jvmti = VM::jvmti();
@@ -131,13 +133,11 @@ jclass LockTracer::getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env) {
 }
 
 void LockTracer::recordContendedLock(jclass lock_class, jlong time) {
-    if (VMStructs::hasPermGen()) {
-        // PermGen in JDK 7 makes difficult to get symbol name from jclass.
-        // Let's just skip it and record stack trace without lock class.
-        Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, NULL);
-    } else {
+    if (_supports_lock_names) {
         VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, (jmethodID)lock_name);
+    } else {
+        Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, NULL);
     }
 }
 

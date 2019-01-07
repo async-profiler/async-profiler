@@ -361,7 +361,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         max_depth = _jstackdepth;
     }
 
-    if (event == NULL || _JvmtiEnv_GetStackTrace == NULL) {
+    if (event_type == 0 || _JvmtiEnv_GetStackTrace == NULL) {
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
@@ -398,6 +398,10 @@ void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
         // Fallback to ThreadLocalStorage::get_thread_slow()
         if (_ThreadLocalStorage_thread == NULL) {
             _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
+        }
+        // Fallback to Thread::current(), e.g. on Zing
+        if (_ThreadLocalStorage_thread == NULL) {
+            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN6Thread7currentEv");
         }
         // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
         if (_ThreadLocalStorage_thread != NULL) {

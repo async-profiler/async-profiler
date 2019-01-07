@@ -134,7 +134,8 @@ struct PerfEventType {
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
         strncpy(buf, name, sizeof(buf) - 1);
-        
+        buf[sizeof(buf) - 1] = 0;
+
         // Parse access type [:rwx]
         char* c = strrchr(buf, ':');
         if (c != NULL) {
