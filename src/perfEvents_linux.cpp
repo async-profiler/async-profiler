@@ -101,7 +101,6 @@ struct FunctionWithCounter {
 struct PerfEventType {
     const char* name;
     long default_interval;
-    __u32 precise_ip;
     __u32 type;
     __u64 config;
     __u32 bp_type;
@@ -232,24 +231,24 @@ struct PerfEventType {
     ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
 
 PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
-    {"cpu",          DEFAULT_INTERVAL, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
-    {"page-faults",                 1, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
-    {"context-switches",            1, 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
+    {"cpu",          DEFAULT_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
+    {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
+    {"context-switches",            1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
 
-    {"cycles",                1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
-    {"instructions",          1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
-    {"cache-references",      1000000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
-    {"cache-misses",             1000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
-    {"branches",              1000000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
-    {"branch-misses",            1000, 2, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
-    {"bus-cycles",            1000000, 0, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+    {"cycles",                1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
+    {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
+    {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
+    {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
+    {"branches",              1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
+    {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
 
-    {"L1-dcache-load-misses", 1000000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
-    {"LLC-load-misses",          1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
-    {"dTLB-load-misses",         1000, 0, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
+    {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
+    {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
+    {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
-    {"mem:breakpoint",              1, 0, PERF_TYPE_BREAKPOINT, 0},
-    {"trace:tracepoint",            1, 0, PERF_TYPE_TRACEPOINT, 0},
+    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0},
+    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0},
 
     {NULL}
 };
@@ -328,7 +327,11 @@ bool PerfEvents::createForThread(int tid) {
         attr.config = event_type->config;
     }
 
-    attr.precise_ip = event_type->precise_ip;
+    // Hardware events may not always support zero skid
+    if (attr.type == PERF_TYPE_SOFTWARE) {
+        attr.precise_ip = 2;
+    }
+
     attr.sample_period = _interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
