@@ -19,7 +19,11 @@
 #include <arpa/inet.h>
 #include <byteswap.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -77,10 +81,27 @@ int OS::threadId() {
     return syscall(__NR_gettid);
 }
 
+bool OS::isThreadRunning(int thread_id) {
+    char buf[512];
+    sprintf(buf, "/proc/self/task/%d/stat", thread_id);
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    bool running = false;
+    if (read(fd, buf, sizeof(buf)) > 0) {
+        char* s = strchr(buf, ')');
+        running = s != NULL && (s[2] == 'R' || s[2] == 'D');
+    }
+
+    close(fd);
+    return running;
+}
+
 void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)) {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
     sa.sa_sigaction = handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
 

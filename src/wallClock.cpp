@@ -24,9 +24,10 @@
 #include "profiler.h"
 
 
-const int THREADS_PER_TICK = 7;
+const int THREADS_PER_TICK = 8;
 
 long WallClock::_interval;
+bool WallClock::_sample_idle_threads;
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
@@ -37,6 +38,7 @@ Error WallClock::start(Arguments& args) {
         return Error("interval must be positive");
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
+    _sample_idle_threads = strcmp(args._event, EVENT_WALL) == 0;
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 
@@ -67,6 +69,7 @@ void WallClock::timerLoop() {
     ThreadList* thread_list = NULL;
 
     int self = OS::threadId();
+    bool sample_idle_threads = _sample_idle_threads;
     struct pollfd fds = {_pipefd[0], POLLIN, 0};
     int timeout = _interval > 1000000 ? (int)(_interval / 1000000) : 1;
 
@@ -75,14 +78,16 @@ void WallClock::timerLoop() {
             thread_list = OS::listThreads();
         }
 
-        for (int i = 0; i < THREADS_PER_TICK; i++) {
+        for (int count = 0; count < THREADS_PER_TICK; ) {
             int thread_id = thread_list->next();
             if (thread_id == -1) {
                 delete thread_list;
                 thread_list = NULL;
                 break;
-            } else if (thread_id != self) {
+            }
+            if (thread_id != self && (sample_idle_threads || OS::isThreadRunning(thread_id))) {
                 OS::sendSignalToThread(thread_id, SIGPROF);
+                count++;
             }
         }
     }

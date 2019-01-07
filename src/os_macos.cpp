@@ -72,10 +72,18 @@ int OS::threadId() {
     return pthread_mach_thread_np(pthread_self());
 }
 
+bool OS::isThreadRunning(int thread_id) {
+    struct thread_basic_info info;
+    mach_msg_type_number_t size = sizeof(info);
+    if (thread_info((thread_act_t)thread_id, THREAD_BASIC_INFO, (thread_info_t)&info, &size) != 0) {
+        return false;
+    }
+    return info.run_state == TH_STATE_RUNNING;
+}
+
 void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)) {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
     sa.sa_sigaction = handler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
 

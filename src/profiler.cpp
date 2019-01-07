@@ -451,7 +451,7 @@ void Profiler::updateAllThreadNames() {
 
 Engine* Profiler::selectEngine(const char* event_name) {
     if (strcmp(event_name, EVENT_CPU) == 0) {
-        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&itimer;
+        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_ALLOC) == 0) {
         return &alloc_tracer;
     } else if (strcmp(event_name, EVENT_LOCK) == 0) {
