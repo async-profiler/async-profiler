@@ -1,10 +1,25 @@
 # Changelog
 
-## [1.5 Early Access]
+## [1.5]
 
 ### Features
+ - Wall-clock profiler: `-e wall`
+ - `-e itimer` mode for systems that do not support perf_events
  - Native stack traces on macOS
- 
+ - Support for Zing runtime, except allocation profiling
+
+### Improvements
+ - `--all-user` option to allow profiling with restricted
+   `perf_event_paranoid` (contributed by @jpbempel)
+ - `-a` option to annotate method names
+ - Improved attach to containerized and chroot'ed JVMs
+ - Native function profiling now accepts non-public symbols
+ - Better mapping of Java thread names (contributed by @KirillTim)
+
+### Changes
+ - Changed default profiling engine on macOS
+ - Fixed the order of stack frames in JFR format
+
 ## [1.4] - 2018-06-24
 
 ### Features
