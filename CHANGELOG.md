@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.5]
+## [1.5] - 2019-01-08
 
 ### Features
  - Wall-clock profiler: `-e wall`
