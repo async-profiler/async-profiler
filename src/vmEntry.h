@@ -55,6 +55,10 @@ class VM {
 
     static void init(JavaVM* vm, bool attach);
 
+    static JavaVM* vm() {
+        return _vm;
+    }
+
     static jvmtiEnv* jvmti() {
         return _jvmti;
     }

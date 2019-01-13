@@ -27,6 +27,7 @@
 #include "mutex.h"
 #include "spinLock.h"
 #include "codeCache.h"
+#include "tracer.h"
 #include "vmEntry.h"
 
 
@@ -53,33 +54,26 @@ union CallTraceBuffer {
 
 
 class CallTraceSample {
-  private:
+  public:
     u64 _samples;
     u64 _counter;
     int _start_frame; // Offset in frame buffer
     int _num_frames;
 
-  public:
     static int comparator(const void* s1, const void* s2) {
         return cmp64(((CallTraceSample*)s2)->_counter, ((CallTraceSample*)s1)->_counter);
     }
-
-    friend class Profiler;
-    friend class Recording;
 };
 
 class MethodSample {
-  private:
+  public:
     u64 _samples;
     u64 _counter;
     ASGCT_CallFrame _method;
 
-  public:
     static int comparator(const void* s1, const void* s2) {
         return cmp64(((MethodSample*)s2)->_counter, ((MethodSample*)s1)->_counter);
     }
-
-    friend class Profiler;
 };
 
 
@@ -113,6 +107,7 @@ class Profiler {
     State _state;
     Mutex _thread_names_lock;
     std::map<int, std::string> _thread_names;
+    Tracer _tracer;
     FlightRecorder _jfr;
     Engine* _engine;
     time_t _start_time;
@@ -175,6 +170,7 @@ class Profiler {
 
     Profiler() :
         _state(IDLE),
+        _tracer(),
         _jfr(),
         _frame_buffer(NULL),
         _thread_events_state(JVMTI_DISABLE),
@@ -236,6 +232,7 @@ class Profiler {
     }
 
     friend class Recording;
+    friend class Tracer;
 };
 
 #endif // _PROFILER_H

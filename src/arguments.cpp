@@ -87,6 +87,8 @@ Error Arguments::parse(const char* args) {
                 return Error("event must not be empty");
             }
             _event = value;
+        } else if (strcmp(arg, "trace") == 0) {
+            _trace = true;
         } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
             _dump_collapsed = true;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;

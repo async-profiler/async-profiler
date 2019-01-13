@@ -89,6 +89,7 @@ class Arguments {
     bool _simple;
     bool _annotate;
     char* _file;
+    bool _trace;
     bool _dump_collapsed;
     bool _dump_flamegraph;
     bool _dump_tree;
@@ -115,6 +116,7 @@ class Arguments {
         _simple(false),
         _annotate(false),
         _file(NULL),
+        _trace(false),
         _dump_collapsed(false),
         _dump_flamegraph(false),
         _dump_tree(false),

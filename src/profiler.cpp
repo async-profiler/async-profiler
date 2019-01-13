@@ -376,6 +376,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     if (num_frames > 0) {
         storeMethod(frames[0].method_id, frames[0].bci, counter);
         int call_trace_id = storeCallTrace(num_frames, frames, counter);
+        _tracer.recordExecutionSample(tid, call_trace_id, counter);
         _jfr.recordExecutionSample(lock_index, tid, call_trace_id);
     }
 
@@ -508,7 +509,12 @@ Error Profiler::start(Arguments& args) {
     VMStructs::init(libjvm);
     initJvmtiFunctions(libjvm);
 
-    if (args._dump_jfr) {
+    if (args._trace) {
+        Error error = _tracer.start(args);
+        if (error) {
+            return error;
+        }
+    } else if (args._dump_jfr) {
         Error error = _jfr.start(args._file);
         if (error) {
             return error;
@@ -518,6 +524,7 @@ Error Profiler::start(Arguments& args) {
     _engine = selectEngine(args._event);
     Error error = _engine->start(args);
     if (error) {
+        _tracer.stop();
         _jfr.stop();
         return error;
     }
@@ -542,6 +549,7 @@ Error Profiler::stop() {
 
     // Acquire all spinlocks to avoid race with remaining signals
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    _tracer.stop();
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
 
@@ -793,7 +801,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
 }
 
 void Profiler::run(Arguments& args) {
-    if (args._file == NULL || args._dump_jfr) {
+    if (args._file == NULL || args._trace || args._dump_jfr) {
         runInternal(args, std::cout);
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);
