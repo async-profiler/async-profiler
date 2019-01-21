@@ -88,9 +88,13 @@ The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 Heap profiler requires HotSpot debug symbols. Oracle JDK already has them
 embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
 in a separate package. For example, to install OpenJDK debug symbols on
-Debian / Ubuntu, run
+Debian / Ubuntu, run:
 ```
 # apt-get install openjdk-8-dbg
+```
+or for Java 11:
+```
+# apt-get install openjdk-11-dbg
 ```
 On Gentoo the ``icedtea`` OpenJDK package can be built with the per-package setting
 ``FEATURES="nostrip"`` to retain symbols.
@@ -422,3 +426,9 @@ stack traces.
 ```
 This message in the output means there was not enough space to store all call traces.
 Consider increasing frame buffer size with `-b` option.
+
+```
+No AllocTracer symbols found. Are JDK debug symbols installed?
+```
+This message means you have not installed all dependencies for allocation profiling.
+See [Allocation profiling](/#allocation-profiling) section for more details. 
