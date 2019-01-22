@@ -90,14 +90,15 @@ embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
 in a separate package. For example, to install OpenJDK debug symbols on
 Debian / Ubuntu, run:
 ```
-# apt-get install openjdk-8-dbg
+# apt install openjdk-8-dbg
 ```
-or for Java 11:
+or for OpenJDK 11:
 ```
-# apt-get install openjdk-11-dbg
+# apt install openjdk-11-dbg
 ```
-On Gentoo the ``icedtea`` OpenJDK package can be built with the per-package setting
-``FEATURES="nostrip"`` to retain symbols.
+
+On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
+`FEATURES="nostrip"` to retain symbols.
 
 ### Wall-clock profiling
 
@@ -422,13 +423,15 @@ require perf_events support. As a drawback, there will be no kernel
 stack traces. 
 
 ```
+No AllocTracer symbols found. Are JDK debug symbols installed?
+```
+It might be needed to install the package with OpenJDK debug symbols.
+See [Allocation profiling](#allocation-profiling) for details.
+
+Note that allocation profiling is not supported on JVMs other than HotSpot, e.g. Zing.
+
+```
 [frame_buffer_overflow]
 ```
 This message in the output means there was not enough space to store all call traces.
 Consider increasing frame buffer size with `-b` option.
-
-```
-No AllocTracer symbols found. Are JDK debug symbols installed?
-```
-This message means you have not installed all dependencies for allocation profiling.
-See [Allocation profiling](/#allocation-profiling) section for more details. 
