@@ -1,3 +1,5 @@
+import java.math.BigInteger;
+
 public class ThreadsTarget {
     public static void main(String[] args) {
         new Thread(new Runnable() {
@@ -17,17 +19,17 @@ public class ThreadsTarget {
 
     static void methodForThreadEarlyEnd() {
         long now = System.currentTimeMillis();
-        long counter = 0;
+        BigInteger counter = BigInteger.ZERO;
         while (System.currentTimeMillis() - now < 300) {
-            counter++;
+            counter = counter.nextProbablePrime();
         }
     }
 
     static void methodForRenamedThread() {
         long now = System.currentTimeMillis();
-        long counter = 0;
+        BigInteger counter = BigInteger.ZERO;
         while (System.currentTimeMillis() - now < 1000) {
-            counter++;
+            counter = counter.nextProbablePrime();
         }
     }
 }
