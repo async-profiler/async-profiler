@@ -356,6 +356,12 @@ bool PerfEvents::createForThread(int tid) {
         return false;
     }
 
+    if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
+        // Lost race. The event is created either from start() or from onThreadStart()
+        close(fd);
+        return false;
+    }
+
     void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
         perror("perf_event mmap failed");
@@ -363,7 +369,6 @@ bool PerfEvents::createForThread(int tid) {
     }
 
     _events[tid].reset();
-    _events[tid]._fd = fd;
     _events[tid]._page = (struct perf_event_mmap_page*)page;
 
     struct f_owner_ex ex;
@@ -386,10 +391,10 @@ void PerfEvents::destroyForThread(int tid) {
     }
 
     PerfEvent* event = &_events[tid];
-    if (event->_fd != 0) {
-        ioctl(event->_fd, PERF_EVENT_IOC_DISABLE, 0);
-        close(event->_fd);
-        event->_fd = 0;
+    int fd = event->_fd;
+    if (fd != 0 && __sync_bool_compare_and_swap(&event->_fd, fd, 0)) {
+        ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+        close(fd);
     }
     if (event->_page != NULL) {
         event->lock();
