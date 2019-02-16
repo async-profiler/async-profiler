@@ -487,12 +487,15 @@ Error Profiler::start(Arguments& args) {
 
     // Reset frames
     free(_frame_buffer);
-    _jstackdepth = args._jstackdepth;
     _frame_buffer_size = args._framebuf;
     _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
+    if (_frame_buffer == NULL) {
+        return Error("Not enough memory to allocate frame buffer");
+    }
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
     _threads = args._threads && !args._dump_jfr;
+    _jstackdepth = args._jstackdepth;
 
     // Reset thread names
     {
