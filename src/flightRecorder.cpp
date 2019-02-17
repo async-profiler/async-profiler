@@ -383,7 +383,7 @@ class Recording {
         if (mi->_key == 0) {
             mi->_key = _method_map.size();
 
-            if (frame.bci == BCI_NATIVE_FRAME || method == NULL) {
+            if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR || method == NULL) {
                 std::string name;
                 FrameTypeId type = demangle((const char*)method, name);
                 mi->_class = lookup(_class_map, "");

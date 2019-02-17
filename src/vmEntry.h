@@ -26,6 +26,24 @@ enum ASGCT_CallFrameType {
     BCI_SYMBOL              = -11,  // method_id is VMSymbol*
     BCI_SYMBOL_OUTSIDE_TLAB = -12,  // VMSymbol* specifically for allocations outside TLAB
     BCI_THREAD_ID           = -13,  // method_id designates a thread
+    BCI_ERROR               = -14,  // method_id is error string
+};
+
+// See hotspot/src/share/vm/prims/forte.cpp
+enum ASGCT_Failure {
+    ticks_no_Java_frame         =  0,
+    ticks_no_class_load         = -1,
+    ticks_GC_active             = -2,
+    ticks_unknown_not_Java      = -3,
+    ticks_not_walkable_not_Java = -4,
+    ticks_unknown_Java          = -5,
+    ticks_not_walkable_Java     = -6,
+    ticks_unknown_state         = -7,
+    ticks_thread_exit           = -8,
+    ticks_deopt                 = -9,
+    ticks_safepoint             = -10,
+    ticks_skipped               = -11,
+    ASGCT_FAILURE_TYPES         = 12
 };
 
 typedef struct {

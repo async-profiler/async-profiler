@@ -171,6 +171,33 @@ void Profiler::updateJitRange(const void* min_address, const void* max_address) 
     if (max_address > _jit_max_address) _jit_max_address = max_address;
 }
 
+const char* Profiler::asgctError(int code) {
+    switch (code) {
+        case ticks_no_Java_frame:
+        case ticks_unknown_not_Java:
+        case ticks_not_walkable_not_Java:
+            // Not in Java context at all; this is not an error
+            return NULL;
+        case ticks_GC_active:
+            return "GC_active";
+        case ticks_unknown_Java:
+            return "unknown_Java";
+        case ticks_not_walkable_Java:
+            return "not_walkable_Java";
+        case ticks_thread_exit:
+            return "thread_exit";
+        case ticks_deopt:
+            return "deoptimization";
+        case ticks_safepoint:
+            return "safepoint";
+        case ticks_skipped:
+            return "skipped";
+        default:
+            // Should not happen
+            return "unexpected_state";
+    }
+}
+
 NativeCodeCache* Profiler::jvmLibrary() {
     const void* asyncGetCallTraceAddr = (const void*)VM::_asyncGetCallTrace;
     for (int i = 0; i < _native_lib_count; i++) {
@@ -216,13 +243,14 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
-        atomicInc(_failures[-ticks_no_Java_frame]);
+        // Not a Java thread
         return 0;
     }
 
     ASGCT_CallTrace trace = {jni, 0, frames};
     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
 
+#ifndef SAFE_MODE
     if (trace.num_frames == ticks_unknown_Java) {
         // If current Java stack is not walkable (e.g. the top frame is not fully constructed),
         // try to manually pop the top frame off, hoping that the previous frame is walkable.
@@ -257,16 +285,26 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Restore previous context
             trace.num_frames = ticks_unknown_Java;
         }
+    } else if (trace.num_frames == ticks_GC_active) {
+        // While GC is running Java threads are known to be at safepoint
+        return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
     }
+#endif // SAFE_MODE
 
     if (trace.num_frames > 0) {
         return trace.num_frames;
     }
 
-    // Record failure
-    int type = -trace.num_frames < FAILURE_TYPES ? -trace.num_frames : -ticks_unknown_state;
-    atomicInc(_failures[type]);
-    return 0;
+    const char* err_string = asgctError(trace.num_frames);
+    if (err_string == NULL) {
+        // No Java stack, because thread is not in Java context
+        return 0;
+    }
+
+    atomicInc(_failures[-trace.num_frames]);
+    frames[0].bci = BCI_ERROR;
+    frames[0].method_id = (jmethodID)err_string;
+    return 1;
 }
 
 int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
@@ -284,7 +322,6 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
         return num_frames;
     }
 
-    atomicInc(_failures[-ticks_no_Java_frame]);
     return 0;
 }
 
@@ -369,15 +406,17 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, max_depth);
     }
 
+    if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (jmethodID)"not_walkable");
+    }
+
     if (_threads) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
     }
 
-    if (num_frames > 0) {
-        storeMethod(frames[0].method_id, frames[0].bci, counter);
-        int call_trace_id = storeCallTrace(num_frames, frames, counter);
-        _jfr.recordExecutionSample(lock_index, tid, call_trace_id);
-    }
+    storeMethod(frames[0].method_id, frames[0].bci, counter);
+    int call_trace_id = storeCallTrace(num_frames, frames, counter);
+    _jfr.recordExecutionSample(lock_index, tid, call_trace_id);
 
     _locks[lock_index].unlock();
 }
@@ -565,32 +604,18 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 }
 
 void Profiler::dumpSummary(std::ostream& out) {
-    static const char* title[FAILURE_TYPES] = {
-        "Non-Java:",
-        "JVM not initialized:",
-        "GC active:",
-        "Unknown (native):",
-        "Not walkable (native):",
-        "Unknown (Java):",
-        "Not walkable (Java):",
-        "Unknown state:",
-        "Thread exit:",
-        "Deopt:",
-        "Safepoint:",
-        "Skipped:"
-    };
-
     char buf[256];
     snprintf(buf, sizeof(buf),
             "--- Execution profile ---\n"
-            "Total samples:         %lld\n",
+            "Total samples       : %lld\n",
             _total_samples);
     out << buf;
     
     double percent = 100.0 / _total_samples;
-    for (int i = 0; i < FAILURE_TYPES; i++) {
-        if (_failures[i] > 0) {
-            snprintf(buf, sizeof(buf), "%-22s %lld (%.2f%%)\n", title[i], _failures[i], _failures[i] * percent);
+    for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
+        const char* err_string = asgctError(-i);
+        if (err_string != NULL && _failures[i] > 0) {
+            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
             out << buf;
         }
     }
@@ -600,7 +625,7 @@ void Profiler::dumpSummary(std::ostream& out) {
         out << "Frame buffer overflowed! Consider increasing its size." << std::endl;
     } else {
         double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
-        out << "Frame buffer usage:    " << usage << "%" << std::endl;
+        out << "Frame buffer usage  : " << usage << "%" << std::endl;
     }
     out << std::endl;
 }

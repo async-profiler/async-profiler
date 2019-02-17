@@ -161,6 +161,11 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
             return _buf;
         }
 
+        case BCI_ERROR: {
+            snprintf(_buf, sizeof(_buf), "[%s]", (const char*)frame.method_id);
+            return _buf;
+        }
+
         default: {
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {

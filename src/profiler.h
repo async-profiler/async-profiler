@@ -91,24 +91,6 @@ enum State {
 
 class Profiler {
   private:
-
-    // See hotspot/src/share/vm/prims/forte.cpp
-    enum {
-        ticks_no_Java_frame         =  0,
-        ticks_no_class_load         = -1,
-        ticks_GC_active             = -2,
-        ticks_unknown_not_Java      = -3,
-        ticks_not_walkable_not_Java = -4,
-        ticks_unknown_Java          = -5,
-        ticks_not_walkable_Java     = -6,
-        ticks_unknown_state         = -7,
-        ticks_thread_exit           = -8,
-        ticks_deopt                 = -9,
-        ticks_safepoint             = -10,
-        ticks_skipped               = -11,
-        FAILURE_TYPES               = 12
-    };
-
     Mutex _state_lock;
     State _state;
     Mutex _thread_names_lock;
@@ -119,7 +101,7 @@ class Profiler {
 
     u64 _total_samples;
     u64 _total_counter;
-    u64 _failures[FAILURE_TYPES];
+    u64 _failures[ASGCT_FAILURE_TYPES];
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
@@ -151,6 +133,7 @@ class Profiler {
     void addRuntimeStub(const void* address, int length, const char* name);
     void updateJitRange(const void* min_address, const void* max_address);
 
+    const char* asgctError(int code);
     const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
