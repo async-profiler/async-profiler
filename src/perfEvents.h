@@ -19,7 +19,7 @@
 
 #include <signal.h>
 #include "engine.h"
-
+#include "codeCache.h"
 
 class PerfEvent;
 class PerfEventType;
@@ -51,7 +51,7 @@ class PerfEvents : public Engine {
     void onThreadEnd();
 
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                       const void* jit_min_address, const void* jit_max_address);
+                       VmCodeCache *cc);
 
     static bool supported();
     static const char* getEventName(int event_id);

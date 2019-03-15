@@ -31,7 +31,7 @@
 
 class MachOParser {
   private:
-    NativeCodeCache* _cc;
+    NativeLib* _cc;
     const mach_header* _image_base;
 
     static const char* add(const void* base, uint32_t offset) {
@@ -102,10 +102,10 @@ class MachOParser {
     }
 
   public:
-    MachOParser(NativeCodeCache* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
+    MachOParser(NativeLib* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
     }
 
-    static void parseFile(NativeCodeCache* cc, const mach_header* image_base, const char* file_name) {
+    static void parseFile(NativeLib* cc, const mach_header* image_base, const char* file_name) {
         int fd = open(file_name, O_RDONLY);
         if (fd == -1) {
             return;
@@ -130,10 +130,10 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+void Symbols::parseKernelSymbols(NativeLib* cc) {
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+void Symbols::parseLibraries(NativeLib** array, volatile int& count, int size) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
@@ -145,7 +145,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
 
         const char* path = _dyld_get_image_name(i);
 
-        NativeCodeCache* cc = new NativeCodeCache(path);
+        NativeLib* cc = new NativeLib(path);
         MachOParser::parseFile(cc, image_base, path);
 
         cc->sort();

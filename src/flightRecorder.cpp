@@ -382,12 +382,12 @@ class Recording {
         if (mi->_key == 0) {
             mi->_key = _method_map.size();
 
-            if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR || method == NULL) {
+            if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_KERNEL_FRAME || frame.bci == BCI_ERROR || method == NULL) {
                 std::string name;
                 FrameTypeId type = demangle((const char*)method, name);
                 mi->_class = lookup(_class_map, "");
                 mi->_name = lookup(_symbol_map, name);
-                mi->_sig = lookup(_symbol_map, type == FRAME_KERNEL ? "(Lk;)L;" : "()L;");
+                mi->_sig = lookup(_symbol_map, frame.bci == BCI_KERNEL_FRAME ? "(Lk;)L;" : "()L;");
                 mi->_modifiers = 0x100;
                 mi->_type = type;
 

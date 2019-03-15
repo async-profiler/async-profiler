@@ -50,10 +50,10 @@ u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     const u64 M = 0xc6a4a7935bd1e995ULL;
     const int R = 47;
 
-    u64 h = num_frames * M;
+    u64 h = 2 * num_frames * M;
 
-    for (int i = 0; i < num_frames; i++) {
-        u64 k = (u64)frames[i].method_id;
+    for (int i = 0; i < (2 * num_frames); i++) {
+        u64 k = ((i & 1) == 0)  ? (u64)frames[i >> 1].method_id : (u64)frames[i >> 1].bci;
         k *= M;
         k ^= k >> R;
         k *= M;
@@ -65,7 +65,18 @@ u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     h *= M;
     h ^= h >> R;
 
-    return h;
+    // Don't hash anything to 0, should do no harm.
+    return h == 0 ? 1 : h;
+}
+
+bool Profiler::tracesMatch(int num_frames1, ASGCT_CallFrame* frames1, int num_frames2, ASGCT_CallFrame* frames2) {
+    // two traces match iff all methodIDs and all bcis are identical
+    if (num_frames1 != num_frames2) return false;
+    for (int i = 0; i < num_frames1; ++i) {
+        if (frames1[i].method_id != frames2[i].method_id) return false;
+        if (frames1[i].bci != frames2[i].bci) return false;
+    }
+    return true;
 }
 
 int Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
@@ -73,7 +84,8 @@ int Profiler::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counte
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
-    while (_hashes[i] != hash) {
+    while (_hashes[i] == 0 || (_hashes[i] != hash &&
+                               !tracesMatch(num_frames, frames, _traces[i]._num_frames, &_frame_buffer[_traces[i]._start_frame]))) {
         if (_hashes[i] == 0) {
             if (__sync_bool_compare_and_swap(&_hashes[i], 0, hash)) {
                 copyToFrameBuffer(num_frames, frames, &_traces[i]);
@@ -111,25 +123,37 @@ void Profiler::copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTr
     }
 }
 
-u64 Profiler::hashMethod(jmethodID method) {
-    const u64 M = 0xc6a4a7935bd1e995ULL;
-    const int R = 17;
+u64 Profiler::hashMethod(jmethodID method, jint bci) {
+      const u64 M = 0xc6a4a7935bd1e995ULL;
+      const int R = 47;
+      u64 h = M + M;
 
-    u64 h = (u64)method;
+      u64 k = (u64)method;
+      k *= M;
+      k ^= k >> R;
+      k *= M;
+      h ^= k;
+      h *= M;
 
-    h ^= h >> R;
-    h *= M;
-    h ^= h >> R;
+      k = M * (u64)bci;
+      k ^= k >> R;
+      k *= M;
+      h ^= k;
+      h *= M;
 
-    return h;
+      h ^= h >> R;
+      h *= M;
+      h ^= h >> R;
+
+      return h;
 }
 
 void Profiler::storeMethod(jmethodID method, jint bci, u64 counter) {
-    u64 hash = hashMethod(method);
+  u64 hash = hashMethod(method, bci);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
-    while (_methods[i]._method.method_id != method) {
+    while (_methods[i]._method.method_id != method || _methods[i]._method.bci != bci) {
         if (_methods[i]._method.method_id == NULL) {
             if (__sync_bool_compare_and_swap(&_methods[i]._method.method_id, NULL, method)) {
                 _methods[i]._method.bci = bci;
@@ -149,28 +173,22 @@ void Profiler::storeMethod(jmethodID method, jint bci, u64 counter) {
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
     _jit_lock.lock();
-    _java_methods.add(address, length, method);
-    updateJitRange(address, (const char*)address + length);
+    _vm_code_cache.add(address, length, method);
     _jit_lock.unlock();
 }
 
 void Profiler::removeJavaMethod(const void* address, jmethodID method) {
     _jit_lock.lock();
-    _java_methods.remove(address, method);
+    _vm_code_cache.remove(address, method);
     _jit_lock.unlock();
 }
 
 void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
     _jit_lock.lock();
-    _runtime_stubs.add(address, length, name);
-    updateJitRange(address, (const char*)address + length);
+    _vm_code_cache.add(address, length, name);
     _jit_lock.unlock();
 }
 
-void Profiler::updateJitRange(const void* min_address, const void* max_address) {
-    if (min_address < _jit_min_address) _jit_min_address = min_address;
-    if (max_address > _jit_max_address) _jit_max_address = max_address;
-}
 
 const char* Profiler::asgctError(int code) {
     switch (code) {
@@ -199,7 +217,7 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-NativeCodeCache* Profiler::jvmLibrary() {
+NativeLib* Profiler::jvmLibrary() {
     const void* asyncGetCallTraceAddr = (const void*)VM::_asyncGetCallTrace;
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -221,39 +239,42 @@ const void* Profiler::findSymbol(const char* name) {
     return NULL;
 }
 
-const char* Profiler::findNativeMethod(const void* address) {
+const char* Profiler::findNativeMethod(const void* address, bool& is_kernel) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
+            is_kernel = _native_libs[i]->isKernel();
             return _native_libs[i]->binarySearch(address);
         }
     }
     return NULL;
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame, const void** first_java_pc) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                                _jit_min_address, _jit_max_address);
+                                                &_vm_code_cache);
 
     *stopped_at_java_frame = false;
     if (native_frames > 0) {
         const void* last_pc = native_callchain[native_frames - 1];
-        if (last_pc >= _jit_min_address && last_pc < _jit_max_address) {
+        if (_vm_code_cache.contains(last_pc)) {
             *stopped_at_java_frame = true;
+            *first_java_pc = last_pc;
             native_frames--;
         }
     }
 
     for (int i = 0; i < native_frames; i++) {
-        frames[i].bci = BCI_NATIVE_FRAME;
-        frames[i].method_id = (jmethodID)findNativeMethod(native_callchain[i]);
+        bool is_kernel = false;
+        frames[i].method_id = (jmethodID)findNativeMethod(native_callchain[i], is_kernel);
+        frames[i].bci = is_kernel ? BCI_KERNEL_FRAME : BCI_NATIVE_FRAME;
     }
 
     return native_frames;
 }
 
-int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, const void **first_java_pc) {
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         // Not a Java thread
@@ -288,6 +309,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // otherwise AsyncGetCallTrace may crash
             if (addressInCode((const void*)top_frame.pc())) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                *first_java_pc = (const void*)top_frame.pc(); // adjust first Java PC
             }
             top_frame.restore(pc, sp, fp);
 
@@ -315,8 +337,10 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     }
 
     atomicInc(_failures[-trace.num_frames]);
+
     frames[0].bci = BCI_ERROR;
     frames[0].method_id = (jmethodID)err_string;
+    *first_java_pc = 0; // we don't have a valid Java PC
     return 1;
 }
 
@@ -346,19 +370,24 @@ int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID
 
 bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
     jmethodID method = NULL;
+    char* name;
     _jit_lock.lockShared();
 
     // Check if PC lies within JVM's compiled code cache
-    if (pc >= _jit_min_address && pc < _jit_max_address) {
-        if ((method = _java_methods.find(pc)) != NULL) {
-            // PC belong to a JIT compiled method
+    if (_vm_code_cache.contains(pc)) {
+        _jit_lock.lockShared();
+        CodeBlob *b = _vm_code_cache.find(pc);
+        if (b != NULL && b->isNmethod()) {
+            // PC belongs to a JIT compiled method
             frame->bci = 0;
             frame->method_id = method;
-        } else if ((method = _runtime_stubs.find(pc)) != NULL) {
+        } else if (b != NULL) {
             // PC belongs to a VM runtime stub
             frame->bci = BCI_NATIVE_FRAME;
-            frame->method_id = method;
+            frame->method_id = (jmethodID) name;
         }
+        _jit_lock.unlockShared();
+
     }
 
     _jit_lock.unlockShared();
@@ -368,9 +397,9 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
 bool Profiler::addressInCode(const void* pc) {
     // 1. Check if PC lies within JVM's compiled code cache
     // Address in CodeCache is executable if it belongs to a Java method or a runtime stub
-    if (pc >= _jit_min_address && pc < _jit_max_address) {
+    if (_vm_code_cache.contains(pc)) {
         _jit_lock.lockShared();
-        bool valid = _java_methods.find(pc) != NULL || _runtime_stubs.find(pc) != NULL;
+        bool valid = _vm_code_cache.find(pc);
         _jit_lock.unlockShared();
         return valid;
     }
@@ -382,7 +411,7 @@ bool Profiler::addressInCode(const void* pc) {
             return true;
         }
     }
-    
+
     // This can be some other dynamically generated code, but we don't know it. Better stay safe.
     return false;
 }
@@ -397,7 +426,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
         if (event_type == 0) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
-            _engine->getNativeTrace(ucontext, tid, NULL, 0, _jit_min_address, _jit_max_address);
+            _engine->getNativeTrace(ucontext, tid, NULL, 0, &_vm_code_cache);
         }
         return;
     }
@@ -406,20 +435,24 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
     bool need_java_trace = true;
+    const void* first_java_pc = 0;
 
     int num_frames = 0;
     if (event_type == 0) {
-        num_frames = getNativeTrace(ucontext, frames, tid, &need_java_trace);
+        num_frames = getNativeTrace(ucontext, frames, tid, &need_java_trace, &first_java_pc);
     } else if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
     }
 
+    int java_frames;
+    int native_frames = num_frames;
     if ((_sync_walk || event_type != 0) && _JvmtiEnv_GetStackTrace != NULL) {
-        // Events like object allocation happen at known places where it is safe to call JVM TI
+        // Events like object allocation happen at known places where it is safe to call JVMTI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     } else if (OS::isSignalSafeTLS() || need_java_trace) {
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &first_java_pc);
+        num_frames += java_frames;
     }
 
     if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
@@ -428,6 +461,30 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     if (_threads) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
+    }
+
+    if (event_type == 0 && first_java_pc != 0 && java_frames > 0) {
+        // try to get information on the nature of the top java frames
+        if (_vm_code_cache.isInterpreter(first_java_pc)) {
+            frames[native_frames].bci = frames[native_frames].bci + BCI_OFFSET_INTERP;
+        } else {
+            _jit_lock.lockShared();
+            CodeBlob *b = _vm_code_cache.find(first_java_pc);
+            if (b != NULL && b->isNmethod()) {
+                _jit_lock.unlockShared();
+                // search for the first java frame that matches the physical pc (i.e. that is not inlined)
+                int i;
+                for (i = 0;  i < java_frames && b->getMethod() != frames[native_frames + i].method_id; i++) ;
+                if (i < java_frames && b->getMethod() == frames[native_frames + i].method_id ) {
+                    frames[native_frames + i].bci = frames[native_frames + i].bci + BCI_OFFSET_COMP;
+                    for (int j = 0;  j < i; j++) {
+                        frames[native_frames + j].bci = frames[native_frames + j].bci + BCI_OFFSET_INLINED;
+                    }
+                }
+            } else {
+                _jit_lock.unlockShared();
+            }
+        }
     }
 
     storeMethod(frames[0].method_id, frames[0].bci, counter);
@@ -480,7 +537,7 @@ void Profiler::bindNativeLibraryLoad(NativeLoadLibraryFunc entry) {
     env->ExceptionClear();
 }
 
-void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
+void Profiler::initJvmtiFunctions(NativeLib* libjvm) {
     if (_JvmtiEnv_GetStackTrace == NULL) {
         // Find ThreadLocalStorage::thread() if exists
         if (_ThreadLocalStorage_thread == NULL) {
@@ -619,7 +676,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _sync_walk = args._sync_walk;
 
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
-    NativeCodeCache* libjvm = jvmLibrary();
+    NativeLib* libjvm = jvmLibrary();
     if (libjvm == NULL) {
         return Error("libjvm not found among loaded libraries");
     }
@@ -685,7 +742,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 
 void Profiler::dumpSummary(std::ostream& out) {
     char buf[256];
-    snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf) - 1,
             "--- Execution profile ---\n"
             "Total samples       : %lld\n",
             _total_samples);
@@ -695,7 +752,7 @@ void Profiler::dumpSummary(std::ostream& out) {
     for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
         const char* err_string = asgctError(-i);
         if (err_string != NULL && _failures[i] > 0) {
-            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
+            snprintf(buf, sizeof(buf) - 1, "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
             out << buf;
         }
     }
@@ -707,7 +764,24 @@ void Profiler::dumpSummary(std::ostream& out) {
         double usage = 100.0 * _frame_buffer_index / _frame_buffer_size;
         out << "Frame buffer usage  : " << usage << "%" << std::endl;
     }
+    int empty = 0;
+    int collisions = 0;
+    for (int i = 0 ; i < MAX_CALLTRACES; ++i) {
+        if (_hashes[i] == 0) empty++;
+        else if (hashCallTrace(_traces[i]._num_frames, &_frame_buffer[_traces[i]._start_frame]) != _hashes[i]) collisions++;
+    }
+    double tb_usage = 100.00 - (100.00 * empty / MAX_CALLTRACES);
+    out << "Trace buffer usage  : " << tb_usage << "% (" << MAX_CALLTRACES - empty << " entries, " << collisions << " collisions)";
     out << std::endl;
+    empty = 0;
+    collisions = 0;
+    for (int i = 0 ; i < MAX_CALLTRACES; ++i) {
+      if (_methods[i]._method.method_id == NULL) empty++;
+      else if ((int)(hashMethod(_methods[i]._method.method_id, _methods[i]._method.bci) % MAX_CALLTRACES) != i) collisions++;
+    }
+    double mb_usage = 100.00 - (100.00 * empty / MAX_CALLTRACES);
+    out << "Method buffer usage : " << mb_usage << "% (" << MAX_CALLTRACES - empty << " entries, " << collisions << " collisions)";
+    out << std::endl << std::endl;
 }
 
 /*
@@ -757,20 +831,25 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
 
         Trie* f = flamegraph.root();
+        char type = 0;
         if (trace._num_frames == 0) {
-            f = f->addChild("[frame_buffer_overflow]", samples);
+            f = f->addChild("[frame_buffer_overflow]", samples, 0, FRAME_TYPE_NATIVE);
         } else if (args._reverse) {
             for (int j = 0; j < trace._num_frames; j++) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(_frame_buffer[trace._start_frame + j].bci);
+                f = f->addChild(frame_name, samples, type, next_type);
+                type = next_type;
             }
         } else {
             for (int j = trace._num_frames - 1; j >= 0; j--) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(_frame_buffer[trace._start_frame + j].bci);
+                f = f->addChild(frame_name, samples, type, next_type);
+                type = next_type;
             }
         }
-        f->addLeaf(samples);
+        f->addLeaf(samples, type);
     }
 
     flamegraph.dump(out, tree);
@@ -806,13 +885,56 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
 
         for (int j = 0; j < trace->_num_frames; j++) {
             const char* frame_name = fn.name(_frame_buffer[trace->_start_frame + j]);
-            snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
+            snprintf(buf, sizeof(buf) - 1, "  [%2d] %s", j, frame_name);
             out << buf;
+            char type = getFrameType(_frame_buffer[trace->_start_frame + j].bci);
+            jint bci = unOffsetBci(_frame_buffer[trace->_start_frame + j].bci);
+            snprintf(buf, sizeof(buf) - 1, "  [%c]", type);
+            if (bci >= BCI_SMALLEST_USED_BY_VM) {
+              out << " bci: " << bci << buf << std::endl;
+            } else {
+              snprintf(buf, sizeof(buf) - 1, "  [%c]", type);
+              out << buf << std::endl;
+            }
         }
-        out << "\n";
+        out << std::endl;
     }
 
     delete[] traces;
+}
+
+char Profiler::getFrameType(jint bci) {
+    if (bci >= (BCI_OFFSET_INLINED +  BCI_SMALLEST_USED_BY_VM)) {
+        return FRAME_TYPE_INLINED_JAVA;
+    }
+    if (bci >= (BCI_OFFSET_INTERP +  BCI_SMALLEST_USED_BY_VM)) {
+        return FRAME_TYPE_INTERPRETED_JAVA;
+    }
+    if (bci >= (BCI_OFFSET_COMP +  BCI_SMALLEST_USED_BY_VM)) {
+        return FRAME_TYPE_COMPILED_JAVA;
+    }
+    switch (bci) {
+    case BCI_NATIVE_FRAME: return FRAME_TYPE_NATIVE;
+    case BCI_SYMBOL: return FRAME_TYPE_VMSYM;
+    case BCI_SYMBOL_OUTSIDE_TLAB: return FRAME_TYPE_OUTSIDE_TLAB;
+    case BCI_THREAD_ID: return FRAME_TYPE_THREAD;
+    case BCI_KERNEL_FRAME: return FRAME_TYPE_KERNEL;
+    case BCI_ERROR: return FRAME_TYPE_ERROR;
+    }
+    return FRAME_TYPE_UNKNOWN_JAVA;
+}
+
+jint Profiler::unOffsetBci(jint bci) {
+  if (bci >= (BCI_OFFSET_INLINED +  BCI_SMALLEST_USED_BY_VM)) {
+    return bci - BCI_OFFSET_INLINED;
+  }
+  if (bci >= (BCI_OFFSET_INTERP +  BCI_SMALLEST_USED_BY_VM)) {
+    return bci - BCI_OFFSET_INTERP;
+  }
+  if (bci >= (BCI_OFFSET_COMP +  BCI_SMALLEST_USED_BY_VM)) {
+    return bci - BCI_OFFSET_COMP;
+  }
+  return bci;
 }
 
 void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
@@ -839,8 +961,11 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
         if (method->_samples == 0) break;
 
         const char* frame_name = fn.name(method->_method);
-        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
-                 method->_counter, method->_counter * percent, method->_samples, frame_name);
+        jint bci = method->_method.bci;
+        char type = getFrameType(bci);
+        bci = unOffsetBci(bci);
+        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld     %c  %5d  %s\n",
+        		method->_counter, method->_counter * percent, method->_samples, type, bci, frame_name);
         out << buf;
     }
 

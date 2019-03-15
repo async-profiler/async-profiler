@@ -49,7 +49,7 @@ void PerfEvents::onThreadEnd() {
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               const void* jit_min_address, const void* jit_max_address) {
+                               VmCodeCache* cc) {
     return 0;
 }
 

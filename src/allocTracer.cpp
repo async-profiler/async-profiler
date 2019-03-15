@@ -35,7 +35,7 @@ volatile u64 AllocTracer::_allocated_bytes;
 
 
 // Resolve the address of the intercepted function
-bool Trap::resolve(NativeCodeCache* libjvm) {
+bool Trap::resolve(NativeLib* libjvm) {
     if (_entry != NULL) {
         return true;
     }
@@ -128,7 +128,7 @@ Error AllocTracer::start(Arguments& args) {
         return Error("VMStructs unavailable. Unsupported JVM?");
     }
 
-    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
+    NativeLib* libjvm = Profiler::_instance.jvmLibrary();
     if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");

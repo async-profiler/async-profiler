@@ -622,7 +622,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
         printTreeFooter(out);
     } else {
         printHeader(out);
-        printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
+        printFrame(out, "allb", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
         printFooter(out);
     }
 }
@@ -645,34 +645,132 @@ void FlameGraph::printFooter(std::ostream& out) {
     out << "</g>\n</svg>\n";
 }
 
+int FlameGraph::calcPercentage(int *out, u64 total, u64 interp, u64 inlined, u64 compiled) {
+    u64 java = total - interp - inlined;
+    int ret = 0;
+    double fp[3];
+    if (java > 0) ret++;
+    if (interp > 0) ret++;
+    if (inlined > 0) ret++;
+
+    fp[0] = double(inlined) / double(total) * 101.0;
+    fp[1] = double(interp) / double(total) * 101.0;
+    fp[2] = double(java) / double(total) * 101.0;
+
+    double cor = 0.0;
+    double sum = 0.0;
+    for (int i = 0; i < 3; ++i) {
+      if (fp[i] > 0.0 && fp[i] < 1.0) {
+        cor += 1.0 - fp[i];
+      } else {
+        sum += fp[i];
+      }
+    }
+    for (int i = 0; i < 3; ++i) {
+      if (fp[i] > 0.0 && fp[i] < 1.0) {
+        out[i] = 1;
+      } else if (fp[i] >= 1.0) {
+        out[i] = int(fp[i] - (cor * fp[i] / sum));
+      } else {
+        out[i] = 0;
+      }
+    }
+
+    return ret;
+}
+
+// Compare two nodes such that the one with a higher inlined ratio is "less" than the other
+static bool compareNodes(Node n1, Node n2) {
+    if ((double(n1._trie->_inlined) / double(n1._trie->_total)) > (double(n2._trie->_inlined) / double(n2._trie->_total))) return true;
+    return n1._name < n1._name;
+}
+
 double FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y) {
     double framewidth = f._total * _scale;
 
     // Skip too narrow frames, they are not important
     if (framewidth >= _minwidth) {
-        std::string full_title = name;
-        int color = selectFramePalette(full_title).pickColor();
+        char type = name[name.length() - 1];
+        std::string full_title = name.substr(0, size_t(name.length() - 1));
         std::string short_title = StringUtils::trim(full_title, size_t(framewidth / 7));
         StringUtils::escape(full_title);
         StringUtils::escape(short_title);
-
         // Compensate rounding error in frame width
         double w = (round((x + framewidth) * 10) - round(x * 10)) / 10.0;
 
         snprintf(_buf, sizeof(_buf) - 1,
-            "<g>\n"
-            "<title>%s (%s samples, %.2f%%)</title><rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n"
+             "<g>\n"
+             "<title>%s (%.2f%%, samples: %s total",full_title.c_str(), f._total * _pct, Format().thousands(f._total));
+        out << _buf;
+        if (f._inlined != 0) {
+        	snprintf(_buf, sizeof(_buf), ", %s inlined into top", Format().thousands(f._inlined));
+        	out << _buf;
+        }
+        if (f._compiled != 0) {
+        	snprintf(_buf, sizeof(_buf), ", %s compiled on top", Format().thousands(f._compiled));
+        	out << _buf;
+        }
+        if (f._interp != 0) {
+        	snprintf(_buf, sizeof(_buf), ", %s interpreted on top", Format().thousands(f._interp));
+        	out << _buf;
+        }
+        out <<  ")</title>\n";
+
+        int percentage[4];
+        int colors = calcPercentage(percentage, f._total, f._interp, f._inlined, f._compiled);
+        // more than one color required, we're sure it's a java frame
+        if (colors >= 2) {
+          snprintf(_buf, sizeof(_buf), "<defs>\n<linearGradient id=\"Gradient%d\">\n", _gradient);
+          out << _buf;
+          int last = 0;
+          for (int i = 0; i < 3; ++i) {
+            if (percentage[i] != 0) {
+              int start = last;
+              int end = (start + percentage[i] - 1) > 100 ? 100 : (start + percentage[i] - 1);
+              last += percentage[i];
+              int color;
+              if (i == 0) color = selectFramePalette(FRAME_TYPE_INLINED_JAVA).pickColor();
+              if (i == 1) color = selectFramePalette(FRAME_TYPE_INTERPRETED_JAVA).pickColor();
+              if (i == 2) color = selectFramePalette(FRAME_TYPE_COMPILED_JAVA).pickColor();
+              snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", start, color);
+              out << _buf;
+              snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", end, color);
+              out << _buf;
+            }
+          }
+          out << "</linearGradient>\n</defs>\n";
+          snprintf(_buf, sizeof(_buf),
+                   "<rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"url(#Gradient%d)\" rx=\"2\" ry=\"2\"/>\n",
+                   x, y, w, _frameheight - 1, _gradient++);
+          out << _buf;
+        } else {
+            int color;
+            if (f._interp > 0) color = selectFramePalette(FRAME_TYPE_INTERPRETED_JAVA).pickColor();
+            else if (f._inlined > 0) color = selectFramePalette(FRAME_TYPE_INLINED_JAVA).pickColor();
+            else if (f._compiled > 0) color = selectFramePalette(FRAME_TYPE_COMPILED_JAVA).pickColor();
+            else color = selectFramePalette(full_title, type).pickColor();
+            snprintf(_buf, sizeof(_buf),
+                "<rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n",
+                x, y, w, _frameheight - 1, color);
+            out << _buf;
+        }
+        snprintf(_buf, sizeof(_buf),
             "<text x=\"%.1f\" y=\"%.1f\">%s</text>\n"
             "</g>\n",
-            full_title.c_str(), Format().thousands(f._total), f._total * _pct, x, y, w, _frameheight - 1, color,
             x + 3, y + 3 + _frameheight * 0.5, short_title.c_str());
         out << _buf;
 
         x += f._self * _scale;
         y += _reverse ? _frameheight : -_frameheight;
 
+        // sort subnodes to make inlined frames appear to the left
+        std::vector<Node> subnodes;
         for (std::map<std::string, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
-            x += printFrame(out, it->first, it->second, x, y);
+          subnodes.push_back(Node(it->first, it->second));
+        }
+        std::sort(subnodes.begin(), subnodes.end(), compareNodes);
+        for (size_t i = 0; i < subnodes.size(); i++) {
+          x += printFrame(out, subnodes[i]._name, *subnodes[i]._trie, x, y);
         }
     }
 
@@ -704,9 +802,10 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
     std::sort(subnodes.begin(), subnodes.end());
 
     for (size_t i = 0; i < subnodes.size(); i++) {
-        std::string full_title = subnodes[i]._name;
+      std::string full_title = subnodes[i]._name.substr(0, subnodes[i]._name.length() - 1);
+        char type = subnodes[i]._name[subnodes[i]._name.length() - 1];
         const Trie* trie = subnodes[i]._trie;
-        const char* color = selectFramePalette(full_title).name();
+        const char* color = selectFramePalette(full_title, type).name();
         StringUtils::escape(full_title);
 
         if (_reverse) {
@@ -717,10 +816,13 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
                      color, full_title.c_str());
         } else {
             snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
+                     "<li><div>[%d] %.2f%% %s self: %.2f%% %s (interpreted: %lld inlined: %lld compiled: %lld) </div><span class=\"%s\"> %s</span>\n",
                      depth,
                      trie->_total * _pct, Format().thousands(trie->_total),
                      trie->_self * _pct, Format().thousands(trie->_self),
+                     trie->_interp,
+                     trie->_inlined,
+                     trie->_compiled,
                      color, full_title.c_str());
         }
         out << _buf;
@@ -737,34 +839,45 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
     return true;
 }
 
-const Palette& FlameGraph::selectFramePalette(std::string& name) {
+const Palette& FlameGraph::selectFramePalette(char c) {
     static const Palette
-        green ("green",  0x50e150, 30, 30, 30),
-        aqua  ("aqua",   0x50bebe, 30, 30, 30),
-        brown ("brown",  0xe17d00, 30, 30,  0),
-        yellow("yellow", 0xc8c83c, 30, 30, 10),
-        red   ("red",    0xe15a5a, 30, 40, 40);
+        green  ("green",   0x32c832, 60, 55, 60),
+        aqua   ("aqua",    0x2295b5, 60, 55, 55),
+        brown  ("brown",   0xbe5a00, 65, 65,  0),
+        yellow ("yellow" , 0xafaf32, 55, 55, 20),
+        magenta("magenta", 0xbf10bf, 55, 20, 55),
+        white  ("white",   0xd0d0d0, 30, 30, 30),
+        red    ("red",     0xc83232, 55, 80, 80),
+        salmon ("salmon",  0xf0a07a, 16, 32, 32);
 
-    if (StringUtils::endsWith(name, "_[j]", 4)) {
-        // Java compiled frame
-        name = name.substr(0, name.length() - 4);
-        return green;
-    } else if (StringUtils::endsWith(name, "_[i]", 4)) {
-        // Java inlined frame
-        name = name.substr(0, name.length() - 4);
-        return aqua;
-    } else if (StringUtils::endsWith(name, "_[k]", 4)) {
-        // Kernel function
-        name = name.substr(0, name.length() - 4);
-        return brown;
+    switch(c) {
+    case FRAME_TYPE_INTERPRETED_JAVA: return magenta; // interpreted java
+    case FRAME_TYPE_INLINED_JAVA: return aqua; // inlined java
+    case FRAME_TYPE_COMPILED_JAVA: return green; // compiled java
+    case FRAME_TYPE_UNKNOWN_JAVA: return green; // unknown java
+    case FRAME_TYPE_OUTSIDE_TLAB: return brown; // VMSymbol* specifically for allocations outside TLAB
+    case FRAME_TYPE_THREAD: return salmon; // thread
+    case FRAME_TYPE_BOTTOM: return white; // thread
+    case FRAME_TYPE_CPP: return yellow; // c++
+    case FRAME_TYPE_VMSYM: return aqua; // locked object
+    case FRAME_TYPE_KERNEL: return brown; // locked object
+    case FRAME_TYPE_ERROR: return red; // locked object
+    default:  return red; // other native
+    }
+}
+
+const Palette& FlameGraph::selectFramePalette(std::string& name, char type) {
+    if (type != FRAME_TYPE_NATIVE) {
+        // Not a native method: type is determines the color
+        return selectFramePalette(type);
     } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
         // C++ function or Objective C method
-        return yellow;
+        return selectFramePalette(FRAME_TYPE_CPP);
     } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
-        return green;
+        return selectFramePalette(FRAME_TYPE_UNKNOWN_JAVA);
     } else {
         // Other native code
-        return red;
+        return selectFramePalette(FRAME_TYPE_NATIVE);
     }
 }

@@ -30,7 +30,7 @@ int VMStructs::_osthread_id_offset = -1;
 bool VMStructs::_has_perm_gen = false;
 jfieldID VMStructs::_eetop = NULL;
 
-static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
+static uintptr_t readSymbol(NativeLib* lib, const char* symbol_name) {
     const void* symbol = lib->findSymbol(symbol_name);
     if (symbol == NULL) {
         // Avoid JVM crash in case of missing symbols
@@ -39,7 +39,7 @@ static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     return *(uintptr_t*)symbol;
 }
 
-void VMStructs::init(NativeCodeCache* libjvm) {
+void VMStructs::init(NativeLib* libjvm) {
     if (available()) {
         return;
     }

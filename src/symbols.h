@@ -30,8 +30,8 @@ class Symbols {
     static bool _have_kernel_symbols;
 
   public:
-    static void parseKernelSymbols(NativeCodeCache* cc);
-    static void parseLibraries(NativeCodeCache** array, volatile int& count, int size);
+    static void parseKernelSymbols(NativeLib* cc);
+    static void parseLibraries(NativeLib** array, volatile int& count, int size);
 
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;

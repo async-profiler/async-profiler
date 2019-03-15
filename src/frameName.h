@@ -43,7 +43,7 @@ class FrameName {
 
     char* truncate(char* name, int max_length);
     const char* cppDemangle(const char* name);
-    char* javaMethodName(jmethodID method);
+    char* javaMethodName(jmethodID method, char type);
     char* javaClassName(const char* symbol, int length, int style);
 
   public:

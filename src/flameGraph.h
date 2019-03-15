@@ -22,6 +22,7 @@
 #include <iostream>
 #include "arch.h"
 #include "arguments.h"
+#include "vmEntry.h"
 
 
 class Trie {
@@ -29,18 +30,38 @@ class Trie {
     std::map<std::string, Trie> _children;
     u64 _total;
     u64 _self;
+    u64 _interp;
+    u64 _inlined;
+    u64 _compiled;
 
-    Trie() : _children(), _total(0), _self(0) {
+    Trie() : _children(), _total(0), _self(0), _interp(0), _inlined(0), _compiled(0) {
     }
     
-    Trie* addChild(const std::string& key, u64 value) {
+    Trie* addChild(const std::string& key, u64 value, char type, char next_type) {
         _total += value;
-        return &_children[key];
+        switch(type) {
+        case FRAME_TYPE_INTERPRETED_JAVA: _interp += value; break;
+        case FRAME_TYPE_INLINED_JAVA: _inlined += value; break;
+        case FRAME_TYPE_COMPILED_JAVA: _compiled += value; break;
+        }
+        char suffix = type;
+        if (next_type == FRAME_TYPE_INTERPRETED_JAVA || next_type == FRAME_TYPE_INLINED_JAVA || next_type == FRAME_TYPE_COMPILED_JAVA) {
+          suffix = FRAME_TYPE_UNKNOWN_JAVA;
+        } else {
+          suffix = next_type;
+        }
+        std::string access = key + suffix;
+        return &_children[access];
     }
 
-    void addLeaf(u64 value) {
+    void addLeaf(u64 value, char type) {
         _total += value;
         _self += value;
+        switch(type) {
+        case FRAME_TYPE_INTERPRETED_JAVA: _interp += value; return;
+        case FRAME_TYPE_INLINED_JAVA: _inlined += value; return;
+        case FRAME_TYPE_COMPILED_JAVA: _compiled += value; return;
+        }
     }
 
     int depth(u64 cutoff) const {
@@ -70,7 +91,6 @@ class Node {
     }
 };
 
-
 class Palette;
 
 
@@ -88,14 +108,17 @@ class FlameGraph {
     double _scale;
     double _pct;
     bool _reverse;
+    int _gradient;
 
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
+    int calcPercentage(int *out, u64 total, u64 interp, u64 inlined, u64 compiled);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
     void printTreeHeader(std::ostream& out);
     void printTreeFooter(std::ostream& out);
     bool printTreeFrame(std::ostream& out, const Trie& f, int depth);
-    const Palette& selectFramePalette(std::string& name);
+    const Palette& selectFramePalette(char c);
+    const Palette& selectFramePalette(std::string& name, char type);
 
   public:
     FlameGraph(const char* title, Counter counter, int width, int height, double minwidth, bool reverse) :
@@ -105,7 +128,8 @@ class FlameGraph {
         _imagewidth(width),
         _frameheight(height),
         _minwidth(minwidth),
-        _reverse(reverse) {
+        _reverse(reverse),
+        _gradient(0) {
         _buf[sizeof(_buf) - 1] = 0;
     }
 

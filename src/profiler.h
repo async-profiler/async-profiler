@@ -17,6 +17,7 @@
 #ifndef _PROFILER_H
 #define _PROFILER_H
 
+#include <stdio.h>
 #include <iostream>
 #include <map>
 #include <time.h>
@@ -120,11 +121,8 @@ class Profiler {
     volatile bool _thread_events_state;
 
     SpinLock _jit_lock;
-    const void* _jit_min_address;
-    const void* _jit_max_address;
-    CodeCache _java_methods;
-    NativeCodeCache _runtime_stubs;
-    NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
+    VmCodeCache _vm_code_cache;
+    NativeLib* _native_libs[MAX_NATIVE_LIBS];
     volatile int _native_lib_count;
 
     JNINativeMethod _load_method;
@@ -139,26 +137,28 @@ class Profiler {
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
-    void updateJitRange(const void* min_address, const void* max_address);
 
     const char* asgctError(int code);
-    const char* findNativeMethod(const void* address);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame);
-    int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    const char* findNativeMethod(const void* address, bool& is_kernel);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame, const void** first_java_pc);
+    int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, const void** first_java_pc);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     bool addressInCode(const void* pc);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     int storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    bool tracesMatch(int num_frames1, ASGCT_CallFrame* frames1, int num_frames2, ASGCT_CallFrame* frames2);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
-    u64 hashMethod(jmethodID method);
+    u64 hashMethod(jmethodID method, jint bci);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void initJvmtiFunctions(NativeCodeCache* libjvm);
+    void initJvmtiFunctions(NativeLib* libjvm);
     void setThreadName(int tid, const char* name);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateAllThreadNames();
     Engine* selectEngine(const char* event_name);
+    char getFrameType(jint bci);
+    jint unOffsetBci(jint bci);
 
   public:
     static Profiler _instance;
@@ -171,10 +171,7 @@ class Profiler {
         _max_stack_depth(0),
         _thread_events_state(JVMTI_DISABLE),
         _jit_lock(),
-        _jit_min_address((const void*)-1),
-        _jit_max_address((const void*)0),
-        _java_methods(),
-        _runtime_stubs("[stubs]"),
+        _vm_code_cache(),
         _native_lib_count(0),
         _original_NativeLibrary_load(NULL),
         _ThreadLocalStorage_thread(NULL),
@@ -201,7 +198,7 @@ class Profiler {
     void dumpTraces(std::ostream& out, Arguments& args);
     void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
-    NativeCodeCache* jvmLibrary();
+    NativeLib* jvmLibrary();
     const void* findSymbol(const char* name);
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
@@ -209,6 +206,10 @@ class Profiler {
                                            jint code_size, const void* code_addr,
                                            jint map_length, const jvmtiAddrLocationMap* map,
                                            const void* compile_info) {
+      char* name;
+      char* sign;
+      char* gnrc;
+      jvmti->GetMethodName(method, &name, &sign, &gnrc);
         _instance.addJavaMethod(code_addr, code_size, method);
     }
 

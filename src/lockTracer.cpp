@@ -45,7 +45,7 @@ Error LockTracer::start(Arguments& args) {
     }
 
     if (_original_Unsafe_Park == NULL) {
-        NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
+        NativeLib* libjvm = Profiler::_instance.jvmLibrary();
         _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
         if (_original_Unsafe_Park == NULL) {
             // In some macOS builds of JDK 11 Unsafe_Park appears to have a C++ decorated name

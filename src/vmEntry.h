@@ -20,13 +20,18 @@
 #include <jvmti.h>
 
 
-// Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
+// ASGCT_CallFrames where method_id has special meaning (not jmethodID) are distinguished by the bci field
 enum ASGCT_CallFrameType {
-    BCI_NATIVE_FRAME        = -10,  // method_id is native function name (char*)
-    BCI_SYMBOL              = -11,  // method_id is VMSymbol*
-    BCI_SYMBOL_OUTSIDE_TLAB = -12,  // VMSymbol* specifically for allocations outside TLAB
-    BCI_THREAD_ID           = -13,  // method_id designates a thread
-    BCI_ERROR               = -14,  // method_id is error string
+	BCI_SMALLEST_USED_BY_VM = -9,      // small negative BCIs are used by the VM (-6 is the smallest currently)
+    BCI_NATIVE_FRAME        = -10,     // method_id is native function name (char*)
+    BCI_SYMBOL              = -11,     // method_id is VMSymbol*
+    BCI_SYMBOL_OUTSIDE_TLAB = -12,     // VMSymbol* specifically for allocations outside TLAB
+    BCI_THREAD_ID           = -13,     // method_id designates a thread
+    BCI_ERROR               = -14,     // method_id is error string
+    BCI_KERNEL_FRAME        = -15,     // method_id is native function name (char*) in the OS kernel
+    BCI_OFFSET_COMP         = 0x10000, // offset added to bci for compiled java method
+    BCI_OFFSET_INTERP       = 0x20000, // offset added to bci for interpreted java method
+    BCI_OFFSET_INLINED      = 0x30000, // offset added to bci for inlined java method
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp
@@ -45,7 +50,7 @@ enum ASGCT_Failure {
     ticks_skipped               = -11,
     ASGCT_FAILURE_TYPES         = 12
 };
-
+  
 typedef struct {
     jint bci;
     jmethodID method_id;
@@ -59,6 +64,21 @@ typedef struct {
 
 typedef void (*AsyncGetCallTrace)(ASGCT_CallTrace*, jint, void*);
 
+// Frame types used for output (output generators use these directly)
+enum StoredFrameType {
+    FRAME_TYPE_NATIVE           = 'n',
+    FRAME_TYPE_KERNEL           = 'k',
+    FRAME_TYPE_VMSYM            = 'v',
+    FRAME_TYPE_OUTSIDE_TLAB     = 'o',
+    FRAME_TYPE_THREAD           = 't',
+    FRAME_TYPE_COMPILED_JAVA    = 'J',
+    FRAME_TYPE_INTERPRETED_JAVA = 'I',
+    FRAME_TYPE_INLINED_JAVA     = 'i',
+    FRAME_TYPE_UNKNOWN_JAVA     = 'j',
+    FRAME_TYPE_CPP              = 'p',
+    FRAME_TYPE_BOTTOM           = 'b',
+    FRAME_TYPE_ERROR            = 'e',
+};
 
 class VM {
   private:

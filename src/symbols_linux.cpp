@@ -100,13 +100,13 @@ typedef Elf32_Sym  ElfSymbol;
 
 class ElfParser {
   private:
-    NativeCodeCache* _cc;
+    NativeLib* _cc;
     const char* _base;
     const char* _file_name;
     ElfHeader* _header;
     const char* _sections;
 
-    ElfParser(NativeCodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
+    ElfParser(NativeLib* cc, const char* base, const void* addr, const char* file_name = NULL) {
         _cc = cc;
         _base = base;
         _file_name = file_name;
@@ -137,8 +137,8 @@ class ElfParser {
     void loadSymbolTable(ElfSection* symtab);
 
   public:
-    static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(NativeCodeCache* cc, const char* base);
+    static bool parseFile(NativeLib* cc, const char* base, const char* file_name, bool use_debug);
+    static void parseMem(NativeLib* cc, const char* base);
 };
 
 
@@ -157,7 +157,7 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
     return NULL;
 }
 
-bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug) {
+bool ElfParser::parseFile(NativeLib* cc, const char* base, const char* file_name, bool use_debug) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
         return false;
@@ -182,7 +182,7 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     return true;
 }
 
-void ElfParser::parseMem(NativeCodeCache* cc, const char* base) {
+void ElfParser::parseMem(NativeLib* cc, const char* base) {
     ElfParser elf(cc, base, base);
     elf.loadSymbols(false);
 }
@@ -298,12 +298,11 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+void Symbols::parseKernelSymbols(NativeLib* cc) {
     std::ifstream maps("/proc/kallsyms");
     std::string str;
 
     while (std::getline(maps, str)) {
-        str += "_[k]";
         SymbolDesc symbol(str.c_str());
         char type = symbol.type();
         if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
@@ -316,11 +315,12 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+void Symbols::parseLibraries(NativeLib** array, volatile int& count, int size) {
     MutexLocker ml(_parse_lock);
 
     if (!haveKernelSymbols()) {
-        NativeCodeCache* cc = new NativeCodeCache("[kernel]");
+        NativeLib* cc = new NativeLib("[kernel]");
+        cc->setIsKernel();
         parseKernelSymbols(cc);
 
         if (haveKernelSymbols()) {
@@ -343,7 +343,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
                 continue;  // the library was already parsed
             }
 
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), image_base, map.end());
+            NativeLib* cc = new NativeLib(map.file(), image_base, map.end());
 
             if (map.inode() != 0) {
                 ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);

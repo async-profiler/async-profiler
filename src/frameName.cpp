@@ -58,7 +58,7 @@ const char* FrameName::cppDemangle(const char* name) {
     return name;
 }
 
-char* FrameName::javaMethodName(jmethodID method) {
+char* FrameName::javaMethodName(jmethodID method, char type) {
     jclass method_class;
     char* class_name = NULL;
     char* method_name = NULL;
@@ -68,6 +68,13 @@ char* FrameName::javaMethodName(jmethodID method) {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
 
+    char ext[5];
+    ext[0] = '_';
+    ext[1] = '[';
+    ext[2] = type;
+    ext[3] = ']';
+    ext[4] = 0;
+
     if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
@@ -76,7 +83,7 @@ char* FrameName::javaMethodName(jmethodID method) {
         strcat(result, ".");
         strcat(result, method_name);
         if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
-        if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
+        if (_style & STYLE_ANNOTATE) strcat(result, ext);
     } else {
         snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
         result = _buf;
@@ -143,19 +150,22 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
     }
 
     switch (frame.bci) {
-        case BCI_NATIVE_FRAME:
-            return cppDemangle((const char*)frame.method_id);
+         case BCI_KERNEL_FRAME:
+         case BCI_NATIVE_FRAME: {
+             const char* symbol_name = cppDemangle((const char*)frame.method_id);
+             return symbol_name;
+         }
 
         case BCI_SYMBOL: {
             VMSymbol* symbol = (VMSymbol*)frame.method_id;
             char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
-            return strcat(class_name, _style & STYLE_DOTTED ? "" : "_[i]");
+            return class_name;
         }
 
         case BCI_SYMBOL_OUTSIDE_TLAB: {
             VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
             char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
-            return strcat(class_name, _style & STYLE_DOTTED ? " (out)" : "_[k]");
+            return strcat(class_name, _style & STYLE_DOTTED ? " (out)" : "");
         }
 
         case BCI_THREAD_ID: {
@@ -181,7 +191,18 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
                 return it->second.c_str();
             }
 
-            const char* newName = javaMethodName(frame.method_id);
+            char type = FRAME_TYPE_UNKNOWN_JAVA;
+            if (frame.bci >= (BCI_OFFSET_COMP +  BCI_SMALLEST_USED_BY_VM)) {
+              type = FRAME_TYPE_COMPILED_JAVA;
+            }
+            if (frame.bci >= (BCI_OFFSET_INTERP +  BCI_SMALLEST_USED_BY_VM)) {
+              type = FRAME_TYPE_INTERPRETED_JAVA;
+            }
+            if (frame.bci >= (BCI_OFFSET_INLINED +  BCI_SMALLEST_USED_BY_VM)) {
+              type = FRAME_TYPE_INLINED_JAVA;
+            }
+
+           const char* newName = javaMethodName(frame.method_id, type);
             _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
             return newName;
         }

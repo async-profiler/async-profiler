@@ -35,7 +35,7 @@ class Trap {
     Trap(const char* func_name) : _func_name(func_name), _entry(NULL) {
     }
 
-    bool resolve(NativeCodeCache* libjvm);
+    bool resolve(NativeLib* libjvm);
     void install();
     void uninstall();
 
