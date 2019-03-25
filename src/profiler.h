@@ -206,10 +206,6 @@ class Profiler {
                                            jint code_size, const void* code_addr,
                                            jint map_length, const jvmtiAddrLocationMap* map,
                                            const void* compile_info) {
-      char* name;
-      char* sign;
-      char* gnrc;
-      jvmti->GetMethodName(method, &name, &sign, &gnrc);
         _instance.addJavaMethod(code_addr, code_size, method);
     }
 
