@@ -473,8 +473,12 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
             if (b != NULL && b->isNmethod()) {
                 _jit_lock.unlockShared();
                 // search for the first java frame that matches the physical pc (i.e. that is not inlined)
+                // however, don't go beyond any error/special frame
                 int i;
-                for (i = 0;  i < java_frames && b->getMethod() != frames[native_frames + i].method_id; i++) ;
+                for (i = 0;  i < java_frames &&
+                             b->getMethod() != frames[native_frames + i].method_id &&
+                             frames[native_frames + i].bci >= BCI_SMALLEST_USED_BY_VM; i++) ;
+                // if found, mark the compiled frame and potential inlined frames on top of it
                 if (i < java_frames && b->getMethod() == frames[native_frames + i].method_id ) {
                     frames[native_frames + i].bci = frames[native_frames + i].bci + BCI_OFFSET_COMP;
                     for (int j = 0;  j < i; j++) {
