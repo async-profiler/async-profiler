@@ -22,6 +22,7 @@
 
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
+int VMStructs::_symbol_length_and_refcount_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 int VMStructs::_class_klass_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
@@ -68,6 +69,8 @@ void VMStructs::init(NativeCodeCache* libjvm) {
         } else if (strcmp(type, "Symbol") == 0) {
             if (strcmp(field, "_length") == 0) {
                 _symbol_length_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_length_and_refcount") == 0) {
+                _symbol_length_and_refcount_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_body") == 0) {
                 _symbol_body_offset = *(int*)(entry + offset_offset);
             }

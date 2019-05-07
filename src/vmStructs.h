@@ -26,6 +26,7 @@ class VMStructs {
   protected:
     static int _klass_name_offset;
     static int _symbol_length_offset;
+    static int _symbol_length_and_refcount_offset;
     static int _symbol_body_offset;
     static int _class_klass_offset;
     static int _thread_osthread_offset;
@@ -42,7 +43,7 @@ class VMStructs {
 
     static bool available() {
         return _klass_name_offset >= 0
-            && _symbol_length_offset >= 0
+            && (_symbol_length_offset >= 0 || _symbol_length_and_refcount_offset >= 0)
             && _symbol_body_offset >= 0
             && _class_klass_offset >= 0;
     }
@@ -56,7 +57,12 @@ class VMStructs {
 class VMSymbol : VMStructs {
   public:
     unsigned short length() {
-        return *(unsigned short*) at(_symbol_length_offset);
+        if (_symbol_length_offset >= 0) {
+          return *(unsigned short*) at(_symbol_length_offset);
+        } else {
+          int length_and_refcount = *(unsigned int*) at(_symbol_length_and_refcount_offset);
+          return (length_and_refcount >> 16) & 0xffff;
+        }
     }
 
     const char* body() {
