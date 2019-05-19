@@ -227,10 +227,19 @@ const char* Profiler::findNativeMethod(const void* address) {
     return NULL;
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
                                                 _jit_min_address, _jit_max_address);
+
+    *stopped_at_java_frame = false;
+    if (native_frames > 0) {
+        const void* last_pc = native_callchain[native_frames - 1];
+        if (last_pc >= _jit_min_address && last_pc < _jit_max_address) {
+            *stopped_at_java_frame = true;
+            native_frames--;
+        }
+    }
 
     for (int i = 0; i < native_frames; i++) {
         frames[i].bci = BCI_NATIVE_FRAME;
@@ -385,9 +394,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
     int tid = OS::threadId();
 
+    bool need_java_trace = true;
     int num_frames = 0;
     if (event_type == 0) {
-        num_frames = getNativeTrace(ucontext, frames, tid);
+        num_frames = getNativeTrace(ucontext, frames, tid, &need_java_trace);
     } else if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
     }
@@ -399,7 +409,9 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     }
 
     if (event_type == 0 || _JvmtiEnv_GetStackTrace == NULL) {
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
+        if (OS::signalSafeTLS() || need_java_trace) {
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
+        }
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;

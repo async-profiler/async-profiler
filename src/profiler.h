@@ -135,7 +135,7 @@ class Profiler {
 
     const char* asgctError(int code);
     const char* findNativeMethod(const void* address);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);

@@ -518,11 +518,11 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
+                        callchain[depth++] = iptr;
                         if (iptr >= jit_min_address && iptr < jit_max_address) {
                             // Stop at the first Java frame
                             break;
                         }
-                        callchain[depth++] = iptr;
                     }
                 }
                 break;

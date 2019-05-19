@@ -29,8 +29,12 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
     const void* const valid_pc = (const void*)0x1000;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= valid_pc && !(pc >= jit_min_address && pc < jit_max_address)) {
+    while (depth < max_depth && pc >= valid_pc) {
         callchain[depth++] = pc;
+
+        if (pc >= jit_min_address && pc < jit_max_address) {
+            break;
+        }
 
         // Check if the next frame is below on the current stack
         if (fp <= prev_fp || fp >= prev_fp + 0x40000) {

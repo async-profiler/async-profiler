@@ -99,6 +99,10 @@ bool OS::isThreadRunning(int thread_id) {
     return running;
 }
 
+bool OS::signalSafeTLS() {
+    return true;
+}
+
 void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)) {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
