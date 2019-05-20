@@ -294,7 +294,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Restore previous context
             trace.num_frames = ticks_unknown_Java;
         }
-    } else if (trace.num_frames == ticks_GC_active) {
+    } else if (trace.num_frames == ticks_GC_active && _JvmtiEnv_GetStackTrace != NULL) {
         // While GC is running Java threads are known to be at safepoint
         return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
     }
