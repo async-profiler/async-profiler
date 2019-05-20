@@ -314,13 +314,21 @@ gets the version of the library loaded into the given process.
 ## Profiling Java in a container
 
 It is possible to profile Java processes running in a Docker or LXC container
-both from within a container and from the host system. When profiling
-from the host, async-profiler should be run by a privileged user -
-it will automatically switch to the proper pid/mount namespace and change
-user credentials to match the target process.
+both from within a container and from the host system.
+
+When profiling from the host, `pid` should be the Java process ID in the host
+namespace. Use `ps aux | grep java` or `docker top <container>` to find
+the process ID.
+
+async-profiler should be run from the host by a privileged user - it will
+automatically switch to the proper pid/mount namespace and change
+user credentials to match the target process. Also make sure that
+the target container can access `libasyncProfiler.so` by the same
+absolute path as on the host.
 
 By default, Docker container restricts the access to `perf_event_open`
-syscall. You'll need to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
+syscall. So, in order to allow profiling inside a container, you'll need
+to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
 or disable it altogether with `--security-opt=seccomp:unconfined` option.
 
 Alternatively, if changing Docker configuration is not possible,
@@ -429,6 +437,15 @@ It might be needed to install the package with OpenJDK debug symbols.
 See [Allocation profiling](#allocation-profiling) for details.
 
 Note that allocation profiling is not supported on JVMs other than HotSpot, e.g. Zing.
+
+```
+VMStructs unavailable. Unsupported JVM?
+```
+JVM shared library does not export `gHotSpotVMStructs*` symbols -
+apparently this is not a HotSpot JVM. Sometimes the same message
+can be also caused by an incorrectly built JDK
+(see [#218](https://github.com/jvm-profiling-tools/async-profiler/issues/218)).
+In these cases installing JDK debug symbols may solve the problem.
 
 ```
 [frame_buffer_overflow]
