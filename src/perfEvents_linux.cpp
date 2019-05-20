@@ -336,7 +336,6 @@ bool PerfEvents::createForThread(int tid) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
-    attr.exclude_idle = 1;
 
     if (_ring == RING_USER) {
         attr.exclude_kernel = 1;
