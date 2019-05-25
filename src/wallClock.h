@@ -42,7 +42,7 @@ class WallClock : public Engine {
 
   public:
     const char* name() {
-        return "wall";
+        return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
     }
 
     const char* units() {
