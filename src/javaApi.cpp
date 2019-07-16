@@ -69,7 +69,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
-    if (args._file == NULL) {
+    if (args._file == NULL || args._dump_jfr) {
         std::ostringstream out;
         Profiler::_instance.runInternal(args, out);
         return env->NewStringUTF(out.str().c_str());
