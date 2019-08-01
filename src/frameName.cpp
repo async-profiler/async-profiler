@@ -139,13 +139,13 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
 
         case BCI_SYMBOL: {
             VMSymbol* symbol = (VMSymbol*)frame.method_id;
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, _dotted);
             return strcat(class_name, _dotted ? "" : "_[i]");
         }
 
         case BCI_SYMBOL_OUTSIDE_TLAB: {
             VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, _dotted);
             return strcat(class_name, _dotted ? " (out)" : "_[k]");
         }
 
