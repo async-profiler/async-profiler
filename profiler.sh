@@ -124,7 +124,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -f)
-            FILE="$2"
+            FILE=$(abspath "$2")
             unset USE_TMP
             shift
             ;;
