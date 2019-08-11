@@ -292,7 +292,6 @@ class Recording {
   private:
     Buffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    u64 _bytes_written;
     std::map<std::string, int> _symbol_map;
     std::map<std::string, int> _class_map;
     std::map<jmethodID, MethodInfo> _method_map;
@@ -302,7 +301,7 @@ class Recording {
     u64 _stop_nanos;
 
   public:
-    Recording(int fd) : _fd(fd), _bytes_written(0), _symbol_map(), _class_map(), _method_map() {
+    Recording(int fd) : _fd(fd), _symbol_map(), _class_map(), _method_map() {
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
@@ -321,22 +320,22 @@ class Recording {
         writeRecordingInfo(_buf);
         flush(_buf);
 
-        u64 checkpoint_offset = _bytes_written;
+        off_t checkpoint_offset = lseek(_fd, 0, SEEK_CUR);
         writeCheckpoint(_buf);
         flush(_buf);
 
-        u64 metadata_offset = _bytes_written;
+        off_t metadata_offset = lseek(_fd, 0, SEEK_CUR);
         writeMetadata(_buf, checkpoint_offset);
         flush(_buf);
 
         // Patch checkpoint size field
         int checkpoint_size = htonl((int)(metadata_offset - checkpoint_offset));
-        ssize_t result = pwrite(_fd, &checkpoint_size, sizeof(checkpoint_size), (off_t)checkpoint_offset);
+        ssize_t result = pwrite(_fd, &checkpoint_size, sizeof(checkpoint_size), checkpoint_offset);
         (void)result;
 
         // Patch metadata offset
-        metadata_offset = OS::hton64(metadata_offset);
-        result = pwrite(_fd, &metadata_offset, sizeof(metadata_offset), 8);
+        u64 metadata_start = OS::hton64(metadata_offset);
+        result = pwrite(_fd, &metadata_start, sizeof(metadata_start), 8);
         (void)result;
 
         close(_fd);
@@ -435,7 +434,7 @@ class Recording {
 
     void flush(Buffer* buf) {
         ssize_t result = write(_fd, buf->data(), buf->offset());
-        if (result > 0) atomicInc(_bytes_written, result);
+        (void)result;
         buf->reset();
     }
 
@@ -668,7 +667,7 @@ class Recording {
         writeContentTypes(buf, ARRAY_SIZE(ct_profile), ct_profile);
     }
 
-    void writeMetadata(Buffer* buf, u64 checkpoint_offset) {
+    void writeMetadata(Buffer* buf, off_t checkpoint_offset) {
         int metadata_start = buf->offset();
         buf->put32(0);
         buf->put32(EVENT_METADATA);
