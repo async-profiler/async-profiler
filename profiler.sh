@@ -44,8 +44,8 @@ mirror_output() {
     # Mirror output from temporary file to local terminal
     if [[ $USE_TMP ]]; then
         if [[ -f $FILE ]]; then
-            cat $FILE
-            rm $FILE
+            cat "$FILE"
+            rm "$FILE"
         fi
     fi
 }
@@ -58,7 +58,7 @@ check_if_terminated() {
 }
 
 jattach() {
-    $JATTACH $PID load "$PROFILER" true "$1" > /dev/null
+    "$JATTACH" $PID load "$PROFILER" true "$1" > /dev/null
     RET=$?
 
     # Check if jattach failed
@@ -79,16 +79,16 @@ jattach() {
 
 function abspath() {
     if [ "$UNAME_S" == "Darwin" ]; then
-        perl -MCwd -e 'print Cwd::abs_path shift' $1
+        perl -MCwd -e 'print Cwd::abs_path shift' "$1"
     else
-        readlink -f $1
+        readlink -f "$1"
     fi
 }
 
 
 OPTIND=1
 UNAME_S=$(uname -s)
-SCRIPT_DIR=$(dirname $(abspath $0))
+SCRIPT_DIR=$(dirname "$(abspath "$0")")
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
@@ -199,6 +199,9 @@ fi
 # Let the target process create the file in case this script is run by superuser.
 if [[ $USE_TMP ]]; then
     FILE=/tmp/async-profiler.$$.$PID
+elif [[ $FILE != /* ]]; then
+    # Output file is written by the target process. Make the path absolute to avoid confusion.
+    FILE=$PWD/$FILE
 fi
 
 # select default output format
