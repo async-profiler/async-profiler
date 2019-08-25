@@ -17,15 +17,21 @@
 #ifndef _SYMBOLS_H
 #define _SYMBOLS_H
 
+#include <set>
+#include "arch.h"
 #include "codeCache.h"
+#include "mutex.h"
 
 
 class Symbols {
   private:
+    static Mutex _parse_lock;
+    static std::set<const void*> _parsed_libraries;
+
     static void parseKernelSymbols(NativeCodeCache* cc);
 
   public:
-    static int parseMaps(NativeCodeCache** array, int size);
+    static void parseLibraries(NativeCodeCache** array, volatile int& count, int size);
 };
 
 #endif // _SYMBOLS_H

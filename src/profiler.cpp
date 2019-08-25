@@ -15,6 +15,7 @@
  */
 
 #include <fstream>
+#include <dlfcn.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -200,7 +201,8 @@ const char* Profiler::asgctError(int code) {
 
 NativeCodeCache* Profiler::jvmLibrary() {
     const void* asyncGetCallTraceAddr = (const void*)VM::_asyncGetCallTrace;
-    for (int i = 0; i < _native_lib_count; i++) {
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(asyncGetCallTraceAddr)) {
             return _native_libs[i];
         }
@@ -209,7 +211,8 @@ NativeCodeCache* Profiler::jvmLibrary() {
 }
 
 const void* Profiler::findSymbol(const char* name) {
-    for (int i = 0; i < _native_lib_count; i++) {
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
         const void* address = _native_libs[i]->findSymbol(name);
         if (address != NULL) {
             return address;
@@ -219,7 +222,8 @@ const void* Profiler::findSymbol(const char* name) {
 }
 
 const char* Profiler::findNativeMethod(const void* address) {
-    for (int i = 0; i < _native_lib_count; i++) {
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
             return _native_libs[i]->binarySearch(address);
         }
@@ -372,7 +376,8 @@ bool Profiler::addressInCode(const void* pc) {
     }
 
     // 2. Check if PC belongs to executable code of shared libraries
-    for (int i = 0; i < _native_lib_count; i++) {
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(pc)) {
             return true;
         }
@@ -409,7 +414,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     }
 
     if (event_type == 0 || _JvmtiEnv_GetStackTrace == NULL) {
-        if (OS::signalSafeTLS() || need_java_trace) {
+        if (OS::isSignalSafeTLS() || need_java_trace) {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
         }
     } else {
@@ -433,11 +438,47 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     _locks[lock_index].unlock();
 }
 
-void Profiler::resetSymbols() {
-    for (int i = 0; i < _native_lib_count; i++) {
-        delete _native_libs[i];
+jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
+    jboolean result = _instance._original_NativeLibrary_load(env, self, name, builtin);
+    Symbols::parseLibraries(_instance._native_libs, _instance._native_lib_count, MAX_NATIVE_LIBS);
+    return result;
+}
+
+void Profiler::bindNativeLibraryLoad(NativeLoadLibraryFunc entry) {
+    JNIEnv* env = VM::jni();
+    jclass NativeLibrary = env->FindClass("java/lang/ClassLoader$NativeLibrary");
+
+    if (NativeLibrary != NULL) {
+        // Find JNI entry for NativeLibrary.load() method
+        if (_original_NativeLibrary_load == NULL) {
+            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)V") != NULL) {
+                // JDK 9+
+                _load_method.name = (char*)"load0";
+                _load_method.signature = (char*)"(Ljava/lang/String;Z)V";
+            } else if (env->GetMethodID(NativeLibrary, "load", "(Ljava/lang/String;Z)V") != NULL) {
+                // JDK 8
+                _load_method.name = (char*)"load";
+                _load_method.signature = (char*)"(Ljava/lang/String;Z)V";
+            } else {
+                // JDK 7
+                _load_method.name = (char*)"load";
+                _load_method.signature = (char*)"(Ljava/lang/String;)V";
+            }
+
+            char jni_name[64];
+            strcpy(jni_name, "Java_java_lang_ClassLoader_00024NativeLibrary_");
+            strcat(jni_name, _load_method.name);
+            _original_NativeLibrary_load = (NativeLoadLibraryFunc)dlsym(VM::_libjava, jni_name);
+        }
+
+        // Change function pointer for the native method
+        if (_original_NativeLibrary_load != NULL) {
+            _load_method.fnPtr = (void*)entry;
+            env->RegisterNatives(NativeLibrary, &_load_method, 1);
+        }
     }
-    _native_lib_count = Symbols::parseMaps(_native_libs, MAX_NATIVE_LIBS);
+
+    env->ExceptionClear();
 }
 
 void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
@@ -554,7 +595,7 @@ Error Profiler::start(Arguments& args) {
         _thread_names.clear();
     }
 
-    resetSymbols();
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
     NativeCodeCache* libjvm = jvmLibrary();
     if (libjvm == NULL) {
         return Error("libjvm not found among loaded libraries");
@@ -581,6 +622,8 @@ Error Profiler::start(Arguments& args) {
         switchThreadEvents(JVMTI_ENABLE);
     }
 
+    bindNativeLibraryLoad(NativeLibraryLoadTrap);
+
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
@@ -598,6 +641,8 @@ Error Profiler::stop() {
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+
+    bindNativeLibraryLoad(_original_NativeLibrary_load);
 
     switchThreadEvents(JVMTI_DISABLE);
     updateAllThreadNames();

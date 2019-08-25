@@ -35,7 +35,8 @@ class OS {
     static u64 hton64(u64 x);
     static int threadId();
     static bool isThreadRunning(int thread_id);
-    static bool signalSafeTLS();
+    static bool isSignalSafeTLS();
+    static bool isJavaLibraryVisible();
     static void installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*));
     static void sendSignalToThread(int thread_id, int signo);
     static ThreadList* listThreads();

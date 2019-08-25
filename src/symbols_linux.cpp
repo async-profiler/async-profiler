@@ -285,6 +285,9 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
 }
 
 
+Mutex Symbols::_parse_lock;
+std::set<const void*> Symbols::_parsed_libraries;
+
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     std::ifstream maps("/proc/kallsyms");
     std::string str;
@@ -302,13 +305,15 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 }
 
-int Symbols::parseMaps(NativeCodeCache** array, int size) {
-    int count = 0;
-    if (count < size) {
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+    MutexLocker ml(_parse_lock);
+
+    if (count == 0) {
         NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
         cc->sort();
-        array[count++] = cc;
+        array[count] = cc;
+        atomicInc(count);
     }
 
     std::ifstream maps("/proc/self/maps");
@@ -317,20 +322,24 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
     while (count < size && std::getline(maps, str)) {
         MemoryMapDesc map(str.c_str());
         if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), map.addr(), map.end());
+            const char* image_base = map.addr();
+            if (!_parsed_libraries.insert(image_base).second) {
+                continue;  // the library was already parsed
+            }
+
+            NativeCodeCache* cc = new NativeCodeCache(map.file(), image_base, map.end());
 
             if (map.inode() != 0) {
-                ElfParser::parseFile(cc, map.addr() - map.offs(), map.file(), true);
+                ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, map.addr());
+                ElfParser::parseMem(cc, image_base);
             }
 
             cc->sort();
-            array[count++] = cc;
+            array[count] = cc;
+            atomicInc(count);
         }
     }
-
-    return count;
 }
 
 #endif // __linux__

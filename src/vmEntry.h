@@ -65,10 +65,13 @@ class VM {
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
 
+    static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti);
 
   public:
+    static void* _libjvm;
+    static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
 
     static void init(JavaVM* vm, bool attach);

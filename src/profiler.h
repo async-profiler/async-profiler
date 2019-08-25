@@ -32,7 +32,7 @@
 
 const char FULL_VERSION_STRING[] =
     "Async-profiler " PROFILER_VERSION " built on " __DATE__ "\n"
-    "Copyright 2018 Andrei Pangin\n";
+    "Copyright 2019 Andrei Pangin\n";
 
 const int MAX_CALLTRACES    = 65536;
 const int MAX_STACK_FRAMES  = 2048;
@@ -83,6 +83,8 @@ class MethodSample {
 };
 
 
+typedef jboolean JNICALL (*NativeLoadLibraryFunc)(JNIEnv*, jobject, jstring, jboolean);
+
 enum State {
     IDLE,
     RUNNING,
@@ -122,7 +124,12 @@ class Profiler {
     CodeCache _java_methods;
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
-    int _native_lib_count;
+    volatile int _native_lib_count;
+
+    JNINativeMethod _load_method;
+    NativeLoadLibraryFunc _original_NativeLibrary_load;
+    static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
+    void bindNativeLibraryLoad(NativeLoadLibraryFunc entry);
 
     void* (*_ThreadLocalStorage_thread)();
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
@@ -146,7 +153,6 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void resetSymbols();
     void initJvmtiFunctions(NativeCodeCache* libjvm);
     void setThreadName(int tid, const char* name);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -167,6 +173,7 @@ class Profiler {
         _java_methods(),
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
+        _original_NativeLibrary_load(NULL),
         _ThreadLocalStorage_thread(NULL),
         _JvmtiEnv_GetStackTrace(NULL) {
     }

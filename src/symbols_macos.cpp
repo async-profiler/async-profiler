@@ -122,24 +122,31 @@ class MachOParser {
 };
 
 
+Mutex Symbols::_parse_lock;
+std::set<const void*> Symbols::_parsed_libraries;
+
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 }
 
-int Symbols::parseMaps(NativeCodeCache** array, int size) {
-    int count = 0;
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+    MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
     for (uint32_t i = 0; i < images && count < size; i++) {
+        const mach_header* image_base = _dyld_get_image_header(i);
+        if (!_parsed_libraries.insert(image_base).second) {
+            continue;  // the library was already parsed
+        }
+
         const char* path = _dyld_get_image_name(i);
-        const mach_header* base = _dyld_get_image_header(i);
 
         NativeCodeCache* cc = new NativeCodeCache(path);
-        MachOParser::parseFile(cc, base, path);
-        cc->sort();
-        array[count++] = cc;
-    }
+        MachOParser::parseFile(cc, image_base, path);
 
-    return count;
+        cc->sort();
+        array[count] = cc;
+        atomicInc(count);
+    }
 }
 
 #endif // __APPLE__

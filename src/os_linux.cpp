@@ -99,8 +99,12 @@ bool OS::isThreadRunning(int thread_id) {
     return running;
 }
 
-bool OS::signalSafeTLS() {
+bool OS::isSignalSafeTLS() {
     return true;
+}
+
+bool OS::isJavaLibraryVisible() {
+    return false;
 }
 
 void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)) {
