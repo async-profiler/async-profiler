@@ -35,8 +35,8 @@ const char FULL_VERSION_STRING[] =
     "Copyright 2019 Andrei Pangin\n";
 
 const int MAX_CALLTRACES    = 65536;
-const int MAX_STACK_FRAMES  = 2048;
 const int MAX_NATIVE_FRAMES = 128;
+const int RESERVED_FRAMES   = 4;
 const int MAX_NATIVE_LIBS   = 2048;
 const int CONCURRENCY_LEVEL = 16;
 
@@ -47,8 +47,8 @@ static inline int cmp64(u64 a, u64 b) {
 
 
 union CallTraceBuffer {
-    ASGCT_CallFrame _asgct_frames[MAX_STACK_FRAMES];
-    jvmtiFrameInfo _jvmti_frames[MAX_STACK_FRAMES];
+    ASGCT_CallFrame _asgct_frames[1];
+    jvmtiFrameInfo _jvmti_frames[1];
 };
 
 
@@ -109,9 +109,9 @@ class Profiler {
     MethodSample _methods[MAX_CALLTRACES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
-    CallTraceBuffer _calltrace_buffer[CONCURRENCY_LEVEL];
+    CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
-    int _jstackdepth;
+    int _max_stack_depth;
     int _frame_buffer_size;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
@@ -166,6 +166,8 @@ class Profiler {
         _state(IDLE),
         _jfr(),
         _frame_buffer(NULL),
+        _frame_buffer_size(0),
+        _max_stack_depth(0),
         _thread_events_state(JVMTI_DISABLE),
         _jit_lock(),
         _jit_min_address((const void*)-1),
@@ -176,6 +178,10 @@ class Profiler {
         _original_NativeLibrary_load(NULL),
         _ThreadLocalStorage_thread(NULL),
         _JvmtiEnv_GetStackTrace(NULL) {
+
+        for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
+            _calltrace_buffer[i] = NULL;
+        }
     }
 
     u64 total_samples() { return _total_samples; }

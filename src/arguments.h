@@ -22,6 +22,7 @@
 
 const long DEFAULT_INTERVAL = 10000000;  // 10 ms
 const int DEFAULT_FRAMEBUF = 1000000;
+const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU    = "cpu";
 const char* const EVENT_ALLOC  = "alloc";
@@ -109,7 +110,7 @@ class Arguments {
         _ring(RING_ANY),
         _event(EVENT_CPU),
         _interval(0),
-        _jstackdepth(0),
+        _jstackdepth(DEFAULT_JSTACKDEPTH),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
         _simple(false),

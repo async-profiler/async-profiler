@@ -396,7 +396,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     atomicInc(_total_counter, counter);
 
-    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]._asgct_frames;
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
     int tid = OS::threadId();
 
     bool need_java_trace = true;
@@ -407,20 +407,14 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames = makeEventFrame(frames, event_type, event);
     }
 
-    // It is possible to limit Java stack walking depth for performance reasons
-    int max_depth = MAX_STACK_FRAMES - 1 - num_frames;
-    if (_jstackdepth > 0 && _jstackdepth < max_depth) {
-        max_depth = _jstackdepth;
-    }
-
     if (event_type == 0 || _JvmtiEnv_GetStackTrace == NULL) {
         if (OS::isSignalSafeTLS() || need_java_trace) {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, max_depth);
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
         }
     } else {
         // Events like object allocation happen at known places where it is safe to call JVM TI
-        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]._jvmti_frames;
-        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, max_depth);
+        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     }
 
     if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
@@ -578,22 +572,39 @@ Error Profiler::start(Arguments& args) {
     _hashes[0] = (u64)-1;
 
     // Reset frames
-    free(_frame_buffer);
-    _frame_buffer_size = args._framebuf;
-    _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
-    if (_frame_buffer == NULL) {
-        return Error("Not enough memory to allocate frame buffer");
+    if (_frame_buffer_size != args._framebuf) {
+        _frame_buffer_size = args._framebuf;
+        free(_frame_buffer);
+        _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
+        if (_frame_buffer == NULL) {
+            _frame_buffer_size = 0;
+            return Error("Not enough memory to allocate frame buffer (try smaller framebuf)");
+        }
     }
     _frame_buffer_index = 0;
     _frame_buffer_overflow = false;
-    _threads = args._threads && !args._dump_jfr;
-    _jstackdepth = args._jstackdepth;
+
+    // Reset calltrace buffers
+    if (_max_stack_depth != args._jstackdepth) {
+        _max_stack_depth = args._jstackdepth;
+        size_t buffer_size = (_max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
+
+        for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
+            free(_calltrace_buffer[i]);
+            _calltrace_buffer[i] = (CallTraceBuffer*)malloc(buffer_size);
+            if (_calltrace_buffer[i] == NULL) {
+                _max_stack_depth = 0;
+                return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth)");
+            }
+        }
+    }
 
     // Reset thread names
     {
         MutexLocker ml(_thread_names_lock);
         _thread_names.clear();
     }
+    _threads = args._threads && !args._dump_jfr;
 
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
     NativeCodeCache* libjvm = jvmLibrary();
