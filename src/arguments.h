@@ -74,7 +74,7 @@ class Error {
 
 class Arguments {
   private:
-    char _buf[1024];
+    char* _buf;
 
     long parseUnits(const char* str);
 
@@ -105,6 +105,7 @@ class Arguments {
     bool _reverse;
 
     Arguments() :
+        _buf(NULL),
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
@@ -130,11 +131,15 @@ class Arguments {
         _reverse(false) {
     }
 
+    ~Arguments();
+
+    void assign(Arguments& other);
+
+    Error parse(const char* args);
+
     bool dumpRequested() {
         return _dump_collapsed || _dump_flamegraph || _dump_tree || _dump_jfr || _dump_summary || _dump_traces > 0 || _dump_flat > 0;
     }
-
-    Error parse(const char* args);
 };
 
 #endif // _ARGUMENTS_H

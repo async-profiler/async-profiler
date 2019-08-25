@@ -62,11 +62,13 @@ const Error Error::OK(NULL);
 Error Arguments::parse(const char* args) {
     if (args == NULL) {
         return Error::OK;
-    } else if (strlen(args) >= sizeof(_buf)) {
-        return Error("Argument list too long");
     }
 
-    strcpy(_buf, args);
+    free(_buf);
+    _buf = strdup(args);
+    if (_buf == NULL) {
+        return Error("Not enough memory to parse arguments");
+    }
 
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -169,4 +171,14 @@ long Arguments::parseUnits(const char* str) {
     }
 
     return result;
+}
+
+Arguments::~Arguments() {
+    free(_buf);
+}
+
+void Arguments::assign(Arguments& other) {
+    free(_buf);
+    *this = other;
+    other._buf = NULL;
 }

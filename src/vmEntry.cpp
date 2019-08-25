@@ -148,7 +148,9 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     }
 
     // Save the arguments in case of shutdown
-    _agent_args = args;
+    if (args._action == ACTION_START) {
+        _agent_args.assign(args);
+    }
     Profiler::_instance.run(args);
 
     return 0;
