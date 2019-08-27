@@ -76,6 +76,7 @@ class Arguments {
   private:
     char* _buf;
 
+    const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     long parseUnits(const char* str);
 
   public:
@@ -89,7 +90,7 @@ class Arguments {
     bool _threads;
     bool _simple;
     bool _annotate;
-    char* _file;
+    const char* _file;
     bool _dump_collapsed;
     bool _dump_flamegraph;
     bool _dump_tree;

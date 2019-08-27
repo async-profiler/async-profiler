@@ -15,13 +15,20 @@
  */
 
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "arguments.h"
 
 
 // Predefined value that denotes successful operation
 const Error Error::OK(NULL);
+
+// Extra buffer space for expanding file pattern
+const size_t EXTRA_BUF_SIZE = 512;
 
 
 // Parses agent arguments.
@@ -64,11 +71,13 @@ Error Arguments::parse(const char* args) {
         return Error::OK;
     }
 
+    size_t len = strlen(args);
     free(_buf);
-    _buf = strdup(args);
+    _buf = (char*)malloc(len + EXTRA_BUF_SIZE);
     if (_buf == NULL) {
         return Error("Not enough memory to parse arguments");
     }
+    strcpy(_buf, args);
 
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -146,11 +155,47 @@ Error Arguments::parse(const char* args) {
         }
     }
 
+    if (_file != NULL && strchr(_file, '%') != NULL) {
+        _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
+    }
+
     if (dumpRequested() && (_action == ACTION_NONE || _action == ACTION_STOP)) {
         _action = ACTION_DUMP;
     }
 
     return Error::OK;
+}
+
+// Expands %p to the process id
+//         %t to the timestamp
+const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char* pattern) {
+    char* ptr = dest;
+    char* end = dest + max_size - 1;
+
+    while (ptr < end && *pattern != 0) {
+        char c = *pattern++;
+        if (c == '%') {
+            c = *pattern++;
+            if (c == 0) {
+                break;
+            } else if (c == 'p') {
+                ptr += snprintf(ptr, end - ptr, "%d", getpid());
+                continue;
+            } else if (c == 't') {
+                time_t timestamp = time(NULL);
+                struct tm t;
+                localtime_r(&timestamp, &t);
+                ptr += snprintf(ptr, end - ptr, "%d%02d%02d-%02d%02d%02d",
+                                t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+                                t.tm_hour, t.tm_min, t.tm_sec);
+                continue;
+            }
+        }
+        *ptr++ = c;
+    }
+
+    *ptr = 0;
+    return dest;
 }
 
 long Arguments::parseUnits(const char* str) {
