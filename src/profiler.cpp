@@ -388,18 +388,25 @@ bool Profiler::addressInCode(const void* pc) {
 }
 
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event) {
+    int tid = OS::threadId();
+
     u64 lock_index = atomicInc(_total_samples) % CONCURRENCY_LEVEL;
     if (!_locks[lock_index].tryLock()) {
-        atomicInc(_failures[-ticks_skipped]);  // too many concurrent signals already
+        // Too many concurrent signals already
+        atomicInc(_failures[-ticks_skipped]);
+
+        if (event_type == 0) {
+            // Need to reset PerfEvents ring buffer, even though we discard the collected trace
+            _engine->getNativeTrace(ucontext, tid, NULL, 0, _jit_min_address, _jit_max_address);
+        }
         return;
     }
 
     atomicInc(_total_counter, counter);
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
-    int tid = OS::threadId();
-
     bool need_java_trace = true;
+
     int num_frames = 0;
     if (event_type == 0) {
         num_frames = getNativeTrace(ucontext, frames, tid, &need_java_trace);
