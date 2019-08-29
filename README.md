@@ -334,6 +334,36 @@ or disable it altogether with `--security-opt=seccomp:unconfined` option.
 Alternatively, if changing Docker configuration is not possible,
 you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
 
+Simple Dockerfile and docker-compose.yml examples:
+
+```Dockerfile
+FROM openjdk:11
+USER root
+WORKDIR /root
+VOLUME /tmp /tmp
+VOLUME /root/async-profiler /root/async-profiler
+COPY my.jar my.jar
+EXPOSE 8080
+CMD ["sh", "-c", "java ${MY_ARGS} -jar my.jar"]
+```
+
+```yml
+version: '3'
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - /tmp:/tmp
+      - /root/async-profiler:/root/async-profiler
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - MY_ARGS=-XX:+PreserveFramePointer -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints
+```
+
 ## Restrictions/Limitations
 
 * On most Linux systems, `perf_events` captures call stacks with a maximum depth
