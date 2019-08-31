@@ -405,6 +405,8 @@ Usually this happens in one of the following cases:
  JVM is in the middle of long-running garbage collection.  
  How to check: run `kill -3 PID`. Healthy JVM process should print
  a thread dump and heap info in its console.
+ 5. Some JVMs do not provide attach mode. The attach mode is supported for e.g.
+ Oracle JDK, OpenJDK HotSpot, and IBM JDK based on OpenJ9.
 
 ```
 Failed to inject profiler into <pid>
