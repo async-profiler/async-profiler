@@ -17,10 +17,8 @@
 #ifdef __APPLE__
 
 #include <libkern/OSByteOrder.h>
-#include <mach/mach_init.h>
-#include <mach/mach_interface.h>
+#include <mach/mach.h>
 #include <mach/mach_time.h>
-#include <pthread.h>
 #include <sys/time.h>
 #include "os.h"
 
@@ -37,7 +35,11 @@ class MacThreadList : public ThreadList {
     }
 
     ~MacThreadList() {
-        vm_deallocate(mach_task_self(), (vm_address_t)_thread_array, sizeof(thread_t) * _thread_count);
+        task_t task = mach_task_self();
+        for (int i = 0; i < _thread_count; i++) {
+            mach_port_deallocate(task, _thread_array[i]);
+        }
+        vm_deallocate(task, (vm_address_t)_thread_array, sizeof(thread_t) * _thread_count);
     }
 
     int next() {
@@ -69,7 +71,11 @@ u64 OS::hton64(u64 x) {
 }
 
 int OS::threadId() {
-    return pthread_mach_thread_np(pthread_self());
+    // Used to be pthread_mach_thread_np(pthread_self()),
+    // but pthread_mach_thread_np is not async signal safe
+    mach_port_t port = mach_thread_self();
+    mach_port_deallocate(mach_task_self(), port);
+    return (int)port;
 }
 
 bool OS::isThreadRunning(int thread_id) {
