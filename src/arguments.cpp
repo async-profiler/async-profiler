@@ -55,8 +55,10 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     threads       - profile different threads separately
 //     allkernel     - include only kernel-mode events
 //     alluser       - include only user-mode events
-//     simple[=bool] - simple class names instead of FQN
-//     ann[=bool]    - annotate Java method names
+//     simple        - simple class names instead of FQN
+//     dot           - dotted class names
+//     sig           - print method signatures
+//     ann           - annotate Java method names
 //     title=TITLE   - FlameGraph title
 //     width=PX      - FlameGraph image width
 //     height=PX     - FlameGraph frame height
@@ -134,9 +136,13 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "alluser") == 0) {
             _ring = RING_USER;
         } else if (strcmp(arg, "simple") == 0) {
-            _simple = value == NULL || strcmp(value, "true") == 0;
+            _style |= STYLE_SIMPLE;
+        } else if (strcmp(arg, "dot") == 0) {
+            _style |= STYLE_DOTTED;
+        } else if (strcmp(arg, "sig") == 0) {
+            _style |= STYLE_SIGNATURES;
         } else if (strcmp(arg, "ann") == 0) {
-            _annotate = value == NULL || strcmp(value, "true") == 0;
+            _style |= STYLE_ANNOTATE;
         } else if (strcmp(arg, "title") == 0 && value != NULL) {
             _title = value;
         } else if (strcmp(arg, "width") == 0 && value != NULL) {

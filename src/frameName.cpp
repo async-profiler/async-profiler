@@ -19,14 +19,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "frameName.h"
+#include "arguments.h"
 #include "vmStructs.h"
 
 
-FrameName::FrameName(bool simple, bool annotate, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names) :
+FrameName::FrameName(int style, Mutex& thread_names_lock, ThreadMap& thread_names) :
     _cache(),
-    _simple(simple),
-    _annotate(annotate),
-    _dotted(dotted),
+    _style(style),
     _thread_names_lock(thread_names_lock),
     _thread_names(thread_names)
 {
@@ -56,31 +55,34 @@ char* FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
     char* method_name = NULL;
+    char* method_sig = NULL;
     char* result;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
 
-    if ((err = jvmti->GetMethodName(method, &method_name, NULL, NULL)) == 0 &&
+    if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
         // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
-        result = javaClassName(class_name + 1, strlen(class_name) - 2, _simple, _dotted);
+        result = javaClassName(class_name + 1, strlen(class_name) - 2, _style);
         strcat(result, ".");
         strcat(result, method_name);
-        if (_annotate) strcat(result, "_[j]");
+        if (_style & STYLE_SIGNATURES) strcat(result, method_sig);
+        if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
     } else {
         snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
         result = _buf;
     }
 
     jvmti->Deallocate((unsigned char*)class_name);
+    jvmti->Deallocate((unsigned char*)method_sig);
     jvmti->Deallocate((unsigned char*)method_name);
 
     return result;
 }
 
-char* FrameName::javaClassName(const char* symbol, int length, bool simple, bool dotted) {
+char* FrameName::javaClassName(const char* symbol, int length, int style) {
     char* result = _buf;
 
     int array_dimension = 0;
@@ -113,13 +115,13 @@ char* FrameName::javaClassName(const char* symbol, int length, bool simple, bool
         } while (--array_dimension > 0);
     }
 
-    if (simple) {
+    if (style & STYLE_SIMPLE) {
         for (char* s = result; *s; s++) {
             if (*s == '/') result = s + 1;
         }
     }
 
-    if (dotted) {
+    if (style & STYLE_DOTTED) {
         for (char* s = result; *s; s++) {
             if (*s == '/') *s = '.';
         }
@@ -139,14 +141,14 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
 
         case BCI_SYMBOL: {
             VMSymbol* symbol = (VMSymbol*)frame.method_id;
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
-            return strcat(class_name, _dotted ? "" : "_[i]");
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
+            return strcat(class_name, _style & STYLE_DOTTED ? "" : "_[i]");
         }
 
         case BCI_SYMBOL_OUTSIDE_TLAB: {
             VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
-            return strcat(class_name, _dotted ? " (out)" : "_[k]");
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
+            return strcat(class_name, _style & STYLE_DOTTED ? " (out)" : "_[k]");
         }
 
         case BCI_THREAD_ID: {

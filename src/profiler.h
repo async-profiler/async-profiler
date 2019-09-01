@@ -197,8 +197,8 @@ class Profiler {
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
-    void dumpTraces(std::ostream& out, int max_traces);
-    void dumpFlat(std::ostream& out, int max_methods);
+    void dumpTraces(std::ostream& out, Arguments& args);
+    void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
     const void* findSymbol(const char* name);

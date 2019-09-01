@@ -18,6 +18,7 @@ usage() {
     echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
+    echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
     echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo "  -v, --version     display version string"
@@ -145,6 +146,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s)
             FORMAT="$FORMAT,simple"
+            ;;
+        -g)
+            FORMAT="$FORMAT,sig"
             ;;
         -a)
             FORMAT="$FORMAT,ann"

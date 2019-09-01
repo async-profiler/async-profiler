@@ -35,20 +35,18 @@ typedef std::map<int, std::string> ThreadMap;
 class FrameName {
   private:
     JMethodCache _cache;
-    char _buf[520];
-    bool _simple;
-    bool _annotate;
-    bool _dotted;
+    char _buf[800];  // must be large enough for class name + method name + method signature
+    int _style;
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
     locale_t _saved_locale;
 
     const char* cppDemangle(const char* name);
     char* javaMethodName(jmethodID method);
-    char* javaClassName(const char* symbol, int length, bool simple, bool dotted);
+    char* javaClassName(const char* symbol, int length, int style);
 
   public:
-    FrameName(bool simple, bool annotate, bool dotted, Mutex& thread_names_lock, ThreadMap& thread_names);
+    FrameName(int style, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame);

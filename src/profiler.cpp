@@ -714,7 +714,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(args._simple, args._annotate, false, _thread_names_lock, _thread_names);
+    FrameName fn(args._style, _thread_names_lock, _thread_names);
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -743,7 +743,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     if (_state != IDLE || _engine == NULL) return;
 
     FlameGraph flamegraph(args._title, args._counter, args._width, args._height, args._minwidth, args._reverse);
-    FrameName fn(args._simple, args._annotate, false, _thread_names_lock, _thread_names);
+    FrameName fn(args._style, _thread_names_lock, _thread_names);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
@@ -771,17 +771,17 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     flamegraph.dump(out, tree);
 }
 
-void Profiler::dumpTraces(std::ostream& out, int max_traces) {
+void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(false, false, true, _thread_names_lock, _thread_names);
+    FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
     qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
-    if (max_traces > MAX_CALLTRACES) max_traces = MAX_CALLTRACES;
 
+    int max_traces = args._dump_traces < MAX_CALLTRACES ? args._dump_traces : MAX_CALLTRACES;
     for (int i = 0; i < max_traces; i++) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0) break;
@@ -804,21 +804,21 @@ void Profiler::dumpTraces(std::ostream& out, int max_traces) {
     }
 }
 
-void Profiler::dumpFlat(std::ostream& out, int max_methods) {
+void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(false, false, true, _thread_names_lock, _thread_names);
+    FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
     qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
-    if (max_methods > MAX_CALLTRACES) max_methods = MAX_CALLTRACES;
 
     snprintf(buf, sizeof(buf), "%12s  percent  samples  top\n"
                                "  ----------  -------  -------  ---\n", _engine->units());
     out << buf;
 
+    int max_methods = args._dump_flat < MAX_CALLTRACES ? args._dump_flat : MAX_CALLTRACES;
     for (int i = 0; i < max_methods; i++) {
         MethodSample& method = _methods[i];
         if (method._samples == 0) break;
@@ -887,8 +887,8 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (args._dump_flamegraph) dumpFlameGraph(out, args, false);
             if (args._dump_tree) dumpFlameGraph(out, args, true);
             if (args._dump_summary) dumpSummary(out);
-            if (args._dump_traces > 0) dumpTraces(out, args._dump_traces);
-            if (args._dump_flat > 0) dumpFlat(out, args._dump_flat);
+            if (args._dump_traces > 0) dumpTraces(out, args);
+            if (args._dump_flat > 0) dumpFlat(out, args);
             break;
         default:
             break;

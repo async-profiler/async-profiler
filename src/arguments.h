@@ -51,6 +51,13 @@ enum Ring {
     RING_USER
 };
 
+enum Style {
+    STYLE_SIMPLE     = 1,
+    STYLE_DOTTED     = 2,
+    STYLE_SIGNATURES = 4,
+    STYLE_ANNOTATE   = 8
+};
+
 
 class Error {
   private:
@@ -88,8 +95,7 @@ class Arguments {
     int  _jstackdepth;
     int _framebuf;
     bool _threads;
-    bool _simple;
-    bool _annotate;
+    int _style;
     const char* _file;
     bool _dump_collapsed;
     bool _dump_flamegraph;
@@ -115,8 +121,7 @@ class Arguments {
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
-        _simple(false),
-        _annotate(false),
+        _style(0),
         _file(NULL),
         _dump_collapsed(false),
         _dump_flamegraph(false),
