@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.6 Early Access]
+
+### Improvements
+ - Include all AsyncGetCallTrace failures in the profile
+ - `-g` option to print method signatures
+ - `-j` can increase the maximum Java stack depth
+ - Output file name patterns: `%p` and `%t`
+ - Allocaton sampling rate can be adjusted with `-i`
+ - Parse symbols of JNI libraries loaded in runtime
+ - JDK 12 allocation profiling support (contributed by @rraptorr)
+
+### Changes
+ - `-f` file names are now relative to the current shell directory
+
 ## [1.5] - 2019-01-08
 
 ### Features
