@@ -30,6 +30,9 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 Trap AllocTracer::_in_new_tlab2("_ZN11AllocTracer27send_allocation_in_new_tlab");
 Trap AllocTracer::_outside_tlab2("_ZN11AllocTracer28send_allocation_outside_tlab");
 
+u64 AllocTracer::_interval;
+volatile u64 AllocTracer::_allocated_bytes;
+
 
 // Resolve the address of the intercepted function
 bool Trap::resolve(NativeCodeCache* libjvm) {
@@ -94,6 +97,23 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 void AllocTracer::recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab) {
+    if (_interval) {
+        // Do not record allocation unless allocated at least _interval bytes
+        while (true) {
+            u64 prev = _allocated_bytes;
+            u64 next = prev + rsize;
+            if (next < _interval) {
+                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next)) {
+                    return;
+                }
+            } else {
+                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next % _interval)) {
+                    break;
+                }
+            }
+        }
+    }
+
     VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
     if (outside_tlab) {
         // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
@@ -113,6 +133,9 @@ Error AllocTracer::start(Arguments& args) {
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
+
+    _interval = args._interval;
+    _allocated_bytes = 0;
 
     OS::installSignalHandler(SIGTRAP, signalHandler);
 
