@@ -128,7 +128,7 @@ class Arguments {
         _title("Flame Graph"),
         _width(1200),
         _height(16),
-        _minwidth(1),
+        _minwidth(0.25),
         _reverse(false) {
     }
 
