@@ -14,7 +14,13 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Latest release:
+Current version (1.6-ea):
+
+ - Linux x64 (glibc): [async-profiler-1.6-ea-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6-ea/async-profiler-1.6-ea-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.6-ea-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6-ea/async-profiler-1.6-ea-linux-x64-musl.tar.gz)
+ - macOS x64: [async-profiler-1.6-ea-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6-ea/async-profiler-1.6-ea-macos-x64.tar.gz)
+
+Latest release (1.5):
 
  - Linux x64: [async-profiler-1.5-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.5/async-profiler-1.5-linux-x64.tar.gz)
  - Linux ARM: [async-profiler-1.5-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.5/async-profiler-1.5-linux-arm.tar.gz)
