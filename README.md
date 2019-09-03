@@ -294,8 +294,8 @@ Example: `./profiler.sh -t 8983`
 
 * `-a` - annotate Java method names by adding `_[j]` suffix.
 
-* `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
-This is a comma-separated list of the following options:
+* `-o fmt` - specifies what information to dump when profiling ends.
+`fmt` can be one of the following options:
   - `summary` - dump basic profiling statistics;
   - `traces[=N]` - dump call traces (at most N samples);
   - `flat[=N]` - dump flat profile (top N hot methods);
@@ -313,6 +313,7 @@ This is a comma-separated list of the following options:
   - `samples` - the counter is a number of samples for the given trace;
   - `total` - the counter is a total value of collected metric, e.g. total allocation size.
   
+  `summary`, `traces` and `flat` can be combined together.  
   The default format is `summary,traces=200,flat=200`.
 
 * `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  

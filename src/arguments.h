@@ -58,6 +58,15 @@ enum Style {
     STYLE_ANNOTATE   = 8
 };
 
+enum Output {
+    OUTPUT_NONE,
+    OUTPUT_TEXT,
+    OUTPUT_COLLAPSED,
+    OUTPUT_FLAMEGRAPH,
+    OUTPUT_TREE,
+    OUTPUT_JFR
+};
+
 
 class Error {
   private:
@@ -83,8 +92,9 @@ class Arguments {
   private:
     char* _buf;
 
-    const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
-    long parseUnits(const char* str);
+    static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
+    static Output detectOutputFormat(const char* file);
+    static long parseUnits(const char* str);
 
   public:
     Action _action;
@@ -97,11 +107,7 @@ class Arguments {
     bool _threads;
     int _style;
     const char* _file;
-    bool _dump_collapsed;
-    bool _dump_flamegraph;
-    bool _dump_tree;
-    bool _dump_jfr;
-    bool _dump_summary;
+    Output _output;
     int _dump_traces;
     int _dump_flat;
     // FlameGraph parameters
@@ -123,11 +129,7 @@ class Arguments {
         _threads(false),
         _style(0),
         _file(NULL),
-        _dump_collapsed(false),
-        _dump_flamegraph(false),
-        _dump_tree(false),
-        _dump_jfr(false),
-        _dump_summary(false),
+        _output(OUTPUT_NONE),
         _dump_traces(0),
         _dump_flat(0),
         _title("Flame Graph"),
@@ -142,10 +144,6 @@ class Arguments {
     void assign(Arguments& other);
 
     Error parse(const char* args);
-
-    bool dumpRequested() {
-        return _dump_collapsed || _dump_flamegraph || _dump_tree || _dump_jfr || _dump_summary || _dump_traces > 0 || _dump_flat > 0;
-    }
 };
 
 #endif // _ARGUMENTS_H

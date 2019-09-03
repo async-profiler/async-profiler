@@ -611,7 +611,7 @@ Error Profiler::start(Arguments& args) {
         MutexLocker ml(_thread_names_lock);
         _thread_names.clear();
     }
-    _threads = args._threads && !args._dump_jfr;
+    _threads = args._threads && args._output != OUTPUT_JFR;
 
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
     NativeCodeCache* libjvm = jvmLibrary();
@@ -621,7 +621,7 @@ Error Profiler::start(Arguments& args) {
     VMStructs::init(libjvm);
     initJvmtiFunctions(libjvm);
 
-    if (args._dump_jfr) {
+    if (args._output == OUTPUT_JFR) {
         Error error = _jfr.start(args._file);
         if (error) {
             return error;
@@ -883,12 +883,24 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             break;
         case ACTION_DUMP:
             stop();
-            if (args._dump_collapsed) dumpCollapsed(out, args);
-            if (args._dump_flamegraph) dumpFlameGraph(out, args, false);
-            if (args._dump_tree) dumpFlameGraph(out, args, true);
-            if (args._dump_summary) dumpSummary(out);
-            if (args._dump_traces > 0) dumpTraces(out, args);
-            if (args._dump_flat > 0) dumpFlat(out, args);
+            switch (args._output) {
+                case OUTPUT_COLLAPSED:
+                    dumpCollapsed(out, args);
+                    break;
+                case OUTPUT_FLAMEGRAPH:
+                    dumpFlameGraph(out, args, false);
+                    break;
+                case OUTPUT_TREE:
+                    dumpFlameGraph(out, args, true);
+                    break;
+                case OUTPUT_TEXT:
+                    dumpSummary(out);
+                    if (args._dump_traces > 0) dumpTraces(out, args);
+                    if (args._dump_flat > 0) dumpFlat(out, args);
+                    break;
+                default:
+                    break;
+            }
             break;
         default:
             break;
@@ -896,7 +908,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
 }
 
 void Profiler::run(Arguments& args) {
-    if (args._file == NULL || args._dump_jfr) {
+    if (args._file == NULL || args._output == OUTPUT_JFR) {
         runInternal(args, std::cout);
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);
@@ -913,7 +925,7 @@ void Profiler::shutdown(Arguments& args) {
     MutexLocker ml(_state_lock);
 
     // The last chance to dump profile before VM terminates
-    if (_state == RUNNING && args.dumpRequested()) {
+    if (_state == RUNNING && args._output != OUTPUT_NONE) {
         args._action = ACTION_DUMP;
         run(args);
     }

@@ -20,7 +20,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
-    echo "  -o fmt[,fmt...]   output format: summary|traces|flat|collapsed|svg|tree|jfr"
+    echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo "  -v, --version     display version string"
     echo ""
     echo "  --title string    SVG title"
@@ -206,21 +206,6 @@ if [[ $USE_TMP ]]; then
 elif [[ $FILE != /* ]]; then
     # Output file is written by the target process. Make the path absolute to avoid confusion.
     FILE=$PWD/$FILE
-fi
-
-# select default output format
-if [[ "$OUTPUT" == "" ]]; then
-    if [[ $FILE == *.svg ]]; then
-        OUTPUT="svg"
-    elif [[ $FILE == *.html ]]; then
-        OUTPUT="tree"
-    elif [[ $FILE == *.jfr ]]; then
-        OUTPUT="jfr"
-    elif [[ $FILE == *.collapsed ]] || [[ $FILE == *.folded ]]; then
-        OUTPUT="collapsed"
-    else
-        OUTPUT="summary,traces=200,flat=200"
-    fi
 fi
 
 case $ACTION in

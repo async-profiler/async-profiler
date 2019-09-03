@@ -111,8 +111,8 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     ASGCT_CallFrame* _frame_buffer;
-    int _max_stack_depth;
     int _frame_buffer_size;
+    int _max_stack_depth;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
     bool _threads;

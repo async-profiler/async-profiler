@@ -101,21 +101,23 @@ Error Arguments::parse(const char* args) {
             }
             _event = value;
         } else if (strcmp(arg, "collapsed") == 0 || strcmp(arg, "folded") == 0) {
-            _dump_collapsed = true;
+            _output = OUTPUT_COLLAPSED;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "flamegraph") == 0 || strcmp(arg, "svg") == 0) {
-            _dump_flamegraph = true;
+            _output = OUTPUT_FLAMEGRAPH;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "tree") == 0) {
-            _dump_tree = true;
+            _output = OUTPUT_TREE;
             _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
         } else if (strcmp(arg, "jfr") == 0) {
-            _dump_jfr = true;
+            _output = OUTPUT_JFR;
         } else if (strcmp(arg, "summary") == 0) {
-            _dump_summary = true;
+            _output = OUTPUT_TEXT;
         } else if (strcmp(arg, "traces") == 0) {
+            _output = OUTPUT_TEXT;
             _dump_traces = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "flat") == 0) {
+            _output = OUTPUT_TEXT;
             _dump_flat = value == NULL ? INT_MAX : atoi(value);
         } else if (strcmp(arg, "interval") == 0) {
             if (value == NULL || (_interval = parseUnits(value)) <= 0) {
@@ -165,7 +167,13 @@ Error Arguments::parse(const char* args) {
         _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
     }
 
-    if (dumpRequested() && (_action == ACTION_NONE || _action == ACTION_STOP)) {
+    if (_file != NULL && _output == OUTPUT_NONE) {
+        _output = detectOutputFormat(_file);
+        _dump_traces = 200;
+        _dump_flat = 200;
+    }
+
+    if (_output != OUTPUT_NONE && (_action == ACTION_NONE || _action == ACTION_STOP)) {
         _action = ACTION_DUMP;
     }
 
@@ -202,6 +210,22 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
 
     *ptr = 0;
     return dest;
+}
+
+Output Arguments::detectOutputFormat(const char* file) {
+    const char* ext = strrchr(file, '.');
+    if (ext != NULL) {
+        if (strcmp(ext, ".svg") == 0) {
+            return OUTPUT_FLAMEGRAPH;
+        } else if (strcmp(ext, ".html") == 0) {
+            return OUTPUT_TREE;
+        } else if (strcmp(ext, ".jfr") == 0) {
+            return OUTPUT_JFR;
+        } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
+            return OUTPUT_COLLAPSED;
+        }
+    }
+    return OUTPUT_TEXT;
 }
 
 long Arguments::parseUnits(const char* str) {
