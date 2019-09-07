@@ -61,7 +61,7 @@ class CallTraceSample {
 
   public:
     static int comparator(const void* s1, const void* s2) {
-        return cmp64(((CallTraceSample*)s2)->_counter, ((CallTraceSample*)s1)->_counter);
+        return cmp64((*(CallTraceSample**)s2)->_counter, (*(CallTraceSample**)s1)->_counter);
     }
 
     friend class Profiler;
@@ -76,7 +76,7 @@ class MethodSample {
 
   public:
     static int comparator(const void* s1, const void* s2) {
-        return cmp64(((MethodSample*)s2)->_counter, ((MethodSample*)s1)->_counter);
+        return cmp64((*(MethodSample**)s2)->_counter, (*(MethodSample**)s1)->_counter);
     }
 
     friend class Profiler;
@@ -191,7 +191,7 @@ class Profiler {
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
-    Error start(Arguments& args);
+    Error start(Arguments& args, bool reset);
     Error stop();
     void switchThreadEvents(jvmtiEventMode mode);
     void dumpSummary(std::ostream& out);

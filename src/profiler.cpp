@@ -558,7 +558,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Error Profiler::start(Arguments& args) {
+Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
@@ -568,30 +568,41 @@ Error Profiler::start(Arguments& args) {
         return Error("Could not find AsyncGetCallTrace function");
     }
 
-    _total_samples = 0;
-    _total_counter = 0;
-    memset(_failures, 0, sizeof(_failures));
-    memset(_hashes, 0, sizeof(_hashes));
-    memset(_traces, 0, sizeof(_traces));
-    memset(_methods, 0, sizeof(_methods));
+    bool first_time = _native_lib_count == 0;
+    if (first_time || reset) {
+        // Reset counters
+        _total_samples = 0;
+        _total_counter = 0;
+        memset(_failures, 0, sizeof(_failures));
+        memset(_hashes, 0, sizeof(_hashes));
+        memset(_traces, 0, sizeof(_traces));
+        memset(_methods, 0, sizeof(_methods));
 
-    // Index 0 denotes special call trace with no frames
-    _hashes[0] = (u64)-1;
+        // Index 0 denotes special call trace with no frames
+        _hashes[0] = (u64)-1;
 
-    // Reset frames
+        // Reset frame buffer
+        _frame_buffer_index = 0;
+        _frame_buffer_overflow = false;
+
+        // Reset thread names
+        {
+            MutexLocker ml(_thread_names_lock);
+            _thread_names.clear();
+        }
+    }
+
+    // (Re-)allocate frames
     if (_frame_buffer_size != args._framebuf) {
         _frame_buffer_size = args._framebuf;
-        free(_frame_buffer);
-        _frame_buffer = (ASGCT_CallFrame*)malloc(_frame_buffer_size * sizeof(ASGCT_CallFrame));
+        _frame_buffer = (ASGCT_CallFrame*)realloc(_frame_buffer, _frame_buffer_size * sizeof(ASGCT_CallFrame));
         if (_frame_buffer == NULL) {
             _frame_buffer_size = 0;
             return Error("Not enough memory to allocate frame buffer (try smaller framebuf)");
         }
     }
-    _frame_buffer_index = 0;
-    _frame_buffer_overflow = false;
 
-    // Reset calltrace buffers
+    // (Re-)allocate calltrace buffers
     if (_max_stack_depth != args._jstackdepth) {
         _max_stack_depth = args._jstackdepth;
         size_t buffer_size = (_max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
@@ -606,11 +617,6 @@ Error Profiler::start(Arguments& args) {
         }
     }
 
-    // Reset thread names
-    {
-        MutexLocker ml(_thread_names_lock);
-        _thread_names.clear();
-    }
     _threads = args._threads && args._output != OUTPUT_JFR;
 
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
@@ -779,29 +785,35 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
-    qsort(_traces, MAX_CALLTRACES, sizeof(CallTraceSample), CallTraceSample::comparator);
+    CallTraceSample** traces = new CallTraceSample*[MAX_CALLTRACES];
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        traces[i] = &_traces[i];
+    }
+    qsort(traces, MAX_CALLTRACES, sizeof(CallTraceSample*), CallTraceSample::comparator);
 
     int max_traces = args._dump_traces < MAX_CALLTRACES ? args._dump_traces : MAX_CALLTRACES;
     for (int i = 0; i < max_traces; i++) {
-        CallTraceSample& trace = _traces[i];
-        if (trace._samples == 0) break;
+        CallTraceSample* trace = traces[i];
+        if (trace->_samples == 0) break;
 
         snprintf(buf, sizeof(buf), "--- %lld %s (%.2f%%), %lld sample%s\n",
-                 trace._counter, _engine->units(), trace._counter * percent,
-                 trace._samples, trace._samples == 1 ? "" : "s");
+                 trace->_counter, _engine->units(), trace->_counter * percent,
+                 trace->_samples, trace->_samples == 1 ? "" : "s");
         out << buf;
 
-        if (trace._num_frames == 0) {
+        if (trace->_num_frames == 0) {
             out << "  [ 0] [frame_buffer_overflow]\n";
         }
 
-        for (int j = 0; j < trace._num_frames; j++) {
-            const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
+        for (int j = 0; j < trace->_num_frames; j++) {
+            const char* frame_name = fn.name(_frame_buffer[trace->_start_frame + j]);
             snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, frame_name);
             out << buf;
         }
         out << "\n";
     }
+
+    delete[] traces;
 }
 
 void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
@@ -812,7 +824,11 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     double percent = 100.0 / _total_counter;
     char buf[1024];
 
-    qsort(_methods, MAX_CALLTRACES, sizeof(MethodSample), MethodSample::comparator);
+    MethodSample** methods = new MethodSample*[MAX_CALLTRACES];
+    for (int i = 0; i < MAX_CALLTRACES; i++) {
+        methods[i] = &_methods[i];
+    }
+    qsort(methods, MAX_CALLTRACES, sizeof(MethodSample*), MethodSample::comparator);
 
     snprintf(buf, sizeof(buf), "%12s  percent  samples  top\n"
                                "  ----------  -------  -------  ---\n", _engine->units());
@@ -820,20 +836,23 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
 
     int max_methods = args._dump_flat < MAX_CALLTRACES ? args._dump_flat : MAX_CALLTRACES;
     for (int i = 0; i < max_methods; i++) {
-        MethodSample& method = _methods[i];
-        if (method._samples == 0) break;
+        MethodSample* method = methods[i];
+        if (method->_samples == 0) break;
 
-        const char* frame_name = fn.name(method._method);
+        const char* frame_name = fn.name(method->_method);
         snprintf(buf, sizeof(buf), "%12lld  %6.2f%%  %7lld  %s\n",
-                 method._counter, method._counter * percent, method._samples, frame_name);
+                 method->_counter, method->_counter * percent, method->_samples, frame_name);
         out << buf;
     }
+
+    delete[] methods;
 }
 
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
-        case ACTION_START: {
-            Error error = start(args);
+        case ACTION_START:
+        case ACTION_RESUME: {
+            Error error = start(args, args._action == ACTION_START);
             if (error) {
                 out << error.message() << std::endl;
             } else {

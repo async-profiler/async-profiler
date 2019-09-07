@@ -31,11 +31,11 @@ static void throw_new(JNIEnv* env, const char* exception_class, const char* mess
 
 
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval) {
+Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
     args._event = env->GetStringUTFChars(event, NULL);
     args._interval = interval;
-    Error error = Profiler::_instance.start(args);
+    Error error = Profiler::_instance.start(args, reset);
     env->ReleaseStringUTFChars(event, args._event);
 
     if (error) {

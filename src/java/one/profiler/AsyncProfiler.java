@@ -59,7 +59,20 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void start(String event, long interval) throws IllegalStateException {
-        start0(event, interval);
+        start0(event, interval, true);
+    }
+
+    /**
+     * Start or resume profiling without resetting collected data.
+     * Note that event and interval may change since the previous profiling session.
+     *
+     * @param event Profiling event, see {@link Events}
+     * @param interval Sampling interval, e.g. nanoseconds for Events.CPU
+     * @throws IllegalStateException If profiler is already running
+     */
+    @Override
+    public void resume(String event, long interval) throws IllegalStateException {
+        start0(event, interval, false);
     }
 
     /**
@@ -137,7 +150,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return dumpFlat0(maxMethods);
     }
 
-    private native void start0(String event, long interval) throws IllegalStateException;
+    private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, java.io.IOException;
     private native String dumpCollapsed0(int counter);

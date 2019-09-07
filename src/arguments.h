@@ -33,6 +33,7 @@ const char* const EVENT_ITIMER = "itimer";
 enum Action {
     ACTION_NONE,
     ACTION_START,
+    ACTION_RESUME,
     ACTION_STOP,
     ACTION_STATUS,
     ACTION_LIST,
@@ -141,7 +142,7 @@ class Arguments {
 
     ~Arguments();
 
-    void assign(Arguments& other);
+    void save(Arguments& other);
 
     Error parse(const char* args);
 };

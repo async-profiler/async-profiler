@@ -4,6 +4,7 @@ usage() {
     echo "Usage: $0 [action] [options] <pid>"
     echo "Actions:"
     echo "  start             start profiling and return immediately"
+    echo "  resume            resume profiling without resetting collected data"
     echo "  stop              stop profiling"
     echo "  status            print profiling status"
     echo "  list              list profiling events supported by the target JVM"
@@ -110,7 +111,7 @@ while [[ $# -gt 0 ]]; do
         -h|"-?")
             usage
             ;;
-        start|stop|status|list|collect)
+        start|resume|stop|status|list|collect)
             ACTION="$1"
             ;;
         -v|--version)
@@ -209,8 +210,8 @@ elif [[ $FILE != /* ]]; then
 fi
 
 case $ACTION in
-    start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
+    start|resume)
+        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"

@@ -236,6 +236,10 @@ The following is a complete list of the command-line options accepted by
 * `start` - starts profiling in semi-automatic mode, i.e. profiler will run
 until `stop` command is explicitly called.
 
+* `resume` - starts or resumes earlier profiling session that has been stopped.
+All the collected data remains valid. The profiling options are not preserved
+between sessions, and should be specified again.
+
 * `stop` - stops profiling and prints the report.
 
 * `status` - prints profiling status: whether profiler is active and
@@ -244,7 +248,7 @@ for how long.
 * `list` - show the list of available profiling events. This option still
 requires PID, since supported events may differ depending on JVM version.
 
-* `-d N` - the profiling duration, in seconds. If no `start`, `stop`
+* `-d N` - the profiling duration, in seconds. If no `start`, `resume`, `stop`
 or `status` option is given, the profiler will run for the specified period
 of time and then automatically stop.  
 Example: `./profiler.sh -d 30 8983`
