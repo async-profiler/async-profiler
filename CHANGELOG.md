@@ -1,15 +1,20 @@
 # Changelog
 
-## [1.6 Early Access]
+## [1.6] 2019-09-09
+
+### Features
+ - Pause/resume profiling
+ - Allocation profiling support for JDK 12, 13 (contributed by @rraptorr)
 
 ### Improvements
  - Include all AsyncGetCallTrace failures in the profile
+ - Parse symbols of JNI libraries loaded in runtime
+ - The agent autodetects output format by the file extension
+ - Output file name patterns: `%p` and `%t`
  - `-g` option to print method signatures
  - `-j` can increase the maximum Java stack depth
- - Output file name patterns: `%p` and `%t`
  - Allocaton sampling rate can be adjusted with `-i`
- - Parse symbols of JNI libraries loaded in runtime
- - JDK 12 allocation profiling support (contributed by @rraptorr)
+ - Improved reliability on macOS
 
 ### Changes
  - `-f` file names are now relative to the current shell directory

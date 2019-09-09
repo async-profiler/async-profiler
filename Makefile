@@ -1,4 +1,4 @@
-PROFILER_VERSION=1.6-ea
+PROFILER_VERSION=1.6
 JATTACH_VERSION=1.5
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
@@ -36,6 +36,8 @@ release: build async-profiler-$(RELEASE_TAG).tar.gz
 
 async-profiler-$(RELEASE_TAG).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
                                       build/$(PROFILER_JAR) profiler.sh LICENSE *.md
+	chmod 755 build profiler.sh
+	chmod 644 LICENSE *.md
 	tar cvzf $@ $^
 
 build:
