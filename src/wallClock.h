@@ -17,11 +17,15 @@
 #ifndef _WALLCLOCK_H
 #define _WALLCLOCK_H
 
+#include <vector>
 #include <jvmti.h>
 #include <signal.h>
 #include <pthread.h>
 #include "engine.h"
+#include "mutex.h"
+#include <jni.h>
 
+typedef void (JNICALL *ThreadSetNameFunc)(JNIEnv*, jobject, jstring);
 
 class WallClock : public Engine {
   private:
@@ -32,15 +36,24 @@ class WallClock : public Engine {
     pthread_t _thread;
 
     void timerLoop();
+    void filteredTimerLoop();
+    char* _filter_threads;
+    
+    static void bindThreadSetName(ThreadSetNameFunc entry);
 
     static void* threadEntry(void* wall_clock) {
+      if(((WallClock*)wall_clock)->_filter_threads){
+        ((WallClock*)wall_clock)->filteredTimerLoop();
+      }else{
         ((WallClock*)wall_clock)->timerLoop();
-        return NULL;
+      }
+      return NULL;
     }
-
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-
   public:
+    static ThreadSetNameFunc _original_Thread_SetName; 
+    static void JNICALL threadSetNameTrap(JNIEnv* env, jobject obj, jstring name);
+
     const char* name() {
         return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
     }

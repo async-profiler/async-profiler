@@ -24,6 +24,7 @@ usage() {
     echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo "  -v, --version     display version string"
     echo ""
+    echo "  --filter reg      profile only pids which has name matching the regex"
     echo "  --title string    SVG title"
     echo "  --width px        SVG width"
     echo "  --height px       SVG frame height"
@@ -39,6 +40,7 @@ usage() {
     echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
     echo "         $0 stop -o summary,flat jps"
+
     exit 1
 }
 
@@ -105,6 +107,7 @@ THREADS=""
 RING=""
 OUTPUT=""
 FORMAT=""
+FILTERREGEX=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -119,6 +122,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -e)
             EVENT="$2"
+            shift
+            ;;
+        --filter)
+            FILTERREGEX=",filter=$2"
             shift
             ;;
         -d)
@@ -210,8 +217,8 @@ elif [[ $FILE != /* ]]; then
 fi
 
 case $ACTION in
-    start|resume)
-        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
+    start)
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -223,7 +230,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1

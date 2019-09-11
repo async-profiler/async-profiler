@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <regex>
 #include "profiler.h"
 #include "perfEvents.h"
 #include "allocTracer.h"
@@ -519,9 +520,48 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             setThreadName(vm_thread->osThreadId(), thread_info.name);
+            addThreadToFilteredList(vm_thread->osThreadId(), thread_info.name);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
+}
+
+void Profiler::addThreadToFilteredList(int osThreadId,const char* name){
+    MutexLocker lock(_filtered_tids_mutex);
+    
+    if(_filter_threads == NULL) return;
+
+    std::regex filterReg(_filter_threads);
+    std::smatch base_match;
+    std::string thread_name(name); 
+    
+    if (std::regex_match(thread_name, base_match, filterReg)) {
+        _filtered_tids.push_back(osThreadId);
+    }else{
+        //might have matched before and needs to be removed
+        _filtered_tids.erase(std::remove(_filtered_tids.begin(), _filtered_tids.end(), osThreadId), _filtered_tids.end());
+    }
+}
+void Profiler::removeFromFilteredList(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread){
+    MutexLocker lock(_filtered_tids_mutex);
+    if (_threads && VMThread::available() && _filter_threads != NULL) {
+        VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
+        jvmtiThreadInfo thread_info;
+        if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
+            _filtered_tids.erase(std::remove(_filtered_tids.begin(), _filtered_tids.end(), vm_thread->osThreadId()), _filtered_tids.end());
+            jvmti->Deallocate((unsigned char*)thread_info.name);
+        }
+    }
+}
+
+std::vector<int> Profiler::getFilteredTidsRange(int from,int count){
+    std::vector<int> threads_for_this_tick;
+    MutexLocker lock(_filtered_tids_mutex);
+    for (int i = 0; i < count && _filtered_tids.size() > 0; i++){
+        int curThread = _filtered_tids[(i+from)% _filtered_tids.size()];
+        threads_for_this_tick.push_back(curThread);
+    }
+    return threads_for_this_tick;
 }
 
 void Profiler::updateAllThreadNames() {
@@ -634,6 +674,12 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    _filter_threads = args._filter_threads_regex;
+    if(_filter_threads != NULL){
+        // all getting currently running threads
+        updateAllThreadNames();
+    }
+
     _engine = selectEngine(args._event);
     Error error = _engine->start(args);
     if (error) {
@@ -660,6 +706,11 @@ Error Profiler::stop() {
     }
 
     _engine->stop();
+    if(_filter_threads != NULL){
+        MutexLocker lock(_filtered_tids_mutex);
+        _filter_threads = NULL;
+        _filtered_tids.clear();
+    }
 
     // Acquire all spinlocks to avoid race with remaining signals
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();

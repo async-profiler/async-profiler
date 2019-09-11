@@ -20,6 +20,7 @@
 #include <iostream>
 #include <map>
 #include <time.h>
+#include <vector>
 #include "arch.h"
 #include "arguments.h"
 #include "engine.h"
@@ -107,6 +108,10 @@ class Profiler {
     u64 _hashes[MAX_CALLTRACES];
     CallTraceSample _traces[MAX_CALLTRACES];
     MethodSample _methods[MAX_CALLTRACES];
+
+    char* volatile _filter_threads;
+    std::vector<int> _filtered_tids;
+    Mutex _filtered_tids_mutex;
 
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
@@ -202,6 +207,10 @@ class Profiler {
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
     const void* findSymbol(const char* name);
+    void addThreadToFilteredList(int osThreadId,const char* name);
+    std::vector<int> getFilteredTidsRange(int from,int count);
+    void removeFromFilteredList(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
@@ -229,6 +238,7 @@ class Profiler {
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         _instance.updateThreadName(jvmti, jni, thread);
         _instance._engine->onThreadEnd();
+        _instance.removeFromFilteredList(jvmti, jni, thread);
     }
 
     friend class Recording;
