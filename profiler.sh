@@ -24,7 +24,7 @@ usage() {
     echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo "  -v, --version     display version string"
     echo ""
-    echo "  --filter reg      profile only pids which has name matching the regex"
+    echo "  --filter reg      profile only threads whose names matches the given regex (wall clock profiler only)"
     echo "  --title string    SVG title"
     echo "  --width px        SVG width"
     echo "  --height px       SVG frame height"
@@ -40,7 +40,6 @@ usage() {
     echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
     echo "         $0 stop -o summary,flat jps"
-
     exit 1
 }
 
@@ -217,8 +216,8 @@ elif [[ $FILE != /* ]]; then
 fi
 
 case $ACTION in
-    start)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
+    start|resume)
+        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"

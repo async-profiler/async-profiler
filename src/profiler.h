@@ -207,10 +207,9 @@ class Profiler {
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
     NativeCodeCache* jvmLibrary();
     const void* findSymbol(const char* name);
-    void addThreadToFilteredList(int osThreadId,const char* name);
-    std::vector<int> getFilteredTidsRange(int from,int count);
+    void addThreadToFilteredList(int osThreadId, const char* name);
+    std::vector<int> getFilteredTidsRange(int from, int count);
     void removeFromFilteredList(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
-
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,

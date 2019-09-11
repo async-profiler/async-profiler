@@ -163,8 +163,8 @@ Error Arguments::parse(const char* args) {
                 return Error("file must not be empty");
             }
             _file = value;
-        }else if(strcmp(arg,"filter")==0 && value!=NULL){
-            _filter_threads_regex=value;
+        } else if (strcmp(arg, "filter") == 0 && value != NULL) {
+            _filter_threads_regex = value;
         }
     }
 

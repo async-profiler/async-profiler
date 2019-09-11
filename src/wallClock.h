@@ -38,17 +38,18 @@ class WallClock : public Engine {
     void timerLoop();
     void filteredTimerLoop();
     char* _filter_threads;
-    
+
     static void bindThreadSetName(ThreadSetNameFunc entry);
 
     static void* threadEntry(void* wall_clock) {
-      if(((WallClock*)wall_clock)->_filter_threads){
-        ((WallClock*)wall_clock)->filteredTimerLoop();
-      }else{
-        ((WallClock*)wall_clock)->timerLoop();
-      }
+        if (((WallClock*) wall_clock)->_filter_threads) {
+            ((WallClock*) wall_clock)->filteredTimerLoop();
+        } else {
+            ((WallClock*) wall_clock)->timerLoop();
+        }
       return NULL;
     }
+
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
   public:
     static ThreadSetNameFunc _original_Thread_SetName; 

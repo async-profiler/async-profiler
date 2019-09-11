@@ -24,7 +24,6 @@
 #include "profiler.h"
 #include <vector>
 #include <regex>
-#include <cstdio>
 #include "vmStructs.h"
 
 const int THREADS_PER_TICK = 8;
@@ -43,8 +42,9 @@ Error WallClock::start(Arguments& args) {
     }
 
     _filter_threads = args._filter_threads_regex;
-    if(_filter_threads != NULL){
-        WallClock::_original_Thread_SetName = (ThreadSetNameFunc) Profiler::_instance.findSymbol("JVM_SetNativeThreadName"); 
+    if (_filter_threads != NULL) {
+        WallClock::_original_Thread_SetName =
+                (ThreadSetNameFunc) Profiler::_instance.findSymbol("JVM_SetNativeThreadName");
         bindThreadSetName(threadSetNameTrap);
     }
 
@@ -75,9 +75,9 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
     close(_pipefd[0]);
 
-    if(_filter_threads!=NULL){
+    if (_filter_threads != NULL) {
         bindThreadSetName(_original_Thread_SetName);
-        _filter_threads=NULL;
+        _filter_threads = NULL;
     }
 }
 
@@ -115,13 +115,13 @@ void WallClock::filteredTimerLoop() {
     int self = OS::threadId();
     bool sample_idle_threads = _sample_idle_threads;
     struct pollfd fds = {_pipefd[0], POLLIN, 0};
-    int timeout = _interval > 1000000 ? (int)(_interval / 1000000) : 1;
-    
+    int timeout = _interval > 1000000 ? (int) (_interval / 1000000) : 1;
+
     int curId = 0;
     while (poll(&fds, 1, timeout) == 0) {
-        std::vector<int> threads_for_this_tick = Profiler::_instance.getFilteredTidsRange(curId,THREADS_PER_TICK);
+        std::vector<int> threads_for_this_tick = Profiler::_instance.getFilteredTidsRange(curId, THREADS_PER_TICK);
         curId += THREADS_PER_TICK;
-        curId = (curId+THREADS_PER_TICK) < 0 ? 0 : curId;
+        curId = (curId + THREADS_PER_TICK) < 0 ? 0 : curId;
         for (int thread_id: threads_for_this_tick) {
             if (thread_id != self && (sample_idle_threads || OS::isThreadRunning(thread_id))) {
                 OS::sendSignalToThread(thread_id, SIGPROF);
@@ -134,10 +134,10 @@ void JNICALL WallClock::threadSetNameTrap(JNIEnv* env, jobject obj, jstring name
     VMThread* vm_thread = VMThread::fromJavaThread(env, obj);
     int threadId = vm_thread->osThreadId();
 
-    const char *threadName = env->GetStringUTFChars(name, NULL);
+    const char* threadName = env->GetStringUTFChars(name, NULL);
     Profiler::_instance.addThreadToFilteredList(threadId, threadName);
-    env->ReleaseStringUTFChars(name,threadName);
-    
+    env->ReleaseStringUTFChars(name, threadName);
+
     _original_Thread_SetName(env, obj, name);
 }
 
@@ -145,7 +145,7 @@ void WallClock::bindThreadSetName(ThreadSetNameFunc entry) {
     JNIEnv* env = VM::jni();
     jclass thread_class = env->FindClass("java/lang/Thread");
     if (thread_class != NULL) {
-        const JNINativeMethod setName = {(char*)"setNativeName", (char*)"(Ljava/lang/String;)V", (void*)entry};
+        const JNINativeMethod setName = {(char*) "setNativeName", (char*) "(Ljava/lang/String;)V", (void*) entry};
         env->RegisterNatives(thread_class, &setName, 1);
     }
     env->ExceptionClear();
