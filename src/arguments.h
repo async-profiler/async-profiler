@@ -117,7 +117,7 @@ class Arguments {
     int _height;
     double _minwidth;
     bool _reverse;
-    char* _filter_threads_regex;
+    char* _filter_threads;
 
     Arguments() :
         _buf(NULL),
@@ -139,7 +139,7 @@ class Arguments {
         _height(16),
         _minwidth(0.25),
         _reverse(false),
-        _filter_threads_regex(NULL) {
+        _filter_threads(NULL) {
     }
 
     ~Arguments();

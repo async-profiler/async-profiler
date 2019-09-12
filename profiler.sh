@@ -24,7 +24,7 @@ usage() {
     echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
     echo "  -v, --version     display version string"
     echo ""
-    echo "  --filter reg      profile only threads whose names matches the given regex (wall clock profiler only)"
+    echo "  --filter str     profile only threads whose names contains the given string (wall clock profiler only)"
     echo "  --title string    SVG title"
     echo "  --width px        SVG width"
     echo "  --height px       SVG frame height"
@@ -106,7 +106,7 @@ THREADS=""
 RING=""
 OUTPUT=""
 FORMAT=""
-FILTERREGEX=""
+FILTER=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -124,7 +124,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --filter)
-            FILTERREGEX=",filter=$2"
+            FILTER=",filter=$2"
             shift
             ;;
         -d)
@@ -217,7 +217,7 @@ fi
 
 case $ACTION in
     start|resume)
-        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
+        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTER,$OUTPUT$FORMAT"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -229,7 +229,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTERREGEX,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING$FILTER,$OUTPUT$FORMAT"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1

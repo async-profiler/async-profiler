@@ -164,7 +164,7 @@ Error Arguments::parse(const char* args) {
             }
             _file = value;
         } else if (strcmp(arg, "filter") == 0 && value != NULL) {
-            _filter_threads_regex = value;
+            _filter_threads = value;
         }
     }
 

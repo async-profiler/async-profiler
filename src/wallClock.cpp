@@ -23,7 +23,6 @@
 #include "os.h"
 #include "profiler.h"
 #include <vector>
-#include <regex>
 #include "vmStructs.h"
 
 const int THREADS_PER_TICK = 8;
@@ -41,7 +40,7 @@ Error WallClock::start(Arguments& args) {
         return Error("interval must be positive");
     }
 
-    _filter_threads = args._filter_threads_regex;
+    _filter_threads = args._filter_threads;
     if (_filter_threads != NULL) {
         WallClock::_original_Thread_SetName =
                 (ThreadSetNameFunc) Profiler::_instance.findSymbol("JVM_SetNativeThreadName");

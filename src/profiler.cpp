@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
-#include <regex>
+#include <algorithm>
 #include "profiler.h"
 #include "perfEvents.h"
 #include "allocTracer.h"
@@ -531,11 +531,7 @@ void Profiler::addThreadToFilteredList(int osThreadId, const char *name) {
 
     if (_filter_threads == NULL) return;
 
-    std::regex filterReg(_filter_threads);
-    std::smatch base_match;
-    std::string thread_name(name);
-
-    if (std::regex_match(thread_name, base_match, filterReg)) {
+    if (strstr(name, _filter_threads)) {
         _filtered_tids.push_back(osThreadId);
     } else {
         //might have matched before and needs to be removed after changing the name
@@ -677,7 +673,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    _filter_threads = args._filter_threads_regex;
+    _filter_threads = args._filter_threads;
     if (_filter_threads != NULL) {
         // filtering all currently running threads
         updateAllThreadNames();
