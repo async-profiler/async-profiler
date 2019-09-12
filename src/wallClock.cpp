@@ -121,7 +121,8 @@ void WallClock::filteredTimerLoop() {
         std::vector<int> threads_for_this_tick = Profiler::_instance.getFilteredTidsRange(curId, THREADS_PER_TICK);
         curId += THREADS_PER_TICK;
         curId = (curId + THREADS_PER_TICK) < 0 ? 0 : curId;
-        for (int thread_id: threads_for_this_tick) {
+        for (int i = 0; i < threads_for_this_tick.size(); i++) {
+            int thread_id = threads_for_this_tick[i];
             if (thread_id != self && (sample_idle_threads || OS::isThreadRunning(thread_id))) {
                 OS::sendSignalToThread(thread_id, SIGPROF);
             }
