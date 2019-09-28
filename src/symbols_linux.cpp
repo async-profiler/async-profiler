@@ -165,7 +165,7 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
-    if (addr != NULL) {
+    if (addr != MAP_FAILED) {
         ElfParser elf(cc, base, addr, file_name);
         elf.loadSymbols(use_debug);
         munmap(addr, length);

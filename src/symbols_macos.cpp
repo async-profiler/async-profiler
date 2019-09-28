@@ -113,7 +113,7 @@ class MachOParser {
         void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
         close(fd);
 
-        if (addr != NULL) {
+        if (addr != MAP_FAILED) {
             MachOParser parser(cc, image_base);
             parser.parse((mach_header*)addr);
             munmap(addr, length);
