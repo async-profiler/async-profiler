@@ -16,6 +16,8 @@
 
 #ifdef __APPLE__
 
+#include <stdio.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -113,7 +115,9 @@ class MachOParser {
         void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
         close(fd);
 
-        if (addr != MAP_FAILED) {
+        if (addr == MAP_FAILED) {
+            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
+        } else {
             MachOParser parser(cc, image_base);
             parser.parse((mach_header*)addr);
             munmap(addr, length);

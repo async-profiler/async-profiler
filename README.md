@@ -471,6 +471,14 @@ can be also caused by an incorrectly built JDK
 In these cases installing JDK debug symbols may solve the problem.
 
 ```
+Could not parse symbols due to the OS bug
+```
+Async-profiler was unable to parse non-Java function names because of
+the corrupted contents in `/proc/[pid]/maps`. The problem is known to
+occur in a container when running Ubuntu with Linux kernel 5.x.
+This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018.
+
+```
 [frame_buffer_overflow]
 ```
 This message in the output means there was not enough space to store all call traces.

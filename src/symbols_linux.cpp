@@ -16,12 +16,14 @@
 
 #ifdef __linux__
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <elf.h>
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -165,7 +167,14 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
-    if (addr != MAP_FAILED) {
+    if (addr == MAP_FAILED) {
+        if (strcmp(file_name, "/") == 0) {
+            // https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018
+            fprintf(stderr, "Could not parse symbols due to the OS bug\n");
+        } else {
+            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
+        }
+    } else {
         ElfParser elf(cc, base, addr, file_name);
         elf.loadSymbols(use_debug);
         munmap(addr, length);
