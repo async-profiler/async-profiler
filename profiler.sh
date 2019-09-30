@@ -32,6 +32,7 @@ usage() {
     echo ""
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
+    echo "  --sync-walk       use synchronous JVMTI stack walker (dangerous!)"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -98,13 +99,9 @@ EVENT="cpu"
 DURATION="60"
 FILE=""
 USE_TMP="true"
-INTERVAL=""
-JSTACKDEPTH=""
-FRAMEBUF=""
-THREADS=""
-RING=""
 OUTPUT=""
 FORMAT=""
+PARAMS=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -131,19 +128,19 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -i)
-            INTERVAL=",interval=$2"
+            PARAMS="$PARAMS,interval=$2"
             shift
             ;;
         -j)
-            JSTACKDEPTH=",jstackdepth=$2"
+            PARAMS="$PARAMS,jstackdepth=$2"
             shift
             ;;
         -b)
-            FRAMEBUF=",framebuf=$2"
+            PARAMS="$PARAMS,framebuf=$2"
             shift
             ;;
         -t)
-            THREADS=",threads"
+            PARAMS="$PARAMS,threads"
             ;;
         -s)
             FORMAT="$FORMAT,simple"
@@ -175,10 +172,13 @@ while [[ $# -gt 0 ]]; do
             FORMAT="$FORMAT,reverse"
             ;;
         --all-kernel)
-            RING=",allkernel"
+            PARAMS="$PARAMS,allkernel"
             ;;
         --all-user)
-            RING=",alluser"
+            PARAMS="$PARAMS,alluser"
+            ;;
+        --sync-walk)
+            PARAMS="$PARAMS,syncwalk"
             ;;
         [0-9]*)
             PID="$1"
@@ -211,7 +211,7 @@ fi
 
 case $ACTION in
     start|resume)
-        jattach "$ACTION,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
+        jattach "$ACTION,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -223,7 +223,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE$INTERVAL$JSTACKDEPTH$FRAMEBUF$THREADS$RING,$OUTPUT$FORMAT"
+        jattach "start,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         while (( DURATION-- > 0 )); do
             check_if_terminated
             sleep 1

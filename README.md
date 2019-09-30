@@ -331,6 +331,11 @@ Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
 is restricted by `perf_event_paranoid` settings.  
 `--all-kernel` is its counterpart option for including only kernel-mode events.
 
+* `--sync-walk` - prefer synchronous JVMTI stack walker instead of `AsyncGetCallTrace`.
+This option may improve accuracy of Java stack traces when profiling JVM runtime
+functions, e.g. `VMThread::execute`, `G1CollectedHeap::humongous_obj_allocate` etc.
+Do not use unless you are absolutely sure! When used incorrectly, this mode will crash JVM! 
+
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
 gets the version of the library loaded into the given process.
 

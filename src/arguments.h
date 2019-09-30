@@ -106,6 +106,7 @@ class Arguments {
     int  _jstackdepth;
     int _framebuf;
     bool _threads;
+    bool _sync_walk;
     int _style;
     const char* _file;
     Output _output;
@@ -128,6 +129,7 @@ class Arguments {
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _framebuf(DEFAULT_FRAMEBUF),
         _threads(false),
+        _sync_walk(false),
         _style(0),
         _file(NULL),
         _output(OUTPUT_NONE),
