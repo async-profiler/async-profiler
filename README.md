@@ -480,8 +480,9 @@ Could not parse symbols due to the OS bug
 ```
 Async-profiler was unable to parse non-Java function names because of
 the corrupted contents in `/proc/[pid]/maps`. The problem is known to
-occur in a container when running Ubuntu with Linux kernel 5.x.
-This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018.
+occur in a container when running Ubuntu with Linux kernel 5.0.0-2x.
+This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018,
+it was fixed in version 5.0.0-31.
 
 ```
 [frame_buffer_overflow]
