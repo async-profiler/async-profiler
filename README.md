@@ -324,8 +324,10 @@ Example: `./profiler.sh -t 8983`
 * `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
 Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 
-* `-f FILENAME` - the file name to dump the profile information to.  
-Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
+* `-f FILENAME` - the file name to dump the profile information to.
+`%p` in the file name is expanded to the PID of the target JVM;
+`%t` — to the timestamp.
+Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
 is restricted by `perf_event_paranoid` settings.  
