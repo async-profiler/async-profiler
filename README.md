@@ -326,7 +326,7 @@ Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0
 
 * `-f FILENAME` - the file name to dump the profile information to.
 `%p` in the file name is expanded to the PID of the target JVM;
-`%t` — to the timestamp.
+`%t` — to the timestamp at the time of command invocation.
 Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
