@@ -38,6 +38,13 @@ FrameName::~FrameName() {
     freelocale(uselocale(_saved_locale));
 }
 
+char* FrameName::truncate(char* name, int max_length) {
+    if (strlen(name) > max_length && max_length >= 4) {
+        strcpy(name + max_length - 4, "...)");
+    }
+    return name;
+}
+
 const char* FrameName::cppDemangle(const char* name) {
     if (name != NULL && name[0] == '_' && name[1] == 'Z') {
         int status;
@@ -68,7 +75,7 @@ char* FrameName::javaMethodName(jmethodID method) {
         result = javaClassName(class_name + 1, strlen(class_name) - 2, _style);
         strcat(result, ".");
         strcat(result, method_name);
-        if (_style & STYLE_SIGNATURES) strcat(result, method_sig);
+        if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
         if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
     } else {
         snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);

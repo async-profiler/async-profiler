@@ -41,6 +41,7 @@ class FrameName {
     ThreadMap& _thread_names;
     locale_t _saved_locale;
 
+    char* truncate(char* name, int max_length);
     const char* cppDemangle(const char* name);
     char* javaMethodName(jmethodID method);
     char* javaClassName(const char* symbol, int length, int style);
