@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <dlfcn.h>
+#include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
 #include "os.h"
@@ -27,6 +28,7 @@ static Arguments _agent_args;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
+bool VM::_hotspot;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -37,6 +39,14 @@ void VM::init(JavaVM* vm, bool attach) {
 
     _vm = vm;
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
+
+    char* vm_name;
+    if (_jvmti->GetSystemProperty("java.vm.name", &vm_name) == 0) {
+        _hotspot = strstr(vm_name, "Zing") == NULL;
+        _jvmti->Deallocate((unsigned char*)vm_name);
+    } else {
+        _hotspot = false;
+    }
 
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;

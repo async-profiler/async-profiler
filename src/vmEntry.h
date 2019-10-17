@@ -64,6 +64,7 @@ class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
+    static bool _hotspot;
 
     static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
@@ -83,6 +84,10 @@ class VM {
     static JNIEnv* jni() {
         JNIEnv* jni;
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
+    }
+
+    static bool is_hotspot() {
+        return _hotspot;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
