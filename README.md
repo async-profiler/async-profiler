@@ -83,11 +83,6 @@ sources.
 Sampling interval can be adjusted with `-i` option.
 For example, `-i 500k` will take one sample after 500 KB of allocated
 space on average. However, intervals less than TLAB size will not take effect.
-If you want to profile allocations with higher frequency, reduce the TLAB size,
-e.g.
-```
--XX:MinTLABSize=1 -XX:TLABSize=1 -XX:-ResizeTLAB
-```
 
 Unlike Java Mission Control which uses similar approach, async-profiler
 does not require Java Flight Recorder or any other JDK commercial feature.
