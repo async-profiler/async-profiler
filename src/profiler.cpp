@@ -450,10 +450,10 @@ void Profiler::bindNativeLibraryLoad(NativeLoadLibraryFunc entry) {
     if (NativeLibrary != NULL) {
         // Find JNI entry for NativeLibrary.load() method
         if (_original_NativeLibrary_load == NULL) {
-            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)V") != NULL) {
+            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)Z") != NULL) {
                 // JDK 9+
                 _load_method.name = (char*)"load0";
-                _load_method.signature = (char*)"(Ljava/lang/String;Z)V";
+                _load_method.signature = (char*)"(Ljava/lang/String;Z)Z";
             } else if (env->GetMethodID(NativeLibrary, "load", "(Ljava/lang/String;Z)V") != NULL) {
                 // JDK 8
                 _load_method.name = (char*)"load";

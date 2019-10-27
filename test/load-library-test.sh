@@ -31,5 +31,5 @@ fi
     fi
   }
 
-  assert_string "Java_sun_nio"
+  assert_string "Java_sun_management"
 )
