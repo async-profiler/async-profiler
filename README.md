@@ -105,6 +105,12 @@ or for OpenJDK 11:
 On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
 `FEATURES="nostrip"` to retain symbols.
 
+On CentOS, Fedora and other YUM-based distributions, this could be done with debuginfo-install utility(http://man7.org/linux/man-pages/man1/debuginfo-install.1.html):
+```
+debuginfo-install java-1.8.0-openjdk
+```
+If you still have problems installing debug symbols, consider using a JDK with embedded symbols, e.g. Liberica JDK
+
 ### Wall-clock profiling
 
 `-e wall` option tells async-profiler to sample all threads equally every given
