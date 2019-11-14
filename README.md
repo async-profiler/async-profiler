@@ -102,14 +102,14 @@ or for OpenJDK 11:
 # apt install openjdk-11-dbg
 ```
 
+On CentOS, RHEL and some other RPM-based distributions, this could be done with
+[debuginfo-install](http://man7.org/linux/man-pages/man1/debuginfo-install.1.html) utility:
+```
+# debuginfo-install java-1.8.0-openjdk
+```
+
 On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
 `FEATURES="nostrip"` to retain symbols.
-
-On CentOS, Fedora and other YUM-based distributions, this could be done with debuginfo-install utility(http://man7.org/linux/man-pages/man1/debuginfo-install.1.html):
-```
-debuginfo-install java-1.8.0-openjdk
-```
-If you still have problems installing debug symbols, consider using a JDK with embedded symbols, e.g. Liberica JDK
 
 ### Wall-clock profiling
 
