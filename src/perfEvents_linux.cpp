@@ -35,6 +35,7 @@
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
+#include "symbols.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -348,8 +349,8 @@ bool PerfEvents::createForThread(int tid) {
         int err = errno;
         perror("perf_event_open failed");
         if (err == EACCES && _print_extended_warning) {
-            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n");
-            fprintf(stderr, "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
+            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n"
+                            "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
             _print_extended_warning = false;
         }
         return false;
@@ -449,6 +450,12 @@ Error PerfEvents::start(Arguments& args) {
     _interval = args._interval ? args._interval : _event_type->default_interval;
 
     _ring = args._ring;
+    if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
+        fprintf(stderr, "WARNING: Kernel symbols are unavailable due to restrictions. Try\n"
+                        "  echo 0 > /proc/sys/kernel/kptr_restrict\n"
+                        "  echo 1 > /proc/sys/kernel/perf_event_paranoid\n");
+        _ring = RING_USER;
+    }
     _print_extended_warning = _ring != RING_USER;
 
     int max_events = getMaxPID();

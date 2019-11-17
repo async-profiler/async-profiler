@@ -296,6 +296,7 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
 
 Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
+bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     std::ifstream maps("/proc/kallsyms");
@@ -309,6 +310,7 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
             const char* addr = symbol.addr();
             if (addr != NULL) {
                 cc->add(addr, 0, symbol.name());
+                _have_kernel_symbols = true;
             }
         }
     }
@@ -317,12 +319,17 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
     MutexLocker ml(_parse_lock);
 
-    if (count == 0) {
+    if (!haveKernelSymbols()) {
         NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
-        cc->sort();
-        array[count] = cc;
-        atomicInc(count);
+
+        if (haveKernelSymbols()) {
+            cc->sort();
+            array[count] = cc;
+            atomicInc(count);
+        } else {
+            delete cc;
+        }
     }
 
     std::ifstream maps("/proc/self/maps");

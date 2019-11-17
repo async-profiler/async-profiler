@@ -128,6 +128,7 @@ class MachOParser {
 
 Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
+bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 }

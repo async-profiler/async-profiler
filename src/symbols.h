@@ -27,11 +27,15 @@ class Symbols {
   private:
     static Mutex _parse_lock;
     static std::set<const void*> _parsed_libraries;
-
-    static void parseKernelSymbols(NativeCodeCache* cc);
+    static bool _have_kernel_symbols;
 
   public:
+    static void parseKernelSymbols(NativeCodeCache* cc);
     static void parseLibraries(NativeCodeCache** array, volatile int& count, int size);
+
+    static bool haveKernelSymbols() {
+        return _have_kernel_symbols;
+    }
 };
 
 #endif // _SYMBOLS_H
