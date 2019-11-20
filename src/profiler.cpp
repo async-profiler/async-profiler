@@ -124,32 +124,32 @@ void Profiler::copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTr
 }
 
 u64 Profiler::hashMethod(jmethodID method, jint bci) {
-      const u64 M = 0xc6a4a7935bd1e995ULL;
-      const int R = 47;
-      u64 h = M + M;
+    const u64 M = 0xc6a4a7935bd1e995ULL;
+    const int R = 47;
+    u64 h = M + M;
 
-      u64 k = (u64)method;
-      k *= M;
-      k ^= k >> R;
-      k *= M;
-      h ^= k;
-      h *= M;
+    u64 k = (u64)method;
+    k *= M;
+    k ^= k >> R;
+    k *= M;
+    h ^= k;
+    h *= M;
 
-      k = M * (u64)bci;
-      k ^= k >> R;
-      k *= M;
-      h ^= k;
-      h *= M;
+    k = M * (u64)bci;
+    k ^= k >> R;
+    k *= M;
+    h ^= k;
+    h *= M;
 
-      h ^= h >> R;
-      h *= M;
-      h ^= h >> R;
+    h ^= h >> R;
+    h *= M;
+    h ^= h >> R;
 
-      return h;
+    return h;
 }
 
 void Profiler::storeMethod(jmethodID method, jint bci, u64 counter) {
-  u64 hash = hashMethod(method, bci);
+    u64 hash = hashMethod(method, bci);
     int bucket = (int)(hash % MAX_CALLTRACES);
     int i = bucket;
 
@@ -780,8 +780,8 @@ void Profiler::dumpSummary(std::ostream& out) {
     empty = 0;
     collisions = 0;
     for (int i = 0 ; i < MAX_CALLTRACES; ++i) {
-      if (_methods[i]._method.method_id == NULL) empty++;
-      else if ((int)(hashMethod(_methods[i]._method.method_id, _methods[i]._method.bci) % MAX_CALLTRACES) != i) collisions++;
+        if (_methods[i]._method.method_id == NULL) empty++;
+        else if ((int)(hashMethod(_methods[i]._method.method_id, _methods[i]._method.bci) % MAX_CALLTRACES) != i) collisions++;
     }
     double mb_usage = 100.00 - (100.00 * empty / MAX_CALLTRACES);
     out << "Method buffer usage : " << mb_usage << "% (" << MAX_CALLTRACES - empty << " entries, " << collisions << " collisions)";
@@ -918,25 +918,25 @@ char Profiler::getFrameType(jint bci) {
         return FRAME_TYPE_COMPILED_JAVA;
     }
     switch (bci) {
-    case BCI_NATIVE_FRAME: return FRAME_TYPE_NATIVE;
-    case BCI_SYMBOL: return FRAME_TYPE_VMSYM;
-    case BCI_SYMBOL_OUTSIDE_TLAB: return FRAME_TYPE_OUTSIDE_TLAB;
-    case BCI_THREAD_ID: return FRAME_TYPE_THREAD;
-    case BCI_KERNEL_FRAME: return FRAME_TYPE_KERNEL;
-    case BCI_ERROR: return FRAME_TYPE_ERROR;
+        case BCI_NATIVE_FRAME: return FRAME_TYPE_NATIVE;
+        case BCI_SYMBOL: return FRAME_TYPE_VMSYM;
+        case BCI_SYMBOL_OUTSIDE_TLAB: return FRAME_TYPE_OUTSIDE_TLAB;
+        case BCI_THREAD_ID: return FRAME_TYPE_THREAD;
+        case BCI_KERNEL_FRAME: return FRAME_TYPE_KERNEL;
+        case BCI_ERROR: return FRAME_TYPE_ERROR;
     }
     return FRAME_TYPE_UNKNOWN_JAVA;
 }
 
 jint Profiler::unOffsetBci(jint bci) {
   if (bci >= (BCI_OFFSET_INLINED +  BCI_SMALLEST_USED_BY_VM)) {
-    return bci - BCI_OFFSET_INLINED;
+      return bci - BCI_OFFSET_INLINED;
   }
   if (bci >= (BCI_OFFSET_INTERP +  BCI_SMALLEST_USED_BY_VM)) {
-    return bci - BCI_OFFSET_INTERP;
+      return bci - BCI_OFFSET_INTERP;
   }
   if (bci >= (BCI_OFFSET_COMP +  BCI_SMALLEST_USED_BY_VM)) {
-    return bci - BCI_OFFSET_COMP;
+      return bci - BCI_OFFSET_COMP;
   }
   return bci;
 }
@@ -969,7 +969,7 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
         char type = getFrameType(bci);
         bci = unOffsetBci(bci);
         snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld     %c  %5d  %s\n",
-        		method->_counter, method->_counter * percent, method->_samples, type, bci, frame_name);
+                 method->_counter, method->_counter * percent, method->_samples, type, bci, frame_name);
         out << buf;
     }
 

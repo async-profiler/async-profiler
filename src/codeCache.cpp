@@ -54,7 +54,7 @@ CodeBlob *CodeUnit::add(const void* start, int length, bool insert) {
 void VmCodeCache::remove(const void* start, jmethodID method) {
     int pos = binarySearchPosition(start);
     if (_count > (pos + 1)) {
-      memmove(_blobs + pos, _blobs + (pos + 1), (sizeof(CodeBlob)) * (_count - pos -1)); 
+        memmove(_blobs + pos, _blobs + (pos + 1), (sizeof(CodeBlob)) * (_count - pos -1));
     }
     _count--;
 }
@@ -141,15 +141,14 @@ const char* NativeLib::binarySearch(const void* address) {
     if (low > 0 && _blobs[low - 1].start() == _blobs[low - 1].end()) {
         return _blobs[low - 1].getName();
     }
-
-   return _name;
+    return _name;
 }
 
 const void* NativeLib::findSymbol(const char* name) {
     for (int i = 0; i < _count; i++) {
         const char* blob_name = _blobs[i].getName();
         if (blob_name != NULL && strcmp(blob_name, name) == 0) {
-          return _blobs[i].start();
+            return _blobs[i].start();
         }
     }
     return NULL;
@@ -169,24 +168,23 @@ const void* NativeLib::findSymbolByPrefix(const char* prefix) {
 void VmCodeCache::add(const void* start, int length, const jmethodID method) {
     CodeUnit::add(start, length, true)->setMethod(method);
     if (start < _min_address) {
-      _min_address = start;
+        _min_address = start;
     }
     if ((void*)((char*)start + length) > _max_address) {
-      _max_address = (void*)((char*)start + length);
+        _max_address = (void*)((char*)start + length);
     }
 }
 
 void VmCodeCache::add(const void* start, int length, const char *name) {
     CodeUnit::add(start, length, true)->setName(name);
     if (start < _min_address) {
-      _min_address = start;
+        _min_address = start;
     }
     if ((void*)((char*)start + length) > _max_address) {
-      _max_address = (void*)((char*)start + length);
+        _max_address = (void*)((char*)start + length);
     }
     if (strcmp(name, "Interpreter") == 0) {
-      _interp_min = start;
-      _interp_max = (const void*)((char*)start + length);
+        _interp_min = start;
+        _interp_max = (const void*)((char*)start + length);
     }
 }
-

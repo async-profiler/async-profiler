@@ -150,8 +150,8 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
     }
 
     switch (frame.bci) {
-         case BCI_KERNEL_FRAME:
-         case BCI_NATIVE_FRAME: {
+        case BCI_KERNEL_FRAME:
+        case BCI_NATIVE_FRAME: {
              const char* symbol_name = cppDemangle((const char*)frame.method_id);
              return symbol_name;
          }

@@ -50,7 +50,7 @@ class CodeBlob {
         } else if (cb1->end() == cb2->end()) {
             return 0;
         } else {
-          return cb1->end() > cb2->end() ? -1 : 1;
+            return cb1->end() > cb2->end() ? -1 : 1;
         }
     }
 };
@@ -82,9 +82,9 @@ class CodeUnit {
 
     CodeBlob *add(const void* start, int length, bool insert);
     CodeBlob *find(const void* address) {
-      int pos = binarySearchPosition(address);
-      return pos >= 0 ? _blobs + pos : NULL;
-      }
+        int pos = binarySearchPosition(address);
+        return pos >= 0 ? _blobs + pos : NULL;
+    }
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
     }

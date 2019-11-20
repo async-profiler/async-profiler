@@ -30,7 +30,7 @@ long WallClock::_interval;
 bool WallClock::_sample_idle_threads;
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-  Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
+    Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 
 Error WallClock::start(Arguments& args) {

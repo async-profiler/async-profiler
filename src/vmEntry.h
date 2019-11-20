@@ -22,7 +22,7 @@
 
 // ASGCT_CallFrames where method_id has special meaning (not jmethodID) are distinguished by the bci field
 enum ASGCT_CallFrameType {
-	BCI_SMALLEST_USED_BY_VM = -9,      // small negative BCIs are used by the VM (-6 is the smallest currently)
+    BCI_SMALLEST_USED_BY_VM = -9,      // small negative BCIs are used by the VM (-6 is the smallest currently)
     BCI_NATIVE_FRAME        = -10,     // method_id is native function name (char*)
     BCI_SYMBOL              = -11,     // method_id is VMSymbol*
     BCI_SYMBOL_OUTSIDE_TLAB = -12,     // VMSymbol* specifically for allocations outside TLAB
@@ -50,7 +50,7 @@ enum ASGCT_Failure {
     ticks_skipped               = -11,
     ASGCT_FAILURE_TYPES         = 12
 };
-  
+
 typedef struct {
     jint bci;
     jmethodID method_id;

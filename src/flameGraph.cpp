@@ -660,20 +660,20 @@ int FlameGraph::calcPercentage(int *out, u64 total, u64 interp, u64 inlined, u64
     double cor = 0.0;
     double sum = 0.0;
     for (int i = 0; i < 3; ++i) {
-      if (fp[i] > 0.0 && fp[i] < 1.0) {
-        cor += 1.0 - fp[i];
-      } else {
-        sum += fp[i];
-      }
+        if (fp[i] > 0.0 && fp[i] < 1.0) {
+            cor += 1.0 - fp[i];
+        } else {
+            sum += fp[i];
+        }
     }
     for (int i = 0; i < 3; ++i) {
-      if (fp[i] > 0.0 && fp[i] < 1.0) {
-        out[i] = 1;
-      } else if (fp[i] >= 1.0) {
-        out[i] = int(fp[i] - (cor * fp[i] / sum));
-      } else {
-        out[i] = 0;
-      }
+        if (fp[i] > 0.0 && fp[i] < 1.0) {
+            out[i] = 1;
+        } else if (fp[i] >= 1.0) {
+            out[i] = int(fp[i] - (cor * fp[i] / sum));
+        } else {
+            out[i] = 0;
+        }
     }
 
     return ret;
@@ -703,16 +703,16 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
              "<title>%s (%.2f%%, samples: %s total",full_title.c_str(), f._total * _pct, Format().thousands(f._total));
         out << _buf;
         if (f._inlined != 0) {
-        	snprintf(_buf, sizeof(_buf), ", %s inlined into top", Format().thousands(f._inlined));
-        	out << _buf;
+            snprintf(_buf, sizeof(_buf), ", %s inlined into top", Format().thousands(f._inlined));
+            out << _buf;
         }
         if (f._compiled != 0) {
-        	snprintf(_buf, sizeof(_buf), ", %s compiled on top", Format().thousands(f._compiled));
-        	out << _buf;
+            snprintf(_buf, sizeof(_buf), ", %s compiled on top", Format().thousands(f._compiled));
+            out << _buf;
         }
         if (f._interp != 0) {
-        	snprintf(_buf, sizeof(_buf), ", %s interpreted on top", Format().thousands(f._interp));
-        	out << _buf;
+            snprintf(_buf, sizeof(_buf), ", %s interpreted on top", Format().thousands(f._interp));
+            out << _buf;
         }
         out <<  ")</title>\n";
 
@@ -720,23 +720,23 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         int colors = calcPercentage(percentage, f._total, f._interp, f._inlined, f._compiled);
         // more than one color required, we're sure it's a java frame
         if (colors >= 2) {
-          snprintf(_buf, sizeof(_buf), "<defs>\n<linearGradient id=\"Gradient%d\">\n", _gradient);
-          out << _buf;
-          int last = 0;
-          for (int i = 0; i < 3; ++i) {
-            if (percentage[i] != 0) {
-              int start = last;
-              int end = (start + percentage[i] - 1) > 100 ? 100 : (start + percentage[i] - 1);
-              last += percentage[i];
-              int color;
-              if (i == 0) color = selectFramePalette(FRAME_TYPE_INLINED_JAVA).pickColor();
-              if (i == 1) color = selectFramePalette(FRAME_TYPE_INTERPRETED_JAVA).pickColor();
-              if (i == 2) color = selectFramePalette(FRAME_TYPE_COMPILED_JAVA).pickColor();
-              snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", start, color);
-              out << _buf;
-              snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", end, color);
-              out << _buf;
-            }
+            snprintf(_buf, sizeof(_buf), "<defs>\n<linearGradient id=\"Gradient%d\">\n", _gradient);
+            out << _buf;
+            int last = 0;
+            for (int i = 0; i < 3; ++i) {
+                if (percentage[i] != 0) {
+                    int start = last;
+                    int end = (start + percentage[i] - 1) > 100 ? 100 : (start + percentage[i] - 1);
+                    last += percentage[i];
+                    int color;
+                    if (i == 0) color = selectFramePalette(FRAME_TYPE_INLINED_JAVA).pickColor();
+                    if (i == 1) color = selectFramePalette(FRAME_TYPE_INTERPRETED_JAVA).pickColor();
+                    if (i == 2) color = selectFramePalette(FRAME_TYPE_COMPILED_JAVA).pickColor();
+                    snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", start, color);
+                    out << _buf;
+                    snprintf(_buf, sizeof(_buf), "<stop offset=\"%d%%\" stop-color=\"#%06x\"/>\n", end, color);
+                    out << _buf;
+                }
           }
           out << "</linearGradient>\n</defs>\n";
           snprintf(_buf, sizeof(_buf),
@@ -766,11 +766,11 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         // sort subnodes to make inlined frames appear to the left
         std::vector<Node> subnodes;
         for (std::map<std::string, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
-          subnodes.push_back(Node(it->first, it->second));
+            subnodes.push_back(Node(it->first, it->second));
         }
         std::sort(subnodes.begin(), subnodes.end(), compareNodes);
         for (size_t i = 0; i < subnodes.size(); i++) {
-          x += printFrame(out, subnodes[i]._name, *subnodes[i]._trie, x, y);
+            x += printFrame(out, subnodes[i]._name, *subnodes[i]._trie, x, y);
         }
     }
 
@@ -851,18 +851,18 @@ const Palette& FlameGraph::selectFramePalette(char c) {
         salmon ("salmon",  0xf0a07a, 16, 32, 32);
 
     switch(c) {
-    case FRAME_TYPE_INTERPRETED_JAVA: return magenta; // interpreted java
-    case FRAME_TYPE_INLINED_JAVA: return aqua; // inlined java
-    case FRAME_TYPE_COMPILED_JAVA: return green; // compiled java
-    case FRAME_TYPE_UNKNOWN_JAVA: return green; // unknown java
-    case FRAME_TYPE_OUTSIDE_TLAB: return brown; // VMSymbol* specifically for allocations outside TLAB
-    case FRAME_TYPE_THREAD: return salmon; // thread
-    case FRAME_TYPE_BOTTOM: return white; // thread
-    case FRAME_TYPE_CPP: return yellow; // c++
-    case FRAME_TYPE_VMSYM: return aqua; // locked object
-    case FRAME_TYPE_KERNEL: return brown; // locked object
-    case FRAME_TYPE_ERROR: return red; // locked object
-    default:  return red; // other native
+        case FRAME_TYPE_INTERPRETED_JAVA: return magenta; // interpreted java
+        case FRAME_TYPE_INLINED_JAVA: return aqua; // inlined java
+        case FRAME_TYPE_COMPILED_JAVA: return green; // compiled java
+        case FRAME_TYPE_UNKNOWN_JAVA: return green; // unknown java
+        case FRAME_TYPE_OUTSIDE_TLAB: return brown; // VMSymbol* specifically for allocations outside TLAB
+        case FRAME_TYPE_THREAD: return salmon; // thread
+        case FRAME_TYPE_BOTTOM: return white; // thread
+        case FRAME_TYPE_CPP: return yellow; // c++
+        case FRAME_TYPE_VMSYM: return aqua; // locked object
+        case FRAME_TYPE_KERNEL: return brown; // locked object
+        case FRAME_TYPE_ERROR: return red; // locked object
+        default:  return red; // other native
     }
 }
 
