@@ -659,7 +659,7 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
         // Compensate rounding error in frame width
         double w = (round((x + framewidth) * 10) - round(x * 10)) / 10.0;
 
-        snprintf(_buf, sizeof(_buf),
+        snprintf(_buf, sizeof(_buf) - 1,
             "<g>\n"
             "<title>%s (%s samples, %.2f%%)</title><rect x=\"%.1f\" y=\"%.1f\" width=\"%.1f\" height=\"%d\" fill=\"#%06x\" rx=\"2\" ry=\"2\"/>\n"
             "<text x=\"%.1f\" y=\"%.1f\">%s</text>\n"
@@ -710,13 +710,13 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
         StringUtils::escape(full_title);
 
         if (_reverse) {
-            snprintf(_buf, sizeof(_buf),
+            snprintf(_buf, sizeof(_buf) - 1,
                      "<li><div>[%d] %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
                      depth,
                      trie->_total * _pct, Format().thousands(trie->_total),
                      color, full_title.c_str());
         } else {
-            snprintf(_buf, sizeof(_buf),
+            snprintf(_buf, sizeof(_buf) - 1,
                      "<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
                      depth,
                      trie->_total * _pct, Format().thousands(trie->_total),

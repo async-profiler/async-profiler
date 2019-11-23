@@ -782,7 +782,7 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
 
     FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
-    char buf[1024];
+    char buf[1024] = {0};
 
     CallTraceSample** traces = new CallTraceSample*[MAX_CALLTRACES];
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -795,7 +795,7 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
         CallTraceSample* trace = traces[i];
         if (trace->_samples == 0) break;
 
-        snprintf(buf, sizeof(buf), "--- %lld %s (%.2f%%), %lld sample%s\n",
+        snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
                  trace->_counter, _engine->units(), trace->_counter * percent,
                  trace->_samples, trace->_samples == 1 ? "" : "s");
         out << buf;
@@ -806,7 +806,7 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
 
         for (int j = 0; j < trace->_num_frames; j++) {
             const char* frame_name = fn.name(_frame_buffer[trace->_start_frame + j]);
-            snprintf(buf, sizeof(buf), "  [%2d] %s\n", j, frame_name);
+            snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
             out << buf;
         }
         out << "\n";
@@ -821,7 +821,7 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
 
     FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
-    char buf[1024];
+    char buf[1024] = {0};
 
     MethodSample** methods = new MethodSample*[MAX_CALLTRACES];
     for (int i = 0; i < MAX_CALLTRACES; i++) {
@@ -829,8 +829,8 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     }
     qsort(methods, MAX_CALLTRACES, sizeof(MethodSample*), MethodSample::comparator);
 
-    snprintf(buf, sizeof(buf), "%12s  percent  samples  top\n"
-                               "  ----------  -------  -------  ---\n", _engine->units());
+    snprintf(buf, sizeof(buf) - 1, "%12s  percent  samples  top\n"
+                                   "  ----------  -------  -------  ---\n", _engine->units());
     out << buf;
 
     int max_methods = args._dump_flat < MAX_CALLTRACES ? args._dump_flat : MAX_CALLTRACES;
@@ -839,7 +839,7 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
         if (method->_samples == 0) break;
 
         const char* frame_name = fn.name(method->_method);
-        snprintf(buf, sizeof(buf), "%12lld  %6.2f%%  %7lld  %s\n",
+        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
                  method->_counter, method->_counter * percent, method->_samples, frame_name);
         out << buf;
     }

@@ -78,7 +78,7 @@ char* FrameName::javaMethodName(jmethodID method) {
         if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
         if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
     } else {
-        snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+        snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
         result = _buf;
     }
 
@@ -163,15 +163,15 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
             MutexLocker ml(_thread_names_lock);
             ThreadMap::iterator it = _thread_names.find(tid);
             if (it != _thread_names.end()) {
-                snprintf(_buf, sizeof(_buf), "[%s tid=%d]", it->second.c_str(), tid);
+                snprintf(_buf, sizeof(_buf) - 1, "[%s tid=%d]", it->second.c_str(), tid);
             } else {
-                snprintf(_buf, sizeof(_buf), "[tid=%d]", tid);
+                snprintf(_buf, sizeof(_buf) - 1, "[tid=%d]", tid);
             }
             return _buf;
         }
 
         case BCI_ERROR: {
-            snprintf(_buf, sizeof(_buf), "[%s]", (const char*)frame.method_id);
+            snprintf(_buf, sizeof(_buf) - 1, "[%s]", (const char*)frame.method_id);
             return _buf;
         }
 

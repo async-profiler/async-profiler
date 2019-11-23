@@ -72,7 +72,12 @@ NativeCodeCache::~NativeCodeCache() {
 }
 
 void NativeCodeCache::add(const void* start, int length, const char* name) {
-    CodeCache::add(start, length, (jmethodID)strdup(name));
+    char* name_copy = strdup(name);
+    // Replace non-printable characters
+    for (char* s = name_copy; *s != 0; s++) {
+        if (*s < ' ') *s = '?';
+    }
+    CodeCache::add(start, length, (jmethodID)name_copy);
 }
 
 void NativeCodeCache::sort() {

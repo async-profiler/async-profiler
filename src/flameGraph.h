@@ -106,6 +106,7 @@ class FlameGraph {
         _frameheight(height),
         _minwidth(minwidth),
         _reverse(reverse) {
+        _buf[sizeof(_buf) - 1] = 0;
     }
 
     Trie* root() {
