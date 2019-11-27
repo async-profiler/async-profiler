@@ -360,7 +360,8 @@ absolute path as on the host.
 By default, Docker container restricts the access to `perf_event_open`
 syscall. So, in order to allow profiling inside a container, you'll need
 to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
-or disable it altogether with `--security-opt=seccomp:unconfined` option.
+or disable it altogether with `--security-opt seccomp=unconfined` option. In
+addition, `--cap-add SYS_ADMIN` may be required.
 
 Alternatively, if changing Docker configuration is not possible,
 you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
