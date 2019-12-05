@@ -241,10 +241,6 @@ struct PerfEventType {
             if (addr == 0) {
                 addr = (__u64)(uintptr_t)Profiler::instance()->resolveSymbol(buf);
             }
-            if (c == NULL) {
-                // If offset is not specified explicitly, add the default breakpoint offset
-                offset = BREAKPOINT_OFFSET;
-            }
         }
 
         if (addr == 0) {

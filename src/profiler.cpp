@@ -205,14 +205,14 @@ const void* Profiler::resolveSymbol(const char* name) {
         for (int i = 0; i < _native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbolByPrefix(name, len - 1);
             if (address != NULL) {
-                return address;
+                return offsetBPaddr(address);
             }
         }
     } else {
         for (int i = 0; i < _native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbol(name);
             if (address != NULL) {
-                return address;
+                return offsetBPaddr(address);
             }
         }
     }

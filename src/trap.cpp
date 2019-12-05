@@ -37,12 +37,11 @@ void Trap::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     _jvm_handler.sa_sigaction(signo, siginfo, ucontext);
 }
 
-void Trap::assign(const void* address, uintptr_t offset) {
+void Trap::assign(const void* address) {
     _entry = (uintptr_t)address;
     if (_entry == 0) {
         return;
     }
-    _entry += offset;
 
 #if defined(__arm__) || defined(__thumb__)
     _breakpoint_insn = (_entry & 1) ? BREAKPOINT_THUMB : BREAKPOINT;
