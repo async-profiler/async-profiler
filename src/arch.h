@@ -33,6 +33,7 @@ static inline int atomicInc(volatile int& var, int increment = 1) {
 
 typedef unsigned char instruction_t;
 const instruction_t BREAKPOINT = 0xcc;
+const unsigned BREAKPOINT_OFFSET = 0;
 
 #define spinPause()       asm volatile("pause")
 #define rmb()             asm volatile("lfence" : : : "memory")
@@ -42,6 +43,7 @@ const instruction_t BREAKPOINT = 0xcc;
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xe7f001f0;
+const unsigned BREAKPOINT_OFFSET = 0;
 
 #define spinPause()       asm volatile("yield")
 #define rmb()             asm volatile("dmb ish" : : : "memory")
@@ -51,9 +53,22 @@ const instruction_t BREAKPOINT = 0xe7f001f0;
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xd4200000;
+const unsigned BREAKPOINT_OFFSET = 0;
 
 #define spinPause()       asm volatile("yield")
 #define rmb()             asm volatile("dmb ish" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+
+#elif defined(__PPC64__)  && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+
+typedef unsigned int instruction_t;
+const instruction_t BREAKPOINT = 0x7fe00008;
+// We place the break point in the third instruction slot on PPCLE as the first two are skipped if
+// the call comes from within the same compilation unit according to the LE ABI.
+const unsigned BREAKPOINT_OFFSET = 2;
+
+#define spinPause()       asm volatile("yield") // does nothing, but using or 1,1,1 would lead to other problems
+#define rmb()             asm volatile ("sync" : : : "memory") // lwsync would do but better safe than sorry
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
 #else

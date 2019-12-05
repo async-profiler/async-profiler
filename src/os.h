@@ -38,6 +38,7 @@ class OS {
     static bool isSignalSafeTLS();
     static bool isJavaLibraryVisible();
     static void installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*));
+    static void* getSignalHandler(int signo);
     static void sendSignalToThread(int thread_id, int signo);
     static ThreadList* listThreads();
 };

@@ -58,6 +58,8 @@ class AllocTracer : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab); 
 
+    static void (*_next_handler)(int, siginfo_t *, void *);
+
   public:
     const char* name() {
         return "alloc";

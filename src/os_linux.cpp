@@ -116,6 +116,13 @@ void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)
     sigaction(signo, &sa, NULL);
 }
 
+void* OS::getSignalHandler(int signo) {
+    struct sigaction oact, nex;
+    sigaction(signo, NULL, &oact);
+
+    return (void*)oact.sa_handler;
+}
+
 void OS::sendSignalToThread(int thread_id, int signo) {
     static const int self_pid = getpid();
 
