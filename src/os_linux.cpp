@@ -230,6 +230,13 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
     return syscall(__NR_tgkill, processId(), thread_id, signo) == 0;
 }
 
+void* OS::getSignalHandler(int signo) {
+    struct sigaction oact, nex;
+    sigaction(signo, NULL, &oact);
+
+    return (void*)oact.sa_handler;
+}
+
 void* OS::safeAlloc(size_t size) {
     // Naked syscall can be used inside a signal handler.
     // Also, we don't want to catch our own calls when profiling mmap.

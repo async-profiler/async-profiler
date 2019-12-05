@@ -60,7 +60,11 @@ else
     ifeq ($(findstring aarch64,$(ARCH)),aarch64)
       ARCH_TAG=aarch64
     else
-      ARCH_TAG=x86
+      ifeq ($(ARCH),ppc64le)
+        ARCH_TAG=ppc64le
+      else
+        ARCH_TAG=x86
+      endif
     endif
   endif
 endif
