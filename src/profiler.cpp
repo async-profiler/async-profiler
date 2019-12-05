@@ -326,7 +326,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
         // Stack might not be walkable if some temporary values are pushed onto the stack
         // above the expected frame SP
-        if (!(_safe_mode & MOVE_SP)) {
+        if (!(_safe_mode & MOVE_SP) && CAN_MOVE_SP) {
             for (int extra_stack_slots = 1; extra_stack_slots <= 2; extra_stack_slots++) {
                 top_frame.sp() = sp + extra_stack_slots * sizeof(uintptr_t);
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
@@ -367,7 +367,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
             // Retry moving stack pointer, but now in wider range: 3 to 6 slots.
             // Helps to recover from String.indexOf() intrinsic
-            if (!(_safe_mode & MOVE_SP2)) {
+            if (!(_safe_mode & MOVE_SP2) && CAN_MOVE_SP) {
                 ASGCT_CallFrame* prev_frames = trace.frames;
                 trace.frames = frames;
                 for (int extra_stack_slots = 3; extra_stack_slots <= 6; extra_stack_slots = (extra_stack_slots - 1) << 1) {

@@ -18,7 +18,6 @@
 #include <sys/mman.h>
 #include "trap.h"
 
-
 bool Trap::assign(const void* address) {
     uintptr_t entry = (uintptr_t)address;
     if (entry == 0) {
@@ -39,8 +38,8 @@ bool Trap::assign(const void* address) {
         if (mprotect((void*)(entry & -page_size), page_size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
             return false;
         }
-        _entry = entry;
-        _saved_insn = *(instruction_t*)entry;
+        _entry = (uintptr_t)((instruction_t*) entry + BREAKPOINT_OFFSET);
+        _saved_insn = *(instruction_t*)_entry;
     }
 
     return true;

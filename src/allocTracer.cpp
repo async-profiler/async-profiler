@@ -23,6 +23,7 @@
 int AllocTracer::_trap_kind;
 Trap AllocTracer::_in_new_tlab;
 Trap AllocTracer::_outside_tlab;
+void (*AllocTracer::_next_handler)(int, siginfo_t *, void *) = 0;
 
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
@@ -34,7 +35,9 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     int event_type;
     uintptr_t total_size;
     uintptr_t instance_size;
+    struct sigaction oact, nex;
 
+    sigaction(signo, NULL, &oact);
     // PC points either to BREAKPOINT instruction or to the next one
     if (_in_new_tlab.covers(frame.pc())) {
         // send_allocation_in_new_tlab(Klass* klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread)
@@ -49,8 +52,12 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         total_size = _trap_kind == 1 ? frame.arg2() : frame.arg1();
         instance_size = 0;
     } else {
-        // Not our trap
-        Profiler::_instance.trapHandler(signo, siginfo, ucontext);
+        // Not our trap, call the the VM's handler if there is one
+        if ((void*)_next_handler != SIG_DFL && (void*)_next_handler != SIG_ERR && (void*)_next_handler != SIG_IGN && _next_handler != NULL ) {
+            (*_next_handler)(signo, siginfo, ucontext);
+        } else {
+            Profiler::_instance.trapHandler(signo, siginfo, ucontext);
+        }
         return;
     }
 
@@ -132,6 +139,11 @@ Error AllocTracer::start(Arguments& args) {
 
     _interval = args._alloc;
     _allocated_bytes = 0;
+
+    if (_next_handler == NULL) {
+        _next_handler = (void (*)(int, siginfo_t*, void*)) OS::getSignalHandler(SIGTRAP);
+    }
+    OS::installSignalHandler(SIGTRAP, trapHandler);
 
     _in_new_tlab.install();
     _outside_tlab.install();
