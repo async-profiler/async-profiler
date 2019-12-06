@@ -140,6 +140,7 @@ Error AllocTracer::start(Arguments& args) {
     _interval = args._alloc;
     _allocated_bytes = 0;
 
+    // remember the previously installed handler to call it next (only once)
     if (_next_handler == NULL) {
         _next_handler = (void (*)(int, siginfo_t*, void*)) OS::getSignalHandler(SIGTRAP);
     }
