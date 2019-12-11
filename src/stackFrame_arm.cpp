@@ -55,4 +55,8 @@ bool StackFrame::pop(bool trust_frame_pointer) {
     return false;
 }
 
+int StackFrame::callerLookupSlots() {
+    return 0;
+}
+
 #endif // defined(__arm__) || defined(__thumb__)

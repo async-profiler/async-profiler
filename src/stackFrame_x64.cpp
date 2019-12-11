@@ -60,12 +60,6 @@ void StackFrame::ret() {
 }
 
 
-static inline bool withinCurrentStack(uintptr_t value) {
-    // Check that value is not too far from stack pointer of current context
-    void* real_sp;
-    return value - (uintptr_t)&real_sp <= 0xffff;
-}
-
 static inline bool isFramePrologueEpilogue(uintptr_t pc) {
     if (pc & 0xfff) {
         // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
@@ -91,23 +85,22 @@ static inline bool isFramePrologueEpilogue(uintptr_t pc) {
 }
 
 bool StackFrame::pop(bool trust_frame_pointer) {
-    if (!withinCurrentStack(sp())) {
-        return false;
-    }
-
     if (trust_frame_pointer && withinCurrentStack(fp())) {
         sp() = fp() + 16;
         fp() = stackAt(-2);
         pc() = stackAt(-1);
+        return true;
     } else if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
         fp() = stackAt(0);
         pc() = stackAt(1);
         sp() += 16;
-    } else {
-        pc() = stackAt(0);
-        sp() += 8;
+        return true;
     }
-    return true;
+    return false;
+}
+
+int StackFrame::callerLookupSlots() {
+    return 7;
 }
 
 #endif // __x86_64__

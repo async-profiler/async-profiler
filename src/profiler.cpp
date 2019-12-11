@@ -274,6 +274,18 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                   sp = top_frame.sp(),
                   fp = top_frame.fp();
 
+        // Stack might not be walkable if some temporary values are pushed onto the stack
+        // above the expected frame SP
+        for (int extra_stack_slots = 1; extra_stack_slots <= 2; extra_stack_slots++) {
+            top_frame.sp() = sp + extra_stack_slots * sizeof(uintptr_t);
+            VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            top_frame.sp() = sp;
+
+            if (trace.num_frames > 0) {
+                return trace.num_frames;
+            }
+        }
+
         // Guess top method by PC and insert it manually into the call trace
         bool is_entry_frame = false;
         if (fillTopFrame((const void*)pc, trace.frames)) {
@@ -283,21 +295,39 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             max_depth--;
         }
 
-        if (top_frame.pop(is_entry_frame)) {
+        // Attempt further manipulations with top frame, only if SP points to the current stack
+        if (top_frame.validSP()) {
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
-            if (addressInCode((const void*)top_frame.pc())) {
-                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-            }
-            top_frame.restore(pc, sp, fp);
+            if (top_frame.pop(is_entry_frame)) {
+                if (addressInCode((const void*)top_frame.pc())) {
+                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                }
+                top_frame.restore(pc, sp, fp);
 
-            if (trace.num_frames > 0) {
-                return trace.num_frames + (trace.frames - frames);
+                if (trace.num_frames > 0) {
+                    return trace.num_frames + (trace.frames - frames);
+                }
             }
 
-            // Restore previous context
-            trace.num_frames = ticks_unknown_Java;
+            // Try to find the previous frame by looking a few top stack slots
+            // for something that resembles a return address
+            for (int slot = 0; slot < top_frame.callerLookupSlots(); slot++) {
+                if (addressInCode((const void*)top_frame.stackAt(slot))) {
+                    top_frame.pc() = top_frame.stackAt(slot);
+                    top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
+                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    top_frame.restore(pc, sp, fp);
+
+                    if (trace.num_frames > 0) {
+                        return trace.num_frames + (trace.frames - frames);
+                    }
+                }
+            }
         }
+
+        // Restore original error
+        trace.num_frames = ticks_unknown_Java;
     } else if (trace.num_frames == ticks_GC_active && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
         // While GC is running Java threads are known to be at safepoint
         return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
@@ -315,9 +345,9 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     }
 
     atomicInc(_failures[-trace.num_frames]);
-    frames[0].bci = BCI_ERROR;
-    frames[0].method_id = (jmethodID)err_string;
-    return 1;
+    trace.frames->bci = BCI_ERROR;
+    trace.frames->method_id = (jmethodID)err_string;
+    return trace.frames - frames + 1;
 }
 
 int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {

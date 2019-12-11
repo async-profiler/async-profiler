@@ -72,4 +72,8 @@ bool StackFrame::pop(bool trust_frame_pointer) {
     return true;
 }
 
+int StackFrame::callerLookupSlots() {
+    return 0;
+}
+
 #endif // defined(__aarch64__)

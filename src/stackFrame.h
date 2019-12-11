@@ -25,8 +25,10 @@ class StackFrame {
   private:
     ucontext_t* _ucontext;
 
-    uintptr_t stackAt(int slot) {
-        return ((uintptr_t*)sp())[slot];
+    static bool withinCurrentStack(uintptr_t address) {
+        // Check that the address is not too far from the stack pointer of current context
+        void* real_sp;
+        return address - (uintptr_t)&real_sp <= 0xffff;
     }
 
   public:
@@ -38,6 +40,14 @@ class StackFrame {
         pc() = saved_pc;
         sp() = saved_sp;
         fp() = saved_fp;
+    }
+
+    bool validSP() {
+        return withinCurrentStack(sp());
+    }
+
+    uintptr_t stackAt(int slot) {
+        return ((uintptr_t*)sp())[slot];
     }
 
     uintptr_t& pc();
@@ -52,6 +62,7 @@ class StackFrame {
     void ret();
 
     bool pop(bool trust_frame_pointer);
+    int callerLookupSlots();
 };
 
 #endif // _STACKFRAME_H
