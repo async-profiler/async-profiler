@@ -453,7 +453,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames = makeEventFrame(frames, event_type, event);
     }
 
-    if ((_sync_walk || event_type != 0) && _JvmtiEnv_GetStackTrace != NULL) {
+    if (event_type != 0 && _JvmtiEnv_GetStackTrace != NULL) {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
@@ -655,7 +655,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _threads = args._threads && args._output != OUTPUT_JFR;
-    _sync_walk = args._sync_walk;
 
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
     NativeCodeCache* libjvm = jvmLibrary();

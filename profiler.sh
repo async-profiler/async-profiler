@@ -177,9 +177,6 @@ while [[ $# -gt 0 ]]; do
         --all-user)
             PARAMS="$PARAMS,alluser"
             ;;
-        --sync-walk)
-            PARAMS="$PARAMS,syncwalk"
-            ;;
         [0-9]*)
             PID="$1"
             ;;
