@@ -264,7 +264,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
 
 #ifndef SAFE_MODE
-    if (trace.num_frames == ticks_unknown_Java) {
+    if (trace.num_frames == ticks_unknown_Java || trace.num_frames == ticks_not_walkable_Java) {
         // If current Java stack is not walkable (e.g. the top frame is not fully constructed),
         // try to manually pop the top frame off, hoping that the previous frame is walkable.
         // This is a temporary workaround for AsyncGetCallTrace issues,
@@ -325,9 +325,18 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
         }
-
-        // Restore original error
-        trace.num_frames = ticks_unknown_Java;
+    } else if (trace.num_frames == ticks_unknown_not_Java) {
+        VMThread* thread = VMThread::fromEnv(jni);
+        if (thread != NULL) {
+            uintptr_t& sp = thread->lastJavaSP();
+            uintptr_t& pc = thread->lastJavaPC();
+            if (sp != 0 && pc == 0) {
+                // We have the last Java frame anchor, but it is not marked as walkable
+                pc = ((uintptr_t*)sp)[-1];
+                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                pc = 0;
+            }
+        }
     } else if (trace.num_frames == ticks_GC_active && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
         // While GC is running Java threads are known to be at safepoint
         return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);

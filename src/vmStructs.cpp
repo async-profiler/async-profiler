@@ -26,7 +26,11 @@ int VMStructs::_symbol_length_and_refcount_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 int VMStructs::_class_klass_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
+int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
+int VMStructs::_anchor_sp_offset = -1;
+int VMStructs::_anchor_pc_offset = -1;
+int VMStructs::_env_offset = -1;
 bool VMStructs::_has_perm_gen = false;
 jfieldID VMStructs::_eetop = NULL;
 
@@ -81,10 +85,18 @@ void VMStructs::init(NativeCodeCache* libjvm) {
         } else if (strcmp(type, "JavaThread") == 0) {
             if (strcmp(field, "_osthread") == 0) {
                 _thread_osthread_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_anchor") == 0) {
+                _thread_anchor_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "OSThread") == 0) {
             if (strcmp(field, "_thread_id") == 0) {
                 _osthread_id_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "JavaFrameAnchor") == 0) {
+            if (strcmp(field, "_last_Java_sp") == 0) {
+                _anchor_sp_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_last_Java_pc") == 0) {
+                _anchor_pc_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "PermGen") == 0) {
             _has_perm_gen = true;
@@ -99,6 +111,13 @@ void VMStructs::init(NativeCodeCache* libjvm) {
         jclass threadClass = env->FindClass("java/lang/Thread");
         if (threadClass != NULL) {
             _eetop = env->GetFieldID(threadClass, "eetop", "J");
+        }
+        if (_eetop != NULL && _thread_anchor_offset >= 0 && _anchor_sp_offset >= 0 && _anchor_pc_offset >= 0) {
+            jthread thread;
+            if (VM::jvmti()->GetCurrentThread(&thread) == 0) {
+                VMThread* vmThread = VMThread::fromJavaThread(env, thread);
+                _env_offset = (intptr_t)env - (intptr_t)vmThread;
+            }
         }
     }
 }

@@ -30,7 +30,11 @@ class VMStructs {
     static int _symbol_body_offset;
     static int _class_klass_offset;
     static int _thread_osthread_offset;
+    static int _thread_anchor_offset;
     static int _osthread_id_offset;
+    static int _anchor_sp_offset;
+    static int _anchor_pc_offset;
+    static int _env_offset;
     static bool _has_perm_gen;
     static jfieldID _eetop;
 
@@ -103,9 +107,21 @@ class VMThread : VMStructs {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
 
+    static VMThread* fromEnv(JNIEnv* env) {
+        return _env_offset >= 0 ? (VMThread*)((intptr_t)env - _env_offset) : NULL;
+    }
+
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);
         return *(int*)(osthread + _osthread_id_offset);
+    }
+
+    uintptr_t& lastJavaSP() {
+        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_sp_offset);
+    }
+
+    uintptr_t& lastJavaPC() {
+        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
     }
 };
 
