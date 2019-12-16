@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <ucontext.h>
+#include "arch.h"
 
 
 class StackFrame {
@@ -62,7 +63,14 @@ class StackFrame {
     void ret();
 
     bool pop(bool trust_frame_pointer);
-    int callerLookupSlots();
+
+    // Look that many stack slots for a return address candidate.
+    // 0 = do not use stack snooping heuristics.
+    static int callerLookupSlots();
+
+    // Check if PC looks like a valid return address (i.e. the previous instruction is a CALL).
+    // It's safe to return false to skip return address heuristics.
+    static bool isReturnAddress(instruction_t* pc);
 };
 
 #endif // _STACKFRAME_H

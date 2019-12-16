@@ -300,7 +300,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
             if (top_frame.pop(is_entry_frame)) {
-                if (addressInCode((const void*)top_frame.pc())) {
+                if (addressInCode((instruction_t*)top_frame.pc())) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
                 top_frame.restore(pc, sp, fp);
@@ -312,8 +312,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
             // Try to find the previous frame by looking a few top stack slots
             // for something that resembles a return address
-            for (int slot = 0; slot < top_frame.callerLookupSlots(); slot++) {
-                if (addressInCode((const void*)top_frame.stackAt(slot))) {
+            for (int slot = 0; slot < StackFrame::callerLookupSlots(); slot++) {
+                if (addressInCode((instruction_t*)top_frame.stackAt(slot))) {
                     top_frame.pc() = top_frame.stackAt(slot);
                     top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
@@ -404,10 +404,15 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
     return method != NULL;
 }
 
-bool Profiler::addressInCode(const void* pc) {
+bool Profiler::addressInCode(instruction_t* pc) {
     // 1. Check if PC lies within JVM's compiled code cache
-    // Address in CodeCache is executable if it belongs to a Java method or a runtime stub
     if (pc >= _jit_min_address && pc < _jit_max_address) {
+        // Consider PC a valid return address if it points right after the CALL instruction
+        if (StackFrame::isReturnAddress(pc)) {
+            return true;
+        }
+
+        // Or if PC belongs to a Java method or a runtime stub
         _jit_lock.lockShared();
         bool valid = _java_methods.find(pc) != NULL || _runtime_stubs.find(pc) != NULL;
         _jit_lock.unlockShared();

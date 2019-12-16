@@ -59,4 +59,8 @@ int StackFrame::callerLookupSlots() {
     return 0;
 }
 
+bool StackFrame::isReturnAddress(instruction_t* pc) {
+    return false;
+}
+
 #endif // defined(__arm__) || defined(__thumb__)

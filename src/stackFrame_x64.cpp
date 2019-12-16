@@ -103,4 +103,15 @@ int StackFrame::callerLookupSlots() {
     return 7;
 }
 
+bool StackFrame::isReturnAddress(instruction_t* pc) {
+    if (pc[-5] == 0xe8) {
+        // call rel32
+        return true;
+    } else if (pc[-2] == 0xff && ((pc[-1] & 0xf0) == 0xd0 || (pc[-1] & 0xf0) == 0x10)) {
+        // call reg or call [reg]
+        return true;
+    }
+    return false;
+}
+
 #endif // __x86_64__
