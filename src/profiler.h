@@ -84,6 +84,7 @@ class MethodSample {
 
 
 typedef jboolean JNICALL (*NativeLoadLibraryFunc)(JNIEnv*, jobject, jstring, jboolean);
+typedef void JNICALL (*ThreadSetNativeNameFunc)(JNIEnv*, jobject, jstring);
 
 enum State {
     IDLE,
@@ -126,10 +127,18 @@ class Profiler {
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     volatile int _native_lib_count;
 
+    // Support for intercepting NativeLibrary.load()
     JNINativeMethod _load_method;
     NativeLoadLibraryFunc _original_NativeLibrary_load;
     static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
-    void bindNativeLibraryLoad(NativeLoadLibraryFunc entry);
+    void bindNativeLibraryLoad(JNIEnv* env, NativeLoadLibraryFunc entry);
+
+    // Support for intercepting Thread.setNativeName()
+    ThreadSetNativeNameFunc _original_Thread_setNativeName;
+    static void JNICALL ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name);
+    void bindThreadSetNativeName(JNIEnv* env, ThreadSetNativeNameFunc entry);
+
+    void switchNativeMethodTraps(bool enable);
 
     void* (*_ThreadLocalStorage_thread)();
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
