@@ -4,7 +4,7 @@ This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).
 It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
-OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
+OpenJDK, Oracle JDK and other Java runtimes based on the HotSpot JVM.
 
 async-profiler can trace the following kinds of events:
  - CPU cycles
@@ -205,7 +205,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
 [in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/b7e9e6b955210784d5dc1d1839bb0febab1b712b/src/arguments.cpp#L34).
-The `profiler.sh` script actually converts command line arguments to the that format.
+The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
 is converted to `file=profile.svg` and so on. But some arguments are processed
