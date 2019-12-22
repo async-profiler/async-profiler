@@ -127,7 +127,7 @@ Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
 extern "C" JNIEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused, jthread thread) {
     Error error = Profiler::_instance.initJvmLibrary();
-    if (error || !VMThread::available()) {
+    if (error || !VMThread::hasNativeId()) {
         return -1;
     }
 

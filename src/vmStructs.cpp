@@ -20,6 +20,8 @@
 #include "vmEntry.h"
 
 
+jfieldID VMStructs::_eetop;
+intptr_t VMStructs::_env_offset;
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_length_and_refcount_offset = -1;
@@ -30,9 +32,7 @@ int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
-int VMStructs::_env_offset = -1;
 bool VMStructs::_has_perm_gen = false;
-jfieldID VMStructs::_eetop = NULL;
 
 static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     const void* symbol = lib->findSymbol(symbol_name);
@@ -100,20 +100,26 @@ void VMStructs::init(NativeCodeCache* libjvm) {
 
         entry += stride;
     }
+}
 
+bool VMStructs::initThreadBridge() {
     // Get eetop field - a bridge from Java Thread to VMThread
-    if (_thread_osthread_offset >= 0 && _osthread_id_offset >= 0) {
-        JNIEnv* env = VM::jni();
-        jclass thread_class = env->FindClass("java/lang/Thread");
-        if (thread_class != NULL) {
-            _eetop = env->GetFieldID(thread_class, "eetop", "J");
-        }
-        if (_eetop != NULL && _thread_anchor_offset >= 0 && _anchor_sp_offset >= 0 && _anchor_pc_offset >= 0) {
-            jthread thread;
-            if (VM::jvmti()->GetCurrentThread(&thread) == 0) {
-                VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
-                _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-            }
-        }
+    jthread thread;
+    if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
+        return false;
     }
+
+    JNIEnv* env = VM::jni();
+    _eetop = env->GetFieldID(env->GetObjectClass(thread), "eetop", "J");
+    if (_eetop == NULL) {
+        return false;
+    }
+
+    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+    if (vm_thread == NULL) {
+        return false;
+    }
+
+    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+    return true;
 }

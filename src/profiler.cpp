@@ -357,9 +357,14 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
     // We cannot call pure JVM TI here, because it assumes _thread_in_native state,
     // but allocation events happen in _thread_in_vm state,
     // see https://github.com/jvm-profiling-tools/async-profiler/issues/64
-    void* thread = _ThreadLocalStorage_thread();
+    JNIEnv* jni = VM::jni();
+    if (jni == NULL) {
+        return 0;
+    }
+
+    VMThread* vm_thread = VMThread::fromEnv(jni);
     int num_frames;
-    if (_JvmtiEnv_GetStackTrace(NULL, thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+    if (_JvmtiEnv_GetStackTrace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
         // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
         for (int i = 0; i < num_frames; i++) {
             frames[i].method_id = jvmti_frames[i].method;
@@ -559,7 +564,7 @@ void Profiler::setThreadName(int tid, const char* name) {
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_threads && VMThread::available()) {
+    if (_threads && VMThread::hasNativeId()) {
         VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
@@ -570,7 +575,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::updateAllThreadNames() {
-    if (_threads && VMThread::available()) {
+    if (_threads && VMThread::hasNativeId()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -622,25 +627,12 @@ Error Profiler::initJvmLibrary() {
     }
 
     VMStructs::init(_libjvm);
-
-    // Find ThreadLocalStorage::thread() if exists
-    if (_ThreadLocalStorage_thread == NULL) {
-        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
-    }
-    // Fallback to ThreadLocalStorage::get_thread_slow()
-    if (_ThreadLocalStorage_thread == NULL) {
-        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
-    }
-    // Fallback to Thread::current(), e.g. on Zing
-    if (_ThreadLocalStorage_thread == NULL) {
-        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN6Thread7currentEv");
-    }
-    // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
-    if (_ThreadLocalStorage_thread != NULL) {
-        _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
-            _libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
+    if (!VMStructs::initThreadBridge()) {
+        return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
+    _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
+        _libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
     if (_JvmtiEnv_GetStackTrace == NULL) {
         fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
     }

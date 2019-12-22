@@ -141,7 +141,6 @@ class Profiler {
 
     void switchNativeMethodTraps(bool enable);
 
-    void* (*_ThreadLocalStorage_thread)();
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
                                           jvmtiFrameInfo* frame_buffer, jint* count_ptr);
 
@@ -188,7 +187,6 @@ class Profiler {
         _libjvm(NULL),
         _native_lib_count(0),
         _original_NativeLibrary_load(NULL),
-        _ThreadLocalStorage_thread(NULL),
         _JvmtiEnv_GetStackTrace(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {

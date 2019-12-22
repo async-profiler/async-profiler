@@ -24,6 +24,8 @@
 
 class VMStructs {
   protected:
+    static jfieldID _eetop;
+    static intptr_t _env_offset;
     static int _klass_name_offset;
     static int _symbol_length_offset;
     static int _symbol_length_and_refcount_offset;
@@ -34,9 +36,7 @@ class VMStructs {
     static int _osthread_id_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
-    static int _env_offset;
     static bool _has_perm_gen;
-    static jfieldID _eetop;
 
     const char* at(int offset) {
         return (const char*)this + offset;
@@ -44,6 +44,7 @@ class VMStructs {
 
   public:
     static void init(NativeCodeCache* libjvm);
+    static bool initThreadBridge();
 
     static bool available() {
         return _klass_name_offset >= 0
@@ -99,16 +100,16 @@ class java_lang_Class : VMStructs {
 
 class VMThread : VMStructs {
   public:
-    static bool available() {
-        return _eetop != NULL;
-    }
-
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
 
     static VMThread* fromEnv(JNIEnv* env) {
-        return _env_offset >= 0 ? (VMThread*)((intptr_t)env - _env_offset) : NULL;
+        return (VMThread*)((intptr_t)env - _env_offset);
+    }
+
+    static bool hasNativeId() {
+        return _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
     }
 
     int osThreadId() {
