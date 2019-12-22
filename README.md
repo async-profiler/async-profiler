@@ -468,8 +468,6 @@ No AllocTracer symbols found. Are JDK debug symbols installed?
 It might be needed to install the package with OpenJDK debug symbols.
 See [Allocation profiling](#allocation-profiling) for details.
 
-Note that allocation profiling is not supported on JVMs other than HotSpot, e.g. Zing.
-
 ```
 VMStructs unavailable. Unsupported JVM?
 ```

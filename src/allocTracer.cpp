@@ -30,6 +30,7 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 Trap AllocTracer::_in_new_tlab2("_ZN11AllocTracer27send_allocation_in_new_tlab");
 Trap AllocTracer::_outside_tlab2("_ZN11AllocTracer28send_allocation_outside_tlab");
 
+bool AllocTracer::_supports_class_names = false;
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
 
@@ -114,26 +115,27 @@ void AllocTracer::recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t r
         }
     }
 
-    VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
-    if (outside_tlab) {
-        // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
-        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL_OUTSIDE_TLAB, (jmethodID)((uintptr_t)symbol ^ 1));
+    if (_supports_class_names) {
+        VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
+        if (outside_tlab) {
+            // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
+            Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL_OUTSIDE_TLAB, (jmethodID)((uintptr_t)symbol ^ 1));
+        } else {
+            Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, (jmethodID)symbol);
+        }
     } else {
-        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, (jmethodID)symbol);
+        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, NULL);
     }
 }
 
 Error AllocTracer::start(Arguments& args) {
-    if (!VMStructs::available()) {
-        return Error("VMStructs unavailable. Unsupported JVM?");
-    }
-
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
     if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
 
+    _supports_class_names =  VMStructs::available();
     _interval = args._interval;
     _allocated_bytes = 0;
 
