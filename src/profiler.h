@@ -125,6 +125,7 @@ class Profiler {
     CodeCache _java_methods;
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
+    NativeCodeCache* _libjvm;
     volatile int _native_lib_count;
 
     // Support for intercepting NativeLibrary.load()
@@ -150,6 +151,7 @@ class Profiler {
     void updateJitRange(const void* min_address, const void* max_address);
 
     const char* asgctError(int code);
+    NativeCodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
@@ -162,7 +164,6 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void initJvmtiFunctions(NativeCodeCache* libjvm);
     void setThreadName(int tid, const char* name);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateAllThreadNames();
@@ -174,6 +175,7 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _jfr(),
+        _total_samples(-1),
         _frame_buffer(NULL),
         _frame_buffer_size(0),
         _max_stack_depth(0),
@@ -183,6 +185,7 @@ class Profiler {
         _jit_max_address((const void*)0),
         _java_methods(),
         _runtime_stubs("[stubs]"),
+        _libjvm(NULL),
         _native_lib_count(0),
         _original_NativeLibrary_load(NULL),
         _ThreadLocalStorage_thread(NULL),
@@ -197,6 +200,9 @@ class Profiler {
     u64 total_counter() { return _total_counter; }
     time_t uptime()     { return time(NULL) - _start_time; }
 
+    Error initJvmLibrary();
+    NativeCodeCache* jvmLibrary() { return _libjvm; }
+
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
@@ -209,7 +215,6 @@ class Profiler {
     void dumpTraces(std::ostream& out, Arguments& args);
     void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);
-    NativeCodeCache* jvmLibrary();
     const void* findSymbol(const char* name);
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default

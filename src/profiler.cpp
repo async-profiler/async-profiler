@@ -199,17 +199,6 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-NativeCodeCache* Profiler::jvmLibrary() {
-    const void* asyncGetCallTraceAddr = (const void*)VM::_asyncGetCallTrace;
-    const int native_lib_count = _native_lib_count;
-    for (int i = 0; i < native_lib_count; i++) {
-        if (_native_libs[i]->contains(asyncGetCallTraceAddr)) {
-            return _native_libs[i];
-        }
-    }
-    return NULL;
-}
-
 const void* Profiler::findSymbol(const char* name) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -221,14 +210,19 @@ const void* Profiler::findSymbol(const char* name) {
     return NULL;
 }
 
-const char* Profiler::findNativeMethod(const void* address) {
+NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
-            return _native_libs[i]->binarySearch(address);
+            return _native_libs[i];
         }
     }
     return NULL;
+}
+
+const char* Profiler::findNativeMethod(const void* address) {
+    NativeCodeCache* lib = findNativeLibrary(address);
+    return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame) {
@@ -559,32 +553,6 @@ void Profiler::switchNativeMethodTraps(bool enable) {
     env->ExceptionClear();
 }
 
-void Profiler::initJvmtiFunctions(NativeCodeCache* libjvm) {
-    if (_JvmtiEnv_GetStackTrace == NULL) {
-        // Find ThreadLocalStorage::thread() if exists
-        if (_ThreadLocalStorage_thread == NULL) {
-            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
-        }
-        // Fallback to ThreadLocalStorage::get_thread_slow()
-        if (_ThreadLocalStorage_thread == NULL) {
-            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
-        }
-        // Fallback to Thread::current(), e.g. on Zing
-        if (_ThreadLocalStorage_thread == NULL) {
-            _ThreadLocalStorage_thread = (void* (*)()) libjvm->findSymbol("_ZN6Thread7currentEv");
-        }
-        // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
-        if (_ThreadLocalStorage_thread != NULL) {
-            _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
-                libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
-        }
-
-        if (_JvmtiEnv_GetStackTrace == NULL) {
-            fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
-        }
-    }
-}
-
 void Profiler::setThreadName(int tid, const char* name) {
     MutexLocker ml(_thread_names_lock);
     _thread_names[tid] = name;
@@ -635,18 +603,58 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Error Profiler::start(Arguments& args, bool reset) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE) {
-        return Error("Profiler already started");
+Error Profiler::initJvmLibrary() {
+    if (_libjvm != NULL) {
+        return Error::OK;
     }
 
     if (VM::_asyncGetCallTrace == NULL) {
         return Error("Could not find AsyncGetCallTrace function");
     }
 
-    bool first_time = _native_lib_count == 0;
-    if (first_time || reset) {
+    if (_native_lib_count == 0) {
+        Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+    }
+
+    _libjvm = findNativeLibrary((const void*)VM::_asyncGetCallTrace);
+    if (_libjvm == NULL) {
+        return Error("Could not find libjvm among loaded libraries");
+    }
+
+    VMStructs::init(_libjvm);
+
+    // Find ThreadLocalStorage::thread() if exists
+    if (_ThreadLocalStorage_thread == NULL) {
+        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN18ThreadLocalStorage6threadEv");
+    }
+    // Fallback to ThreadLocalStorage::get_thread_slow()
+    if (_ThreadLocalStorage_thread == NULL) {
+        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN18ThreadLocalStorage15get_thread_slowEv");
+    }
+    // Fallback to Thread::current(), e.g. on Zing
+    if (_ThreadLocalStorage_thread == NULL) {
+        _ThreadLocalStorage_thread = (void* (*)()) _libjvm->findSymbol("_ZN6Thread7currentEv");
+    }
+    // JvmtiEnv::GetStackTrace(JavaThread* java_thread, jint start_depth, jint max_frame_count, jvmtiFrameInfo* frame_buffer, jint* count_ptr)
+    if (_ThreadLocalStorage_thread != NULL) {
+        _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
+            _libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
+    }
+
+    if (_JvmtiEnv_GetStackTrace == NULL) {
+        fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
+    }
+
+    return Error::OK;
+}
+
+Error Profiler::start(Arguments& args, bool reset) {
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) {
+        return Error("Profiler already started");
+    }
+
+    if (reset || _total_samples < 0) {
         // Reset counters
         _total_samples = 0;
         _total_counter = 0;
@@ -663,10 +671,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         _frame_buffer_overflow = false;
 
         // Reset thread names
-        {
-            MutexLocker ml(_thread_names_lock);
-            _thread_names.clear();
-        }
+        MutexLocker ml(_thread_names_lock);
+        _thread_names.clear();
     }
 
     // (Re-)allocate frames
@@ -694,25 +700,23 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+    Error error = initJvmLibrary();
+    if (error) {
+        return error;
+    }
+
     _threads = args._threads && args._output != OUTPUT_JFR;
 
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
-    NativeCodeCache* libjvm = jvmLibrary();
-    if (libjvm == NULL) {
-        return Error("libjvm not found among loaded libraries");
-    }
-    VMStructs::init(libjvm);
-    initJvmtiFunctions(libjvm);
-
     if (args._output == OUTPUT_JFR) {
-        Error error = _jfr.start(args._file);
+        error = _jfr.start(args._file);
         if (error) {
             return error;
         }
     }
 
     _engine = selectEngine(args._event);
-    Error error = _engine->start(args);
+    error = _engine->start(args);
     if (error) {
         _jfr.stop();
         return error;

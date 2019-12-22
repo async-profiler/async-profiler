@@ -44,10 +44,6 @@ static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
 }
 
 void VMStructs::init(NativeCodeCache* libjvm) {
-    if (available()) {
-        return;
-    }
-
     uintptr_t entry = readSymbol(libjvm, "gHotSpotVMStructs");
     uintptr_t stride = readSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
     uintptr_t type_offset = readSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
@@ -108,15 +104,15 @@ void VMStructs::init(NativeCodeCache* libjvm) {
     // Get eetop field - a bridge from Java Thread to VMThread
     if (_thread_osthread_offset >= 0 && _osthread_id_offset >= 0) {
         JNIEnv* env = VM::jni();
-        jclass threadClass = env->FindClass("java/lang/Thread");
-        if (threadClass != NULL) {
-            _eetop = env->GetFieldID(threadClass, "eetop", "J");
+        jclass thread_class = env->FindClass("java/lang/Thread");
+        if (thread_class != NULL) {
+            _eetop = env->GetFieldID(thread_class, "eetop", "J");
         }
         if (_eetop != NULL && _thread_anchor_offset >= 0 && _anchor_sp_offset >= 0 && _anchor_pc_offset >= 0) {
             jthread thread;
             if (VM::jvmti()->GetCurrentThread(&thread) == 0) {
-                VMThread* vmThread = VMThread::fromJavaThread(env, thread);
-                _env_offset = (intptr_t)env - (intptr_t)vmThread;
+                VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+                _env_offset = (intptr_t)env - (intptr_t)vm_thread;
             }
         }
     }

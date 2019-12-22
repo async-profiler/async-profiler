@@ -20,6 +20,7 @@
 #include <string.h>
 #include "arguments.h"
 #include "profiler.h"
+#include "vmStructs.h"
 
 
 static void throw_new(JNIEnv* env, const char* exception_class, const char* message) {
@@ -121,4 +122,15 @@ Java_one_profiler_AsyncProfiler_dumpFlat0(JNIEnv* env, jobject unused, jint max_
 extern "C" JNIEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
     return env->NewStringUTF(PROFILER_VERSION);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused, jthread thread) {
+    Error error = Profiler::_instance.initJvmLibrary();
+    if (error || !VMThread::available()) {
+        return -1;
+    }
+
+    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+    return vm_thread != NULL ? vm_thread->osThreadId() : -1;
 }
