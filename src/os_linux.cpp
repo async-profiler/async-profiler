@@ -77,6 +77,10 @@ u64 OS::hton64(u64 x) {
     return htonl(1) == 1 ? x : bswap_64(x);
 }
 
+u64 OS::ntoh64(u64 x) {
+    return ntohl(1) == 1 ? x : bswap_64(x);
+}
+
 int OS::threadId() {
     return syscall(__NR_gettid);
 }

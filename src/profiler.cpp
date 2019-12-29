@@ -27,6 +27,7 @@
 #include "allocTracer.h"
 #include "lockTracer.h"
 #include "wallClock.h"
+#include "instrument.h"
 #include "itimer.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
@@ -44,6 +45,7 @@ static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;
+static Instrument instrument;
 
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
@@ -603,6 +605,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
+    } else if (strchr(event_name, '.') != NULL) {
+        return &instrument;
     } else {
         return &perf_events;
     }

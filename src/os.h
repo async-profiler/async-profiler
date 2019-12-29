@@ -33,6 +33,7 @@ class OS {
     static u64 nanotime();
     static u64 millis();
     static u64 hton64(u64 x);
+    static u64 ntoh64(u64 x);
     static int threadId();
     static bool isThreadRunning(int thread_id);
     static bool isSignalSafeTLS();
