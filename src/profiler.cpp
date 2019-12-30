@@ -469,6 +469,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (jmethodID)"not_walkable");
+    } else if (event_type == BCI_INSTRUMENT) {
+        // Skip Instrument.recordSample() method
+        frames++;
+        num_frames--;
     }
 
     if (_threads) {

@@ -27,6 +27,7 @@ enum ASGCT_CallFrameType {
     BCI_SYMBOL_OUTSIDE_TLAB = -12,  // VMSymbol* specifically for allocations outside TLAB
     BCI_THREAD_ID           = -13,  // method_id designates a thread
     BCI_ERROR               = -14,  // method_id is error string
+    BCI_INSTRUMENT          = -15,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

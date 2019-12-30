@@ -478,10 +478,12 @@ Error Instrument::start(Arguments& args) {
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
 
+    // Lookup class before enabling CLASS_FILE_LOAD_HOOK to prevent double rewriting
+    jclass cls = jni->FindClass(_target_class);
+
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 
-    jclass cls = jni->FindClass(_target_class);
     if (cls != NULL) {
         jvmti->RetransformClasses(1, &cls);
     }
@@ -491,15 +493,16 @@ Error Instrument::start(Arguments& args) {
 }
 
 void Instrument::stop() {
+    jvmtiEnv* jvmti = VM::jvmti();
+
     JNIEnv* jni = VM::jni();
     jclass cls = jni->FindClass(_target_class);
     if (cls != NULL) {
-        // TODO: uninstall patch
-        // jvmti->RetransformClasses(1, &cls);
+        // Undo instrumentation
+        jvmti->RetransformClasses(1, &cls);
     }
     jni->ExceptionClear();
 
-    jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 }
 
@@ -524,15 +527,16 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     const char* target_class = _target_class;
     if (target_class != NULL && strcmp(name, target_class) == 0) {
         const char* target_method = target_class + strlen(target_class) + 1;
-        printf("Rewriting %s.%s\n", target_class, target_method);
         BytecodeRewriter rewriter(class_data, class_data_len, target_method);
         rewriter.rewrite(new_class_data, new_class_data_len);
+        printf("Rewriting %s.%s (class=%p, loader=%p): before=%d, after=%d\n",
+               target_class, target_method, class_being_redefined, loader, class_data_len, *new_class_data_len);
     }
 }
 
 void Instrument::recordSample() {
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
-        Profiler::_instance.recordSample(NULL, _interval, BCI_SYMBOL, NULL);
+        Profiler::_instance.recordSample(NULL, _interval, BCI_INSTRUMENT, NULL);
     }
 }
 
