@@ -121,6 +121,17 @@ Wall-clock profiler is most useful in per-thread mode: `-t`.
 
 Example: `./profiler.sh -e wall -t -i 5ms -f result.svg 8983`
 
+## Java method profiling
+
+`-e ClassName.methodName` option instruments the given Java method
+in order to record all invocations of this method with the stack traces.
+
+Example: `-e java.util.Properties.getProperty` will profile all places
+where `getProperty` method is called from.
+
+Only non-native Java methods are supported. To profile a native method,
+use hardware breakpoint event instead, e.g. `-e Java_java_lang_Throwable_fillInStackTrace`
+
 ## Building
 
 Build status: [![Build Status](https://travis-ci.org/jvm-profiling-tools/async-profiler.svg?branch=master)](https://travis-ci.org/jvm-profiling-tools/async-profiler)

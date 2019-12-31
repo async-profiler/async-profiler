@@ -966,6 +966,9 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_WALL << std::endl;
             out << "  " << EVENT_ITIMER << std::endl;
 
+            out << "Java method calls:" << std::endl;
+            out << "  ClassName.methodName" << std::endl;
+
             if (PerfEvents::supported()) {
                 out << "Perf events:" << std::endl;
                 // The first perf event is "cpu" which is already printed
