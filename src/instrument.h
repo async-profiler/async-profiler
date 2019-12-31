@@ -27,6 +27,7 @@ class Instrument : public Engine {
     static bool _instrument_class_loaded;
     static u64 _interval;
     static volatile u64 _calls;
+    static volatile bool _enabled;
 
   public:
     const char* name() {
@@ -41,6 +42,8 @@ class Instrument : public Engine {
     void stop();
 
     void setupTargetClassAndMethod(const char* event);
+
+    void retransformMatchedClasses(jvmtiEnv* jvmti);
 
     static void JNICALL ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
                                           jclass class_being_redefined, jobject loader,

@@ -459,14 +459,15 @@ char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
 volatile u64 Instrument::_calls;
+volatile bool Instrument::_enabled;
 
 Error Instrument::start(Arguments& args) {
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
 
-    JNIEnv* jni = VM::jni();
     if (!_instrument_class_loaded) {
+        JNIEnv* jni = VM::jni();
         if (jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS)) == NULL) {
             jni->ExceptionClear();
             return Error("Could not load Instrument class");
@@ -477,32 +478,20 @@ Error Instrument::start(Arguments& args) {
     setupTargetClassAndMethod(args._event);
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
-
-    // Lookup class before enabling CLASS_FILE_LOAD_HOOK to prevent double rewriting
-    jclass cls = jni->FindClass(_target_class);
+    _enabled = true;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
-
-    if (cls != NULL) {
-        jvmti->RetransformClasses(1, &cls);
-    }
-    jni->ExceptionClear();
+    retransformMatchedClasses(jvmti);
 
     return Error::OK;
 }
 
 void Instrument::stop() {
+    _enabled = false;
+
     jvmtiEnv* jvmti = VM::jvmti();
-
-    JNIEnv* jni = VM::jni();
-    jclass cls = jni->FindClass(_target_class);
-    if (cls != NULL) {
-        // Undo instrumentation
-        jvmti->RetransformClasses(1, &cls);
-    }
-    jni->ExceptionClear();
-
+    retransformMatchedClasses(jvmti);  // undo transformation
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 }
 
@@ -519,18 +508,48 @@ void Instrument::setupTargetClassAndMethod(const char* event) {
     free(old_class);
 }
 
+void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
+    jint class_count;
+    jclass* classes;
+    if (jvmti->GetLoadedClasses(&class_count, &classes) != 0) {
+        return;
+    }
+
+    jint matched_count = 0;
+    size_t len = strlen(_target_class);
+    for (int i = 0; i < class_count; i++) {
+        char* signature;
+        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == 0) {
+            if (signature[0] == 'L' && strncmp(signature + 1, _target_class, len) == 0 && signature[len + 1] == ';') {
+                classes[matched_count++] = classes[i];
+            }
+            jvmti->Deallocate((unsigned char*)signature);
+        }
+    }
+
+    if (matched_count > 0) {
+        jvmti->RetransformClasses(matched_count, classes);
+        VM::jni()->ExceptionClear();
+    }
+
+    jvmti->Deallocate((unsigned char*)classes);
+}
+
 void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
                                            jclass class_being_redefined, jobject loader,
                                            const char* name, jobject protection_domain,
                                            jint class_data_len, const u8* class_data,
                                            jint* new_class_data_len, u8** new_class_data) {
+    // Do not retransform if the profiling has stopped
+    if (!_enabled) {
+        return;
+    }
+
     const char* target_class = _target_class;
-    if (target_class != NULL && strcmp(name, target_class) == 0) {
+    if (strcmp(name, target_class) == 0) {
         const char* target_method = target_class + strlen(target_class) + 1;
         BytecodeRewriter rewriter(class_data, class_data_len, target_method);
         rewriter.rewrite(new_class_data, new_class_data_len);
-        printf("Rewriting %s.%s (class=%p, loader=%p): before=%d, after=%d\n",
-               target_class, target_method, class_being_redefined, loader, class_data_len, *new_class_data_len);
     }
 }
 
