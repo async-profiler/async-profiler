@@ -1,5 +1,6 @@
 PROFILER_VERSION=1.6
 JATTACH_VERSION=1.5
+RELEASE_VERSION=$(subst 1.,,$(PROFILER_VERSION))
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
@@ -51,7 +52,7 @@ build/$(JATTACH): src/jattach/jattach.c
 
 build/$(PROFILER_JAR): src/java/one/profiler/*.java
 	mkdir -p build/classes
-	$(JAVAC) -source 6 -target 6 -d build/classes $^
+	$(JAVAC) -source ${RELEASE_VERSION} -target ${RELEASE_VERSION} -d build/classes $^
 	$(JAR) cvf $@ -C build/classes .
 	rm -rf build/classes
 
