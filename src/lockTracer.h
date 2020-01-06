@@ -44,6 +44,10 @@ class LockTracer : public Engine {
         return "ns";
     }
 
+    bool requireNativeTrace() {
+        return false;
+    }
+
     Error start(Arguments& args);
     void stop();
 

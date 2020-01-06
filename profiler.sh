@@ -32,7 +32,7 @@ usage() {
     echo ""
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
-    echo "  --sync-walk       use synchronous JVMTI stack walker (dangerous!)"
+    echo "  --cstack          collect C stack when profiling Java-level events"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -176,6 +176,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --all-user)
             PARAMS="$PARAMS,alluser"
+            ;;
+        --cstack)
+            PARAMS="$PARAMS,cstack"
             ;;
         [0-9]*)
             PID="$1"

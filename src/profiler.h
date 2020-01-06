@@ -117,6 +117,7 @@ class Profiler {
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
     bool _threads;
+    bool _cstack;
     volatile bool _thread_events_state;
 
     SpinLock _jit_lock;

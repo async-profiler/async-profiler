@@ -38,6 +38,10 @@ class Instrument : public Engine {
         return "calls";
     }
 
+    bool requireNativeTrace() {
+        return false;
+    }
+
     Error start(Arguments& args);
     void stop();
 

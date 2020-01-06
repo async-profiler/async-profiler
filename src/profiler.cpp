@@ -453,10 +453,11 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     bool need_java_trace = true;
 
     int num_frames = 0;
-    if (event_type == 0) {
-        num_frames = getNativeTrace(ucontext, frames, tid, &need_java_trace);
-    } else if (event != NULL) {
+    if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
+    }
+    if (_cstack) {
+        num_frames += getNativeTrace(ucontext, frames + num_frames, tid, &need_java_trace);
     }
 
     if (event_type != 0 && _JvmtiEnv_GetStackTrace != NULL) {
@@ -716,6 +717,8 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _engine = selectEngine(args._event);
+    _cstack = args._cstack || _engine->requireNativeTrace();
+
     error = _engine->start(args);
     if (error) {
         _jfr.stop();

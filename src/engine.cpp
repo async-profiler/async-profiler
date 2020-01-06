@@ -18,6 +18,10 @@
 #include "stackFrame.h"
 
 
+bool Engine::requireNativeTrace() {
+    return true;
+}
+
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                            const void* jit_min_address, const void* jit_max_address) {
     StackFrame frame(ucontext);

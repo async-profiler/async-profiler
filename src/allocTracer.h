@@ -68,6 +68,10 @@ class AllocTracer : public Engine {
         return "bytes";
     }
 
+    bool requireNativeTrace() {
+        return false;
+    }
+
     Error start(Arguments& args);
     void stop();
 };

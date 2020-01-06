@@ -54,6 +54,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     jstackdepth=N - maximum Java stack depth (default: 2048)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
 //     threads       - profile different threads separately
+//     cstack        - collect C stack when profiling Java-level events
 //     allkernel     - include only kernel-mode events
 //     alluser       - include only user-mode events
 //     simple        - simple class names instead of FQN
@@ -136,6 +137,8 @@ Error Arguments::parse(const char* args) {
             }
         } else if (strcmp(arg, "threads") == 0) {
             _threads = true;
+        } else if (strcmp(arg, "cstack") == 0) {
+            _cstack = true;
         } else if (strcmp(arg, "allkernel") == 0) {
             _ring = RING_KERNEL;
         } else if (strcmp(arg, "alluser") == 0) {
