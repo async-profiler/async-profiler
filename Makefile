@@ -52,7 +52,7 @@ build/$(JATTACH): src/jattach/jattach.c
 
 build/$(PROFILER_JAR): src/java/one/profiler/*.java
 	mkdir -p build/classes
-	$(JAVAC) -source ${JAVAC_RELEASE_VERSION} -target ${JAVAC_RELEASE_VERSION} -d build/classes $^
+	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/classes $^
 	$(JAR) cvf $@ -C build/classes .
 	rm -rf build/classes
 
