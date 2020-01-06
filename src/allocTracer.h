@@ -22,6 +22,7 @@
 #include "arch.h"
 #include "codeCache.h"
 #include "engine.h"
+#include "stackFrame.h"
 
 
 // Describes OpenJDK function being intercepted
@@ -57,7 +58,7 @@ class AllocTracer : public Engine {
     static volatile u64 _allocated_bytes;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab); 
+    static void recordAllocation(void* ucontext, StackFrame& frame, uintptr_t rklass, uintptr_t rsize, bool outside_tlab);
 
   public:
     const char* name() {
