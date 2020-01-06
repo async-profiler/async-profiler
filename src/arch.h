@@ -18,6 +18,9 @@
 #define _ARCH_H
 
 
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
 typedef unsigned long long u64;
 
 static inline u64 atomicInc(volatile u64& var, u64 increment = 1) {

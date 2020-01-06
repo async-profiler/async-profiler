@@ -27,6 +27,7 @@
 #include "allocTracer.h"
 #include "lockTracer.h"
 #include "wallClock.h"
+#include "instrument.h"
 #include "itimer.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
@@ -44,6 +45,7 @@ static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;
+static Instrument instrument;
 
 
 u64 Profiler::hashCallTrace(int num_frames, ASGCT_CallFrame* frames) {
@@ -467,6 +469,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (jmethodID)"not_walkable");
+    } else if (event_type == BCI_INSTRUMENT) {
+        // Skip Instrument.recordSample() method
+        frames++;
+        num_frames--;
     }
 
     if (_threads) {
@@ -603,6 +609,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
+    } else if (strchr(event_name, '.') != NULL) {
+        return &instrument;
     } else {
         return &perf_events;
     }
@@ -957,6 +965,9 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_LOCK << std::endl;
             out << "  " << EVENT_WALL << std::endl;
             out << "  " << EVENT_ITIMER << std::endl;
+
+            out << "Java method calls:" << std::endl;
+            out << "  ClassName.methodName" << std::endl;
 
             if (PerfEvents::supported()) {
                 out << "Perf events:" << std::endl;

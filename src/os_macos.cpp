@@ -70,6 +70,10 @@ u64 OS::hton64(u64 x) {
     return OSSwapHostToBigInt64(x);
 }
 
+u64 OS::ntoh64(u64 x) {
+    return OSSwapBigToHostInt64(x);
+}
+
 int OS::threadId() {
     // Used to be pthread_mach_thread_np(pthread_self()),
     // but pthread_mach_thread_np is not async signal safe

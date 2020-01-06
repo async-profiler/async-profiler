@@ -21,6 +21,7 @@
 #include "arguments.h"
 #include "os.h"
 #include "profiler.h"
+#include "instrument.h"
 #include "lockTracer.h"
 
 
@@ -50,6 +51,8 @@ void VM::init(JavaVM* vm, bool attach) {
 
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
+    capabilities.can_retransform_classes = 1;
+    capabilities.can_retransform_any_class = 1;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -64,6 +67,7 @@ void VM::init(JavaVM* vm, bool attach) {
     callbacks.VMDeath = VMDeath;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
+    callbacks.ClassFileLoadHook = Instrument::ClassFileLoadHook;
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
