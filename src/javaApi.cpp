@@ -19,8 +19,8 @@
 #include <errno.h>
 #include <string.h>
 #include "arguments.h"
+#include "os.h"
 #include "profiler.h"
-#include "vmStructs.h"
 
 
 static void throw_new(JNIEnv* env, const char* exception_class, const char* message) {
@@ -125,12 +125,6 @@ Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused, jthread thread) {
-    Error error = Profiler::_instance.initJvmLibrary();
-    if (error || !VMThread::hasNativeId()) {
-        return -1;
-    }
-
-    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
-    return vm_thread != NULL ? vm_thread->osThreadId() : -1;
+Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused) {
+    return OS::threadId();
 }

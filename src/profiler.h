@@ -168,6 +168,7 @@ class Profiler {
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateAllThreadNames();
     Engine* selectEngine(const char* event_name);
+    Error initJvmLibrary();
 
   public:
     static Profiler _instance;
@@ -175,7 +176,6 @@ class Profiler {
     Profiler() :
         _state(IDLE),
         _jfr(),
-        _total_samples(-1),
         _frame_buffer(NULL),
         _frame_buffer_size(0),
         _max_stack_depth(0),
@@ -199,7 +199,6 @@ class Profiler {
     u64 total_counter() { return _total_counter; }
     time_t uptime()     { return time(NULL) - _start_time; }
 
-    Error initJvmLibrary();
     NativeCodeCache* jvmLibrary() { return _libjvm; }
 
     void run(Arguments& args);

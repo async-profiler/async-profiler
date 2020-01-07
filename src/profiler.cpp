@@ -626,10 +626,6 @@ Error Profiler::initJvmLibrary() {
         return Error("Could not find AsyncGetCallTrace function");
     }
 
-    if (_native_lib_count == 0) {
-        Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
-    }
-
     _libjvm = findNativeLibrary((const void*)VM::_asyncGetCallTrace);
     if (_libjvm == NULL) {
         return Error("Could not find libjvm among loaded libraries");
@@ -655,7 +651,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
-    if (reset || _total_samples < 0) {
+    if (reset || _libjvm == NULL) {
         // Reset counters
         _total_samples = 0;
         _total_counter = 0;
