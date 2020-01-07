@@ -38,7 +38,10 @@ Error ITimer::start(Arguments& args) {
     long sec = _interval / 1000000000;
     long usec = (_interval % 1000000000) / 1000;
     struct itimerval tv = {{sec, usec}, {sec, usec}};
-    setitimer(ITIMER_PROF, &tv, NULL);
+    
+    if (setitimer(ITIMER_PROF, &tv, NULL) != 0) {
+        return Error("ITIMER_PROF is not supported on this system");
+    }
 
     return Error::OK;
 }
