@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"
@@ -544,7 +545,10 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
 }
 
 bool PerfEvents::supported() {
-    return true;
+    // The official way of knowing if perf_event_open() support is enabled
+    // is checking for the existence of the file /proc/sys/kernel/perf_event_paranoid
+    struct stat statbuf;
+    return stat("/proc/sys/kernel/perf_event_paranoid", &statbuf) == 0;
 }
 
 const char* PerfEvents::getEventName(int event_id) {
