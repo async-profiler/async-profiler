@@ -151,8 +151,7 @@ void Profiler::storeMethod(jmethodID method, jint bci, u64 counter) {
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
     _jit_lock.lock();
-    _java_methods.add(address, length, method);
-    updateJitRange(address, (const char*)address + length);
+    _java_methods.add(address, length, method, true);
     _jit_lock.unlock();
 }
 
@@ -163,15 +162,9 @@ void Profiler::removeJavaMethod(const void* address, jmethodID method) {
 }
 
 void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
-    _jit_lock.lock();
-    _runtime_stubs.add(address, length, name);
-    updateJitRange(address, (const char*)address + length);
-    _jit_lock.unlock();
-}
-
-void Profiler::updateJitRange(const void* min_address, const void* max_address) {
-    if (min_address < _jit_min_address) _jit_min_address = min_address;
-    if (max_address > _jit_max_address) _jit_max_address = max_address;
+    _stubs_lock.lock();
+    _runtime_stubs.add(address, length, name, true);
+    _stubs_lock.unlock();
 }
 
 const char* Profiler::asgctError(int code) {
@@ -230,12 +223,12 @@ const char* Profiler::findNativeMethod(const void* address) {
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                                _jit_min_address, _jit_max_address);
+                                                &_java_methods, &_runtime_stubs);
 
     *stopped_at_java_frame = false;
     if (native_frames > 0) {
         const void* last_pc = native_callchain[native_frames - 1];
-        if (last_pc >= _jit_min_address && last_pc < _jit_max_address) {
+        if (_java_methods.contains(last_pc) || _runtime_stubs.contains(last_pc)) {
             *stopped_at_java_frame = true;
             native_frames--;
         }
@@ -386,41 +379,58 @@ int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID
 
 bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
     jmethodID method = NULL;
-    _jit_lock.lockShared();
 
-    // Check if PC lies within JVM's compiled code cache
-    if (pc >= _jit_min_address && pc < _jit_max_address) {
-        if ((method = _java_methods.find(pc)) != NULL) {
-            // PC belong to a JIT compiled method
-            frame->bci = 0;
-            frame->method_id = method;
-        } else if ((method = _runtime_stubs.find(pc)) != NULL) {
-            // PC belongs to a VM runtime stub
-            frame->bci = BCI_NATIVE_FRAME;
-            frame->method_id = method;
-        }
+    // Check if PC belongs to a JIT compiled method
+    _jit_lock.lockShared();
+    if (_java_methods.contains(pc) && (method = _java_methods.find(pc)) != NULL) {
+        frame->bci = 0;
+        frame->method_id = method;
+    }
+    _jit_lock.unlockShared();
+
+    if (method != NULL) {
+        return true;
     }
 
-    _jit_lock.unlockShared();
+    // Check if PC belongs to a VM runtime stub
+    _stubs_lock.lockShared();
+    if (_runtime_stubs.contains(pc) && (method = _runtime_stubs.find(pc)) != NULL) {
+        frame->bci = BCI_NATIVE_FRAME;
+        frame->method_id = method;
+    }
+    _stubs_lock.unlockShared();
+
     return method != NULL;
 }
 
 bool Profiler::addressInCode(instruction_t* pc) {
     // 1. Check if PC lies within JVM's compiled code cache
-    if (pc >= _jit_min_address && pc < _jit_max_address) {
+    if (_java_methods.contains(pc)) {
         // Consider PC a valid return address if it points right after the CALL instruction
         if (StackFrame::isReturnAddress(pc)) {
             return true;
         }
 
-        // Or if PC belongs to a Java method or a runtime stub
+        // Or if PC belongs to a Java method
         _jit_lock.lockShared();
-        bool valid = _java_methods.find(pc) != NULL || _runtime_stubs.find(pc) != NULL;
+        bool valid = _java_methods.find(pc) != NULL;
         _jit_lock.unlockShared();
         return valid;
     }
 
-    // 2. Check if PC belongs to executable code of shared libraries
+    // 2. The same for VM runtime stubs
+    if (_runtime_stubs.contains(pc)) {
+        if (StackFrame::isReturnAddress(pc)) {
+            return true;
+        }
+
+        _stubs_lock.lockShared();
+        bool valid = _runtime_stubs.find(pc) != NULL;
+        _stubs_lock.unlockShared();
+        return valid;
+    }
+
+    // 3. Check if PC belongs to executable code of shared libraries
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(pc)) {
@@ -442,7 +452,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
         if (event_type == 0) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
-            _engine->getNativeTrace(ucontext, tid, NULL, 0, _jit_min_address, _jit_max_address);
+            _engine->getNativeTrace(ucontext, tid, NULL, 0, &_java_methods, &_runtime_stubs);
         }
         return;
     }

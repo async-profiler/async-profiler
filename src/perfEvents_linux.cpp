@@ -501,7 +501,7 @@ void PerfEvents::onThreadEnd() {
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               const void* jit_min_address, const void* jit_max_address) {
+                               CodeCache* java_methods, CodeCache* runtime_stubs) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -526,7 +526,7 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
                         callchain[depth++] = iptr;
-                        if (iptr >= jit_min_address && iptr < jit_max_address) {
+                        if (java_methods->contains(iptr) || runtime_stubs->contains(iptr)) {
                             // Stop at the first Java frame
                             break;
                         }

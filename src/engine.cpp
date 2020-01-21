@@ -23,7 +23,7 @@ bool Engine::requireNativeTrace() {
 }
 
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                           const void* jit_min_address, const void* jit_max_address) {
+                           CodeCache* java_methods, CodeCache* runtime_stubs) {
     StackFrame frame(ucontext);
     const void* pc = (const void*)frame.pc();
     uintptr_t fp = frame.fp();
@@ -36,7 +36,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
     while (depth < max_depth && pc >= valid_pc) {
         callchain[depth++] = pc;
 
-        if (pc >= jit_min_address && pc < jit_max_address) {
+        if (java_methods->contains(pc) || runtime_stubs->contains(pc)) {
             break;
         }
 

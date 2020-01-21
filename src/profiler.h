@@ -121,8 +121,7 @@ class Profiler {
     volatile bool _thread_events_state;
 
     SpinLock _jit_lock;
-    const void* _jit_min_address;
-    const void* _jit_max_address;
+    SpinLock _stubs_lock;
     CodeCache _java_methods;
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
@@ -148,7 +147,6 @@ class Profiler {
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
-    void updateJitRange(const void* min_address, const void* max_address);
 
     const char* asgctError(int code);
     NativeCodeCache* findNativeLibrary(const void* address);
@@ -181,8 +179,7 @@ class Profiler {
         _max_stack_depth(0),
         _thread_events_state(JVMTI_DISABLE),
         _jit_lock(),
-        _jit_min_address((const void*)-1),
-        _jit_max_address((const void*)0),
+        _stubs_lock(),
         _java_methods(),
         _runtime_stubs("[stubs]"),
         _libjvm(NULL),

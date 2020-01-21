@@ -20,6 +20,9 @@
 #include <jvmti.h>
 
 
+#define NO_MIN_ADDRESS  ((const void*)-1)
+#define NO_MAX_ADDRESS  ((const void*)0)
+
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 
 
@@ -50,6 +53,8 @@ class CodeCache {
     int _capacity;
     int _count;
     CodeBlob* _blobs;
+    const void* _min_address;
+    const void* _max_address;
 
     void expand();
 
@@ -58,13 +63,19 @@ class CodeCache {
         _capacity = INITIAL_CODE_CACHE_CAPACITY;
         _count = 0;
         _blobs = new CodeBlob[_capacity];
+        _min_address = NO_MIN_ADDRESS;
+        _max_address = NO_MAX_ADDRESS;
     }
 
     ~CodeCache() {
         delete[] _blobs;
     }
 
-    void add(const void* start, int length, jmethodID method);
+    bool contains(const void* address) {
+        return address >= _min_address && address < _max_address;
+    }
+
+    void add(const void* start, int length, jmethodID method, bool update_bounds = false);
     void remove(const void* start, jmethodID method);
     jmethodID find(const void* address);
 };
@@ -73,11 +84,11 @@ class CodeCache {
 class NativeCodeCache : public CodeCache {
   private:
     char* _name;
-    const void* _min_address;
-    const void* _max_address;
-  
+
   public:
-    NativeCodeCache(const char* name, const void* min_address = NULL, const void* max_address = NULL);
+    NativeCodeCache(const char* name,
+                    const void* min_address = NO_MIN_ADDRESS,
+                    const void* max_address = NO_MAX_ADDRESS);
 
     ~NativeCodeCache();
 
@@ -85,11 +96,7 @@ class NativeCodeCache : public CodeCache {
         return _name;
     }
 
-    bool contains(const void* address) {
-        return address >= _min_address && address < _max_address;
-    }
-
-    void add(const void* start, int length, const char* name);
+    void add(const void* start, int length, const char* name, bool update_bounds = false);
     void sort();
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);

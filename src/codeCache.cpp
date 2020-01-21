@@ -28,15 +28,21 @@ void CodeCache::expand() {
     delete[] old_blobs;
 }
 
-void CodeCache::add(const void* start, int length, jmethodID method) {
+void CodeCache::add(const void* start, int length, jmethodID method, bool update_bounds) {
     if (_count >= _capacity) {
         expand();
     }
 
+    const void* end = (const char*)start + length;
     _blobs[_count]._start = start;
-    _blobs[_count]._end = (const char*)start + length;
+    _blobs[_count]._end = end;
     _blobs[_count]._method = method;
     _count++;
+
+    if (update_bounds) {
+        if (start < _min_address) _min_address = start;
+        if (end > _max_address) _max_address = end;
+    }
 }
 
 void CodeCache::remove(const void* start, jmethodID method) {
@@ -71,13 +77,13 @@ NativeCodeCache::~NativeCodeCache() {
     free(_name);
 }
 
-void NativeCodeCache::add(const void* start, int length, const char* name) {
+void NativeCodeCache::add(const void* start, int length, const char* name, bool update_bounds) {
     char* name_copy = strdup(name);
     // Replace non-printable characters
     for (char* s = name_copy; *s != 0; s++) {
         if (*s < ' ') *s = '?';
     }
-    CodeCache::add(start, length, (jmethodID)name_copy);
+    CodeCache::add(start, length, (jmethodID)name_copy, update_bounds);
 }
 
 void NativeCodeCache::sort() {
@@ -85,8 +91,8 @@ void NativeCodeCache::sort() {
 
     qsort(_blobs, _count, sizeof(CodeBlob), CodeBlob::comparator);
 
-    if (_min_address == NULL) _min_address = _blobs[0]._start;
-    if (_max_address == NULL) _max_address = _blobs[_count - 1]._end;
+    if (_min_address == NO_MIN_ADDRESS) _min_address = _blobs[0]._start;
+    if (_max_address == NO_MAX_ADDRESS) _max_address = _blobs[_count - 1]._end;
 }
 
 const char* NativeCodeCache::binarySearch(const void* address) {
