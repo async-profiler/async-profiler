@@ -82,14 +82,14 @@ class Constant {
         return _tag == CONSTANT_Long || _tag == CONSTANT_Double ? 2 : 1;
     }
 
-    u16 utflen() {
+    u16 info() {
         return (u16)_info[0] << 8 | (u16)_info[1];
     }
 
     int length() {
         switch (_tag) {
             case CONSTANT_Utf8:
-                return 2 + utflen();
+                return 2 + info();
             case CONSTANT_Integer:
             case CONSTANT_Float:
             case CONSTANT_Fieldref:
@@ -116,7 +116,7 @@ class Constant {
     }
 
     bool equals(const char* value, u16 len) {
-        return _tag == CONSTANT_Utf8 && utflen() == len && memcmp(_info + 2, value, len) == 0;
+        return _tag == CONSTANT_Utf8 && info() == len && memcmp(_info + 2, value, len) == 0;
     }
 };
 
@@ -147,6 +147,8 @@ class BytecodeRewriter {
     Constant** _cpool;
     u16 _cpool_len;
 
+    const char* _target_class;
+    u16 _target_class_len;
     const char* _target_method;
     u16 _target_method_len;
     const char* _target_signature;
@@ -248,10 +250,10 @@ class BytecodeRewriter {
     void rewriteStackMapTable();
     void rewriteAttributes(Scope scope);
     void rewriteMembers(Scope scope);
-    void rewriteClass();
+    bool rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_method) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
@@ -259,8 +261,11 @@ class BytecodeRewriter {
         _dst_capacity(class_data_len + 400),
         _cpool(NULL) {
 
-        _target_method = target_method;
-        _target_signature = strchr(target_method, '(');
+        _target_class = target_class;
+        _target_class_len = strlen(_target_class);
+
+        _target_method = _target_class + _target_class_len + 1;
+        _target_signature = strchr(_target_method, '(');
 
         if (_target_signature == NULL) {
             _target_method_len = strlen(_target_method);
@@ -276,9 +281,12 @@ class BytecodeRewriter {
 
     void rewrite(u8** new_class_data, int* new_class_data_len) {
         if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == 0) {
-            rewriteClass();
-            *new_class_data = _dst;
-            *new_class_data_len = _dst_len;
+            if (rewriteClass()) {
+                *new_class_data = _dst;
+                *new_class_data_len = _dst_len;
+            } else {
+                VM::jvmti()->Deallocate(_dst);
+            }
         }
     }
 };
@@ -408,7 +416,7 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
     }
 }
 
-void BytecodeRewriter::rewriteClass() {
+bool BytecodeRewriter::rewriteClass() {
     u32 magic = get32();
     put32(magic);
 
@@ -441,6 +449,11 @@ void BytecodeRewriter::rewriteClass() {
     u16 this_class = get16();
     put16(this_class);
 
+    u16 class_name_index = _cpool[this_class]->info();
+    if (!_cpool[class_name_index]->equals(_target_class, _target_class_len)) {
+        return false;
+    }
+
     u16 super_class = get16();
     put16(super_class);
 
@@ -450,8 +463,9 @@ void BytecodeRewriter::rewriteClass() {
 
     rewriteMembers(SCOPE_FIELD);
     rewriteMembers(SCOPE_METHOD);
-
     rewriteAttributes(SCOPE_CLASS);
+
+    return true;
 }
 
 
@@ -545,10 +559,8 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
         return;
     }
 
-    const char* target_class = _target_class;
-    if (strcmp(name, target_class) == 0) {
-        const char* target_method = target_class + strlen(target_class) + 1;
-        BytecodeRewriter rewriter(class_data, class_data_len, target_method);
+    if (name == NULL || strcmp(name, _target_class) == 0) {
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
