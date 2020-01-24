@@ -314,16 +314,16 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
         }
-    } else if (trace.num_frames == ticks_unknown_not_Java) {
+    } else if (trace.num_frames == ticks_unknown_not_Java && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
         VMThread* thread = VMThread::fromEnv(jni);
         if (thread != NULL) {
             uintptr_t& sp = thread->lastJavaSP();
             uintptr_t& pc = thread->lastJavaPC();
-            if (sp != 0 && pc == 0) {
+            if (sp != 0 && pc == 0 && addressInCode(((instruction_t**)sp)[-1])) {
                 // We have the last Java frame anchor, but it is not marked as walkable
-                pc = ((uintptr_t*)sp)[-1];
-                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                int result = getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
                 pc = 0;
+                return result;
             }
         }
     } else if (trace.num_frames == ticks_GC_active && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
