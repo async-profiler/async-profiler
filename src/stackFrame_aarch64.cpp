@@ -37,6 +37,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.regs[REG_FP];
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.regs[0];
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)_ucontext->uc_mcontext.regs[0];
 }
@@ -70,6 +74,10 @@ bool StackFrame::pop(bool trust_frame_pointer) {
         pc() = _ucontext->uc_mcontext.regs[REG_LR];
     }
     return true;
+}
+
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
 }
 
 int StackFrame::callerLookupSlots() {

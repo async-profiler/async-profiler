@@ -55,6 +55,7 @@ class StackFrame {
     uintptr_t& sp();
     uintptr_t& fp();
 
+    uintptr_t retval();
     uintptr_t arg0();
     uintptr_t arg1();
     uintptr_t arg2();
@@ -63,6 +64,8 @@ class StackFrame {
     void ret();
 
     bool pop(bool trust_frame_pointer);
+
+    void restartSyscall();
 
     // Look that many stack slots for a return address candidate.
     // 0 = do not use stack snooping heuristics.

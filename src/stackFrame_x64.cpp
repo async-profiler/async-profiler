@@ -38,6 +38,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)REG(REG_RBP, __rbp);
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)REG(REG_RAX, __rax);
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)REG(REG_RDI, __rdi);
 }
@@ -97,6 +101,15 @@ bool StackFrame::pop(bool trust_frame_pointer) {
         return true;
     }
     return false;
+}
+
+void StackFrame::restartSyscall() {
+    uintptr_t pc = this->pc();
+    if ((pc & 0xfff) >= 7 && *(unsigned short*)(pc - 2) == 0x50f && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == 0x7) {
+        // mov eax, $0x7
+        // syscall
+        this->pc() = pc - 7;
+    }
 }
 
 int StackFrame::callerLookupSlots() {

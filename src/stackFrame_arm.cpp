@@ -31,6 +31,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.arm_fp;
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
 }
@@ -53,6 +57,10 @@ void StackFrame::ret() {
 
 bool StackFrame::pop(bool trust_frame_pointer) {
     return false;
+}
+
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
 }
 
 int StackFrame::callerLookupSlots() {

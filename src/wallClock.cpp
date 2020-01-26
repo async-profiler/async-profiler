@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <errno.h>
 #include <poll.h>
 #include <string.h>
 #include <signal.h>
@@ -22,6 +23,7 @@
 #include "wallClock.h"
 #include "os.h"
 #include "profiler.h"
+#include "stackFrame.h"
 
 
 const int THREADS_PER_TICK = 8;
@@ -30,6 +32,15 @@ long WallClock::_interval;
 bool WallClock::_sample_idle_threads;
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+#ifdef __linux__
+    // Workaround for JDK-8237858: restart the interrupted syscall manually.
+    // Currently this is implemented only for poll().
+    StackFrame frame(ucontext);
+    if (frame.retval() == (uintptr_t)-EINTR) {
+        frame.restartSyscall();
+    }
+#endif // __linux__
+
     Profiler::_instance.recordSample(ucontext, _interval, 0, NULL);
 }
 

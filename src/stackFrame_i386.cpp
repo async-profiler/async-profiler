@@ -31,6 +31,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EBP];
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_EAX];
+}
+
 uintptr_t StackFrame::arg0() {
     return stackAt(1);
 }
@@ -65,6 +69,10 @@ bool StackFrame::pop(bool trust_frame_pointer) {
         return true;
     }
     return false;
+}
+
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
 }
 
 int StackFrame::callerLookupSlots() {
