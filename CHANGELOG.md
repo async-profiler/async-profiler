@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.7-ea] - In development
+
+### Features
+ - Profile invocations of an arbitrary Java method
+ - `--cstack` option to collect native stack traces for Java-level events
+
+### Improvements
+ - Enable CPU profiling on WSL
+ - Enable allocation profiling on Zing
+ - Reduce the amount of `unknown_Java` samples
+
 ## [1.6] 2019-09-09
 
 ### Features
