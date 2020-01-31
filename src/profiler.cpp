@@ -406,12 +406,6 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
 bool Profiler::addressInCode(instruction_t* pc) {
     // 1. Check if PC lies within JVM's compiled code cache
     if (_java_methods.contains(pc)) {
-        // Consider PC a valid return address if it points right after the CALL instruction
-        if (StackFrame::isReturnAddress(pc)) {
-            return true;
-        }
-
-        // Or if PC belongs to a Java method
         _jit_lock.lockShared();
         bool valid = _java_methods.find(pc) != NULL;
         _jit_lock.unlockShared();
@@ -420,10 +414,6 @@ bool Profiler::addressInCode(instruction_t* pc) {
 
     // 2. The same for VM runtime stubs
     if (_runtime_stubs.contains(pc)) {
-        if (StackFrame::isReturnAddress(pc)) {
-            return true;
-        }
-
         _stubs_lock.lockShared();
         bool valid = _runtime_stubs.find(pc) != NULL;
         _stubs_lock.unlockShared();
