@@ -24,16 +24,13 @@ jlong LockTracer::_start_time = 0;
 jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
 UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
+bool LockTracer::_supports_lock_names = false;
 
-Error LockTracer::start(const char* event, long interval) {
-    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-    if (libjvm == NULL) {
-        return Error("libjvm not found among loaded libraries");
-    }
-
-    if (!VMStructs::init(libjvm)) {
-        return Error("VMStructs unavailable. Unsupported JVM?");
-    }
+Error LockTracer::start(Arguments& args) {
+    // PermGen in JDK 7 makes difficult to get symbol name from jclass.
+    // Also some JVMs do not support VMStructs at all.
+    // Let's just record stack traces without lock names in these cases.
+    _supports_lock_names = VMStructs::available() && !VMStructs::hasPermGen();
 
     // Enable Java Monitor events
     jvmtiEnv* jvmti = VM::jvmti();
@@ -48,7 +45,12 @@ Error LockTracer::start(const char* event, long interval) {
     }
 
     if (_original_Unsafe_Park == NULL) {
+        NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
         _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
+        if (_original_Unsafe_Park == NULL) {
+            // In some macOS builds of JDK 11 Unsafe_Park appears to have a C++ decorated name
+            _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("_ZL11Unsafe_ParkP7JNIEnv_P8_jobjecthl");
+        }
     }
 
     // Intercent Unsafe.park() for tracing contended ReentrantLocks
@@ -135,13 +137,11 @@ jclass LockTracer::getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env) {
 }
 
 void LockTracer::recordContendedLock(jclass lock_class, jlong time) {
-    if (VMStructs::hasPermGen()) {
-        // PermGen in JDK 7 makes difficult to get symbol name from jclass.
-        // Let's just skip it and record stack trace without lock class.
-        Profiler::_instance.recordSample(NULL, time, 0, NULL);
-    } else {
+    if (_supports_lock_names) {
         VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, (jmethodID)lock_name);
+    } else {
+        Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, NULL);
     }
 }
 

@@ -37,6 +37,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.regs[REG_FP];
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.regs[0];
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)_ucontext->uc_mcontext.regs[0];
 }
@@ -57,7 +61,7 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.pc = _ucontext->uc_mcontext.regs[REG_LR];
 }
 
-bool StackFrame::pop() {
+bool StackFrame::pop(bool trust_frame_pointer) {
     if (fp() == sp()) {
         // Expected frame layout:
         // sp   000000nnnnnnnnnn  [stack]
@@ -70,6 +74,18 @@ bool StackFrame::pop() {
         pc() = _ucontext->uc_mcontext.regs[REG_LR];
     }
     return true;
+}
+
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
+}
+
+int StackFrame::callerLookupSlots() {
+    return 0;
+}
+
+bool StackFrame::isReturnAddress(instruction_t* pc) {
+    return false;
 }
 
 #endif // defined(__aarch64__)

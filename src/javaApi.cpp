@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <string.h>
 #include "arguments.h"
+#include "os.h"
 #include "profiler.h"
 
 
@@ -31,10 +32,12 @@ static void throw_new(JNIEnv* env, const char* exception_class, const char* mess
 
 
 extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval) {
-    const char* event_str = env->GetStringUTFChars(event, NULL);
-    Error error = Profiler::_instance.start(event_str, interval, 0, DEFAULT_FRAMEBUF, false);
-    env->ReleaseStringUTFChars(event, event_str);
+Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
+    Arguments args;
+    args._event = env->GetStringUTFChars(event, NULL);
+    args._interval = interval;
+    Error error = Profiler::_instance.start(args, reset);
+    env->ReleaseStringUTFChars(event, args._event);
 
     if (error) {
         throw_new(env, "java/lang/IllegalStateException", error.message());
@@ -67,7 +70,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
-    if (args._file == NULL) {
+    if (args._file == NULL || args._output == OUTPUT_JFR) {
         std::ostringstream out;
         Profiler::_instance.runInternal(args, out);
         return env->NewStringUTF(out.str().c_str());
@@ -96,16 +99,32 @@ Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused, jint
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint max_traces) {
+    Arguments args;
+    args._dump_traces = max_traces ? max_traces : MAX_CALLTRACES;
+
     std::ostringstream out;
     Profiler::_instance.dumpSummary(out);
-    Profiler::_instance.dumpTraces(out, max_traces ? max_traces : MAX_CALLTRACES);
+    Profiler::_instance.dumpTraces(out, args);
     return env->NewStringUTF(out.str().c_str());
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_dumpFlat0(JNIEnv* env, jobject unused, jint max_methods) {
+    Arguments args;
+    args._dump_flat = max_methods ? max_methods : MAX_CALLTRACES;
+
     std::ostringstream out;
     Profiler::_instance.dumpSummary(out);
-    Profiler::_instance.dumpFlat(out, max_methods ? max_methods : MAX_CALLTRACES);
+    Profiler::_instance.dumpFlat(out, args);
     return env->NewStringUTF(out.str().c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
+    return env->NewStringUTF(PROFILER_VERSION);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused) {
+    return OS::threadId();
 }

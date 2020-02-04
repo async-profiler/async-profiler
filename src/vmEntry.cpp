@@ -16,10 +16,12 @@
 
 #include <fstream>
 #include <dlfcn.h>
+#include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
+#include "os.h"
 #include "profiler.h"
-#include "perfEvents.h"
+#include "instrument.h"
 #include "lockTracer.h"
 
 
@@ -27,6 +29,9 @@ static Arguments _agent_args;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
+bool VM::_hotspot;
+void* VM::_libjvm;
+void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 
 
@@ -36,8 +41,18 @@ void VM::init(JavaVM* vm, bool attach) {
     _vm = vm;
     _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
 
+    char* vm_name;
+    if (_jvmti->GetSystemProperty("java.vm.name", &vm_name) == 0) {
+        _hotspot = strstr(vm_name, "Zing") == NULL;
+        _jvmti->Deallocate((unsigned char*)vm_name);
+    } else {
+        _hotspot = false;
+    }
+
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
+    capabilities.can_retransform_classes = 1;
+    capabilities.can_retransform_any_class = 1;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -52,11 +67,12 @@ void VM::init(JavaVM* vm, bool attach) {
     callbacks.VMDeath = VMDeath;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
+    callbacks.ClassFileLoadHook = Instrument::ClassFileLoadHook;
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.CompiledMethodUnload = Profiler::CompiledMethodUnload;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
-    callbacks.ThreadStart = PerfEvents::ThreadStart;
-    callbacks.ThreadEnd = PerfEvents::ThreadEnd;
+    callbacks.ThreadStart = Profiler::ThreadStart;
+    callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
@@ -69,25 +85,26 @@ void VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
-    PerfEvents::init();
-
-    _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(RTLD_DEFAULT, "AsyncGetCallTrace");
-    if (_asyncGetCallTrace == NULL) {
-        // Unable to locate AsyncGetCallTrace, it is likely that JVM has been started
-        // by JNI_CreateJavaVM() via dynamically loaded libjvm.so from a C/C++ program
-        void* libjvm_handle = dlopen("libjvm.so", RTLD_NOW);
-        if (!libjvm_handle) {
-            std::cerr << "Failed to load libjvm.so: " << dlerror() << std::endl;
-        }
-        // Try loading AGCT after opening libjvm.so
-        _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm_handle, "AsyncGetCallTrace");
-    }
+    _libjvm = getLibraryHandle("libjvm.so");
+    _libjava = getLibraryHandle("libjava.so");
+    _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
 
     if (attach) {
         loadAllMethodIDs(_jvmti);
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     }
+}
+
+void* VM::getLibraryHandle(const char* name) {
+    if (!OS::isJavaLibraryVisible()) {
+        void* handle = dlopen(name, RTLD_LAZY);
+        if (handle != NULL) {
+            return handle;
+        }
+        std::cerr << "Failed to load " << name << ": " << dlerror() << std::endl;
+    }
+    return RTLD_DEFAULT;
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, jclass klass) {
@@ -145,7 +162,9 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     }
 
     // Save the arguments in case of shutdown
-    _agent_args = args;
+    if (args._action == ACTION_START || args._action == ACTION_RESUME) {
+        _agent_args.save(args);
+    }
     Profiler::_instance.run(args);
 
     return 0;

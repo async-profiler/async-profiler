@@ -19,14 +19,17 @@
 
 #include <stdint.h>
 #include <ucontext.h>
+#include "arch.h"
 
 
 class StackFrame {
   private:
     ucontext_t* _ucontext;
 
-    uintptr_t stackAt(int slot) {
-        return ((uintptr_t*)sp())[slot];
+    static bool withinCurrentStack(uintptr_t address) {
+        // Check that the address is not too far from the stack pointer of current context
+        void* real_sp;
+        return address - (uintptr_t)&real_sp <= 0xffff;
     }
 
   public:
@@ -40,10 +43,19 @@ class StackFrame {
         fp() = saved_fp;
     }
 
+    bool validSP() {
+        return withinCurrentStack(sp());
+    }
+
+    uintptr_t stackAt(int slot) {
+        return ((uintptr_t*)sp())[slot];
+    }
+
     uintptr_t& pc();
     uintptr_t& sp();
     uintptr_t& fp();
 
+    uintptr_t retval();
     uintptr_t arg0();
     uintptr_t arg1();
     uintptr_t arg2();
@@ -51,7 +63,17 @@ class StackFrame {
 
     void ret();
 
-    bool pop();
+    bool pop(bool trust_frame_pointer);
+
+    void restartSyscall();
+
+    // Look that many stack slots for a return address candidate.
+    // 0 = do not use stack snooping heuristics.
+    static int callerLookupSlots();
+
+    // Check if PC looks like a valid return address (i.e. the previous instruction is a CALL).
+    // It's safe to return false to skip return address heuristics.
+    static bool isReturnAddress(instruction_t* pc);
 };
 
 #endif // _STACKFRAME_H

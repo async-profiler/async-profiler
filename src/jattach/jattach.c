@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/syscall.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -29,56 +30,18 @@
 #include <unistd.h>
 
 #define MAX_PATH 1024
+#define TMP_PATH (MAX_PATH - 64)
+
+static char tmp_path[TMP_PATH] = {0};
 
 
-#ifdef __APPLE__
-
-#include <sys/sysctl.h>
-
-// macOS has a secure per-user temporary directory
-const char* get_temp_directory() {
-    static char temp_path_storage[MAX_PATH] = {0};
-
-    if (temp_path_storage[0] == 0) {
-        int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, temp_path_storage, MAX_PATH);
-        if (path_size == 0 || path_size > MAX_PATH) {
-            strcpy(temp_path_storage, "/tmp");
-        }
-    }
-    return temp_path_storage;
-}
+#ifdef __linux__
 
 int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
-    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
-    struct kinfo_proc info;
-    size_t len = sizeof(info);
-
-    if (sysctl(mib, 4, &info, &len, NULL, 0) < 0 || len <= 0) {
-        return 0;
-    }
-
-    *uid = info.kp_eproc.e_ucred.cr_uid;
-    *gid = info.kp_eproc.e_ucred.cr_gid;
-    *nspid = pid;
-    return 1;
-}
-
-// This is a Linux-specific API; nothing to do on macOS
-int enter_mount_ns(int pid) {
-    return 1;
-}
-
-#else // Linux
-
-const char* get_temp_directory() {
-    return "/tmp";
-}
-
-int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
-    char status[64];
-    snprintf(status, sizeof(status), "/proc/%d/status", pid);
-
-    FILE* status_file = fopen(status, "r");
+    // Parse /proc/pid/status to find process credentials
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    FILE* status_file = fopen(path, "r");
     if (status_file == NULL) {
         return 0;
     }
@@ -104,31 +67,175 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
     return 1;
 }
 
+int get_tmp_path(int pid) {
+    // A process may have its own root path (when running in chroot environment)
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/root", pid);
+
+    // Append /tmp to the resolved root symlink
+    ssize_t path_size = readlink(path, tmp_path, sizeof(tmp_path) - 10);
+    strcpy(tmp_path + (path_size > 1 ? path_size : 0), "/tmp");
+    return 1;
+}
+
 int enter_mount_ns(int pid) {
-    // We're leaking the oldns and newns descriptors, but this is a short-running
-    // tool, so they will be closed when the process exits anyway.
-    int oldns, newns;
-    char curnspath[128], newnspath[128];
+#ifdef __NR_setns
+    char path[128];
+    snprintf(path, sizeof(path), "/proc/%d/ns/mnt", pid);
+
     struct stat oldns_stat, newns_stat;
+    if (stat("/proc/self/ns/mnt", &oldns_stat) == 0 && stat(path, &newns_stat) == 0) {
+        // Don't try to call setns() if we're in the same namespace already
+        if (oldns_stat.st_ino != newns_stat.st_ino) {
+            int newns = open(path, O_RDONLY);
+            if (newns < 0) {
+                return 0;
+            }
 
-    snprintf(curnspath, sizeof(curnspath), "/proc/self/ns/mnt");
-    snprintf(newnspath, sizeof(newnspath), "/proc/%d/ns/mnt", pid);
+            // Some ancient Linux distributions do not have setns() function
+            int result = syscall(__NR_setns, newns, 0);
+            close(newns);
+            return result < 0 ? 0 : 1;
+        }
+    }
+#endif // __NR_setns
 
-    if ((oldns = open(curnspath, O_RDONLY)) < 0 ||
-        (newns = open(newnspath, O_RDONLY)) < 0) {
+    return 1;
+}
+
+// The first line of /proc/pid/sched looks like
+// java (1234, #threads: 12)
+// where 1234 is the required host PID
+int sched_get_host_pid(const char* path) {
+    static char* line = NULL;
+    size_t size;
+    int result = -1;
+
+    FILE* sched_file = fopen(path, "r");
+    if (sched_file != NULL) {
+        if (getline(&line, &size, sched_file) != -1) {
+            char* c = strrchr(line, '(');
+            if (c != NULL) {
+                result = atoi(c + 1);
+            }
+        }
+        fclose(sched_file);
+    }
+
+    return result;
+}
+
+// Linux kernels < 4.1 do not export NStgid field in /proc/pid/status.
+// Fortunately, /proc/pid/sched in a container exposes a host PID,
+// so the idea is to scan all container PIDs to find which one matches the host PID.
+int alt_lookup_nspid(int pid) {
+    int namespace_differs = 0;
+    char path[300];
+    snprintf(path, sizeof(path), "/proc/%d/ns/pid", pid);
+
+    // Don't bother looking for container PID if we are already in the same PID namespace
+    struct stat oldns_stat, newns_stat;
+    if (stat("/proc/self/ns/pid", &oldns_stat) == 0 && stat(path, &newns_stat) == 0) {
+        if (oldns_stat.st_ino == newns_stat.st_ino) {
+            return pid;
+        }
+        namespace_differs = 1;
+    }
+
+    // Otherwise browse all PIDs in the namespace of the target process
+    // trying to find which one corresponds to the host PID
+    snprintf(path, sizeof(path), "/proc/%d/root/proc", pid);
+    DIR* dir = opendir(path);
+    if (dir != NULL) {
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] >= '1' && entry->d_name[0] <= '9') {
+                // Check if /proc/<container-pid>/sched points back to <host-pid>
+                snprintf(path, sizeof(path), "/proc/%d/root/proc/%s/sched", pid, entry->d_name);
+                if (sched_get_host_pid(path) == pid) {
+                    closedir(dir);
+                    return atoi(entry->d_name);
+                }
+            }
+        }
+        closedir(dir);
+    }
+
+    if (namespace_differs) {
+        printf("WARNING: couldn't find container pid of the target process\n");
+    }
+
+    return pid;
+}
+
+#elif defined(__APPLE__)
+
+#include <sys/sysctl.h>
+
+int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+    struct kinfo_proc info;
+    size_t len = sizeof(info);
+
+    if (sysctl(mib, 4, &info, &len, NULL, 0) < 0 || len <= 0) {
         return 0;
     }
 
-    if (fstat(oldns, &oldns_stat) < 0 || fstat(newns, &newns_stat) < 0) {
+    *uid = info.kp_eproc.e_ucred.cr_uid;
+    *gid = info.kp_eproc.e_ucred.cr_gid;
+    *nspid = pid;
+    return 1;
+}
+
+// macOS has a secure per-user temporary directory
+int get_tmp_path(int pid) {
+    int path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, tmp_path, sizeof(tmp_path));
+    return path_size > 0 && path_size <= sizeof(tmp_path);
+}
+
+// This is a Linux-specific API; nothing to do on macOS and FreeBSD
+int enter_mount_ns(int pid) {
+    return 1;
+}
+
+// Not used on macOS and FreeBSD
+int alt_lookup_nspid(int pid) {
+    return pid;
+}
+
+#else // __FreeBSD__
+
+#include <sys/sysctl.h>
+#include <sys/user.h>
+
+int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid) {
+    int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, pid};
+    struct kinfo_proc info;
+    size_t len = sizeof(info);
+
+    if (sysctl(mib, 4, &info, &len, NULL, 0) < 0 || len <= 0) {
         return 0;
     }
-    if (oldns_stat.st_ino == newns_stat.st_ino) {
-        // Don't try to call setns() if we're in the same namespace already.
-        return 1;
-    }
 
-    // Some ancient Linux distributions do not have setns() function
-    return syscall(__NR_setns, newns, 0) < 0 ? 0 : 1;
+    *uid = info.ki_uid;
+    *gid = info.ki_groups[0];
+    *nspid = pid;
+    return 1;
+}
+
+// Use default /tmp path on FreeBSD
+int get_tmp_path(int pid) {
+    return 0;
+}
+
+// This is a Linux-specific API; nothing to do on macOS and FreeBSD
+int enter_mount_ns(int pid) {
+    return 1;
+}
+
+// Not used on macOS and FreeBSD
+int alt_lookup_nspid(int pid) {
+    return pid;
 }
 
 #endif
@@ -137,7 +244,7 @@ int enter_mount_ns(int pid) {
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
     char path[MAX_PATH];
-    snprintf(path, MAX_PATH, "%s/.java_pid%d", get_temp_directory(), pid);
+    snprintf(path, sizeof(path), "%s/.java_pid%d", tmp_path, pid);
 
     struct stat stats;
     return stat(path, &stats) == 0 && S_ISSOCK(stats.st_mode);
@@ -160,12 +267,12 @@ static int check_file_owner(const char* path) {
 // HotSpot will start Attach listener in response to SIGQUIT if it sees .attach_pid file
 static int start_attach_mechanism(int pid, int nspid) {
     char path[MAX_PATH];
-    snprintf(path, MAX_PATH, "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
+    snprintf(path, sizeof(path), "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
     
     int fd = creat(path, 0660);
     if (fd == -1 || (close(fd) == 0 && !check_file_owner(path))) {
         // Failed to create attach trigger in current directory. Retry in /tmp
-        snprintf(path, MAX_PATH, "%s/.attach_pid%d", get_temp_directory(), nspid);
+        snprintf(path, sizeof(path), "%s/.attach_pid%d", tmp_path, nspid);
         fd = creat(path, 0660);
         if (fd == -1) {
             return 0;
@@ -176,13 +283,13 @@ static int start_attach_mechanism(int pid, int nspid) {
     // We have to still use the host namespace pid here for the kill() call
     kill(pid, SIGQUIT);
     
+    // Start with 20 ms sleep and increment delay each iteration
+    struct timespec ts = {0, 20000000};
     int result;
-    struct timespec ts = {0, 100000000};
-    int retry = 0;
     do {
         nanosleep(&ts, NULL);
         result = check_socket(nspid);
-    } while (!result && ++retry < 10);
+    } while (!result && (ts.tv_nsec += 20000000) < 300000000);
 
     unlink(path);
     return result;
@@ -197,7 +304,10 @@ static int connect_socket(int pid) {
     
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/.java_pid%d", get_temp_directory(), pid);
+    int bytes = snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/.java_pid%d", tmp_path, pid);
+    if (bytes >= sizeof(addr.sun_path)) {
+        addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
+    }
 
     if (connect(fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
         close(fd);
@@ -246,7 +356,10 @@ static int read_response(int fd) {
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        printf("Usage: jattach <pid> <cmd> <args> ...\n");
+        printf("jattach " JATTACH_VERSION " built on " __DATE__ "\n"
+               "Copyright 2018 Andrei Pangin\n"
+               "\n"
+               "Usage: jattach <pid> <cmd> [args ...]\n");
         return 1;
     }
     
@@ -260,17 +373,30 @@ int main(int argc, char** argv) {
     gid_t my_gid = getegid();
     uid_t target_uid = my_uid;
     gid_t target_gid = my_gid;
-    int nspid = pid;
+    int nspid = -1;
     if (!get_process_info(pid, &target_uid, &target_gid, &nspid)) {
         fprintf(stderr, "Process %d not found\n", pid);
         return 1;
     }
 
-    // Make sure our /tmp and target /tmp is the same
-    if (enter_mount_ns(pid) < 0) {
-        fprintf(stderr, "WARNING: couldn't enter target process mnt namespace\n");
+    if (nspid < 0) {
+        nspid = alt_lookup_nspid(pid);
     }
-    
+
+    // Get attach socket path of the target process (usually /tmp)
+    char* jattach_path = getenv("JATTACH_PATH");
+    if (jattach_path != NULL && strlen(jattach_path) < TMP_PATH) {
+        strcpy(tmp_path, jattach_path);
+    } else {
+        // Make sure our /tmp and target /tmp is the same
+        if (!get_tmp_path(pid)) {
+            strcpy(tmp_path, "/tmp");
+        }
+        if (!enter_mount_ns(pid)) {
+            printf("WARNING: couldn't enter target process mnt namespace\n");
+        }
+    }
+
     // Dynamic attach is allowed only for the clients with the same euid/egid.
     // If we are running under root, switch to the required euid/egid automatically.
     if ((my_gid != target_gid && setegid(target_gid) != 0) ||

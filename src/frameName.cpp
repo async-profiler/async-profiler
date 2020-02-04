@@ -19,83 +19,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include "frameName.h"
+#include "arguments.h"
 #include "vmStructs.h"
 
 
-FrameName::FrameName(bool simple, bool dotted, bool use_thread_names) :
+FrameName::FrameName(int style, Mutex& thread_names_lock, ThreadMap& thread_names) :
     _cache(),
-    _simple(simple),
-    _dotted(dotted),
-    _thread_count(0),
-    _threads(NULL) {
-
+    _style(style),
+    _thread_names_lock(thread_names_lock),
+    _thread_names(thread_names)
+{
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
-
-    if (use_thread_names && VMThread::available()) {
-        initThreadMap();
-    }
+    memset(_buf, 0, sizeof(_buf));
 }
 
 FrameName::~FrameName() {
-    jvmtiEnv* jvmti = VM::jvmti();
-    for (int i = 0; i < _thread_count; i++) {
-        jvmti->Deallocate((unsigned char*)_threads[i]._name);
-    }
-    free(_threads);
-
     freelocale(uselocale(_saved_locale));
 }
 
-void FrameName::initThreadMap() {
-    JNIEnv* env = VM::jni();
-    jclass threadClass = env->FindClass("java/lang/Thread");
-    if (threadClass == NULL) {
-        return;
+char* FrameName::truncate(char* name, int max_length) {
+    if (strlen(name) > max_length && max_length >= 4) {
+        strcpy(name + max_length - 4, "...)");
     }
-    jfieldID eetop = env->GetFieldID(threadClass, "eetop", "J");
-    if (eetop == NULL) {
-        return;
-    }
-
-    jvmtiEnv* jvmti = VM::jvmti();
-    jthread* thread_objects;
-    if (jvmti->GetAllThreads(&_thread_count, &thread_objects) != 0) {
-        return;
-    }
-
-    _threads = (ThreadId*)calloc(_thread_count, sizeof(ThreadId));
-
-    // Create a map [OS thread ID] -> [Java thread name] backed by a sorted array
-    for (int i = 0; i < _thread_count; i++) {
-        VMThread* vm_thread = (VMThread*)(uintptr_t)env->GetLongField(thread_objects[i], eetop);
-        jvmtiThreadInfo thread_info;
-        if (vm_thread != NULL && jvmti->GetThreadInfo(thread_objects[i], &thread_info) == 0) {
-            _threads[i]._id = vm_thread->osThreadId();
-            _threads[i]._name = thread_info.name;
-        }
-    }
-
-    qsort(_threads, _thread_count, sizeof(ThreadId), ThreadId::comparator);
-    jvmti->Deallocate((unsigned char*)thread_objects);
-}
-
-const char* FrameName::findThreadName(int tid) {
-    int low = 0;
-    int high = _thread_count - 1;
-
-    while (low <= high) {
-        int mid = (unsigned int)(low + high) >> 1;
-        if (_threads[mid]._id < tid) {
-            low = mid + 1;
-        } else if (_threads[mid]._id > tid) {
-            high = mid - 1;
-        } else {
-            return _threads[mid]._name;
-        }
-    }
-
-    return NULL;
+    return name;
 }
 
 const char* FrameName::cppDemangle(const char* name) {
@@ -103,7 +50,7 @@ const char* FrameName::cppDemangle(const char* name) {
         int status;
         char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
         if (demangled != NULL) {
-            strncpy(_buf, demangled, sizeof(_buf));
+            strncpy(_buf, demangled, sizeof(_buf) - 1);
             free(demangled);
             return _buf;
         }
@@ -115,30 +62,34 @@ char* FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
     char* method_name = NULL;
+    char* method_sig = NULL;
     char* result;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
 
-    if ((err = jvmti->GetMethodName(method, &method_name, NULL, NULL)) == 0 &&
+    if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
         // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
-        result = javaClassName(class_name + 1, strlen(class_name) - 2, _simple, _dotted);
+        result = javaClassName(class_name + 1, strlen(class_name) - 2, _style);
         strcat(result, ".");
         strcat(result, method_name);
+        if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
+        if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
     } else {
-        snprintf(_buf, sizeof(_buf), "[jvmtiError %d]", err);
+        snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
         result = _buf;
     }
 
     jvmti->Deallocate((unsigned char*)class_name);
+    jvmti->Deallocate((unsigned char*)method_sig);
     jvmti->Deallocate((unsigned char*)method_name);
 
     return result;
 }
 
-char* FrameName::javaClassName(const char* symbol, int length, bool simple, bool dotted) {
+char* FrameName::javaClassName(const char* symbol, int length, int style) {
     char* result = _buf;
 
     int array_dimension = 0;
@@ -171,13 +122,13 @@ char* FrameName::javaClassName(const char* symbol, int length, bool simple, bool
         } while (--array_dimension > 0);
     }
 
-    if (simple) {
+    if (style & STYLE_SIMPLE) {
         for (char* s = result; *s; s++) {
             if (*s == '/') result = s + 1;
         }
     }
 
-    if (dotted) {
+    if (style & STYLE_DOTTED) {
         for (char* s = result; *s; s++) {
             if (*s == '/') *s = '.';
         }
@@ -197,24 +148,30 @@ const char* FrameName::name(ASGCT_CallFrame& frame) {
 
         case BCI_SYMBOL: {
             VMSymbol* symbol = (VMSymbol*)frame.method_id;
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
-            return strcat(class_name, _dotted ? "" : "_[i]");
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
+            return strcat(class_name, _style & STYLE_DOTTED ? "" : "_[i]");
         }
 
         case BCI_SYMBOL_OUTSIDE_TLAB: {
             VMSymbol* symbol = (VMSymbol*)((uintptr_t)frame.method_id ^ 1);
-            char* class_name = javaClassName(symbol->body(), symbol->length(), _simple, true);
-            return strcat(class_name, _dotted ? " (out)" : "_[k]");
+            char* class_name = javaClassName(symbol->body(), symbol->length(), _style | STYLE_DOTTED);
+            return strcat(class_name, _style & STYLE_DOTTED ? " (out)" : "_[k]");
         }
 
         case BCI_THREAD_ID: {
             int tid = (int)(uintptr_t)frame.method_id;
-            const char* name = findThreadName(tid);
-            if (name != NULL) {
-                return name;
+            MutexLocker ml(_thread_names_lock);
+            ThreadMap::iterator it = _thread_names.find(tid);
+            if (it != _thread_names.end()) {
+                snprintf(_buf, sizeof(_buf) - 1, "[%s tid=%d]", it->second.c_str(), tid);
+            } else {
+                snprintf(_buf, sizeof(_buf) - 1, "[tid=%d]", tid);
             }
+            return _buf;
+        }
 
-            snprintf(_buf, sizeof(_buf), "[thread %d]", tid);
+        case BCI_ERROR: {
+            snprintf(_buf, sizeof(_buf) - 1, "[%s]", (const char*)frame.method_id);
             return _buf;
         }
 

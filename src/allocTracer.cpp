@@ -17,8 +17,8 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include "allocTracer.h"
+#include "os.h"
 #include "profiler.h"
-#include "stackFrame.h"
 #include "vmStructs.h"
 
 
@@ -29,6 +29,10 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 Trap AllocTracer::_in_new_tlab2("_ZN11AllocTracer27send_allocation_in_new_tlab");
 Trap AllocTracer::_outside_tlab2("_ZN11AllocTracer28send_allocation_outside_tlab");
 
+bool AllocTracer::_supports_class_names = false;
+u64 AllocTracer::_interval;
+volatile u64 AllocTracer::_allocated_bytes;
+
 
 // Resolve the address of the intercepted function
 bool Trap::resolve(NativeCodeCache* libjvm) {
@@ -36,7 +40,7 @@ bool Trap::resolve(NativeCodeCache* libjvm) {
         return true;
     }
 
-    _entry = (instruction_t*)libjvm->findSymbol(_func_name);
+    _entry = (instruction_t*)libjvm->findSymbolByPrefix(_func_name);
     if (_entry != NULL) {
         // Make the entry point writable, so we can rewrite instructions
         long page_size = sysconf(_SC_PAGESIZE);
@@ -66,16 +70,6 @@ void Trap::uninstall() {
 }
 
 
-void AllocTracer::installSignalHandler() {
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_handler = NULL;
-    sa.sa_sigaction = signalHandler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
-
-    sigaction(SIGTRAP, &sa, NULL);
-}
-
 // Called whenever our breakpoint trap is hit
 void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
@@ -83,51 +77,65 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     // PC points either to BREAKPOINT instruction or to the next one
     if (frame.pc() - (uintptr_t)_in_new_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        recordAllocation(ucontext, frame.arg0(), frame.arg1(), false);
+        recordAllocation(ucontext, frame, frame.arg0(), frame.arg1(), false);
     } else if (frame.pc() - (uintptr_t)_outside_tlab._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
-        recordAllocation(ucontext, frame.arg0(), frame.arg1(), true);
+        recordAllocation(ucontext, frame, frame.arg0(), frame.arg1(), true);
     } else if (frame.pc() - (uintptr_t)_in_new_tlab2._entry <= sizeof(instruction_t)) {
         // send_allocation_in_new_tlab(Klass* klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread)
-        recordAllocation(ucontext, frame.arg0(), frame.arg2(), false);
+        recordAllocation(ucontext, frame, frame.arg0(), frame.arg2(), false);
     } else if (frame.pc() - (uintptr_t)_outside_tlab2._entry <= sizeof(instruction_t)) {
         // send_allocation_outside_tlab(Klass* klass, HeapWord* obj, size_t alloc_size, Thread* thread)
-        recordAllocation(ucontext, frame.arg0(), frame.arg2(), true);
-    } else {
-        // Not our trap; nothing to do
-        return;
+        recordAllocation(ucontext, frame, frame.arg0(), frame.arg2(), true);
     }
+}
 
+void AllocTracer::recordAllocation(void* ucontext, StackFrame& frame, uintptr_t rklass, uintptr_t rsize, bool outside_tlab) {
     // Leave the trapped function by simulating "ret" instruction
     frame.ret();
-}
 
-void AllocTracer::recordAllocation(void* ucontext, uintptr_t rklass, uintptr_t rsize, bool outside_tlab) {
-    VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
-    if (outside_tlab) {
-        // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
-        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL_OUTSIDE_TLAB, (jmethodID)((uintptr_t)symbol ^ 1));
+    if (_interval) {
+        // Do not record allocation unless allocated at least _interval bytes
+        while (true) {
+            u64 prev = _allocated_bytes;
+            u64 next = prev + rsize;
+            if (next < _interval) {
+                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next)) {
+                    return;
+                }
+            } else {
+                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next % _interval)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if (_supports_class_names) {
+        VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
+        if (outside_tlab) {
+            // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
+            Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL_OUTSIDE_TLAB, (jmethodID)((uintptr_t)symbol ^ 1));
+        } else {
+            Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, (jmethodID)symbol);
+        }
     } else {
-        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, (jmethodID)symbol);
+        Profiler::_instance.recordSample(ucontext, rsize, BCI_SYMBOL, NULL);
     }
 }
 
-Error AllocTracer::start(const char* event, long interval) {
+Error AllocTracer::start(Arguments& args) {
     NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-    if (libjvm == NULL) {
-        return Error("libjvm not found among loaded libraries");
-    }
-
-    if (!VMStructs::init(libjvm)) {
-        return Error("VMStructs unavailable. Unsupported JVM?");
-    }
-
     if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
 
-    installSignalHandler();
+    _supports_class_names =  VMStructs::available();
+    _interval = args._interval;
+    _allocated_bytes = 0;
+
+    OS::installSignalHandler(SIGTRAP, signalHandler);
 
     _in_new_tlab.install();
     _outside_tlab.install();

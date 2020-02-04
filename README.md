@@ -4,7 +4,7 @@ This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).
 It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
-OpenJDK, Oracle JDK and other Java runtimes based on HotSpot JVM.
+OpenJDK, Oracle JDK and other Java runtimes based on the HotSpot JVM.
 
 async-profiler can trace the following kinds of events:
  - CPU cycles
@@ -14,12 +14,28 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Latest release:
+Stable release (1.6):
 
- - Linux x64: [async-profiler-1.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-linux-x64.tar.gz)
- - macOS x64: [async-profiler-1.3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/1.3/async-profiler-1.3-macos-x64.tar.gz)
+ - Linux x64 (glibc): [async-profiler-1.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.6-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64-musl.tar.gz)
+ - Linux ARM: [async-profiler-1.6-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-arm.tar.gz)
+ - macOS x64: [async-profiler-1.6-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-macos-x64.tar.gz)
+
+Development version (1.7-ea):
+
+ - Linux x64 (glibc): [async-profiler-1.7-ea-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea/async-profiler-1.7-ea-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-1.7-ea-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea/async-profiler-1.7-ea-linux-x86.tar.gz)
+ - Linux ARM: [async-profiler-1.7-ea-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea/async-profiler-1.7-ea-linux-arm.tar.gz)
+ - macOS x64: [async-profiler-1.7-ea-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea/async-profiler-1.7-ea-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
+
+## Supported platforms
+
+- **Linux** / x64 / x86 / ARM / AArch64
+- **macOS** / x64
+
+Note: macOS profiling is limited to user space code only.
 
 ## CPU profiling
 
@@ -71,6 +87,10 @@ and suitable for production. On the other hand, the collected data
 may be incomplete, though in practice it will often reflect the top allocation
 sources.
 
+Sampling interval can be adjusted with `-i` option.
+For example, `-i 500k` will take one sample after 500 KB of allocated
+space on average. However, intervals less than TLAB size will not take effect.
+
 Unlike Java Mission Control which uses similar approach, async-profiler
 does not require Java Flight Recorder or any other JDK commercial feature.
 It is completely based on open source technologies and it works with OpenJDK.
@@ -80,18 +100,44 @@ The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 Heap profiler requires HotSpot debug symbols. Oracle JDK already has them
 embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
 in a separate package. For example, to install OpenJDK debug symbols on
-Debian / Ubuntu, run
+Debian / Ubuntu, run:
 ```
-# apt-get install openjdk-8-dbg
+# apt install openjdk-8-dbg
+```
+or for OpenJDK 11:
+```
+# apt install openjdk-11-dbg
 ```
 
-## Supported platforms
+On CentOS, RHEL and some other RPM-based distributions, this could be done with
+[debuginfo-install](http://man7.org/linux/man-pages/man1/debuginfo-install.1.html) utility:
+```
+# debuginfo-install java-1.8.0-openjdk
+```
 
-- **Linux** / x64 / x86 / ARM / AArch64
-- **macOS** / x64
+On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
+`FEATURES="nostrip"` to retain symbols.
 
-Note: macOS profiling is limited only to Java code, since native stack walking
-relies on `perf_events` API which is available only on Linux platforms.
+### Wall-clock profiling
+
+`-e wall` option tells async-profiler to sample all threads equally every given
+period of time regardless of thread status: Running, Sleeping or Blocked.
+For instance, this can be helpful when profiling application start-up time.
+
+Wall-clock profiler is most useful in per-thread mode: `-t`.
+
+Example: `./profiler.sh -e wall -t -i 5ms -f result.svg 8983`
+
+## Java method profiling
+
+`-e ClassName.methodName` option instruments the given Java method
+in order to record all invocations of this method with the stack traces.
+
+Example: `-e java.util.Properties.getProperty` will profile all places
+where `getProperty` method is called from.
+
+Only non-native Java methods are supported. To profile a native method,
+use hardware breakpoint event instead, e.g. `-e Java_java_lang_Throwable_fillInStackTrace`
 
 ## Building
 
@@ -137,25 +183,27 @@ the application for a fixed period of time with a single command.
 $ ./profiler.sh -d 30 8983
 ```
 
-By default, the profiling frequency is 1000Hz (every 1ms of CPU time).
+By default, the profiling frequency is 100Hz (every 10ms of CPU time).
 Here is a sample of the output printed to the Java application's terminal:
 
 ```
 --- Execution profile ---
-Total:                   687
+Total samples:           687
 Unknown (native):        1 (0.15%)
 
-Samples: 679 (98.84%)
-    [ 0] Primes.isPrime
-    [ 1] Primes.primesThread
-    [ 2] Primes.access$000
-    [ 3] Primes$1.run
-    [ 4] java.lang.Thread.run
+--- 6790000000 (98.84%) ns, 679 samples
+  [ 0] Primes.isPrime
+  [ 1] Primes.primesThread
+  [ 2] Primes.access$000
+  [ 3] Primes$1.run
+  [ 4] java.lang.Thread.run
 
 ... a lot of output omitted for brevity ...
 
-         679 (98.84%) Primes.isPrime
-           4 (0.58%)  __do_softirq
+          ns  percent  samples  top
+  ----------  -------  -------  ---
+  6790000000   98.84%      679  Primes.isPrime
+    40000000    0.58%        4  __do_softirq
 
 ... more output omitted ...
 ```
@@ -169,13 +217,19 @@ If you need to profile some code as soon as the JVM starts up, instead of using 
 it is possible to attach async-profiler as an agent on the command line. For example:
 
 ```
-$ java -agentpath:/path/to/libasyncProfiler.so=start,svg,file=profile.svg ...
+$ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
 ```
 
-Agent library is configured through the JVMTI argument interface. The format of the arguments string is described [in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/af94b0e55178c46e17c573a65c498d25b58b641b/src/arguments.cpp#L26). The `profiler.sh` script actually
-converts command line arguments to the that format.
+Agent library is configured through the JVMTI argument interface.
+The format of the arguments string is described
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/b7e9e6b955210784d5dc1d1839bb0febab1b712b/src/arguments.cpp#L34).
+The `profiler.sh` script actually converts command line arguments to that format.
 
-For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg` is converted to `file=profile.svg` and so on. But some arguments are processed directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions: 1) attaching profiler agent with start command, sleeping for 5 seconds, and then attaching the agent again with stop command.
+For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
+is converted to `file=profile.svg` and so on. But some arguments are processed
+directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions:
+attaching profiler agent with start command, sleeping for 5 seconds,
+and then attaching the agent again with stop command.
 
 ## Flame Graph visualization
 
@@ -202,6 +256,10 @@ The following is a complete list of the command-line options accepted by
 * `start` - starts profiling in semi-automatic mode, i.e. profiler will run
 until `stop` command is explicitly called.
 
+* `resume` - starts or resumes earlier profiling session that has been stopped.
+All the collected data remains valid. The profiling options are not preserved
+between sessions, and should be specified again.
+
 * `stop` - stops profiling and prints the report.
 
 * `status` - prints profiling status: whether profiler is active and
@@ -210,7 +268,7 @@ for how long.
 * `list` - show the list of available profiling events. This option still
 requires PID, since supported events may differ depending on JVM version.
 
-* `-d N` - the profiling duration, in seconds. If no `start`, `stop`
+* `-d N` - the profiling duration, in seconds. If no `start`, `resume`, `stop`
 or `status` option is given, the profiler will run for the specified period
 of time and then automatically stop.  
 Example: `./profiler.sh -d 30 8983`
@@ -235,13 +293,14 @@ and kernel tracepoints:
   tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
   all `open` syscalls.
 
-* `-i N` - sets the profiling interval, in nanoseconds. Only CPU active time
-is counted. No samples are collected while CPU is idle. The default is
-1000000 (1ms).  
-Example: `./profiler.sh -i 100000 8983`
+* `-i N` - sets the profiling interval in nanoseconds or in other units,
+if N is followed by `ms` (for milliseconds), `us` (for microseconds)
+or `s` (for seconds). Only CPU active time is counted. No samples
+are collected while CPU is idle. The default is 10000000 (10ms).  
+Example: `./profiler.sh -i 500us 8983`
 
 * `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater 
-than default MAX_STACK_FRAMES.  
+than default 2048.  
 Example: `./profiler.sh -j 30 8983`
 
 * `-b N` - sets the frame buffer size, in the number of Java
@@ -255,11 +314,17 @@ Example: `./profiler.sh -t 8983`
 
 * `-s` - print simple class names instead of FQN.
 
-* `-o fmt[,fmt...]` - specifies what information to dump when profiling ends.
-This is a comma-separated list of the following options:
+* `-g` - print method signatures.
+
+* `-a` - annotate Java method names by adding `_[j]` suffix.
+
+* `-o fmt` - specifies what information to dump when profiling ends.
+`fmt` can be one of the following options:
   - `summary` - dump basic profiling statistics;
   - `traces[=N]` - dump call traces (at most N samples);
   - `flat[=N]` - dump flat profile (top N hot methods);
+  - `jfr` - dump events in Java Flight Recorder format readable by Java Mission Control.
+  This *does not* require JDK commercial features to be enabled.
   - `collapsed[=C]` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
@@ -272,13 +337,51 @@ This is a comma-separated list of the following options:
   - `samples` - the counter is a number of samples for the given trace;
   - `total` - the counter is a total value of collected metric, e.g. total allocation size.
   
+  `summary`, `traces` and `flat` can be combined together.  
   The default format is `summary,traces=200,flat=200`.
 
 * `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
 Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  
-Example: `./profiler.sh -o collapsed -f /tmp/traces.txt 8983`
+`%p` in the file name is expanded to the PID of the target JVM;  
+`%t` - to the timestamp at the time of command invocation.  
+Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
+
+* `--all-user` - include only user-mode events. This option is helpful when kernel profiling
+is restricted by `perf_event_paranoid` settings.  
+`--all-kernel` is its counterpart option for including only kernel-mode events.
+
+* `--cstack` - collect C stack (i.e. native call trace) along with Java call trace.
+This option is ON by default for cpu, itimer, wall-clock and perf-events profiling,
+but OFF for Java-level events like `alloc` and `lock`.
+
+* `-v`, `--version` - prints the version of profiler library. If PID is specified,
+gets the version of the library loaded into the given process.
+
+## Profiling Java in a container
+
+It is possible to profile Java processes running in a Docker or LXC container
+both from within a container and from the host system.
+
+When profiling from the host, `pid` should be the Java process ID in the host
+namespace. Use `ps aux | grep java` or `docker top <container>` to find
+the process ID.
+
+async-profiler should be run from the host by a privileged user - it will
+automatically switch to the proper pid/mount namespace and change
+user credentials to match the target process. Also make sure that
+the target container can access `libasyncProfiler.so` by the same
+absolute path as on the host.
+
+By default, Docker container restricts the access to `perf_event_open`
+syscall. So, in order to allow profiling inside a container, you'll need
+to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
+or disable it altogether with `--security-opt seccomp=unconfined` option. In
+addition, `--cap-add SYS_ADMIN` may be required.
+
+Alternatively, if changing Docker configuration is not possible,
+you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
 
 ## Restrictions/Limitations
 
@@ -312,6 +415,12 @@ system calls like `clone()`, so that it will never complete;
 see [#97](https://github.com/jvm-profiling-tools/async-profiler/issues/97).
 The workaround is simply to increase the interval.
 
+* When agent is not loaded at JVM startup (by using -agentpath option) it is
+highly recommended to use `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` JVM flags.
+Without those flags the profiler will still work correctly but results might be
+less accurate e.g. without `-XX:+DebugNonSafepoints` there is a high chance that simple inlined methods will not appear in the profile. When agent is attached at runtime `CompiledMethodLoad` JVMTI event
+enables debug info, but only for methods compiled after the event is turned on.
+
 ## Troubleshooting
 
 ```
@@ -328,10 +437,23 @@ Could not start attach mechanism: No such file or directory
 ```
 The profiler cannot establish communication with the target JVM through UNIX domain socket.
 
-For the profiler to be able to access JVM, make sure
- 1. `/tmp` directory of Java process is physically the same directory as `/tmp` of your shell.
- 2. Attach socket `/tmp/.java_pidNNN` has not been deleted.
- 3. JVM is not run with `-XX:+DisableAttachMechanism` option.
+Usually this happens in one of the following cases:
+ 1. Attach socket `/tmp/.java_pidNNN` has been deleted. It is a common
+ practice to clean `/tmp` automatically with some scheduled script.
+ Configure the cleanup software to exclude `.java_pid*` files from deletion.  
+ How to check: run `lsof -p PID | grep java_pid`  
+ If it lists a socket file, but the file does not exist, then this is exactly
+ the described problem.
+ 2. JVM is started with `-XX:+DisableAttachMechanism` option.
+ 3. `/tmp` directory of Java process is not physically the same directory
+ as `/tmp` of your shell, because Java is running in a container or in
+ `chroot` environment. `jattach` attempts to solve this automatically,
+ but it might lack the required permissions to do so.  
+ Check `strace build/jattach PID properties`
+ 4. JVM is busy and cannot reach a safepoint. For instance,
+ JVM is in the middle of long-running garbage collection.  
+ How to check: run `kill -3 PID`. Healthy JVM process should print
+ a thread dump and heap info in its console.
 
 ```
 Failed to inject profiler into <pid>
@@ -339,6 +461,46 @@ Failed to inject profiler into <pid>
 The connection with the target JVM has been established, but JVM is unable to load profiler shared library.
 Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path.
 For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
+
+```
+Perf events unavailble. See stderr of the target process.
+```
+`perf_event_open()` syscall has failed. The error message is printed to the error stream
+of the target JVM.
+
+Typical reasons include:
+ 1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
+ 2. seccomp disables perf_event_open API in a container.
+ 3. OS runs under a hypervisor that does not virtualize performance counters.
+ 4. perf_event_open API is not supported on this system, e.g. WSL.
+
+If changing the configuration is not possible, you may fall back to
+`-e itimer` profiling mode. It is similar to `cpu` mode, but does not
+require perf_events support. As a drawback, there will be no kernel
+stack traces. 
+
+```
+No AllocTracer symbols found. Are JDK debug symbols installed?
+```
+It might be needed to install the package with OpenJDK debug symbols.
+See [Allocation profiling](#allocation-profiling) for details.
+
+```
+VMStructs unavailable. Unsupported JVM?
+```
+JVM shared library does not export `gHotSpotVMStructs*` symbols -
+apparently this is not a HotSpot JVM. Sometimes the same message
+can be also caused by an incorrectly built JDK
+(see [#218](https://github.com/jvm-profiling-tools/async-profiler/issues/218)).
+In these cases installing JDK debug symbols may solve the problem.
+
+```
+Could not parse symbols due to the OS bug
+```
+Async-profiler was unable to parse non-Java function names because of
+the corrupted contents in `/proc/[pid]/maps`. The problem is known to
+occur in a container when running Ubuntu with Linux kernel 5.x.
+This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018.
 
 ```
 [frame_buffer_overflow]

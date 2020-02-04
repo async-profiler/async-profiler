@@ -38,6 +38,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)REG(REG_RBP, __rbp);
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)REG(REG_RAX, __rax);
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)REG(REG_RDI, __rdi);
 }
@@ -60,44 +64,67 @@ void StackFrame::ret() {
 }
 
 
-static inline bool withinCurrentStack(uintptr_t value) {
-    // Check that value is not too far from stack pointer of current context
-    void* real_sp;
-    return value - (uintptr_t)&real_sp <= 0xffff;
-}
-
 static inline bool isFramePrologueEpilogue(uintptr_t pc) {
-    unsigned int opcode = *(unsigned int*)(pc - 1);
-    if (opcode == 0xec834855) {
-        // push rbp
-        // sub  rsp, $const
-        return true;
-    } else if (opcode == 0xec8b4855) {
-        // push rbp
-        // mov  rbp, rsp
-        return true;
-    } else if ((opcode & 0xffffff00) == 0x05855d00) {
+    if (pc & 0xfff) {
+        // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
+        unsigned int opcode = *(unsigned int*)(pc - 1);
+        if (opcode == 0xec834855) {
+            // push rbp
+            // sub  rsp, $const
+            return true;
+        } else if (opcode == 0xec8b4855) {
+            // push rbp
+            // mov  rbp, rsp
+            return true;
+        }
+    }
+
+    if (*(unsigned char*)pc == 0x5d && *(unsigned short*)(pc + 1) == 0x0585) {
         // pop  rbp
         // test [polling_page], eax
+        return true;
+    }
+
+    return false;
+}
+
+bool StackFrame::pop(bool trust_frame_pointer) {
+    if (trust_frame_pointer && withinCurrentStack(fp())) {
+        sp() = fp() + 16;
+        fp() = stackAt(-2);
+        pc() = stackAt(-1);
+        return true;
+    } else if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 16;
         return true;
     }
     return false;
 }
 
-bool StackFrame::pop() {
-    if (!withinCurrentStack(sp())) {
-        return false;
+void StackFrame::restartSyscall() {
+    uintptr_t pc = this->pc();
+    if ((pc & 0xfff) >= 7 && *(unsigned short*)(pc - 2) == 0x50f && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == 0x7) {
+        // mov eax, $0x7
+        // syscall
+        this->pc() = pc - 7;
     }
+}
 
-    if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 16;
-    } else {
-        pc() = stackAt(0);
-        sp() += 8;
+int StackFrame::callerLookupSlots() {
+    return 7;
+}
+
+bool StackFrame::isReturnAddress(instruction_t* pc) {
+    if (pc[-5] == 0xe8) {
+        // call rel32
+        return true;
+    } else if (pc[-2] == 0xff && ((pc[-1] & 0xf0) == 0xd0 || (pc[-1] & 0xf0) == 0x10)) {
+        // call reg or call [reg]
+        return true;
     }
-    return true;
+    return false;
 }
 
 #endif // __x86_64__

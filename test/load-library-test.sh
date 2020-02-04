@@ -11,17 +11,17 @@ fi
 (
   cd $(dirname $0)
 
-  if [ "Target.class" -ot "Target.java" ]; then
-     ${JAVA_HOME}/bin/javac Target.java
+  if [ "LoadLibraryTest.class" -ot "LoadLibraryTest.java" ]; then
+     ${JAVA_HOME}/bin/javac LoadLibraryTest.java
   fi
 
-  ${JAVA_HOME}/bin/java Target &
+  ${JAVA_HOME}/bin/java LoadLibraryTest &
 
   FILENAME=/tmp/java.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../profiler.sh -f $FILENAME -o collapsed -d 5 $JAVAPID
+  ../profiler.sh -f $FILENAME -o collapsed -d 5 -i 1ms $JAVAPID
 
   kill $JAVAPID
 
@@ -31,7 +31,5 @@ fi
     fi
   }
 
-  assert_string "Target.main;Target.method1 "
-  assert_string "Target.main;Target.method2 "
-  assert_string "Target.main;Target.method3;java/io/File"
+  assert_string "Java_sun_management"
 )

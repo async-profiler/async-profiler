@@ -18,7 +18,18 @@
 #define _ARCH_H
 
 
+typedef unsigned char u8;
+typedef unsigned short u16;
+typedef unsigned int u32;
 typedef unsigned long long u64;
+
+static inline u64 atomicInc(volatile u64& var, u64 increment = 1) {
+    return __sync_fetch_and_add(&var, increment);
+}
+
+static inline int atomicInc(volatile int& var, int increment = 1) {
+    return __sync_fetch_and_add(&var, increment);
+}
 
 
 #if defined(__x86_64__) || defined(__i386__)

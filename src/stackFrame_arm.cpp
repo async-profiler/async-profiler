@@ -31,6 +31,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.arm_fp;
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
 }
@@ -51,8 +55,19 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }
 
+bool StackFrame::pop(bool trust_frame_pointer) {
+    return false;
+}
 
-bool StackFrame::pop() {
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
+}
+
+int StackFrame::callerLookupSlots() {
+    return 0;
+}
+
+bool StackFrame::isReturnAddress(instruction_t* pc) {
     return false;
 }
 

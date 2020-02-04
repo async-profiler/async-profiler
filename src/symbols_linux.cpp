@@ -16,12 +16,14 @@
 
 #ifdef __linux__
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <elf.h>
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/limits.h>
@@ -136,7 +138,7 @@ class ElfParser {
 
   public:
     static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(NativeCodeCache* cc, const char* base, const void* addr);
+    static void parseMem(NativeCodeCache* cc, const char* base);
 };
 
 
@@ -165,7 +167,14 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
-    if (addr != NULL) {
+    if (addr == MAP_FAILED) {
+        if (strcmp(file_name, "/") == 0) {
+            // https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018
+            fprintf(stderr, "Could not parse symbols due to the OS bug\n");
+        } else {
+            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
+        }
+    } else {
         ElfParser elf(cc, base, addr, file_name);
         elf.loadSymbols(use_debug);
         munmap(addr, length);
@@ -173,8 +182,8 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     return true;
 }
 
-void ElfParser::parseMem(NativeCodeCache* cc, const char* base, const void* addr) {
-    ElfParser elf(cc, base, addr);
+void ElfParser::parseMem(NativeCodeCache* cc, const char* base) {
+    ElfParser elf(cc, base, base);
     elf.loadSymbols(false);
 }
 
@@ -252,17 +261,17 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
 
     // 1. /path/to/libjvm.so.debug
     if (strcmp(debuglink, basename + 1) != 0 &&
-        snprintf(path, sizeof(path), "%s/%s", dirname, debuglink) < sizeof(path)) {
+        snprintf(path, PATH_MAX, "%s/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 
     // 2. /path/to/.debug/libjvm.so.debug
-    if (!result && snprintf(path, sizeof(path), "%s/.debug/%s", dirname, debuglink) < sizeof(path)) {
+    if (!result && snprintf(path, PATH_MAX, "%s/.debug/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 
     // 3. /usr/lib/debug/path/to/libjvm.so.debug
-    if (!result && snprintf(path, sizeof(path), "/usr/lib/debug%s/%s", dirname, debuglink) < sizeof(path)) {
+    if (!result && snprintf(path, PATH_MAX, "/usr/lib/debug%s/%s", dirname, debuglink) < PATH_MAX) {
         result = parseFile(_cc, _base, path, false);
     }
 
@@ -285,6 +294,10 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
 }
 
 
+Mutex Symbols::_parse_lock;
+std::set<const void*> Symbols::_parsed_libraries;
+bool Symbols::_have_kernel_symbols = false;
+
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     std::ifstream maps("/proc/kallsyms");
     std::string str;
@@ -297,18 +310,26 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
             const char* addr = symbol.addr();
             if (addr != NULL) {
                 cc->add(addr, 0, symbol.name());
+                _have_kernel_symbols = true;
             }
         }
     }
 }
 
-int Symbols::parseMaps(NativeCodeCache** array, int size) {
-    int count = 0;
-    if (count < size) {
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+    MutexLocker ml(_parse_lock);
+
+    if (!haveKernelSymbols()) {
         NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
-        cc->sort();
-        array[count++] = cc;
+
+        if (haveKernelSymbols()) {
+            cc->sort();
+            array[count] = cc;
+            atomicInc(count);
+        } else {
+            delete cc;
+        }
     }
 
     std::ifstream maps("/proc/self/maps");
@@ -317,21 +338,24 @@ int Symbols::parseMaps(NativeCodeCache** array, int size) {
     while (count < size && std::getline(maps, str)) {
         MemoryMapDesc map(str.c_str());
         if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), map.addr(), map.end());
-            const char* base = map.addr() - map.offs();
+            const char* image_base = map.addr();
+            if (!_parsed_libraries.insert(image_base).second) {
+                continue;  // the library was already parsed
+            }
+
+            NativeCodeCache* cc = new NativeCodeCache(map.file(), image_base, map.end());
 
             if (map.inode() != 0) {
-                ElfParser::parseFile(cc, base, map.file(), true);
+                ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, base, base);
+                ElfParser::parseMem(cc, image_base);
             }
 
             cc->sort();
-            array[count++] = cc;
+            array[count] = cc;
+            atomicInc(count);
         }
     }
-
-    return count;
 }
 
 #endif // __linux__

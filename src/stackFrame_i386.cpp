@@ -31,6 +31,10 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EBP];
 }
 
+uintptr_t StackFrame::retval() {
+    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_EAX];
+}
+
 uintptr_t StackFrame::arg0() {
     return stackAt(1);
 }
@@ -52,27 +56,38 @@ void StackFrame::ret() {
     sp() += 4;
 }
 
-
-static inline bool withinCurrentStack(uintptr_t value) {
-    // Check that value is not too far from stack pointer of current context
-    void* real_sp;
-    return value - (uintptr_t)&real_sp <= 0xffff;
-}
-
-bool StackFrame::pop() {
-    if (!withinCurrentStack(sp())) {
-        return false;
-    }
-
-    if (fp() == sp() || withinCurrentStack(stackAt(0))) {
+bool StackFrame::pop(bool trust_frame_pointer) {
+    if (trust_frame_pointer && withinCurrentStack(fp())) {
+        sp() = fp() + 8;
+        fp() = stackAt(-2);
+        pc() = stackAt(-1);
+        return true;
+    } else if (fp() == sp() || withinCurrentStack(stackAt(0))) {
         fp() = stackAt(0);
         pc() = stackAt(1);
         sp() += 8;
-    } else {
-        pc() = stackAt(0);
-        sp() += 4;
+        return true;
     }
-    return true;
+    return false;
+}
+
+void StackFrame::restartSyscall() {
+    // Not implemented on this arch
+}
+
+int StackFrame::callerLookupSlots() {
+    return 7;
+}
+
+bool StackFrame::isReturnAddress(instruction_t* pc) {
+    if (pc[-5] == 0xe8) {
+        // call rel32
+        return true;
+    } else if (pc[-2] == 0xff && ((pc[-1] & 0xf0) == 0xd0 || (pc[-1] & 0xf0) == 0x10)) {
+        // call reg or call [reg]
+        return true;
+    }
+    return false;
 }
 
 #endif // __i386__

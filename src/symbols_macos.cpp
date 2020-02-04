@@ -16,12 +16,15 @@
 
 #ifdef __APPLE__
 
-#include <string.h>
+#include <stdio.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <arpa/inet.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
+#include <mach-o/fat.h>
 #include <mach-o/nlist.h>
 #include "symbols.h"
 
@@ -29,45 +32,80 @@
 class MachOParser {
   private:
     NativeCodeCache* _cc;
-    const char* _base;
-    const char* _header;
+    const mach_header* _image_base;
 
-    load_command* findCommand(uint32_t command) {
-        mach_header_64* header = (mach_header_64*)_header;
-        load_command* result = (load_command*)(_header + sizeof(mach_header_64));
-
-        for (uint32_t i = 0; i < header->ncmds; i++) {
-            if (result->cmd == command) {
-                return result;
-            }
-            result = (load_command*)((uintptr_t)result + result->cmdsize);
-        }
-
-        return NULL;
+    static const char* add(const void* base, uint32_t offset) {
+        return (const char*)base + offset;
     }
 
-    void loadSymbols() {
-        symtab_command* symtab = (symtab_command*)findCommand(LC_SYMTAB);
-        if (symtab == NULL) {
-            return;
-        }
-
-        nlist_64* symbol_table = (nlist_64*)(_header + symtab->symoff);
-        const char* str_table = _header + symtab->stroff;
+    void loadSymbols(mach_header_64* header, symtab_command* symtab) {
+        nlist_64* symbol_table = (nlist_64*)add(header, symtab->symoff);
+        const char* str_table = add(header, symtab->stroff);
 
         for (uint32_t i = 0; i < symtab->nsyms; i++) {
             nlist_64 sym = symbol_table[i];
             if ((sym.n_type & 0xee) == 0x0e && sym.n_value != 0) {
-                _cc->add(_base + sym.n_value, 0, str_table + sym.n_un.n_strx + 1);
+                const char* addr = add(_image_base, sym.n_value);
+                const char* name = str_table + sym.n_un.n_strx;
+                if (name[0] == '_') name++;
+                _cc->add(addr, 0, name);
             }
         }
     }
 
-  public:
-    MachOParser(NativeCodeCache* cc, const char* base, const char* header) : _cc(cc), _base(base), _header(header) {
+    void parseMachO(mach_header_64* header) {
+        load_command* lc = (load_command*)(header + 1);
+
+        for (uint32_t i = 0; i < header->ncmds; i++) {
+            if (lc->cmd == LC_SYMTAB) {
+                loadSymbols(header, (symtab_command*)lc);
+                break;
+            }
+            lc = (load_command*)add(lc, lc->cmdsize);
+        }
     }
 
-    static void parseFile(NativeCodeCache* cc, const char* base, const char* file_name) {
+    void parseFatObject(fat_header* header) {
+        int narch = header->nfat_arch;
+        fat_arch* arch = (fat_arch*)(header + 1);
+
+        for (uint32_t i = 0; i < narch; i++) {
+            if (arch[i].cputype == _image_base->cputype &&
+                arch[i].cpusubtype == _image_base->cpusubtype) {
+                parseMachO((mach_header_64*)add(header, arch[i].offset));
+            }
+        }
+    }
+
+    // The same as parseFatObject, but fields are big-endian
+    void parseFatObjectBE(fat_header* header) {
+        int narch = htonl(header->nfat_arch);
+        fat_arch* arch = (fat_arch*)(header + 1);
+
+        for (uint32_t i = 0; i < narch; i++) {
+            if (htonl(arch[i].cputype) == _image_base->cputype &&
+                htonl(arch[i].cpusubtype) == _image_base->cpusubtype) {
+                parseMachO((mach_header_64*)add(header, htonl(arch[i].offset)));
+            }
+        }
+    }
+
+    void parse(mach_header* header) {
+        uint32_t magic = header->magic;
+        if (magic == MH_MAGIC_64) {
+            parseMachO((mach_header_64*)header);
+        } else if (magic == FAT_MAGIC) {
+            parseFatObject((fat_header*)header);
+        } else if (magic == FAT_CIGAM) {
+            parseFatObjectBE((fat_header*)header);
+        }
+    }
+
+  public:
+    MachOParser(NativeCodeCache* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
+    }
+
+    static void parseFile(NativeCodeCache* cc, const mach_header* image_base, const char* file_name) {
         int fd = open(file_name, O_RDONLY);
         if (fd == -1) {
             return;
@@ -77,38 +115,43 @@ class MachOParser {
         void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
         close(fd);
 
-        if (addr != NULL) {
-            MachOParser parser(cc, base, (const char*)addr);
-            parser.loadSymbols();
+        if (addr == MAP_FAILED) {
+            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
+        } else {
+            MachOParser parser(cc, image_base);
+            parser.parse((mach_header*)addr);
             munmap(addr, length);
         }
     }
 };
 
 
+Mutex Symbols::_parse_lock;
+std::set<const void*> Symbols::_parsed_libraries;
+bool Symbols::_have_kernel_symbols = false;
+
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 }
 
-int Symbols::parseMaps(NativeCodeCache** array, int size) {
-    int count = 0;
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+    MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
     for (uint32_t i = 0; i < images && count < size; i++) {
-        const char* path = _dyld_get_image_name(i);
-        const char* base = (const char*)_dyld_get_image_vmaddr_slide(i);
-
-        // For now load only libjvm symbols. As soon as native stack traces
-        // are supported on macOS, we'll take care about other native libraries
-        size_t length = strlen(path);
-        if (length >= 12 && strcmp(path + length - 12, "libjvm.dylib") == 0) {
-            NativeCodeCache* cc = new NativeCodeCache(path);
-            MachOParser::parseFile(cc, base, path);
-            cc->sort();
-            array[count++] = cc;
+        const mach_header* image_base = _dyld_get_image_header(i);
+        if (!_parsed_libraries.insert(image_base).second) {
+            continue;  // the library was already parsed
         }
-    }
 
-    return count;
+        const char* path = _dyld_get_image_name(i);
+
+        NativeCodeCache* cc = new NativeCodeCache(path);
+        MachOParser::parseFile(cc, image_base, path);
+
+        cc->sort();
+        array[count] = cc;
+        atomicInc(count);
+    }
 }
 
 #endif // __APPLE__

@@ -14,15 +14,26 @@
  * limitations under the License.
  */
 
-package one.profiler;
+#ifndef _FLIGHTRECORDER_H
+#define _FLIGHTRECORDER_H
 
-/**
- * Predefined event names to use in {@link AsyncProfiler#start(String, long)}
- */
-public class Events {
-    public static final String CPU    = "cpu";
-    public static final String ALLOC  = "alloc";
-    public static final String LOCK   = "lock";
-    public static final String WALL   = "wall";
-    public static final String ITIMER = "itimer";
-}
+#include "arguments.h"
+
+
+class Recording;
+
+class FlightRecorder {
+  private:
+    Recording* _rec;
+
+  public:
+    FlightRecorder() : _rec(NULL) {
+    }
+
+    Error start(const char* file);
+    void stop();
+
+    void recordExecutionSample(int lock_index, int tid, int call_trace_id);
+};
+
+#endif // _FLIGHTRECORDER_H

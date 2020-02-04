@@ -25,7 +25,10 @@ package one.profiler;
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
 
+    private final String version;
+
     private AsyncProfiler() {
+        this.version = version0();
     }
 
     public static AsyncProfiler getInstance() {
@@ -56,7 +59,20 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void start(String event, long interval) throws IllegalStateException {
-        start0(event, interval);
+        start0(event, interval, true);
+    }
+
+    /**
+     * Start or resume profiling without resetting collected data.
+     * Note that event and interval may change since the previous profiling session.
+     *
+     * @param event Profiling event, see {@link Events}
+     * @param interval Sampling interval, e.g. nanoseconds for Events.CPU
+     * @throws IllegalStateException If profiler is already running
+     */
+    @Override
+    public void resume(String event, long interval) throws IllegalStateException {
+        start0(event, interval, false);
     }
 
     /**
@@ -76,6 +92,16 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public native long getSamples();
+
+    /**
+     * Get profiler agent version, e.g. "1.0"
+     *
+     * @return Version string
+     */
+    @Override
+    public String getVersion() {
+        return version;
+    }
 
     /**
      * Execute an agent-compatible profiling command -
@@ -124,10 +150,22 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         return dumpFlat0(maxMethods);
     }
 
-    private native void start0(String event, long interval) throws IllegalStateException;
+    /**
+     * Get OS thread ID of the current Java thread. On Linux, this is the same number
+     * as gettid() returns. The result ID matches 'tid' in the profiler output.
+     *
+     * @return 64-bit integer that matches native (OS level) thread ID
+     */
+    public long getNativeThreadId() {
+        return getNativeThreadId0();
+    }
+
+    private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, java.io.IOException;
     private native String dumpCollapsed0(int counter);
     private native String dumpTraces0(int maxTraces);
     private native String dumpFlat0(int maxMethods);
+    private native String version0();
+    private native long getNativeThreadId0();
 }

@@ -3,16 +3,15 @@
 set -e  # exit on any failure
 set -x  # print all executed lines
 
-if [ -z "${JAVA_HOME}" ]
-then
+if [ -z "${JAVA_HOME}" ]; then
   echo "JAVA_HOME is not set"
+  exit 1
 fi
 
 (
   cd $(dirname $0)
 
-  if [ "AllocatingTarget.class" -ot "AllocatingTarget.java" ]
-  then
+  if [ "AllocatingTarget.class" -ot "AllocatingTarget.java" ]; then
      ${JAVA_HOME}/bin/javac AllocatingTarget.java
   fi
 
@@ -32,6 +31,6 @@ fi
     fi
   }
 
-  assert_string "AllocThread-1;.*AllocatingTarget.allocate;.*java.lang.Integer\[\]"
-  assert_string "AllocThread-2;.*AllocatingTarget.allocate;.*int\[\]"
+  assert_string "\[AllocThread-1 tid=[0-9]\+\];.*AllocatingTarget.allocate;.*java.lang.Integer\[\]"
+  assert_string "\[AllocThread-2 tid=[0-9]\+\];.*AllocatingTarget.allocate;.*int\[\]"
 )

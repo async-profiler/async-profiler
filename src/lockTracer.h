@@ -29,6 +29,7 @@ class LockTracer : public Engine {
     static jclass _LockSupport;
     static jmethodID _getBlocker;
     static UnsafeParkFunc _original_Unsafe_Park;
+    static bool _supports_lock_names;
 
     static jclass getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env);
     static void recordContendedLock(jclass lock_class, jlong time);
@@ -39,7 +40,15 @@ class LockTracer : public Engine {
         return "lock";
     }
 
-    Error start(const char* event, long interval);
+    const char* units() {
+        return "ns";
+    }
+
+    bool requireNativeTrace() {
+        return false;
+    }
+
+    Error start(Arguments& args);
     void stop();
 
     static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);

@@ -14,15 +14,36 @@
  * limitations under the License.
  */
 
-package one.profiler;
+#ifndef _MUTEX_H
+#define _MUTEX_H
 
-/**
- * Predefined event names to use in {@link AsyncProfiler#start(String, long)}
- */
-public class Events {
-    public static final String CPU    = "cpu";
-    public static final String ALLOC  = "alloc";
-    public static final String LOCK   = "lock";
-    public static final String WALL   = "wall";
-    public static final String ITIMER = "itimer";
-}
+#include <pthread.h>
+
+
+class Mutex {
+  private:
+    pthread_mutex_t _mutex;
+
+  public:
+    Mutex();
+
+    void lock();
+    void unlock();
+};
+
+
+class MutexLocker {
+  private:
+    Mutex* _mutex;
+
+  public:
+    MutexLocker(Mutex& mutex) : _mutex(&mutex) {
+        _mutex->lock();
+    }
+
+    ~MutexLocker() {
+        _mutex->unlock();
+    }
+};
+
+#endif // _MUTEX_H

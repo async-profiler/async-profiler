@@ -17,15 +17,21 @@
 #include <stdint.h>
 #include <string.h>
 #include "vmStructs.h"
-#include "codeCache.h"
+#include "vmEntry.h"
 
 
+jfieldID VMStructs::_eetop;
+intptr_t VMStructs::_env_offset;
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
+int VMStructs::_symbol_length_and_refcount_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 int VMStructs::_class_klass_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
+int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
+int VMStructs::_anchor_sp_offset = -1;
+int VMStructs::_anchor_pc_offset = -1;
 bool VMStructs::_has_perm_gen = false;
 
 static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
@@ -37,11 +43,7 @@ static uintptr_t readSymbol(NativeCodeCache* lib, const char* symbol_name) {
     return *(uintptr_t*)symbol;
 }
 
-bool VMStructs::init(NativeCodeCache* libjvm) {
-    if (available()) {
-        return true;
-    }
-
+void VMStructs::init(NativeCodeCache* libjvm) {
     uintptr_t entry = readSymbol(libjvm, "gHotSpotVMStructs");
     uintptr_t stride = readSymbol(libjvm, "gHotSpotVMStructEntryArrayStride");
     uintptr_t type_offset = readSymbol(libjvm, "gHotSpotVMStructEntryTypeNameOffset");
@@ -50,14 +52,14 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
     uintptr_t address_offset = readSymbol(libjvm, "gHotSpotVMStructEntryAddressOffset");
 
     if (entry == 0 || stride == 0) {
-        return false;
+        return;
     }
 
     while (true) {
         const char* type = *(const char**)(entry + type_offset);
         const char* field = *(const char**)(entry + field_offset);
         if (type == NULL || field == NULL) {
-            return available();
+            break;
         }
 
         if (strcmp(type, "Klass") == 0) {
@@ -67,6 +69,8 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
         } else if (strcmp(type, "Symbol") == 0) {
             if (strcmp(field, "_length") == 0) {
                 _symbol_length_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_length_and_refcount") == 0) {
+                _symbol_length_and_refcount_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_body") == 0) {
                 _symbol_body_offset = *(int*)(entry + offset_offset);
             }
@@ -77,10 +81,18 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
         } else if (strcmp(type, "JavaThread") == 0) {
             if (strcmp(field, "_osthread") == 0) {
                 _thread_osthread_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_anchor") == 0) {
+                _thread_anchor_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "OSThread") == 0) {
             if (strcmp(field, "_thread_id") == 0) {
                 _osthread_id_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "JavaFrameAnchor") == 0) {
+            if (strcmp(field, "_last_Java_sp") == 0) {
+                _anchor_sp_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_last_Java_pc") == 0) {
+                _anchor_pc_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "PermGen") == 0) {
             _has_perm_gen = true;
@@ -88,4 +100,26 @@ bool VMStructs::init(NativeCodeCache* libjvm) {
 
         entry += stride;
     }
+}
+
+bool VMStructs::initThreadBridge() {
+    // Get eetop field - a bridge from Java Thread to VMThread
+    jthread thread;
+    if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
+        return false;
+    }
+
+    JNIEnv* env = VM::jni();
+    _eetop = env->GetFieldID(env->GetObjectClass(thread), "eetop", "J");
+    if (_eetop == NULL) {
+        return false;
+    }
+
+    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+    if (vm_thread == NULL) {
+        return false;
+    }
+
+    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+    return true;
 }

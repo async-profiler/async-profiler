@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Andrei Pangin
+ * Copyright 2018 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,47 +14,43 @@
  * limitations under the License.
  */
 
-#ifndef _PERFEVENTS_H
-#define _PERFEVENTS_H
+#ifndef _WALLCLOCK_H
+#define _WALLCLOCK_H
 
+#include <jvmti.h>
 #include <signal.h>
+#include <pthread.h>
 #include "engine.h"
 
 
-class PerfEvent;
-class PerfEventType;
-
-class PerfEvents : public Engine {
+class WallClock : public Engine {
   private:
-    static int _max_events;
-    static PerfEvent* _events;
-    static PerfEventType* _event_type;
     static long _interval;
-    static Ring _ring;
-    static bool _print_extended_warning;
+    static bool _sample_idle_threads;
 
-    static bool createForThread(int tid);
-    static void destroyForThread(int tid);
+    int _pipefd[2];
+    pthread_t _thread;
+
+    void timerLoop();
+
+    static void* threadEntry(void* wall_clock) {
+        ((WallClock*)wall_clock)->timerLoop();
+        return NULL;
+    }
+
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
     const char* name() {
-        return "perf";
+        return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
     }
 
-    const char* units();
+    const char* units() {
+        return "ns";
+    }
 
     Error start(Arguments& args);
     void stop();
-
-    void onThreadStart();
-    void onThreadEnd();
-
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                       CodeCache* java_methods, CodeCache* runtime_stubs);
-
-    static bool supported();
-    static const char* getEventName(int event_id);
 };
 
-#endif // _PERFEVENTS_H
+#endif // _WALLCLOCK_H
