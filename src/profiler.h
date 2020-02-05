@@ -206,7 +206,7 @@ class Profiler {
     void switchThreadEvents(jvmtiEventMode mode);
     void dumpSummary(std::ostream& out);
     void dumpCollapsed(std::ostream& out, Arguments& args);
-    void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
+    void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree, bool json);
     void dumpTraces(std::ostream& out, Arguments& args);
     void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event);

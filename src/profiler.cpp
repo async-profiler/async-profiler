@@ -823,7 +823,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     }
 }
 
-void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
+void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree, bool json) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
@@ -853,7 +853,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         f->addLeaf(samples);
     }
 
-    flamegraph.dump(out, tree);
+    flamegraph.dump(out, tree, json);
 }
 
 void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
@@ -989,10 +989,13 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
                     dumpCollapsed(out, args);
                     break;
                 case OUTPUT_FLAMEGRAPH:
-                    dumpFlameGraph(out, args, false);
+                    dumpFlameGraph(out, args, false, false);
                     break;
                 case OUTPUT_TREE:
-                    dumpFlameGraph(out, args, true);
+                    dumpFlameGraph(out, args, true, false);
+                    break;
+                case OUTPUT_JSON:
+                    dumpFlameGraph(out, args, false, true);
                     break;
                 case OUTPUT_TEXT:
                     dumpSummary(out);

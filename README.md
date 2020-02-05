@@ -330,7 +330,8 @@ Example: `./profiler.sh -t 8983`
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by a counter.
   - `svg[=C]` - produce Flame Graph in SVG format.
-  - `tree[=C]` - produce call tree in HTML format.  
+  - `tree[=C]` - produce call tree in HTML format.
+  - `json[=C]` - produce call tree in JSON format. 
      --reverse option will generate backtrace view. 
   
   `C` is a counter type:

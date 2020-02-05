@@ -92,9 +92,9 @@ class FlameGraph {
     void printHeader(std::ostream& out);
     void printFooter(std::ostream& out);
     double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
-    void printTreeHeader(std::ostream& out);
-    void printTreeFooter(std::ostream& out);
-    bool printTreeFrame(std::ostream& out, const Trie& f, int depth);
+    void printTreeHeader(std::ostream& out, bool json);
+    void printTreeFooter(std::ostream& out, bool json);
+    bool printTreeFrame(std::ostream& out, const Trie& f, int depth, bool json);
     const Palette& selectFramePalette(std::string& name);
 
   public:
@@ -113,7 +113,7 @@ class FlameGraph {
         return &_root;
     }
 
-    void dump(std::ostream& out, bool tree);
+    void dump(std::ostream& out, bool tree, bool json);
 };
 
 #endif // _FLAMEGRAPH_H

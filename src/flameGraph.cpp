@@ -529,6 +529,17 @@ static const char TREE_FOOTER[] =
     "</body>\n"
     "</html>\n";
 
+static const char TREE_JSON_LINE_REVERSE[] = "%c{\"depth\":\"%d\",\"percent\":\"%.2f%%\",\"size\":%s,\"color\":\"%s\",\"name\":\"%s\",\n";
+
+static const char TREE_JSON_LINE[] = "%c{\"depth\":\"%d\",\"percent\":\"%.2f%%\",\"size\":%s,\"selfpercent\":\"%.2f%%\",\"self\":%s,\"color\":\"%s\",\"name\":\"%s\",\n";
+
+static const char TREE_HTML_LINE_REVERSE[] = "%c<li><div>[%d] %.2f%% %s</div><span class=\"%s\"> %s</span>\n";
+
+static const char TREE_HTML_LINE[] = "%c<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"%s\"> %s</span>\n";
+
+static const char TREE_HEADER_JSON[] = "{\"name\":\"root\",\n\"title\":\"%s\",\"counter\":\"%s\",\"size\":%s,\n\"children\":[\n";
+
+static const char TREE_FOOTER_JSON[] = "]}\n";
 
 class StringUtils {
   public:
@@ -609,18 +620,18 @@ class Palette {
 };
 
 
-void FlameGraph::dump(std::ostream& out, bool tree) {
+void FlameGraph::dump(std::ostream& out, bool tree, bool json) {
     _scale = (_imagewidth - 20) / (double)_root._total;
     _pct = 100 / (double)_root._total;
 
     u64 cutoff = (u64)ceil(_minwidth / _scale);
     _imageheight = _frameheight * _root.depth(cutoff) + 70;
 
-    if (tree) {
-        printTreeHeader(out);
-        printTreeFrame(out, _root, 0);
-        printTreeFooter(out);
-    } else {
+    if (tree || json) {
+        printTreeHeader(out, json);
+        printTreeFrame(out, _root, 0, json);
+        printTreeFooter(out, json);
+    }else {
         printHeader(out);
         printFrame(out, "all", _root, 10, _reverse ? 35 : (_imageheight - _frameheight - 35));
         printFooter(out);
@@ -679,19 +690,19 @@ double FlameGraph::printFrame(std::ostream& out, const std::string& name, const 
     return framewidth;
 }
 
-void FlameGraph::printTreeHeader(std::ostream& out) {
+void FlameGraph::printTreeHeader(std::ostream& out, bool json) {
     char buf[sizeof(TREE_HEADER) + 256];
     const char* title = _reverse ? "Backtrace" : "Call tree";
     const char* counter = _counter ==  COUNTER_SAMPLES ? "samples" : "counter";
-    sprintf(buf, TREE_HEADER, title, counter, Format().thousands(_root._total));
+    sprintf(buf, (json ? TREE_HEADER_JSON : TREE_HEADER), title, counter, Format().thousands(_root._total));
     out << buf;
 }
 
-void FlameGraph::printTreeFooter(std::ostream& out) {   
-    out << TREE_FOOTER;
+void FlameGraph::printTreeFooter(std::ostream& out, bool json) {
+    out << (json ? TREE_FOOTER_JSON : TREE_FOOTER);
 }
 
-bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
+bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth, bool json) {
     double framewidth = f._total * _scale;
     if (framewidth < _minwidth) {
         return false;
@@ -708,17 +719,16 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
         const Trie* trie = subnodes[i]._trie;
         const char* color = selectFramePalette(full_title).name();
         StringUtils::escape(full_title);
-
         if (_reverse) {
             snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div>[%d] %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
-                     depth,
+                     (json ? TREE_JSON_LINE_REVERSE : TREE_HTML_LINE_REVERSE),
+                     (json && i > 0) ? ',' : ' ', depth,
                      trie->_total * _pct, Format().thousands(trie->_total),
                      color, full_title.c_str());
         } else {
             snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"%s\"> %s</span>\n",
-                     depth,
+                     (json ? TREE_JSON_LINE : TREE_HTML_LINE),
+                     (json && i > 0) ? ',' : ' ', depth,
                      trie->_total * _pct, Format().thousands(trie->_total),
                      trie->_self * _pct, Format().thousands(trie->_self),
                      color, full_title.c_str());
@@ -726,11 +736,13 @@ bool FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int depth) {
         out << _buf;
 
         if (trie->_children.size() > 0) {
-            out << "<ul>\n";
-            if (!printTreeFrame(out, *trie, depth + 1)) {
-                out << "<li>...\n";
+            out << (json ? "\"children\":[\n" : "<ul>\n");
+            if (!printTreeFrame(out, *trie, depth + 1, json)) {
+                out << (json ? "{\"name\":\"...\",\"children\":[]}\n" : "<li>...\n");
             }
-            out << "</ul>\n";
+            out << (json ? "]}\n" : "</ul>\n");
+        } else {
+            out << (json ? "\"children\":[]}\n" : "");
         }
     }
 
