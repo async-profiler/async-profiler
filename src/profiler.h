@@ -118,7 +118,8 @@ class Profiler {
     int _max_stack_depth;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
-    bool _threads;
+    bool _add_thread_frame;
+    bool _update_thread_names;
     bool _cstack;
     volatile bool _thread_events_state;
 

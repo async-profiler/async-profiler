@@ -151,6 +151,10 @@ ThreadState OS::threadState(int thread_id) {
     return state;
 }
 
+ThreadList* OS::listThreads() {
+    return new LinuxThreadList();
+}
+
 bool OS::isSignalSafeTLS() {
     return true;
 }
@@ -178,10 +182,6 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
     static const int self_pid = getpid();
 
     return syscall(__NR_tgkill, self_pid, thread_id, signo) == 0;
-}
-
-ThreadList* OS::listThreads() {
-    return new LinuxThreadList();
 }
 
 #endif // __linux__

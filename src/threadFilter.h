@@ -18,10 +18,9 @@
 #define _THREADFILTER_H
 
 #include "arch.h"
-#include "mutex.h"
 
 
-// The size of thread ID bitmap in bytes
+// The size of thread ID bitmap in bytes. Must be at least 64K to allow mmap()
 const u32 BITMAP_SIZE = 65536;
 // How many thread IDs one bitmap can hold
 const u32 BITMAP_CAPACITY = BITMAP_SIZE * 8;
@@ -34,7 +33,6 @@ const u32 MAX_BITMAPS = (1 << 31) / BITMAP_CAPACITY;
 class ThreadFilter {
   private:
     u32* _bitmap[MAX_BITMAPS];
-    Mutex _lock;
     bool _enabled;
     volatile int _size;
 
@@ -64,6 +62,8 @@ class ThreadFilter {
     bool accept(int thread_id);
     void add(int thread_id);
     void remove(int thread_id);
+
+    int collect(int* array, int max_count);
 };
 
 #endif // _THREADFILTER_H

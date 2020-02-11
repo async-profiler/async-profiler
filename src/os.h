@@ -45,16 +45,20 @@ class OS {
   public:
     static u64 nanotime();
     static u64 millis();
+
     static u64 hton64(u64 x);
     static u64 ntoh64(u64 x);
+
     static int getMaxThreadId();
     static int threadId();
     static ThreadState threadState(int thread_id);
+    static ThreadList* listThreads();
+
     static bool isSignalSafeTLS();
     static bool isJavaLibraryVisible();
+
     static void installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static bool sendSignalToThread(int thread_id, int signo);
-    static ThreadList* listThreads();
 };
 
 #endif // _OS_H

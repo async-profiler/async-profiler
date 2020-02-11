@@ -117,6 +117,10 @@ ThreadState OS::threadState(int thread_id) {
     return info.run_state == TH_STATE_RUNNING ? THREAD_RUNNING : THREAD_SLEEPING;
 }
 
+ThreadList* OS::listThreads() {
+    return new MacThreadList();
+}
+
 bool OS::isSignalSafeTLS() {
     return false;
 }
@@ -147,10 +151,6 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
                 : "a" (0x2000148), "D" (thread_id), "S" (signo)
                 : "rcx", "r11", "memory");
    return result == 0;
-}
-
-ThreadList* OS::listThreads() {
-    return new MacThreadList();
 }
 
 #endif // __APPLE__

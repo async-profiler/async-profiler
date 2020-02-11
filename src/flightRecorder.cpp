@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "profiler.h"
+#include "threadFilter.h"
 #include "vmStructs.h"
 
 
@@ -292,6 +293,7 @@ class Recording {
   private:
     Buffer _buf[CONCURRENCY_LEVEL];
     int _fd;
+    ThreadFilter _thread_set;
     std::map<std::string, int> _symbol_map;
     std::map<std::string, int> _class_map;
     std::map<jmethodID, MethodInfo> _method_map;
@@ -301,7 +303,7 @@ class Recording {
     u64 _stop_nanos;
 
   public:
-    Recording(int fd) : _fd(fd), _symbol_map(), _class_map(), _method_map() {
+    Recording(int fd) : _fd(fd), _thread_set(), _symbol_map(), _class_map(), _method_map() {
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
@@ -564,8 +566,32 @@ class Recording {
     }
 
     void writeThreads(Buffer* buf) {
+        int thread_count = _thread_set.size();
+        int* threads = new int[thread_count];
+        _thread_set.collect(threads, thread_count);
+
+        MutexLocker ml(Profiler::_instance._thread_names_lock);
+        std::map<int, std::string>& thread_names = Profiler::_instance._thread_names;
+        char name_buf[32];
+
         buf->put32(CONTENT_THREAD);
-        buf->put32(0);
+        buf->put32(thread_count);
+        for (int i = 0; i < thread_count; i++) {
+            const char* thread_name;
+            std::map<int, std::string>::const_iterator it = thread_names.find(threads[i]);
+            if (it != thread_names.end()) {
+                thread_name = it->second.c_str();
+            } else {
+                sprintf(name_buf, "[tid=%d]", threads[i]);
+                thread_name = name_buf;
+            }
+
+            buf->put32(threads[i]);
+            buf->putUtf8(thread_name);
+            flushIfNeeded(buf);
+        }
+
+        delete[] threads;
     }
 
     void writeCheckpoint(Buffer* buf) {
@@ -697,6 +723,10 @@ class Recording {
         buf->put16(thread_state);
         flushIfNeeded(buf);
     }
+
+    void addThread(int tid) {
+        _thread_set.add(tid);
+    }
 };
 
 
@@ -724,5 +754,6 @@ void FlightRecorder::stop() {
 void FlightRecorder::recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state) {
     if (_rec != NULL && call_trace_id != 0) {
         _rec->recordExecutionSample(lock_index, tid, call_trace_id, thread_state);
+        _rec->addThread(tid);
     }
 }

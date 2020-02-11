@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 
-#include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "threadFilter.h"
 
     
 ThreadFilter::ThreadFilter() {
     memset(_bitmap, 0, sizeof(_bitmap));
+    _bitmap[0] = (u32*)mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
     _enabled = false;
     _size = 0;
 }
 
 ThreadFilter::~ThreadFilter() {
     for (int i = 0; i < MAX_BITMAPS; i++) {
-        free(_bitmap[i]);
+        if (_bitmap[i] != NULL) {
+            munmap(_bitmap[i], BITMAP_SIZE);
+        }
     }
 }
 
@@ -52,11 +56,12 @@ bool ThreadFilter::accept(int thread_id) {
 void ThreadFilter::add(int thread_id) {
     u32* b = bitmap(thread_id);
     if (b == NULL) {
-        MutexLocker ml(_lock);
-        b = bitmap(thread_id);
-        if (b == NULL) {
-            b = (u32*)calloc(1, BITMAP_SIZE);
-            _bitmap[(u32)thread_id / BITMAP_CAPACITY] = b;
+        // Use mmap() rather than malloc() to allow calling from signal handler
+        b = (u32*)mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        u32* oldb = __sync_val_compare_and_swap(&_bitmap[(u32)thread_id / BITMAP_CAPACITY], NULL, b);
+        if (oldb != NULL) {
+            munmap(b, BITMAP_SIZE);
+            b = oldb;
         }
     }
 
@@ -76,4 +81,28 @@ void ThreadFilter::remove(int thread_id) {
     if (__sync_fetch_and_and(&word(b, thread_id), ~bit) & bit) {
         atomicInc(_size, -1);
     }
+}
+
+int ThreadFilter::collect(int* array, int max_count) {
+    int count = 0;
+
+    for (int i = 0; i < MAX_BITMAPS; i++) {
+        u32* b = _bitmap[i];
+        if (b != NULL) {
+            int start_id = i * BITMAP_CAPACITY;
+            for (int j = 0; j < BITMAP_SIZE / sizeof(u32); j++) {
+                u32 word = b[j];
+                if (word) {
+                    for (int bit = 0; bit < 32; bit++) {
+                        if (word & (1 << bit)) {
+                            if (count >= max_count) return count;
+                            array[count++] = start_id + j * 32 + bit;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return count;
 }

@@ -490,7 +490,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames--;
     }
 
-    if (_threads) {
+    if (_add_thread_frame) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, (jmethodID)(uintptr_t)tid);
     }
 
@@ -585,7 +585,7 @@ void Profiler::setThreadName(int tid, const char* name) {
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_threads && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
@@ -596,7 +596,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::updateAllThreadNames() {
-    if (_threads && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -720,7 +720,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _threads = args._threads && args._output != OUTPUT_JFR;
+    _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
+    _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
     _thread_filter.init(args._filter);
 
     if (args._output == OUTPUT_JFR) {
@@ -756,14 +757,14 @@ Error Profiler::stop() {
 
     _engine->stop();
 
+    switchNativeMethodTraps(false);
+    switchThreadEvents(JVMTI_DISABLE);
+    updateAllThreadNames();
+
     // Acquire all spinlocks to avoid race with remaining signals
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
-
-    switchNativeMethodTraps(false);
-    switchThreadEvents(JVMTI_DISABLE);
-    updateAllThreadNames();
 
     _state = IDLE;
     return Error::OK;
