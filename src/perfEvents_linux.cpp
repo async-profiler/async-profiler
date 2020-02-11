@@ -61,17 +61,6 @@ enum {
 
 static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
 
-static int getMaxPID() {
-    char buf[16] = "65536";
-    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
-    if (fd != -1) {
-        ssize_t r = read(fd, buf, sizeof(buf) - 1);
-        (void) r;
-        close(fd);
-    }
-    return atoi(buf);
-}
-
 // Get perf_event_attr.config numeric value of the given tracepoint name
 // by reading /sys/kernel/debug/tracing/events/<name>/id file
 static int findTracepointId(const char* name) {
@@ -459,7 +448,7 @@ Error PerfEvents::start(Arguments& args) {
     }
     _print_extended_warning = _ring != RING_USER;
 
-    int max_events = getMaxPID();
+    int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
         free(_events);
         _events = (PerfEvent*)calloc(max_events, sizeof(PerfEvent));
@@ -490,14 +479,6 @@ void PerfEvents::stop() {
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
-}
-
-void PerfEvents::onThreadStart() {
-    createForThread(OS::threadId());
-}
-
-void PerfEvents::onThreadEnd() {
-    destroyForThread(OS::threadId());
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,

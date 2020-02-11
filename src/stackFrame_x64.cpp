@@ -16,6 +16,8 @@
 
 #ifdef __x86_64__
 
+#include <errno.h>
+#include <sys/syscall.h>
 #include "stackFrame.h"
 
 
@@ -103,13 +105,31 @@ bool StackFrame::pop(bool trust_frame_pointer) {
     return false;
 }
 
-void StackFrame::restartSyscall() {
-    uintptr_t pc = this->pc();
-    if ((pc & 0xfff) >= 7 && *(unsigned short*)(pc - 2) == 0x50f && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == 0x7) {
-        // mov eax, $0x7
-        // syscall
-        this->pc() = pc - 7;
+bool StackFrame::checkInterruptedSyscall() {
+#ifdef __APPLE__
+    // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap
+    if (*(instruction_t*)pc() == 0xc3) {
+        return true;
     }
+    // If CF is set, the error code is in low byte of eax,
+    // some other syscalls (ulock_wait) do not set CF when interrupted
+    if (REG(REG_EFL, __rflags) & 1) {
+        return (retval() & 0xff) == EINTR || (retval() & 0xff) == ETIMEDOUT;
+    } else {
+        return retval() == (uintptr_t)-EINTR; 
+    }
+#else
+    if (retval() == (uintptr_t)-EINTR) {
+        // Workaround for JDK-8237858: restart the interrupted poll() manually.
+        // Check if the previous instruction is mov eax, SYS_poll
+        uintptr_t pc = this->pc();
+        if ((pc & 0xfff) >= 7 && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == SYS_poll) {
+            this->pc() = pc - 7;
+        }
+        return true;
+    }
+    return false;
+#endif
 }
 
 int StackFrame::callerLookupSlots() {
@@ -125,6 +145,10 @@ bool StackFrame::isReturnAddress(instruction_t* pc) {
         return true;
     }
     return false;
+}
+
+bool StackFrame::isSyscall(instruction_t* pc) {
+    return pc[0] == 0x0f && pc[1] == 0x05;
 }
 
 #endif // __x86_64__

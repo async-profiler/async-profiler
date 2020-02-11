@@ -18,6 +18,7 @@
 #define _FLIGHTRECORDER_H
 
 #include "arguments.h"
+#include "os.h"
 
 
 class Recording;
@@ -33,7 +34,7 @@ class FlightRecorder {
     Error start(const char* file);
     void stop();
 
-    void recordExecutionSample(int lock_index, int tid, int call_trace_id);
+    void recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state);
 };
 
 #endif // _FLIGHTRECORDER_H

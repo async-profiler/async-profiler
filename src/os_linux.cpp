@@ -35,16 +35,46 @@
 class LinuxThreadList : public ThreadList {
   private:
     DIR* _dir;
+    int _thread_count;
+
+    int getThreadCount() {
+        char buf[512];
+        int fd = open("/proc/self/stat", O_RDONLY);
+        if (fd == -1) {
+            return 0;
+        }
+
+        int thread_count = 0;
+        if (read(fd, buf, sizeof(buf)) > 0) {
+            char* s = strchr(buf, ')');
+            if (s != NULL) {
+                // Read 18th integer field after the command name
+                for (int field = 0; *s != ' ' || ++field < 18; s++) ;
+                thread_count = atoi(s + 1);
+            }
+        }
+
+        close(fd);
+        return thread_count;
+    }
 
   public:
     LinuxThreadList() {
         _dir = opendir("/proc/self/task");
+        _thread_count = -1;
     }
 
     ~LinuxThreadList() {
         if (_dir != NULL) {
             closedir(_dir);
         }
+    }
+
+    void rewind() {
+        if (_dir != NULL) {
+            rewinddir(_dir);
+        }
+        _thread_count = -1;
     }
 
     int next() {
@@ -57,6 +87,13 @@ class LinuxThreadList : public ThreadList {
             }
         }
         return -1;
+    }
+
+    int size() {
+        if (_thread_count < 0) {
+            _thread_count = getThreadCount();
+        }
+        return _thread_count;
     }
 };
 
@@ -81,26 +118,37 @@ u64 OS::ntoh64(u64 x) {
     return ntohl(1) == 1 ? x : bswap_64(x);
 }
 
+int OS::getMaxThreadId() {
+    char buf[16] = "65536";
+    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
+    if (fd != -1) {
+        ssize_t r = read(fd, buf, sizeof(buf) - 1);
+        (void) r;
+        close(fd);
+    }
+    return atoi(buf);
+}
+
 int OS::threadId() {
     return syscall(__NR_gettid);
 }
 
-bool OS::isThreadRunning(int thread_id) {
+ThreadState OS::threadState(int thread_id) {
     char buf[512];
     sprintf(buf, "/proc/self/task/%d/stat", thread_id);
     int fd = open(buf, O_RDONLY);
     if (fd == -1) {
-        return false;
+        return THREAD_INVALID;
     }
 
-    bool running = false;
+    ThreadState state = THREAD_INVALID;
     if (read(fd, buf, sizeof(buf)) > 0) {
         char* s = strchr(buf, ')');
-        running = s != NULL && (s[2] == 'R' || s[2] == 'D');
+        state = s != NULL && (s[2] == 'R' || s[2] == 'D') ? THREAD_RUNNING : THREAD_SLEEPING;
     }
 
     close(fd);
-    return running;
+    return state;
 }
 
 bool OS::isSignalSafeTLS() {
@@ -111,19 +159,25 @@ bool OS::isJavaLibraryVisible() {
     return false;
 }
 
-void OS::installSignalHandler(int signo, void (*handler)(int, siginfo_t*, void*)) {
+void OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-    sa.sa_sigaction = handler;
-    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+
+    if (handler != NULL) {
+        sa.sa_handler = handler;
+        sa.sa_flags = 0;
+    } else {
+        sa.sa_sigaction = action;
+        sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    }
 
     sigaction(signo, &sa, NULL);
 }
 
-void OS::sendSignalToThread(int thread_id, int signo) {
+bool OS::sendSignalToThread(int thread_id, int signo) {
     static const int self_pid = getpid();
 
-    syscall(__NR_tgkill, self_pid, thread_id, signo);
+    return syscall(__NR_tgkill, self_pid, thread_id, signo) == 0;
 }
 
 ThreadList* OS::listThreads() {

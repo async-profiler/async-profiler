@@ -105,10 +105,11 @@ class Arguments {
     long _interval;
     int  _jstackdepth;
     int _framebuf;
-    bool _threads;
-    bool _cstack;
-    int _style;
     const char* _file;
+    const char* _filter;
+    bool _threads;
+    bool _cstack;  // TODO
+    int _style;
     Output _output;
     int _dump_traces;
     int _dump_flat;
@@ -128,10 +129,11 @@ class Arguments {
         _interval(0),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _framebuf(DEFAULT_FRAMEBUF),
+        _file(NULL),
+        _filter(NULL),
         _threads(false),
         _cstack(false),
         _style(0),
-        _file(NULL),
         _output(OUTPUT_NONE),
         _dump_traces(0),
         _dump_flat(0),

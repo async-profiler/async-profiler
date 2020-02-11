@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include "engine.h"
+#include "os.h"
 
 
 class WallClock : public Engine {
@@ -28,7 +29,7 @@ class WallClock : public Engine {
     static long _interval;
     static bool _sample_idle_threads;
 
-    int _pipefd[2];
+    volatile bool _running;
     pthread_t _thread;
 
     void timerLoop();
@@ -38,7 +39,12 @@ class WallClock : public Engine {
         return NULL;
     }
 
+    static ThreadState getThreadState(void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void wakeupHandler(int signo);
+
+    static long adjustInterval(long interval, int thread_count);
+    static void sleep(long interval);
 
   public:
     const char* name() {

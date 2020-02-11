@@ -25,7 +25,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "flightRecorder.h"
-#include "os.h"
 #include "profiler.h"
 #include "vmStructs.h"
 
@@ -89,8 +88,9 @@ enum FrameTypeId {
 };
 
 enum ThreadStateId {
-    STATE_RUNNABLE    = 1,
-    STATE_TOTAL_COUNT = 1
+    STATE_RUNNABLE    = THREAD_RUNNING,
+    STATE_SLEEPING    = THREAD_SLEEPING,
+    STATE_TOTAL_COUNT = 2
 };
 
 
@@ -494,6 +494,7 @@ class Recording {
         buf->put32(CONTENT_STATE);
         buf->put32(STATE_TOTAL_COUNT);
         buf->put16(STATE_RUNNABLE);    buf->putUtf8("STATE_RUNNABLE");
+        buf->put16(STATE_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
 
     void writeStackTraces(Buffer* buf) {
@@ -686,14 +687,14 @@ class Recording {
         buf->put32(metadata_start, buf->offset() - metadata_start);
     }
 
-    void recordExecutionSample(int lock_index, int tid, int call_trace_id) {
+    void recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state) {
         Buffer* buf = &_buf[lock_index];
         buf->put32(30);
         buf->put32(EVENT_EXECUTION_SAMPLE);
         buf->put64(OS::nanotime());
         buf->put32(tid);
         buf->put64(call_trace_id);
-        buf->put16(STATE_RUNNABLE);
+        buf->put16(thread_state);
         flushIfNeeded(buf);
     }
 };
@@ -720,8 +721,8 @@ void FlightRecorder::stop() {
     }
 }
 
-void FlightRecorder::recordExecutionSample(int lock_index, int tid, int call_trace_id) {
+void FlightRecorder::recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state) {
     if (_rec != NULL && call_trace_id != 0) {
-        _rec->recordExecutionSample(lock_index, tid, call_trace_id);
+        _rec->recordExecutionSample(lock_index, tid, call_trace_id, thread_state);
     }
 }

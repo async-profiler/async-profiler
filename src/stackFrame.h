@@ -65,7 +65,7 @@ class StackFrame {
 
     bool pop(bool trust_frame_pointer);
 
-    void restartSyscall();
+    bool checkInterruptedSyscall();
 
     // Look that many stack slots for a return address candidate.
     // 0 = do not use stack snooping heuristics.
@@ -74,6 +74,9 @@ class StackFrame {
     // Check if PC looks like a valid return address (i.e. the previous instruction is a CALL).
     // It's safe to return false to skip return address heuristics.
     static bool isReturnAddress(instruction_t* pc);
+
+    // Check if PC points to a syscall instruction
+    static bool isSyscall(instruction_t* pc);
 };
 
 #endif // _STACKFRAME_H

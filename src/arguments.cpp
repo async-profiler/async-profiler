@@ -53,6 +53,8 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     interval=N    - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N - maximum Java stack depth (default: 2048)
 //     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
+//     file=FILENAME - output file name for dumping
+//     filter=FILTER - thread filter
 //     threads       - profile different threads separately
 //     cstack        - collect C stack when profiling Java-level events
 //     allkernel     - include only kernel-mode events
@@ -66,7 +68,6 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     height=PX     - FlameGraph frame height
 //     minwidth=PX   - FlameGraph minimum frame width
 //     reverse       - generate stack-reversed FlameGraph / Call tree
-//     file=FILENAME - output file name for dumping
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -135,6 +136,13 @@ Error Arguments::parse(const char* args) {
             if (value == NULL || (_framebuf = atoi(value)) <= 0) {
                 return Error("framebuf must be > 0");
             }
+        } else if (strcmp(arg, "file") == 0) {
+            if (value == NULL || value[0] == 0) {
+                return Error("file must not be empty");
+            }
+            _file = value;
+        } else if (strcmp(arg, "filter") == 0) {
+            _filter = value == NULL ? "" : value;
         } else if (strcmp(arg, "threads") == 0) {
             _threads = true;
         } else if (strcmp(arg, "cstack") == 0) {
@@ -161,11 +169,6 @@ Error Arguments::parse(const char* args) {
             _minwidth = atof(value);
         } else if (strcmp(arg, "reverse") == 0) {
             _reverse = true;
-        } else if (strcmp(arg, "file") == 0) {
-            if (value == NULL || value[0] == 0) {
-                return Error("file must not be empty");
-            }
-            _file = value;
         }
     }
 

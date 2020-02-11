@@ -167,6 +167,20 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     _stubs_lock.unlock();
 }
 
+void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    int tid = OS::threadId();
+    _thread_filter.remove(tid);
+    updateThreadName(jvmti, jni, thread);
+    _engine->onThreadStart(tid);
+}
+
+void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    int tid = OS::threadId();
+    _thread_filter.remove(tid);
+    updateThreadName(jvmti, jni, thread);
+    _engine->onThreadEnd(tid);
+}
+
 const char* Profiler::asgctError(int code) {
     switch (code) {
         case ticks_no_Java_frame:
@@ -432,7 +446,7 @@ bool Profiler::addressInCode(instruction_t* pc) {
     return false;
 }
 
-void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event) {
+void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event, ThreadState thread_state) {
     int tid = OS::threadId();
 
     u64 lock_index = atomicInc(_total_samples) % CONCURRENCY_LEVEL;
@@ -482,7 +496,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
     storeMethod(frames[0].method_id, frames[0].bci, counter);
     int call_trace_id = storeCallTrace(num_frames, frames, counter);
-    _jfr.recordExecutionSample(lock_index, tid, call_trace_id);
+    _jfr.recordExecutionSample(lock_index, tid, call_trace_id, thread_state);
 
     _locks[lock_index].unlock();
 }
@@ -667,6 +681,9 @@ Error Profiler::start(Arguments& args, bool reset) {
         _frame_buffer_index = 0;
         _frame_buffer_overflow = false;
 
+        // Reset thread filter bitmaps
+        _thread_filter.clear();
+
         // Reset thread names
         MutexLocker ml(_thread_names_lock);
         _thread_names.clear();
@@ -704,6 +721,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _threads = args._threads && args._output != OUTPUT_JFR;
+    _thread_filter.init(args._filter);
 
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args._file);
@@ -721,11 +739,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    if (_threads) {
-        // Thread events might be already enabled by PerfEvents::start
-        switchThreadEvents(JVMTI_ENABLE);
-    }
-
+    // Thread events might be already enabled by PerfEvents::start
+    switchThreadEvents(JVMTI_ENABLE);
     switchNativeMethodTraps(true);
 
     _state = RUNNING;

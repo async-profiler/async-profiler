@@ -16,6 +16,7 @@
 
 #ifdef __i386__
 
+#include <errno.h>
 #include "stackFrame.h"
 
 
@@ -71,8 +72,8 @@ bool StackFrame::pop(bool trust_frame_pointer) {
     return false;
 }
 
-void StackFrame::restartSyscall() {
-    // Not implemented on this arch
+bool StackFrame::checkInterruptedSyscall() {
+    return retval() == (uintptr_t)-EINTR;
 }
 
 int StackFrame::callerLookupSlots() {
@@ -88,6 +89,11 @@ bool StackFrame::isReturnAddress(instruction_t* pc) {
         return true;
     }
     return false;
+}
+
+bool StackFrame::isSyscall(instruction_t* pc) {
+    // int 0x80
+    return pc[0] == 0xcd && pc[1] == 0x80;
 }
 
 #endif // __i386__

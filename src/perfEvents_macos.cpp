@@ -42,12 +42,6 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-void PerfEvents::onThreadStart() {
-}
-
-void PerfEvents::onThreadEnd() {
-}
-
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                                CodeCache* java_methods, CodeCache* runtime_stubs) {
     return 0;

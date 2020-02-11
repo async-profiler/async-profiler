@@ -21,6 +21,7 @@
 #include "arguments.h"
 #include "os.h"
 #include "profiler.h"
+#include "vmStructs.h"
 
 
 static void throw_new(JNIEnv* env, const char* exception_class, const char* message) {
@@ -127,4 +128,27 @@ Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
 extern "C" JNIEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused) {
     return OS::threadId();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthread thread, jboolean enable) {
+    int thread_id;
+    if (thread == NULL) {
+        thread_id = OS::threadId();
+    } else if (VMThread::hasNativeId()) {
+        VMThread* vmThread = VMThread::fromJavaThread(env, thread);
+        if (vmThread == NULL) {
+            return;
+        }
+        thread_id = vmThread->osThreadId();
+    } else {
+        return;
+    }
+
+    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+    if (enable) {
+        thread_filter->add(thread_id);
+    } else {
+        thread_filter->remove(thread_id);
+    }
 }
