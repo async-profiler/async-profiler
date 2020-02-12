@@ -38,6 +38,7 @@ enum Action {
     ACTION_STATUS,
     ACTION_LIST,
     ACTION_VERSION,
+    ACTION_FULL_VERSION,
     ACTION_DUMP
 };
 

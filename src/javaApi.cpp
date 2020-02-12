@@ -88,45 +88,8 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     }
 }
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpCollapsed0(JNIEnv* env, jobject unused, jint counter) {
-    Arguments args;
-    args._counter = counter == COUNTER_SAMPLES ? COUNTER_SAMPLES : COUNTER_TOTAL;
-
-    std::ostringstream out;
-    Profiler::_instance.dumpCollapsed(out, args);
-    return env->NewStringUTF(out.str().c_str());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpTraces0(JNIEnv* env, jobject unused, jint max_traces) {
-    Arguments args;
-    args._dump_traces = max_traces ? max_traces : MAX_CALLTRACES;
-
-    std::ostringstream out;
-    Profiler::_instance.dumpSummary(out);
-    Profiler::_instance.dumpTraces(out, args);
-    return env->NewStringUTF(out.str().c_str());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_dumpFlat0(JNIEnv* env, jobject unused, jint max_methods) {
-    Arguments args;
-    args._dump_flat = max_methods ? max_methods : MAX_CALLTRACES;
-
-    std::ostringstream out;
-    Profiler::_instance.dumpSummary(out);
-    Profiler::_instance.dumpFlat(out, args);
-    return env->NewStringUTF(out.str().c_str());
-}
-
-extern "C" JNIEXPORT jstring JNICALL
-Java_one_profiler_AsyncProfiler_version0(JNIEnv* env, jobject unused) {
-    return env->NewStringUTF(PROFILER_VERSION);
-}
-
-extern "C" JNIEXPORT jlong JNICALL
-Java_one_profiler_AsyncProfiler_getNativeThreadId0(JNIEnv* env, jobject unused) {
+extern "C" JNIEXPORT jint JNICALL
+Java_one_profiler_AsyncProfiler_getNativeThreadId(JNIEnv* env, jobject unused) {
     return OS::threadId();
 }
 

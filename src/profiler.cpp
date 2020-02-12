@@ -1019,6 +1019,9 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             break;
         }
         case ACTION_VERSION:
+            out << PROFILER_VERSION;
+            break;
+        case ACTION_FULL_VERSION:
             out << FULL_VERSION_STRING;
             break;
         case ACTION_DUMP:

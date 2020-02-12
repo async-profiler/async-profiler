@@ -27,10 +27,7 @@ import java.io.IOException;
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
 
-    private final String version;
-
     private AsyncProfiler() {
-        this.version = version0();
     }
 
     public static AsyncProfiler getInstance() {
@@ -102,7 +99,11 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public String getVersion() {
-        return version;
+        try {
+            return execute0("version");
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -127,7 +128,11 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public String dumpCollapsed(Counter counter) {
-        return dumpCollapsed0(counter.ordinal());
+        try {
+            return execute0("collapsed,counter=" + counter.name().toLowerCase());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -138,7 +143,11 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public String dumpTraces(int maxTraces) {
-        return dumpTraces0(maxTraces);
+        try {
+            return execute0("summary,traces=" + maxTraces);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
@@ -149,37 +158,49 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public String dumpFlat(int maxMethods) {
-        return dumpFlat0(maxMethods);
+        try {
+            return execute0("summary,flat=" + maxMethods);
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**
      * Get OS thread ID of the current Java thread. On Linux, this is the same number
      * as gettid() returns. The result ID matches 'tid' in the profiler output.
      *
-     * @return 64-bit integer that matches native (OS level) thread ID
+     * @return Numeric value that matches native (OS level) thread ID
      */
-    public long getNativeThreadId() {
-        return getNativeThreadId0();
+    public native int getNativeThreadId();
+
+    /**
+     * Add the given thread to the set of profiled threads
+     *
+     * @param thread Thread to include in profiling
+     */
+    public void addThread(Thread thread) {
+        filterThread(thread, true);
     }
 
     /**
-     * Add or remove the given thread to the set of profiled threads
+     * Remove the given thread from the set of profiled threads
      *
-     * @param thread A thread to add or remove; null means current thread
-     * @param enable true to enable profiling of the given thread, or
-     *               false to disable profiling
-     * @throws IllegalStateException If thread has not yet started or has already finished
+     * @param thread Thread to exclude from profiling
      */
-    public void filterThread(Thread thread, boolean enable) throws IllegalStateException {
+    public void removeThread(Thread thread) {
+        filterThread(thread, false);
+    }
+
+    private void filterThread(Thread thread, boolean enable) {
         if (thread == null) {
             filterThread0(null, enable);
         } else {
+            // Need to take lock to avoid race condition with a thread state change
             synchronized (thread) {
                 Thread.State state = thread.getState();
-                if (state == Thread.State.NEW || state == Thread.State.TERMINATED) {
-                    throw new IllegalStateException("Thread must be running");
+                if (state != Thread.State.NEW && state != Thread.State.TERMINATED) {
+                    filterThread0(thread, enable);
                 }
-                filterThread0(thread, enable);
             }
         }
     }
@@ -187,10 +208,5 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IOException;
-    private native String dumpCollapsed0(int counter);
-    private native String dumpTraces0(int maxTraces);
-    private native String dumpFlat0(int maxMethods);
-    private native String version0();
-    private native long getNativeThreadId0();
     private native void filterThread0(Thread thread, boolean enable);
 }

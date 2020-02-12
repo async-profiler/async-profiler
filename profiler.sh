@@ -232,9 +232,9 @@ case $ACTION in
         ;;
     version)
         if [[ "$PID" == "" ]]; then
-            java "-agentpath:$PROFILER=version" -version 2> /dev/null
+            java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
         else
-            jattach "version,file=$FILE"
+            jattach "version=full,file=$FILE"
         fi
         ;;
 esac

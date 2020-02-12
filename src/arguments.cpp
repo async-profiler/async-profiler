@@ -35,39 +35,39 @@ const size_t EXTRA_BUF_SIZE = 512;
 // The format of the string is:
 //     arg[,arg...]
 // where arg is one of the following options:
-//     start         - start profiling
-//     resume        - start or resume profiling without resetting collected data
-//     stop          - stop profiling
-//     status        - print profiling status (inactive / running for X seconds)
-//     list          - show the list of available profiling events
-//     version       - display the agent version
-//     event=EVENT   - which event to trace (cpu, alloc, lock, cache-misses etc.)
-//     collapsed[=C] - dump collapsed stacks (the format used by FlameGraph script)
-//     svg[=C]       - produce Flame Graph in SVG format
-//     tree[=C]      - produce call tree in HTML format
-//                     C is counter type: 'samples' or 'total'
-//     jfr           - dump events in Java Flight Recorder format
-//     summary       - dump profiling summary (number of collected samples of each type)
-//     traces[=N]    - dump top N call traces
-//     flat[=N]      - dump top N methods (aka flat profile)
-//     interval=N    - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
-//     jstackdepth=N - maximum Java stack depth (default: 2048)
-//     framebuf=N    - size of the buffer for stack frames (default: 1'000'000)
-//     file=FILENAME - output file name for dumping
-//     filter=FILTER - thread filter
-//     threads       - profile different threads separately
-//     cstack        - collect C stack when profiling Java-level events
-//     allkernel     - include only kernel-mode events
-//     alluser       - include only user-mode events
-//     simple        - simple class names instead of FQN
-//     dot           - dotted class names
-//     sig           - print method signatures
-//     ann           - annotate Java method names
-//     title=TITLE   - FlameGraph title
-//     width=PX      - FlameGraph image width
-//     height=PX     - FlameGraph frame height
-//     minwidth=PX   - FlameGraph minimum frame width
-//     reverse       - generate stack-reversed FlameGraph / Call tree
+//     start          - start profiling
+//     resume         - start or resume profiling without resetting collected data
+//     stop           - stop profiling
+//     status         - print profiling status (inactive / running for X seconds)
+//     list           - show the list of available profiling events
+//     version[=full] - display the agent version
+//     event=EVENT    - which event to trace (cpu, alloc, lock, cache-misses etc.)
+//     collapsed[=C]  - dump collapsed stacks (the format used by FlameGraph script)
+//     svg[=C]        - produce Flame Graph in SVG format
+//     tree[=C]       - produce call tree in HTML format
+//                      C is counter type: 'samples' or 'total'
+//     jfr            - dump events in Java Flight Recorder format
+//     summary        - dump profiling summary (number of collected samples of each type)
+//     traces[=N]     - dump top N call traces
+//     flat[=N]       - dump top N methods (aka flat profile)
+//     interval=N     - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
+//     jstackdepth=N  - maximum Java stack depth (default: 2048)
+//     framebuf=N     - size of the buffer for stack frames (default: 1'000'000)
+//     file=FILENAME  - output file name for dumping
+//     filter=FILTER  - thread filter
+//     threads        - profile different threads separately
+//     cstack         - collect C stack when profiling Java-level events
+//     allkernel      - include only kernel-mode events
+//     alluser        - include only user-mode events
+//     simple         - simple class names instead of FQN
+//     dot            - dotted class names
+//     sig            - print method signatures
+//     ann            - annotate Java method names
+//     title=TITLE    - FlameGraph title
+//     width=PX       - FlameGraph image width
+//     height=PX      - FlameGraph frame height
+//     minwidth=PX    - FlameGraph minimum frame width
+//     reverse        - generate stack-reversed FlameGraph / Call tree
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -99,7 +99,7 @@ Error Arguments::parse(const char* args) {
         } else if (strcmp(arg, "list") == 0) {
             _action = ACTION_LIST;
         } else if (strcmp(arg, "version") == 0) {
-            _action = ACTION_VERSION;
+            _action = value == NULL ? ACTION_VERSION : ACTION_FULL_VERSION;
         } else if (strcmp(arg, "event") == 0) {
             if (value == NULL || value[0] == 0) {
                 return Error("event must not be empty");
