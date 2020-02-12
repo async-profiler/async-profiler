@@ -78,8 +78,8 @@ like allocation elimination. Only actual heap allocations are measured.
 
 The profiler features TLAB-driven sampling. It relies on HotSpot-specific
 callbacks to receive two kinds of notifications:
- - when an object is allocated in a newly created TLAB;
- - when an object is allocated on a slow path outside TLAB.
+ - when an object is allocated in a newly created TLAB (aqua frames in a Flame Graph);
+ - when an object is allocated on a slow path outside TLAB (brown frames).
 
 This means not each allocation is counted, but only allocations every _N_ kB,
 where _N_ is the average size of TLAB. This makes heap sampling very cheap
