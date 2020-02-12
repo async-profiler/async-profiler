@@ -595,7 +595,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     }
 }
 
-void Profiler::updateAllThreadNames() {
+void Profiler::updateJavaThreadNames() {
     if (_update_thread_names) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
@@ -610,6 +610,25 @@ void Profiler::updateAllThreadNames() {
         }
 
         jvmti->Deallocate((unsigned char*)thread_objects);
+    }
+}
+
+void Profiler::updateNativeThreadNames() {
+    if (_update_thread_names) {
+        ThreadList* thread_list = OS::listThreads();
+        char name_buf[64];
+
+        for (int tid; (tid = thread_list->next()) != -1; ) {
+            MutexLocker ml(_thread_names_lock);
+            std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
+            if (it == _thread_names.end() || it->first != tid) {
+                if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
+                    _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
+                }
+            }
+        }
+
+        delete thread_list;
     }
 }
 
@@ -759,7 +778,8 @@ Error Profiler::stop() {
 
     switchNativeMethodTraps(false);
     switchThreadEvents(JVMTI_DISABLE);
-    updateAllThreadNames();
+    updateJavaThreadNames();
+    updateNativeThreadNames();
 
     // Acquire all spinlocks to avoid race with remaining signals
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();

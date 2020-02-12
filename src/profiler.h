@@ -168,7 +168,8 @@ class Profiler {
     void storeMethod(jmethodID method, jint bci, u64 counter);
     void setThreadName(int tid, const char* name);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
-    void updateAllThreadNames();
+    void updateJavaThreadNames();
+    void updateNativeThreadNames();
     Engine* selectEngine(const char* event_name);
     Error initJvmLibrary();
 

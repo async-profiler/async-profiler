@@ -19,6 +19,7 @@
 #include <libkern/OSByteOrder.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <pthread.h>
 #include <sys/time.h>
 #include "os.h"
 
@@ -106,6 +107,11 @@ int OS::threadId() {
     mach_port_t port = mach_thread_self();
     mach_port_deallocate(mach_task_self(), port);
     return (int)port;
+}
+
+bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
+    pthread_t thread = pthread_from_mach_thread_np(thread_id);
+    return thread && pthread_getname_np(thread, name_buf, name_len) == 0 && name_buf[0] != 0;
 }
 
 ThreadState OS::threadState(int thread_id) {

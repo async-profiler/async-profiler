@@ -133,6 +133,24 @@ int OS::threadId() {
     return syscall(__NR_gettid);
 }
 
+bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
+    char buf[64];
+    sprintf(buf, "/proc/self/task/%d/comm", thread_id);
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    ssize_t r = read(fd, name_buf, name_len);
+    close(fd);
+
+    if (r > 0) {
+        name_buf[r - 1] = 0;
+        return true;
+    }
+    return false;
+}
+
 ThreadState OS::threadState(int thread_id) {
     char buf[512];
     sprintf(buf, "/proc/self/task/%d/stat", thread_id);
