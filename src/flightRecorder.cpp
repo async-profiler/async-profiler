@@ -64,18 +64,20 @@ enum EventTypeId {
 };
 
 enum ContentTypeId {
-    CONTENT_NONE        = 0,
-    CONTENT_MEMORY      = 1,
-    CONTENT_EPOCHMILLIS = 2,
-    CONTENT_MILLIS      = 3,
-    CONTENT_NANOS       = 4,
-    CONTENT_THREAD      = 7,
-    CONTENT_STACKTRACE  = 9,
-    CONTENT_CLASS       = 10,
-    CONTENT_METHOD      = 32,
-    CONTENT_SYMBOL      = 33,
-    CONTENT_STATE       = 34,
-    CONTENT_FRAME_TYPE  = 47,
+    CONTENT_NONE         = 0,
+    CONTENT_MEMORY       = 1,
+    CONTENT_EPOCHMILLIS  = 2,
+    CONTENT_MILLIS       = 3,
+    CONTENT_NANOS        = 4,
+    CONTENT_THREAD       = 7,
+    CONTENT_JAVA_THREAD  = 8,
+    CONTENT_STACKTRACE   = 9,
+    CONTENT_CLASS        = 10,
+    CONTENT_THREAD_GROUP = 31,
+    CONTENT_METHOD       = 32,
+    CONTENT_SYMBOL       = 33,
+    CONTENT_STATE        = 34,
+    CONTENT_FRAME_TYPE   = 47,
 };
 
 enum FrameTypeId {
@@ -156,6 +158,14 @@ const DataStructure
     ds_thread[] = {
         {"name", "Thread name", T_UTF8},
     },
+    ds_java_thread[] = {
+        {"thread", "OS Thread ID", T_U4, CONTENT_THREAD},
+        {"group", "Java Thread Group", T_U4, CONTENT_THREAD_GROUP},
+    },
+    ds_thread_group[] = {
+        {"parent", "Parent", T_U4, CONTENT_THREAD_GROUP},
+        {"name", "Name", T_UTF8},
+    },
     ds_frame_type[] = {
         {"desc", "Description", T_UTF8},
     },
@@ -181,7 +191,7 @@ const DataStructure
     },
     ds_stacktrace[] = {
         {"truncated", "Truncated", T_BOOLEAN},
-        {"frames", "Stack frames", T_STRUCTARRAY, CONTENT_NONE, /* ds_frame */ 6},
+        {"frames", "Stack frames", T_STRUCTARRAY, CONTENT_NONE, /* ds_frame */ 8},
     },
     ds_method_sample[] = {
         {"sampledThread", "Thread", T_U4, CONTENT_THREAD},
@@ -190,17 +200,19 @@ const DataStructure
     };
 
 const EventType et_profile[] = {
-    {EVENT_EXECUTION_SAMPLE, "Method Profiling Sample", "Snapshot of a threads state", "vm/prof/execution_sample", false, false, false, true, /* ds_method_sample */ 8},
+    {EVENT_EXECUTION_SAMPLE, "Method Profiling Sample", "Snapshot of a threads state", "vm/prof/execution_sample", false, false, false, true, /* ds_method_sample */ 10},
 };
 
 const ContentType ct_profile[] = {
     {CONTENT_SYMBOL, "UTFConstant", "UTF constant", T_U8, 0},
     {CONTENT_THREAD, "Thread", "Thread", T_U4, 1},
-    {CONTENT_FRAME_TYPE, "FrameType", "Frame type", T_U1, 2},
-    {CONTENT_STATE, "ThreadState", "Java Thread State", T_U2, 3},
-    {CONTENT_CLASS, "Class", "Java class", T_U8, 4},
-    {CONTENT_METHOD, "Method", "Java method", T_U8, 5},
-    {CONTENT_STACKTRACE, "StackTrace", "Stacktrace", T_U8, 7},
+    {CONTENT_JAVA_THREAD, "JavaThread", "Java thread", T_U8, 2},
+    {CONTENT_THREAD_GROUP, "ThreadGroup", "Thread group", T_U4, 3},
+    {CONTENT_FRAME_TYPE, "FrameType", "Frame type", T_U1, 4},
+    {CONTENT_STATE, "ThreadState", "Java Thread State", T_U2, 5},
+    {CONTENT_CLASS, "Class", "Java class", T_U8, 6},
+    {CONTENT_METHOD, "Method", "Java method", T_U8, 7},
+    {CONTENT_STACKTRACE, "StackTrace", "Stacktrace", T_U8, 9},
 };
 
 
@@ -594,6 +606,25 @@ class Recording {
         delete[] threads;
     }
 
+    void writeJavaThreads(Buffer* buf) {
+        MutexLocker ml(Profiler::_instance._thread_names_lock);
+        std::map<jlong, int>& thread_ids = Profiler::_instance._thread_ids;
+
+        buf->put32(CONTENT_JAVA_THREAD);
+        buf->put32(thread_ids.size());
+        for (std::map<jlong, int>::const_iterator it = thread_ids.begin(); it != thread_ids.end(); ++it) {
+            buf->put64(it->first);
+            buf->put32(it->second);
+            buf->put32(0);  // group
+            flushIfNeeded(buf);
+        }
+    }
+
+    void writeThreadGroups(Buffer* buf) {
+        buf->put32(CONTENT_THREAD_GROUP);
+        buf->put32(0);
+    }
+
     void writeCheckpoint(Buffer* buf) {
         buf->put32(0);   // size will be patched later
         buf->put32(EVENT_CHECKPOINT);
@@ -606,6 +637,8 @@ class Recording {
         writeClasses(buf);
         writeSymbols(buf);
         writeThreads(buf);
+        writeJavaThreads(buf);
+        writeThreadGroups(buf);
     }
 
     void writeDataStructure(Buffer* buf, int count, const DataStructure* ds) {
@@ -678,9 +711,11 @@ class Recording {
         buf->put32(0);
 
         // Data structures
-        buf->put32(9);
+        buf->put32(11);
         writeDataStructure(buf, ARRAY_SIZE(ds_utf8), ds_utf8);
         writeDataStructure(buf, ARRAY_SIZE(ds_thread), ds_thread);
+        writeDataStructure(buf, ARRAY_SIZE(ds_java_thread), ds_java_thread);
+        writeDataStructure(buf, ARRAY_SIZE(ds_thread_group), ds_thread_group);
         writeDataStructure(buf, ARRAY_SIZE(ds_frame_type), ds_frame_type);
         writeDataStructure(buf, ARRAY_SIZE(ds_state), ds_state);
         writeDataStructure(buf, ARRAY_SIZE(ds_class), ds_class);

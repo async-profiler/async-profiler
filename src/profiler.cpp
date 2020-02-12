@@ -579,9 +579,10 @@ void Profiler::switchNativeMethodTraps(bool enable) {
     env->ExceptionClear();
 }
 
-void Profiler::setThreadName(int tid, const char* name) {
+void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     MutexLocker ml(_thread_names_lock);
     _thread_names[tid] = name;
+    _thread_ids[java_thread_id] = tid;
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -589,7 +590,8 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
-            setThreadName(vm_thread->osThreadId(), thread_info.name);
+            jlong java_thread_id = VMThread::javaThreadId(jni, thread);
+            setThreadInfo(vm_thread->osThreadId(), thread_info.name, java_thread_id);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
@@ -703,9 +705,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         // Reset thread filter bitmaps
         _thread_filter.clear();
 
-        // Reset thread names
+        // Reset thread names and IDs
         MutexLocker ml(_thread_names_lock);
         _thread_names.clear();
+        _thread_ids.clear();
     }
 
     // (Re-)allocate frames

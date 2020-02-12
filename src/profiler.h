@@ -99,6 +99,7 @@ class Profiler {
     State _state;
     Mutex _thread_names_lock;
     std::map<int, std::string> _thread_names;
+    std::map<jlong, int> _thread_ids;
     ThreadFilter _thread_filter;
     FlightRecorder _jfr;
     Engine* _engine;
@@ -166,7 +167,7 @@ class Profiler {
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
     u64 hashMethod(jmethodID method);
     void storeMethod(jmethodID method, jint bci, u64 counter);
-    void setThreadName(int tid, const char* name);
+    void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();

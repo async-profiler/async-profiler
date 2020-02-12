@@ -25,6 +25,7 @@
 class VMStructs {
   protected:
     static jfieldID _eetop;
+    static jfieldID _tid;
     static intptr_t _env_offset;
     static int _klass_name_offset;
     static int _symbol_length_offset;
@@ -106,6 +107,10 @@ class VMThread : VMStructs {
 
     static VMThread* fromEnv(JNIEnv* env) {
         return (VMThread*)((intptr_t)env - _env_offset);
+    }
+
+    static jlong javaThreadId(JNIEnv* env, jthread thread) {
+        return env->GetLongField(thread, _tid);
     }
 
     static bool hasNativeId() {

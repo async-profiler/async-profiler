@@ -21,6 +21,7 @@
 
 
 jfieldID VMStructs::_eetop;
+jfieldID VMStructs::_tid;
 intptr_t VMStructs::_env_offset;
 int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
@@ -110,8 +111,10 @@ bool VMStructs::initThreadBridge() {
     }
 
     JNIEnv* env = VM::jni();
-    _eetop = env->GetFieldID(env->GetObjectClass(thread), "eetop", "J");
-    if (_eetop == NULL) {
+    jclass thread_class = env->GetObjectClass(thread);
+    _eetop = env->GetFieldID(thread_class, "eetop", "J");
+    _tid = env->GetFieldID(thread_class, "tid", "J");
+    if (_eetop == NULL || _tid == NULL) {
         return false;
     }
 
