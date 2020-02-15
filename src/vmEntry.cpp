@@ -19,6 +19,7 @@
 #include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
+#include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
 #include "instrument.h"
@@ -173,5 +174,6 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
     VM::init(vm, true);
+    JavaAPI::registerNatives(VM::jvmti(), VM::jni());
     return JNI_VERSION_1_6;
 }
