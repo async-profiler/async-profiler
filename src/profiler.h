@@ -181,6 +181,7 @@ class Profiler {
         _state(IDLE),
         _thread_filter(),
         _jfr(),
+        _start_time(0),
         _frame_buffer(NULL),
         _frame_buffer_size(0),
         _max_stack_depth(0),
@@ -210,6 +211,7 @@ class Profiler {
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
+    Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
     Error stop();
     void switchThreadEvents(jvmtiEventMode mode);

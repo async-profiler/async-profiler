@@ -44,6 +44,7 @@ class PerfEvents : public Engine {
 
     const char* units();
 
+    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

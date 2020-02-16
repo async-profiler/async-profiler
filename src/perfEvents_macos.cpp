@@ -35,6 +35,10 @@ const char* PerfEvents::units() {
     return "ns";
 }
 
+Error PerfEvents::check(Arguments& args) {
+    return Error("PerfEvents are unsupported on macOS");
+}
+
 Error PerfEvents::start(Arguments& args) {
     return Error("PerfEvents are unsupported on macOS");
 }

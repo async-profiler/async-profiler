@@ -38,6 +38,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     start          - start profiling
 //     resume         - start or resume profiling without resetting collected data
 //     stop           - stop profiling
+//     check          - check if the specified profiling event is available
 //     status         - print profiling status (inactive / running for X seconds)
 //     list           - show the list of available profiling events
 //     version[=full] - display the agent version
@@ -94,6 +95,8 @@ Error Arguments::parse(const char* args) {
             _action = ACTION_RESUME;
         } else if (strcmp(arg, "stop") == 0) {
             _action = ACTION_STOP;
+        } else if (strcmp(arg, "check") == 0) {
+            _action = ACTION_CHECK;
         } else if (strcmp(arg, "status") == 0) {
             _action = ACTION_STATUS;
         } else if (strcmp(arg, "list") == 0) {

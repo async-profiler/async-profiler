@@ -482,11 +482,7 @@ u64 Instrument::_interval;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_enabled;
 
-Error Instrument::start(Arguments& args) {
-    if (args._interval < 0) {
-        return Error("interval must be positive");
-    }
-
+Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
         JNIEnv* jni = VM::jni();
         if (jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS)) == NULL) {
@@ -494,6 +490,19 @@ Error Instrument::start(Arguments& args) {
             return Error("Could not load Instrument class");
         }
         _instrument_class_loaded = true;
+    }
+
+    return Error::OK;
+}
+
+Error Instrument::start(Arguments& args) {
+    Error error = check(args);
+    if (error) {
+        return error;
+    }
+
+    if (args._interval < 0) {
+        return Error("interval must be positive");
     }
 
     setupTargetClassAndMethod(args._event);

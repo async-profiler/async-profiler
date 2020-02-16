@@ -700,7 +700,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
-    if (reset || _libjvm == NULL) {
+    if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
         _total_counter = 0;
@@ -805,6 +805,22 @@ Error Profiler::stop() {
 
     _state = IDLE;
     return Error::OK;
+}
+
+Error Profiler::check(Arguments& args) {
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE) {
+        return Error("Profiler already started");
+    }
+
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+    Error error = initJvmLibrary();
+    if (error) {
+        return error;
+    }
+
+    _engine = selectEngine(args._event);
+    return _engine->check(args);
 }
 
 void Profiler::switchThreadEvents(jvmtiEventMode mode) {
@@ -998,6 +1014,15 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
                 out << error.message() << std::endl;
             } else {
                 out << "Stopped profiling after " << uptime() << " seconds. No dump options specified" << std::endl;
+            }
+            break;
+        }
+        case ACTION_CHECK: {
+            Error error = check(args);
+            if (error) {
+                out << error.message() << std::endl;
+            } else {
+                out << "OK" << std::endl;
             }
             break;
         }

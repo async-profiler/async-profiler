@@ -262,6 +262,8 @@ between sessions, and should be specified again.
 
 * `stop` - stops profiling and prints the report.
 
+* `check` - check if the specified profiling event is available.
+
 * `status` - prints profiling status: whether profiler is active and
 for how long.
 

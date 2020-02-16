@@ -36,6 +36,7 @@ class ITimer : public Engine {
         return "ns";
     }
 
+    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 };

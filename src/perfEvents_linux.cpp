@@ -456,6 +456,43 @@ const char* PerfEvents::units() {
     return dash != NULL ? dash + 1 : _event_type->name;
 }
 
+Error PerfEvents::check(Arguments& args) {
+    PerfEventType* event_type = PerfEventType::forName(args._event);
+    if (event_type == NULL) {
+        return Error("Unsupported event type");
+    }
+
+    struct perf_event_attr attr = {0};
+    attr.size = sizeof(attr);
+    attr.type = event_type->type;
+
+    if (attr.type == PERF_TYPE_BREAKPOINT) {
+        attr.bp_addr = event_type->config;
+        attr.bp_type = event_type->bp_type;
+        attr.bp_len = event_type->bp_len;
+    } else {
+        attr.config = event_type->config;
+    }
+
+    attr.sample_period = event_type->default_interval;
+    attr.sample_type = PERF_SAMPLE_CALLCHAIN;
+    attr.disabled = 1;
+
+    if (args._ring == RING_USER || !Symbols::haveKernelSymbols()) {
+        attr.exclude_kernel = 1;
+    } else if (args._ring == RING_KERNEL) {
+        attr.exclude_user = 1;
+    }
+
+    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    if (fd == -1) {
+        return Error(strerror(errno));
+    }
+
+    close(fd);
+    return Error::OK;
+}
+
 Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {

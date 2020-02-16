@@ -42,6 +42,7 @@ class Instrument : public Engine {
         return false;
     }
 
+    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

@@ -18,6 +18,10 @@
 #include "stackFrame.h"
 
 
+Error Engine::check(Arguments& args) {
+    return Error::OK;
+}
+
 bool Engine::requireNativeTrace() {
     return true;
 }
