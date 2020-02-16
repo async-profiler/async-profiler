@@ -96,7 +96,7 @@ Error WallClock::start(Arguments& args) {
     // Increase default interval for wall clock mode due to larger number of sampled threads
     _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
 
-    OS::installSignalHandler(SIGPROF, signalHandler);
+    OS::installSignalHandler(SIGVTALRM, signalHandler);
     OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
 
     _running = true;
@@ -142,7 +142,7 @@ void WallClock::timerLoop() {
             }
 
             if (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING) {
-                if (OS::sendSignalToThread(thread_id, SIGPROF)) {
+                if (OS::sendSignalToThread(thread_id, SIGVTALRM)) {
                     count++;
                 }
             }
