@@ -292,10 +292,13 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         // Guess top method by PC and insert it manually into the call trace
         bool is_entry_frame = false;
         if (fillTopFrame((const void*)pc, trace.frames)) {
-            is_entry_frame = trace.frames->bci == BCI_NATIVE_FRAME &&
-                             strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
-            trace.frames++;
-            max_depth--;
+            bool is_native_frame = trace.frames->bci == BCI_NATIVE_FRAME;
+            is_entry_frame = is_native_frame && strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
+
+            if (!is_native_frame || _cstack) {
+                trace.frames++;
+                max_depth--;
+            }
         }
 
         // Attempt further manipulations with top frame, only if SP points to the current stack
@@ -754,7 +757,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _engine = selectEngine(args._event);
-    _cstack = args._cstack || _engine->requireNativeTrace();
+    _cstack = args._cstack ? args._cstack == 'y' : _engine->requireNativeTrace();
 
     error = _engine->start(args);
     if (error) {

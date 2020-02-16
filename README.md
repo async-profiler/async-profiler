@@ -352,9 +352,11 @@ Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 is restricted by `perf_event_paranoid` settings.  
 `--all-kernel` is its counterpart option for including only kernel-mode events.
 
-* `--cstack` - collect C stack (i.e. native call trace) along with Java call trace.
-This option is ON by default for cpu, itimer, wall-clock and perf-events profiling,
-but OFF for Java-level events like `alloc` and `lock`.
+* `--cstack` - always collect C stack (i.e. native call trace) along with Java call trace.  
+  `--no-cstack` - never collect C stack, leave only Java frames.
+
+  By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
+Java-level events like `alloc` and `lock` collect only Java stack.
 
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
 gets the version of the library loaded into the given process.

@@ -109,7 +109,7 @@ class Arguments {
     const char* _file;
     const char* _filter;
     bool _threads;
-    bool _cstack;  // TODO
+    char _cstack;
     int _style;
     Output _output;
     int _dump_traces;
@@ -133,7 +133,7 @@ class Arguments {
         _file(NULL),
         _filter(NULL),
         _threads(false),
-        _cstack(false),
+        _cstack(0),
         _style(0),
         _output(OUTPUT_NONE),
         _dump_traces(0),
