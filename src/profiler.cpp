@@ -219,6 +219,17 @@ const void* Profiler::findSymbol(const char* name) {
     return NULL;
 }
 
+const void* Profiler::findSymbolByPrefix(const char* name) {
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
+        const void* address = _native_libs[i]->findSymbolByPrefix(name);
+        if (address != NULL) {
+            return address;
+        }
+    }
+    return NULL;
+}
+
 NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -486,7 +497,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     }
 
     if (num_frames == 0 || (num_frames == 1 && event != NULL)) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (jmethodID)"not_walkable");
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (jmethodID)"no_Java_frame");
     } else if (event_type == BCI_INSTRUMENT) {
         // Skip Instrument.recordSample() method
         frames++;

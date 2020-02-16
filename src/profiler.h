@@ -221,6 +221,7 @@ class Profiler {
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event, ThreadState thread_state = THREAD_RUNNING);
 
     const void* findSymbol(const char* name);
+    const void* findSymbolByPrefix(const char* name);
     NativeCodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);
 

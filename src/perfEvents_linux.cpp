@@ -112,6 +112,22 @@ struct PerfEventType {
         return 0;
     }
 
+    static void mangle(char* name, char* buf, size_t size) {
+        char* buf_end = buf + size;
+        strcpy(buf, "_ZN");
+        buf += 3;
+
+        for (char* c; (c = strstr(name, "::")) != NULL && buf < buf_end; name = c + 2) {
+            *c = 0;
+            buf += snprintf(buf, buf_end - buf, "%d%s", strlen(name), name);
+        }
+
+        if (buf < buf_end) {
+            snprintf(buf, buf_end - buf, "%d%sE", strlen(name), name);
+        }
+        buf_end[-1] = 0;
+    }
+
     static PerfEventType* findByType(__u32 type) {
         for (PerfEventType* event = AVAILABLE_EVENTS; ; event++) {
             if (event->type == type) {
@@ -128,7 +144,7 @@ struct PerfEventType {
 
         // Parse access type [:rwx]
         char* c = strrchr(buf, ':');
-        if (c != NULL) {
+        if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
             if (strcmp(c, "r") == 0) {
                 bp_type = HW_BREAKPOINT_R;
@@ -161,14 +177,25 @@ struct PerfEventType {
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
             addr = (__u64)strtoll(buf, NULL, 0);
+        } else if (strstr(buf, "::") != NULL) {
+            char mangled_name[256];
+            mangle(buf, mangled_name, sizeof(mangled_name));
+            addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(mangled_name);
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
-                addr = (__u64)(uintptr_t)Profiler::_instance.findSymbol(buf);
+                size_t len = strlen(buf);
+                if (len > 0 && buf[len - 1] == '*') {
+                    buf[len - 1] = 0;
+                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(buf);
+                } else {
+                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbol(buf);
+                }
             }
-            if (addr == 0) {
-                return NULL;
-            }
+        }
+
+        if (addr == 0) {
+            return NULL;
         }
 
         PerfEventType* breakpoint = findByType(PERF_TYPE_BREAKPOINT);
@@ -205,7 +232,8 @@ struct PerfEventType {
         }
 
         // Kernel tracepoints defined in debugfs
-        if (strchr(name, ':') != NULL) {
+        const char* c = strchr(name, ':');
+        if (c != NULL && c[1] != ':') {
             int tracepoint_id = findTracepointId(name);
             if (tracepoint_id > 0) {
                 return getTracepoint(tracepoint_id);
@@ -454,7 +482,7 @@ Error PerfEvents::start(Arguments& args) {
         _events = (PerfEvent*)calloc(max_events, sizeof(PerfEvent));
         _max_events = max_events;
     }
-    
+
     OS::installSignalHandler(SIGPROF, signalHandler);
 
     // Enable thread events before traversing currently running threads
