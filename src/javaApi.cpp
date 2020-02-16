@@ -81,11 +81,6 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
     return (jlong)Profiler::_instance.total_samples();
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_one_profiler_AsyncProfiler_getNativeThreadId(JNIEnv* env, jobject unused) {
-    return OS::threadId();
-}
-
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthread thread, jboolean enable) {
     int thread_id;
@@ -117,7 +112,6 @@ static const JNINativeMethod profiler_natives[] = {
     F(stop0,             "()V"),
     F(execute0,          "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,        "()J"),
-    F(getNativeThreadId, "()I"),
     F(filterThread0,     "(Ljava/lang/Thread;Z)V"),
 };
 

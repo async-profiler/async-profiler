@@ -166,14 +166,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     }
 
     /**
-     * Get OS thread ID of the current Java thread. On Linux, this is the same number
-     * as gettid() returns. The result ID matches 'tid' in the profiler output.
-     *
-     * @return Numeric value that matches native (OS level) thread ID
-     */
-    public native int getNativeThreadId();
-
-    /**
      * Add the given thread to the set of profiled threads
      *
      * @param thread Thread to include in profiling
