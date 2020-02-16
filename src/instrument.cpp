@@ -118,6 +118,13 @@ class Constant {
     bool equals(const char* value, u16 len) {
         return _tag == CONSTANT_Utf8 && info() == len && memcmp(_info + 2, value, len) == 0;
     }
+
+    bool matches(const char* value, u16 len) {
+        if (len > 0 && value[len - 1] == '*') {
+            return _tag == CONSTANT_Utf8 && info() >= len - 1 && memcmp(_info + 2, value, len - 1) == 0;
+        }
+        return equals(value, len);
+    }
 };
 
 enum Scope {
@@ -409,8 +416,8 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
         put16(descriptor_index);
 
         bool need_rewrite = scope == SCOPE_METHOD
-            && _cpool[name_index]->equals(_target_method, _target_method_len)
-            && (_target_signature == NULL || _cpool[descriptor_index]->equals(_target_signature, _target_signature_len));
+            && _cpool[name_index]->matches(_target_method, _target_method_len)
+            && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
 
         rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD);
     }
