@@ -1,16 +1,19 @@
 # Changelog
 
-## [1.7-ea2] - In development
+## [1.7-ea3] - In development
 
 ### Features
- - Profile invocations of an arbitrary Java method
+ - Profile invocations of arbitrary Java methods
  - Java API to filter monitored threads
- - `--cstack` option to collect native stack traces for Java-level events
+ - `--cstack`/`--no-cstack` option
 
 ### Improvements
  - Thread names and Java thread IDs in JFR output
  - Wall clock profiler distinguishes RUNNABLE vs. SLEEPING threads
  - Stable profiling interval in wall clock mode
+ - C++ function names as events, e.g. `-e VMThread::execute`
+ - `check` command to test event availability
+ - Allow shading of AsyncProfiler API
  - Enable CPU profiling on WSL
  - Enable allocation profiling on Zing
  - Reduce the amount of `unknown_Java` samples
