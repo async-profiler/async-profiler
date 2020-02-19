@@ -36,9 +36,9 @@ all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(PROFILER_JAR)
 release: build async-profiler-$(RELEASE_TAG).tar.gz
 
 async-profiler-$(RELEASE_TAG).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
-                                      build/$(PROFILER_JAR) profiler.sh LICENSE *.md
+                                      build/$(PROFILER_JAR) profiler.sh LICENSE NOTICE *.md
 	chmod 755 build profiler.sh
-	chmod 644 LICENSE *.md
+	chmod 644 LICENSE NOTICE *.md
 	tar cvzf $@ $^
 
 build:
