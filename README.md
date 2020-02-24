@@ -342,6 +342,13 @@ Example: `./profiler.sh -t 8983`
   `summary`, `traces` and `flat` can be combined together.  
   The default format is `summary,traces=200,flat=200`.
 
+* `-I include`, `-X exclude` - filter stack traces by the given pattern(s).
+`-I` defines the name pattern that *must* be present in the stack traces,
+while `-X` is the pattern that *must not* occur in any of stack traces in the output.
+`-I` and `-X` options can be specified multiple times. A pattern may begin or end with
+a star `*` that denotes any (possibly empty) sequence of characters.  
+Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
+
 * `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
 Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 

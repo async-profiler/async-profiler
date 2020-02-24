@@ -648,6 +648,27 @@ void Profiler::updateNativeThreadNames() {
     }
 }
 
+bool Profiler::excludeTrace(FrameName* fn, CallTraceSample* trace) {
+    bool checkInclude = fn->hasIncludeList();
+    bool checkExclude = fn->hasExcludeList();
+    if (!(checkInclude || checkExclude)) {
+        return false;
+    }
+
+    for (int i = 0; i < trace->_num_frames; i++) {
+        const char* frame_name = fn->name(_frame_buffer[trace->_start_frame + i], true);
+        if (checkExclude && fn->exclude(frame_name)) {
+            return true;
+        }
+        if (checkInclude && fn->include(frame_name)) {
+            checkInclude = false;
+            if (!checkExclude) break;
+        }
+    }
+
+    return checkInclude;
+}
+
 Engine* Profiler::selectEngine(const char* event_name) {
     if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
@@ -868,12 +889,12 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
     u64 unknown = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
-        if (trace._samples == 0) continue;
+        if (trace._samples == 0 || excludeTrace(&fn, &trace)) continue;
 
         if (trace._num_frames == 0) {
             unknown += (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
@@ -897,11 +918,11 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     if (_state != IDLE || _engine == NULL) return;
 
     FlameGraph flamegraph(args._title, args._counter, args._width, args._height, args._minwidth, args._reverse);
-    FrameName fn(args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
-        if (trace._samples == 0) continue;
+        if (trace._samples == 0 || excludeTrace(&fn, &trace)) continue;
 
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
 
@@ -929,7 +950,7 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024] = {0};
 
@@ -943,6 +964,7 @@ void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
     for (int i = 0; i < max_traces; i++) {
         CallTraceSample* trace = traces[i];
         if (trace->_samples == 0) break;
+        if (excludeTrace(&fn, trace)) continue;
 
         snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
                  trace->_counter, _engine->units(), trace->_counter * percent,
@@ -968,7 +990,7 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FrameName fn(args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     double percent = 100.0 / _total_counter;
     char buf[1024] = {0};
 

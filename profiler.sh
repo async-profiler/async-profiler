@@ -23,6 +23,8 @@ usage() {
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
     echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
+    echo "  -I include        output only stack traces containing the specified pattern"
+    echo "  -X exclude        exclude stack traces with the specified pattern"
     echo "  -v, --version     display version string"
     echo ""
     echo "  --title string    SVG title"
@@ -155,6 +157,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         -o)
             OUTPUT="$2"
+            shift
+            ;;
+        -I|--include)
+            FORMAT="$FORMAT,include=$2"
+            shift
+            ;;
+        -X|--exclude)
+            FORMAT="$FORMAT,exclude=$2"
             shift
             ;;
         --title)

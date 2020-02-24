@@ -119,11 +119,11 @@ struct PerfEventType {
 
         for (char* c; (c = strstr(name, "::")) != NULL && buf < buf_end; name = c + 2) {
             *c = 0;
-            buf += snprintf(buf, buf_end - buf, "%d%s", strlen(name), name);
+            buf += snprintf(buf, buf_end - buf, "%d%s", (int)strlen(name), name);
         }
 
         if (buf < buf_end) {
-            snprintf(buf, buf_end - buf, "%d%sE", strlen(name), name);
+            snprintf(buf, buf_end - buf, "%d%sE", (int)strlen(name), name);
         }
         buf_end[-1] = 0;
     }

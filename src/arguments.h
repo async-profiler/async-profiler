@@ -95,6 +95,9 @@ class Arguments {
   private:
     char* _buf;
 
+    void appendToEmbeddedList(int& list, char* value);
+
+    static long long hash(const char* arg);
     static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
     static long parseUnits(const char* str);
@@ -109,6 +112,8 @@ class Arguments {
     int _framebuf;
     const char* _file;
     const char* _filter;
+    int _include;
+    int _exclude;
     bool _threads;
     char _cstack;
     int _style;
@@ -133,6 +138,8 @@ class Arguments {
         _framebuf(DEFAULT_FRAMEBUF),
         _file(NULL),
         _filter(NULL),
+        _include(0),
+        _exclude(0),
         _threads(false),
         _cstack(0),
         _style(0),
@@ -151,6 +158,8 @@ class Arguments {
     void save(Arguments& other);
 
     Error parse(const char* args);
+
+    friend class FrameName;
 };
 
 #endif // _ARGUMENTS_H

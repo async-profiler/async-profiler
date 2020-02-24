@@ -87,6 +87,8 @@ class MethodSample {
 typedef jboolean JNICALL (*NativeLoadLibraryFunc)(JNIEnv*, jobject, jstring, jboolean);
 typedef void JNICALL (*ThreadSetNativeNameFunc)(JNIEnv*, jobject, jstring);
 
+class FrameName;
+
 enum State {
     IDLE,
     RUNNING,
@@ -171,6 +173,7 @@ class Profiler {
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
     void updateNativeThreadNames();
+    bool excludeTrace(FrameName* fn, CallTraceSample* trace);
     Engine* selectEngine(const char* event_name);
     Error initJvmLibrary();
 
