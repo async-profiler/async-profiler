@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/sh
+set -eu
 
 usage() {
     echo "Usage: $0 [action] [options] <pid>"
@@ -47,8 +48,8 @@ usage() {
 
 mirror_output() {
     # Mirror output from temporary file to local terminal
-    if [[ $USE_TMP ]]; then
-        if [[ -f $FILE ]]; then
+    if [ "$USE_TMP" ]; then
+        if [ -f "$FILE" ]; then
             cat "$FILE"
             rm "$FILE"
         fi
@@ -56,21 +57,21 @@ mirror_output() {
 }
 
 check_if_terminated() {
-    if ! kill -0 $PID 2> /dev/null; then
+    if ! kill -0 "$PID" 2> /dev/null; then
         mirror_output
         exit 0
     fi
 }
 
 jattach() {
-    "$JATTACH" $PID load "$PROFILER" true "$1" > /dev/null
+    "$JATTACH" "$PID" load "$PROFILER" true "$1" > /dev/null
     RET=$?
 
     # Check if jattach failed
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            if [ "$UNAME_S" == "Darwin" ]; then
+            if [ "$UNAME_S" = "Darwin" ]; then
                 otool -L "$PROFILER"
             else
                 ldd "$PROFILER"
@@ -82,18 +83,9 @@ jattach() {
     mirror_output
 }
 
-function abspath() {
-    if [ "$UNAME_S" == "Darwin" ]; then
-        perl -MCwd -e 'print Cwd::abs_path shift' "$1"
-    else
-        readlink -f "$1"
-    fi
-}
-
-
 OPTIND=1
 UNAME_S=$(uname -s)
-SCRIPT_DIR=$(dirname "$(abspath "$0")")
+SCRIPT_DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
@@ -105,7 +97,7 @@ OUTPUT=""
 FORMAT=""
 PARAMS=""
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
     case $1 in
         -h|"-?")
             usage
@@ -126,7 +118,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -f)
             FILE="$2"
-            unset USE_TMP
+            USE_TMP=false
             shift
             ;;
         -i)
@@ -159,15 +151,12 @@ while [[ $# -gt 0 ]]; do
             ;;
         --title)
             # escape XML special characters and comma
-            TITLE=${2//&/&amp;}
-            TITLE=${TITLE//</&lt;}
-            TITLE=${TITLE//>/&gt;}
-            TITLE=${TITLE//,/&#44;}
+            TITLE="$(echo "$2" | sed 's/&/&amp/g; s/</&lt;/g; s/>/&gt;/g; s/,/&#44;/g')"
             FORMAT="$FORMAT,title=$TITLE"
             shift
             ;;
         --width|--height|--minwidth)
-            FORMAT="$FORMAT,${1:2}=$2"
+            FORMAT="$FORMAT,${1#--}=$2"
             shift
             ;;
         --reverse)
@@ -201,17 +190,24 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-if [[ "$PID" == "" && "$ACTION" != "version" ]]; then
+if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
     usage
 fi
 
 # If no -f argument is given, use temporary file to transfer output to caller terminal.
 # Let the target process create the file in case this script is run by superuser.
-if [[ $USE_TMP ]]; then
+if [ "$USE_TMP" = true ]; then
     FILE=/tmp/async-profiler.$$.$PID
-elif [[ $FILE != /* ]]; then
-    # Output file is written by the target process. Make the path absolute to avoid confusion.
-    FILE=$PWD/$FILE
+else
+    case "$FILE" in
+    /*)
+        # Path is absolute
+    ;;
+    *)
+        # Output file is written by the target process. Make the path absolute to avoid confusion.
+        FILE=$PWD/$FILE
+    ;;
+    esac
 fi
 
 case $ACTION in
@@ -229,14 +225,15 @@ case $ACTION in
         ;;
     collect)
         jattach "start,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
-        while (( DURATION-- > 0 )); do
+        while [ "$DURATION" -gt 0 ]; do
+            DURATION=$(( DURATION-1 ))
             check_if_terminated
             sleep 1
         done
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
         ;;
     version)
-        if [[ "$PID" == "" ]]; then
+        if [ "$PID" = "" ]; then
             java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
         else
             jattach "version=full,file=$FILE"
