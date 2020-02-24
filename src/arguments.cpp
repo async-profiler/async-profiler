@@ -37,6 +37,13 @@ const size_t EXTRA_BUF_SIZE = 512;
                    (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
                    (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55
 
+// Simulate switch statement over string hashes
+#define SWITCH(arg)    long long arg_hash = hash(arg); if (0)
+
+#define CASE(s)        } else if (arg_hash == HASH(s)) {
+
+#define CASE2(s1, s2)  } else if (arg_hash == HASH(s1) || arg_hash == HASH(s2)) {
+
 
 // Parses agent arguments.
 // The format of the string is:
@@ -98,142 +105,134 @@ Error Arguments::parse(const char* args) {
         char* value = strchr(arg, '=');
         if (value != NULL) *value++ = 0;
 
-        switch (hash(arg)) {
+        SWITCH (arg) {
             // Actions
-            case HASH("start"):
+            CASE("start")
                 _action = ACTION_START;
-                break;
-            case HASH("resume"):
+
+            CASE("resume")
                 _action = ACTION_RESUME;
-                break;
-            case HASH("stop"):
+
+            CASE("stop")
                 _action = ACTION_STOP;
-                break;
-            case HASH("check"):
+
+            CASE("check")
                 _action = ACTION_CHECK;
-                break;
-            case HASH("status"):
+
+            CASE("status")
                 _action = ACTION_STATUS;
-                break;
-            case HASH("list"):
+
+            CASE("list")
                 _action = ACTION_LIST;
-                break;
-            case HASH("version"):
+
+            CASE("version")
                 _action = value == NULL ? ACTION_VERSION : ACTION_FULL_VERSION;
-                break;
 
             // Output formats
-            case HASH("collapsed"):
-            case HASH("folded"):
+            CASE2("collapsed", "folded")
                 _output = OUTPUT_COLLAPSED;
                 _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
-                break;
-            case HASH("flamegraph"):
-            case HASH("svg"):
+
+            CASE2("flamegraph", "svg")
                 _output = OUTPUT_FLAMEGRAPH;
                 _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
-                break;
-            case HASH("tree"):
+
+            CASE("tree")
                 _output = OUTPUT_TREE;
                 _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
-                break;
-            case HASH("jfr"):
+
+            CASE("jfr")
                 _output = OUTPUT_JFR;
-                break;
-            case HASH("summary"):
+
+            CASE("summary")
                 _output = OUTPUT_TEXT;
-                break;
-            case HASH("traces"):
+
+            CASE("traces")
                 _output = OUTPUT_TEXT;
                 _dump_traces = value == NULL ? INT_MAX : atoi(value);
-                break;
-            case HASH("flat"):
+
+            CASE("flat")
                 _output = OUTPUT_TEXT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
-                break;
 
             // Basic options
-            case HASH("event"):
+            CASE("event")
                 if (value == NULL || value[0] == 0) {
                     return Error("event must not be empty");
                 }
                 _event = value;
-                break;
-            case HASH("interval"):
+
+            CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value)) <= 0) {
                     return Error("interval must be > 0");
                 }
-                break;
-            case HASH("jstackdepth"):
+
+            CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
                     return Error("jstackdepth must be > 0");
                 }
-                break;
-            case HASH("framebuf"):
+
+            CASE("framebuf")
                 if (value == NULL || (_framebuf = atoi(value)) <= 0) {
                     return Error("framebuf must be > 0");
                 }
-                break;
-            case HASH("file"):
+
+            CASE("file")
                 if (value == NULL || value[0] == 0) {
                     return Error("file must not be empty");
                 }
                 _file = value;
-                break;
 
             // Filters
-            case HASH("filter"):
+            CASE("filter")
                 _filter = value == NULL ? "" : value;
-                break;
-            case HASH("include"):
+
+            CASE("include")
                 if (value != NULL) appendToEmbeddedList(_include, value);
-                break;
-            case HASH("exclude"):
+
+            CASE("exclude")
                 if (value != NULL) appendToEmbeddedList(_exclude, value);
-                break;
-            case HASH("threads"):
+
+            CASE("threads")
                 _threads = true;
-                break;
-            case HASH("cstack"):
+
+            CASE("cstack")
                 _cstack = value == NULL ? 'y' : value[0];
-                break;
-            case HASH("allkernel"):
+
+            CASE("allkernel")
                 _ring = RING_KERNEL;
-                break;
-            case HASH("alluser"):
+
+            CASE("alluser")
                 _ring = RING_USER;
-                break;
 
             // Output style modifiers
-            case HASH("simple"):
+            CASE("simple")
                 _style |= STYLE_SIMPLE;
-                break;
-            case HASH("dot"):
+
+            CASE("dot")
                 _style |= STYLE_DOTTED;
-                break;
-            case HASH("sig"):
+
+            CASE("sig")
                 _style |= STYLE_SIGNATURES;
-                break;
-            case HASH("ann"):
+
+            CASE("ann")
                 _style |= STYLE_ANNOTATE;
-                break;
 
             // FlameGraph options
-            case HASH("title"):
+            CASE("title")
                 if (value != NULL) _title = value;
-                break;
-            case HASH("width"):
+
+            CASE("width")
                 if (value != NULL) _width = atoi(value);
-                break;
-            case HASH("height"):
+
+            CASE("height")
                 if (value != NULL) _height = atoi(value);
-                break;
-            case HASH("minwidth"):
+
+            CASE("minwidth")
                 if (value != NULL) _minwidth = atof(value);
-                break;
-            case HASH("reverse"):
+
+            CASE("reverse")
                 _reverse = true;
-                break;
         }
     }
 
