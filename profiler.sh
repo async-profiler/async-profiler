@@ -48,7 +48,7 @@ usage() {
 
 mirror_output() {
     # Mirror output from temporary file to local terminal
-    if [ "$USE_TMP" ]; then
+    if [ "$USE_TMP" = true ]; then
         if [ -f "$FILE" ]; then
             cat "$FILE"
             rm "$FILE"
@@ -190,7 +190,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
+if [ "${PID:-}" = "" ] && [ "$ACTION" != "version" ]; then
     usage
 fi
 
