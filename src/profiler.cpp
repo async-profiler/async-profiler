@@ -317,7 +317,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
             if (top_frame.pop(is_entry_frame)) {
-                if (addressInCode((instruction_t*)top_frame.pc())) {
+                if (getAddressType((instruction_t*)top_frame.pc()) != ADDR_UNKNOWN) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
                 top_frame.restore(pc, sp, fp);
@@ -330,7 +330,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Try to find the previous frame by looking a few top stack slots
             // for something that resembles a return address
             for (int slot = 0; slot < StackFrame::callerLookupSlots(); slot++) {
-                if (addressInCode((instruction_t*)top_frame.stackAt(slot))) {
+                if (getAddressType((instruction_t*)top_frame.stackAt(slot)) != ADDR_UNKNOWN) {
                     top_frame.pc() = top_frame.stackAt(slot);
                     top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
@@ -342,16 +342,33 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
         }
-    } else if (trace.num_frames == ticks_unknown_not_Java && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
+    } else if (trace.num_frames == ticks_unknown_not_Java) {
         VMThread* thread = VMThread::fromEnv(jni);
         if (thread != NULL) {
             uintptr_t& sp = thread->lastJavaSP();
             uintptr_t& pc = thread->lastJavaPC();
-            if (sp != 0 && pc == 0 && addressInCode(((instruction_t**)sp)[-1])) {
-                // We have the last Java frame anchor, but it is not marked as walkable
-                int result = getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
+            if (sp != 0 && pc == 0) {
+                // We have the last Java frame anchor, but it is not marked as walkable.
+                // Make it walkable here
+                uintptr_t saved_sp = sp;
+                pc = ((uintptr_t*)saved_sp)[-1];
+
+                AddressType addr_type = getAddressType((instruction_t*)pc);
+                if (addr_type != ADDR_UNKNOWN) {
+                    // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
+                    // In this case we manually replace last Java frame to the previous frame
+                    if (addr_type == ADDR_STUB && _CodeCache_find_blob != NULL) {
+                        RuntimeStub* stub = (RuntimeStub*) _CodeCache_find_blob((instruction_t*)pc);
+                        if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
+                            sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
+                            pc = ((uintptr_t*)sp)[-1];
+                        }
+                    }
+                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                }
+
+                sp = saved_sp;
                 pc = 0;
-                return result;
             }
         }
     } else if (trace.num_frames == ticks_GC_active && VM::is_hotspot() && _JvmtiEnv_GetStackTrace != NULL) {
@@ -431,33 +448,43 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
     return method != NULL;
 }
 
-bool Profiler::addressInCode(instruction_t* pc) {
+AddressType Profiler::getAddressType(instruction_t* pc) {
+    bool in_generated_code = false;
+
     // 1. Check if PC lies within JVM's compiled code cache
     if (_java_methods.contains(pc)) {
         _jit_lock.lockShared();
-        bool valid = _java_methods.find(pc) != NULL;
+        jmethodID method = _java_methods.find(pc);
         _jit_lock.unlockShared();
-        return valid;
+        if (method != NULL) {
+            return ADDR_JIT;
+        }
+        in_generated_code = true;
     }
 
     // 2. The same for VM runtime stubs
     if (_runtime_stubs.contains(pc)) {
         _stubs_lock.lockShared();
-        bool valid = _runtime_stubs.find(pc) != NULL;
+        jmethodID method = _runtime_stubs.find(pc);
         _stubs_lock.unlockShared();
-        return valid;
+        if (method != NULL) {
+            return ADDR_STUB;
+        }
+        in_generated_code = true;
     }
 
     // 3. Check if PC belongs to executable code of shared libraries
-    const int native_lib_count = _native_lib_count;
-    for (int i = 0; i < native_lib_count; i++) {
-        if (_native_libs[i]->contains(pc)) {
-            return true;
+    if (!in_generated_code) {
+        const int native_lib_count = _native_lib_count;
+        for (int i = 0; i < native_lib_count; i++) {
+            if (_native_libs[i]->contains(pc)) {
+                return ADDR_NATIVE;
+            }
         }
     }
-    
+
     // This can be some other dynamically generated code, but we don't know it. Better stay safe.
-    return false;
+    return ADDR_UNKNOWN;
 }
 
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event, ThreadState thread_state) {
@@ -708,7 +735,13 @@ Error Profiler::initJvmLibrary() {
 
     _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
         _libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
-    if (_JvmtiEnv_GetStackTrace == NULL) {
+
+    _CodeCache_find_blob = (const void* (*)(const void*)) _libjvm->findSymbol("_ZN9CodeCache16find_blob_unsafeEPv");
+    if (_CodeCache_find_blob == NULL) {
+        _CodeCache_find_blob = (const void* (*)(const void*)) _libjvm->findSymbol("_ZN9CodeCache9find_blobEPv");
+    }
+
+    if (_CodeCache_find_blob == NULL) {
         fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
     }
 

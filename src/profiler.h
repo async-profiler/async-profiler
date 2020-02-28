@@ -47,6 +47,14 @@ static inline int cmp64(u64 a, u64 b) {
 }
 
 
+enum AddressType {
+    ADDR_UNKNOWN,
+    ADDR_JIT,
+    ADDR_STUB,
+    ADDR_NATIVE
+};
+
+
 union CallTraceBuffer {
     ASGCT_CallFrame _asgct_frames[1];
     jvmtiFrameInfo _jvmti_frames[1];
@@ -150,6 +158,8 @@ class Profiler {
     jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
                                           jvmtiFrameInfo* frame_buffer, jint* count_ptr);
 
+    const void* (*_CodeCache_find_blob)(const void* address);
+
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
@@ -163,7 +173,7 @@ class Profiler {
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, jmethodID event);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
-    bool addressInCode(instruction_t* pc);
+    AddressType getAddressType(instruction_t* pc);
     u64 hashCallTrace(int num_frames, ASGCT_CallFrame* frames);
     int storeCallTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void copyToFrameBuffer(int num_frames, ASGCT_CallFrame* frames, CallTraceSample* trace);
@@ -196,7 +206,8 @@ class Profiler {
         _libjvm(NULL),
         _native_lib_count(0),
         _original_NativeLibrary_load(NULL),
-        _JvmtiEnv_GetStackTrace(NULL) {
+        _JvmtiEnv_GetStackTrace(NULL),
+        _CodeCache_find_blob(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;

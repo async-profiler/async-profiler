@@ -37,6 +37,7 @@ class VMStructs {
     static int _osthread_id_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
+    static int _frame_size_offset;
     static bool _has_perm_gen;
 
     const char* at(int offset) {
@@ -128,6 +129,13 @@ class VMThread : VMStructs {
 
     uintptr_t& lastJavaPC() {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
+    }
+};
+
+class RuntimeStub : VMStructs {
+  public:
+    int frameSize() {
+        return *(int*) at(_frame_size_offset);
     }
 };
 
