@@ -87,10 +87,10 @@ void VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
     _libjvm = getLibraryHandle("libjvm.so");
-    _libjava = getLibraryHandle("libjava.so");
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
 
     if (attach) {
+        _libjava = getLibraryHandle("libjava.so");
         loadAllMethodIDs(_jvmti);
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
@@ -128,6 +128,7 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti) {
 }
 
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+    _libjava = getLibraryHandle("libjava.so");
     loadAllMethodIDs(jvmti);
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Profiler::_instance.run(_agent_args);
