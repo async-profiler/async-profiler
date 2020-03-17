@@ -14,19 +14,13 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Stable release (1.6):
+Latest release (1.7):
 
- - Linux x64 (glibc): [async-profiler-1.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-1.6-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64-musl.tar.gz)
- - Linux ARM: [async-profiler-1.6-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.6-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-macos-x64.tar.gz)
-
-Development version (1.7-ea3):
-
- - Linux x64 (glibc): [async-profiler-1.7-ea3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.7-ea3-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-x86.tar.gz)
- - Linux ARM: [async-profiler-1.7-ea3-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.7-ea3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-macos-x64.tar.gz)
+ - Linux x64 (glibc): [async-profiler-1.7-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-1.7-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x86.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.7-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64-musl.tar.gz)
+ - Linux ARM: [async-profiler-1.7-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-arm.tar.gz)
+ - macOS x64: [async-profiler-1.7-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
