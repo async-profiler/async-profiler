@@ -512,3 +512,10 @@ This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/184
 ```
 This message in the output means there was not enough space to store all call traces.
 Consider increasing frame buffer size with `-b` option.
+
+```
+Output file is not created
+```
+Output file is written by the target JVM process, not by the profiler script.
+If the file cannot be opened (e.g. due to lack of permissions), the error message
+is printed to `stderr` of the target process (JVM console).
