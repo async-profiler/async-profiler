@@ -342,7 +342,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
         }
-    } else if (trace.num_frames == ticks_unknown_not_Java) {
+    } else if (trace.num_frames == ticks_unknown_not_Java && VM::is_hotspot()) {
         VMThread* thread = VMThread::fromEnv(jni);
         if (thread != NULL) {
             uintptr_t& sp = thread->lastJavaSP();
