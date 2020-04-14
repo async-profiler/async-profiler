@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include "threadFilter.h"
@@ -36,7 +37,31 @@ ThreadFilter::~ThreadFilter() {
 }
 
 void ThreadFilter::init(const char* filter) {
-    _enabled = filter != NULL;
+    if (filter == NULL) {
+        _enabled = false;
+        return;
+    }
+
+    char* end;
+    do {
+        int id = strtol(filter, &end, 0);
+        if (id <= 0) {
+            break;
+        }
+
+        if (*end == '-') {
+            int to = strtol(end + 1, &end, 0);
+            while (id <= to) {
+                add(id++);
+            }
+        } else {
+            add(id);
+        }
+
+        filter = end + 1;
+    } while (*end);
+
+    _enabled = true;
 }
 
 void ThreadFilter::clear() {
