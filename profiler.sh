@@ -167,6 +167,10 @@ while [[ $# -gt 0 ]]; do
             FORMAT="$FORMAT,exclude=$2"
             shift
             ;;
+        --filter)
+            FORMAT="$FORMAT,filter=${2//,/;}"
+            shift
+            ;;
         --title)
             # escape XML special characters and comma
             TITLE=${2//&/&amp;}
