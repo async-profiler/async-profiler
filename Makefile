@@ -4,14 +4,15 @@ JAVAC_RELEASE_VERSION=6
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
 PROFILER_JAR=async-profiler.jar
-CC=gcc
 CFLAGS=-O2
-CPP=g++
-CPPFLAGS=-O2
+CXXFLAGS=-O2
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+SOURCES := $(wildcard src/*.cpp)
+HEADERS := $(wildcard src/*.h)
+JAVA_SOURCES := $(wildcard src/java/one/profiler/*.java)
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -19,7 +20,7 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS), Darwin)
-  CPPFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   RELEASE_TAG:=$(PROFILER_VERSION)-macos-x64
 else
@@ -44,17 +45,17 @@ async-profiler-$(RELEASE_TAG).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER): src/*.cpp src/*.h
-	$(CPP) $(CPPFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ src/*.cpp $(LIBS)
+build/$(LIB_PROFILER): $(SOURCES) $(HEADERS)
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 
 build/$(JATTACH): src/jattach/jattach.c
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(JATTACH_VERSION)\" -o $@ $^
 
-build/$(PROFILER_JAR): src/java/one/profiler/*.java
+build/$(PROFILER_JAR): $(JAVA_SOURCES)
 	mkdir -p build/classes
 	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/classes $^
 	$(JAR) cvf $@ -C build/classes .
-	rm -rf build/classes
+	$(RM) -r build/classes
 
 test: all
 	test/smoke-test.sh
@@ -64,4 +65,4 @@ test: all
 	echo "All tests passed"
 
 clean:
-	rm -rf build
+	$(RM) -r build
