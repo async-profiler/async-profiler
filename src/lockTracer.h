@@ -44,8 +44,8 @@ class LockTracer : public Engine {
         return "ns";
     }
 
-    bool requireNativeTrace() {
-        return false;
+    CStack cstack() {
+        return CSTACK_NO;
     }
 
     Error start(Arguments& args);

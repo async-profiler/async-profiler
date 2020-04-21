@@ -22,12 +22,16 @@ Error Engine::check(Arguments& args) {
     return Error::OK;
 }
 
-bool Engine::requireNativeTrace() {
-    return true;
+CStack Engine::cstack() {
+    return CSTACK_FP;
 }
 
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                            CodeCache* java_methods, CodeCache* runtime_stubs) {
+    if (ucontext == NULL) {
+        return 0;
+    }
+
     StackFrame frame(ucontext);
     const void* pc = (const void*)frame.pc();
     uintptr_t fp = frame.fp();

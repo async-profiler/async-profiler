@@ -127,11 +127,11 @@ class Profiler {
     ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     int _max_stack_depth;
+    CStack _cstack;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
     bool _add_thread_frame;
     bool _update_thread_names;
-    bool _cstack;
     volatile bool _thread_events_state;
 
     SpinLock _jit_lock;

@@ -38,8 +38,8 @@ class Instrument : public Engine {
         return "calls";
     }
 
-    bool requireNativeTrace() {
-        return false;
+    CStack cstack() {
+        return CSTACK_NO;
     }
 
     Error check(Arguments& args);

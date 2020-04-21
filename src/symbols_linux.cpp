@@ -329,7 +329,8 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
         if (sym->st_name == 0) {
             strcpy(name, "@plt");
         } else {
-            snprintf(name, sizeof(name), "%s@plt", strings + sym->st_name);
+            const char* sym_name = strings + sym->st_name;
+            snprintf(name, sizeof(name), "%s%cplt", sym_name, sym_name[0] == '_' && sym_name[1] == 'Z' ? '.' : '@');
             name[sizeof(name) - 1] = 0;
         }
 

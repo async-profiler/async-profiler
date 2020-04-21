@@ -33,7 +33,7 @@ class Engine {
     virtual void onThreadStart(int tid) {}
     virtual void onThreadEnd(int tid) {}
 
-    virtual bool requireNativeTrace();
+    virtual CStack cstack();
     virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                                CodeCache* java_methods, CodeCache* runtime_stubs);
 };

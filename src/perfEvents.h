@@ -31,6 +31,7 @@ class PerfEvents : public Engine {
     static PerfEventType* _event_type;
     static long _interval;
     static Ring _ring;
+    static CStack _cstack;
     static bool _print_extended_warning;
 
     static bool createForThread(int tid);

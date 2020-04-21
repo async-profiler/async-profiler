@@ -69,8 +69,8 @@ class AllocTracer : public Engine {
         return "bytes";
     }
 
-    bool requireNativeTrace() {
-        return false;
+    CStack cstack() {
+        return CSTACK_NO;
     }
 
     Error check(Arguments& args);

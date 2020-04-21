@@ -259,12 +259,22 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, b
         }
     }
 
+    int depth = 0;
+    jmethodID prev_method = NULL;
+
     for (int i = 0; i < native_frames; i++) {
-        frames[i].bci = BCI_NATIVE_FRAME;
-        frames[i].method_id = (jmethodID)findNativeMethod(native_callchain[i]);
+        jmethodID current_method = (jmethodID)findNativeMethod(native_callchain[i]);
+        if (current_method == prev_method && _cstack == CSTACK_LBR) {
+            // Skip duplicates in LBR stack, where branch_stack[N].from == branch_stack[N+1].to
+            prev_method = NULL;
+        } else {
+            frames[depth].bci = BCI_NATIVE_FRAME;
+            frames[depth].method_id = prev_method = current_method;
+            depth++;
+        }
     }
 
-    return native_frames;
+    return depth;
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
@@ -306,7 +316,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             bool is_native_frame = trace.frames->bci == BCI_NATIVE_FRAME;
             is_entry_frame = is_native_frame && strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
 
-            if (!is_native_frame || _cstack) {
+            if (!is_native_frame || _cstack != CSTACK_NO) {
                 trace.frames++;
                 max_depth--;
             }
@@ -511,7 +521,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     if (event != NULL) {
         num_frames = makeEventFrame(frames, event_type, event);
     }
-    if (_cstack) {
+    if (_cstack != CSTACK_NO) {
         num_frames += getNativeTrace(ucontext, frames + num_frames, tid, &need_java_trace);
     }
 
@@ -814,15 +824,18 @@ Error Profiler::start(Arguments& args, bool reset) {
     _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
     _thread_filter.init(args._filter);
 
+    _engine = selectEngine(args._event);
+    _cstack = args._cstack == CSTACK_DEFAULT ? _engine->cstack() : args._cstack;
+    if (_cstack == CSTACK_LBR && _engine != &perf_events) {
+        return Error("Branch stack is supported only with PMU events");
+    }
+
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args._file);
         if (error) {
             return error;
         }
     }
-
-    _engine = selectEngine(args._event);
-    _cstack = args._cstack ? args._cstack == 'y' : _engine->requireNativeTrace();
 
     error = _engine->start(args);
     if (error) {

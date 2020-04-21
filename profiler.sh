@@ -35,8 +35,7 @@ usage() {
     echo ""
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
-    echo "  --cstack          collect C stack when profiling Java-level events"
-    echo "  --no-cstack       never collect C stack"
+    echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -193,11 +192,9 @@ while [[ $# -gt 0 ]]; do
         --all-user)
             PARAMS="$PARAMS,alluser"
             ;;
-        --cstack)
-            PARAMS="$PARAMS,cstack=y"
-            ;;
-        --no-cstack)
-            PARAMS="$PARAMS,cstack=n"
+        --cstack|--call-graph)
+            PARAMS="$PARAMS,cstack=$2"
+            shift
             ;;
         [0-9]*)
             PID="$1"

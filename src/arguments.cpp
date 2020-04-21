@@ -71,7 +71,8 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     file=FILENAME   - output file name for dumping
 //     filter=FILTER   - thread filter
 //     threads         - profile different threads separately
-//     cstack=y|n      - collect C stack frames in addition to Java stack
+//     cstack=MODE     - how to collect C stack frames in addition to Java stack
+//                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
 //     allkernel       - include only kernel-mode events
 //     alluser         - include only user-mode events
 //     simple          - simple class names instead of FQN
@@ -196,14 +197,22 @@ Error Arguments::parse(const char* args) {
             CASE("threads")
                 _threads = true;
 
-            CASE("cstack")
-                _cstack = value == NULL ? 'y' : value[0];
-
             CASE("allkernel")
                 _ring = RING_KERNEL;
 
             CASE("alluser")
                 _ring = RING_USER;
+
+            CASE("cstack")
+                if (value != NULL) {
+                    if (value[0] == 'n') {
+                        _cstack = CSTACK_NO;
+                    } else if (value[0] == 'l') {
+                        _cstack = CSTACK_LBR;
+                    } else {
+                        _cstack = CSTACK_FP;
+                    }
+                }
 
             // Output style modifiers
             CASE("simple")
