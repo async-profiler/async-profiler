@@ -64,8 +64,10 @@ check_if_terminated() {
 }
 
 jattach() {
+    set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1" > /dev/null
     RET=$?
+    set -e
 
     # Check if jattach failed
     if [ $RET -ne 0 ]; then
@@ -151,7 +153,7 @@ while [ $# -gt 0 ]; do
             ;;
         --title)
             # escape XML special characters and comma
-            TITLE="$(echo "$2" | sed 's/&/&amp/g; s/</&lt;/g; s/>/&gt;/g; s/,/&#44;/g')"
+            TITLE="$(echo "$2" | sed 's/&/&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/,/\&#44;/g')"
             FORMAT="$FORMAT,title=$TITLE"
             shift
             ;;
@@ -190,7 +192,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ "${PID:-}" = "" ] && [ "$ACTION" != "version" ]; then
+PID=${PID:-}
+
+if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
     usage
 fi
 
