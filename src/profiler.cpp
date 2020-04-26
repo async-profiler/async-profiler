@@ -937,11 +937,13 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
     FrameName fn(args, args._style, _thread_names_lock, _thread_names);
     u64 unknown = 0;
+    u64 stored = 0;
 
     for (int i = 0; i < MAX_CALLTRACES; i++) {
         CallTraceSample& trace = _traces[i];
         if (trace._samples == 0 || excludeTrace(&fn, &trace)) continue;
 
+        stored += trace._samples;
         if (trace._num_frames == 0) {
             unknown += (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
             continue;
@@ -953,9 +955,14 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
         }
         out << (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter) << "\n";
     }
-
+    // if we report thread names first "frame" will be parsed as thread id and the second will be shown in "all threads merged" view
+    // if we don't report thread names two "frames" will be shown instead of one -- not a big deal
     if (unknown != 0) {
-        out << "[frame_buffer_overflow] " << unknown << "\n";
+        out << "[frame_buffer_overflow];[frame_buffer_overflow] " << unknown << "\n";
+    }
+    u64 lost_samples = _total_samples - stored;
+    if (lost_samples > 0) {
+      out << "[call_traces_storage_overflow];[call_traces_storage_overflow] " << lost_samples << "\n";
     }
 }
 
