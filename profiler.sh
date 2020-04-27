@@ -24,6 +24,8 @@ usage() {
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
     echo "  -o fmt            output format: summary|traces|flat|collapsed|svg|tree|jfr"
+    echo "  -I include        output only stack traces containing the specified pattern"
+    echo "  -X exclude        exclude stack traces with the specified pattern"
     echo "  -v, --version     display version string"
     echo ""
     echo "  --title string    SVG title"
@@ -34,8 +36,7 @@ usage() {
     echo ""
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
-    echo "  --cstack          collect C stack when profiling Java-level events"
-    echo "  --no-cstack       never collect C stack"
+    echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -151,6 +152,18 @@ while [ $# -gt 0 ]; do
             OUTPUT="$2"
             shift
             ;;
+        -I|--include)
+            FORMAT="$FORMAT,include=$2"
+            shift
+            ;;
+        -X|--exclude)
+            FORMAT="$FORMAT,exclude=$2"
+            shift
+            ;;
+        --filter)
+            FORMAT="$FORMAT,filter=${2//,/;}"
+            shift
+            ;;
         --title)
             # escape XML special characters and comma
             TITLE="$(echo "$2" | sed 's/&/&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/,/\&#44;/g')"
@@ -170,11 +183,9 @@ while [ $# -gt 0 ]; do
         --all-user)
             PARAMS="$PARAMS,alluser"
             ;;
-        --cstack)
-            PARAMS="$PARAMS,cstack=y"
-            ;;
-        --no-cstack)
-            PARAMS="$PARAMS,cstack=n"
+        --cstack|--call-graph)
+            PARAMS="$PARAMS,cstack=$2"
+            shift
             ;;
         [0-9]*)
             PID="$1"

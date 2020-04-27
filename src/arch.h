@@ -36,7 +36,11 @@ static inline int atomicInc(volatile int& var, int increment = 1) {
 
 typedef unsigned char instruction_t;
 const instruction_t BREAKPOINT = 0xcc;
+
 const int SYSCALL_SIZE = 2;
+const int PLT_HEADER_SIZE = 16;
+const int PLT_ENTRY_SIZE = 16;
+const int PERF_REG_PC = 8;  // PERF_REG_X86_IP
 
 #define spinPause()       asm volatile("pause")
 #define rmb()             asm volatile("lfence" : : : "memory")
@@ -46,7 +50,11 @@ const int SYSCALL_SIZE = 2;
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xe7f001f0;
+
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int PLT_HEADER_SIZE = 20;
+const int PLT_ENTRY_SIZE = 12;
+const int PERF_REG_PC = 15;  // PERF_REG_ARM_PC
 
 #define spinPause()       asm volatile("yield")
 #define rmb()             asm volatile("dmb ish" : : : "memory")
@@ -56,7 +64,11 @@ const int SYSCALL_SIZE = sizeof(instruction_t);
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xd4200000;
+
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int PLT_HEADER_SIZE = 32;
+const int PLT_ENTRY_SIZE = 16;
+const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
 
 #define spinPause()       asm volatile("yield")
 #define rmb()             asm volatile("dmb ish" : : : "memory")

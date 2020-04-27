@@ -14,19 +14,13 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Stable release (1.6):
+Latest release (1.7):
 
- - Linux x64 (glibc): [async-profiler-1.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-1.6-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-x64-musl.tar.gz)
- - Linux ARM: [async-profiler-1.6-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.6-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.6/async-profiler-1.6-macos-x64.tar.gz)
-
-Development version (1.7-ea3):
-
- - Linux x64 (glibc): [async-profiler-1.7-ea3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.7-ea3-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-x86.tar.gz)
- - Linux ARM: [async-profiler-1.7-ea3-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.7-ea3-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7-ea3/async-profiler-1.7-ea3-macos-x64.tar.gz)
+ - Linux x64 (glibc): [async-profiler-1.7-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-1.7-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x86.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.7-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64-musl.tar.gz)
+ - Linux ARM: [async-profiler-1.7-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-arm.tar.gz)
+ - macOS x64: [async-profiler-1.7-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
@@ -342,6 +336,13 @@ Example: `./profiler.sh -t 8983`
   `summary`, `traces` and `flat` can be combined together.  
   The default format is `summary,traces=200,flat=200`.
 
+* `-I include`, `-X exclude` - filter stack traces by the given pattern(s).
+`-I` defines the name pattern that *must* be present in the stack traces,
+while `-X` is the pattern that *must not* occur in any of stack traces in the output.
+`-I` and `-X` options can be specified multiple times. A pattern may begin or end with
+a star `*` that denotes any (possibly empty) sequence of characters.  
+Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
+
 * `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
 Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
 
@@ -354,8 +355,9 @@ Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 is restricted by `perf_event_paranoid` settings.  
 `--all-kernel` is its counterpart option for including only kernel-mode events.
 
-* `--cstack` - always collect C stack (i.e. native call trace) along with Java call trace.  
-  `--no-cstack` - never collect C stack, leave only Java frames.
+* `--cstack MODE` - how to traverse native frames (C stack). Possible modes are
+`fp` (Frame Pointer), `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
+and `no` (do not collect C stack).
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
 Java-level events like `alloc` and `lock` collect only Java stack.
@@ -511,3 +513,10 @@ This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/184
 ```
 This message in the output means there was not enough space to store all call traces.
 Consider increasing frame buffer size with `-b` option.
+
+```
+Output file is not created
+```
+Output file is written by the target JVM process, not by the profiler script.
+If the file cannot be opened (e.g. due to lack of permissions), the error message
+is printed to `stderr` of the target process (JVM console).

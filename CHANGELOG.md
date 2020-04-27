@@ -1,9 +1,10 @@
 # Changelog
 
-## [1.7-ea3] - In development
+## [1.7] - 2020-03-17
 
 ### Features
  - Profile invocations of arbitrary Java methods
+ - Filter stack traces by the given name pattern
  - Java API to filter monitored threads
  - `--cstack`/`--no-cstack` option
 

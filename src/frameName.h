@@ -20,7 +20,9 @@
 #include <jvmti.h>
 #include <locale.h>
 #include <map>
+#include <vector>
 #include <string>
+#include "arguments.h"
 #include "mutex.h"
 #include "vmEntry.h"
 
@@ -32,25 +34,60 @@
 typedef std::map<jmethodID, std::string> JMethodCache;
 typedef std::map<int, std::string> ThreadMap;
 
+
+enum MatchType {
+  MATCH_EQUALS,
+  MATCH_CONTAINS,
+  MATCH_STARTS_WITH,
+  MATCH_ENDS_WITH
+};
+
+
+class Matcher {
+  private:
+    MatchType _type;
+    char* _pattern;
+    int _len;
+
+  public:
+    Matcher(const char* pattern);
+    ~Matcher();
+
+    Matcher(const Matcher& m);
+    Matcher& operator=(const Matcher& m);
+
+    bool matches(const char* s);
+};
+
+
 class FrameName {
   private:
     JMethodCache _cache;
+    std::vector<Matcher> _include;
+    std::vector<Matcher> _exclude;
     char _buf[800];  // must be large enough for class name + method name + method signature
     int _style;
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
     locale_t _saved_locale;
 
+    void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     char* truncate(char* name, int max_length);
     const char* cppDemangle(const char* name);
     char* javaMethodName(jmethodID method);
     char* javaClassName(const char* symbol, int length, int style);
 
   public:
-    FrameName(int style, Mutex& thread_names_lock, ThreadMap& thread_names);
+    FrameName(Arguments& args, int style, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();
 
-    const char* name(ASGCT_CallFrame& frame);
+    const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
+
+    bool hasIncludeList() { return !_include.empty(); }
+    bool hasExcludeList() { return !_exclude.empty(); }
+
+    bool include(const char* frame_name);
+    bool exclude(const char* frame_name);
 };
 
 #endif // _FRAMENAME_H

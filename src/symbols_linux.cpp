@@ -31,6 +31,7 @@
 #include <iostream>
 #include <string>
 #include "symbols.h"
+#include "arch.h"
 
 
 class SymbolDesc {
@@ -89,12 +90,16 @@ typedef Elf64_Ehdr ElfHeader;
 typedef Elf64_Shdr ElfSection;
 typedef Elf64_Nhdr ElfNote;
 typedef Elf64_Sym  ElfSymbol;
+typedef Elf64_Rel  ElfRelocation;
+#define ELF_R_SYM  ELF64_R_SYM
 #else
 const unsigned char ELFCLASS_SUPPORTED = ELFCLASS32;
 typedef Elf32_Ehdr ElfHeader;
 typedef Elf32_Shdr ElfSection;
 typedef Elf32_Nhdr ElfNote;
 typedef Elf32_Sym  ElfSymbol;
+typedef Elf32_Rel  ElfRelocation;
+#define ELF_R_SYM  ELF32_R_SYM
 #endif // __LP64__
 
 
@@ -135,6 +140,7 @@ class ElfParser {
     bool loadSymbolsUsingBuildId();
     bool loadSymbolsUsingDebugLink();
     void loadSymbolTable(ElfSection* symtab);
+    void addRelocationSymbols(ElfSection* reltab, const char* plt);
 
   public:
     static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
@@ -196,13 +202,13 @@ void ElfParser::loadSymbols(bool use_debug) {
     ElfSection* section = findSection(SHT_SYMTAB, ".symtab");
     if (section != NULL) {
         loadSymbolTable(section);
-        return;
+        goto loaded;
     }
 
     // Try to load symbols from an external debuginfo library
     if (use_debug) {
         if (loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink()) {
-            return;
+            goto loaded;
         }
     }
 
@@ -210,6 +216,19 @@ void ElfParser::loadSymbols(bool use_debug) {
     section = findSection(SHT_DYNSYM, ".dynsym");
     if (section != NULL) {
         loadSymbolTable(section);
+    }
+
+loaded:
+    // Synthesize names for PLT stubs
+    if (use_debug) {
+        ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
+        ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
+        if (reltab == NULL) {
+            reltab = findSection(SHT_REL, ".rel.plt");
+        }
+        if (plt != NULL && reltab != NULL) {
+            addRelocationSymbols(reltab, _base + plt->sh_offset + PLT_HEADER_SIZE);
+        }
     }
 }
 
@@ -290,6 +309,33 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
         if (sym->st_name != 0 && sym->st_value != 0) {
             _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
         }
+    }
+}
+
+void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
+    ElfSection* symtab = section(reltab->sh_link);
+    const char* symbols = at(symtab);
+
+    ElfSection* strtab = section(symtab->sh_link);
+    const char* strings = at(strtab);
+
+    const char* relocations = at(reltab);
+    const char* relocations_end = relocations + reltab->sh_size;
+    for (; relocations < relocations_end; relocations += reltab->sh_entsize) {
+        ElfRelocation* r = (ElfRelocation*)relocations;
+        ElfSymbol* sym = (ElfSymbol*)(symbols + ELF_R_SYM(r->r_info) * symtab->sh_entsize);
+
+        char name[256];
+        if (sym->st_name == 0) {
+            strcpy(name, "@plt");
+        } else {
+            const char* sym_name = strings + sym->st_name;
+            snprintf(name, sizeof(name), "%s%cplt", sym_name, sym_name[0] == '_' && sym_name[1] == 'Z' ? '.' : '@');
+            name[sizeof(name) - 1] = 0;
+        }
+
+        _cc->add(plt, PLT_ENTRY_SIZE, name);
+        plt += PLT_ENTRY_SIZE;
     }
 }
 

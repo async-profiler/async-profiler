@@ -18,7 +18,6 @@
 #define _SYMBOLS_H
 
 #include <set>
-#include "arch.h"
 #include "codeCache.h"
 #include "mutex.h"
 
