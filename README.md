@@ -1,5 +1,8 @@
 # async-profiler
 
+This is a fork of the upstream project https://github.com/jvm-profiling-tools/async-profiler.
+This fork aims to integrate changes and improvements for the specific needs of SAP customers.
+
 This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).
 It features HotSpot-specific APIs to collect stack traces
@@ -11,18 +14,6 @@ async-profiler can trace the following kinds of events:
  - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
  - Allocations in Java Heap
  - Contented lock attempts, including both Java object monitors and ReentrantLocks
-
-## Download
-
-Latest release (1.7):
-
- - Linux x64 (glibc): [async-profiler-1.7-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.7-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x86.tar.gz)
- - Linux x64 (musl): [async-profiler-1.7-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-x64-musl.tar.gz)
- - Linux ARM: [async-profiler-1.7-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.7-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7/async-profiler-1.7-macos-x64.tar.gz)
-
-[Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
 ## Supported platforms
 
