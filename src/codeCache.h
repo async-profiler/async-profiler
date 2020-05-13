@@ -32,6 +32,8 @@ class CodeBlob {
     const void* _end;
     jmethodID _method;
 
+    bool valid();
+
     static int comparator(const void* c1, const void* c2) {
         CodeBlob* cb1 = (CodeBlob*)c1;
         CodeBlob* cb2 = (CodeBlob*)c2;
