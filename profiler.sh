@@ -196,6 +196,10 @@ while [[ $# -gt 0 ]]; do
             PARAMS="$PARAMS,cstack=$2"
             shift
             ;;
+        --safe-mode)
+            PARAMS="$PARAMS,safemode=$2"
+            shift
+            ;;
         [0-9]*)
             PID="$1"
             ;;

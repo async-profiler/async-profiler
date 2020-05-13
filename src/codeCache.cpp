@@ -25,7 +25,7 @@ void CodeCache::expand() {
 
     int live = 0;
     for (int i = 0; i < _count; i++) {
-        if (_blobs[i].valid()) {
+        if (_blobs[i]._method != NULL) {
             new_blobs[live++] = _blobs[i];
         }
     }
@@ -65,7 +65,7 @@ void CodeCache::remove(const void* start, jmethodID method) {
 jmethodID CodeCache::find(const void* address) {
     for (int i = 0; i < _count; i++) {
         CodeBlob* cb = _blobs + i;
-        if (address >= cb->_start && address < cb->_end && cb->valid()) {
+        if (address >= cb->_start && address < cb->_end && cb->_method != NULL) {
             return _blobs[i]._method;
         }
     }
@@ -145,8 +145,4 @@ const void* NativeCodeCache::findSymbolByPrefix(const char* prefix) {
         }
     }
     return NULL;
-}
-
-bool CodeBlob::valid() {
-    return _method != NULL;
 }

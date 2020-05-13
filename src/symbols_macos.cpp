@@ -27,6 +27,7 @@
 #include <mach-o/fat.h>
 #include <mach-o/nlist.h>
 #include "symbols.h"
+#include "arch.h"
 
 
 class MachOParser {

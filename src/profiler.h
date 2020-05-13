@@ -127,6 +127,7 @@ class Profiler {
     ASGCT_CallFrame* _frame_buffer;
     int _frame_buffer_size;
     int _max_stack_depth;
+    int _safe_mode;
     CStack _cstack;
     volatile int _frame_buffer_index;
     bool _frame_buffer_overflow;
@@ -198,6 +199,7 @@ class Profiler {
         _frame_buffer(NULL),
         _frame_buffer_size(0),
         _max_stack_depth(0),
+        _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
         _jit_lock(),
         _stubs_lock(),

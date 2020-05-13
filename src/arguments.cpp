@@ -68,6 +68,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N   - maximum Java stack depth (default: 2048)
 //     framebuf=N      - size of the buffer for stack frames (default: 1'000'000)
+//     safemode=BITS   - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME   - output file name for dumping
 //     filter=FILTER   - thread filter
 //     threads         - profile different threads separately
@@ -177,6 +178,9 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || (_framebuf = atoi(value)) <= 0) {
                     return Error("framebuf must be > 0");
                 }
+
+            CASE("safemode")
+                _safe_mode = value == NULL ? INT_MAX : atoi(value);
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {
