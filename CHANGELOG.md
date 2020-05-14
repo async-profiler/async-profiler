@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.7.1] - 2020-05-14
+
+### Features
+ - LBR call stack support (available since Haswell)
+
+### Improvements
+ - `--filter` to profile only specified thread IDs in wall-clock mode
+ - `--safe-mode` to disable selected stack recovery techniques
+
 ## [1.7] - 2020-03-17
 
 ### Features
