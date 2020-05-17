@@ -216,7 +216,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/b7e9e6b955210784d5dc1d1839bb0febab1b712b/src/arguments.cpp#L34).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.7.1/src/arguments.cpp#L52).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
