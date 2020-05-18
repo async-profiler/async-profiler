@@ -162,9 +162,7 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || value[0] == 0) {
                     return Error("event must not be empty");
                 }
-                _walk_stack_frame = (strcmp(value, "stackframe") == 0);
-                if (!_walk_stack_frame)
-                    _event = value;
+                _event = value;
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value)) <= 0) {
@@ -248,6 +246,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
+
+            CASE("ucontext")
+                _walk_stack_ucontext = true;
         }
     }
 
