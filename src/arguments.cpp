@@ -162,7 +162,9 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || value[0] == 0) {
                     return Error("event must not be empty");
                 }
-                _event = value;
+                _walk_stack_frame = (strcmp(value, "stackframe") == 0);
+                if (!_walk_stack_frame)
+                    _event = value;
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value)) <= 0) {

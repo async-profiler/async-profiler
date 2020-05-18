@@ -134,6 +134,7 @@ class Arguments {
     int _height;
     double _minwidth;
     bool _reverse;
+    bool _walk_stack_frame;
 
     Arguments() :
         _buf(NULL),
@@ -159,7 +160,8 @@ class Arguments {
         _width(1200),
         _height(16),
         _minwidth(0.25),
-        _reverse(false) {
+        _reverse(false),
+        _walk_stack_frame(false) {
     }
 
     ~Arguments();
