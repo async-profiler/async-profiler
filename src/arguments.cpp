@@ -87,6 +87,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     height=PX       - FlameGraph frame height
 //     minwidth=PX     - FlameGraph minimum frame width
 //     reverse         - generate stack-reversed FlameGraph / Call tree
+//     ucontext        - collect C stack frames using ucontext
 //
 // It is possible to specify multiple dump options at the same time
 
