@@ -23,6 +23,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,7 +92,7 @@ public class JfrReader implements Closeable {
             }
         }
 
-        samples.sort((s1, s2) -> Long.compare(s1.time, s2.time));
+        Collections.sort(samples);
     }
 
     private void readCheckpoint(int checkpointOffset) {

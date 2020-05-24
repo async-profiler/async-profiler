@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Converts .jfr output produced by async-profiler to nflxprofile format
@@ -59,13 +60,13 @@ public class jfr2nflx {
         Proto nodes = new Proto(10000);
         Proto node = new Proto(10000);
 
-        jfr.stackTraces.forEach((stackTraceId, frames) -> {
+        for (Map.Entry<Integer, Frame[]> entry : jfr.stackTraces.entrySet()) {
             profile.field(5, nodes
-                    .field(1, stackTraceId)
-                    .field(2, packNode(node, frames)));
+                    .field(1, entry.getKey())
+                    .field(2, packNode(node, entry.getValue())));
             nodes.reset();
             node.reset();
-        });
+        }
 
         out.write(profile.buffer(), 0, profile.size());
 

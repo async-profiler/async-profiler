@@ -16,7 +16,7 @@
 
 package one.jfr;
 
-public class Sample {
+public class Sample implements Comparable<Sample> {
     public final long time;
     public final int tid;
     public final int stackTraceId;
@@ -27,5 +27,10 @@ public class Sample {
         this.tid = tid;
         this.stackTraceId = stackTraceId;
         this.threadState = threadState;
+    }
+
+    @Override
+    public int compareTo(Sample o) {
+        return Long.compare(time, o.time);
     }
 }

@@ -62,7 +62,7 @@ build/$(API_JAR): $(API_SOURCES)
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
-	$(JAVAC) -source 8 -target 8 -d build/converter $(CONVERTER_SOURCES)
+	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
 	$(JAR) cvfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
 
