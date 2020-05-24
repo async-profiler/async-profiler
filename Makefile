@@ -3,7 +3,8 @@ JATTACH_VERSION=1.5
 JAVAC_RELEASE_VERSION=6
 LIB_PROFILER=libasyncProfiler.so
 JATTACH=jattach
-PROFILER_JAR=async-profiler.jar
+API_JAR=async-profiler.jar
+CONVERTER_JAR=converter.jar
 CFLAGS=-O2
 CXXFLAGS=-O2
 INCLUDES=-I$(JAVA_HOME)/include
@@ -12,7 +13,8 @@ JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h)
-JAVA_SOURCES := $(wildcard src/java/one/profiler/*.java)
+API_SOURCES := $(wildcard src/api/one/profiler/*.java)
+CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -32,12 +34,13 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(PROFILER_JAR)
+all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR)
 
 release: build async-profiler-$(RELEASE_TAG).tar.gz
 
 async-profiler-$(RELEASE_TAG).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
-                                      build/$(PROFILER_JAR) profiler.sh LICENSE NOTICE *.md
+                                      build/$(API_JAR) build/$(CONVERTER_JAR) \
+                                      profiler.sh LICENSE NOTICE *.md
 	chmod 755 build profiler.sh
 	chmod 644 LICENSE NOTICE *.md
 	tar cvzf $@ $^
@@ -51,11 +54,17 @@ build/$(LIB_PROFILER): $(SOURCES) $(HEADERS)
 build/$(JATTACH): src/jattach/jattach.c
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(JATTACH_VERSION)\" -o $@ $^
 
-build/$(PROFILER_JAR): $(JAVA_SOURCES)
-	mkdir -p build/classes
-	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/classes $^
-	$(JAR) cvf $@ -C build/classes .
-	$(RM) -r build/classes
+build/$(API_JAR): $(API_SOURCES)
+	mkdir -p build/api
+	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
+	$(JAR) cvf $@ -C build/api .
+	$(RM) -r build/api
+
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
+	mkdir -p build/converter
+	$(JAVAC) -source 8 -target 8 -d build/converter $(CONVERTER_SOURCES)
+	$(JAR) cvfm $@ src/converter/MANIFEST.MF -C build/converter .
+	$(RM) -r build/converter
 
 test: all
 	test/smoke-test.sh
