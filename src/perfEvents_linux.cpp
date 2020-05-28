@@ -328,7 +328,6 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_print_extended_warning;
-bool PerfEvents::_walk_stack_ucontext;
 
 bool PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
@@ -540,7 +539,6 @@ Error PerfEvents::start(Arguments& args) {
     }
     _cstack = args._cstack;
     _print_extended_warning = _ring != RING_USER;
-    _walk_stack_ucontext = args._walk_stack_ucontext;
 
     int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
@@ -581,7 +579,7 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
         return 0;
     }
 
-    if (_walk_stack_ucontext) {
+    if (_cstack == CSTACK_UCONTEXT) {
         return Engine::getNativeTrace(ucontext, tid, callchain, max_depth, java_methods, runtime_stubs);
     }
 

@@ -33,7 +33,6 @@ class PerfEvents : public Engine {
     static Ring _ring;
     static CStack _cstack;
     static bool _print_extended_warning;
-    static bool _walk_stack_ucontext;
 
     static bool createForThread(int tid);
     static void destroyForThread(int tid);

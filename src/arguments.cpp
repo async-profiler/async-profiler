@@ -73,7 +73,8 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     filter=FILTER   - thread filter
 //     threads         - profile different threads separately
 //     cstack=MODE     - how to collect C stack frames in addition to Java stack
-//                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
+//                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record),
+//                       'ucontext' (retrieve stack info from ucontext) or 'no'
 //     allkernel       - include only kernel-mode events
 //     alluser         - include only user-mode events
 //     simple          - simple class names instead of FQN
@@ -87,7 +88,6 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     height=PX       - FlameGraph frame height
 //     minwidth=PX     - FlameGraph minimum frame width
 //     reverse         - generate stack-reversed FlameGraph / Call tree
-//     ucontext        - collect C stack frames using ucontext
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -214,6 +214,8 @@ Error Arguments::parse(const char* args) {
                         _cstack = CSTACK_NO;
                     } else if (value[0] == 'l') {
                         _cstack = CSTACK_LBR;
+                    } else if (value[0] == 'u') {
+                        _cstack = CSTACK_UCONTEXT;
                     } else {
                         _cstack = CSTACK_FP;
                     }
@@ -247,9 +249,6 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
-
-            CASE("ucontext")
-                _walk_stack_ucontext = true;
         }
     }
 

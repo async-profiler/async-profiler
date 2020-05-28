@@ -65,7 +65,8 @@ enum CStack {
     CSTACK_DEFAULT,
     CSTACK_NO,
     CSTACK_FP,
-    CSTACK_LBR
+    CSTACK_LBR,
+    CSTACK_UCONTEXT
 };
 
 enum Output {
@@ -134,7 +135,6 @@ class Arguments {
     int _height;
     double _minwidth;
     bool _reverse;
-    bool _walk_stack_ucontext;
 
     Arguments() :
         _buf(NULL),
@@ -160,8 +160,7 @@ class Arguments {
         _width(1200),
         _height(16),
         _minwidth(0.25),
-        _reverse(false),
-        _walk_stack_ucontext(false) {
+        _reverse(false) {
     }
 
     ~Arguments();
