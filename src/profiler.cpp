@@ -989,17 +989,25 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         if (trace._samples == 0 || excludeTrace(&fn, &trace)) continue;
 
         u64 samples = (args._counter == COUNTER_SAMPLES ? trace._samples : trace._counter);
+        int num_frames = trace._num_frames;
 
         Trie* f = flamegraph.root();
-        if (trace._num_frames == 0) {
+        if (num_frames == 0) {
             f = f->addChild("[frame_buffer_overflow]", samples);
         } else if (args._reverse) {
-            for (int j = 0; j < trace._num_frames; j++) {
+            if (_add_thread_frame) {
+                // Thread frames always come first
+                num_frames--;
+                const char* frame_name = fn.name(_frame_buffer[trace._start_frame + num_frames]);
+                f = f->addChild(frame_name, samples);
+            }
+
+            for (int j = 0; j < num_frames; j++) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
                 f = f->addChild(frame_name, samples);
             }
         } else {
-            for (int j = trace._num_frames - 1; j >= 0; j--) {
+            for (int j = num_frames - 1; j >= 0; j--) {
                 const char* frame_name = fn.name(_frame_buffer[trace._start_frame + j]);
                 f = f->addChild(frame_name, samples);
             }
