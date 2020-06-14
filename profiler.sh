@@ -74,7 +74,7 @@ jattach() {
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            if [ "$UNAME_S" = "Darwin" ]; then
+            if [ "$(uname -s)" = "Darwin" ]; then
                 otool -L "$PROFILER"
             else
                 ldd "$PROFILER"
@@ -87,8 +87,7 @@ jattach() {
 }
 
 OPTIND=1
-UNAME_S=$(uname -s)
-SCRIPT_DIR="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
@@ -99,6 +98,7 @@ USE_TMP="true"
 OUTPUT=""
 FORMAT=""
 PARAMS=""
+PID=""
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -161,12 +161,13 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --filter)
-            FORMAT="$FORMAT,filter=${2//,/;}"
+            FILTER="$(echo "$2" | sed 's/,/;/g')"
+            FORMAT="$FORMAT,filter=$FILTER"
             shift
             ;;
         --title)
             # escape XML special characters and comma
-            TITLE="$(echo "$2" | sed 's/&/&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/,/\&#44;/g')"
+            TITLE="$(echo "$2" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/,/\&#44;/g')"
             FORMAT="$FORMAT,title=$TITLE"
             shift
             ;;
@@ -187,6 +188,10 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,cstack=$2"
             shift
             ;;
+        --safe-mode)
+            PARAMS="$PARAMS,safemode=$2"
+            shift
+            ;;
         [0-9]*)
             PID="$1"
             ;;
@@ -203,8 +208,6 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-PID=${PID:-}
-
 if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
     usage
 fi
@@ -215,13 +218,13 @@ if [ "$USE_TMP" = true ]; then
     FILE=/tmp/async-profiler.$$.$PID
 else
     case "$FILE" in
-    /*)
-        # Path is absolute
-    ;;
-    *)
-        # Output file is written by the target process. Make the path absolute to avoid confusion.
-        FILE=$PWD/$FILE
-    ;;
+        /*)
+            # Path is absolute
+            ;;
+        *)
+            # Output file is written by the target process. Make the path absolute to avoid confusion.
+            FILE=$PWD/$FILE
+            ;;
     esac
 fi
 
