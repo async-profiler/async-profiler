@@ -30,10 +30,11 @@ class Trap {
   private:
     const char* _func_name;
     instruction_t* _entry;
+    instruction_t _breakpoint_insn;
     instruction_t _saved_insn;
 
   public:
-    Trap(const char* func_name) : _func_name(func_name), _entry(NULL) {
+    Trap(const char* func_name) : _func_name(func_name), _entry(NULL), _breakpoint_insn(BREAKPOINT) {
     }
 
     bool resolve(NativeCodeCache* libjvm);

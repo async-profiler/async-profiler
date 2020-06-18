@@ -50,6 +50,7 @@ const int PERF_REG_PC = 8;  // PERF_REG_X86_IP
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xe7f001f0;
+const instruction_t BREAKPOINT_THUMB = 0xde01de01;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int PLT_HEADER_SIZE = 20;
@@ -75,11 +76,8 @@ const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
 #else
-#warning "Compiling on unsupported arch"
 
-#define spinPause()
-#define rmb()             __sync_synchronize()
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#error "Compiling on unsupported arch"
 
 #endif
 
