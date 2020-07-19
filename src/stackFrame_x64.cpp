@@ -121,10 +121,12 @@ bool StackFrame::checkInterruptedSyscall() {
 #else
     if (retval() == (uintptr_t)-EINTR) {
         // Workaround for JDK-8237858: restart the interrupted poll() manually.
-        // Check if the previous instruction is mov eax, SYS_poll
-        uintptr_t pc = this->pc();
-        if ((pc & 0xfff) >= 7 && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == SYS_poll) {
-            this->pc() = pc - 7;
+        // Check if the previous instruction is mov eax, SYS_poll with infinite timeout
+        if (arg2() == (uintptr_t)-1) {
+            uintptr_t pc = this->pc();
+            if ((pc & 0xfff) >= 7 && *(unsigned char*)(pc - 7) == 0xb8 && *(int*)(pc - 6) == SYS_poll) {
+                this->pc() = pc - 7;
+            }
         }
         return true;
     }
