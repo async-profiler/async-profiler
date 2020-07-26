@@ -20,6 +20,7 @@
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <pthread.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include "os.h"
 
@@ -157,6 +158,20 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
                 : "a" (0x2000148), "D" (thread_id), "S" (signo)
                 : "rcx", "r11", "memory");
    return result == 0;
+}
+
+void* OS::safeAlloc(size_t size) {
+    // mmap() is not guaranteed to be async signal safe, but in practice, it is.
+    // There is no a reasonable alternative anyway.
+    void* result = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result == MAP_FAILED) {
+        return NULL;
+    }
+    return result;
+}
+
+void OS::safeFree(void* addr, size_t size) {
+    munmap(addr, size);
 }
 
 #endif // __APPLE__

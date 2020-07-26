@@ -63,8 +63,9 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    ThreadState thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
-    Profiler::_instance.recordSample(ucontext, _interval, 0, NULL, thread_state);
+    ExecutionEvent event;
+    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    Profiler::_instance.recordSample(ucontext, _interval, 0, &event);
 }
 
 void WallClock::wakeupHandler(int signo) {
@@ -91,7 +92,7 @@ Error WallClock::start(Arguments& args) {
         return Error("interval must be positive");
     }
 
-    _sample_idle_threads = strcmp(args._event, EVENT_WALL) == 0;
+    _sample_idle_threads = strcmp(args._event_desc, EVENT_WALL) == 0;
 
     // Increase default interval for wall clock mode due to larger number of sampled threads
     _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
@@ -124,6 +125,11 @@ void WallClock::timerLoop() {
     long long next_cycle_time = OS::nanotime();
 
     while (_running) {
+        if (!_enabled) {
+            sleep(_interval);
+            continue;
+        }
+
         if (sample_idle_threads) {
             // Try to keep the wall clock interval stable, regardless of the number of profiled threads
             int estimated_thread_count = thread_filter_enabled ? thread_filter->size() : thread_list->size();

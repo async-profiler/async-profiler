@@ -21,7 +21,6 @@
 
 
 const long DEFAULT_INTERVAL = 10000000;  // 10 ms
-const int DEFAULT_FRAMEBUF = 1000000;
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU    = "cpu";
@@ -52,6 +51,12 @@ enum Ring {
     RING_ANY,
     RING_KERNEL,
     RING_USER
+};
+
+enum EventKind {
+    EK_CPU   = 1,
+    EK_ALLOC = 2,
+    EK_LOCK  = 4
 };
 
 enum Style {
@@ -113,10 +118,10 @@ class Arguments {
     Action _action;
     Counter _counter;
     Ring _ring;
-    const char* _event;
+    int _events;
+    const char* _event_desc;
     long _interval;
     int  _jstackdepth;
-    int _framebuf;
     int _safe_mode;
     const char* _file;
     const char* _filter;
@@ -128,6 +133,8 @@ class Arguments {
     Output _output;
     int _dump_traces;
     int _dump_flat;
+    const char* _begin;
+    const char* _end;
     // FlameGraph parameters
     const char* _title;
     int _width;
@@ -140,10 +147,10 @@ class Arguments {
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
-        _event(EVENT_CPU),
+        _events(0),
+        _event_desc(NULL),
         _interval(0),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
-        _framebuf(DEFAULT_FRAMEBUF),
         _safe_mode(0),
         _file(NULL),
         _filter(NULL),
@@ -155,6 +162,8 @@ class Arguments {
         _output(OUTPUT_NONE),
         _dump_traces(0),
         _dump_flat(0),
+        _begin(NULL),
+        _end(NULL),
         _title("Flame Graph"),
         _width(1200),
         _height(16),
@@ -167,6 +176,8 @@ class Arguments {
     void save(Arguments& other);
 
     Error parse(const char* args);
+
+    bool addEvent(const char* event);
 
     friend class FrameName;
 };

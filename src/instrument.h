@@ -27,7 +27,7 @@ class Instrument : public Engine {
     static bool _instrument_class_loaded;
     static u64 _interval;
     static volatile u64 _calls;
-    static volatile bool _enabled;
+    static volatile bool _running;
 
   public:
     const char* name() {

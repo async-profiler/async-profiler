@@ -17,7 +17,7 @@ fi
 
   FILENAME=/tmp/java.trace
 
-  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,collapsed,threads,file=$FILENAME ThreadsTarget
+  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,event=cpu,collapsed,threads,file=$FILENAME ThreadsTarget
 
   # wait for normal termination
 

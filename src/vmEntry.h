@@ -22,12 +22,14 @@
 
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
-    BCI_NATIVE_FRAME        = -10,  // method_id is native function name (char*)
-    BCI_SYMBOL              = -11,  // method_id is VMSymbol*
-    BCI_SYMBOL_OUTSIDE_TLAB = -12,  // VMSymbol* specifically for allocations outside TLAB
-    BCI_THREAD_ID           = -13,  // method_id designates a thread
-    BCI_ERROR               = -14,  // method_id is error string
-    BCI_INSTRUMENT          = -15,  // synthetic method_id that should not appear in the call stack
+    BCI_NATIVE_FRAME        = -10,  // native function name (char*)
+    BCI_ALLOC               = -11,  // name of the allocated class
+    BCI_ALLOC_OUTSIDE_TLAB  = -12,  // name of the class allocated outside TLAB
+    BCI_LOCK                = -13,  // class name of the locked object
+    BCI_PARK                = -14,  // class name of the park() blocker
+    BCI_THREAD_ID           = -15,  // method_id designates a thread
+    BCI_ERROR               = -16,  // method_id is an error string
+    BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp
@@ -65,11 +67,12 @@ class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
-    static bool _hotspot;
+    static int _hotspot_version;
 
+    static void ready();
     static void* getLibraryHandle(const char* name);
-    static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
-    static void loadAllMethodIDs(jvmtiEnv* jvmti);
+    static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
+    static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
 
   public:
     static void* _libjvm;
@@ -87,8 +90,8 @@ class VM {
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
     }
 
-    static bool is_hotspot() {
-        return _hotspot;
+    static int hotspot_version() {
+        return _hotspot_version;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -99,7 +102,7 @@ class VM {
     }
 
     static void JNICALL ClassPrepare(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
-        loadMethodIDs(jvmti, klass);
+        loadMethodIDs(jvmti, jni, klass);
     }
 };
 

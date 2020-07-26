@@ -18,7 +18,6 @@ usage() {
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"
     echo "  -j jstackdepth    maximum Java stack depth"
-    echo "  -b bufsize        frame buffer size"
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
@@ -37,6 +36,8 @@ usage() {
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
     echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
+    echo "  --begin function  begin profiling when function is executed"
+    echo "  --end function    end profiling when function is executed"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -132,10 +133,6 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,jstackdepth=$2"
             shift
             ;;
-        -b)
-            PARAMS="$PARAMS,framebuf=$2"
-            shift
-            ;;
         -t)
             PARAMS="$PARAMS,threads"
             ;;
@@ -186,6 +183,10 @@ while [ $# -gt 0 ]; do
             ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"
+            shift
+            ;;
+        --begin|--end)
+            PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;
         --safe-mode)

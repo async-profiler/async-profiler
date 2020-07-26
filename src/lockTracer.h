@@ -18,6 +18,7 @@
 #define _LOCKTRACER_H
 
 #include <jvmti.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -28,11 +29,12 @@ class LockTracer : public Engine {
     static jlong _start_time;
     static jclass _LockSupport;
     static jmethodID _getBlocker;
-    static UnsafeParkFunc _original_Unsafe_Park;
-    static bool _supports_lock_names;
 
-    static jclass getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env);
-    static void recordContendedLock(jclass lock_class, jlong time);
+    static jobject getParkBlocker(jvmtiEnv* jvmti, JNIEnv* env);
+    static char* getLockName(jvmtiEnv* jvmti, JNIEnv* env, jobject lock);
+    static bool isConcurrentLock(const char* lock_name);
+    static void recordContendedLock(int event_type, u64 start_time, u64 end_time,
+                                    const char* lock_name, jobject lock, jlong timeout);
     static void bindUnsafePark(UnsafeParkFunc entry);
 
   public:

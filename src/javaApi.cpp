@@ -28,10 +28,11 @@
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
-    args._event = env->GetStringUTFChars(event, NULL);
+    const char* event_str = env->GetStringUTFChars(event, NULL);
+    args.addEvent(event_str); 
     args._interval = interval;
     Error error = Profiler::_instance.start(args, reset);
-    env->ReleaseStringUTFChars(event, args._event);
+    env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -108,11 +109,11 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,            "(Ljava/lang/String;JZ)V"),
-    F(stop0,             "()V"),
-    F(execute0,          "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,        "()J"),
-    F(filterThread0,     "(Ljava/lang/Thread;Z)V"),
+    F(start0,        "(Ljava/lang/String;JZ)V"),
+    F(stop0,         "()V"),
+    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,    "()J"),
+    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
 #undef F

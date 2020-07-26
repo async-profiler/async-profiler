@@ -137,7 +137,10 @@ const void* NativeCodeCache::findSymbol(const char* name) {
 }
 
 const void* NativeCodeCache::findSymbolByPrefix(const char* prefix) {
-    int prefix_len = strlen(prefix);
+    return findSymbolByPrefix(prefix, strlen(prefix));
+}
+
+const void* NativeCodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     for (int i = 0; i < _count; i++) {
         const char* blob_name = (const char*)_blobs[i]._method;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {

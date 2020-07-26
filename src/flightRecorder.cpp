@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "flightRecorder.h"
+#include "os.h"
 #include "profiler.h"
 #include "threadFilter.h"
 #include "vmStructs.h"
@@ -61,6 +62,10 @@ enum EventTypeId {
     EVENT_RECORDING          = 10,
     EVENT_RECORDING_SETTINGS = 11,
     EVENT_EXECUTION_SAMPLE   = 20,
+    EVENT_ALLOC_IN_NEW_TLAB  = 21,
+    EVENT_ALLOC_OUTSIDE_TLAB = 22,
+    EVENT_THREAD_PARK        = 23,
+    EVENT_MONITOR_BLOCKED    = 24,
 };
 
 enum ContentTypeId {
@@ -69,6 +74,8 @@ enum ContentTypeId {
     CONTENT_EPOCHMILLIS  = 2,
     CONTENT_MILLIS       = 3,
     CONTENT_NANOS        = 4,
+    CONTENT_TICKSPAN     = 5,
+    CONTENT_ADDRESS      = 6,
     CONTENT_THREAD       = 7,
     CONTENT_JAVA_THREAD  = 8,
     CONTENT_STACKTRACE   = 9,
@@ -197,10 +204,33 @@ const DataStructure
         {"sampledThread", "Thread", T_U4, CONTENT_THREAD},
         {"stackTrace", "Stack Trace", T_U8, CONTENT_STACKTRACE},
         {"state", "Thread State", T_U2, CONTENT_STATE},
+    },
+    ds_alloc_in_new_tlab[] = {
+        {"class", "Class", T_U8, CONTENT_CLASS},
+        {"allocationSize", "Allocation Size", T_U8, CONTENT_MEMORY},
+        {"tlabSize", "TLAB Size", T_U8, CONTENT_MEMORY},
+    },
+    ds_alloc_outside_tlab[] = {
+        {"class", "Class", T_U8, CONTENT_CLASS},
+        {"allocationSize", "Allocation Size", T_U8, CONTENT_MEMORY},
+    },
+    ds_thread_park[] = {
+        {"klass", "Class Parked On", T_U8, CONTENT_CLASS},
+        {"timeout", "Park Timeout", T_LONG, CONTENT_MILLIS},
+        {"address", "Address of Object Parked", T_U8, CONTENT_ADDRESS},
+    },
+    ds_monitor_blocked[] = {
+        {"klass", "Monitor Class", T_U8, CONTENT_CLASS},
+        {"previousOwner", "Previous Monitor Owner", T_U4, CONTENT_THREAD},
+        {"address", "Monitor Address", T_U8, CONTENT_ADDRESS},
     };
 
 const EventType et_profile[] = {
     {EVENT_EXECUTION_SAMPLE, "Method Profiling Sample", "Snapshot of a threads state", "vm/prof/execution_sample", false, false, false, true, /* ds_method_sample */ 10},
+    {EVENT_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB", "Allocation in new Thread Local Allocation Buffer", "java/object_alloc_in_new_TLAB", false, true, true, false, /* ds_alloc_in_new_tlab */ 11},
+    {EVENT_ALLOC_OUTSIDE_TLAB, "Allocation outside TLAB", "Allocation outside Thread Local Allocation Buffers", "java/object_alloc_outside_TLAB", false, true, true, false, /* ds_alloc_outside_tlab */ 12},
+    {EVENT_THREAD_PARK, "Java Thread Park", "", "java/thread_park", true, true, true, false, /* ds_thread_park */ 13},
+    {EVENT_MONITOR_BLOCKED, "Java Monitor Blocked", "", "java/monitor_enter", true, true, true, false, /* ds_monitor_blocked */ 14},
 };
 
 const ContentType ct_profile[] = {
@@ -221,10 +251,10 @@ class MethodInfo {
     MethodInfo() : _key(0) {
     }
 
-    int _key;
-    int _class;
-    int _name;
-    int _sig;
+    u32 _key;
+    u32 _class;
+    u32 _name;
+    u32 _sig;
     short _modifiers;
     FrameTypeId _type;
 };
@@ -306,8 +336,6 @@ class Recording {
     Buffer _buf[CONCURRENCY_LEVEL];
     int _fd;
     ThreadFilter _thread_set;
-    std::map<std::string, int> _symbol_map;
-    std::map<std::string, int> _class_map;
     std::map<jmethodID, MethodInfo> _method_map;
     u64 _start_time;
     u64 _start_nanos;
@@ -315,7 +343,7 @@ class Recording {
     u64 _stop_nanos;
 
   public:
-    Recording(int fd) : _fd(fd), _thread_set(), _symbol_map(), _class_map(), _method_map() {
+    Recording(int fd) : _fd(fd), _thread_set(), _method_map() {
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
@@ -355,17 +383,29 @@ class Recording {
         close(_fd);
     }
 
-    int lookup(std::map<std::string, int>& map, std::string key) {
-        int* value = &map[key];
-        if (*value == 0) *value = map.size();
-        return *value;
+    Buffer* buffer(int lock_index) {
+        return &_buf[lock_index];
     }
 
-    FrameTypeId demangle(const char* name, std::string& result) {
-        if (name == NULL) {
-            result = "unknown";
-            return FRAME_NATIVE;
-        }
+    u32 classId(const char* class_name, size_t length) {
+        return Profiler::_instance.classMap()->lookup(class_name, length);
+    }
+
+    u32 symbolId(const char* symbol_name, size_t length) {
+        return Profiler::_instance.symbolMap()->lookup(symbol_name, length);
+    }
+
+    u32 classId(const char* class_name) {
+        return classId(class_name, strlen(class_name));
+    }
+
+    u32 symbolId(const char* symbol_name) {
+        return symbolId(symbol_name, strlen(symbol_name));
+    }
+
+    void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
+        mi->_class = classId("");
+        mi->_modifiers = 0x100;
 
         if (name[0] == '_' && name[1] == 'Z') {
             int status;
@@ -373,20 +413,53 @@ class Recording {
             if (demangled != NULL) {
                 char* p = strchr(demangled, '(');
                 if (p != NULL) *p = 0;
-                result = demangled;
+                mi->_name = symbolId(demangled);
+                mi->_sig = symbolId("()L;");
+                mi->_type = FRAME_CPP;
                 free(demangled);
-                return FRAME_CPP;
+                return;
             }
         }
 
-        int len = strlen(name);
+        size_t len = strlen(name);
         if (len >= 4 && strcmp(name + len - 4, "_[k]") == 0) {
-            result = std::string(name, len - 4);
-            return FRAME_KERNEL;
+            mi->_name = symbolId(name, len - 4);
+            mi->_sig = symbolId("(Lk;)L;");
+            mi->_type = FRAME_KERNEL;
+        } else {
+            mi->_name = symbolId(name);
+            mi->_sig = symbolId("()L;");
+            mi->_type = FRAME_NATIVE;
+        }
+    }
+
+    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jclass method_class;
+        char* class_name = NULL;
+        char* method_name = NULL;
+        char* method_sig = NULL;
+        int modifiers = 0;
+
+        if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
+            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
+            jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
+            jvmti->GetMethodModifiers(method, &modifiers);
+            mi->_class = classId(class_name + 1, strlen(class_name) - 2);
+            mi->_name = symbolId(method_name);
+            mi->_sig = symbolId(method_sig);
+        } else {
+            mi->_class = classId("");
+            mi->_name = symbolId("jvmtiError");
+            mi->_sig = symbolId("()L;");
         }
 
-        result = name;
-        return FRAME_NATIVE;
+        mi->_modifiers = (short)modifiers;
+        mi->_type = FRAME_INTERPRETED;
+
+        jvmti->Deallocate((unsigned char*)method_sig);
+        jvmti->Deallocate((unsigned char*)method_name);
+        jvmti->Deallocate((unsigned char*)class_name);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -396,50 +469,12 @@ class Recording {
         if (mi->_key == 0) {
             mi->_key = _method_map.size();
 
-            if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR || method == NULL) {
-                std::string name;
-                FrameTypeId type = demangle((const char*)method, name);
-                mi->_class = lookup(_class_map, "");
-                mi->_name = lookup(_symbol_map, name);
-                mi->_sig = lookup(_symbol_map, type == FRAME_KERNEL ? "(Lk;)L;" : "()L;");
-                mi->_modifiers = 0x100;
-                mi->_type = type;
-
-            } else if (frame.bci == BCI_SYMBOL || frame.bci == BCI_SYMBOL_OUTSIDE_TLAB) {
-                VMSymbol* symbol = (VMSymbol*)((intptr_t)method & ~1);
-                mi->_class = lookup(_class_map, std::string(symbol->body(), symbol->length()));
-                mi->_name = lookup(_symbol_map, "new");
-                mi->_sig = lookup(_symbol_map, "()L;");
-                mi->_modifiers = 0x100;
-                mi->_type = FRAME_NATIVE;
-
+            if (method == NULL) {
+                fillNativeMethodInfo(mi, "unknown");
+            } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
+                fillNativeMethodInfo(mi, (const char*)method);
             } else {
-                jvmtiEnv* jvmti = VM::jvmti();
-                jclass method_class;
-                char* class_name = NULL;
-                char* method_name = NULL;
-                char* method_sig = NULL;
-                int modifiers = 0;
-
-                if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
-                    jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
-                    jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
-                    jvmti->GetMethodModifiers(method, &modifiers);
-                    mi->_class = lookup(_class_map, std::string(class_name + 1, strlen(class_name) - 2));
-                    mi->_name = lookup(_symbol_map, method_name);
-                    mi->_sig = lookup(_symbol_map, method_sig);
-                } else {
-                    mi->_class = lookup(_class_map, "");
-                    mi->_name = lookup(_symbol_map, "jvmtiError");
-                    mi->_sig = lookup(_symbol_map, "()L;");
-                }
-
-                mi->_modifiers = (short)modifiers;
-                mi->_type = FRAME_INTERPRETED;
-
-                jvmti->Deallocate((unsigned char*)method_sig);
-                jvmti->Deallocate((unsigned char*)method_name);
-                jvmti->Deallocate((unsigned char*)class_name);
+                fillJavaMethodInfo(mi, method);
             }
         }
 
@@ -512,31 +547,24 @@ class Recording {
     }
 
     void writeStackTraces(Buffer* buf) {
-        CallTraceSample* traces = Profiler::_instance._traces;
-        ASGCT_CallFrame* frame_buffer = Profiler::_instance._frame_buffer;
-
-        int count = 0;
-        for (int i = 0; i < MAX_CALLTRACES; i++) {
-            if (traces[i]._samples != 0) count++;
-        }
+        std::map<u32, CallTrace*> traces;
+        Profiler::_instance._call_trace_storage.collect(traces);
 
         buf->put32(CONTENT_STACKTRACE);
-        buf->put32(count);
-        for (int i = 0; i < MAX_CALLTRACES; i++) {
-            CallTraceSample& trace = traces[i];
-            if (trace._samples != 0) {
-                buf->put64(i);  // stack trace key
-                buf->put8(0);   // truncated
-                buf->put32(trace._num_frames);
-                for (int j = 0; j < trace._num_frames; j++) {
-                    MethodInfo* mi = resolveMethod(frame_buffer[trace._start_frame + j]);
-                    buf->put64(mi->_key);  // method key
-                    buf->put32(0);         // bci
-                    buf->put8(mi->_type);  // frame type
-                    flushIfNeeded(buf);
-                }
+        buf->put32(traces.size());
+        for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+            CallTrace* trace = it->second;
+            buf->put64(it->first);
+            buf->put8(0);  // truncated
+            buf->put32(trace->num_frames);
+            for (int i = 0; i < trace->num_frames; i++) {
+                MethodInfo* mi = resolveMethod(trace->frames[i]);
+                buf->put64(mi->_key);  // method key
+                buf->put32(0);         // bci
+                buf->put8(mi->_type);  // frame type
                 flushIfNeeded(buf);
             }
+            flushIfNeeded(buf);
         }
     }
 
@@ -556,39 +584,44 @@ class Recording {
     }
 
     void writeClasses(Buffer* buf) {
+        std::map<u32, const char*> classes;
+        Profiler::_instance.classMap()->collect(classes);
+
         buf->put32(CONTENT_CLASS);
-        buf->put32(_class_map.size());
-        for (std::map<std::string, int>::const_iterator it = _class_map.begin(); it != _class_map.end(); ++it) {
-            buf->put64(it->second);
+        buf->put32(classes.size());
+        for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
+            buf->put64(it->first);
             buf->put64(0);  // loader class
-            buf->put64(lookup(_symbol_map, it->first));
+            buf->put64(symbolId(it->second));
             buf->put16(0);  // access flags
             flushIfNeeded(buf);
         }
     }
 
     void writeSymbols(Buffer* buf) {
+        std::map<u32, const char*> symbols;
+        Profiler::_instance.symbolMap()->collect(symbols);
+
         buf->put32(CONTENT_SYMBOL);
-        buf->put32(_symbol_map.size());
-        for (std::map<std::string, int>::const_iterator it = _symbol_map.begin(); it != _symbol_map.end(); ++it) {
-            buf->put64(it->second);
-            buf->putUtf8(it->first.c_str());
+        buf->put32(symbols.size());
+        for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+            buf->put64(it->first);
+            buf->putUtf8(it->second);
             flushIfNeeded(buf);
         }
     }
 
     void writeThreads(Buffer* buf) {
-        int thread_count = _thread_set.size();
-        int* threads = new int[thread_count];
-        _thread_set.collect(threads, thread_count);
+        std::vector<int> threads;
+        _thread_set.collect(threads);
 
         MutexLocker ml(Profiler::_instance._thread_names_lock);
         std::map<int, std::string>& thread_names = Profiler::_instance._thread_names;
         char name_buf[32];
 
         buf->put32(CONTENT_THREAD);
-        buf->put32(thread_count);
-        for (int i = 0; i < thread_count; i++) {
+        buf->put32(threads.size());
+        for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
             std::map<int, std::string>::const_iterator it = thread_names.find(threads[i]);
             if (it != thread_names.end()) {
@@ -602,8 +635,6 @@ class Recording {
             buf->putUtf8(thread_name);
             flushIfNeeded(buf);
         }
-
-        delete[] threads;
     }
 
     void writeJavaThreads(Buffer* buf) {
@@ -711,7 +742,7 @@ class Recording {
         buf->put32(0);
 
         // Data structures
-        buf->put32(11);
+        buf->put32(15);
         writeDataStructure(buf, ARRAY_SIZE(ds_utf8), ds_utf8);
         writeDataStructure(buf, ARRAY_SIZE(ds_thread), ds_thread);
         writeDataStructure(buf, ARRAY_SIZE(ds_java_thread), ds_java_thread);
@@ -723,6 +754,10 @@ class Recording {
         writeDataStructure(buf, ARRAY_SIZE(ds_frame), ds_frame);
         writeDataStructure(buf, ARRAY_SIZE(ds_stacktrace), ds_stacktrace);
         writeDataStructure(buf, ARRAY_SIZE(ds_method_sample), ds_method_sample);
+        writeDataStructure(buf, ARRAY_SIZE(ds_alloc_in_new_tlab), ds_alloc_in_new_tlab);
+        writeDataStructure(buf, ARRAY_SIZE(ds_alloc_outside_tlab), ds_alloc_outside_tlab);
+        writeDataStructure(buf, ARRAY_SIZE(ds_thread_park), ds_thread_park);
+        writeDataStructure(buf, ARRAY_SIZE(ds_monitor_blocked), ds_monitor_blocked);
 
         // Event types and content types
         writeEventTypes(buf, ARRAY_SIZE(et_profile), et_profile);
@@ -748,19 +783,64 @@ class Recording {
         buf->put32(metadata_start, buf->offset() - metadata_start);
     }
 
-    void recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state) {
-        Buffer* buf = &_buf[lock_index];
+    void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         buf->put32(30);
         buf->put32(EVENT_EXECUTION_SAMPLE);
         buf->put64(OS::nanotime());
         buf->put32(tid);
         buf->put64(call_trace_id);
-        buf->put16(thread_state);
-        flushIfNeeded(buf);
+        buf->put16(event->_thread_state);
+    }
+
+    void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        buf->put32(52);
+        buf->put32(EVENT_ALLOC_IN_NEW_TLAB);
+        buf->put64(OS::nanotime());
+        buf->put32(tid);
+        buf->put64(call_trace_id);
+        buf->put64(event->_class_id);
+        buf->put64(event->_instance_size);
+        buf->put64(event->_total_size);
+    }
+
+    void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        buf->put32(44);
+        buf->put32(EVENT_ALLOC_OUTSIDE_TLAB);
+        buf->put64(OS::nanotime());
+        buf->put32(tid);
+        buf->put64(call_trace_id);
+        buf->put64(event->_class_id);
+        buf->put64(event->_total_size);
+    }
+
+    void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+        buf->put32(56);
+        buf->put32(EVENT_MONITOR_BLOCKED);
+        buf->put64(event->_end_time);
+        buf->put64(event->_start_time);
+        buf->put32(tid);
+        buf->put64(call_trace_id);
+        buf->put64(event->_class_id);
+        buf->put32(0);  // previousOwner
+        buf->put64(event->_address);
+    }
+
+    void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+        buf->put32(60);
+        buf->put32(EVENT_THREAD_PARK);
+        buf->put64(event->_end_time);
+        buf->put64(event->_start_time);
+        buf->put32(tid);
+        buf->put64(call_trace_id);
+        buf->put64(event->_class_id);
+        buf->put64(event->_timeout / 1000000);
+        buf->put64(event->_address);
     }
 
     void addThread(int tid) {
-        _thread_set.add(tid);
+        if (!_thread_set.accept(tid)) {
+            _thread_set.add(tid);
+        }
     }
 };
 
@@ -786,9 +866,29 @@ void FlightRecorder::stop() {
     }
 }
 
-void FlightRecorder::recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state) {
+// TODO: record events with call_trace_id == 0, and use stack allocated buffer if needed
+void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
+                                 int event_type, Event* event, u64 counter) {
     if (_rec != NULL && call_trace_id != 0) {
-        _rec->recordExecutionSample(lock_index, tid, call_trace_id, thread_state);
+        Buffer* buf = _rec->buffer(lock_index);
+        switch (event_type) {
+            case 0:
+                _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case BCI_ALLOC:
+                _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
+                break;
+            case BCI_ALLOC_OUTSIDE_TLAB:
+                _rec->recordAllocationOutsideTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
+                break;
+            case BCI_LOCK:
+                _rec->recordMonitorBlocked(buf, tid, call_trace_id, (LockEvent*)event);
+                break;
+            case BCI_PARK:
+                _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
+                break;
+        }
+        _rec->flushIfNeeded(buf);
         _rec->addThread(tid);
     }
 }

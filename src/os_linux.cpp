@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
@@ -200,6 +201,20 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
     static const int self_pid = getpid();
 
     return syscall(__NR_tgkill, self_pid, thread_id, signo) == 0;
+}
+
+void* OS::safeAlloc(size_t size) {
+    // Naked syscall can be used inside a signal handler.
+    // Also, we don't want to catch our own calls when profiling mmap.
+    intptr_t result = syscall(__NR_mmap, NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (result < 0 && result > -4096) {
+        return NULL;
+    }
+    return (void*)result;
+}
+
+void OS::safeFree(void* addr, size_t size) {
+    syscall(__NR_munmap, addr, size);
 }
 
 #endif // __linux__

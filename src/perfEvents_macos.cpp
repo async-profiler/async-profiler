@@ -27,9 +27,8 @@ Ring PerfEvents::_ring;
 bool PerfEvents::_print_extended_warning;
 
 
-bool PerfEvents::createForThread(int tid) { return false; }
-void PerfEvents::destroyForThread(int tid) {}
-void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {}
+void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+}
 
 const char* PerfEvents::units() {
     return "ns";
@@ -57,6 +56,13 @@ bool PerfEvents::supported() {
 
 const char* PerfEvents::getEventName(int event_id) {
     return NULL;
+}
+
+bool PerfEvents::createForThread(int tid) {
+    return false;
+}
+
+void PerfEvents::destroyForThread(int tid) {
 }
 
 #endif // __APPLE__

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Andrei Pangin
+ * Copyright 2020 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,35 @@
  * limitations under the License.
  */
 
-#ifndef _FLIGHTRECORDER_H
-#define _FLIGHTRECORDER_H
+#ifndef _TRAP_H
+#define _TRAP_H
 
+#include <stdint.h>
 #include "arch.h"
-#include "arguments.h"
-#include "event.h"
 
-class Recording;
 
-class FlightRecorder {
+class Trap {
   private:
-    Recording* _rec;
+    uintptr_t _entry;
+    instruction_t _breakpoint_insn;
+    instruction_t _saved_insn;
 
   public:
-    FlightRecorder() : _rec(NULL) {
+    Trap() : _entry(0), _breakpoint_insn(BREAKPOINT) {
     }
 
-    Error start(const char* file);
-    void stop();
-
-    bool active() {
-        return _rec != NULL;
+    uintptr_t entry() {
+        return _entry;
     }
 
-    void recordEvent(int lock_index, int tid, u32 call_trace_id,
-                     int event_type, Event* event, u64 counter);
+    bool covers(uintptr_t pc) {
+        // PC points either to BREAKPOINT instruction or to the next one
+        return pc - _entry <= sizeof(instruction_t);
+    }
+
+    bool assign(const void* address);
+    void install();
+    void uninstall();
 };
 
-#endif // _FLIGHTRECORDER_H
+#endif // _TRAP_H

@@ -61,6 +61,9 @@ class OS {
 
     static void installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static bool sendSignalToThread(int thread_id, int signo);
+
+    static void* safeAlloc(size_t size);
+    static void safeFree(void* addr, size_t size);
 };
 
 #endif // _OS_H

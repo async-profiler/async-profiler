@@ -33,6 +33,7 @@
 
 typedef std::map<jmethodID, std::string> JMethodCache;
 typedef std::map<int, std::string> ThreadMap;
+typedef std::map<unsigned int, const char*> ClassMap;
 
 
 enum MatchType {
@@ -63,6 +64,7 @@ class Matcher {
 class FrameName {
   private:
     JMethodCache _cache;
+    ClassMap _class_names;
     std::vector<Matcher> _include;
     std::vector<Matcher> _exclude;
     char _buf[800];  // must be large enough for class name + method name + method signature

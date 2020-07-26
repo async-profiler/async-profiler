@@ -112,22 +112,6 @@ struct PerfEventType {
         return 0;
     }
 
-    static void mangle(char* name, char* buf, size_t size) {
-        char* buf_end = buf + size;
-        strcpy(buf, "_ZN");
-        buf += 3;
-
-        for (char* c; (c = strstr(name, "::")) != NULL && buf < buf_end; name = c + 2) {
-            *c = 0;
-            buf += snprintf(buf, buf_end - buf, "%d%s", (int)strlen(name), name);
-        }
-
-        if (buf < buf_end) {
-            snprintf(buf, buf_end - buf, "%d%sE", (int)strlen(name), name);
-        }
-        buf_end[-1] = 0;
-    }
-
     static PerfEventType* findByType(__u32 type) {
         for (PerfEventType* event = AVAILABLE_EVENTS; ; event++) {
             if (event->type == type) {
@@ -177,20 +161,10 @@ struct PerfEventType {
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
             addr = (__u64)strtoll(buf, NULL, 0);
-        } else if (strstr(buf, "::") != NULL) {
-            char mangled_name[256];
-            mangle(buf, mangled_name, sizeof(mangled_name));
-            addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(mangled_name);
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
-                size_t len = strlen(buf);
-                if (len > 0 && buf[len - 1] == '*') {
-                    buf[len - 1] = 0;
-                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(buf);
-                } else {
-                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbol(buf);
-                }
+                addr = (__u64)(uintptr_t)Profiler::_instance.resolveSymbol(buf);
             }
         }
 
@@ -445,19 +419,23 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    u64 counter;
-    switch (_event_type->counter_arg) {
-        case 1: counter = StackFrame(ucontext).arg0(); break;
-        case 2: counter = StackFrame(ucontext).arg1(); break;
-        case 3: counter = StackFrame(ucontext).arg2(); break;
-        case 4: counter = StackFrame(ucontext).arg3(); break;
-        default:
-            if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
-                counter = 1;
-            }
+    if (_enabled) {
+        u64 counter;
+        switch (_event_type->counter_arg) {
+            case 1: counter = StackFrame(ucontext).arg0(); break;
+            case 2: counter = StackFrame(ucontext).arg1(); break;
+            case 3: counter = StackFrame(ucontext).arg2(); break;
+            case 4: counter = StackFrame(ucontext).arg3(); break;
+            default:
+                if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
+                    counter = 1;
+                }
+        }
+
+        ExecutionEvent event;
+        Profiler::_instance.recordSample(ucontext, counter, 0, &event);
     }
 
-    Profiler::_instance.recordSample(ucontext, counter, 0, NULL);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
@@ -474,7 +452,7 @@ const char* PerfEvents::units() {
 }
 
 Error PerfEvents::check(Arguments& args) {
-    PerfEventType* event_type = PerfEventType::forName(args._event);
+    PerfEventType* event_type = PerfEventType::forName(args._event_desc);
     if (event_type == NULL) {
         return Error("Unsupported event type");
     }
@@ -520,7 +498,7 @@ Error PerfEvents::check(Arguments& args) {
 }
 
 Error PerfEvents::start(Arguments& args) {
-    _event_type = PerfEventType::forName(args._event);
+    _event_type = PerfEventType::forName(args._event_desc);
     if (_event_type == NULL) {
         return Error("Unsupported event type");
     }

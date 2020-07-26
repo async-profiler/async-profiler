@@ -19,47 +19,23 @@
 
 #include <signal.h>
 #include <stdint.h>
-#include "arch.h"
-#include "codeCache.h"
 #include "engine.h"
-#include "stackFrame.h"
-
-
-// Describes OpenJDK function being intercepted
-class Trap {
-  private:
-    const char* _func_name;
-    instruction_t* _entry;
-    instruction_t _breakpoint_insn;
-    instruction_t _saved_insn;
-
-  public:
-    Trap(const char* func_name) : _func_name(func_name), _entry(NULL), _breakpoint_insn(BREAKPOINT) {
-    }
-
-    bool resolve(NativeCodeCache* libjvm);
-    void install();
-    void uninstall();
-
-    friend class AllocTracer;
-};
+#include "trap.h"
 
 
 class AllocTracer : public Engine {
   private:
-    // JDK 7-9
+    static int _trap_kind;
     static Trap _in_new_tlab;
     static Trap _outside_tlab;
-    // JDK 10+
-    static Trap _in_new_tlab2;
-    static Trap _outside_tlab2;
 
-    static bool _supports_class_names;
     static u64 _interval;
     static volatile u64 _allocated_bytes;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void recordAllocation(void* ucontext, StackFrame& frame, uintptr_t rklass, uintptr_t rsize, bool outside_tlab);
+
+    static void recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
+                                 uintptr_t total_size, uintptr_t instance_size);
 
   public:
     const char* name() {

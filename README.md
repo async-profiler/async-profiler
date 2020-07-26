@@ -299,11 +299,6 @@ Example: `./profiler.sh -i 500us 8983`
 than default 2048.  
 Example: `./profiler.sh -j 30 8983`
 
-* `-b N` - sets the frame buffer size, in the number of Java
-method ids that should fit in the buffer. If you receive messages about an
-insufficient frame buffer size, increase this value from the default.  
-Example: `./profiler.sh -b 5000000 8983`
-
 * `-t` - profile threads separately. Each stack trace will end with a frame
 that denotes a single thread.  
 Example: `./profiler.sh -t 8983`
@@ -507,12 +502,6 @@ Async-profiler was unable to parse non-Java function names because of
 the corrupted contents in `/proc/[pid]/maps`. The problem is known to
 occur in a container when running Ubuntu with Linux kernel 5.x.
 This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018.
-
-```
-[frame_buffer_overflow]
-```
-This message in the output means there was not enough space to store all call traces.
-Consider increasing frame buffer size with `-b` option.
 
 ```
 Output file is not created
