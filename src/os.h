@@ -56,7 +56,6 @@ class OS {
     static ThreadState threadState(int thread_id);
     static ThreadList* listThreads();
 
-    static bool isSignalSafeTLS();
     static bool isJavaLibraryVisible();
 
     static void installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
