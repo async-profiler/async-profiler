@@ -140,7 +140,6 @@ class Profiler {
     CodeCache _java_methods;
     NativeCodeCache _runtime_stubs;
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
-    NativeCodeCache* _libjvm;
     volatile int _native_lib_count;
 
     // Support for intercepting NativeLibrary.load()
@@ -155,11 +154,6 @@ class Profiler {
     void bindThreadSetNativeName(JNIEnv* env, ThreadSetNativeNameFunc entry);
 
     void switchNativeMethodTraps(bool enable);
-
-    jvmtiError (*_JvmtiEnv_GetStackTrace)(void* self, void* thread, jint start_depth, jint max_frame_count,
-                                          jvmtiFrameInfo* frame_buffer, jint* count_ptr);
-
-    const void* (*_CodeCache_find_blob)(const void* address);
 
     void addJavaMethod(const void* address, int length, jmethodID method);
     void removeJavaMethod(const void* address, jmethodID method);
@@ -186,7 +180,7 @@ class Profiler {
     void updateNativeThreadNames();
     bool excludeTrace(FrameName* fn, CallTraceSample* trace);
     Engine* selectEngine(const char* event_name);
-    Error initJvmLibrary();
+    Error checkJvmCapabilities();
 
   public:
     static Profiler _instance;
@@ -205,11 +199,8 @@ class Profiler {
         _stubs_lock(),
         _java_methods(),
         _runtime_stubs("[stubs]"),
-        _libjvm(NULL),
         _native_lib_count(0),
-        _original_NativeLibrary_load(NULL),
-        _JvmtiEnv_GetStackTrace(NULL),
-        _CodeCache_find_blob(NULL) {
+        _original_NativeLibrary_load(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
@@ -221,8 +212,6 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     ThreadFilter* threadFilter() { return &_thread_filter; }
-
-    NativeCodeCache* jvmLibrary() { return _libjvm; }
 
     void run(Arguments& args);
     void runInternal(Arguments& args, std::ostream& out);
@@ -238,6 +227,7 @@ class Profiler {
     void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event, ThreadState thread_state = THREAD_RUNNING);
 
+    void updateSymbols();
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* name);
     NativeCodeCache* findNativeLibrary(const void* address);

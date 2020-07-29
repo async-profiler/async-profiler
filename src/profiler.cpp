@@ -222,6 +222,10 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
+void Profiler::updateSymbols() {
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+}
+
 const void* Profiler::findSymbol(const char* name) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -384,8 +388,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 if (addr_type != ADDR_UNKNOWN) {
                     // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
                     // In this case we manually replace last Java frame to the previous frame
-                    if (addr_type == ADDR_STUB && _CodeCache_find_blob != NULL) {
-                        RuntimeStub* stub = (RuntimeStub*) _CodeCache_find_blob((instruction_t*)pc);
+                    if (addr_type == ADDR_STUB) {
+                        RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
                         if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
                             sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
                             pc = ((uintptr_t*)sp)[-1];
@@ -398,7 +402,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 pc = 0;
             }
         }
-    } else if (trace.num_frames == ticks_GC_active && _JvmtiEnv_GetStackTrace != NULL && !(_safe_mode & GC_TRACES)) {
+    } else if (trace.num_frames == ticks_GC_active && VMStructs::_get_stack_trace != NULL && !(_safe_mode & GC_TRACES)) {
         // While GC is running Java threads are known to be at safepoint
         return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
     }
@@ -430,7 +434,7 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
 
     VMThread* vm_thread = VMThread::fromEnv(jni);
     int num_frames;
-    if (_JvmtiEnv_GetStackTrace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+    if (VMStructs::_get_stack_trace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
         // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
         for (int i = 0; i < num_frames; i++) {
             frames[i].method_id = jvmti_frames[i].method;
@@ -541,7 +545,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         num_frames += getNativeTrace(ucontext, frames + num_frames, tid, &need_java_trace);
     }
 
-    if (event_type != 0 && _JvmtiEnv_GetStackTrace != NULL) {
+    if (event_type != 0 && VMStructs::_get_stack_trace != NULL) {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
@@ -570,7 +574,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
     jboolean result = _instance._original_NativeLibrary_load(env, self, name, builtin);
-    Symbols::parseLibraries(_instance._native_libs, _instance._native_lib_count, MAX_NATIVE_LIBS);
+    _instance.updateSymbols();
     return result;
 }
 
@@ -740,34 +744,16 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Error Profiler::initJvmLibrary() {
-    if (_libjvm != NULL) {
-        return Error::OK;
+Error Profiler::checkJvmCapabilities() {
+    if (VMStructs::libjvm() == NULL) {
+        return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
     }
 
-    if (VM::_asyncGetCallTrace == NULL) {
-        return Error("Could not find AsyncGetCallTrace function");
-    }
-
-    _libjvm = findNativeLibrary((const void*)VM::_asyncGetCallTrace);
-    if (_libjvm == NULL) {
-        return Error("Could not find libjvm among loaded libraries");
-    }
-
-    VMStructs::init(_libjvm);
-    if (!VMStructs::initThreadBridge()) {
+    if (!VMStructs::hasThreadBridge()) {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
-    _JvmtiEnv_GetStackTrace = (jvmtiError (*)(void*, void*, jint, jint, jvmtiFrameInfo*, jint*))
-        _libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
-
-    _CodeCache_find_blob = (const void* (*)(const void*)) _libjvm->findSymbol("_ZN9CodeCache16find_blob_unsafeEPv");
-    if (_CodeCache_find_blob == NULL) {
-        _CodeCache_find_blob = (const void* (*)(const void*)) _libjvm->findSymbol("_ZN9CodeCache9find_blobEPv");
-    }
-
-    if (_CodeCache_find_blob == NULL) {
+    if (VMStructs::_get_stack_trace == NULL) {
         fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
     }
 
@@ -778,6 +764,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE) {
         return Error("Profiler already started");
+    }
+
+    Error error = checkJvmCapabilities();
+    if (error) {
+        return error;
     }
 
     if (reset || _start_time == 0) {
@@ -830,13 +821,9 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
-    Error error = initJvmLibrary();
-    if (error) {
-        return error;
-    }
+    updateSymbols();
 
-    _safe_mode = args._safe_mode | (VM::is_hotspot() ? 0 : HOTSPOT_ONLY);
+    _safe_mode = args._safe_mode | (VM::hotspot_version() ? 0 : HOTSPOT_ONLY);
 
     _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
     _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
@@ -898,8 +885,7 @@ Error Profiler::check(Arguments& args) {
         return Error("Profiler already started");
     }
 
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
-    Error error = initJvmLibrary();
+    Error error = checkJvmCapabilities();
     if (error) {
         return error;
     }

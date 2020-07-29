@@ -23,15 +23,8 @@
 jlong LockTracer::_start_time = 0;
 jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
-UnsafeParkFunc LockTracer::_original_Unsafe_Park = NULL;
-bool LockTracer::_supports_lock_names = false;
 
 Error LockTracer::start(Arguments& args) {
-    // PermGen in JDK 7 makes difficult to get symbol name from jclass.
-    // Also some JVMs do not support VMStructs at all.
-    // Let's just record stack traces without lock names in these cases.
-    _supports_lock_names = VMStructs::available() && !VMStructs::hasPermGen();
-
     // Enable Java Monitor events
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
@@ -44,17 +37,8 @@ Error LockTracer::start(Arguments& args) {
         _getBlocker = env->GetStaticMethodID(_LockSupport, "getBlocker", "(Ljava/lang/Thread;)Ljava/lang/Object;");
     }
 
-    if (_original_Unsafe_Park == NULL) {
-        NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
-        _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("Unsafe_Park");
-        if (_original_Unsafe_Park == NULL) {
-            // In some macOS builds of JDK 11 Unsafe_Park appears to have a C++ decorated name
-            _original_Unsafe_Park = (UnsafeParkFunc)libjvm->findSymbol("_ZL11Unsafe_ParkP7JNIEnv_P8_jobjecthl");
-        }
-    }
-
     // Intercent Unsafe.park() for tracing contended ReentrantLocks
-    if (_original_Unsafe_Park != NULL) {
+    if (VMStructs::_unsafe_park != NULL) {
         bindUnsafePark(UnsafeParkTrap);
     }
 
@@ -68,8 +52,8 @@ void LockTracer::stop() {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
 
     // Reset Unsafe.park() trap
-    if (_original_Unsafe_Park != NULL) {
-        bindUnsafePark(_original_Unsafe_Park);
+    if (VMStructs::_unsafe_park != NULL) {
+        bindUnsafePark(VMStructs::_unsafe_park);
     }
 }
 
@@ -86,7 +70,7 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
 
     // Time is meaningless if lock attempt has started before profiling
     if (enter_time >= _start_time) {
-        recordContendedLock(env->GetObjectClass(object), entered_time - enter_time);
+        recordContendedLock(env, env->GetObjectClass(object), entered_time - enter_time);
     }
 }
 
@@ -99,11 +83,11 @@ void JNICALL LockTracer::UnsafeParkTrap(JNIEnv* env, jobject instance, jboolean 
         jvmti->GetTime(&park_start_time);
     }
     
-    _original_Unsafe_Park(env, instance, isAbsolute, time);
+    VMStructs::_unsafe_park(env, instance, isAbsolute, time);
 
     if (lock_class != NULL) {
         jvmti->GetTime(&park_end_time);
-        recordContendedLock(lock_class, park_end_time - park_start_time);
+        recordContendedLock(env, lock_class, park_end_time - park_start_time);
     }
 }
 
@@ -136,9 +120,9 @@ jclass LockTracer::getParkBlockerClass(jvmtiEnv* jvmti, JNIEnv* env) {
     return lock_class;
 }
 
-void LockTracer::recordContendedLock(jclass lock_class, jlong time) {
-    if (_supports_lock_names) {
-        VMSymbol* lock_name = (*(java_lang_Class**)lock_class)->klass()->name();
+void LockTracer::recordContendedLock(JNIEnv* env, jclass lock_class, jlong time) {
+    if (VMStructs::hasClassNames()) {
+        VMSymbol* lock_name = VMKlass::fromJavaClass(env, lock_class)->name();
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, (jmethodID)lock_name);
     } else {
         Profiler::_instance.recordSample(NULL, time, BCI_SYMBOL, NULL);

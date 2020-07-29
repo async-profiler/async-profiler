@@ -54,7 +54,6 @@ class AllocTracer : public Engine {
     static Trap _in_new_tlab2;
     static Trap _outside_tlab2;
 
-    static bool _supports_class_names;
     static u64 _interval;
     static volatile u64 _allocated_bytes;
 

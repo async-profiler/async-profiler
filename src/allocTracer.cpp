@@ -29,7 +29,6 @@ Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_
 Trap AllocTracer::_in_new_tlab2("_ZN11AllocTracer27send_allocation_in_new_tlab");
 Trap AllocTracer::_outside_tlab2("_ZN11AllocTracer28send_allocation_outside_tlab");
 
-bool AllocTracer::_supports_class_names = false;
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
 
@@ -120,7 +119,7 @@ void AllocTracer::recordAllocation(void* ucontext, StackFrame& frame, uintptr_t 
         }
     }
 
-    if (_supports_class_names) {
+    if (VMStructs::hasClassNames()) {
         VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
         if (outside_tlab) {
             // Invert the last bit to distinguish jmethodID from the allocation in new TLAB
@@ -134,7 +133,7 @@ void AllocTracer::recordAllocation(void* ucontext, StackFrame& frame, uintptr_t 
 }
 
 Error AllocTracer::check(Arguments& args) {
-    NativeCodeCache* libjvm = Profiler::_instance.jvmLibrary();
+    NativeCodeCache* libjvm = VMStructs::libjvm();
     if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
         !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
@@ -149,7 +148,6 @@ Error AllocTracer::start(Arguments& args) {
         return error;
     }
 
-    _supports_class_names =  VMStructs::available();
     _interval = args._interval;
     _allocated_bytes = 0;
 
