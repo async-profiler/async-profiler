@@ -116,14 +116,14 @@ void WallClock::stop() {
 
 void WallClock::timerLoop() {
     int self = OS::threadId();
-    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
-    bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
     ThreadList* thread_list = OS::listThreads();
     long long next_cycle_time = OS::nanotime();
 
     while (_running) {
+        ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+        bool thread_filter_enabled = thread_filter->enabled();
         if (sample_idle_threads) {
             // Try to keep the wall clock interval stable, regardless of the number of profiled threads
             int estimated_thread_count = thread_filter_enabled ? thread_filter->size() : thread_list->size();

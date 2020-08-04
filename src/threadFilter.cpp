@@ -94,6 +94,7 @@ void ThreadFilter::add(int thread_id) {
     if (!(__sync_fetch_and_or(&word(b, thread_id), bit) & bit)) {
         atomicInc(_size);
     }
+    _enabled = true;
 }
 
 void ThreadFilter::remove(int thread_id) {
