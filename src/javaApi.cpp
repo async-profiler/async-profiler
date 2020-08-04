@@ -144,7 +144,9 @@ void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
         if (frame[i].method == load || frame[i].method == loadLibrary) {
             jclass profiler_class;
             if (jvmti->GetMethodDeclaringClass(frame[i + 1].method, &profiler_class) == 0) {
-                jni->RegisterNatives(profiler_class, profiler_natives, sizeof(profiler_natives) / sizeof(JNINativeMethod));
+                for (int j = 0; j < sizeof(profiler_natives) / sizeof(JNINativeMethod); j++) {
+                    jni->RegisterNatives(profiler_class, &profiler_natives[j], 1);
+                }
             }
             break;
         }
