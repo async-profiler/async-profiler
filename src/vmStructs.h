@@ -46,6 +46,7 @@ class VMStructs {
     static jfieldID _eetop;
     static jfieldID _tid;
     static jfieldID _klass;
+    static int _tls_index;
     static intptr_t _env_offset;
 
     typedef void* (*FindBlobFunc)(const void*);
@@ -66,6 +67,8 @@ class VMStructs {
 
   public:
     static void init(NativeCodeCache* libjvm);
+
+    static bool hasJNIEnv();
 
     static NativeCodeCache* libjvm() {
         return _libjvm;

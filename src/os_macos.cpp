@@ -128,10 +128,6 @@ ThreadList* OS::listThreads() {
     return new MacThreadList();
 }
 
-bool OS::isSignalSafeTLS() {
-    return false;
-}
-
 bool OS::isJavaLibraryVisible() {
     return true;
 }

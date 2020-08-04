@@ -174,10 +174,6 @@ ThreadList* OS::listThreads() {
     return new LinuxThreadList();
 }
 
-bool OS::isSignalSafeTLS() {
-    return true;
-}
-
 bool OS::isJavaLibraryVisible() {
     return false;
 }

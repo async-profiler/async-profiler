@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <pthread.h>
 #include <stdint.h>
 #include <string.h>
 #include "vmStructs.h"
@@ -42,6 +43,7 @@ int VMStructs::_frame_size_offset = -1;
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
 jfieldID VMStructs::_klass = NULL;
+int VMStructs::_tls_index = -1;
 intptr_t VMStructs::_env_offset;
 
 VMStructs::GetStackTraceFunc VMStructs::_get_stack_trace = NULL;
@@ -185,6 +187,21 @@ void VMStructs::initThreadBridge() {
         return;
     }
 
+    // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
+    // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
+    if (VM::hotspot_version() >= 9) {
+        for (int i = 0; i < 1024; i++) {
+            if (pthread_getspecific((pthread_key_t)i) == vm_thread) {
+                _tls_index = i;
+                break;
+            }
+        }
+    }
+
     _env_offset = (intptr_t)env - (intptr_t)vm_thread;
     _has_thread_bridge = true;
+}
+
+bool VMStructs::hasJNIEnv() {
+    return _tls_index < 0 || pthread_getspecific((pthread_key_t)_tls_index) != NULL;
 }

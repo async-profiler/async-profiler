@@ -193,19 +193,10 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid, bool* stopped_at_java_frame) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
                                                 &_java_methods, &_runtime_stubs);
-
-    *stopped_at_java_frame = false;
-    if (native_frames > 0) {
-        const void* last_pc = native_callchain[native_frames - 1];
-        if (_java_methods.contains(last_pc) || _runtime_stubs.contains(last_pc)) {
-            *stopped_at_java_frame = true;
-            native_frames--;
-        }
-    }
 
     int depth = 0;
     jmethodID prev_method = NULL;
@@ -469,7 +460,6 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     atomicInc(_total_counter, counter);
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
-    bool need_java_trace = true;
 
     int num_frames = 0;
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
@@ -477,14 +467,14 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
     if (_cstack != CSTACK_NO && event_type == 0) {
-        num_frames += getNativeTrace(ucontext, frames + num_frames, tid, &need_java_trace);
+        num_frames += getNativeTrace(ucontext, frames + num_frames, tid);
     }
 
     if (event_type != 0 && VMStructs::_get_stack_trace != NULL) {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-    } else if (OS::isSignalSafeTLS() || need_java_trace) {
+    } else if (VMStructs::hasJNIEnv()) {
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
     }
 
