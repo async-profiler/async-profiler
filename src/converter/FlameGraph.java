@@ -25,22 +25,26 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class FlameGraph {
-    private String title = "Flame Graph";
-    private boolean reverse;
-    private double minwidth;
-    private int skip;
+    public String title = "Flame Graph";
+    public boolean reverse;
+    public double minwidth;
+    public int skip;
+    public String input;
+    public String output;
 
     private final Frame root = new Frame();
     private int depth;
     private long mintotal;
 
-    public FlameGraph(String... args) throws IOException {
-        String fileName = null;
-
+    public FlameGraph(String... args) {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if (!arg.startsWith("--") && !arg.isEmpty()) {
-                fileName = arg;
+                if (input == null) {
+                    input = arg;
+                } else {
+                    output = arg;
+                }
             } else if (arg.equals("--title")) {
                 title = args[++i];
             } else if (arg.equals("--reverse")) {
@@ -51,10 +55,10 @@ public class FlameGraph {
                 skip = Integer.parseInt(args[++i]);
             }
         }
+    }
 
-        if (fileName != null) {
-            parse(new InputStreamReader(new FileInputStream(fileName), StandardCharsets.UTF_8));
-        }
+    public void parse() throws IOException {
+        parse(new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8));
     }
 
     public void parse(Reader in) throws IOException {
@@ -80,6 +84,16 @@ public class FlameGraph {
                 }
                 frame.total += ticks;
                 frame.self += ticks;
+            }
+        }
+    }
+
+    public void dump() throws IOException {
+        if (output == null) {
+            dump(System.out);
+        } else {
+            try (PrintStream out = new PrintStream(output, "UTF-8")) {
+                dump(out);
             }
         }
     }
@@ -162,7 +176,20 @@ public class FlameGraph {
     }
 
     public static void main(String[] args) throws IOException {
-        new FlameGraph(args).dump(System.out);
+        FlameGraph fg = new FlameGraph(args);
+        if (fg.input == null) {
+            System.out.println("Usage: java " + FlameGraph.class.getName() + " [options] input.collapsed [output.html]");
+            System.out.println();
+            System.out.println("Options:");
+            System.out.println("  --title TITLE");
+            System.out.println("  --reverse");
+            System.out.println("  --minwidth PERCENT");
+            System.out.println("  --skip FRAMES");
+            System.exit(1);
+        }
+
+        fg.parse();
+        fg.dump();
     }
 
     static class Frame extends TreeMap<String, Frame> {
@@ -184,9 +211,9 @@ public class FlameGraph {
             "<meta charset=\"utf-8\">\n" +
             "<style>\n" +
             "\tbody {margin: 0; padding: 10px; background-color: #ffffff}\n" +
-            "\th1 {margin: 5px 0 0 0; font: 18px Verdana; text-align: center}\n" +
+            "\th1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}\n" +
             "\theader {margin: -24px 0 5px 0; line-height: 24px}\n" +
-            "\tbutton {font: 12px Verdana; cursor: pointer}\n" +
+            "\tbutton {font: 12px sans-serif; cursor: pointer}\n" +
             "\tp {margin: 5px 0 5px 0}\n" +
             "\ta {color: #0366d6}\n" +
             "\t#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}\n" +
@@ -196,7 +223,7 @@ public class FlameGraph {
             "\t#reset {cursor: pointer}\n" +
             "</style>\n" +
             "</head>\n" +
-            "<body style=\"font: 12px Verdana\">\n" +
+            "<body style=\"font: 12px Verdana, sans-serif\">\n" +
             "<h1>${title}</h1>\n" +
             "<header style=\"text-align: left\"><button id=\"reverse\" title=\"Reverse\">&#x1f53b;</button>&nbsp;&nbsp;<button id=\"search\" title=\"Search\">&#x1f50d;</button></header>\n" +
             "<header style=\"text-align: right\">Produced by <a href=\"https://github.com/jvm-profiling-tools/async-profiler\">async-profiler</a></header>\n" +

@@ -14,30 +14,17 @@
  * limitations under the License.
  */
 
-import java.io.File;
-
 /**
  * Main entry point of jar.
- * Invokes the proper converter depending on input/output file names.
+ * Lists available converters.
  */
 public class Main {
 
-    public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java -jar converter.jar <input> <output>");
-            System.out.println("Currently supported conversions:");
-            System.out.println("  jfr -> nflx");
-            System.exit(1);
-        }
-
-        String src = args[0];
-        String dst = args[1];
-
-        if (src.endsWith(".jfr") && (dst.endsWith(".nflx") || new File(dst).isDirectory())) {
-            jfr2nflx.main(args);
-        } else {
-            System.out.println("Unrecognized input/output format");
-            System.exit(1);
-        }
+    public static void main(String[] args) {
+        System.out.println("Usage: java -cp converter.jar <Converter> [options] <input> <output>");
+        System.out.println();
+        System.out.println("Available converters:");
+        System.out.println("  FlameGraph input.collapsed output.html");
+        System.out.println("  jfr2nflx   input.jfr       output.nflx");
     }
 }
