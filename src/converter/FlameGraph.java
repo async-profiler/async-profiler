@@ -136,10 +136,10 @@ public class FlameGraph {
         int type = frameType(title);
         title = stripSuffix(title);
         if (title.indexOf('"') >= 0) {
-            title = title.replace("\"", "\\\"");
+            title = title.replace("'", "\\'");
         }
 
-        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",\"" + title + "\")");
+        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "')");
 
         x += frame.self;
         for (Map.Entry<String, Frame> e : frame.entrySet()) {
@@ -206,9 +206,9 @@ public class FlameGraph {
     }
 
     private static final String HEADER = "<!DOCTYPE html>\n" +
-            "<html lang=\"en\">\n" +
+            "<html lang='en'>\n" +
             "<head>\n" +
-            "<meta charset=\"utf-8\">\n" +
+            "<meta charset='utf-8'>\n" +
             "<style>\n" +
             "\tbody {margin: 0; padding: 10px; background-color: #ffffff}\n" +
             "\th1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}\n" +
@@ -223,17 +223,18 @@ public class FlameGraph {
             "\t#reset {cursor: pointer}\n" +
             "</style>\n" +
             "</head>\n" +
-            "<body style=\"font: 12px Verdana, sans-serif\">\n" +
+            "<body style='font: 12px Verdana, sans-serif'>\n" +
             "<h1>${title}</h1>\n" +
-            "<header style=\"text-align: left\"><button id=\"reverse\" title=\"Reverse\">&#x1f53b;</button>&nbsp;&nbsp;<button id=\"search\" title=\"Search\">&#x1f50d;</button></header>\n" +
-            "<header style=\"text-align: right\">Produced by <a href=\"https://github.com/jvm-profiling-tools/async-profiler\">async-profiler</a></header>\n" +
-            "<canvas id=\"canvas\" style=\"width: 100%; height: ${height}px\"></canvas>\n" +
-            "<div id=\"hl\"><span></span></div>\n" +
-            "<p id=\"match\">Matched: <span id=\"matchval\"></span> <span id=\"reset\" title=\"Clear\">&#x274c;</span></p>\n" +
-            "<p id=\"status\">&nbsp;</p>\n" +
+            "<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>\n" +
+            "<header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>\n" +
+            "<canvas id='canvas' style='width: 100%; height: ${height}px'></canvas>\n" +
+            "<div id='hl'><span></span></div>\n" +
+            "<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>\n" +
+            "<p id='status'>&nbsp;</p>\n" +
             "<script>\n" +
             "\t// Copyright 2020 Andrei Pangin\n" +
             "\t// Licensed under the Apache License, Version 2.0.\n" +
+            "\t'use strict';\n" +
             "\tvar root, rootLevel, px, pattern;\n" +
             "\tvar reverse = ${reverse};\n" +
             "\tconst marked = [];\n" +
@@ -242,14 +243,14 @@ public class FlameGraph {
             "\t\tlevels[h] = [];\n" +
             "\t}\n" +
             "\n" +
-            "\tconst canvas = document.getElementById(\"canvas\");\n" +
-            "\tconst c = canvas.getContext(\"2d\");\n" +
-            "\tconst hl = document.getElementById(\"hl\");\n" +
-            "\tconst status = document.getElementById(\"status\");\n" +
+            "\tconst canvas = document.getElementById('canvas');\n" +
+            "\tconst c = canvas.getContext('2d');\n" +
+            "\tconst hl = document.getElementById('hl');\n" +
+            "\tconst status = document.getElementById('status');\n" +
             "\n" +
             "\tconst canvasWidth = canvas.offsetWidth;\n" +
             "\tconst canvasHeight = canvas.offsetHeight;\n" +
-            "\tcanvas.style.width = canvasWidth + \"px\";\n" +
+            "\tcanvas.style.width = canvasWidth + 'px';\n" +
             "\tcanvas.width = canvasWidth * (devicePixelRatio || 1);\n" +
             "\tcanvas.height = canvasHeight * (devicePixelRatio || 1);\n" +
             "\tif (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);\n" +
@@ -265,7 +266,7 @@ public class FlameGraph {
             "\n" +
             "\tfunction getColor(p) {\n" +
             "\t\tconst v = Math.random();\n" +
-            "\t\treturn \"#\" + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n" +
+            "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n" +
             "\t}\n" +
             "\n" +
             "\tfunction f(level, left, width, type, title) {\n" +
@@ -274,11 +275,11 @@ public class FlameGraph {
             "\t}\n" +
             "\n" +
             "\tfunction samples(n) {\n" +
-            "\t\treturn n === 1 ? \"1 sample\" : n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, \",\") + \" samples\";\n" +
+            "\t\treturn n === 1 ? '1 sample' : n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',') + ' samples';\n" +
             "\t}\n" +
             "\n" +
             "\tfunction pct(a, b) {\n" +
-            "\t\treturn a >= b ? \"100\" : (100 * a / b).toFixed(2);\n" +
+            "\t\treturn a >= b ? '100' : (100 * a / b).toFixed(2);\n" +
             "\t}\n" +
             "\n" +
             "\tfunction findFrame(frames, x) {\n" +
@@ -319,19 +320,19 @@ public class FlameGraph {
             "\t}\n" +
             "\n" +
             "\tfunction search(r) {\n" +
-            "\t\tif (r && (r = prompt(\"Enter regexp to search:\", \"\")) === null) {\n" +
+            "\t\tif (r && (r = prompt('Enter regexp to search:', '')) === null) {\n" +
             "\t\t\treturn;\n" +
             "\t\t}\n" +
             "\n" +
             "\t\tpattern = r ? RegExp(r) : undefined;\n" +
             "\t\tconst matched = render(root, rootLevel);\n" +
-            "\t\tdocument.getElementById(\"matchval\").textContent = pct(matched, root.width) + \"%\";\n" +
-            "\t\tdocument.getElementById(\"match\").style.display = r ? \"inherit\" : \"none\";\n" +
+            "\t\tdocument.getElementById('matchval').textContent = pct(matched, root.width) + '%';\n" +
+            "\t\tdocument.getElementById('match').style.display = r ? 'inherit' : 'none';\n" +
             "\t}\n" +
             "\n" +
             "\tfunction render(newRoot, newLevel) {\n" +
             "\t\tif (root) {\n" +
-            "\t\t\tc.fillStyle = \"#ffffff\";\n" +
+            "\t\t\tc.fillStyle = '#ffffff';\n" +
             "\t\t\tc.fillRect(0, 0, canvasWidth, canvasHeight);\n" +
             "\t\t}\n" +
             "\n" +
@@ -347,18 +348,18 @@ public class FlameGraph {
             "\n" +
             "\t\tfunction drawFrame(f, y, alpha) {\n" +
             "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n" +
-            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && (totalMarked += mark(f)) ? \"#ee00ee\" : f.color;\n" +
+            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && (totalMarked += mark(f)) ? '#ee00ee' : f.color;\n" +
             "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
             "\n" +
             "\t\t\t\tif (f.width * px >= 21) {\n" +
             "\t\t\t\t\tconst chars = Math.floor(f.width * px / 7);\n" +
-            "\t\t\t\t\tconst title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + \"..\";\n" +
-            "\t\t\t\t\tc.fillStyle = \"#000000\";\n" +
+            "\t\t\t\t\tconst title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + '..';\n" +
+            "\t\t\t\t\tc.fillStyle = '#000000';\n" +
             "\t\t\t\t\tc.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);\n" +
             "\t\t\t\t}\n" +
             "\n" +
             "\t\t\t\tif (alpha) {\n" +
-            "\t\t\t\t\tc.fillStyle = \"rgba(255, 255, 255, 0.5)\";\n" +
+            "\t\t\t\t\tc.fillStyle = 'rgba(255, 255, 255, 0.5)';\n" +
             "\t\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
             "\t\t\t\t}\n" +
             "\t\t\t}\n" +
@@ -380,20 +381,20 @@ public class FlameGraph {
             "\t\tif (h >= 0 && h < levels.length) {\n" +
             "\t\t\tconst f = findFrame(levels[h], event.offsetX / px + root.left);\n" +
             "\t\t\tif (f) {\n" +
-            "\t\t\t\thl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + \"px\";\n" +
-            "\t\t\t\thl.style.width = (Math.min(f.width, root.width) * px) + \"px\";\n" +
-            "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + \"px\";\n" +
+            "\t\t\t\thl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';\n" +
+            "\t\t\t\thl.style.width = (Math.min(f.width, root.width) * px) + 'px';\n" +
+            "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n" +
             "\t\t\t\thl.firstChild.textContent = f.title;\n" +
-            "\t\t\t\thl.style.display = \"block\";\n" +
-            "\t\t\t\tcanvas.title = f.title + \"\\n(\" + samples(f.width) + \", \" + pct(f.width, levels[0][0].width) + \"%)\";\n" +
-            "\t\t\t\tcanvas.style.cursor = \"pointer\";\n" +
+            "\t\t\t\thl.style.display = 'block';\n" +
+            "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
+            "\t\t\t\tcanvas.style.cursor = 'pointer';\n" +
             "\t\t\t\tcanvas.onclick = function() {\n" +
             "\t\t\t\t\tif (f != root) {\n" +
             "\t\t\t\t\t\trender(f, h);\n" +
             "\t\t\t\t\t\tcanvas.onmousemove();\n" +
             "\t\t\t\t\t}\n" +
             "\t\t\t\t};\n" +
-            "\t\t\t\tstatus.textContent = \"Function: \" + canvas.title;\n" +
+            "\t\t\t\tstatus.textContent = 'Function: ' + canvas.title;\n" +
             "\t\t\t\treturn;\n" +
             "\t\t\t}\n" +
             "\t\t}\n" +
@@ -401,23 +402,23 @@ public class FlameGraph {
             "\t}\n" +
             "\n" +
             "\tcanvas.onmouseout = function() {\n" +
-            "\t\thl.style.display = \"none\";\n" +
-            "\t\tstatus.textContent = \"\\xa0\";\n" +
-            "\t\tcanvas.title = \"\";\n" +
-            "\t\tcanvas.style.cursor = \"\";\n" +
-            "\t\tcanvas.onclick = \"\";\n" +
+            "\t\thl.style.display = 'none';\n" +
+            "\t\tstatus.textContent = '\\xa0';\n" +
+            "\t\tcanvas.title = '';\n" +
+            "\t\tcanvas.style.cursor = '';\n" +
+            "\t\tcanvas.onclick = '';\n" +
             "\t}\n" +
             "\n" +
-            "\tdocument.getElementById(\"reverse\").onclick = function() {\n" +
+            "\tdocument.getElementById('reverse').onclick = function() {\n" +
             "\t\treverse = !reverse;\n" +
             "\t\trender();\n" +
             "\t}\n" +
             "\n" +
-            "\tdocument.getElementById(\"search\").onclick = function() {\n" +
+            "\tdocument.getElementById('search').onclick = function() {\n" +
             "\t\tsearch(true);\n" +
             "\t}\n" +
             "\n" +
-            "\tdocument.getElementById(\"reset\").onclick = function() {\n" +
+            "\tdocument.getElementById('reset').onclick = function() {\n" +
             "\t\tsearch(false);\n" +
             "\t}\n" +
             "\n" +
