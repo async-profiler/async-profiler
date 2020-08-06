@@ -65,6 +65,8 @@ public class FlameGraph {
         try (BufferedReader br = new BufferedReader(in)) {
             for (String line; (line = br.readLine()) != null; ) {
                 int space = line.lastIndexOf(' ');
+                if (space <= 0) continue;
+
                 String[] trace = line.substring(0, space).split(";");
                 long ticks = Long.parseLong(line.substring(space + 1));
 
@@ -72,7 +74,7 @@ public class FlameGraph {
 
                 Frame frame = root;
                 if (reverse) {
-                    for (int i = trace.length - skip; --i >= 0; ) {
+                    for (int i = trace.length; --i >= skip; ) {
                         frame.total += ticks;
                         frame = frame.child(trace[i]);
                     }
