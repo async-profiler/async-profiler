@@ -166,7 +166,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value)) <= 0) {
-                    return Error("interval must be > 0");
+                    return Error("Invalid interval");
                 }
 
             CASE("jstackdepth")
@@ -333,20 +333,20 @@ long Arguments::parseUnits(const char* str) {
     char* end;
     long result = strtol(str, &end, 0);
 
-    if (*end) {
-        switch (*end) {
-            case 'K': case 'k':
-            case 'U': case 'u': // microseconds
-                return result * 1000;
-            case 'M': case 'm': // million, megabytes or milliseconds
-                return result * 1000000;
-            case 'G': case 'g':
-            case 'S': case 's': // seconds
-                return result * 1000000000;
-        }
+    switch (*end) {
+        case 0:
+            return result;
+        case 'K': case 'k':
+        case 'U': case 'u': // microseconds
+            return result * 1000;
+        case 'M': case 'm': // million, megabytes or milliseconds
+            return result * 1000000;
+        case 'G': case 'g':
+        case 'S': case 's': // seconds
+            return result * 1000000000;
     }
 
-    return result;
+    return -1;
 }
 
 Arguments::~Arguments() {
