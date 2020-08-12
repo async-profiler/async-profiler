@@ -131,31 +131,25 @@ void* VM::getLibraryHandle(const char* name) {
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
-    ClassLoaderData* cld;
-    MethodList* old_list = NULL;
-
     if (VMStructs::hasClassLoaderData()) {
-        cld = VMKlass::fromJavaClass(jni, klass)->classLoaderData();
-        cld->lock();
-        old_list = *cld->methodList();
-        *cld->methodList() = NULL;
-        cld->unlock();
+        VMKlass* vmklass = VMKlass::fromJavaClass(jni, klass);
+        int method_count = vmklass->methodCount();
+        if (method_count > 0) {
+            ClassLoaderData* cld = vmklass->classLoaderData();
+            cld->lock();
+            // Workaround for JVM bug: preallocate space for jmethodIDs
+            // at the beginning of the list (rather than at the end)
+            for (int i = 0; i < method_count; i += MethodList::SIZE) {
+                *cld->methodList() = new MethodList(*cld->methodList());
+            }
+            cld->unlock();
+        }
     }
 
     jint method_count;
     jmethodID* methods;
     if (jvmti->GetClassMethods(klass, &method_count, &methods) == 0) {
         jvmti->Deallocate((unsigned char*)methods);
-    }
-
-    if (old_list != NULL) {
-        cld->lock();
-        MethodList** tail = cld->methodList();
-        while (*tail != NULL) {
-            tail = &(*tail)->next;
-        }
-        *tail = old_list;
-        cld->unlock();
     }
 }
 
