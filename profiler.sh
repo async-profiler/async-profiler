@@ -113,7 +113,7 @@ while [ $# -gt 0 ]; do
             ACTION="version"
             ;;
         -e)
-            EVENT="$2"
+            EVENT="$(echo "$2" | sed 's/,/,event=/g')"
             shift
             ;;
         -d)
