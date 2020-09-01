@@ -499,7 +499,7 @@ stack traces.
 ```
 No AllocTracer symbols found. Are JDK debug symbols installed?
 ```
-The OpenJDK debug symbols are an hard requirement for allocation profiling.
+The OpenJDK debug symbols are required for allocation profiling.
 See [Installing Debug Symbols](#installing-debug-symbols) for more details.
 If the error message persists after a successful installation of the debug symbols, it is possible that the JDK was upgraded when installing the debug symbols.
 In this case, profiling any Java process which had started prior to the installation will continue to display this message, since the process had loaded the older version of the JDK which lacked debug symbols.
