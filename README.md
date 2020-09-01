@@ -60,7 +60,7 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
-If you wish to resolve frames within `libjvm`, the (debug symbols)[#installing-debug-symbols] are required.
+If you wish to resolve frames within `libjvm`, the [debug symbols](#installing-debug-symbols) are required.
 
 ## ALLOCATION profiling
 
