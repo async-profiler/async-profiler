@@ -40,10 +40,12 @@ usage() {
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
+    echo "      or the application's name as it would appear in the jps tool"
     echo ""
     echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
     echo "         $0 stop -o summary,flat jps"
+    echo "         $0 -d 5 -e alloc MyAppName"
     exit 1
 }
 
@@ -199,10 +201,21 @@ while [ $# -gt 0 ]; do
             # A shortcut for getting PID of a running Java application
             # -XX:+PerfDisableSharedMem prevents jps from appearing in its own list
             PID=$(pgrep -n java || jps -q -J-XX:+PerfDisableSharedMem)
+            if [ "$PID" = "" ]; then
+                echo "No Java process could be found!"
+            fi
             ;;
         *)
-            echo "Unrecognized option: $1"
-            usage
+            if [ $# -eq 1 ]; then
+                # the last argument is the application name as it would appear in the jps tool
+                PID=$(jps -J-XX:+PerfDisableSharedMem | grep $1 | cut -d ' ' -f 1)
+                if [ "$PID" = "" ]; then
+                    echo "No Java process '$1' could be found!"
+                fi
+            else
+                echo "Unrecognized option: $1"
+                usage
+            fi
             ;;
     esac
     shift
