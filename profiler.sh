@@ -208,7 +208,7 @@ while [ $# -gt 0 ]; do
         *)
             if [ $# -eq 1 ]; then
                 # the last argument is the application name as it would appear in the jps tool
-                PID=$(jps -J-XX:+PerfDisableSharedMem | grep $1 | cut -d ' ' -f 1)
+                PID=$(jps -J-XX:+PerfDisableSharedMem | grep " $1$" | head -n 1 | cut -d ' ' -f 1)
                 if [ "$PID" = "" ]; then
                     echo "No Java process '$1' could be found!"
                 fi
