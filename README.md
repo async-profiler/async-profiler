@@ -170,6 +170,11 @@ $ ./profiler.sh start 8983
 $ ./profiler.sh stop 8983
 ```
 
+The following may be used in lieu of the `pid` (8983):
+
+ - The keyword `jps`, which will use the most recently launched Java process.
+ - The application name as it appears in the `jps` output: e.g. `Computey`
+
 Alternatively, you may specify `-d` (duration) argument to profile
 the application for a fixed period of time with a single command.
 
