@@ -60,6 +60,8 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
+If you wish to resolve frames within `libjvm`, the [debug symbols](#installing-debug-symbols) are required.
+
 ## ALLOCATION profiling
 
 Instead of detecting CPU-consuming code, the profiler can be configured
@@ -91,7 +93,9 @@ It is completely based on open source technologies and it works with OpenJDK.
 
 The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 
-Heap profiler requires HotSpot debug symbols. Oracle JDK already has them
+### Installing Debug Symbols
+
+The allocation profiler requires HotSpot debug symbols. Oracle JDK already has them
 embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
 in a separate package. For example, to install OpenJDK debug symbols on
 Debian / Ubuntu, run:
@@ -112,7 +116,14 @@ On CentOS, RHEL and some other RPM-based distributions, this could be done with
 On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
 `FEATURES="nostrip"` to retain symbols.
 
-### Wall-clock profiling
+The `gdb` tool can be used to verify if the debug symbols are properly installed for the `libjvm` library.
+For example on Linux:
+```
+$ gdb $JAVA_HOME/lib/server/libjvm.so
+```
+This command's output will either contain `(no debugging symbols found)` or `Reading symbols from...`.
+
+## Wall-clock profiling
 
 `-e wall` option tells async-profiler to sample all threads equally every given
 period of time regardless of thread status: Running, Sleeping or Blocked.
@@ -493,8 +504,11 @@ stack traces.
 ```
 No AllocTracer symbols found. Are JDK debug symbols installed?
 ```
-It might be needed to install the package with OpenJDK debug symbols.
-See [Allocation profiling](#allocation-profiling) for details.
+The OpenJDK debug symbols are required for allocation profiling.
+See [Installing Debug Symbols](#installing-debug-symbols) for more details.
+If the error message persists after a successful installation of the debug symbols, it is possible that the JDK was upgraded when installing the debug symbols.
+In this case, profiling any Java process which had started prior to the installation will continue to display this message, since the process had loaded the older version of the JDK which lacked debug symbols.
+Restarting the affected Java processes should resolve the issue.
 
 ```
 VMStructs unavailable. Unsupported JVM?
