@@ -205,6 +205,10 @@ while [ $# -gt 0 ]; do
                 echo "No Java process could be found!"
             fi
             ;;
+        -*)
+            echo "Unrecognized option: $1"
+            usage
+            ;;
         *)
             if [ $# -eq 1 ]; then
                 # the last argument is the application name as it would appear in the jps tool
