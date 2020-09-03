@@ -362,10 +362,10 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
-    if (!haveKernelSymbols()) {
+    if (kernel_symbols && !haveKernelSymbols()) {
         NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
 

@@ -227,7 +227,7 @@ class Profiler {
     void dumpFlat(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, jmethodID event, ThreadState thread_state = THREAD_RUNNING);
 
-    void updateSymbols();
+    void updateSymbols(bool kernel_symbols = false);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* name);
     NativeCodeCache* findNativeLibrary(const void* address);

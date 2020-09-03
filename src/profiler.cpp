@@ -222,8 +222,8 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-void Profiler::updateSymbols() {
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+void Profiler::updateSymbols(bool kernel_symbols) {
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS, kernel_symbols);
 }
 
 const void* Profiler::findSymbol(const char* name) {
@@ -811,7 +811,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    updateSymbols();
+    updateSymbols(args._ring != RING_USER);
 
     _safe_mode = args._safe_mode | (VM::hotspot_version() ? 0 : HOTSPOT_ONLY);
 
