@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.8.1] - 2020-09-05
+
+### Improvements
+ - Possibility to specify application name instead of `pid` (contributed by @yuzawa-san)
+
+### Bug fixes
+ - Fixed long attach time and slow class loading on JDK 8
+ - `UnsatisfiedLinkError` during Java method profiling
+ - Avoid reading `/proc/kallsyms` when `--all-user` is specified
+
 ## [1.8] - 2020-08-10
 
 ### Features
