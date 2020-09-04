@@ -110,7 +110,7 @@ void VM::init(JavaVM* vm, bool attach) {
 
 // Run late initialization when JVM is ready
 void VM::ready() {
-    Profiler::_instance.updateSymbols();
+    Profiler::_instance.updateSymbols(false);
     NativeCodeCache* libjvm = Profiler::_instance.findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
         VMStructs::init(libjvm);

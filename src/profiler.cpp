@@ -564,7 +564,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
     jboolean result = _instance._original_NativeLibrary_load(env, self, name, builtin);
-    _instance.updateSymbols();
+    _instance.updateSymbols(false);
     return result;
 }
 
