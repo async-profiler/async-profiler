@@ -36,6 +36,7 @@ class VMStructs {
     static int _symbol_length_and_refcount_offset;
     static int _symbol_body_offset;
     static int _class_loader_data_offset;
+    static int _methods_offset;
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
     static int _osthread_id_offset;
@@ -96,10 +97,22 @@ class VMStructs {
 };
 
 
-struct MethodList {
-    void* method[8];
-    int unused;
-    MethodList* next;
+class MethodList {
+  public:
+    enum { SIZE = 8 };
+
+  private:
+    intptr_t _method[SIZE];
+    int _ptr;
+    MethodList* _next;
+    int _padding;
+
+  public:
+    MethodList(MethodList* next) : _ptr(0), _next(next), _padding(0) {
+        for (int i = 0; i < SIZE; i++) {
+            _method[i] = 0x37;
+        }
+    }
 };
 
 
@@ -166,6 +179,11 @@ class VMKlass : VMStructs {
 
     ClassLoaderData* classLoaderData() {
         return *(ClassLoaderData**) at(_class_loader_data_offset);
+    }
+
+    int methodCount() {
+        int* methods = *(int**) at(_methods_offset);
+        return methods == NULL ? 0 : *methods & 0xffff;
     }
 };
 

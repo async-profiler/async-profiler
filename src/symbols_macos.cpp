@@ -134,7 +134,7 @@ bool Symbols::_have_kernel_symbols = false;
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 

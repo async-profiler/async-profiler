@@ -33,6 +33,7 @@ int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_length_and_refcount_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
 int VMStructs::_class_loader_data_offset = -1;
+int VMStructs::_methods_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
 int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
@@ -104,6 +105,8 @@ void VMStructs::initOffsets() {
         } else if (strcmp(type, "InstanceKlass") == 0) {
             if (strcmp(field, "_class_loader_data") == 0) {
                 _class_loader_data_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_methods") == 0) {
+                _methods_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "java_lang_Class") == 0) {
             if (strcmp(field, "_klass_offset") == 0) {
@@ -160,7 +163,7 @@ void VMStructs::initJvmFunctions() {
         }
     }
 
-    if (VM::hotspot_version() == 8 && _class_loader_data_offset >= 0 && _klass != NULL) {
+    if (VM::hotspot_version() == 8 && _class_loader_data_offset >= 0 && _methods_offset >= 0 && _klass != NULL) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
         _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
         _has_class_loader_data = _lock_func != NULL && _unlock_func != NULL;

@@ -485,10 +485,14 @@ volatile bool Instrument::_running;
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
         JNIEnv* jni = VM::jni();
-        if (jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS)) == NULL) {
+        const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
+
+        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS));
+        if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
             jni->ExceptionClear();
             return Error("Could not load Instrument class");
         }
+
         _instrument_class_loaded = true;
     }
 
@@ -579,17 +583,11 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     }
 }
 
-void Instrument::recordSample() {
+void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
         ExecutionEvent event;
         Profiler::_instance.recordSample(NULL, _interval, BCI_INSTRUMENT, &event);
     }
-}
-
-
-extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_Instrument_recordSample(JNIEnv* env, jobject unused) {
-    Instrument::recordSample();
 }

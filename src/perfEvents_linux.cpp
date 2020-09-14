@@ -473,10 +473,13 @@ Error PerfEvents::check(Arguments& args) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
 
-    if (args._ring == RING_USER || !Symbols::haveKernelSymbols()) {
+    if (args._ring == RING_USER) {
         attr.exclude_kernel = 1;
     } else if (args._ring == RING_KERNEL) {
         attr.exclude_user = 1;
+    } else if (!Symbols::haveKernelSymbols()) {
+        Profiler::_instance.updateSymbols(true);
+        attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
 #ifdef PERF_ATTR_SIZE_VER5

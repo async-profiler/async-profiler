@@ -14,13 +14,13 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Latest release (1.7.1):
+Latest release (1.8.1):
 
- - Linux x64 (glibc): [async-profiler-1.7.1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7.1/async-profiler-1.7.1-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.7.1-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7.1/async-profiler-1.7.1-linux-x86.tar.gz)
- - Linux x64 (musl): [async-profiler-1.7.1-linux-x64-musl.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7.1/async-profiler-1.7.1-linux-x64-musl.tar.gz)
- - Linux ARM: [async-profiler-1.7.1-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7.1/async-profiler-1.7.1-linux-arm.tar.gz)
- - macOS x64: [async-profiler-1.7.1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.7.1/async-profiler-1.7.1-macos-x64.tar.gz)
+ - Linux x64 (glibc): [async-profiler-1.8.1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-1.8.1-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-x86.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.8.1-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-musl-x64.tar.gz)
+ - Linux ARM: [async-profiler-1.8.1-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-arm.tar.gz)
+ - macOS x64: [async-profiler-1.8.1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
@@ -60,6 +60,8 @@ names.
 * Does not require writing out a perf.data file for further processing in
 user space scripts.
 
+If you wish to resolve frames within `libjvm`, the [debug symbols](#installing-debug-symbols) are required.
+
 ## ALLOCATION profiling
 
 Instead of detecting CPU-consuming code, the profiler can be configured
@@ -91,7 +93,9 @@ It is completely based on open source technologies and it works with OpenJDK.
 
 The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 
-Heap profiler requires HotSpot debug symbols. Oracle JDK already has them
+### Installing Debug Symbols
+
+The allocation profiler requires HotSpot debug symbols. Oracle JDK already has them
 embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
 in a separate package. For example, to install OpenJDK debug symbols on
 Debian / Ubuntu, run:
@@ -112,7 +116,14 @@ On CentOS, RHEL and some other RPM-based distributions, this could be done with
 On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
 `FEATURES="nostrip"` to retain symbols.
 
-### Wall-clock profiling
+The `gdb` tool can be used to verify if the debug symbols are properly installed for the `libjvm` library.
+For example on Linux:
+```
+$ gdb $JAVA_HOME/lib/server/libjvm.so
+```
+This command's output will either contain `(no debugging symbols found)` or `Reading symbols from...`.
+
+## Wall-clock profiling
 
 `-e wall` option tells async-profiler to sample all threads equally every given
 period of time regardless of thread status: Running, Sleeping or Blocked.
@@ -170,6 +181,11 @@ $ ./profiler.sh start 8983
 $ ./profiler.sh stop 8983
 ```
 
+The following may be used in lieu of the `pid` (8983):
+
+ - The keyword `jps`, which will use the most recently launched Java process.
+ - The application name as it appears in the `jps` output: e.g. `Computey`
+
 Alternatively, you may specify `-d` (duration) argument to profile
 the application for a fixed period of time with a single command.
 
@@ -216,7 +232,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.7.1/src/arguments.cpp#L49).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.8.1/src/arguments.cpp#L49).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
@@ -483,8 +499,11 @@ stack traces.
 ```
 No AllocTracer symbols found. Are JDK debug symbols installed?
 ```
-It might be needed to install the package with OpenJDK debug symbols.
-See [Allocation profiling](#allocation-profiling) for details.
+The OpenJDK debug symbols are required for allocation profiling.
+See [Installing Debug Symbols](#installing-debug-symbols) for more details.
+If the error message persists after a successful installation of the debug symbols, it is possible that the JDK was upgraded when installing the debug symbols.
+In this case, profiling any Java process which had started prior to the installation will continue to display this message, since the process had loaded the older version of the JDK which lacked debug symbols.
+Restarting the affected Java processes should resolve the issue.
 
 ```
 VMStructs unavailable. Unsupported JVM?

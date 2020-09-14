@@ -128,8 +128,8 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-void Profiler::updateSymbols() {
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS);
+void Profiler::updateSymbols(bool kernel_symbols) {
+    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS, kernel_symbols);
 }
 
 void Profiler::mangle(const char* name, char* buf, size_t size) {
@@ -498,7 +498,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
 
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
     jboolean result = _instance._original_NativeLibrary_load(env, self, name, builtin);
-    _instance.updateSymbols();
+    _instance.updateSymbols(false);
     return result;
 }
 
@@ -791,7 +791,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    updateSymbols();
+    updateSymbols(args._ring != RING_USER);
 
     _safe_mode = args._safe_mode | (VM::hotspot_version() ? 0 : HOTSPOT_ONLY);
 
