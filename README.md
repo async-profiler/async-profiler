@@ -119,9 +119,9 @@ On Gentoo the `icedtea` OpenJDK package can be built with the per-package settin
 The `gdb` tool can be used to verify if the debug symbols are properly installed for the `libjvm` library.
 For example on Linux:
 ```
-$ gdb $JAVA_HOME/lib/server/libjvm.so
+$ gdb $JAVA_HOME/lib/server/libjvm.so -ex 'info address UseG1GC'
 ```
-This command's output will either contain `(no debugging symbols found)` or `Reading symbols from...`.
+This command's output will either contain `Symbol "UseG1GC" is at 0xxxxx` or `No symbol "UseG1GC" in current context`.
 
 ## Wall-clock profiling
 
