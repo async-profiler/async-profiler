@@ -36,6 +36,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
     const void* pc = (const void*)frame.pc();
     uintptr_t fp = frame.fp();
     uintptr_t prev_fp = (uintptr_t)&fp;
+    uintptr_t bottom = prev_fp + 0x100000;
 
     int depth = 0;
     const void* const valid_pc = (const void*)0x1000;
@@ -49,7 +50,12 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
-        if (fp <= prev_fp || fp >= prev_fp + 0x40000) {
+        if (fp <= prev_fp || fp >= prev_fp + 0x40000 || fp >= bottom) {
+            break;
+        }
+
+        // Frame pointer must be word aligned
+        if ((fp & (sizeof(uintptr_t) - 1)) != 0) {
             break;
         }
 
