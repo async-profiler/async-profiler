@@ -305,6 +305,7 @@ class Recording {
   private:
     Buffer _buf[CONCURRENCY_LEVEL];
     int _fd;
+    off_t _file_offset;
     ThreadFilter _thread_set;
     std::map<std::string, int> _symbol_map;
     std::map<std::string, int> _class_map;
@@ -316,6 +317,7 @@ class Recording {
 
   public:
     Recording(int fd) : _fd(fd), _thread_set(), _symbol_map(), _class_map(), _method_map() {
+        _file_offset = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
@@ -348,8 +350,8 @@ class Recording {
         (void)result;
 
         // Patch metadata offset
-        u64 metadata_start = OS::hton64(metadata_offset);
-        result = pwrite(_fd, &metadata_start, sizeof(metadata_start), 8);
+        u64 metadata_start = OS::hton64(metadata_offset - _file_offset);
+        result = pwrite(_fd, &metadata_start, sizeof(metadata_start), _file_offset + 8);
         (void)result;
 
         close(_fd);
@@ -743,7 +745,7 @@ class Recording {
         buf->put64(_stop_time);
         buf->put64(_start_nanos);
         buf->put64(1000000000);  // ticks per second
-        buf->put64(checkpoint_offset);
+        buf->put64(checkpoint_offset - _file_offset);
 
         buf->put32(metadata_start, buf->offset() - metadata_start);
     }
@@ -765,12 +767,12 @@ class Recording {
 };
 
 
-Error FlightRecorder::start(const char* file) {
+Error FlightRecorder::start(const char* file, bool reset) {
     if (file == NULL || file[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    int fd = open(file, O_CREAT | O_WRONLY | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
         return Error("Cannot open Flight Recorder output file");
     }

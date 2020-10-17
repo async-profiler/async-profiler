@@ -826,7 +826,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (args._output == OUTPUT_JFR) {
-        error = _jfr.start(args._file);
+        error = _jfr.start(args._file, reset);
         if (error) {
             return error;
         }

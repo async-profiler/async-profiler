@@ -31,7 +31,7 @@ class FlightRecorder {
     FlightRecorder() : _rec(NULL) {
     }
 
-    Error start(const char* file);
+    Error start(const char* file, bool reset);
     void stop();
 
     void recordExecutionSample(int lock_index, int tid, int call_trace_id, ThreadState thread_state);
