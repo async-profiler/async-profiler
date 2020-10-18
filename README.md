@@ -20,6 +20,7 @@ Latest release (1.8.1):
  - Linux x86 (glibc): [async-profiler-1.8.1-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-x86.tar.gz)
  - Linux x64 (musl): [async-profiler-1.8.1-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-musl-x64.tar.gz)
  - Linux ARM: [async-profiler-1.8.1-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-arm.tar.gz)
+ - Linux AArch64: [async-profiler-1.8.1-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-aarch64.tar.gz)
  - macOS x64: [async-profiler-1.8.1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
