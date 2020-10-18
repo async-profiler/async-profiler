@@ -44,7 +44,11 @@ else
   ifeq ($(findstring arm,$(ARCH)),arm)
     ARCH_TAG=arm
   else
-    ARCH_TAG=x86
+    ifeq ($(findstring aarch64,$(ARCH)),aarch64)
+      ARCH_TAG=aarch64
+    else
+      ARCH_TAG=x86
+    endif
   endif
 endif
 
