@@ -25,67 +25,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "flightRecorder.h"
+#include "jfrMetadata.h"
+#include "dictionary.h"
 #include "os.h"
 #include "profiler.h"
 #include "threadFilter.h"
 #include "vmStructs.h"
 
 
-#define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
-
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 
-
-enum DataType {
-    T_BOOLEAN,
-    T_BYTE,
-    T_U1,
-    T_SHORT,
-    T_U2,
-    T_INTEGER,
-    T_U4,
-    T_LONG,
-    T_U8,
-    T_FLOAT,
-    T_DOUBLE,
-    T_UTF8,
-    T_STRING,
-    T_ARRAY,
-    T_STRUCT,
-    T_STRUCTARRAY,
-};
-
-enum EventTypeId {
-    EVENT_METADATA           = 0,
-    EVENT_CHECKPOINT         = 1,
-    EVENT_RECORDING          = 10,
-    EVENT_RECORDING_SETTINGS = 11,
-    EVENT_EXECUTION_SAMPLE   = 20,
-    EVENT_ALLOC_IN_NEW_TLAB  = 21,
-    EVENT_ALLOC_OUTSIDE_TLAB = 22,
-    EVENT_THREAD_PARK        = 23,
-    EVENT_MONITOR_BLOCKED    = 24,
-};
-
-enum ContentTypeId {
-    CONTENT_NONE         = 0,
-    CONTENT_MEMORY       = 1,
-    CONTENT_EPOCHMILLIS  = 2,
-    CONTENT_MILLIS       = 3,
-    CONTENT_NANOS        = 4,
-    CONTENT_TICKSPAN     = 5,
-    CONTENT_ADDRESS      = 6,
-    CONTENT_THREAD       = 7,
-    CONTENT_JAVA_THREAD  = 8,
-    CONTENT_STACKTRACE   = 9,
-    CONTENT_CLASS        = 10,
-    CONTENT_THREAD_GROUP = 31,
-    CONTENT_METHOD       = 32,
-    CONTENT_SYMBOL       = 33,
-    CONTENT_STATE        = 34,
-    CONTENT_FRAME_TYPE   = 47,
-};
 
 enum FrameTypeId {
     FRAME_INTERPRETED  = 1,
@@ -94,155 +44,6 @@ enum FrameTypeId {
     FRAME_NATIVE       = 4,
     FRAME_CPP          = 5,
     FRAME_KERNEL       = 6,
-    FRAME_TOTAL_COUNT  = 6
-};
-
-enum ThreadStateId {
-    STATE_RUNNABLE    = THREAD_RUNNING,
-    STATE_SLEEPING    = THREAD_SLEEPING,
-    STATE_TOTAL_COUNT = 2
-};
-
-
-struct DataStructure {
-    const char* id;
-    const char* name;
-    DataType data_type;
-    ContentTypeId content_type;
-    int data_struct_index;
-};
-
-struct EventType {
-    EventTypeId id;
-    const char* name;
-    const char* description;
-    const char* path;
-    bool has_start_time;
-    bool has_thread;
-    bool can_have_stacktrace;
-    bool is_requestable;
-    int data_structure;
-};
-
-struct ContentType {
-    ContentTypeId id;
-    const char* name;
-    const char* description;
-    DataType data_type;
-    int data_structure;
-};
-
-
-const DataStructure
-    ds_recording[] = {
-        {"id", "Id", T_LONG},
-        {"name", "Name", T_STRING},
-        {"destination", "Destination", T_STRING},
-        {"startTime", "Start Time", T_LONG, CONTENT_EPOCHMILLIS},
-        {"duration", "Recording Duration", T_LONG, CONTENT_MILLIS},
-        {"maxSize", "Max Size", T_LONG, CONTENT_MEMORY},
-        {"maxAge", "Max Age", T_LONG, CONTENT_MILLIS},
-    },
-    ds_recording_settings[] = {
-        {"id", "Id", T_INTEGER},
-        {"name", "Name", T_STRING},
-        {"path", "Event Path", T_STRING},
-        {"enabled", "Enabled", T_BOOLEAN},
-        {"stacktrace", "Stack Trace", T_BOOLEAN},
-        {"period", "Period", T_LONG, CONTENT_MILLIS},
-        {"threshold", "Threshold", T_LONG, CONTENT_NANOS},
-    };
-
-const EventType et_recording[] = {
-    {EVENT_RECORDING, "Flight Recording", "", "recordings/recording", false, false, false, false, 0},
-    {EVENT_RECORDING_SETTINGS, "Recording Setting", "", "recordings/recording_setting", false, false, false, true, 1},
-};
-
-const DataStructure
-    ds_utf8[] = {
-        {"utf8", "UTF8 data", T_UTF8},
-    },
-    ds_thread[] = {
-        {"name", "Thread name", T_UTF8},
-    },
-    ds_java_thread[] = {
-        {"thread", "OS Thread ID", T_U4, CONTENT_THREAD},
-        {"group", "Java Thread Group", T_U4, CONTENT_THREAD_GROUP},
-    },
-    ds_thread_group[] = {
-        {"parent", "Parent", T_U4, CONTENT_THREAD_GROUP},
-        {"name", "Name", T_UTF8},
-    },
-    ds_frame_type[] = {
-        {"desc", "Description", T_UTF8},
-    },
-    ds_state[] = {
-        {"name", "Name", T_UTF8},
-    },
-    ds_class[] = {
-        {"loaderClass", "ClassLoader", T_U8, CONTENT_CLASS},
-        {"name", "Name", T_U8, CONTENT_SYMBOL},
-        {"modifiers", "Access modifiers", T_SHORT},
-    },
-    ds_method[] = {
-        {"class", "Class", T_U8, CONTENT_CLASS},
-        {"name", "Name", T_U8, CONTENT_SYMBOL},
-        {"signature", "Signature", T_U8, CONTENT_SYMBOL},
-        {"modifiers", "Access modifiers", T_SHORT},
-        {"hidden", "Hidden", T_BOOLEAN},
-    },
-    ds_frame[] = {
-        {"method", "Java Method", T_U8, CONTENT_METHOD},
-        {"bci", "Byte code index", T_INTEGER},
-        {"type", "Frame type", T_U1, CONTENT_FRAME_TYPE},
-    },
-    ds_stacktrace[] = {
-        {"truncated", "Truncated", T_BOOLEAN},
-        {"frames", "Stack frames", T_STRUCTARRAY, CONTENT_NONE, /* ds_frame */ 8},
-    },
-    ds_method_sample[] = {
-        {"sampledThread", "Thread", T_U4, CONTENT_THREAD},
-        {"stackTrace", "Stack Trace", T_U8, CONTENT_STACKTRACE},
-        {"state", "Thread State", T_U2, CONTENT_STATE},
-    },
-    ds_alloc_in_new_tlab[] = {
-        {"class", "Class", T_U8, CONTENT_CLASS},
-        {"allocationSize", "Allocation Size", T_U8, CONTENT_MEMORY},
-        {"tlabSize", "TLAB Size", T_U8, CONTENT_MEMORY},
-    },
-    ds_alloc_outside_tlab[] = {
-        {"class", "Class", T_U8, CONTENT_CLASS},
-        {"allocationSize", "Allocation Size", T_U8, CONTENT_MEMORY},
-    },
-    ds_thread_park[] = {
-        {"klass", "Class Parked On", T_U8, CONTENT_CLASS},
-        {"timeout", "Park Timeout", T_LONG, CONTENT_MILLIS},
-        {"address", "Address of Object Parked", T_U8, CONTENT_ADDRESS},
-    },
-    ds_monitor_blocked[] = {
-        {"klass", "Monitor Class", T_U8, CONTENT_CLASS},
-        {"previousOwner", "Previous Monitor Owner", T_U4, CONTENT_THREAD},
-        {"address", "Monitor Address", T_U8, CONTENT_ADDRESS},
-    };
-
-const EventType et_profile[] = {
-    {EVENT_EXECUTION_SAMPLE, "Method Profiling Sample", "Snapshot of a threads state", "vm/prof/execution_sample", false, false, false, true, /* ds_method_sample */ 10},
-    {EVENT_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB", "Allocation in new Thread Local Allocation Buffer", "java/object_alloc_in_new_TLAB", false, true, true, false, /* ds_alloc_in_new_tlab */ 11},
-    {EVENT_ALLOC_OUTSIDE_TLAB, "Allocation outside TLAB", "Allocation outside Thread Local Allocation Buffers", "java/object_alloc_outside_TLAB", false, true, true, false, /* ds_alloc_outside_tlab */ 12},
-    {EVENT_THREAD_PARK, "Java Thread Park", "", "java/thread_park", true, true, true, false, /* ds_thread_park */ 13},
-    {EVENT_MONITOR_BLOCKED, "Java Monitor Blocked", "", "java/monitor_enter", true, true, true, false, /* ds_monitor_blocked */ 14},
-};
-
-const ContentType ct_profile[] = {
-    {CONTENT_SYMBOL, "UTFConstant", "UTF constant", T_U8, 0},
-    {CONTENT_THREAD, "Thread", "Thread", T_U4, 1},
-    {CONTENT_JAVA_THREAD, "JavaThread", "Java thread", T_U8, 2},
-    {CONTENT_THREAD_GROUP, "ThreadGroup", "Thread group", T_U4, 3},
-    {CONTENT_FRAME_TYPE, "FrameType", "Frame type", T_U1, 4},
-    {CONTENT_STATE, "ThreadState", "Java Thread State", T_U2, 5},
-    {CONTENT_CLASS, "Class", "Java class", T_U8, 6},
-    {CONTENT_METHOD, "Method", "Java method", T_U8, 7},
-    {CONTENT_STACKTRACE, "StackTrace", "Stacktrace", T_U8, 9},
 };
 
 
@@ -277,6 +78,12 @@ class Buffer {
         return _offset;
     }
 
+    int skip(int delta) {
+        int offset = _offset;
+        _offset = offset + delta;
+        return offset;
+    }
+
     void reset() {
         _offset = 0;
     }
@@ -305,8 +112,13 @@ class Buffer {
         _offset += 8;
     }
 
-    void put32(int offset, int v) {
-        *(int*)(_data + offset) = htonl(v);
+    void putVarint(u64 v) {
+        char b = v;
+        while ((v >>= 7) != 0) {
+            _data[_offset++] = b | 0x80;
+            b = v;
+        }
+        _data[_offset++] = b;
     }
 
     void putUtf8(const char* v) {
@@ -314,19 +126,21 @@ class Buffer {
     }
 
     void putUtf8(const char* v, int len) {
-        put16((short)len);
+        put8(3);
+        putVarint(len);
         put(v, len);
     }
 
-    void putUtf16(const char* v) {
-        putUtf16(v, strlen(v));
+    void put8(int offset, char v) {
+        _data[offset] = v;
     }
 
-    void putUtf16(const char* v, int len) {
-        put32(len);
-        for (int i = 0; i < len; i++) {
-            put16(v[i]);
-        }
+    void putVar32(int offset, u32 v) {
+        _data[offset] = v | 0x80;
+        _data[offset + 1] = (v >> 7) | 0x80;
+        _data[offset + 2] = (v >> 14) | 0x80;
+        _data[offset + 3] = (v >> 21) | 0x80;
+        _data[offset + 4] = (v >> 28);
     }
 };
 
@@ -336,6 +150,8 @@ class Recording {
     Buffer _buf[CONCURRENCY_LEVEL];
     int _fd;
     ThreadFilter _thread_set;
+    Dictionary _packages;
+    Dictionary _symbols;
     std::map<jmethodID, MethodInfo> _method_map;
     u64 _start_time;
     u64 _start_nanos;
@@ -343,11 +159,12 @@ class Recording {
     u64 _stop_nanos;
 
   public:
-    Recording(int fd) : _fd(fd), _thread_set(), _method_map() {
+    Recording(int fd) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
         writeHeader(_buf);
+        writeMetadata(_buf);
         flush(_buf);
     }
 
@@ -359,25 +176,24 @@ class Recording {
             flush(&_buf[i]);
         }
 
-        writeRecordingInfo(_buf);
+        off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
+        writeCpool(_buf);
         flush(_buf);
 
-        off_t checkpoint_offset = lseek(_fd, 0, SEEK_CUR);
-        writeCheckpoint(_buf);
-        flush(_buf);
-
-        off_t metadata_offset = lseek(_fd, 0, SEEK_CUR);
-        writeMetadata(_buf, checkpoint_offset);
-        flush(_buf);
+        off_t chunk_size = lseek(_fd, 0, SEEK_CUR);
 
         // Patch checkpoint size field
-        int checkpoint_size = htonl((int)(metadata_offset - checkpoint_offset));
-        ssize_t result = pwrite(_fd, &checkpoint_size, sizeof(checkpoint_size), checkpoint_offset);
+        _buf->putVar32(0, chunk_size - cpool_offset);
+        ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
         (void)result;
 
-        // Patch metadata offset
-        u64 metadata_start = OS::hton64(metadata_offset);
-        result = pwrite(_fd, &metadata_start, sizeof(metadata_start), 8);
+        // Patch chunk header
+        _buf->put64(chunk_size);
+        _buf->put64(cpool_offset);
+        _buf->put64(68);
+        _buf->put64(_start_time * 1000000);
+        _buf->put64(_stop_nanos - _start_nanos);
+        result = pwrite(_fd, _buf->data(), 40, 8);
         (void)result;
 
         close(_fd);
@@ -387,24 +203,8 @@ class Recording {
         return &_buf[lock_index];
     }
 
-    u32 classId(const char* class_name, size_t length) {
-        return Profiler::_instance.classMap()->lookup(class_name, length);
-    }
-
-    u32 symbolId(const char* symbol_name, size_t length) {
-        return Profiler::_instance.symbolMap()->lookup(symbol_name, length);
-    }
-
-    u32 classId(const char* class_name) {
-        return classId(class_name, strlen(class_name));
-    }
-
-    u32 symbolId(const char* symbol_name) {
-        return symbolId(symbol_name, strlen(symbol_name));
-    }
-
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        mi->_class = classId("");
+        mi->_class = Profiler::_instance.classMap()->lookup("");
         mi->_modifiers = 0x100;
 
         if (name[0] == '_' && name[1] == 'Z') {
@@ -413,8 +213,8 @@ class Recording {
             if (demangled != NULL) {
                 char* p = strchr(demangled, '(');
                 if (p != NULL) *p = 0;
-                mi->_name = symbolId(demangled);
-                mi->_sig = symbolId("()L;");
+                mi->_name = _symbols.lookup(demangled);
+                mi->_sig = _symbols.lookup("()L;");
                 mi->_type = FRAME_CPP;
                 free(demangled);
                 return;
@@ -423,12 +223,12 @@ class Recording {
 
         size_t len = strlen(name);
         if (len >= 4 && strcmp(name + len - 4, "_[k]") == 0) {
-            mi->_name = symbolId(name, len - 4);
-            mi->_sig = symbolId("(Lk;)L;");
+            mi->_name = _symbols.lookup(name, len - 4);
+            mi->_sig = _symbols.lookup("(Lk;)L;");
             mi->_type = FRAME_KERNEL;
         } else {
-            mi->_name = symbolId(name);
-            mi->_sig = symbolId("()L;");
+            mi->_name = _symbols.lookup(name);
+            mi->_sig = _symbols.lookup("()L;");
             mi->_type = FRAME_NATIVE;
         }
     }
@@ -445,13 +245,13 @@ class Recording {
             jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
             jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
             jvmti->GetMethodModifiers(method, &modifiers);
-            mi->_class = classId(class_name + 1, strlen(class_name) - 2);
-            mi->_name = symbolId(method_name);
-            mi->_sig = symbolId(method_sig);
+            mi->_class = Profiler::_instance.classMap()->lookup(class_name + 1, strlen(class_name) - 2);
+            mi->_name = _symbols.lookup(method_name);
+            mi->_sig = _symbols.lookup(method_sig);
         } else {
-            mi->_class = classId("");
-            mi->_name = symbolId("jvmtiError");
-            mi->_sig = symbolId("()L;");
+            mi->_class = Profiler::_instance.classMap()->lookup("");
+            mi->_name = _symbols.lookup("jvmtiError");
+            mi->_sig = _symbols.lookup("()L;");
         }
 
         mi->_modifiers = (short)modifiers;
@@ -481,6 +281,17 @@ class Recording {
         return mi;
     }
 
+    u32 getPackage(const char* class_name) {
+        const char* package = strrchr(class_name, '/');
+        if (package == NULL) {
+            return 0;
+        }
+        if (class_name[0] == '[') {
+            class_name = strchr(class_name, 'L') + 1;
+        }
+        return _packages.lookup(class_name, package - class_name);
+    }
+
     void flush(Buffer* buf) {
         ssize_t result = write(_fd, buf->data(), buf->offset());
         (void)result;
@@ -494,121 +305,88 @@ class Recording {
     }
 
     void writeHeader(Buffer* buf) {
-        buf->put("FLR\0", 4);  // magic
-        buf->put16(0);         // major
-        buf->put16(9);         // minor
-        buf->put64(0);         // metadata offset
+        buf->put("FLR\0", 4);               // magic
+        buf->put16(2);                      // major
+        buf->put16(0);                      // minor
+        buf->put64(0);                      // chunk size
+        buf->put64(0);                      // cpool offset
+        buf->put64(0);                      // meta offset
+        buf->put64(_start_time * 1000000);  // start time, ns
+        buf->put64(0);                      // duration, ns
+        buf->put64(_start_nanos);           // start ticks
+        buf->put64(1000000000);             // ticks per sec
+        buf->put32(1);                      // features
     }
 
-    void writeRecordingInfo(Buffer* buf) {
-        int recording_start = buf->offset();
-        buf->put32(0);  // size
-        buf->put32(EVENT_RECORDING);
-        buf->put64(_stop_nanos);
-        buf->put64(1);  // id
-        buf->putUtf16("Async-profiler");
-        buf->putUtf16("async-profiler.jfr");
-        buf->put64(_start_time);
-        buf->put64(_stop_time - _start_time);
-        buf->put64(0x7fffffff);
-        buf->put64(0x7fffffff);
-        buf->put32(recording_start, buf->offset() - recording_start);
+    void writeMetadata(Buffer* buf) {
+        int metadata_start = buf->skip(5);  // size will be patched later
+        buf->putVarint(T_METADATA);
+        buf->putVarint(_start_nanos);
+        buf->putVarint(0);
+        buf->putVarint(1);
 
-        int recording_settings_start = buf->offset();
-        buf->put32(0);  // size
-        buf->put32(EVENT_RECORDING_SETTINGS);
-        buf->put64(_stop_nanos);
-        buf->put32(1);  // id
-        buf->putUtf16("Method Profiling Sample");
-        buf->putUtf16("vm/prof/execution_sample");
-        buf->put8(1);
-        buf->put8(0);
-        buf->put64(1);
-        buf->put64(0);
-        buf->put32(recording_settings_start, buf->offset() - recording_settings_start);
+        std::vector<std::string>& strings = JfrMetadata::strings();
+        buf->putVarint(strings.size());
+        for (int i = 0; i < strings.size(); i++) {
+            buf->putUtf8(strings[i].c_str());
+        }
+
+        writeElement(buf, JfrMetadata::root());
+
+        buf->putVar32(metadata_start, buf->offset() - metadata_start);
     }
 
-    void writeFixedTables(Buffer* buf) {
-        // Frame types
-        buf->put32(CONTENT_FRAME_TYPE);
-        buf->put32(FRAME_TOTAL_COUNT);
-        buf->put8(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
-        buf->put8(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
-        buf->put8(FRAME_INLINED);      buf->putUtf8("Inlined");
-        buf->put8(FRAME_NATIVE);       buf->putUtf8("Native");
-        buf->put8(FRAME_CPP);          buf->putUtf8("C++");
-        buf->put8(FRAME_KERNEL);       buf->putUtf8("Kernel");
+    void writeElement(Buffer* buf, const Element* e) {
+        buf->putVarint(e->_name);
 
-        // Thread states
-        buf->put32(CONTENT_STATE);
-        buf->put32(STATE_TOTAL_COUNT);
-        buf->put16(STATE_RUNNABLE);    buf->putUtf8("STATE_RUNNABLE");
-        buf->put16(STATE_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
-    }
+        buf->putVarint(e->_attributes.size());
+        for (int i = 0; i < e->_attributes.size(); i++) {
+            buf->putVarint(e->_attributes[i]._key);
+            buf->putVarint(e->_attributes[i]._value);
+        }
 
-    void writeStackTraces(Buffer* buf) {
-        std::map<u32, CallTrace*> traces;
-        Profiler::_instance._call_trace_storage.collect(traces);
-
-        buf->put32(CONTENT_STACKTRACE);
-        buf->put32(traces.size());
-        for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
-            CallTrace* trace = it->second;
-            buf->put64(it->first);
-            buf->put8(0);  // truncated
-            buf->put32(trace->num_frames);
-            for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = resolveMethod(trace->frames[i]);
-                buf->put64(mi->_key);  // method key
-                buf->put32(0);         // bci
-                buf->put8(mi->_type);  // frame type
-                flushIfNeeded(buf);
-            }
-            flushIfNeeded(buf);
+        buf->putVarint(e->_children.size());
+        for (int i = 0; i < e->_children.size(); i++) {
+            writeElement(buf, e->_children[i]);
         }
     }
 
-    void writeMethods(Buffer* buf) {
-        buf->put32(CONTENT_METHOD);
-        buf->put32(_method_map.size());
-        for (std::map<jmethodID, MethodInfo>::const_iterator it = _method_map.begin(); it != _method_map.end(); ++it) {
-            const MethodInfo& mi = it->second;
-            buf->put64(mi._key);
-            buf->put64(mi._class);
-            buf->put64(mi._name);
-            buf->put64(mi._sig);
-            buf->put16(mi._modifiers);
-            buf->put8(0);   // hidden
-            flushIfNeeded(buf);
-        }
+    void writeCpool(Buffer* buf) {
+        buf->skip(5);  // size will be patched later
+        buf->putVarint(T_CPOOL);
+        buf->putVarint(_start_nanos);
+        buf->putVarint(0);
+        buf->putVarint(0);
+        buf->putVarint(1);
+
+        buf->putVarint(8);
+
+        writeFrameTypes(buf);
+        writeThreadStates(buf);
+        writeThreads(buf);
+        writeStackTraces(buf);
+        writeMethods(buf);
+        writeClasses(buf);
+        writePackages(buf);
+        writeSymbols(buf);
     }
 
-    void writeClasses(Buffer* buf) {
-        std::map<u32, const char*> classes;
-        Profiler::_instance.classMap()->collect(classes);
-
-        buf->put32(CONTENT_CLASS);
-        buf->put32(classes.size());
-        for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
-            buf->put64(it->first);
-            buf->put64(0);  // loader class
-            buf->put64(symbolId(it->second));
-            buf->put16(0);  // access flags
-            flushIfNeeded(buf);
-        }
+    void writeFrameTypes(Buffer* buf) {
+        buf->putVarint(T_FRAME_TYPE);
+        buf->putVarint(6);
+        buf->putVarint(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
+        buf->putVarint(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
+        buf->putVarint(FRAME_INLINED);      buf->putUtf8("Inlined");
+        buf->putVarint(FRAME_NATIVE);       buf->putUtf8("Native");
+        buf->putVarint(FRAME_CPP);          buf->putUtf8("C++");
+        buf->putVarint(FRAME_KERNEL);       buf->putUtf8("Kernel");
     }
 
-    void writeSymbols(Buffer* buf) {
-        std::map<u32, const char*> symbols;
-        Profiler::_instance.symbolMap()->collect(symbols);
-
-        buf->put32(CONTENT_SYMBOL);
-        buf->put32(symbols.size());
-        for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
-            buf->put64(it->first);
-            buf->putUtf8(it->second);
-            flushIfNeeded(buf);
-        }
+    void writeThreadStates(Buffer* buf) {
+        buf->putVarint(T_THREAD_STATE);
+        buf->putVarint(2);
+        buf->putVarint(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
+        buf->putVarint(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
 
     void writeThreads(Buffer* buf) {
@@ -617,224 +395,174 @@ class Recording {
 
         MutexLocker ml(Profiler::_instance._thread_names_lock);
         std::map<int, std::string>& thread_names = Profiler::_instance._thread_names;
+        std::map<int, jlong>& thread_ids = Profiler::_instance._thread_ids;
         char name_buf[32];
 
-        buf->put32(CONTENT_THREAD);
-        buf->put32(threads.size());
+        buf->putVarint(T_THREAD);
+        buf->putVarint(threads.size());
         for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
+            jlong thread_id;
             std::map<int, std::string>::const_iterator it = thread_names.find(threads[i]);
             if (it != thread_names.end()) {
                 thread_name = it->second.c_str();
+                thread_id = thread_ids[threads[i]];
             } else {
                 sprintf(name_buf, "[tid=%d]", threads[i]);
                 thread_name = name_buf;
+                thread_id = 0;
             }
 
-            buf->put32(threads[i]);
+            buf->putVarint(threads[i]);
             buf->putUtf8(thread_name);
+            buf->putVarint(threads[i]);
+            if (thread_id == 0) {
+                buf->put8(0);
+            } else {
+                buf->putUtf8(thread_name);
+            }
+            buf->putVarint(thread_id);
             flushIfNeeded(buf);
         }
     }
 
-    void writeJavaThreads(Buffer* buf) {
-        MutexLocker ml(Profiler::_instance._thread_names_lock);
-        std::map<jlong, int>& thread_ids = Profiler::_instance._thread_ids;
+    void writeStackTraces(Buffer* buf) {
+        std::map<u32, CallTrace*> traces;
+        Profiler::_instance._call_trace_storage.collect(traces);
 
-        buf->put32(CONTENT_JAVA_THREAD);
-        buf->put32(thread_ids.size());
-        for (std::map<jlong, int>::const_iterator it = thread_ids.begin(); it != thread_ids.end(); ++it) {
-            buf->put64(it->first);
-            buf->put32(it->second);
-            buf->put32(0);  // group
+        buf->putVarint(T_STACK_TRACE);
+        buf->putVarint(traces.size());
+        for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+            CallTrace* trace = it->second;
+            buf->putVarint(it->first);
+            buf->putVarint(0);  // truncated
+            buf->putVarint(trace->num_frames);
+            for (int i = 0; i < trace->num_frames; i++) {
+                MethodInfo* mi = resolveMethod(trace->frames[i]);
+                buf->putVarint(mi->_key);   // method key
+                buf->putVarint(0);          // line number
+                buf->putVarint(0);          // bci
+                buf->putVarint(mi->_type);  // frame type
+                flushIfNeeded(buf);
+            }
             flushIfNeeded(buf);
         }
     }
 
-    void writeThreadGroups(Buffer* buf) {
-        buf->put32(CONTENT_THREAD_GROUP);
-        buf->put32(0);
-    }
-
-    void writeCheckpoint(Buffer* buf) {
-        buf->put32(0);   // size will be patched later
-        buf->put32(EVENT_CHECKPOINT);
-        buf->put64(_stop_nanos);
-        buf->put64(0);   // previous checkpoint
-
-        writeFixedTables(buf);
-        writeStackTraces(buf);
-        writeMethods(buf);
-        writeClasses(buf);
-        writeSymbols(buf);
-        writeThreads(buf);
-        writeJavaThreads(buf);
-        writeThreadGroups(buf);
-    }
-
-    void writeDataStructure(Buffer* buf, int count, const DataStructure* ds) {
-        buf->put32(count);
-        for (int i = 0; i < count; i++, ds++) {
-            buf->putUtf8(ds->id);
-            buf->putUtf8(ds->name);
-            buf->putUtf8("");
-            buf->put8(0);
-            buf->put8(ds->data_type);
-            buf->put32(ds->content_type);
-            buf->put32(ds->data_struct_index);
-            buf->put32(0);
+    void writeMethods(Buffer* buf) {
+        buf->putVarint(T_METHOD);
+        buf->putVarint(_method_map.size());
+        for (std::map<jmethodID, MethodInfo>::const_iterator it = _method_map.begin(); it != _method_map.end(); ++it) {
+            const MethodInfo& mi = it->second;
+            buf->putVarint(mi._key);
+            buf->putVarint(mi._class);
+            buf->putVarint(mi._name);
+            buf->putVarint(mi._sig);
+            buf->putVarint(mi._modifiers);
+            buf->putVarint(0);  // hidden
+            flushIfNeeded(buf);
         }
     }
 
-    void writeEventTypes(Buffer* buf, int count, const EventType* et) {
-        buf->put32(count);
-        for (int i = 0; i < count; i++, et++) {
-            buf->put32(et->id);
-            buf->putUtf8(et->name);
-            buf->putUtf8(et->description);
-            buf->putUtf8(et->path);
-            buf->put8(et->has_start_time ? 1 : 0);
-            buf->put8(et->has_thread ? 1 : 0);
-            buf->put8(et->can_have_stacktrace ? 1 : 0);
-            buf->put8(et->is_requestable ? 1 : 0);
-            buf->put32(et->data_structure);
-            buf->put32(0);
+    void writeClasses(Buffer* buf) {
+        std::map<u32, const char*> classes;
+        Profiler::_instance.classMap()->collect(classes);
+
+        buf->putVarint(T_CLASS);
+        buf->putVarint(classes.size());
+        for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
+            const char* name = it->second;
+            buf->putVarint(it->first);
+            buf->putVarint(0);  // classLoader
+            buf->putVarint(_symbols.lookup(name));
+            buf->putVarint(getPackage(name));
+            buf->putVarint(0);  // access flags
+            flushIfNeeded(buf);
         }
     }
 
-    void writeContentTypes(Buffer* buf, int count, const ContentType* ct) {
-        buf->put32(count);
-        for (int i = 0; i < count; i++, ct++) {
-            buf->put32(ct->id);
-            buf->putUtf8(ct->name);
-            buf->putUtf8(ct->description);
-            buf->put8(ct->data_type);
-            buf->put32(ct->data_structure);
+    void writePackages(Buffer* buf) {
+        std::map<u32, const char*> packages;
+        _packages.collect(packages);
+
+        buf->putVarint(T_PACKAGE);
+        buf->putVarint(packages.size());
+        for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
+            buf->putVarint(it->first);
+            buf->putVarint(_symbols.lookup(it->second));
+            flushIfNeeded(buf);
         }
     }
 
-    void writeRecordingMetadata(Buffer* buf) {
-        buf->put32(1);
-        buf->putUtf8("JFR Metadata");
-        buf->putUtf8("Information about Recordings and Settings");
-        buf->putUtf8("http://www.oracle.com/hotspot/jfr-info/");
+    void writeSymbols(Buffer* buf) {
+        std::map<u32, const char*> symbols;
+        _symbols.collect(symbols);
 
-        // Relations
-        buf->put32(0);
-
-        // Data structures
-        buf->put32(2);
-        writeDataStructure(buf, ARRAY_SIZE(ds_recording), ds_recording);
-        writeDataStructure(buf, ARRAY_SIZE(ds_recording_settings), ds_recording_settings);
-
-        // Event types and content types
-        writeEventTypes(buf, ARRAY_SIZE(et_recording), et_recording);
-        writeContentTypes(buf, 0, NULL);
-    }
-
-    void writeProfileMetadata(Buffer* buf) {
-        buf->put32(2);
-        buf->putUtf8("HotSpot JVM");
-        buf->putUtf8("Oracle Hotspot JVM");
-        buf->putUtf8("http://www.oracle.com/hotspot/jvm/");
-
-        // Relations
-        buf->put32(0);
-
-        // Data structures
-        buf->put32(15);
-        writeDataStructure(buf, ARRAY_SIZE(ds_utf8), ds_utf8);
-        writeDataStructure(buf, ARRAY_SIZE(ds_thread), ds_thread);
-        writeDataStructure(buf, ARRAY_SIZE(ds_java_thread), ds_java_thread);
-        writeDataStructure(buf, ARRAY_SIZE(ds_thread_group), ds_thread_group);
-        writeDataStructure(buf, ARRAY_SIZE(ds_frame_type), ds_frame_type);
-        writeDataStructure(buf, ARRAY_SIZE(ds_state), ds_state);
-        writeDataStructure(buf, ARRAY_SIZE(ds_class), ds_class);
-        writeDataStructure(buf, ARRAY_SIZE(ds_method), ds_method);
-        writeDataStructure(buf, ARRAY_SIZE(ds_frame), ds_frame);
-        writeDataStructure(buf, ARRAY_SIZE(ds_stacktrace), ds_stacktrace);
-        writeDataStructure(buf, ARRAY_SIZE(ds_method_sample), ds_method_sample);
-        writeDataStructure(buf, ARRAY_SIZE(ds_alloc_in_new_tlab), ds_alloc_in_new_tlab);
-        writeDataStructure(buf, ARRAY_SIZE(ds_alloc_outside_tlab), ds_alloc_outside_tlab);
-        writeDataStructure(buf, ARRAY_SIZE(ds_thread_park), ds_thread_park);
-        writeDataStructure(buf, ARRAY_SIZE(ds_monitor_blocked), ds_monitor_blocked);
-
-        // Event types and content types
-        writeEventTypes(buf, ARRAY_SIZE(et_profile), et_profile);
-        writeContentTypes(buf, ARRAY_SIZE(ct_profile), ct_profile);
-    }
-
-    void writeMetadata(Buffer* buf, off_t checkpoint_offset) {
-        int metadata_start = buf->offset();
-        buf->put32(0);
-        buf->put32(EVENT_METADATA);
-
-        // Producers
-        buf->put32(2);
-        writeRecordingMetadata(buf);
-        writeProfileMetadata(buf);
-
-        buf->put64(_start_time);
-        buf->put64(_stop_time);
-        buf->put64(_start_nanos);
-        buf->put64(1000000000);  // ticks per second
-        buf->put64(checkpoint_offset);
-
-        buf->put32(metadata_start, buf->offset() - metadata_start);
+        buf->putVarint(T_SYMBOL);
+        buf->putVarint(symbols.size());
+        for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+            buf->putVarint(it->first);
+            buf->putUtf8(it->second);
+            flushIfNeeded(buf);
+        }
     }
 
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
-        buf->put32(30);
-        buf->put32(EVENT_EXECUTION_SAMPLE);
-        buf->put64(OS::nanotime());
-        buf->put32(tid);
-        buf->put64(call_trace_id);
-        buf->put16(event->_thread_state);
+        int start = buf->skip(1);
+        buf->put8(T_EXECUTION_SAMPLE);
+        buf->putVarint(OS::nanotime());
+        buf->putVarint(tid);
+        buf->putVarint(call_trace_id);
+        buf->putVarint(event->_thread_state);
+        buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        buf->put32(52);
-        buf->put32(EVENT_ALLOC_IN_NEW_TLAB);
-        buf->put64(OS::nanotime());
-        buf->put32(tid);
-        buf->put64(call_trace_id);
-        buf->put64(event->_class_id);
-        buf->put64(event->_instance_size);
-        buf->put64(event->_total_size);
+        int start = buf->skip(1);
+        buf->put8(T_ALLOC_IN_NEW_TLAB);
+        buf->putVarint(OS::nanotime());
+        buf->putVarint(tid);
+        buf->putVarint(call_trace_id);
+        buf->putVarint(event->_class_id);
+        buf->putVarint(event->_instance_size);
+        buf->putVarint(event->_total_size);
+        buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        buf->put32(44);
-        buf->put32(EVENT_ALLOC_OUTSIDE_TLAB);
-        buf->put64(OS::nanotime());
-        buf->put32(tid);
-        buf->put64(call_trace_id);
-        buf->put64(event->_class_id);
-        buf->put64(event->_total_size);
+        int start = buf->skip(1);
+        buf->put8(T_ALLOC_OUTSIDE_TLAB);
+        buf->putVarint(OS::nanotime());
+        buf->putVarint(tid);
+        buf->putVarint(call_trace_id);
+        buf->putVarint(event->_class_id);
+        buf->putVarint(event->_total_size);
+        buf->put8(start, buf->offset() - start);
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
-        buf->put32(56);
-        buf->put32(EVENT_MONITOR_BLOCKED);
-        buf->put64(event->_end_time);
-        buf->put64(event->_start_time);
-        buf->put32(tid);
-        buf->put64(call_trace_id);
-        buf->put64(event->_class_id);
-        buf->put32(0);  // previousOwner
-        buf->put64(event->_address);
+        int start = buf->skip(1);
+        buf->put8(T_MONITOR_ENTER);
+        buf->putVarint(event->_start_time);
+        buf->putVarint(event->_end_time - event->_start_time);
+        buf->putVarint(tid);
+        buf->putVarint(call_trace_id);
+        buf->putVarint(event->_class_id);
+        buf->putVarint(event->_address);
+        buf->put8(start, buf->offset() - start);
     }
 
     void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
-        buf->put32(60);
-        buf->put32(EVENT_THREAD_PARK);
-        buf->put64(event->_end_time);
-        buf->put64(event->_start_time);
-        buf->put32(tid);
-        buf->put64(call_trace_id);
-        buf->put64(event->_class_id);
-        buf->put64(event->_timeout / 1000000);
-        buf->put64(event->_address);
+        int start = buf->skip(1);
+        buf->put8(T_THREAD_PARK);
+        buf->putVarint(event->_start_time);
+        buf->putVarint(event->_end_time - event->_start_time);
+        buf->putVarint(tid);
+        buf->putVarint(call_trace_id);
+        buf->putVarint(event->_class_id);
+        buf->putVarint(event->_timeout);
+        buf->putVarint(event->_address);
+        buf->put8(start, buf->offset() - start);
     }
 
     void addThread(int tid) {

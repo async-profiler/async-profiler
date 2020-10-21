@@ -470,6 +470,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += getNativeTrace(ucontext, frames + num_frames, tid);
     }
 
+    int first_java_frame = num_frames;
     if (event_type != 0 && VMStructs::_get_stack_trace != NULL) {
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
@@ -484,6 +485,11 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         // Skip Instrument.recordSample() method
         frames++;
         num_frames--;
+    }
+
+    // Zero out top bci to reduce the number of stack traces
+    if (first_java_frame < num_frames && frames[first_java_frame].bci > 0) {
+        frames[first_java_frame].bci = 0;
     }
 
     if (_add_thread_frame) {
@@ -632,7 +638,7 @@ void Profiler::trapHandlerImpl(void* ucontext) {
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     MutexLocker ml(_thread_names_lock);
     _thread_names[tid] = name;
-    _thread_ids[java_thread_id] = tid;
+    _thread_ids[tid] = java_thread_id;
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -766,7 +772,6 @@ Error Profiler::start(Arguments& args, bool reset) {
 
         // Reset dicrionaries and bitmaps
         _class_map.clear();
-        _symbol_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
 

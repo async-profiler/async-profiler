@@ -1,0 +1,151 @@
+/*
+ * Copyright 2020 Andrei Pangin
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "jfrMetadata.h"
+
+
+std::map<std::string, int> Element::_string_map;
+std::vector<std::string> Element::_strings;
+
+JfrMetadata JfrMetadata::_root;
+
+JfrMetadata::JfrMetadata() : Element("root") {
+    *this
+        << (element("metadata")
+
+            << type("boolean", T_BOOLEAN)
+            << type("char", T_CHAR)
+            << type("float", T_FLOAT)
+            << type("double", T_DOUBLE)
+            << type("byte", T_BYTE)
+            << type("short", T_SHORT)
+            << type("int", T_INT)
+            << type("long", T_LONG)
+
+            << type("java.lang.String", T_STRING)
+
+            << (type("java.lang.Class", T_CLASS, "Java Class")
+                << field("classLoader", T_CLASS_LOADER, "Class Loader", F_CPOOL)
+                << field("name", T_SYMBOL, "Name", F_CPOOL)
+                << field("package", T_PACKAGE, "Package", F_CPOOL)
+                << field("modifiers", T_INT, "Access Modifiers"))
+
+            << (type("java.lang.Thread", T_THREAD, "Thread")
+                << field("osName", T_STRING, "OS Thread Name")
+                << field("osThreadId", T_LONG, "OS Thread Id")
+                << field("javaName", T_STRING, "Java Thread Name")
+                << field("javaThreadId", T_LONG, "Java Thread Id"))
+
+            << (type("jdk.types.ClassLoader", T_CLASS_LOADER, "Java Class Loader")
+                << field("type", T_CLASS, "Type", F_CPOOL)
+                << field("name", T_SYMBOL, "Name", F_CPOOL))
+
+            << (type("jdk.types.FrameType", T_FRAME_TYPE, "Frame type", true)
+                << field("description", T_STRING, "Description"))
+
+            << (type("jdk.types.ThreadState", T_THREAD_STATE, "Java Thread State", true)
+                << field("name", T_STRING, "Name"))
+
+            << (type("jdk.types.StackTrace", T_STACK_TRACE, "Stacktrace")
+                << field("truncated", T_BOOLEAN, "Truncated")
+                << field("frames", T_STACK_FRAME, "Stack Frames", F_ARRAY))
+
+            << (type("jdk.types.StackFrame", T_STACK_FRAME)
+                << field("method", T_METHOD, "Java Method", F_CPOOL)
+                << field("lineNumber", T_INT, "Line Number")
+                << field("bytecodeIndex", T_INT, "Bytecode Index")
+                << field("type", T_FRAME_TYPE, "Frame Type", F_CPOOL))
+
+            << (type("jdk.types.Method", T_METHOD, "Java Method")
+                << field("type", T_CLASS, "Type", F_CPOOL)
+                << field("name", T_SYMBOL, "Name", F_CPOOL)
+                << field("descriptor", T_SYMBOL, "Descriptor", F_CPOOL)
+                << field("modifiers", T_INT, "Access Modifiers")
+                << field("hidden", T_BOOLEAN, "Hidden"))
+
+            << (type("jdk.types.Package", T_PACKAGE, "Package")
+                << field("name", T_SYMBOL, "Name", F_CPOOL))
+
+            << (type("jdk.types.Symbol", T_SYMBOL, "Symbol", true)
+                << field("string", T_STRING, "String"))
+
+            << (type("jdk.ExecutionSample", T_EXECUTION_SAMPLE, "Method Profiling Sample")
+                << category("Java Virtual Machine", "Profiling")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("sampledThread", T_THREAD, "Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("state", T_THREAD_STATE, "Thread State", F_CPOOL))
+
+            << (type("jdk.ObjectAllocationInNewTLAB", T_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB")
+                << category("Java Application")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
+                << field("tlabSize", T_LONG, "TLAB Size", F_BYTES))
+
+            << (type("jdk.ObjectAllocationOutsideTLAB", T_ALLOC_OUTSIDE_TLAB, "Allocation outside TLAB")
+                << category("Java Application")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES))
+
+            << (type("jdk.JavaMonitorEnter", T_MONITOR_ENTER, "Java Monitor Blocked")
+                << category("Java Application")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("monitorClass", T_CLASS, "Monitor Class", F_CPOOL)
+                << field("address", T_LONG, "Monitor Address", F_ADDRESS))
+
+            << (type("jdk.ThreadPark", T_THREAD_PARK, "Java Thread Park")
+                << category("Java Application")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("parkedClass", T_CLASS, "Class Parked On", F_CPOOL)
+                << field("timeout", T_LONG, "Park Timeout", F_DURATION_NANOS)
+                << field("address", T_LONG, "Address of Object Parked", F_ADDRESS))
+
+            << (type("jdk.jfr.Label", T_LABEL, NULL)
+                << field("value", T_STRING))
+
+            << (type("jdk.jfr.Category", T_CATEGORY, NULL)
+                << field("value", T_STRING, NULL, F_ARRAY))
+
+            << (type("jdk.jfr.Timestamp", T_TIMESTAMP, "Timestamp")
+                << field("value", T_STRING))
+
+            << (type("jdk.jfr.Timespan", T_TIMESPAN, "Timespan")
+                << field("value", T_STRING))
+
+            << (type("jdk.jfr.DataAmount", T_DATA_AMOUNT, "Data Amount")
+                << field("value", T_STRING))
+
+            << type("jdk.jfr.MemoryAddress", T_MEMORY_ADDRESS, "Memory Address")
+
+            << type("jdk.jfr.Unsigned", T_UNSIGNED, "Unsigned Value"))
+
+        << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
+
+    // The map is used only during construction
+    _string_map.clear();
+}

@@ -77,8 +77,9 @@ class Profiler {
     Trap _begin_trap;
     Trap _end_trap;
     Mutex _thread_names_lock;
+    // TODO: single map?
     std::map<int, std::string> _thread_names;
-    std::map<jlong, int> _thread_ids;
+    std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
     ThreadFilter _thread_filter;
@@ -180,7 +181,6 @@ class Profiler {
     time_t uptime()     { return time(NULL) - _start_time; }
 
     Dictionary* classMap() { return &_class_map; }
-    Dictionary* symbolMap() { return &_symbol_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
 
     void run(Arguments& args);
