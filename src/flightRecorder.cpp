@@ -56,8 +56,22 @@ class MethodInfo {
     u32 _class;
     u32 _name;
     u32 _sig;
-    short _modifiers;
+    jint _modifiers;
+    jint _line_number_table_size;
+    jvmtiLineNumberEntry* _line_number_table;
     FrameTypeId _type;
+
+    jint getLineNumber(jint bci) {
+        if (_line_number_table_size == 0) {
+            return 0;
+        }
+
+        int i = 1;
+        while (i < _line_number_table_size && bci >= _line_number_table[i].start_location) {
+            i++;
+        }
+        return _line_number_table[i - 1].line_number;
+    }
 };
 
 
@@ -206,6 +220,8 @@ class Recording {
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
         mi->_class = Profiler::_instance.classMap()->lookup("");
         mi->_modifiers = 0x100;
+        mi->_line_number_table_size = 0;
+        mi->_line_number_table = NULL;
 
         if (name[0] == '_' && name[1] == 'Z') {
             int status;
@@ -239,12 +255,10 @@ class Recording {
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
-        int modifiers = 0;
 
         if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
             jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
             jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
-            jvmti->GetMethodModifiers(method, &modifiers);
             mi->_class = Profiler::_instance.classMap()->lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
@@ -254,12 +268,20 @@ class Recording {
             mi->_sig = _symbols.lookup("()L;");
         }
 
-        mi->_modifiers = (short)modifiers;
-        mi->_type = FRAME_INTERPRETED;
-
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
+
+        if (jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
+            mi->_modifiers = 0;
+        }
+
+        if (jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
+            mi->_line_number_table_size = 0;
+            mi->_line_number_table = NULL;
+        }
+
+        mi->_type = FRAME_INTERPRETED;
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -439,10 +461,16 @@ class Recording {
             buf->putVarint(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = resolveMethod(trace->frames[i]);
-                buf->putVarint(mi->_key);   // method key
-                buf->putVarint(0);          // line number
-                buf->putVarint(0);          // bci
-                buf->putVarint(mi->_type);  // frame type
+                buf->putVarint(mi->_key);
+                jint bci = trace->frames[i].bci;
+                if (bci >= 0) {
+                    buf->putVarint(mi->getLineNumber(bci));
+                    buf->putVarint(bci);
+                } else {
+                    buf->put8(0);
+                    buf->put8(0);
+                }
+                buf->putVarint(mi->_type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
@@ -450,6 +478,8 @@ class Recording {
     }
 
     void writeMethods(Buffer* buf) {
+        jvmtiEnv* jvmti = VM::jvmti();
+
         buf->putVarint(T_METHOD);
         buf->putVarint(_method_map.size());
         for (std::map<jmethodID, MethodInfo>::const_iterator it = _method_map.begin(); it != _method_map.end(); ++it) {
@@ -461,6 +491,10 @@ class Recording {
             buf->putVarint(mi._modifiers);
             buf->putVarint(0);  // hidden
             flushIfNeeded(buf);
+
+            if (mi._line_number_table != NULL) {
+                jvmti->Deallocate((unsigned char*)mi._line_number_table);
+            }
         }
     }
 

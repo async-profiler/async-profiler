@@ -487,10 +487,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames--;
     }
 
-    // Zero out top bci to reduce the number of stack traces
-    if (first_java_frame < num_frames && frames[first_java_frame].bci > 0) {
-        frames[first_java_frame].bci = 0;
-    }
+    // TODO: Zero out top bci to reduce the number of stack traces
+    // if (first_java_frame < num_frames && frames[first_java_frame].bci > 0) {
+    //     frames[first_java_frame].bci = 0;
+    // }
 
     if (_add_thread_frame) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
