@@ -56,6 +56,7 @@ enum JfrType {
     T_MONITOR_ENTER = 104,
     T_THREAD_PARK = 105,
     T_CPU_LOAD = 106,
+    T_ACTIVE_RECORDING = 107,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,
@@ -123,14 +124,16 @@ class JfrMetadata : Element {
     static JfrMetadata _root;
 
     enum FieldFlags {
-        F_CPOOL          = 0x1,
-        F_ARRAY          = 0x2,
-        F_BYTES          = 0x4,
-        F_TIME_TICKS     = 0x8,
-        F_DURATION_TICKS = 0x10,
-        F_DURATION_NANOS = 0x20,
-        F_ADDRESS        = 0x40,
-        F_PERCENTAGE     = 0x80,
+        F_CPOOL           = 0x1,
+        F_ARRAY           = 0x2,
+        F_BYTES           = 0x4,
+        F_TIME_TICKS      = 0x8,
+        F_TIME_MILLIS     = 0x10,
+        F_DURATION_TICKS  = 0x20,
+        F_DURATION_NANOS  = 0x40,
+        F_DURATION_MILLIS = 0x80,
+        F_ADDRESS         = 0x100,
+        F_PERCENTAGE      = 0x200,
     };
 
     static Element& element(const char* name) {
@@ -171,10 +174,14 @@ class JfrMetadata : Element {
             e << annotation(T_UNSIGNED) << annotation(T_DATA_AMOUNT, "BYTES");
         } else if (flags & F_TIME_TICKS) {
             e << annotation(T_TIMESTAMP, "TICKS");
+        } else if (flags & F_TIME_MILLIS) {
+            e << annotation(T_TIMESTAMP, "MILLISECONDS_SINCE_EPOCH");
         } else if (flags & F_DURATION_TICKS) {
             e << annotation(T_TIMESPAN, "TICKS");
         } else if (flags & F_DURATION_NANOS) {
             e << annotation(T_TIMESPAN, "NANOSECONDS");
+        } else if (flags & F_DURATION_MILLIS) {
+            e << annotation(T_TIMESPAN, "MILLISECONDS");
         } else if (flags & F_ADDRESS) {
             e << annotation(T_UNSIGNED) << annotation(T_MEMORY_ADDRESS);
         } else if (flags & F_PERCENTAGE) {

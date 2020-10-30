@@ -287,6 +287,7 @@ class Recording {
 
         writeHeader(_buf);
         writeMetadata(_buf);
+        writeRecordingInfo(_buf);
         flush(_buf);
 
         startCpuMonitor();
@@ -484,6 +485,25 @@ class Recording {
         for (int i = 0; i < e->_children.size(); i++) {
             writeElement(buf, e->_children[i]);
         }
+    }
+
+    void writeRecordingInfo(Buffer* buf) {
+        int tid = OS::threadId();
+        addThread(tid);
+
+        int start = buf->skip(1);
+        buf->put8(T_ACTIVE_RECORDING);
+        buf->putVarint(_start_nanos);
+        buf->putVarint(0);
+        buf->putVarint(tid);
+        buf->putVarint(1);
+        buf->putUtf8("async-profiler");
+        buf->putUtf8("async-profiler.jfr");
+        buf->putVarint(0x7fffffffffffffffULL);
+        buf->putVarint(0);
+        buf->putVarint(_start_time);
+        buf->putVarint(0x7fffffffffffffffULL);
+        buf->put8(start, buf->offset() - start);
     }
 
     void writeCpool(Buffer* buf) {

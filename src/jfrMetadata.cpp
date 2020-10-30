@@ -132,6 +132,19 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("jvmSystem", T_FLOAT, "JVM System", F_PERCENTAGE)
                 << field("machineTotal", T_FLOAT, "Machine Total", F_PERCENTAGE))
 
+            << (type("jdk.ActiveRecording", T_ACTIVE_RECORDING, "Flight Recording")
+                << category("Flight Recorder")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("id", T_LONG, "Id")
+                << field("name", T_STRING, "Name")
+                << field("destination", T_STRING, "Destination")
+                << field("maxAge", T_LONG, "Max Age", F_DURATION_MILLIS)
+                << field("maxSize", T_LONG, "Max Size", F_BYTES)
+                << field("recordingStart", T_LONG, "Start Time", F_TIME_MILLIS)
+                << field("recordingDuration", T_LONG, "Recording Duration", F_DURATION_MILLIS))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 
