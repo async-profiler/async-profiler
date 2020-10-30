@@ -30,7 +30,7 @@ class SpinLock {
     volatile int _lock;
 
   public:
-    SpinLock() : _lock(0) {
+    SpinLock(int initial_state = 0) : _lock(initial_state) {
     }
 
     void reset() {

@@ -63,6 +63,9 @@ class OS {
 
     static void* safeAlloc(size_t size);
     static void safeFree(void* addr, size_t size);
+
+    static u64 getProcessCpuTime(u64* utime, u64* stime);
+    static u64 getTotalCpuTime(u64* utime, u64* stime);
 };
 
 #endif // _OS_H

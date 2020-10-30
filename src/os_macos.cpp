@@ -18,10 +18,13 @@
 
 #include <libkern/OSByteOrder.h>
 #include <mach/mach.h>
+#include <mach/mach_host.h>
 #include <mach/mach_time.h>
+#include <mach/processor_info.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/time.h>
+#include <sys/times.h>
 #include "os.h"
 
 
@@ -55,7 +58,7 @@ class MacThreadList : public ThreadList {
             for (int i = 0; i < _thread_count; i++) {
                 mach_port_deallocate(_task, _thread_array[i]);
             }
-            vm_deallocate(_task, (vm_address_t)_thread_array, sizeof(thread_t) * _thread_count);
+            vm_deallocate(_task, (vm_address_t)_thread_array, _thread_count * sizeof(thread_t));
             _thread_array = NULL;
         }
     }
@@ -168,6 +171,42 @@ void* OS::safeAlloc(size_t size) {
 
 void OS::safeFree(void* addr, size_t size) {
     munmap(addr, size);
+}
+
+u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
+    struct tms buf;
+    clock_t real = times(&buf);
+    *utime = buf.tms_utime;
+    *stime = buf.tms_stime;
+    return real;
+}
+
+u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
+    natural_t cpu_count;
+    processor_info_array_t cpu_info_array;
+    mach_msg_type_number_t cpu_info_count;
+
+    host_name_port_t host = mach_host_self();
+    kern_return_t ret = host_processor_info(host, PROCESSOR_CPU_LOAD_INFO, &cpu_count, &cpu_info_array, &cpu_info_count);
+    mach_port_deallocate(mach_task_self(), host);
+    if (ret != 0) {
+        return (u64)-1;
+    }
+
+    processor_cpu_load_info_data_t* cpu_load = (processor_cpu_load_info_data_t*)cpu_info_array;
+    u64 user = 0;
+    u64 system = 0;
+    u64 idle = 0;
+    for (natural_t i = 0; i < cpu_count; i++) {
+        user += cpu_load[i].cpu_ticks[CPU_STATE_USER] + cpu_load[i].cpu_ticks[CPU_STATE_NICE];
+        system += cpu_load[i].cpu_ticks[CPU_STATE_SYSTEM];
+        idle += cpu_load[i].cpu_ticks[CPU_STATE_IDLE];
+    }
+    vm_deallocate(mach_task_self(), (vm_address_t)cpu_info_array, cpu_info_count * sizeof(int));
+
+    *utime = user;
+    *stime = system;
+    return user + system + idle;
 }
 
 #endif // __APPLE__

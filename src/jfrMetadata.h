@@ -55,6 +55,7 @@ enum JfrType {
     T_ALLOC_OUTSIDE_TLAB = 103,
     T_MONITOR_ENTER = 104,
     T_THREAD_PARK = 105,
+    T_CPU_LOAD = 106,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,
@@ -64,6 +65,7 @@ enum JfrType {
     T_DATA_AMOUNT = 205,
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
+    T_PERCENTAGE = 208,
 };
 
 
@@ -121,13 +123,14 @@ class JfrMetadata : Element {
     static JfrMetadata _root;
 
     enum FieldFlags {
-        F_CPOOL          = 1,
-        F_ARRAY          = 2,
-        F_BYTES          = 4,
-        F_TIME_TICKS     = 8,
-        F_DURATION_TICKS = 16,
-        F_DURATION_NANOS = 32,
-        F_ADDRESS        = 64,
+        F_CPOOL          = 0x1,
+        F_ARRAY          = 0x2,
+        F_BYTES          = 0x4,
+        F_TIME_TICKS     = 0x8,
+        F_DURATION_TICKS = 0x10,
+        F_DURATION_NANOS = 0x20,
+        F_ADDRESS        = 0x40,
+        F_PERCENTAGE     = 0x80,
     };
 
     static Element& element(const char* name) {
@@ -174,6 +177,8 @@ class JfrMetadata : Element {
             e << annotation(T_TIMESPAN, "NANOSECONDS");
         } else if (flags & F_ADDRESS) {
             e << annotation(T_UNSIGNED) << annotation(T_MEMORY_ADDRESS);
+        } else if (flags & F_PERCENTAGE) {
+            e << annotation(T_PERCENTAGE);
         }
         return e;
     }

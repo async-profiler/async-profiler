@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "jfrMetadata.h"
@@ -33,8 +34,10 @@
 #include "vmStructs.h"
 
 
+const int BUFFER_SIZE = 1024;
+const int BUFFER_LIMIT = BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
-const int RECORDING_LIMIT = RECORDING_BUFFER_SIZE - 4096;
+const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 
 
 enum FrameTypeId {
@@ -44,6 +47,18 @@ enum FrameTypeId {
     FRAME_NATIVE       = 4,
     FRAME_CPP          = 5,
     FRAME_KERNEL       = 6,
+};
+
+
+struct CpuTime {
+    u64 real;
+    u64 user;
+    u64 system;
+};
+
+struct CpuTimes {
+    CpuTime proc;
+    CpuTime total;
 };
 
 
@@ -78,7 +93,7 @@ class MethodInfo {
 class Buffer {
   private:
     int _offset;
-    char _data[RECORDING_BUFFER_SIZE - sizeof(int)];
+    char _data[BUFFER_SIZE - sizeof(int)];
 
   public:
     Buffer() : _offset(0) {
@@ -126,6 +141,16 @@ class Buffer {
         _offset += 8;
     }
 
+    void putFloat(float v) {
+        union {
+            float f;
+            int i;
+        } u;
+
+        u.f = v;
+        put32(u.i);
+    }
+
     void putVarint(u64 v) {
         char b = v;
         while ((v >>= 7) != 0) {
@@ -158,11 +183,25 @@ class Buffer {
     }
 };
 
+class RecordingBuffer : public Buffer {
+  private:
+    char _buf[RECORDING_BUFFER_SIZE - sizeof(Buffer)];
+
+  public:
+    RecordingBuffer() : Buffer() {
+    }
+};
+
 
 class Recording {
   private:
-    Buffer _buf[CONCURRENCY_LEVEL];
+    static SpinLock _cpu_monitor_lock;
+
+    RecordingBuffer _buf[CONCURRENCY_LEVEL];
+    Buffer _cpu_monitor_buf;
     int _fd;
+    int _available_processors;
+    timer_t _cpu_monitor;
     ThreadFilter _thread_set;
     Dictionary _packages;
     Dictionary _symbols;
@@ -171,6 +210,75 @@ class Recording {
     u64 _start_nanos;
     u64 _stop_time;
     u64 _stop_nanos;
+    CpuTimes _last_times;
+
+    void startCpuMonitor() {
+        VM::jvmti()->GetAvailableProcessors(&_available_processors);
+        _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
+        _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
+
+        struct sigevent sev;
+        sev.sigev_notify = SIGEV_THREAD;
+        sev.sigev_value.sival_ptr = this;
+        sev.sigev_notify_function = cpuMonitorCallback;
+        sev.sigev_notify_attributes = NULL;
+
+        if (timer_create(CLOCK_MONOTONIC, &sev, &_cpu_monitor) == 0) {
+            struct itimerspec spec = {{1, 0}, {1, 0}};
+            timer_settime(_cpu_monitor, 0, &spec, NULL);
+        } else {
+            _cpu_monitor = NULL;
+        }
+
+        _cpu_monitor_lock.unlock();
+    }
+
+    void stopCpuMonitor() {
+        _cpu_monitor_lock.lock();
+        timer_delete(_cpu_monitor);
+    }
+
+    void cpuMonitorCycle() {
+        CpuTimes times;
+        times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
+        times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
+
+        float proc_user = -1, proc_system = -1, machine_total = -1;
+
+        if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
+            float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
+            proc_user = ratio((times.proc.user - _last_times.proc.user) / delta);
+            proc_system = ratio((times.proc.system - _last_times.proc.system) / delta);
+        }
+
+        if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
+            float delta = times.total.real - _last_times.total.real;
+            machine_total = ratio(((times.total.user + times.total.system) -
+                                   (_last_times.total.user + _last_times.total.system)) / delta);
+            if (machine_total < proc_user + proc_system) {
+                machine_total = ratio(proc_user + proc_system);
+            }
+        }
+
+        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
+
+        if (_cpu_monitor_buf.offset() > BUFFER_LIMIT) {
+            flush(&_cpu_monitor_buf);
+        }
+
+        _last_times = times;
+    }
+
+    static void cpuMonitorCallback(union sigval arg) {
+        if (_cpu_monitor_lock.tryLock()) {
+            ((Recording*)arg.sival_ptr)->cpuMonitorCycle();
+            _cpu_monitor_lock.unlock();
+        }
+    }
+
+    static float ratio(float value) {
+        return value < 0 ? 0 : value > 1 ? 1 : value;
+    }
 
   public:
     Recording(int fd) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
@@ -180,15 +288,20 @@ class Recording {
         writeHeader(_buf);
         writeMetadata(_buf);
         flush(_buf);
+
+        startCpuMonitor();
     }
 
     ~Recording() {
+        stopCpuMonitor();
+
         _stop_nanos = OS::nanotime();
         _stop_time = OS::millis();
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             flush(&_buf[i]);
         }
+        flush(&_cpu_monitor_buf);
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
         writeCpool(_buf);
@@ -321,7 +434,7 @@ class Recording {
     }
 
     void flushIfNeeded(Buffer* buf) {
-        if (buf->offset() >= RECORDING_LIMIT) {
+        if (buf->offset() >= RECORDING_BUFFER_LIMIT) {
             flush(buf);
         }
     }
@@ -599,12 +712,24 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
+        int start = buf->skip(1);
+        buf->put8(T_CPU_LOAD);
+        buf->putVarint(OS::nanotime());
+        buf->putFloat(proc_user);
+        buf->putFloat(proc_system);
+        buf->putFloat(machine_total);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void addThread(int tid) {
         if (!_thread_set.accept(tid)) {
             _thread_set.add(tid);
         }
     }
 };
+
+SpinLock Recording::_cpu_monitor_lock(1);
 
 
 Error FlightRecorder::start(const char* file) {

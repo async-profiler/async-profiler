@@ -125,6 +125,13 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("timeout", T_LONG, "Park Timeout", F_DURATION_NANOS)
                 << field("address", T_LONG, "Address of Object Parked", F_ADDRESS))
 
+            << (type("jdk.CPULoad", T_CPU_LOAD, "CPU Load")
+                << category("Operating System", "Processor")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("jvmUser", T_FLOAT, "JVM User", F_PERCENTAGE)
+                << field("jvmSystem", T_FLOAT, "JVM System", F_PERCENTAGE)
+                << field("machineTotal", T_FLOAT, "Machine Total", F_PERCENTAGE))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 
@@ -142,7 +149,9 @@ JfrMetadata::JfrMetadata() : Element("root") {
 
             << type("jdk.jfr.MemoryAddress", T_MEMORY_ADDRESS, "Memory Address")
 
-            << type("jdk.jfr.Unsigned", T_UNSIGNED, "Unsigned Value"))
+            << type("jdk.jfr.Unsigned", T_UNSIGNED, "Unsigned Value")
+
+            << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage"))
 
         << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
 

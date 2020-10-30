@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <sys/times.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -211,6 +212,35 @@ void* OS::safeAlloc(size_t size) {
 
 void OS::safeFree(void* addr, size_t size) {
     syscall(__NR_munmap, addr, size);
+}
+
+u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
+    struct tms buf;
+    clock_t real = times(&buf);
+    *utime = buf.tms_utime;
+    *stime = buf.tms_stime;
+    return real;
+}
+
+u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
+    int fd = open("/proc/stat", O_RDONLY);
+    if (fd == -1) {
+        return (u64)-1;
+    }
+
+    u64 real = (u64)-1;
+    char buf[512];
+    if (read(fd, buf, sizeof(buf)) >= 12) {
+        u64 user, nice, system, idle;
+        if (sscanf(buf + 4, "%llu %llu %llu  %llu", &user, &nice, &system, &idle) == 4) {
+            *utime = user + nice;
+            *stime = system;
+            real = user + nice + system + idle;
+        }
+    }
+
+    close(fd);
+    return real;
 }
 
 #endif // __linux__
