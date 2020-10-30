@@ -29,6 +29,10 @@ enum ThreadState {
 };
 
 
+class Timer {
+};
+
+
 class ThreadList {
   public:
     virtual ~ThreadList() {}
@@ -42,6 +46,7 @@ class OS {
   private:
     typedef void (*SigAction)(int, siginfo_t*, void*);
     typedef void (*SigHandler)(int);
+    typedef void (*TimerCallback)(void*);
 
   public:
     static u64 nanotime();
@@ -63,6 +68,9 @@ class OS {
 
     static void* safeAlloc(size_t size);
     static void safeFree(void* addr, size_t size);
+
+    static Timer* startTimer(u64 interval, TimerCallback callback, void* arg);
+    static void stopTimer(Timer* timer);
 
     static u64 getProcessCpuTime(u64* utime, u64* stime);
     static u64 getTotalCpuTime(u64* utime, u64* stime);

@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "jfrMetadata.h"
@@ -198,10 +197,8 @@ class Recording {
     static SpinLock _cpu_monitor_lock;
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
-    Buffer _cpu_monitor_buf;
     int _fd;
     int _available_processors;
-    timer_t _cpu_monitor;
     ThreadFilter _thread_set;
     Dictionary _packages;
     Dictionary _symbols;
@@ -210,6 +207,8 @@ class Recording {
     u64 _start_nanos;
     u64 _stop_time;
     u64 _stop_nanos;
+    Buffer _cpu_monitor_buf;
+    Timer* _cpu_monitor;
     CpuTimes _last_times;
 
     void startCpuMonitor() {
@@ -217,25 +216,13 @@ class Recording {
         _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
         _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
 
-        struct sigevent sev;
-        sev.sigev_notify = SIGEV_THREAD;
-        sev.sigev_value.sival_ptr = this;
-        sev.sigev_notify_function = cpuMonitorCallback;
-        sev.sigev_notify_attributes = NULL;
-
-        if (timer_create(CLOCK_MONOTONIC, &sev, &_cpu_monitor) == 0) {
-            struct itimerspec spec = {{1, 0}, {1, 0}};
-            timer_settime(_cpu_monitor, 0, &spec, NULL);
-        } else {
-            _cpu_monitor = NULL;
-        }
-
+        _cpu_monitor = OS::startTimer(1000000000, cpuMonitorCallback, this);
         _cpu_monitor_lock.unlock();
     }
 
     void stopCpuMonitor() {
         _cpu_monitor_lock.lock();
-        timer_delete(_cpu_monitor);
+        OS::stopTimer(_cpu_monitor);
     }
 
     void cpuMonitorCycle() {
@@ -243,7 +230,7 @@ class Recording {
         times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
         times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
 
-        float proc_user = -1, proc_system = -1, machine_total = -1;
+        float proc_user = 0, proc_system = 0, machine_total = 0;
 
         if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
             float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
@@ -269,9 +256,9 @@ class Recording {
         _last_times = times;
     }
 
-    static void cpuMonitorCallback(union sigval arg) {
+    static void cpuMonitorCallback(void* arg) {
         if (_cpu_monitor_lock.tryLock()) {
-            ((Recording*)arg.sival_ptr)->cpuMonitorCycle();
+            ((Recording*)arg)->cpuMonitorCycle();
             _cpu_monitor_lock.unlock();
         }
     }

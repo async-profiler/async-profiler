@@ -16,6 +16,7 @@
 
 #ifdef __APPLE__
 
+#include <dispatch/dispatch.h>
 #include <libkern/OSByteOrder.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
@@ -171,6 +172,26 @@ void* OS::safeAlloc(size_t size) {
 
 void OS::safeFree(void* addr, size_t size) {
     munmap(addr, size);
+}
+
+Timer* OS::startTimer(u64 interval, TimerCallback callback, void* arg) {
+    dispatch_queue_global_t queue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
+    dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+    if (source != NULL) {
+        dispatch_source_set_timer(source, dispatch_time(DISPATCH_TIME_NOW, interval), interval, 0);
+        dispatch_source_set_event_handler_f(source, callback);
+        dispatch_set_context(source, arg);
+        dispatch_resume(source);
+    }
+    return (Timer*)source;
+}
+
+void OS::stopTimer(Timer* timer) {
+    dispatch_source_t source = (dispatch_source_t)timer;
+    if (source != NULL) {
+        dispatch_source_cancel(source);
+        dispatch_release(source);
+    }
 }
 
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {

@@ -214,6 +214,30 @@ void OS::safeFree(void* addr, size_t size) {
     syscall(__NR_munmap, addr, size);
 }
 
+Timer* OS::startTimer(u64 interval, TimerCallback callback, void* arg) {
+    struct sigevent sev;
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_value.sival_ptr = arg;
+    sev.sigev_notify_function = (void (*)(union sigval)) callback;
+    sev.sigev_notify_attributes = NULL;
+
+    timer_t timer;
+    if (timer_create(CLOCK_MONOTONIC, &sev, &timer) != 0) {
+        return NULL;
+    }
+
+    struct itimerspec spec;
+    spec.it_interval.tv_sec = spec.it_value.tv_sec = interval / 1000000000;
+    spec.it_interval.tv_nsec = spec.it_value.tv_nsec = interval % 1000000000;
+    timer_settime(timer, 0, &spec, NULL);
+
+    return (Timer*)timer;
+}
+
+void OS::stopTimer(Timer* timer) {
+    timer_delete((timer_t)timer);
+}
+
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
     struct tms buf;
     clock_t real = times(&buf);
