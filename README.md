@@ -20,6 +20,7 @@ Latest release (1.8.1):
  - Linux x86 (glibc): [async-profiler-1.8.1-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-x86.tar.gz)
  - Linux x64 (musl): [async-profiler-1.8.1-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-musl-x64.tar.gz)
  - Linux ARM: [async-profiler-1.8.1-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-arm.tar.gz)
+ - Linux AArch64: [async-profiler-1.8.1-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-linux-aarch64.tar.gz)
  - macOS x64: [async-profiler-1.8.1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.1/async-profiler-1.8.1-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
@@ -119,9 +120,9 @@ On Gentoo the `icedtea` OpenJDK package can be built with the per-package settin
 The `gdb` tool can be used to verify if the debug symbols are properly installed for the `libjvm` library.
 For example on Linux:
 ```
-$ gdb $JAVA_HOME/lib/server/libjvm.so
+$ gdb $JAVA_HOME/lib/server/libjvm.so -ex 'info address UseG1GC'
 ```
-This command's output will either contain `(no debugging symbols found)` or `Reading symbols from...`.
+This command's output will either contain `Symbol "UseG1GC" is at 0xxxxx` or `No symbol "UseG1GC" in current context`.
 
 ## Wall-clock profiling
 

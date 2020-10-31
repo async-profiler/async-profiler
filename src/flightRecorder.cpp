@@ -197,8 +197,9 @@ class Recording {
     static SpinLock _cpu_monitor_lock;
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
-    int _fd;
     int _available_processors;
+    int _fd;
+    off_t _file_offset;
     ThreadFilter _thread_set;
     Dictionary _packages;
     Dictionary _symbols;
@@ -269,6 +270,7 @@ class Recording {
 
   public:
     Recording(int fd) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
+        _file_offset = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
 
@@ -739,12 +741,12 @@ class Recording {
 SpinLock Recording::_cpu_monitor_lock(1);
 
 
-Error FlightRecorder::start(const char* file) {
+Error FlightRecorder::start(const char* file, bool reset) {
     if (file == NULL || file[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    int fd = open(file, O_CREAT | O_WRONLY | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
         return Error("Cannot open Flight Recorder output file");
     }
