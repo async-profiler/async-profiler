@@ -92,9 +92,6 @@ class MethodSample {
 };
 
 
-typedef jboolean JNICALL (*NativeLoadLibraryFunc)(JNIEnv*, jobject, jstring, jboolean);
-typedef void JNICALL (*ThreadSetNativeNameFunc)(JNIEnv*, jobject, jstring);
-
 class FrameName;
 
 enum State {
@@ -142,16 +139,18 @@ class Profiler {
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     volatile int _native_lib_count;
 
-    // Support for intercepting NativeLibrary.load()
+    // Support for intercepting NativeLibrary.load() / NativeLibraries.load()
     JNINativeMethod _load_method;
-    NativeLoadLibraryFunc _original_NativeLibrary_load;
+    void* _original_NativeLibrary_load;
+    void* _trapped_NativeLibrary_load;
     static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
-    void bindNativeLibraryLoad(JNIEnv* env, NativeLoadLibraryFunc entry);
+    static jboolean JNICALL NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni);
+    void bindNativeLibraryLoad(JNIEnv* env, bool enable);
 
     // Support for intercepting Thread.setNativeName()
-    ThreadSetNativeNameFunc _original_Thread_setNativeName;
+    void* _original_Thread_setNativeName;
     static void JNICALL ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name);
-    void bindThreadSetNativeName(JNIEnv* env, ThreadSetNativeNameFunc entry);
+    void bindThreadSetNativeName(JNIEnv* env, bool enable);
 
     void switchNativeMethodTraps(bool enable);
 

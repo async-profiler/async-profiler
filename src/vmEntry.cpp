@@ -35,6 +35,7 @@ int VM::_hotspot_version = 0;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
+JVM_GetManagement VM::_getManagement;
 
 
 void VM::init(JavaVM* vm, bool attach) {
@@ -60,6 +61,7 @@ void VM::init(JavaVM* vm, bool attach) {
 
     _libjvm = getLibraryHandle("libjvm.so");
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
+    _getManagement = (JVM_GetManagement)dlsym(_libjvm, "JVM_GetManagement");
 
     if (attach) {
         ready();
