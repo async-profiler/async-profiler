@@ -28,6 +28,7 @@ static const size_t PAGE_ALIGNMENT = sysconf(_SC_PAGESIZE) - 1;
 class LongHashTable {
   private:
     LongHashTable* _prev;
+    void* _padding0;
     u32 _capacity;
     u32 _padding1[15];
     volatile u32 _size;

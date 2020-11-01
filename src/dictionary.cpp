@@ -64,7 +64,7 @@ void Dictionary::clear(DictTable* table) {
 // Many popular symbols are quite short, e.g. "[B", "()V" etc.
 // FNV-1a is reasonably fast and sufficiently random.
 unsigned int Dictionary::hash(const char* key, size_t length) {
-    unsigned int h = 2166136261;
+    unsigned int h = 2166136261U;
     for (size_t i = 0; i < length; i++) {
         h = (h ^ key[i]) * 16777619;
     }

@@ -34,6 +34,13 @@
 #include "os.h"
 
 
+#ifdef __LP64__
+#  define MMAP_SYSCALL __NR_mmap
+#else
+#  define MMAP_SYSCALL __NR_mmap2
+#endif
+
+
 class LinuxThreadList : public ThreadList {
   private:
     DIR* _dir;
@@ -203,7 +210,7 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
 void* OS::safeAlloc(size_t size) {
     // Naked syscall can be used inside a signal handler.
     // Also, we don't want to catch our own calls when profiling mmap.
-    intptr_t result = syscall(__NR_mmap, NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    intptr_t result = syscall(MMAP_SYSCALL, NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (result < 0 && result > -4096) {
         return NULL;
     }

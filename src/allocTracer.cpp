@@ -55,11 +55,12 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     // Leave the trapped function by simulating "ret" instruction
+    uintptr_t klass = frame.arg0();
     frame.ret();
 
     if (_enabled) {
         // TODO: _enabled also uses traps
-        recordAllocation(ucontext, event_type, frame.arg0(), total_size, instance_size);
+        recordAllocation(ucontext, event_type, klass, total_size, instance_size);
     }
 }
 
