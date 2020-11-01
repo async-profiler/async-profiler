@@ -22,24 +22,23 @@
 #include "vmStructs.h"
 
 
-// JDK 7-9
-Trap AllocTracer::_in_new_tlab("_ZN11AllocTracer33send_allocation_in_new_tlab_event");
-Trap AllocTracer::_outside_tlab("_ZN11AllocTracer34send_allocation_outside_tlab_event");
-// JDK 10+
-Trap AllocTracer::_in_new_tlab2("_ZN11AllocTracer27send_allocation_in_new_tlab");
-Trap AllocTracer::_outside_tlab2("_ZN11AllocTracer28send_allocation_outside_tlab");
+Trap AllocTracer::_in_new_tlab;
+Trap AllocTracer::_outside_tlab;
+
+Trap AllocTracer::_in_new_tlab2;
+Trap AllocTracer::_outside_tlab2;
 
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
 
 
 // Resolve the address of the intercepted function
-bool Trap::resolve(NativeCodeCache* libjvm) {
+bool Trap::resolve(NativeCodeCache* libjvm, const char* func_name) {
     if (_entry != NULL) {
         return true;
     }
 
-    uintptr_t addr = (uintptr_t)libjvm->findSymbolByPrefix(_func_name);
+    uintptr_t addr = (uintptr_t)libjvm->findSymbolByPrefix(func_name);
     if (addr == 0) {
         return false;
     }
@@ -54,7 +53,9 @@ bool Trap::resolve(NativeCodeCache* libjvm) {
     // Make the entry point writable, so we can rewrite instructions
     long page_size = sysconf(_SC_PAGESIZE);
     uintptr_t page_start = addr & -page_size;
-    mprotect((void*)page_start, page_size, PROT_READ | PROT_WRITE | PROT_EXEC);
+    if (mprotect((void*)page_start, page_size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+        return false;
+    }
 
     _entry = (instruction_t*)addr;
     return true;
@@ -134,12 +135,19 @@ void AllocTracer::recordAllocation(void* ucontext, StackFrame& frame, uintptr_t 
 
 Error AllocTracer::check(Arguments& args) {
     NativeCodeCache* libjvm = VMStructs::libjvm();
-    if (!(_in_new_tlab.resolve(libjvm) || _in_new_tlab2.resolve(libjvm)) ||
-        !(_outside_tlab.resolve(libjvm) || _outside_tlab2.resolve(libjvm))) {
-        return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
+
+    if (_in_new_tlab2.resolve(libjvm, "_ZN11AllocTracer27send_allocation_in_new_tlab") &&
+        _outside_tlab2.resolve(libjvm, "_ZN11AllocTracer28send_allocation_outside_tlab")) {
+        return Error::OK;  // JDK 10+
+    } else if (_in_new_tlab2.resolve(libjvm, "_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandleP8HeapWord") &&
+               _outside_tlab2.resolve(libjvm, "_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandleP8HeapWord")) {
+        return Error::OK;  // JDK 8u262+
+    } else if (_in_new_tlab.resolve(libjvm, "_ZN11AllocTracer33send_allocation_in_new_tlab_event") &&
+               _outside_tlab.resolve(libjvm, "_ZN11AllocTracer34send_allocation_outside_tlab_event")) {
+        return Error::OK;  // JDK 7-9
     }
 
-    return Error::OK;
+    return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
 }
 
 Error AllocTracer::start(Arguments& args) {
