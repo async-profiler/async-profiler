@@ -595,12 +595,6 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             _load_method.name = (char*)"load";
             _load_method.signature = (char*)"(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZ)Z";
 
-            // Workaround for JDK-8238460
-            VMManagement* management = VM::management();
-            if (management != NULL) {
-                management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log what=jni+resolve=error"));
-            }
-
         } else if ((NativeLibrary = env->FindClass("java/lang/ClassLoader$NativeLibrary")) != NULL) {
             strcpy(original_jni_name, "Java_java_lang_ClassLoader_00024NativeLibrary_");
             _trapped_NativeLibrary_load = (void*)NativeLibraryLoadTrap;

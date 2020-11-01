@@ -68,7 +68,11 @@ void VMStructs::init(NativeCodeCache* libjvm) {
 
     initOffsets();
     initJvmFunctions();
-    initThreadBridge();
+
+    JNIEnv* env = VM::jni();
+    initThreadBridge(env);
+    initLogging(env);
+    env->ExceptionClear();
 }
 
 void VMStructs::initOffsets() {
@@ -147,8 +151,10 @@ void VMStructs::initOffsets() {
 }
 
 void VMStructs::initJvmFunctions() {
-    _get_stack_trace =
-        (GetStackTraceFunc)_libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
+    _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
+    if (_get_stack_trace == NULL) {
+        _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP14jvmtiFrameInfoPi");
+    }
 
     _unsafe_park = (UnsafeParkFunc)_libjvm->findSymbol("Unsafe_Park");
     if (_unsafe_park == NULL) {
@@ -170,14 +176,13 @@ void VMStructs::initJvmFunctions() {
     }
 }
 
-void VMStructs::initThreadBridge() {
+void VMStructs::initThreadBridge(JNIEnv* env) {
     // Get eetop field - a bridge from Java Thread to VMThread
     jthread thread;
     if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
         return;
     }
 
-    JNIEnv* env = VM::jni();
     jclass thread_class = env->GetObjectClass(thread);
     _eetop = env->GetFieldID(thread_class, "eetop", "J");
     _tid = env->GetFieldID(thread_class, "tid", "J");
@@ -203,6 +208,16 @@ void VMStructs::initThreadBridge() {
 
     _env_offset = (intptr_t)env - (intptr_t)vm_thread;
     _has_thread_bridge = true;
+}
+
+void VMStructs::initLogging(JNIEnv* env) {
+    // Workaround for JDK-8238460
+    if (VM::hotspot_version() >= 15) {
+        VMManagement* management = VM::management();
+        if (management != NULL) {
+            management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log what=jni+resolve=error"));
+        }
+    }
 }
 
 bool VMStructs::hasJNIEnv() {
