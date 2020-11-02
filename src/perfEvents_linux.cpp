@@ -37,6 +37,7 @@
 #include "spinLock.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -173,6 +174,8 @@ struct PerfEventType {
             offset = strtoll(c, NULL, 0);
         }
 
+        int counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
+
         // Parse symbol or absolute address
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
@@ -202,7 +205,7 @@ struct PerfEventType {
         breakpoint->config = addr + offset;
         breakpoint->bp_type = bp_type;
         breakpoint->bp_len = bp_len;
-        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
+        breakpoint->counter_arg = counter_arg;
         return breakpoint;
     }
 
@@ -281,6 +284,7 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {"recv",     3},
     {"sendto",   3},
     {"recvfrom", 3},
+    {"G1ParScanThreadState::copy_to_survivor_space", 5},
     {NULL}
 };
 
@@ -451,6 +455,12 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         case 2: counter = StackFrame(ucontext).arg1(); break;
         case 3: counter = StackFrame(ucontext).arg2(); break;
         case 4: counter = StackFrame(ucontext).arg3(); break;
+        case 5: {
+            VMKlass** oop = (VMKlass**)StackFrame(ucontext).arg2();
+            VMSymbol* symbol_name = oop[1]->name();
+            Profiler::_instance.recordSample(ucontext, 1, BCI_SYMBOL, (jmethodID)symbol_name);
+            goto done;
+        }
         default:
             if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
                 counter = 1;
@@ -458,6 +468,8 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     Profiler::_instance.recordSample(ucontext, counter, 0, NULL);
+
+done:
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
