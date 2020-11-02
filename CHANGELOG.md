@@ -1,14 +1,15 @@
 # Changelog
 
-## [1.8.2] - 2020-11-01
+## [1.8.2] - 2020-11-02
 
 ### Improvements
  - AArch64 build is now provided out of the box
+ - Compatibility with JDK 15 and JDK 16
 
 ### Bug fixes
  - More careful native stack walking in wall-clock mode
  - `resume` command is not compatible with JFR format
- - Native libraries loaded in runtime are not detected on JDK 15
+ - Wrong allocation sizes on JDK 8u262
 
 ## [1.8.1] - 2020-09-05
 

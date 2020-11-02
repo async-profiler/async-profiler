@@ -60,7 +60,8 @@ class VMStructs {
     static uintptr_t readSymbol(const char* symbol_name);
     static void initOffsets();
     static void initJvmFunctions();
-    static void initThreadBridge();
+    static void initThreadBridge(JNIEnv* env);
+    static void initLogging(JNIEnv* env);
 
     const char* at(int offset) {
         return (const char*)this + offset;

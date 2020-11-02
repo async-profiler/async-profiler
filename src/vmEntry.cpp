@@ -16,6 +16,7 @@
 
 #include <fstream>
 #include <dlfcn.h>
+#include <stdlib.h>
 #include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
@@ -52,9 +53,15 @@ void VM::init(JavaVM* vm, bool attach) {
         _jvmti->Deallocate((unsigned char*)prop);
 
         if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
-            _hotspot_version = strncmp(prop, "25.", 3) == 0 ? 8 :
-                               strncmp(prop, "24.", 3) == 0 ? 7 :
-                               strncmp(prop, "20.", 3) == 0 ? 6 : 9;
+            if (strncmp(prop, "25.", 3) == 0) {
+                _hotspot_version = 8;
+            } else if (strncmp(prop, "24.", 3) == 0) {
+                _hotspot_version = 7;
+            } else if (strncmp(prop, "20.", 3) == 0) {
+                _hotspot_version = 6;
+            } else if ((_hotspot_version = atoi(prop)) < 9) {
+                _hotspot_version = 9;
+            }
             _jvmti->Deallocate((unsigned char*)prop);
         }
     }
