@@ -239,7 +239,6 @@ public class FlameGraph {
             "\t'use strict';\n" +
             "\tvar root, rootLevel, px, pattern;\n" +
             "\tvar reverse = ${reverse};\n" +
-            "\tconst marked = [];\n" +
             "\tconst levels = Array(${depth});\n" +
             "\tfor (let h = 0; h < levels.length; h++) {\n" +
             "\t\tlevels[h] = [];\n" +
@@ -273,7 +272,6 @@ public class FlameGraph {
             "\n" +
             "\tfunction f(level, left, width, type, title) {\n" +
             "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title});\n" +
-            "\t\tmarked[left] = false;\n" +
             "\t}\n" +
             "\n" +
             "\tfunction samples(n) {\n" +
@@ -307,20 +305,6 @@ public class FlameGraph {
             "\t\treturn null;\n" +
             "\t}\n" +
             "\n" +
-            "\tfunction mark(f) {\n" +
-            "\t\tif (marked[f.left]) {\n" +
-            "\t\t\treturn 0;\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tlet x0 = f.left;\n" +
-            "\t\tlet x1 = x0 + f.width;\n" +
-            "\t\tdo {\n" +
-            "\t\t\tmarked[x0] = true;\n" +
-            "\t\t\tx0 = marked.indexOf(false, x0 + 1);\n" +
-            "\t\t} while (x0 >= 0 && x0 < x1);\n" +
-            "\t\treturn f.width;\n" +
-            "\t}\n" +
-            "\n" +
             "\tfunction search(r) {\n" +
             "\t\tif (r && (r = prompt('Enter regexp to search:', '')) === null) {\n" +
             "\t\t\treturn;\n" +
@@ -342,15 +326,29 @@ public class FlameGraph {
             "\t\trootLevel = newLevel || 0;\n" +
             "\t\tpx = canvasWidth / root.width;\n" +
             "\n" +
-            "\t\tfor (let x = 0; (x = marked.indexOf(true, x)) >= 0; marked[x++] = false);\n" +
-            "\t\tlet totalMarked = 0;\n" +
-            "\n" +
             "\t\tconst x0 = root.left;\n" +
             "\t\tconst x1 = x0 + root.width;\n" +
+            "\t\tconst marked = [];\n" +
+            "\n" +
+            "\t\tfunction mark(f) {\n" +
+            "\t\t\treturn marked[f.left] >= f.width || (marked[f.left] = f.width);\n" +
+            "\t\t}\n" +
+            "\n" +
+            "\t\tfunction totalMarked() {\n" +
+            "\t\t\tlet total = 0;\n" +
+            "\t\t\tlet left = 0;\n" +
+            "\t\t\tfor (let x in marked) {\n" +
+            "\t\t\t\tif (+x >= left) {\n" +
+            "\t\t\t\t\ttotal += marked[x];\n" +
+            "\t\t\t\t\tleft = +x + marked[x];\n" +
+            "\t\t\t\t}\n" +
+            "\t\t\t}\n" +
+            "\t\t\treturn total;\n" +
+            "\t\t}\n" +
             "\n" +
             "\t\tfunction drawFrame(f, y, alpha) {\n" +
             "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n" +
-            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && (totalMarked += mark(f)) ? '#ee00ee' : f.color;\n" +
+            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
             "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
             "\n" +
             "\t\t\t\tif (f.width * px >= 21) {\n" +
@@ -375,7 +373,7 @@ public class FlameGraph {
             "\t\t\t}\n" +
             "\t\t}\n" +
             "\n" +
-            "\t\treturn totalMarked;\n" +
+            "\t\treturn totalMarked();\n" +
             "\t}\n" +
             "\n" +
             "\tcanvas.onmousemove = function() {\n" +
