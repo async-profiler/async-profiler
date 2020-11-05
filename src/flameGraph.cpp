@@ -270,7 +270,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     // TODO: tree
 
     char buf[sizeof(FLAMEGRAPH_HEADER) + 256];
-    snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title, depth * 16, depth, _reverse ? "true" : "false");
+    snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title, depth * 16, _reverse ? "true" : "false", depth);
     out << buf;
 
     printFrame(out, "all", _root, 0, 0);

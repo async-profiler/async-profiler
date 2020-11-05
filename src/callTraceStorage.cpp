@@ -35,7 +35,7 @@ class LongHashTable {
     u32 _padding2[15];
 
     static size_t getSize(u32 capacity) {
-        size_t size = sizeof(LongHashTable) + (sizeof(u64) + sizeof(void*)) * capacity;
+        size_t size = sizeof(LongHashTable) + (sizeof(u64) + sizeof(CallTraceSample)) * capacity;
         return (size + PAGE_ALIGNMENT) & ~PAGE_ALIGNMENT;
     }
 
@@ -76,12 +76,12 @@ class LongHashTable {
         return (u64*)(this + 1);
     }
 
-    CallTrace** values() {
-        return (CallTrace**)(keys() + _capacity);
+    CallTraceSample* values() {
+        return (CallTraceSample*)(keys() + _capacity);
     }
 
     void clear() {
-        memset(keys(), 0, (sizeof(u64) + sizeof(void*)) * _capacity);
+        memset(keys(), 0, (sizeof(u64) + sizeof(CallTraceSample)) * _capacity);
         _size = 0;
     }
 };
@@ -105,15 +105,29 @@ void CallTraceStorage::clear() {
     _allocator.clear();
 }
 
-void CallTraceStorage::collect(std::map<u32, CallTrace*>& map) {
+void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
-        CallTrace** values = table->values();
+        CallTraceSample* values = table->values();
         u32 capacity = table->capacity();
 
         for (u32 slot = 0; slot < capacity; slot++) {
             if (keys[slot] != 0) {
-                map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot];
+                map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
+            }
+        }
+    }
+}
+
+void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
+    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
+        u64* keys = table->keys();
+        CallTraceSample* values = table->values();
+        u32 capacity = table->capacity();
+
+        for (u32 slot = 0; slot < capacity; slot++) {
+            if (keys[slot] != 0) {
+                samples.push_back(&values[slot]);
             }
         }
     }
@@ -180,10 +194,10 @@ CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
         slot = (slot + step) & (capacity - 1);
     }
 
-    return table->values()[slot];
+    return table->values()[slot].trace;
 }
 
-u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames) {
+u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
     u64 hash = calcHash(num_frames, frames);
 
     LongHashTable* table = _current_table;
@@ -211,7 +225,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames) {
             if (trace == NULL) {
                 trace = storeCallTrace(num_frames, frames);
             }
-            table->values()[slot] = trace;
+            table->values()[slot].trace = trace;
             break;
         }
 
@@ -222,6 +236,11 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames) {
         // Improved version of linear probing
         slot = (slot + step) & (capacity - 1);
     }
+
+    // TODO: check overhead
+    CallTraceSample& s = table->values()[slot];
+    atomicInc(s.samples);
+    atomicInc(s.counter, counter);
 
     return capacity - (INITIAL_CAPACITY - 1) + slot;
 }

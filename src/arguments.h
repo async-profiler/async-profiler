@@ -137,8 +137,6 @@ class Arguments {
     const char* _end;
     // FlameGraph parameters
     const char* _title;
-    int _width;
-    int _height;
     double _minwidth;
     bool _reverse;
 
@@ -165,9 +163,7 @@ class Arguments {
         _begin(NULL),
         _end(NULL),
         _title("Flame Graph"),
-        _width(1200),
-        _height(16),
-        _minwidth(0.25),
+        _minwidth(0),
         _reverse(false) {
     }
 

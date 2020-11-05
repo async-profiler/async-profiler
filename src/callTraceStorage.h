@@ -18,6 +18,7 @@
 #define _CALLTRACESTORAGE_H
 
 #include <map>
+#include <vector>
 #include "arch.h"
 #include "linearAllocator.h"
 #include "vmEntry.h"
@@ -28,6 +29,12 @@ class LongHashTable;
 struct CallTrace {
     int num_frames;
     ASGCT_CallFrame frames[1];
+};
+
+struct CallTraceSample {
+    CallTrace* trace;
+    u64 samples;
+    u64 counter;
 };
 
 class CallTraceStorage {
@@ -44,9 +51,10 @@ class CallTraceStorage {
     ~CallTraceStorage();
 
     void clear();
-    void collect(std::map<u32, CallTrace*>& map);
+    void collectTraces(std::map<u32, CallTrace*>& map);
+    void collectSamples(std::vector<CallTraceSample*>& samples);
 
-    u32 put(int num_frames, ASGCT_CallFrame* frames);
+    u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
 };
 
 #endif // _CALLTRACESTORAGE

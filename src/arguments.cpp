@@ -58,7 +58,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     version[=full]  - display the agent version
 //     event=EVENT     - which event to trace (cpu, alloc, lock, cache-misses etc.)
 //     collapsed[=C]   - dump collapsed stacks (the format used by FlameGraph script)
-//     svg[=C]         - produce Flame Graph in SVG format
+//     html[=C]        - produce Flame Graph in HTML format
 //     tree[=C]        - produce call tree in HTML format
 //                       C is counter type: 'samples' or 'total'
 //     jfr             - dump events in Java Flight Recorder format
@@ -84,9 +84,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     begin=FUNCTION  - begin profiling when FUNCTION is executed
 //     end=FUNCTION    - end profiling when FUNCTION is executed
 //     title=TITLE     - FlameGraph title
-//     width=PX        - FlameGraph image width
-//     height=PX       - FlameGraph frame height
-//     minwidth=PX     - FlameGraph minimum frame width
+//     minwidth=PCT    - FlameGraph minimum frame width in percent
 //     reverse         - generate stack-reversed FlameGraph / Call tree
 //
 // It is possible to specify multiple dump options at the same time
@@ -136,7 +134,7 @@ Error Arguments::parse(const char* args) {
                 _output = OUTPUT_COLLAPSED;
                 _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
-            CASE2("flamegraph", "svg")
+            CASE2("flamegraph", "html")
                 _output = OUTPUT_FLAMEGRAPH;
                 _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
@@ -240,12 +238,6 @@ Error Arguments::parse(const char* args) {
             CASE("title")
                 if (value != NULL) _title = value;
 
-            CASE("width")
-                if (value != NULL) _width = atoi(value);
-
-            CASE("height")
-                if (value != NULL) _height = atoi(value);
-
             CASE("minwidth")
                 if (value != NULL) _minwidth = atof(value);
 
@@ -336,10 +328,8 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
 Output Arguments::detectOutputFormat(const char* file) {
     const char* ext = strrchr(file, '.');
     if (ext != NULL) {
-        if (strcmp(ext, ".svg") == 0) {
+        if (strcmp(ext, ".html") == 0) {
             return OUTPUT_FLAMEGRAPH;
-        } else if (strcmp(ext, ".html") == 0) {
-            return OUTPUT_TREE;
         } else if (strcmp(ext, ".jfr") == 0) {
             return OUTPUT_JFR;
         } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
