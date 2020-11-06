@@ -220,7 +220,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             const char* symbol = _class_names[(uintptr_t)frame.method_id];
             char* class_name = javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
             if (!for_matching && !(_style & STYLE_DOTTED)) {
-                strcat(class_name, ((uintptr_t)frame.method_id & 1) ? "_[k]" : "_[i]");
+                strcat(class_name, frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]");
             }
             return class_name;
         }

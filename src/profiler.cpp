@@ -128,6 +128,13 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
+inline u32 Profiler::getLockIndex(int tid) {
+    u32 lock_index = tid;
+    lock_index ^= lock_index >> 8;
+    lock_index ^= lock_index >> 4;
+    return lock_index % CONCURRENCY_LEVEL;
+}
+
 void Profiler::updateSymbols(bool kernel_symbols) {
     Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS, kernel_symbols);
 }
@@ -367,7 +374,7 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
     return 0;
 }
 
-int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id) {
+inline int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id) {
     frames[0].bci = event_type;
     frames[0].method_id = (jmethodID)id;
     return 1;
@@ -439,10 +446,10 @@ AddressType Profiler::getAddressType(instruction_t* pc) {
 }
 
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
-    int tid = OS::threadId();
+    atomicInc(_total_samples);
 
-    // TODO: adjust locking scheme
-    u32 lock_index = ((u32)atomicInc(_total_samples)) % CONCURRENCY_LEVEL;
+    int tid = OS::threadId();
+    u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
         !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
@@ -457,13 +464,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         return;
     }
 
-    atomicInc(_total_counter, counter);
-
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
 
     int num_frames = 0;
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
-        // TODO: distinguish AllocInNewTLAB/AllocOutsideTLAB events
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
     if (_cstack != CSTACK_NO && event_type == 0) {
@@ -791,7 +795,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
-        _total_counter = 0;
         memset(_failures, 0, sizeof(_failures));
 
         // Reset dicrionaries and bitmaps

@@ -87,7 +87,6 @@ class Profiler {
     time_t _start_time;
 
     u64 _total_samples;
-    u64 _total_counter;
     u64 _failures[ASGCT_FAILURE_TYPES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
@@ -134,6 +133,7 @@ class Profiler {
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 
     const char* asgctError(int code);
+    u32 getLockIndex(int tid);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
@@ -176,7 +176,6 @@ class Profiler {
     }
 
     u64 total_samples() { return _total_samples; }
-    u64 total_counter() { return _total_counter; }
     time_t uptime()     { return time(NULL) - _start_time; }
 
     Dictionary* classMap() { return &_class_map; }
