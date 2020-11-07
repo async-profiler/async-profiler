@@ -57,19 +57,6 @@ class Trie {
     }
 };
 
-class Node {
-  public:
-    std::string _name;
-    const Trie* _trie;
-
-    Node(std::string name, const Trie& trie) : _name(name), _trie(&trie) {
-    }
-
-    bool operator<(const Node& other) const {
-        return _trie->_total > other._trie->_total;
-    }
-};
-
 
 class FlameGraph {
   private:

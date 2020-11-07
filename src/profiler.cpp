@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <algorithm>
 #include <fstream>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -61,6 +62,26 @@ enum StackRecovery {
     HOTSPOT_ONLY = LAST_JAVA_PC | GC_TRACES,
     MAX_RECOVERY = MOVE_SP | POP_FRAME | SCAN_STACK | LAST_JAVA_PC | GC_TRACES
 };
+
+
+struct MethodSample {
+    u64 samples;
+    u64 counter;
+
+    MethodSample() : samples(0), counter(0) {
+    }
+
+    void add(CallTraceSample* s) {
+        samples += s->samples;
+        counter += s->counter;
+    }
+};
+
+typedef std::pair<std::string, MethodSample> NamedMethodSample;
+
+static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b) {
+    return a.second.counter > b.second.counter;
+}
 
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
@@ -922,25 +943,6 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
     }
 }
 
-void Profiler::dumpSummary(std::ostream& out) {
-    char buf[256];
-    snprintf(buf, sizeof(buf),
-            "--- Execution profile ---\n"
-            "Total samples       : %lld\n",
-            _total_samples);
-    out << buf;
-
-    double percent = 100.0 / _total_samples;
-    for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
-        const char* err_string = asgctError(-i);
-        if (err_string != NULL && _failures[i] > 0) {
-            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
-            out << buf;
-        }
-    }
-    out << std::endl;
-}
-
 /*
  * Dump stacks in FlameGraph input format:
  * 
@@ -1009,76 +1011,58 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     flamegraph.dump(out, tree);
 }
 
-void Profiler::dumpTraces(std::ostream& out, Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE || _engine == NULL) return;
-
-/* TODO: not yet supported
-    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
-    double percent = 100.0 / _total_counter;
-    char buf[1024] = {0};
-
-    CallTraceSample** traces = new CallTraceSample*[MAX_CALLTRACES];
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
-        traces[i] = &_traces[i];
-    }
-    qsort(traces, MAX_CALLTRACES, sizeof(CallTraceSample*), CallTraceSample::comparator);
-
-    int max_traces = args._dump_traces < MAX_CALLTRACES ? args._dump_traces : MAX_CALLTRACES;
-    for (int i = 0; i < max_traces; i++) {
-        CallTraceSample* trace = traces[i];
-        if (trace->_samples == 0) break;
-        if (excludeTrace(&fn, trace)) continue;
-
-        snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
-                 trace->_counter, _engine->units(), trace->_counter * percent,
-                 trace->_samples, trace->_samples == 1 ? "" : "s");
-        out << buf;
-
-        for (int j = 0; j < trace->_num_frames; j++) {
-            const char* frame_name = fn.name(_frame_buffer[trace->_start_frame + j]);
-            snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
-            out << buf;
-        }
-        out << "\n";
-    }
-
-    delete[] traces;
-*/
-}
-
 void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-/* TODO: not yet supported
     FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
-    double percent = 100.0 / _total_counter;
     char buf[1024] = {0};
 
-    MethodSample** methods = new MethodSample*[MAX_CALLTRACES];
-    for (int i = 0; i < MAX_CALLTRACES; i++) {
-        methods[i] = &_methods[i];
-    }
-    qsort(methods, MAX_CALLTRACES, sizeof(MethodSample*), MethodSample::comparator);
+    std::map<std::string, MethodSample> histogram;
+    u64 total_counter = 0;
 
-    snprintf(buf, sizeof(buf) - 1, "%12s  percent  samples  top\n"
-                                   "  ----------  -------  -------  ---\n", _engine->units());
+    std::vector<CallTraceSample*> samples;
+    _call_trace_storage.collectSamples(samples);
+
+    for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+        total_counter += (*it)->counter;
+
+        CallTrace* trace = (*it)->trace;
+        if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
+
+        const char* frame_name = fn.name(trace->frames[0]);
+        histogram[frame_name].add(*it);
+    }
+
+    std::vector<NamedMethodSample> methods(histogram.begin(), histogram.end());
+    std::sort(methods.begin(), methods.end(), sortByCounter);
+
+    snprintf(buf, sizeof(buf) - 1,
+            "--- Execution profile ---\n"
+            "Total samples       : %lld\n",
+            _total_samples);
     out << buf;
 
-    int max_methods = args._dump_flat < MAX_CALLTRACES ? args._dump_flat : MAX_CALLTRACES;
-    for (int i = 0; i < max_methods; i++) {
-        MethodSample* method = methods[i];
-        if (method->_samples == 0) break;
-
-        const char* frame_name = fn.name(method->_method);
-        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
-                 method->_counter, method->_counter * percent, method->_samples, frame_name);
-        out << buf;
+    double percent = 100.0 / _total_samples;
+    for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
+        const char* err_string = asgctError(-i);
+        if (err_string != NULL && _failures[i] > 0) {
+            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
+            out << buf;
+        }
     }
 
-    delete[] methods;
-*/
+    out << "\n"
+           "     counter  percent  samples  top\n"
+           "  ----------  -------  -------  ---\n";
+
+    percent = 100.0 / total_counter;
+    int max_count = args._dump_flat;
+    for (std::vector<NamedMethodSample>::const_iterator it = methods.begin(); it != methods.end() && --max_count >= 0; ++it) {
+        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
+                 it->second.counter, it->second.counter * percent, it->second.samples, it->first.c_str());
+        out << buf;
+    }
 }
 
 void Profiler::runInternal(Arguments& args, std::ostream& out) {
@@ -1161,10 +1145,8 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
                 case OUTPUT_TREE:
                     dumpFlameGraph(out, args, true);
                     break;
-                case OUTPUT_TEXT:
-                    dumpSummary(out);
-                    if (args._dump_traces > 0) dumpTraces(out, args);
-                    if (args._dump_flat > 0) dumpFlat(out, args);
+                case OUTPUT_FLAT:
+                    dumpFlat(out, args);
                     break;
                 default:
                     break;

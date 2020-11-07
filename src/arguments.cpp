@@ -62,8 +62,6 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     tree[=C]        - produce call tree in HTML format
 //                       C is counter type: 'samples' or 'total'
 //     jfr             - dump events in Java Flight Recorder format
-//     summary         - dump profiling summary (number of collected samples of each type)
-//     traces[=N]      - dump top N call traces
 //     flat[=N]        - dump top N methods (aka flat profile)
 //     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N   - maximum Java stack depth (default: 2048)
@@ -145,15 +143,8 @@ Error Arguments::parse(const char* args) {
             CASE("jfr")
                 _output = OUTPUT_JFR;
 
-            CASE("summary")
-                _output = OUTPUT_TEXT;
-
-            CASE("traces")
-                _output = OUTPUT_TEXT;
-                _dump_traces = value == NULL ? INT_MAX : atoi(value);
-
             CASE("flat")
-                _output = OUTPUT_TEXT;
+                _output = OUTPUT_FLAT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
             // Basic options
@@ -252,7 +243,6 @@ Error Arguments::parse(const char* args) {
 
     if (_file != NULL && _output == OUTPUT_NONE) {
         _output = detectOutputFormat(_file);
-        _dump_traces = 200;
         _dump_flat = 200;
     }
 
@@ -336,7 +326,7 @@ Output Arguments::detectOutputFormat(const char* file) {
             return OUTPUT_COLLAPSED;
         }
     }
-    return OUTPUT_TEXT;
+    return OUTPUT_FLAT;
 }
 
 long Arguments::parseUnits(const char* str) {

@@ -136,21 +136,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     }
 
     /**
-     * Dump collected stack traces
-     *
-     * @param maxTraces Maximum number of stack traces to dump. 0 means no limit
-     * @return Textual representation of the profile
-     */
-    @Override
-    public String dumpTraces(int maxTraces) {
-        try {
-            return execute0("summary,traces=" + maxTraces);
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    /**
      * Dump flat profile, i.e. the histogram of the hottest methods
      *
      * @param maxMethods Maximum number of methods to dump. 0 means no limit
@@ -159,7 +144,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     @Override
     public String dumpFlat(int maxMethods) {
         try {
-            return execute0("summary,flat=" + maxMethods);
+            return execute0("flat=" + maxMethods);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

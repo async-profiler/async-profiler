@@ -22,7 +22,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
-    echo "  -o fmt            output format: summary|traces|flat|collapsed|html|tree|jfr"
+    echo "  -o fmt            output format: flat|collapsed|html|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
     echo "  -v, --version     display version string"
@@ -43,7 +43,7 @@ usage() {
     echo ""
     echo "Example: $0 -d 30 -f profile.svg 3456"
     echo "         $0 start -i 999000 jps"
-    echo "         $0 stop -o summary,flat jps"
+    echo "         $0 stop -o flat jps"
     echo "         $0 -d 5 -e alloc MyAppName"
     exit 1
 }
