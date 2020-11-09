@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0b] - In development
+## [2.0-b1] - Early access
 
 ### Features
  - Profile multiple events together (cpu + alloc + lock)

@@ -14,7 +14,7 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Latest release (1.8.2):
+Stable release (1.8.2):
 
  - Linux x64 (glibc): [async-profiler-1.8.2-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.2/async-profiler-1.8.2-linux-x64.tar.gz)
  - Linux x86 (glibc): [async-profiler-1.8.2-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.2/async-profiler-1.8.2-linux-x86.tar.gz)
@@ -22,6 +22,11 @@ Latest release (1.8.2):
  - Linux ARM: [async-profiler-1.8.2-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.2/async-profiler-1.8.2-linux-arm.tar.gz)
  - Linux AArch64: [async-profiler-1.8.2-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.2/async-profiler-1.8.2-linux-aarch64.tar.gz)
  - macOS x64: [async-profiler-1.8.2-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.2/async-profiler-1.8.2-macos-x64.tar.gz)
+
+Early access (2.0-b1):
+
+ - Linux x64 (glibc): [async-profiler-2.0-b1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-b1/async-profiler-2.0-b1-linux-x64.tar.gz)
+ - macOS x64: [async-profiler-2.0-b1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-b1/async-profiler-2.0-b1-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
@@ -132,7 +137,7 @@ For instance, this can be helpful when profiling application start-up time.
 
 Wall-clock profiler is most useful in per-thread mode: `-t`.
 
-Example: `./profiler.sh -e wall -t -i 5ms -f result.svg 8983`
+Example: `./profiler.sh -e wall -t -i 5ms -f result.html 8983`
 
 ## Java method profiling
 
@@ -228,7 +233,7 @@ If you need to profile some code as soon as the JVM starts up, instead of using 
 it is possible to attach async-profiler as an agent on the command line. For example:
 
 ```
-$ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
+$ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html ...
 ```
 
 Agent library is configured through the JVMTI argument interface.
@@ -236,8 +241,8 @@ The format of the arguments string is described
 [in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.8.2/src/arguments.cpp#L49).
 The `profiler.sh` script actually converts command line arguments to that format.
 
-For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
-is converted to `file=profile.svg` and so on. But some arguments are processed
+For instance, `-e alloc` is converted to `event=alloc`, `-f profile.html`
+is converted to `file=profile.html` and so on. But some arguments are processed
 directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions:
 attaching profiler agent with start command, sleeping for 5 seconds,
 and then attaching the agent again with stop command.
@@ -245,16 +250,14 @@ and then attaching the agent again with stop command.
 ## Flame Graph visualization
 
 async-profiler provides out-of-the-box [Flame Graph](https://github.com/BrendanGregg/FlameGraph) support.
-Specify `-o svg` argument to dump profiling results as an interactive SVG
-immediately viewable in all mainstream browsers.
-Also, SVG output format will be chosen automatically if the target
-filename ends with `.svg`.
+Specify `-o html` argument to dump profiling results as an interactive HTML Flame Graph.
+Also, HTML output format will be chosen automatically if the target filename ends with `.html`.
 
 ```
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -d 30 -f /tmp/flamegraph.svg 8983
+$ ./profiler.sh -d 30 -f /tmp/flamegraph.html 8983
 ```
 
 ![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/SwingSet2.svg)
@@ -337,8 +340,8 @@ Example: `./profiler.sh -t 8983`
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by a counter.
-  - `svg[=C]` - produce Flame Graph in SVG format.
-  - `tree[=C]` - produce call tree in HTML format.  
+  - `html[=C]` - produce Flame Graph in HTML format.
+  - `tree[=C]` - produce Call Tree in HTML format.  
      --reverse option will generate backtrace view. 
   
   `C` is a counter type:
@@ -355,8 +358,8 @@ while `-X` is the pattern that *must not* occur in any of stack traces in the ou
 a star `*` that denotes any (possibly empty) sequence of characters.  
 Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
 
-* `--title TITLE`, `--width PX`, `--height PX`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
-Example: `./profiler.sh -f profile.svg --title "Sample CPU profile" --minwidth 0.5 8983`
+* `--title TITLE`, `--minwidth PX`, `--reverse` - FlameGraph parameters.  
+Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  
 `%p` in the file name is expanded to the PID of the target JVM;  
