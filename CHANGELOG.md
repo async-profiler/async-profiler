@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0b] - In development
+
+### Features
+ - Profile multiple events together (cpu + alloc + lock)
+ - HTML 5 Flame Graphs: faster rendering, smaller size
+ - JFR v2 output format, compatible with FlightRecorder API
+ - Automatically turn profiling on/off at `--begin`/`--end` functions
+ - Time-to-safepoint profiling
+
+### Improvements
+ - Unlimited frame buffer. Removed `-b` option and 64K stack traces limit
+ - Record CPU load in JFR format
+
+### Changes
+ - Removed non-ASL code. No more CDDL license
+
 ## [1.8.2] - 2020-11-02
 
 ### Improvements
