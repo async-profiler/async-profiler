@@ -175,7 +175,7 @@ void OS::safeFree(void* addr, size_t size) {
 }
 
 Timer* OS::startTimer(u64 interval, TimerCallback callback, void* arg) {
-    dispatch_queue_global_t queue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
+    dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
     dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
     if (source != NULL) {
         dispatch_source_set_timer(source, dispatch_time(DISPATCH_TIME_NOW, interval), interval, 0);

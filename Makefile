@@ -61,11 +61,11 @@ release: build $(PACKAGE_NAME).tar.gz
 
 $(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
                         build/$(API_JAR) build/$(CONVERTER_JAR) \
-                        profiler.sh LICENSE NOTICE *.md
+                        profiler.sh LICENSE *.md
 	mkdir -p $(PACKAGE_DIR)
-	cp -r build profiler.sh LICENSE NOTICE *.md $(PACKAGE_DIR)
+	cp -r build profiler.sh LICENSE *.md $(PACKAGE_DIR)
 	chmod -R 755 $(PACKAGE_DIR)
-	chmod 644 $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/NOTICE $(PACKAGE_DIR)/*.md $(PACKAGE_DIR)/build/*.jar
+	chmod 644 $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/*.md $(PACKAGE_DIR)/build/*.jar
 	tar cvzf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
