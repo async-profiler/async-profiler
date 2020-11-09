@@ -70,6 +70,7 @@ class FlameGraph {
     bool _reverse;
 
     void printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x);
+    void printTreeFrame(std::ostream& out, const Trie& f, int level);
     int frameType(std::string& name);
 
   public:
