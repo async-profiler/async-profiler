@@ -58,6 +58,10 @@ class NoopEngine : public Engine {
 
     void stop() {
     }
+
+    CStack cstack() {
+        return CSTACK_NO;
+    }
 };
 
 #endif // _ENGINE_H

@@ -53,14 +53,15 @@ static Instrument instrument;
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
 enum StackRecovery {
-    MOVE_SP      = 1,
-    POP_FRAME    = 2,
-    SCAN_STACK   = 4,
-    LAST_JAVA_PC = 8,
-    GC_TRACES    = 16,
+    MOVE_SP      = 0x1,
+    MOVE_SP2     = 0x2,
+    POP_FRAME    = 0x4,
+    SCAN_STACK   = 0x8,
+    LAST_JAVA_PC = 0x10,
+    GC_TRACES    = 0x20,
 
     HOTSPOT_ONLY = LAST_JAVA_PC | GC_TRACES,
-    MAX_RECOVERY = MOVE_SP | POP_FRAME | SCAN_STACK | LAST_JAVA_PC | GC_TRACES
+    MAX_RECOVERY = MOVE_SP | MOVE_SP2 | POP_FRAME | SCAN_STACK | LAST_JAVA_PC | GC_TRACES
 };
 
 
@@ -305,6 +306,23 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
 
+            // Retry moving stack pointer, but now in wider range: 3 to 6 slots.
+            // Helps to recover from String.indexOf() intrinsic
+            if (!(_safe_mode & MOVE_SP2)) {
+                ASGCT_CallFrame* prev_frames = trace.frames;
+                trace.frames = frames;
+                for (int extra_stack_slots = 3; extra_stack_slots <= 6; extra_stack_slots = (extra_stack_slots - 1) << 1) {
+                    top_frame.sp() = sp + extra_stack_slots * sizeof(uintptr_t);
+                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    top_frame.sp() = sp;
+
+                    if (trace.num_frames > 0) {
+                        return trace.num_frames;
+                    }
+                }
+                trace.frames = prev_frames;
+            }
+
             // Try to find the previous frame by looking a few top stack slots
             // for something that resembles a return address
             if (!(_safe_mode & SCAN_STACK)) {
@@ -491,7 +509,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
-    if (_cstack != CSTACK_NO && event_type == 0) {
+    if (_cstack != CSTACK_NO) {
         num_frames += getNativeTrace(ucontext, frames + num_frames, tid);
     }
 
