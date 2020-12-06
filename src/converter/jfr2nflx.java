@@ -15,10 +15,11 @@
  */
 
 import one.jfr.ClassRef;
-import one.jfr.Frame;
+import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.Sample;
+import one.jfr.StackTrace;
 import one.proto.Proto;
 
 import java.io.File;
@@ -26,7 +27,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.Map;
 
 /**
  * Converts .jfr output produced by async-profiler to nflxprofile format
@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public class jfr2nflx {
 
-    private static final String[] FRAME_TYPE = {"user", "jit", "jit", "inlined", "user", "user", "kernel"};
+    private static final String[] FRAME_TYPE = {"jit", "jit", "inlined", "user", "user", "kernel"};
     private static final byte[] NO_STACK = "[no_stack]".getBytes();
 
     private final JfrReader jfr;
@@ -47,9 +47,12 @@ public class jfr2nflx {
     public void dump(OutputStream out) throws IOException {
         long startTime = System.nanoTime();
 
-        Proto profile = new Proto(200000)
+        int samples = jfr.samples.size();
+        long durationTicks = samples == 0 ? 0 : jfr.samples.get(samples - 1).time - jfr.startTicks + 1;
+
+        final Proto profile = new Proto(200000)
                 .field(1, 0.0)
-                .field(2, (jfr.stopNanos - jfr.startNanos) / 1e9)
+                .field(2, Math.max(jfr.durationNanos / 1e9, durationTicks / (double) jfr.ticksPerSec))
                 .field(3, packSamples())
                 .field(4, packDeltas())
                 .field(6, "async-profiler")
@@ -57,16 +60,20 @@ public class jfr2nflx {
                 .field(8, new Proto(32).field(1, "has_samples_tid").field(2, "true"))
                 .field(11, packTids());
 
-        Proto nodes = new Proto(10000);
-        Proto node = new Proto(10000);
+        final Proto nodes = new Proto(10000);
+        final Proto node = new Proto(10000);
 
-        for (Map.Entry<Integer, Frame[]> entry : jfr.stackTraces.entrySet()) {
-            profile.field(5, nodes
-                    .field(1, entry.getKey())
-                    .field(2, packNode(node, entry.getValue())));
-            nodes.reset();
-            node.reset();
-        }
+        // Don't use lambda for faster startup
+        jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
+            @Override
+            public void visit(long id, StackTrace stackTrace) {
+                profile.field(5, nodes
+                        .field(1, (int) id)
+                        .field(2, packNode(node, stackTrace)));
+                nodes.reset();
+                node.reset();
+            }
+        });
 
         out.write(profile.buffer(), 0, profile.size());
 
@@ -74,16 +81,19 @@ public class jfr2nflx {
         System.out.println("Wrote " + profile.size() + " bytes in " + (endTime - startTime) / 1e9 + " s");
     }
 
-    private Proto packNode(Proto node, Frame[] frames) {
-        int top = frames.length - 1;
-        node.field(1, top >= 0 ? getMethodName(frames[top].method) : NO_STACK);
+    private Proto packNode(Proto node, StackTrace stackTrace) {
+        long[] methods = stackTrace.methods;
+        byte[] types = stackTrace.types;
+        int top = methods.length - 1;
+
+        node.field(1, top >= 0 ? getMethodName(methods[top]) : NO_STACK);
         node.field(2, 1);
-        node.field(4, top >= 0 ? FRAME_TYPE[frames[top].type] : "user");
+        node.field(4, top >= 0 ? FRAME_TYPE[types[top]] : "user");
 
         for (Proto frame = new Proto(100); --top >= 0; frame.reset()) {
             node.field(10, frame
-                    .field(1, getMethodName(frames[top].method))
-                    .field(2, FRAME_TYPE[frames[top].type]));
+                    .field(1, getMethodName(methods[top]))
+                    .field(2, FRAME_TYPE[types[top]]));
         }
 
         return node;
@@ -99,9 +109,10 @@ public class jfr2nflx {
 
     private Proto packDeltas() {
         Proto proto = new Proto(10000);
-        long prevTime = jfr.startNanos;
+        double ticksPerSec = jfr.ticksPerSec;
+        long prevTime = jfr.startTicks;
         for (Sample sample : jfr.samples) {
-            proto.writeDouble((sample.time - prevTime) / 1e9);
+            proto.writeDouble((sample.time - prevTime) / ticksPerSec);
             prevTime = sample.time;
         }
         return proto;

@@ -20,9 +20,9 @@ public class Sample implements Comparable<Sample> {
     public final long time;
     public final int tid;
     public final int stackTraceId;
-    public final short threadState;
+    public final int threadState;
 
-    public Sample(long time, int tid, int stackTraceId, short threadState) {
+    public Sample(long time, int tid, int stackTraceId, int threadState) {
         this.time = time;
         this.tid = tid;
         this.stackTraceId = stackTraceId;

@@ -14,18 +14,10 @@
  * limitations under the License.
  */
 
-/**
- * Main entry point of jar.
- * Lists available converters.
- */
-public class Main {
+package one.jfr;
 
-    public static void main(String[] args) {
-        System.out.println("Usage: java -cp converter.jar <Converter> [options] <input> <output>");
-        System.out.println();
-        System.out.println("Available converters:");
-        System.out.println("  FlameGraph input.collapsed output.html");
-        System.out.println("  jfr2flame  input.jfr       output.html");
-        System.out.println("  jfr2nflx   input.jfr       output.nflx");
+class Element {
+
+    void addChild(Element e) {
     }
 }

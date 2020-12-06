@@ -16,12 +16,16 @@
 
 package one.jfr;
 
-public class Frame {
-    public final long method;
-    public final byte type;
+import java.util.Map;
 
-    public Frame(long method, byte type) {
-        this.method = method;
-        this.type = type;
+class JfrField extends Element {
+    final String name;
+    final int type;
+    final boolean constantPool;
+
+    JfrField(Map<String, String> attributes) {
+        this.name = attributes.get("name");
+        this.type = Integer.parseInt(attributes.get("class"));
+        this.constantPool = "true".equals(attributes.get("constantPool"));
     }
 }

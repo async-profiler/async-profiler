@@ -40,12 +40,12 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 
 
 enum FrameTypeId {
-    FRAME_INTERPRETED  = 1,
-    FRAME_JIT_COMPILED = 2,
-    FRAME_INLINED      = 3,
-    FRAME_NATIVE       = 4,
-    FRAME_CPP          = 5,
-    FRAME_KERNEL       = 6,
+    FRAME_INTERPRETED  = 0,
+    FRAME_JIT_COMPILED = 1,
+    FRAME_INLINED      = 2,
+    FRAME_NATIVE       = 3,
+    FRAME_CPP          = 4,
+    FRAME_KERNEL       = 5,
 };
 
 
