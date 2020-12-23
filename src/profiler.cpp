@@ -1202,9 +1202,13 @@ void Profiler::shutdown(Arguments& args) {
     MutexLocker ml(_state_lock);
 
     // The last chance to dump profile before VM terminates
-    if (_state == RUNNING && args._output != OUTPUT_NONE) {
-        args._action = ACTION_DUMP;
-        run(args);
+    if (_state == RUNNING) {
+        if (args._output == OUTPUT_NONE) {
+            stop();
+        } else {
+            args._action = ACTION_DUMP;
+            run(args);
+        }
     }
 
     _state = TERMINATED;
