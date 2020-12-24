@@ -40,6 +40,8 @@ int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_frame_size_offset = -1;
+int VMStructs::_is_gc_active_offset = -1;
+char* VMStructs::_collected_heap_addr = NULL;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -136,6 +138,14 @@ void VMStructs::initOffsets() {
         } else if (strcmp(type, "CodeBlob") == 0) {
             if (strcmp(field, "_frame_size") == 0) {
                 _frame_size_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "Universe") == 0) {
+            if (strcmp(field, "_collectedHeap") == 0) {
+                _collected_heap_addr = **(char***)(entry + address_offset);
+            }
+        } else if (strcmp(type, "CollectedHeap") == 0) {
+            if (strcmp(field, "_is_gc_active") == 0) {
+                _is_gc_active_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "PermGen") == 0) {
             _has_perm_gen = true;

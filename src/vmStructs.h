@@ -43,6 +43,8 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
+    static int _is_gc_active_offset;
+    static char* _collected_heap_addr;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -228,6 +230,14 @@ class RuntimeStub : VMStructs {
 
     int frameSize() {
         return *(int*) at(_frame_size_offset);
+    }
+};
+
+class CollectedHeap : VMStructs {
+  public:
+    static bool isGCActive() {
+        return _collected_heap_addr != NULL && _is_gc_active_offset >= 0 &&
+               _collected_heap_addr[_is_gc_active_offset] != 0;
     }
 };
 
