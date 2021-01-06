@@ -162,6 +162,7 @@ class Profiler {
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 
     const char* asgctError(int code);
+    bool checkWalkable(void* ucontext);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);

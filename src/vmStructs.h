@@ -39,6 +39,7 @@ class VMStructs {
     static int _methods_offset;
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
+    static int _thread_state_offset;
     static int _osthread_id_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
@@ -71,8 +72,6 @@ class VMStructs {
 
   public:
     static void init(NativeCodeCache* libjvm);
-
-    static bool hasJNIEnv();
 
     static NativeCodeCache* libjvm() {
         return _libjvm;
@@ -192,6 +191,8 @@ class VMKlass : VMStructs {
 
 class VMThread : VMStructs {
   public:
+    static VMThread* current();
+
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
@@ -211,6 +212,10 @@ class VMThread : VMStructs {
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);
         return *(int*)(osthread + _osthread_id_offset);
+    }
+
+    int state() {
+        return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
     }
 
     uintptr_t& lastJavaSP() {

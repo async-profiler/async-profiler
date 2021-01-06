@@ -56,9 +56,10 @@ enum StackRecovery {
     SCAN_STACK   = 4,
     LAST_JAVA_PC = 8,
     GC_TRACES    = 16,
+    CHECK_STATE  = 32,
 
     HOTSPOT_ONLY = LAST_JAVA_PC | GC_TRACES,
-    MAX_RECOVERY = MOVE_SP | POP_FRAME | SCAN_STACK | LAST_JAVA_PC | GC_TRACES
+    MAX_RECOVERY = 63
 };
 
 
@@ -263,6 +264,49 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
+// When thread is in Java state, it should have Java frame somewhere on the top of the stack
+bool Profiler::checkWalkable(void* ucontext) {
+    if (ucontext == NULL) {
+        return false;
+    }
+
+    StackFrame frame(ucontext);
+    const void* pc = (const void*)frame.pc();
+    uintptr_t fp = frame.fp();
+    uintptr_t prev_fp = (uintptr_t)&fp;
+    uintptr_t bottom = prev_fp + 0x40000;
+
+    const void* const valid_pc = (const void*)0x1000;
+
+    // Walk until the bottom of the stack or until the first Java frame
+    for (int depth = 0; depth < 5 && pc >= valid_pc; depth++) {
+        if (_runtime_stubs.contains(pc)) {
+            _stubs_lock.lockShared();
+            jmethodID method = _runtime_stubs.find(pc);
+            _stubs_lock.unlockShared();
+            return method == NULL || strcmp((const char*)method, "call_stub") != 0;
+        } else if (_java_methods.contains(pc)) {
+            return true;
+        }
+
+        // Check if the next frame is below on the current stack
+        if (fp <= prev_fp || fp >= bottom) {
+            break;
+        }
+
+        // Frame pointer must be word aligned
+        if ((fp & (sizeof(uintptr_t) - 1)) != 0) {
+            break;
+        }
+
+        prev_fp = fp;
+        pc = ((const void**)fp)[1];
+        fp = ((uintptr_t*)fp)[0];
+    }
+
+    return false;
+}
+
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
@@ -287,6 +331,19 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+    VMThread* vm_thread = VMThread::current();
+    if (vm_thread == NULL) {
+        return 0;
+    }
+
+    if (_safe_mode & CHECK_STATE) {
+        int state = vm_thread->state();
+        if ((state == 8 || state == 9) && !checkWalkable(ucontext)) {
+            // Thread is in Java state, but does not have a valid Java frame on top of the stack
+            return 0;
+        }
+    }
+
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         // Not a Java thread
@@ -541,7 +598,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-    } else if (VMStructs::hasJNIEnv()) {
+    } else {
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
     }
 
