@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.8.3] - 2021-01-06
+
+### Improvements
+ - libasyncProfiler.dylib symlink on macOS
+
+### Bug fixes
+ - Fixed possible deadlock on non-HotSpot JVMs
+ - Gracefully stop profiler when terminating JVM
+ - Fixed GetStackTrace problem after RedefineClasses
+
 ## [1.8.2] - 2020-11-02
 
 ### Improvements
