@@ -246,6 +246,11 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+    VMThread* vm_thread = VMThread::current();
+    if (vm_thread == NULL) {
+        return 0;
+    }
+
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         // Not a Java thread
@@ -369,9 +374,11 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 pc = 0;
             }
         }
-    } else if (trace.num_frames == ticks_GC_active && VMStructs::_get_stack_trace != NULL && !(_safe_mode & GC_TRACES)) {
-        // While GC is running Java threads are known to be at safepoint
-        return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
+    } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
+        if (VMStructs::_get_stack_trace != NULL && CollectedHeap::isGCActive() && !VM::inRedefineClasses()) {
+            // While GC is running Java threads are known to be at safepoint
+            return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
+        }
     }
 
     if (trace.num_frames > 0) {
@@ -518,7 +525,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         // Events like object allocation happen at known places where it is safe to call JVM TI
         jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-    } else if (VMStructs::hasJNIEnv()) {
+    } else {
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
     }
 
@@ -1193,9 +1200,13 @@ void Profiler::shutdown(Arguments& args) {
     MutexLocker ml(_state_lock);
 
     // The last chance to dump profile before VM terminates
-    if (_state == RUNNING && args._output != OUTPUT_NONE) {
-        args._action = ACTION_DUMP;
-        run(args);
+    if (_state == RUNNING) {
+        if (args._output == OUTPUT_NONE) {
+            stop();
+        } else {
+            args._action = ACTION_DUMP;
+            run(args);
+        }
     }
 
     _state = TERMINATED;

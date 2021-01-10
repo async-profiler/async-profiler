@@ -1,18 +1,24 @@
 PROFILER_VERSION=2.0-b1
 JATTACH_VERSION=1.5
 JAVAC_RELEASE_VERSION=6
+
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
-LIB_PROFILER=libasyncProfiler.so
+
+LIB_PROFILER=libasyncProfiler.$(SOEXT)
+LIB_PROFILER_SO=libasyncProfiler.so
 JATTACH=jattach
 API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
+
 CFLAGS=-O3 -fno-omit-frame-pointer
 CXXFLAGS=-O3 -fno-omit-frame-pointer
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
+
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
@@ -26,10 +32,12 @@ OS:=$(shell uname -s)
 ifeq ($(OS), Darwin)
   CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
+  SOEXT=dylib
   OS_TAG=macos
 else
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
+  SOEXT=so
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
   else
@@ -63,16 +71,19 @@ $(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
                         build/$(API_JAR) build/$(CONVERTER_JAR) \
                         profiler.sh LICENSE *.md
 	mkdir -p $(PACKAGE_DIR)
-	cp -r build profiler.sh LICENSE *.md $(PACKAGE_DIR)
+	cp -RP build profiler.sh LICENSE *.md $(PACKAGE_DIR)
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/*.md $(PACKAGE_DIR)/build/*.jar
 	tar cvzf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
+%.$(SOEXT): %.so
+	-ln -s $(<F) $@
+
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER): $(SOURCES) $(HEADERS)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS)
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 
 build/$(JATTACH): src/jattach/jattach.c
