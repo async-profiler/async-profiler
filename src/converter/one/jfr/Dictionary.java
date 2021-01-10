@@ -41,7 +41,7 @@ public class Dictionary<T> {
         }
 
         int mask = keys.length - 1;
-        int i = Long.hashCode(key) & mask;
+        int i = hashCode(key) & mask;
         while (keys[i] != 0 && keys[i] != key) {
             i = (i + 1) & mask;
         }
@@ -52,7 +52,7 @@ public class Dictionary<T> {
     @SuppressWarnings("unchecked")
     public T get(long key) {
         int mask = keys.length - 1;
-        int i = Long.hashCode(key) & mask;
+        int i = hashCode(key) & mask;
         while (keys[i] != key && keys[i] != 0) {
             i = (i + 1) & mask;
         }
@@ -83,7 +83,7 @@ public class Dictionary<T> {
 
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != 0) {
-                for (int j = Long.hashCode(keys[i]) & mask; ; j = (j + 1) & mask) {
+                for (int j = hashCode(keys[i]) & mask; ; j = (j + 1) & mask) {
                     if (newKeys[j] == 0) {
                         newKeys[j] = keys[i];
                         newValues[j] = values[i];
@@ -95,6 +95,10 @@ public class Dictionary<T> {
 
         keys = newKeys;
         values = newValues;
+    }
+
+    private static int hashCode(long key) {
+        return (int) (key ^ (key >>> 32));
     }
 
     public interface Visitor<T> {
