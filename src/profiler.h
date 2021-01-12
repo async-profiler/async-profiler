@@ -37,7 +37,7 @@
 
 const char FULL_VERSION_STRING[] =
     "Async-profiler " PROFILER_VERSION " built on " __DATE__ "\n"
-    "Copyright 2016-2020 Andrei Pangin\n";
+    "Copyright 2016-2021 Andrei Pangin\n";
 
 const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;

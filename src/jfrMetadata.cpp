@@ -145,6 +145,20 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("recordingStart", T_LONG, "Start Time", F_TIME_MILLIS)
                 << field("recordingDuration", T_LONG, "Recording Duration", F_DURATION_MILLIS))
 
+            << (type("jdk.OSInformation", T_OS_INFORMATION, "OS Information")
+                << category("Operating System")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("osVersion", T_STRING, "OS Version"))
+
+            << (type("jdk.CPUInformation", T_CPU_INFORMATION, "CPU Information")
+                << category("Operating System", "Processor")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("cpu", T_STRING, "Type")
+                << field("description", T_STRING, "Description")
+                << field("sockets", T_INT, "Sockets", F_UNSIGNED)
+                << field("cores", T_INT, "Cores", F_UNSIGNED)
+                << field("hwThreads", T_INT, "Hardware Threads", F_UNSIGNED))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 

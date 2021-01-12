@@ -24,6 +24,7 @@
 #include <mach/processor_info.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include "os.h"
@@ -192,6 +193,10 @@ void OS::stopTimer(Timer* timer) {
         dispatch_source_cancel(source);
         dispatch_release(source);
     }
+}
+
+bool OS::getCpuDescription(char* buf, size_t size) {
+    return sysctlbyname("machdep.cpu.brand_string", buf, &size, NULL, 0) == 0;
 }
 
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {

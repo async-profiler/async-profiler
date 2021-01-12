@@ -245,6 +245,28 @@ void OS::stopTimer(Timer* timer) {
     timer_delete((timer_t)timer);
 }
 
+bool OS::getCpuDescription(char* buf, size_t size) {
+    int fd = open("/proc/cpuinfo", O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    ssize_t r = read(fd, buf, size);
+    close(fd);
+    if (r <= 0) {
+        return false;
+    }
+    buf[r < size ? r : size - 1] = 0;
+
+    char* c;
+    do {
+        c = strchr(buf, '\n');
+    } while (c != NULL && *(buf = c + 1) != '\n');
+
+    *buf = 0;
+    return true;
+}
+
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
     struct tms buf;
     clock_t real = times(&buf);

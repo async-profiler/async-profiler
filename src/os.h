@@ -72,6 +72,7 @@ class OS {
     static Timer* startTimer(u64 interval, TimerCallback callback, void* arg);
     static void stopTimer(Timer* timer);
 
+    static bool getCpuDescription(char* buf, size_t size);
     static u64 getProcessCpuTime(u64* utime, u64* stime);
     static u64 getTotalCpuTime(u64* utime, u64* stime);
 };

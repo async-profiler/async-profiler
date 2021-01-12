@@ -57,6 +57,8 @@ enum JfrType {
     T_THREAD_PARK = 105,
     T_CPU_LOAD = 106,
     T_ACTIVE_RECORDING = 107,
+    T_OS_INFORMATION = 108,
+    T_CPU_INFORMATION = 109,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,
@@ -126,14 +128,15 @@ class JfrMetadata : Element {
     enum FieldFlags {
         F_CPOOL           = 0x1,
         F_ARRAY           = 0x2,
-        F_BYTES           = 0x4,
-        F_TIME_TICKS      = 0x8,
-        F_TIME_MILLIS     = 0x10,
-        F_DURATION_TICKS  = 0x20,
-        F_DURATION_NANOS  = 0x40,
-        F_DURATION_MILLIS = 0x80,
-        F_ADDRESS         = 0x100,
-        F_PERCENTAGE      = 0x200,
+        F_UNSIGNED        = 0x4,
+        F_BYTES           = 0x8,
+        F_TIME_TICKS      = 0x10,
+        F_TIME_MILLIS     = 0x20,
+        F_DURATION_TICKS  = 0x40,
+        F_DURATION_NANOS  = 0x80,
+        F_DURATION_MILLIS = 0x100,
+        F_ADDRESS         = 0x200,
+        F_PERCENTAGE      = 0x400,
     };
 
     static Element& element(const char* name) {
@@ -170,7 +173,9 @@ class JfrMetadata : Element {
         if (label != NULL) {
             e << annotation(T_LABEL, label);
         }
-        if (flags & F_BYTES) {
+        if (flags & F_UNSIGNED) {
+            e << annotation(T_UNSIGNED);
+        } else if (flags & F_BYTES) {
             e << annotation(T_UNSIGNED) << annotation(T_DATA_AMOUNT, "BYTES");
         } else if (flags & F_TIME_TICKS) {
             e << annotation(T_TIMESTAMP, "TICKS");

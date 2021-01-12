@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 #include "flightRecorder.h"
 #include "jfrMetadata.h"
@@ -197,7 +198,6 @@ class Recording {
     static SpinLock _cpu_monitor_lock;
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
-    int _available_processors;
     int _fd;
     off_t _file_offset;
     ThreadFilter _thread_set;
@@ -208,12 +208,13 @@ class Recording {
     u64 _start_nanos;
     u64 _stop_time;
     u64 _stop_nanos;
+    int _tid;
+    int _available_processors;
     Buffer _cpu_monitor_buf;
     Timer* _cpu_monitor;
     CpuTimes _last_times;
 
     void startCpuMonitor() {
-        VM::jvmti()->GetAvailableProcessors(&_available_processors);
         _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
         _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
 
@@ -273,10 +274,14 @@ class Recording {
         _file_offset = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
+        _tid = OS::threadId();
+        addThread(_tid);
+        VM::jvmti()->GetAvailableProcessors(&_available_processors);
 
         writeHeader(_buf);
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
+        writeOsCpuInfo(_buf);
         flush(_buf);
 
         startCpuMonitor();
@@ -477,14 +482,11 @@ class Recording {
     }
 
     void writeRecordingInfo(Buffer* buf) {
-        int tid = OS::threadId();
-        addThread(tid);
-
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
         buf->putVarint(_start_nanos);
         buf->putVarint(0);
-        buf->putVarint(tid);
+        buf->putVarint(_tid);
         buf->putVarint(1);
         buf->putUtf8("async-profiler");
         buf->putUtf8("async-profiler.jfr");
@@ -493,6 +495,33 @@ class Recording {
         buf->putVarint(_start_time);
         buf->putVarint(0x7fffffffffffffffULL);
         buf->put8(start, buf->offset() - start);
+    }
+
+    void writeOsCpuInfo(Buffer* buf) {
+        struct utsname u;
+        if (uname(&u) != 0) {
+            return;
+        }
+
+        char str[512];
+        snprintf(str, sizeof(str) - 1, "uname: %s %s %s %s", u.sysname, u.release, u.version, u.machine);
+        str[sizeof(str) - 1] = 0;
+
+        int start = buf->skip(5);
+        buf->put8(T_OS_INFORMATION);
+        buf->putVarint(_start_nanos);
+        buf->putUtf8(str);
+        buf->putVar32(start, buf->offset() - start);
+
+        start = buf->skip(5);
+        buf->put8(T_CPU_INFORMATION);
+        buf->putVarint(_start_nanos);
+        buf->putUtf8(u.machine);
+        buf->putUtf8(OS::getCpuDescription(str, sizeof(str) - 1) ? str : "");
+        buf->putVarint(1);
+        buf->putVarint(_available_processors);
+        buf->putVarint(_available_processors);
+        buf->putVar32(start, buf->offset() - start);
     }
 
     void writeCpool(Buffer* buf) {
