@@ -18,6 +18,7 @@
 
 #include <dispatch/dispatch.h>
 #include <libkern/OSByteOrder.h>
+#include <libproc.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
 #include <mach/mach_time.h>
@@ -95,6 +96,19 @@ u64 OS::millis() {
     return (u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+u64 OS::processStartTime() {
+    static u64 start_time = 0;
+
+    if (start_time == 0) {
+        struct proc_bsdinfo info;
+        if (proc_pidinfo(processId(), PROC_PIDTBSDINFO, 0, &info, sizeof(info)) > 0) {
+            start_time = (u64)info.pbi_start_tvsec * 1000 + info.pbi_start_tvusec / 1000;
+        }
+    }
+
+    return start_time;
+}
+
 u64 OS::hton64(u64 x) {
     return OSSwapHostToBigInt64(x);
 }
@@ -105,6 +119,12 @@ u64 OS::ntoh64(u64 x) {
 
 int OS::getMaxThreadId() {
     return 0x7fffffff;
+}
+
+int OS::processId() {
+    static const int self_pid = getpid();
+
+    return self_pid;
 }
 
 int OS::threadId() {

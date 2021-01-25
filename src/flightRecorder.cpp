@@ -38,6 +38,7 @@ const int BUFFER_SIZE = 1024;
 const int BUFFER_LIMIT = BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
+const int MAX_STRING_LENGTH = 16383;
 
 
 enum FrameTypeId {
@@ -161,7 +162,11 @@ class Buffer {
     }
 
     void putUtf8(const char* v) {
-        putUtf8(v, strlen(v));
+        if (v == NULL) {
+            put8(0);
+        } else {
+            putUtf8(v, strlen(v) & MAX_STRING_LENGTH);
+        }
     }
 
     void putUtf8(const char* v, int len) {
@@ -196,6 +201,11 @@ class RecordingBuffer : public Buffer {
 class Recording {
   private:
     static SpinLock _cpu_monitor_lock;
+
+    static char* _agent_properties;
+    static char* _jvm_args;
+    static char* _jvm_flags;
+    static char* _java_command;
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
@@ -282,6 +292,8 @@ class Recording {
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
         writeOsCpuInfo(_buf);
+        writeJvmInfo(_buf);
+        writeSystemProperties(_buf);
         flush(_buf);
 
         startCpuMonitor();
@@ -422,6 +434,52 @@ class Recording {
         return _packages.lookup(class_name, package - class_name);
     }
 
+    bool parseAgentProperties() {
+        JNIEnv* env = VM::jni();
+        jclass vm_support = env->FindClass("jdk/internal/vm/VMSupport");
+        if (vm_support == NULL) vm_support = env->FindClass("sun/misc/VMSupport");
+        if (vm_support != NULL) {
+            jmethodID get_agent_props = env->GetStaticMethodID(vm_support, "getAgentProperties", "()Ljava/util/Properties;");
+            jmethodID to_string = env->GetMethodID(env->FindClass("java/lang/Object"), "toString", "()Ljava/lang/String;");
+            if (get_agent_props != NULL && to_string != NULL) {
+                jobject props = env->CallStaticObjectMethod(vm_support, get_agent_props);
+                if (props != NULL) {
+                    jstring str = (jstring)env->CallObjectMethod(props, to_string);
+                    if (str != NULL) {
+                        _agent_properties = (char*)env->GetStringUTFChars(str, NULL);
+                    }
+                }
+            }
+        }
+        env->ExceptionClear();
+
+        if (_agent_properties == NULL) {
+            return false;
+        }
+
+        char* p = _agent_properties + 1;
+        p[strlen(p) - 1] = 0;
+
+        while (*p) {
+            if (strncmp(p, "sun.jvm.args=", 13) == 0) {
+                _jvm_args = p + 13;
+            } else if (strncmp(p, "sun.jvm.flags=", 14) == 0) {
+                _jvm_flags = p + 14;
+            } else if (strncmp(p, "sun.java.command=", 17) == 0) {
+                _java_command = p + 17;
+            }
+
+            if ((p = strstr(p, ", ")) == NULL) {
+                break;
+            }
+
+            *p = 0;
+            p += 2;
+        }
+
+        return true;
+    }
+
     void flush(Buffer* buf) {
         ssize_t result = write(_fd, buf->data(), buf->offset());
         (void)result;
@@ -488,7 +546,7 @@ class Recording {
         buf->putVarint(0);
         buf->putVarint(_tid);
         buf->putVarint(1);
-        buf->putUtf8("async-profiler");
+        buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
         buf->putVarint(0x7fffffffffffffffULL);
         buf->putVarint(0);
@@ -522,6 +580,62 @@ class Recording {
         buf->putVarint(_available_processors);
         buf->putVarint(_available_processors);
         buf->putVar32(start, buf->offset() - start);
+    }
+
+    void writeJvmInfo(Buffer* buf) {
+        if (_agent_properties == NULL && !parseAgentProperties()) {
+            return;
+        }
+
+        char* jvm_name = NULL;
+        char* jvm_version = NULL;
+
+        jvmtiEnv* jvmti = VM::jvmti();
+        jvmti->GetSystemProperty("java.vm.name", &jvm_name);
+        jvmti->GetSystemProperty("java.vm.version", &jvm_version);
+
+        int start = buf->skip(5);
+        buf->put8(T_JVM_INFORMATION);
+        buf->putVarint(_start_nanos);
+        buf->putUtf8(jvm_name);
+        buf->putUtf8(jvm_version);
+        buf->putUtf8(_jvm_args);
+        buf->putUtf8(_jvm_flags);
+        buf->putUtf8(_java_command);
+        buf->putVarint(OS::processStartTime());
+        buf->putVarint(OS::processId());
+        buf->putVar32(start, buf->offset() - start);
+        flushIfNeeded(buf);
+
+        jvmti->Deallocate((unsigned char*)jvm_version);
+        jvmti->Deallocate((unsigned char*)jvm_name);
+    }
+
+    void writeSystemProperties(Buffer* buf) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jint count;
+        char** keys;
+        if (jvmti->GetSystemProperties(&count, &keys) != 0) {
+            return;
+        }
+
+        for (int i = 0; i < count; i++) {
+            char* key = keys[i];
+            char* value = NULL;
+            if (jvmti->GetSystemProperty(key, &value) == 0) {
+                int start = buf->skip(5);
+                buf->put8(T_INITIAL_SYSTEM_PROPERTY);
+                buf->putVarint(_start_nanos);
+                buf->putUtf8(key);
+                buf->putUtf8(value);
+                buf->putVar32(start, buf->offset() - start);
+                flushIfNeeded(buf);
+                jvmti->Deallocate((unsigned char*)value);
+            }
+        }
+
+        jvmti->Deallocate((unsigned char*)keys);
+
     }
 
     void writeCpool(Buffer* buf) {
@@ -768,6 +882,11 @@ class Recording {
 };
 
 SpinLock Recording::_cpu_monitor_lock(1);
+
+char* Recording::_agent_properties = NULL;
+char* Recording::_jvm_args = NULL;
+char* Recording::_jvm_flags = NULL;
+char* Recording::_java_command = NULL;
 
 
 Error FlightRecorder::start(const char* file, bool reset) {

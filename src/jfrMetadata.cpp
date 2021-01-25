@@ -159,6 +159,23 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("cores", T_INT, "Cores", F_UNSIGNED)
                 << field("hwThreads", T_INT, "Hardware Threads", F_UNSIGNED))
 
+            << (type("jdk.JVMInformation", T_JVM_INFORMATION, "JVM Information")
+                << category("Java Virtual Machine")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("jvmName", T_STRING, "JVM Name")
+                << field("jvmVersion", T_STRING, "JVM Version")
+                << field("jvmArguments", T_STRING, "JVM Command Line Arguments")
+                << field("jvmFlags", T_STRING, "JVM Settings File Arguments")
+                << field("javaArguments", T_STRING, "Java Application Arguments")
+                << field("jvmStartTime", T_LONG, "JVM Start Time", F_TIME_MILLIS)
+                << field("pid", T_LONG, "Process Identifier"))
+
+            << (type("jdk.InitialSystemProperty", T_INITIAL_SYSTEM_PROPERTY, "Initial System Property")
+                << category("Java Virtual Machine")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("key", T_STRING, "Key")
+                << field("value", T_STRING, "Value"))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 

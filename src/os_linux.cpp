@@ -119,6 +119,22 @@ u64 OS::millis() {
     return (u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+u64 OS::processStartTime() {
+    static u64 start_time = 0;
+
+    if (start_time == 0) {
+        char buf[64];
+        sprintf(buf, "/proc/%d", processId());
+
+        struct stat st;
+        if (stat(buf, &st) == 0) {
+            start_time = (u64)st.st_mtim.tv_sec * 1000 + st.st_mtim.tv_nsec / 1000000;
+        }
+    }
+
+    return start_time;
+}
+
 u64 OS::hton64(u64 x) {
     return htonl(1) == 1 ? x : bswap_64(x);
 }
@@ -136,6 +152,12 @@ int OS::getMaxThreadId() {
         close(fd);
     }
     return atoi(buf);
+}
+
+int OS::processId() {
+    static const int self_pid = getpid();
+
+    return self_pid;
 }
 
 int OS::threadId() {
@@ -202,9 +224,7 @@ void OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
 }
 
 bool OS::sendSignalToThread(int thread_id, int signo) {
-    static const int self_pid = getpid();
-
-    return syscall(__NR_tgkill, self_pid, thread_id, signo) == 0;
+    return syscall(__NR_tgkill, processId(), thread_id, signo) == 0;
 }
 
 void* OS::safeAlloc(size_t size) {
