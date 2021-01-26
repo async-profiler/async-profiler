@@ -145,6 +145,15 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("recordingStart", T_LONG, "Start Time", F_TIME_MILLIS)
                 << field("recordingDuration", T_LONG, "Recording Duration", F_DURATION_MILLIS))
 
+            << (type("jdk.ActiveSetting", T_ACTIVE_SETTING, "Recording Setting")
+                << category("Flight Recorder")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("id", T_LONG, "Event Id")
+                << field("name", T_STRING, "Setting Name")
+                << field("value", T_STRING, "Setting Value"))
+
             << (type("jdk.OSInformation", T_OS_INFORMATION, "OS Information")
                 << category("Operating System")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

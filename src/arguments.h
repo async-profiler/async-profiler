@@ -106,6 +106,7 @@ class Error {
 class Arguments {
   private:
     char* _buf;
+    bool _shared;
 
     void appendToEmbeddedList(int& list, char* value);
 
@@ -141,6 +142,7 @@ class Arguments {
 
     Arguments() :
         _buf(NULL),
+        _shared(false),
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
@@ -173,6 +175,7 @@ class Arguments {
     bool addEvent(const char* event);
 
     friend class FrameName;
+    friend class Recording;
 };
 
 #endif // _ARGUMENTS_H

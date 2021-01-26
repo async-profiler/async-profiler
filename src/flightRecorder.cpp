@@ -41,6 +41,11 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 16383;
 
 
+static const char* const SETTING_COUNTER[] = {"samples", "total"};
+static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "lbr"};
+
+
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
     FRAME_JIT_COMPILED = 1,
@@ -280,7 +285,7 @@ class Recording {
     }
 
   public:
-    Recording(int fd) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
+    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
         _file_offset = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
@@ -291,6 +296,7 @@ class Recording {
         writeHeader(_buf);
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
+        writeSettings(_buf, args);
         writeOsCpuInfo(_buf);
         writeJvmInfo(_buf);
         writeSystemProperties(_buf);
@@ -553,6 +559,57 @@ class Recording {
         buf->putVarint(_start_time);
         buf->putVarint(0x7fffffffffffffffULL);
         buf->put8(start, buf->offset() - start);
+    }
+
+    void writeSettings(Buffer* buf, Arguments& args) {
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "counter", SETTING_COUNTER[args._counter]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event_desc);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
+        writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
+        writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
+        writeIntSetting(buf, T_ACTIVE_RECORDING, "safemode", args._safe_mode);
+        writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._events & EK_CPU);
+        writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
+        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._events & EK_ALLOC);
+        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._events & EK_ALLOC);
+        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._events & EK_LOCK);
+        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._events & EK_LOCK);
+    }
+
+    void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
+        int start = buf->skip(5);
+        buf->put8(T_ACTIVE_SETTING);
+        buf->putVarint(_start_nanos);
+        buf->putVarint(0);
+        buf->putVarint(_tid);
+        buf->putVarint(category);
+        buf->putUtf8(key);
+        buf->putUtf8(value);
+        buf->putVar32(start, buf->offset() - start);
+        flushIfNeeded(buf);
+    }
+
+    void writeBoolSetting(Buffer* buf, int category, const char* key, bool value) {
+        writeStringSetting(buf, category, key, value ? "true" : "false");
+    }
+
+    void writeIntSetting(Buffer* buf, int category, const char* key, long value) {
+        char str[32];
+        sprintf(str, "%ld", value);
+        writeStringSetting(buf, category, key, str);
+    }
+
+    void writeListSetting(Buffer* buf, int category, const char* key, const char* base, int offset) {
+        while (offset != 0) {
+            writeStringSetting(buf, category, key, base + offset);
+            offset = ((int*)(base + offset))[-1];
+        }
     }
 
     void writeOsCpuInfo(Buffer* buf) {
@@ -889,17 +946,17 @@ char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
 
 
-Error FlightRecorder::start(const char* file, bool reset) {
-    if (file == NULL || file[0] == 0) {
+Error FlightRecorder::start(Arguments& args, bool reset) {
+    if (args._file == NULL || args._file[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    int fd = open(file, O_CREAT | O_WRONLY | (reset ? O_TRUNC : 0), 0644);
+    int fd = open(args._file, O_CREAT | O_WRONLY | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
         return Error("Cannot open Flight Recorder output file");
     }
 
-    _rec = new Recording(fd);
+    _rec = new Recording(fd, args);
     return Error::OK;
 }
 

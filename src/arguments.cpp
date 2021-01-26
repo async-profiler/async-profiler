@@ -350,11 +350,11 @@ long Arguments::parseUnits(const char* str) {
 }
 
 Arguments::~Arguments() {
-    free(_buf);
+    if (!_shared) free(_buf);
 }
 
 void Arguments::save(Arguments& other) {
-    free(_buf);
+    if (!_shared) free(_buf);
     *this = other;
-    other._buf = NULL;
+    other._shared = true;
 }

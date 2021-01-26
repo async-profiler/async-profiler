@@ -889,7 +889,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (args._output == OUTPUT_JFR) {
-        error = _jfr.start(args._file, reset);
+        error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
             return error;
