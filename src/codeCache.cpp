@@ -119,8 +119,9 @@ const char* NativeCodeCache::binarySearch(const void* address) {
         }
     }
 
-    // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code
-    if (low > 0 && _blobs[low - 1]._start == _blobs[low - 1]._end) {
+    // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code.
+    // Also, in some cases (endless loop) the return address may point beyond the function.
+    if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
         return (const char*)_blobs[low - 1]._method;
     }
     return _name;
