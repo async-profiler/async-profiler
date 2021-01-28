@@ -28,15 +28,19 @@ CStack Engine::cstack() {
 
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                            CodeCache* java_methods, CodeCache* runtime_stubs) {
-    if (ucontext == NULL) {
-        return 0;
-    }
-
-    StackFrame frame(ucontext);
-    const void* pc = (const void*)frame.pc();
-    uintptr_t fp = frame.fp();
+    const void* pc;
+    uintptr_t fp;
     uintptr_t prev_fp = (uintptr_t)&fp;
     uintptr_t bottom = prev_fp + 0x100000;
+
+    if (ucontext == NULL) {
+        pc = __builtin_return_address(0);
+        fp = (uintptr_t)__builtin_frame_address(1);
+    } else {
+        StackFrame frame(ucontext);
+        pc = (const void*)frame.pc();
+        fp = frame.fp();
+    }
 
     int depth = 0;
     const void* const valid_pc = (const void*)0x1000;
