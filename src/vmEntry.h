@@ -20,6 +20,12 @@
 #include <jvmti.h>
 
 
+#if __GNUC__ == 4
+#  undef JNIEXPORT
+#  define JNIEXPORT __attribute__((visibility("default")))
+#endif
+
+
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)
