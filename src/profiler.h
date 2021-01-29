@@ -188,9 +188,11 @@ class Profiler {
     Error start(Arguments& args, bool reset);
     Error stop();
     void switchThreadEvents(jvmtiEventMode mode);
+    void dump(std::ostream& out, Arguments& args);
     void dumpCollapsed(std::ostream& out, Arguments& args);
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
     void dumpFlat(std::ostream& out, Arguments& args);
+    ThreadState getThreadState(void* ucontext);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
 
     void updateSymbols(bool kernel_symbols);

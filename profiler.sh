@@ -7,6 +7,7 @@ usage() {
     echo "  start             start profiling and return immediately"
     echo "  resume            resume profiling without resetting collected data"
     echo "  stop              stop profiling"
+    echo "  jstack            get a thread dump"
     echo "  check             check if the specified profiling event is available"
     echo "  status            print profiling status"
     echo "  list              list profiling events supported by the target JVM"
@@ -108,6 +109,11 @@ while [ $# -gt 0 ]; do
             ;;
         start|resume|stop|check|status|list|collect)
             ACTION="$1"
+            ;;
+        jstack)
+            ACTION="start"
+            EVENT="jstack"
+            PARAMS="$PARAMS,threads"
             ;;
         -v|--version)
             ACTION="version"

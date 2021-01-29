@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,47 +14,28 @@
  * limitations under the License.
  */
 
-#ifndef _WALLCLOCK_H
-#define _WALLCLOCK_H
+#ifndef _JSTACK_H
+#define _JSTACK_H
 
-#include <jvmti.h>
 #include <signal.h>
-#include <pthread.h>
 #include "engine.h"
 
 
-class WallClock : public Engine {
+class JStack : public Engine {
   private:
-    static long _interval;
-    static bool _sample_idle_threads;
-
-    volatile bool _running;
-    pthread_t _thread;
-
-    void timerLoop();
-
-    static void* threadEntry(void* wall_clock) {
-        ((WallClock*)wall_clock)->timerLoop();
-        return NULL;
-    }
-
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void wakeupHandler(int signo);
-
-    static long adjustInterval(long interval, int thread_count);
-    static void sleep(long interval);
 
   public:
     const char* name() {
-        return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
+        return EVENT_JSTACK;
     }
 
     const char* units() {
-        return "ns";
+        return "samples";
     }
 
     Error start(Arguments& args);
     void stop();
 };
 
-#endif // _WALLCLOCK_H
+#endif // _JSTACK_H

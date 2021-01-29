@@ -21,7 +21,6 @@
 #include <sys/types.h>
 #include "wallClock.h"
 #include "profiler.h"
-#include "stackFrame.h"
 
 
 // Maximum number of threads sampled in one iteration. This limit serves as a throttle
@@ -41,30 +40,9 @@ const int WAKEUP_SIGNAL = SIGIO;
 long WallClock::_interval;
 bool WallClock::_sample_idle_threads;
 
-ThreadState WallClock::getThreadState(void* ucontext) {
-    StackFrame frame(ucontext);
-    uintptr_t pc = frame.pc();
-
-    // Consider a thread sleeping, if it has been interrupted in the middle of syscall execution,
-    // either when PC points to the syscall instruction, or if syscall has just returned with EINTR
-    if (StackFrame::isSyscall((instruction_t*)pc)) {
-        return THREAD_SLEEPING;
-    }
-
-    // Make sure the previous instruction address is readable
-    uintptr_t prev_pc = pc - SYSCALL_SIZE;
-    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::_instance.findNativeLibrary((instruction_t*)prev_pc) != NULL) {
-        if (StackFrame::isSyscall((instruction_t*)prev_pc) && frame.checkInterruptedSyscall()) {
-            return THREAD_SLEEPING;
-        }
-    }
-
-    return THREAD_RUNNING;
-}
-
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ExecutionEvent event;
-    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    event._thread_state = _sample_idle_threads ? Profiler::_instance.getThreadState(ucontext) : THREAD_RUNNING;
     Profiler::_instance.recordSample(ucontext, _interval, 0, &event);
 }
 

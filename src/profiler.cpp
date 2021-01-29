@@ -18,6 +18,7 @@
 #include <fstream>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <sched.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@
 #include "wallClock.h"
 #include "instrument.h"
 #include "itimer.h"
+#include "jstack.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
@@ -47,6 +49,7 @@ static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;
+static JStack jstack;
 static Instrument instrument;
 
 
@@ -491,15 +494,42 @@ AddressType Profiler::getAddressType(instruction_t* pc) {
     return ADDR_UNKNOWN;
 }
 
+ThreadState Profiler::getThreadState(void* ucontext) {
+    StackFrame frame(ucontext);
+    uintptr_t pc = frame.pc();
+
+    // Consider a thread sleeping, if it has been interrupted in the middle of syscall execution,
+    // either when PC points to the syscall instruction, or if syscall has just returned with EINTR
+    if (StackFrame::isSyscall((instruction_t*)pc)) {
+        return THREAD_SLEEPING;
+    }
+
+    // Make sure the previous instruction address is readable
+    uintptr_t prev_pc = pc - SYSCALL_SIZE;
+    if ((pc & 0xfff) >= SYSCALL_SIZE || findNativeLibrary((instruction_t*)prev_pc) != NULL) {
+        if (StackFrame::isSyscall((instruction_t*)prev_pc) && frame.checkInterruptedSyscall()) {
+            return THREAD_SLEEPING;
+        }
+    }
+
+    return THREAD_RUNNING;
+}
+
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
     u32 lock_index = getLockIndex(tid);
-    if (!_locks[lock_index].tryLock() &&
-        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    while (!_locks[lock_index].tryLock() &&
+           !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+           !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
     {
+        if (_engine == &jstack) {
+            // JStack strictly needs all stack traces, but we cannot lock inside a signal handler
+            sched_yield();
+            continue;
+        }
+
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
@@ -798,6 +828,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
+    } else if (strcmp(event_name, EVENT_JSTACK) == 0) {
+        return &jstack;
     } else if (strchr(event_name, '.') != NULL) {
         return &instrument;
     } else {
@@ -908,9 +940,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (_events & EK_ALLOC) alloc_tracer.start(args);
     if (_events & EK_LOCK) lock_tracer.start(args);
 
-    // Thread events might be already enabled by PerfEvents::start
-    switchThreadEvents(JVMTI_ENABLE);
-    switchNativeMethodTraps(true);
+    if (_engine != &jstack) {
+        // Thread events might be already enabled by PerfEvents::start
+        switchThreadEvents(JVMTI_ENABLE);
+        switchNativeMethodTraps(true);
+    }
 
     _state = RUNNING;
     _start_time = time(NULL);
@@ -930,8 +964,11 @@ Error Profiler::stop() {
 
     _engine->stop();
 
-    switchNativeMethodTraps(false);
-    switchThreadEvents(JVMTI_DISABLE);
+    if (_engine != &jstack) {
+        switchNativeMethodTraps(false);
+        switchThreadEvents(JVMTI_DISABLE);
+    }
+
     updateJavaThreadNames();
     updateNativeThreadNames();
 
@@ -965,6 +1002,25 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
         _thread_events_state = mode;
+    }
+}
+
+void Profiler::dump(std::ostream& out, Arguments& args) {
+    switch (args._output) {
+        case OUTPUT_COLLAPSED:
+            dumpCollapsed(out, args);
+            break;
+        case OUTPUT_FLAMEGRAPH:
+            dumpFlameGraph(out, args, false);
+            break;
+        case OUTPUT_TREE:
+            dumpFlameGraph(out, args, true);
+            break;
+        case OUTPUT_FLAT:
+            dumpFlat(out, args);
+            break;
+        default:
+            break;
     }
 }
 
@@ -1097,6 +1153,9 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             Error error = start(args, args._action == ACTION_START);
             if (error) {
                 out << error.message() << std::endl;
+            } else if (_engine == &jstack) {
+                stop();
+                dump(out, args);
             } else {
                 out << "Profiling started" << std::endl;
             }
@@ -1160,22 +1219,7 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             break;
         case ACTION_DUMP:
             stop();
-            switch (args._output) {
-                case OUTPUT_COLLAPSED:
-                    dumpCollapsed(out, args);
-                    break;
-                case OUTPUT_FLAMEGRAPH:
-                    dumpFlameGraph(out, args, false);
-                    break;
-                case OUTPUT_TREE:
-                    dumpFlameGraph(out, args, true);
-                    break;
-                case OUTPUT_FLAT:
-                    dumpFlat(out, args);
-                    break;
-                default:
-                    break;
-            }
+            dump(out, args);
             break;
         default:
             break;
