@@ -374,6 +374,28 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 pc = 0;
             }
         }
+    } else if (trace.num_frames == ticks_not_walkable_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
+        VMThread* thread = VMThread::fromEnv(jni);
+        if (thread != NULL) {
+            uintptr_t& sp = thread->lastJavaSP();
+            uintptr_t& pc = thread->lastJavaPC();
+            if (sp != 0 && pc != 0 && getAddressType((instruction_t*)pc) == ADDR_STUB) {
+                // Similar to the above: last Java frame is set,
+                // but points to a Runtime Stub with an invalid _frame_complete_offset
+                RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
+                if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
+                    uintptr_t saved_sp = sp;
+                    uintptr_t saved_pc = pc;
+
+                    sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
+                    pc = ((uintptr_t*)sp)[-1];
+                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+
+                    sp = saved_sp;
+                    pc = saved_pc;
+                }
+            }
+        }
     } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
         if (VMStructs::_get_stack_trace != NULL && CollectedHeap::isGCActive() && !VM::inRedefineClasses()) {
             // While GC is running Java threads are known to be at safepoint
