@@ -67,14 +67,6 @@ void VM::init(JavaVM* vm, bool attach) {
             }
             _jvmti->Deallocate((unsigned char*)prop);
         }
-
-        if (is_hotspot) {
-            JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
-            _orig_RedefineClasses = functions->RedefineClasses;
-            _orig_RetransformClasses = functions->RetransformClasses;
-            functions->RedefineClasses = RedefineClassesHook;
-            functions->RetransformClasses = RetransformClassesHook;
-        }
     }
 
     _libjvm = getLibraryHandle("libjvm.so");
@@ -137,6 +129,13 @@ void VM::ready() {
     }
 
     _libjava = getLibraryHandle("libjava.so");
+
+    // Make sure we reload method IDs upon class retransformation
+    JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
+    _orig_RedefineClasses = functions->RedefineClasses;
+    _orig_RetransformClasses = functions->RetransformClasses;
+    functions->RedefineClasses = RedefineClassesHook;
+    functions->RetransformClasses = RetransformClassesHook;
 }
 
 void* VM::getLibraryHandle(const char* name) {

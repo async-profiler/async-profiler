@@ -57,8 +57,6 @@ enum StackRecovery {
     LAST_JAVA_PC = 8,
     GC_TRACES    = 16,
     CHECK_STATE  = 32,
-
-    HOTSPOT_ONLY = LAST_JAVA_PC | GC_TRACES,
     MAX_RECOVERY = 63
 };
 
@@ -896,7 +894,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     updateSymbols(args._ring != RING_USER);
 
-    _safe_mode = args._safe_mode | (VM::hotspot_version() ? 0 : HOTSPOT_ONLY);
+    _safe_mode = args._safe_mode;
+    if (VM::hotspot_version() < 8) {
+        // Cannot use JVM TI stack walker during GC on non-HotSpot JVMs or with PermGen
+        _safe_mode |= GC_TRACES | LAST_JAVA_PC;
+    }
 
     _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
     _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
