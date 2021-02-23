@@ -33,6 +33,7 @@
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
+#include "log.h"
 #include "os.h"
 #include "stackFrame.h"
 #include "symbols.h"
@@ -626,13 +627,13 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             }
 
         } else {
-            fprintf(stderr, "WARNING: Failed to intercept NativeLibraries.load()\n");
+            Log::warn("Failed to intercept NativeLibraries.load()");
             return;
         }
 
         strcat(original_jni_name, _load_method.name);
         if ((_original_NativeLibrary_load = dlsym(VM::_libjava, original_jni_name)) == NULL) {
-            fprintf(stderr, "WARNING: Could not find %s\n", original_jni_name);
+            Log::warn("Could not find %s", original_jni_name);
             return;
         }
 
@@ -641,7 +642,7 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             ? "jdk/internal/loader/NativeLibraries"
             : "java/lang/ClassLoader$NativeLibrary";
         if ((NativeLibrary = env->FindClass(class_name)) == NULL) {
-            fprintf(stderr, "WARNING: Could not find %s\n", class_name);
+            Log::warn("Could not find %s", class_name);
             return;
         }
     }
@@ -837,7 +838,7 @@ Error Profiler::checkJvmCapabilities() {
     }
 
     if (VMStructs::_get_stack_trace == NULL) {
-        fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
+        Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 
     return Error::OK;
@@ -990,6 +991,25 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
     }
 }
 
+void Profiler::dump(std::ostream& out, Arguments& args) {
+    switch (args._output) {
+        case OUTPUT_COLLAPSED:
+            dumpCollapsed(out, args);
+            break;
+        case OUTPUT_FLAMEGRAPH:
+            dumpFlameGraph(out, args, false);
+            break;
+        case OUTPUT_TREE:
+            dumpFlameGraph(out, args, true);
+            break;
+        case OUTPUT_FLAT:
+            dumpFlat(out, args);
+            break;
+        default:
+            break;
+    }
+}
+
 /*
  * Dump stacks in FlameGraph input format:
  * 
@@ -1112,34 +1132,31 @@ void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
     }
 }
 
-void Profiler::runInternal(Arguments& args, std::ostream& out) {
+Error Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START:
         case ACTION_RESUME: {
             Error error = start(args, args._action == ACTION_START);
             if (error) {
-                out << error.message() << std::endl;
-            } else {
-                out << "Profiling started" << std::endl;
+                return error;
             }
+            out << "Profiling started" << std::endl;
             break;
         }
         case ACTION_STOP: {
             Error error = stop();
             if (error) {
-                out << error.message() << std::endl;
-            } else {
-                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
+                return error;
             }
+            out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
             break;
         }
         case ACTION_CHECK: {
             Error error = check(args);
             if (error) {
-                out << error.message() << std::endl;
-            } else {
-                out << "OK" << std::endl;
+                return error;
             }
+            out << "OK" << std::endl;
             break;
         }
         case ACTION_STATUS: {
@@ -1182,39 +1199,25 @@ void Profiler::runInternal(Arguments& args, std::ostream& out) {
             break;
         case ACTION_DUMP:
             stop();
-            switch (args._output) {
-                case OUTPUT_COLLAPSED:
-                    dumpCollapsed(out, args);
-                    break;
-                case OUTPUT_FLAMEGRAPH:
-                    dumpFlameGraph(out, args, false);
-                    break;
-                case OUTPUT_TREE:
-                    dumpFlameGraph(out, args, true);
-                    break;
-                case OUTPUT_FLAT:
-                    dumpFlat(out, args);
-                    break;
-                default:
-                    break;
-            }
+            dump(out, args);
             break;
         default:
             break;
     }
+    return Error::OK;
 }
 
-void Profiler::run(Arguments& args) {
-    if (args._file == NULL || args._output == OUTPUT_JFR) {
-        runInternal(args, std::cout);
+Error Profiler::run(Arguments& args) {
+    if (!args.hasOutputFile()) {
+        return runInternal(args, std::cout);
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);
-        if (out.is_open()) {
-            runInternal(args, out);
-            out.close();
-        } else {
-            std::cerr << "Could not open " << args._file << std::endl;
+        if (!out.is_open()) {
+            return Error("Could not open output file");
         }
+        Error error = runInternal(args, out);
+        out.close();
+        return error;
     }
 }
 
@@ -1223,11 +1226,10 @@ void Profiler::shutdown(Arguments& args) {
 
     // The last chance to dump profile before VM terminates
     if (_state == RUNNING) {
-        if (args._output == OUTPUT_NONE) {
-            stop();
-        } else {
-            args._action = ACTION_DUMP;
-            run(args);
+        args._action = ACTION_DUMP;
+        Error error = args._output == OUTPUT_NONE ? stop() : run(args);
+        if (error) {
+            Log::error(error.message());
         }
     }
 

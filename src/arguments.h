@@ -125,6 +125,7 @@ class Arguments {
     int  _jstackdepth;
     int _safe_mode;
     const char* _file;
+    const char* _log;
     const char* _filter;
     int _include;
     int _exclude;
@@ -152,6 +153,7 @@ class Arguments {
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _safe_mode(0),
         _file(NULL),
+        _log(NULL),
         _filter(NULL),
         _include(0),
         _exclude(0),
@@ -171,6 +173,8 @@ class Arguments {
     void save(Arguments& other);
 
     Error parse(const char* args);
+
+    bool hasOutputFile() const;
 
     bool addEvent(const char* event);
 

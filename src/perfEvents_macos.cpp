@@ -24,7 +24,6 @@ PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
-bool PerfEvents::_print_extended_warning;
 
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -58,8 +57,8 @@ const char* PerfEvents::getEventName(int event_id) {
     return NULL;
 }
 
-bool PerfEvents::createForThread(int tid) {
-    return false;
+int PerfEvents::createForThread(int tid) {
+    return -1;
 }
 
 void PerfEvents::destroyForThread(int tid) {

@@ -32,7 +32,6 @@ class PerfEvents : public Engine {
     static long _interval;
     static Ring _ring;
     static CStack _cstack;
-    static bool _print_extended_warning;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
@@ -53,7 +52,7 @@ class PerfEvents : public Engine {
     static bool supported();
     static const char* getEventName(int event_id);
 
-    static bool createForThread(int tid);
+    static int createForThread(int tid);
     static void destroyForThread(int tid);
 };
 

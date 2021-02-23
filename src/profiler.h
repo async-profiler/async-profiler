@@ -181,13 +181,14 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
 
-    void run(Arguments& args);
-    void runInternal(Arguments& args, std::ostream& out);
+    Error run(Arguments& args);
+    Error runInternal(Arguments& args, std::ostream& out);
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
     Error stop();
     void switchThreadEvents(jvmtiEventMode mode);
+    void dump(std::ostream& out, Arguments& args);
     void dumpCollapsed(std::ostream& out, Arguments& args);
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
     void dumpFlat(std::ostream& out, Arguments& args);

@@ -32,6 +32,7 @@
 #include <string>
 #include "symbols.h"
 #include "arch.h"
+#include "log.h"
 
 
 class SymbolDesc {
@@ -174,12 +175,7 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     close(fd);
 
     if (addr == MAP_FAILED) {
-        if (strcmp(file_name, "/") == 0) {
-            // https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018
-            fprintf(stderr, "Could not parse symbols due to the OS bug\n");
-        } else {
-            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
-        }
+        Log::warn("Could not parse symbols from %s: %s", file_name, strerror(errno));
     } else {
         ElfParser elf(cc, base, addr, file_name);
         elf.loadSymbols(use_debug);

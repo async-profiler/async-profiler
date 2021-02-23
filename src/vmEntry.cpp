@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#include <fstream>
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,8 +24,13 @@
 #include "profiler.h"
 #include "instrument.h"
 #include "lockTracer.h"
+#include "log.h"
 #include "vmStructs.h"
 
+
+// JVM TI agent return codes
+const int ARGUMENTS_ERROR = 100;
+const int COMMAND_ERROR = 200;
 
 static Arguments _agent_args;
 
@@ -66,14 +70,6 @@ void VM::init(JavaVM* vm, bool attach) {
                 _hotspot_version = 9;
             }
             _jvmti->Deallocate((unsigned char*)prop);
-        }
-
-        if (is_hotspot) {
-            JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
-            _orig_RedefineClasses = functions->RedefineClasses;
-            _orig_RetransformClasses = functions->RetransformClasses;
-            functions->RedefineClasses = RedefineClassesHook;
-            functions->RetransformClasses = RetransformClassesHook;
         }
     }
 
@@ -137,6 +133,13 @@ void VM::ready() {
     }
 
     _libjava = getLibraryHandle("libjava.so");
+
+    // Make sure we reload method IDs upon class retransformation
+    JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
+    _orig_RedefineClasses = functions->RedefineClasses;
+    _orig_RetransformClasses = functions->RetransformClasses;
+    functions->RedefineClasses = RedefineClassesHook;
+    functions->RetransformClasses = RetransformClassesHook;
 }
 
 void* VM::getLibraryHandle(const char* name) {
@@ -145,7 +148,7 @@ void* VM::getLibraryHandle(const char* name) {
         if (handle != NULL) {
             return handle;
         }
-        std::cerr << "Failed to load " << name << ": " << dlerror() << std::endl;
+        Log::warn("Failed to load %s: %s", name, dlerror());
     }
     return RTLD_DEFAULT;
 }
@@ -189,7 +192,10 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     loadAllMethodIDs(jvmti, jni);
 
     // Delayed start of profiler if agent has been loaded at VM bootstrap
-    Profiler::_instance.run(_agent_args);
+    Error error = Profiler::_instance.run(_agent_args);
+    if (error) {
+        Log::error(error.message());
+    }
 }
 
 void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
@@ -231,33 +237,40 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    VM::init(vm, false);
-
     Error error = _agent_args.parse(options);
+    Log::open(_agent_args._log);
     if (error) {
-        std::cerr << error.message() << std::endl;
-        return -1;
+        Log::error(error.message());
+        return ARGUMENTS_ERROR;
     }
+
+    VM::init(vm, false);
 
     return 0;
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    VM::init(vm, true);
-
     Arguments args;
     Error error = args.parse(options);
+    Log::open(args._log);
     if (error) {
-        std::cerr << error.message() << std::endl;
-        return -1;
+        Log::error(error.message());
+        return ARGUMENTS_ERROR;
     }
+
+    VM::init(vm, true);
 
     // Save the arguments in case of shutdown
     if (args._action == ACTION_START || args._action == ACTION_RESUME) {
         _agent_args.save(args);
     }
-    Profiler::_instance.run(args);
+
+    error = Profiler::_instance.run(args);
+    if (error) {
+        Log::error(error.message());
+        return COMMAND_ERROR;
+    }
 
     return 0;
 }

@@ -31,18 +31,14 @@ const Error Error::OK(NULL);
 const size_t EXTRA_BUF_SIZE = 512;
 
 // Statically compute hash code of a string containing up to 12 [a-z] letters
-#define HASH(s)    (HASH12(s "            "))
-
-#define HASH12(s)  (s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
-                   (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
-                   (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55
+#define HASH(s)  ((s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
+                  (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
+                  (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55)
 
 // Simulate switch statement over string hashes
 #define SWITCH(arg)    long long arg_hash = hash(arg); if (0)
 
-#define CASE(s)        } else if (arg_hash == HASH(s)) {
-
-#define CASE2(s1, s2)  } else if (arg_hash == HASH(s1) || arg_hash == HASH(s2)) {
+#define CASE(s)        } else if (arg_hash == HASH(s "            ")) {
 
 
 // Parses agent arguments.
@@ -57,12 +53,13 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     list            - show the list of available profiling events
 //     version[=full]  - display the agent version
 //     event=EVENT     - which event to trace (cpu, alloc, lock, cache-misses etc.)
-//     collapsed[=C]   - dump collapsed stacks (the format used by FlameGraph script)
-//     html[=C]        - produce Flame Graph in HTML format
-//     tree[=C]        - produce call tree in HTML format
-//                       C is counter type: 'samples' or 'total'
+//     collapsed       - dump collapsed stacks (the format used by FlameGraph script)
+//     html            - produce Flame Graph in HTML format
+//     tree            - produce call tree in HTML format
 //     jfr             - dump events in Java Flight Recorder format
 //     flat[=N]        - dump top N methods (aka flat profile)
+//     samples         - count the number of samples (default)
+//     total           - count the total value (time, bytes, etc.) instead of samples"
 //     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N   - maximum Java stack depth (default: 2048)
 //     safemode=BITS   - disable stack recovery techniques (default: 0, i.e. everything enabled)
@@ -100,6 +97,8 @@ Error Arguments::parse(const char* args) {
     }
     strcpy(_buf, args);
 
+    const char* msg = NULL;    
+
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
         if (value != NULL) *value++ = 0;
@@ -128,17 +127,14 @@ Error Arguments::parse(const char* args) {
                 _action = value == NULL ? ACTION_VERSION : ACTION_FULL_VERSION;
 
             // Output formats
-            CASE2("collapsed", "folded")
+            CASE("collapsed")
                 _output = OUTPUT_COLLAPSED;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
-            CASE2("flamegraph", "html")
+            CASE("flamegraph")
                 _output = OUTPUT_FLAMEGRAPH;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
             CASE("tree")
                 _output = OUTPUT_TREE;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
             CASE("jfr")
                 _output = OUTPUT_JFR;
@@ -147,24 +143,28 @@ Error Arguments::parse(const char* args) {
                 _output = OUTPUT_FLAT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
+            CASE("samples")
+                _counter = COUNTER_SAMPLES;
+
+            CASE("total")
+                _counter = COUNTER_TOTAL;
+
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
-                    return Error("event must not be empty");
-                }
-
-                if (!addEvent(value)) {
-                    return Error("multiple incompatible events");
+                    msg = "event must not be empty";
+                } else if (!addEvent(value)) {
+                    msg = "multiple incompatible events";
                 }
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value)) <= 0) {
-                    return Error("Invalid interval");
+                    msg = "Invalid interval";
                 }
 
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
-                    return Error("jstackdepth must be > 0");
+                    msg = "jstackdepth must be > 0";
                 }
 
             CASE("safemode")
@@ -172,9 +172,12 @@ Error Arguments::parse(const char* args) {
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {
-                    return Error("file must not be empty");
+                    msg = "file must not be empty";
                 }
                 _file = value;
+
+            CASE("log")
+                _log = value == NULL || value[0] == 0 ? NULL : value;
 
             // Filters
             CASE("filter")
@@ -237,6 +240,11 @@ Error Arguments::parse(const char* args) {
         }
     }
 
+    // Return error only after parsing all arguments, when 'log' is already set
+    if (msg != NULL) {
+        return Error(msg);
+    }
+
     if (_file != NULL && strchr(_file, '%') != NULL) {
         _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
     }
@@ -251,6 +259,10 @@ Error Arguments::parse(const char* args) {
     }
 
     return Error::OK;
+}
+
+bool Arguments::hasOutputFile() const {
+    return _action >= ACTION_STATUS && _file != NULL;
 }
 
 bool Arguments::addEvent(const char* event) {

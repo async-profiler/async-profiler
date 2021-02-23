@@ -268,7 +268,7 @@ static int check_file_owner(const char* path) {
 static int start_attach_mechanism(int pid, int nspid) {
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
-    
+
     int fd = creat(path, 0660);
     if (fd == -1 || (close(fd) == 0 && !check_file_owner(path))) {
         // Failed to create attach trigger in current directory. Retry in /tmp
@@ -279,10 +279,10 @@ static int start_attach_mechanism(int pid, int nspid) {
         }
         close(fd);
     }
-    
+
     // We have to still use the host namespace pid here for the kill() call
     kill(pid, SIGQUIT);
-    
+
     // Start with 20 ms sleep and increment delay each iteration
     struct timespec ts = {0, 20000000};
     int result;
@@ -301,7 +301,7 @@ static int connect_socket(int pid) {
     if (fd == -1) {
         return -1;
     }
-    
+
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
     int bytes = snprintf(addr.sun_path, sizeof(addr.sun_path), "%s/.java_pid%d", tmp_path, pid);
@@ -334,7 +334,7 @@ static int write_command(int fd, int argc, char** argv) {
 }
 
 // Mirror response from remote JVM to stdout
-static int read_response(int fd) {
+static int read_response(int fd, int argc, char** argv) {
     char buf[8192];
     ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
     if (bytes <= 0) {
@@ -346,10 +346,27 @@ static int read_response(int fd) {
     buf[bytes] = 0;
     int result = atoi(buf);
 
+    // Special treatment of 'load' command
+    if (result == 0 && argc > 0 && strcmp(argv[0], "load") == 0) {
+        size_t total = bytes;
+        while (total < sizeof(buf) - 1 && (bytes = read(fd, buf + total, sizeof(buf) - 1 - total)) > 0) {
+            total += (size_t)bytes;
+        }
+        bytes = total;
+
+        // The second line is the result of 'load' command; since JDK 9 it starts from "return code: "
+        buf[bytes] = 0;
+        result = atoi(strncmp(buf + 2, "return code: ", 13) == 0 ? buf + 15 : buf + 2);
+    }
+
+    // Mirror error response to stderr or normal response to stdout
+    FILE* out = result ? stderr : stdout;
+    fprintf(out, "JVM response code = ");
     do {
-        fwrite(buf, 1, bytes, stdout);
+        fwrite(buf, 1, bytes, out);
         bytes = read(fd, buf, sizeof(buf));
     } while (bytes > 0);
+    fprintf(out, "\n");
 
     return result;
 }
@@ -357,12 +374,12 @@ static int read_response(int fd) {
 int main(int argc, char** argv) {
     if (argc < 3) {
         printf("jattach " JATTACH_VERSION " built on " __DATE__ "\n"
-               "Copyright 2018 Andrei Pangin\n"
+               "Copyright 2021 Andrei Pangin\n"
                "\n"
                "Usage: jattach <pid> <cmd> [args ...]\n");
         return 1;
     }
-    
+
     int pid = atoi(argv[1]);
     if (pid == 0) {
         perror("Invalid pid provided");
@@ -418,7 +435,7 @@ int main(int argc, char** argv) {
         perror("Could not connect to socket");
         return 1;
     }
-    
+
     printf("Connected to remote JVM\n");
     if (!write_command(fd, argc - 2, argv + 2)) {
         perror("Error writing to socket");
@@ -426,11 +443,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    printf("Response code = ");
-    fflush(stdout);
-
-    int result = read_response(fd);
-    printf("\n");
+    int result = read_response(fd, argc - 2, argv + 2);
     close(fd);
 
     return result;

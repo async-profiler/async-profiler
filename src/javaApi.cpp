@@ -60,21 +60,27 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
-    if (args._file == NULL || args._output == OUTPUT_JFR) {
+    if (!args.hasOutputFile()) {
         std::ostringstream out;
-        Profiler::_instance.runInternal(args, out);
-        return env->NewStringUTF(out.str().c_str());
+        error = Profiler::_instance.runInternal(args, out);
+        if (!error) {
+            return env->NewStringUTF(out.str().c_str());
+        }
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);
-        if (out.is_open()) {
-            Profiler::_instance.runInternal(args, out);
-            out.close();
-            return env->NewStringUTF("OK");
-        } else {
+        if (!out.is_open()) {
             JavaAPI::throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;
         }
+        error = Profiler::_instance.runInternal(args, out);
+        out.close();
+        if (!error) {
+            return env->NewStringUTF("OK");
+        }
     }
+
+    JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+    return NULL;
 }
 
 extern "C" JNIEXPORT jlong JNICALL

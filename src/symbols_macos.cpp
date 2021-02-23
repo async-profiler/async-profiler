@@ -28,6 +28,7 @@
 #include <mach-o/nlist.h>
 #include "symbols.h"
 #include "arch.h"
+#include "log.h"
 
 
 class MachOParser {
@@ -117,7 +118,7 @@ class MachOParser {
         close(fd);
 
         if (addr == MAP_FAILED) {
-            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
+            Log::warn("Could not parse symbols from %s: %s", file_name, strerror(errno));
         } else {
             MachOParser parser(cc, image_base);
             parser.parse((mach_header*)addr);

@@ -22,7 +22,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
-    echo "  -o fmt            output format: flat|collapsed|html|tree|jfr"
+    echo "  -o fmt            output format: flat|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
     echo "  -v, --version     display version string"
@@ -33,6 +33,7 @@ usage() {
     echo ""
     echo "  --all-kernel      only include kernel-mode events"
     echo "  --all-user        only include user-mode events"
+    echo "  --total           accumulate the total value (time, bytes, etc.)"
     echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
@@ -180,6 +181,9 @@ while [ $# -gt 0 ]; do
             ;;
         --all-user)
             PARAMS="$PARAMS,alluser"
+            ;;
+        --samples|--total)
+            PARAMS="$PARAMS,${1#--}"
             ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"

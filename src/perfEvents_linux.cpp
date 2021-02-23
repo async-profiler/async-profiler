@@ -31,6 +31,7 @@
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"
+#include "log.h"
 #include "os.h"
 #include "perfEvents.h"
 #include "profiler.h"
@@ -301,17 +302,16 @@ PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
-bool PerfEvents::_print_extended_warning;
 
-bool PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
-        fprintf(stderr, "WARNING: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max\n", tid, _max_events);
-        return false;
+        Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
+        return -1;
     }
 
     PerfEventType* event_type = _event_type;
     if (event_type == NULL) {
-        return false;
+        return -1;
     }
 
     struct perf_event_attr attr = {0};
@@ -356,24 +356,19 @@ bool PerfEvents::createForThread(int tid) {
     int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     if (fd == -1) {
         int err = errno;
-        perror("perf_event_open failed");
-        if (err == EACCES && _print_extended_warning) {
-            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n"
-                            "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
-            _print_extended_warning = false;
-        }
-        return false;
+        Log::warn("perf_event_open failed: %s", strerror(errno));
+        return err;
     }
 
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
         // Lost race. The event is created either from start() or from onThreadStart()
         close(fd);
-        return false;
+        return -1;
     }
 
     void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
-        perror("perf_event mmap failed");
+        Log::warn("perf_event mmap failed: %s", strerror(errno));
         page = NULL;
     }
 
@@ -391,7 +386,7 @@ bool PerfEvents::createForThread(int tid) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
 
-    return true;
+    return 0;
 }
 
 void PerfEvents::destroyForThread(int tid) {
@@ -513,13 +508,12 @@ Error PerfEvents::start(Arguments& args) {
 
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
-        fprintf(stderr, "WARNING: Kernel symbols are unavailable due to restrictions. Try\n"
-                        "  echo 0 > /proc/sys/kernel/kptr_restrict\n"
-                        "  echo 1 > /proc/sys/kernel/perf_event_paranoid\n");
+        Log::warn("Kernel symbols are unavailable due to restrictions. Try");
+        Log::warn("  sysctl kernel.kptr_restrict=0");
+        Log::warn("  sysctl kernel.perf_event_paranoid=1");
         _ring = RING_USER;
     }
     _cstack = args._cstack;
-    _print_extended_warning = _ring != RING_USER;
 
     int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
@@ -534,16 +528,23 @@ Error PerfEvents::start(Arguments& args) {
     Profiler::_instance.switchThreadEvents(JVMTI_ENABLE);
 
     // Create perf_events for all existing threads
+    int err;
     bool created = false;
     ThreadList* thread_list = OS::listThreads();
     for (int tid; (tid = thread_list->next()) != -1; ) {
-        created |= createForThread(tid);
+        if ((err = createForThread(tid)) == 0) {
+            created = true;
+        }
     }
     delete thread_list;
 
     if (!created) {
         Profiler::_instance.switchThreadEvents(JVMTI_DISABLE);
-        return Error("Perf events unavailable. See stderr of the target process.");
+        if (err == EACCES || err == EPERM) {
+            return Error("No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
+        } else {
+            return Error("Perf events unavailable");
+        }
     }
     return Error::OK;
 }

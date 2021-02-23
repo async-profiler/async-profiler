@@ -186,6 +186,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
-    private native String execute0(String command) throws IllegalArgumentException, IOException;
+    private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
 }
