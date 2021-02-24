@@ -38,7 +38,7 @@ const int BUFFER_SIZE = 1024;
 const int BUFFER_LIMIT = BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
-const int MAX_STRING_LENGTH = 16383;
+const int MAX_STRING_LENGTH = 8191;
 
 
 static const char* const SETTING_COUNTER[] = {"samples", "total"};
@@ -123,9 +123,9 @@ class Buffer {
         _offset = 0;
     }
 
-    void put(const char* v, int len) {
+    void put(const char* v, u32 len) {
         memcpy(_data + _offset, v, len);
-        _offset += len;
+        _offset += (int)len;
     }
 
     void put8(char v) {
@@ -157,13 +157,27 @@ class Buffer {
         put32(u.i);
     }
 
-    void putVarint(u64 v) {
-        char b = v;
-        while ((v >>= 7) != 0) {
-            _data[_offset++] = b | 0x80;
-            b = v;
+    void putVar32(u32 v) {
+        while (v > 0x7f) {
+            _data[_offset++] = (char)v | 0x80;
+            v >>= 7;
         }
-        _data[_offset++] = b;
+        _data[_offset++] = (char)v;
+    }
+
+    void putVar64(u64 v) {
+        int iter = 0;
+        while (v > 0x1fffff) {
+            _data[_offset++] = (char)v | 0x80; v >>= 7;
+            _data[_offset++] = (char)v | 0x80; v >>= 7;
+            _data[_offset++] = (char)v | 0x80; v >>= 7;
+            if (++iter == 3) return;
+        }
+        while (v > 0x7f) {
+            _data[_offset++] = (char)v | 0x80;
+            v >>= 7;
+        }
+        _data[_offset++] = (char)v;
     }
 
     void putUtf8(const char* v) {
@@ -174,9 +188,9 @@ class Buffer {
         }
     }
 
-    void putUtf8(const char* v, int len) {
+    void putUtf8(const char* v, u32 len) {
         put8(3);
-        putVarint(len);
+        putVar32(len);
         put(v, len);
     }
 
@@ -265,10 +279,7 @@ class Recording {
         }
 
         recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-
-        if (_cpu_monitor_buf.offset() > BUFFER_LIMIT) {
-            flush(&_cpu_monitor_buf);
-        }
+        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
 
         _last_times = times;
     }
@@ -492,8 +503,8 @@ class Recording {
         buf->reset();
     }
 
-    void flushIfNeeded(Buffer* buf) {
-        if (buf->offset() >= RECORDING_BUFFER_LIMIT) {
+    void flushIfNeeded(Buffer* buf, int limit = RECORDING_BUFFER_LIMIT) {
+        if (buf->offset() >= limit) {
             flush(buf);
         }
     }
@@ -514,13 +525,13 @@ class Recording {
 
     void writeMetadata(Buffer* buf) {
         int metadata_start = buf->skip(5);  // size will be patched later
-        buf->putVarint(T_METADATA);
-        buf->putVarint(_start_nanos);
-        buf->putVarint(0);
-        buf->putVarint(1);
+        buf->putVar32(T_METADATA);
+        buf->putVar64(_start_nanos);
+        buf->putVar32(0);
+        buf->putVar32(1);
 
         std::vector<std::string>& strings = JfrMetadata::strings();
-        buf->putVarint(strings.size());
+        buf->putVar32(strings.size());
         for (int i = 0; i < strings.size(); i++) {
             buf->putUtf8(strings[i].c_str());
         }
@@ -531,15 +542,15 @@ class Recording {
     }
 
     void writeElement(Buffer* buf, const Element* e) {
-        buf->putVarint(e->_name);
+        buf->putVar32(e->_name);
 
-        buf->putVarint(e->_attributes.size());
+        buf->putVar32(e->_attributes.size());
         for (int i = 0; i < e->_attributes.size(); i++) {
-            buf->putVarint(e->_attributes[i]._key);
-            buf->putVarint(e->_attributes[i]._value);
+            buf->putVar32(e->_attributes[i]._key);
+            buf->putVar32(e->_attributes[i]._value);
         }
 
-        buf->putVarint(e->_children.size());
+        buf->putVar32(e->_children.size());
         for (int i = 0; i < e->_children.size(); i++) {
             writeElement(buf, e->_children[i]);
         }
@@ -548,16 +559,16 @@ class Recording {
     void writeRecordingInfo(Buffer* buf) {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
-        buf->putVarint(_start_nanos);
-        buf->putVarint(0);
-        buf->putVarint(_tid);
-        buf->putVarint(1);
+        buf->putVar64(_start_nanos);
+        buf->putVar32(0);
+        buf->putVar32(_tid);
+        buf->putVar32(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
-        buf->putVarint(0x7fffffffffffffffULL);
-        buf->putVarint(0);
-        buf->putVarint(_start_time);
-        buf->putVarint(0x7fffffffffffffffULL);
+        buf->putVar64(0x7fffffffffffffffULL);
+        buf->putVar32(0);
+        buf->putVar64(_start_time);
+        buf->putVar64(0x7fffffffffffffffULL);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -585,10 +596,10 @@ class Recording {
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
         int start = buf->skip(5);
         buf->put8(T_ACTIVE_SETTING);
-        buf->putVarint(_start_nanos);
-        buf->putVarint(0);
-        buf->putVarint(_tid);
-        buf->putVarint(category);
+        buf->putVar64(_start_nanos);
+        buf->putVar32(0);
+        buf->putVar32(_tid);
+        buf->putVar32(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
         buf->putVar32(start, buf->offset() - start);
@@ -624,18 +635,18 @@ class Recording {
 
         int start = buf->skip(5);
         buf->put8(T_OS_INFORMATION);
-        buf->putVarint(_start_nanos);
+        buf->putVar64(_start_nanos);
         buf->putUtf8(str);
         buf->putVar32(start, buf->offset() - start);
 
         start = buf->skip(5);
         buf->put8(T_CPU_INFORMATION);
-        buf->putVarint(_start_nanos);
+        buf->putVar64(_start_nanos);
         buf->putUtf8(u.machine);
         buf->putUtf8(OS::getCpuDescription(str, sizeof(str) - 1) ? str : "");
-        buf->putVarint(1);
-        buf->putVarint(_available_processors);
-        buf->putVarint(_available_processors);
+        buf->putVar32(1);
+        buf->putVar32(_available_processors);
+        buf->putVar32(_available_processors);
         buf->putVar32(start, buf->offset() - start);
     }
 
@@ -651,18 +662,18 @@ class Recording {
         jvmti->GetSystemProperty("java.vm.name", &jvm_name);
         jvmti->GetSystemProperty("java.vm.version", &jvm_version);
 
+        flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 5 * MAX_STRING_LENGTH);
         int start = buf->skip(5);
         buf->put8(T_JVM_INFORMATION);
-        buf->putVarint(_start_nanos);
+        buf->putVar64(_start_nanos);
         buf->putUtf8(jvm_name);
         buf->putUtf8(jvm_version);
         buf->putUtf8(_jvm_args);
         buf->putUtf8(_jvm_flags);
         buf->putUtf8(_java_command);
-        buf->putVarint(OS::processStartTime());
-        buf->putVarint(OS::processId());
+        buf->putVar64(OS::processStartTime());
+        buf->putVar32(OS::processId());
         buf->putVar32(start, buf->offset() - start);
-        flushIfNeeded(buf);
 
         jvmti->Deallocate((unsigned char*)jvm_version);
         jvmti->Deallocate((unsigned char*)jvm_name);
@@ -680,13 +691,13 @@ class Recording {
             char* key = keys[i];
             char* value = NULL;
             if (jvmti->GetSystemProperty(key, &value) == 0) {
+                flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 2 * MAX_STRING_LENGTH);
                 int start = buf->skip(5);
                 buf->put8(T_INITIAL_SYSTEM_PROPERTY);
-                buf->putVarint(_start_nanos);
+                buf->putVar64(_start_nanos);
                 buf->putUtf8(key);
                 buf->putUtf8(value);
                 buf->putVar32(start, buf->offset() - start);
-                flushIfNeeded(buf);
                 jvmti->Deallocate((unsigned char*)value);
             }
         }
@@ -697,13 +708,13 @@ class Recording {
 
     void writeCpool(Buffer* buf) {
         buf->skip(5);  // size will be patched later
-        buf->putVarint(T_CPOOL);
-        buf->putVarint(_start_nanos);
-        buf->putVarint(0);
-        buf->putVarint(0);
-        buf->putVarint(1);
+        buf->putVar32(T_CPOOL);
+        buf->putVar64(_start_nanos);
+        buf->putVar32(0);
+        buf->putVar32(0);
+        buf->putVar32(1);
 
-        buf->putVarint(8);
+        buf->putVar32(8);
 
         writeFrameTypes(buf);
         writeThreadStates(buf);
@@ -716,21 +727,21 @@ class Recording {
     }
 
     void writeFrameTypes(Buffer* buf) {
-        buf->putVarint(T_FRAME_TYPE);
-        buf->putVarint(6);
-        buf->putVarint(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
-        buf->putVarint(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
-        buf->putVarint(FRAME_INLINED);      buf->putUtf8("Inlined");
-        buf->putVarint(FRAME_NATIVE);       buf->putUtf8("Native");
-        buf->putVarint(FRAME_CPP);          buf->putUtf8("C++");
-        buf->putVarint(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar32(T_FRAME_TYPE);
+        buf->putVar32(6);
+        buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
+        buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
+        buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
+        buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
+        buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
+        buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
     }
 
     void writeThreadStates(Buffer* buf) {
-        buf->putVarint(T_THREAD_STATE);
-        buf->putVarint(2);
-        buf->putVarint(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
-        buf->putVarint(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
+        buf->putVar32(T_THREAD_STATE);
+        buf->putVar32(2);
+        buf->putVar32(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
+        buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
 
     void writeThreads(Buffer* buf) {
@@ -742,8 +753,8 @@ class Recording {
         std::map<int, jlong>& thread_ids = Profiler::_instance._thread_ids;
         char name_buf[32];
 
-        buf->putVarint(T_THREAD);
-        buf->putVarint(threads.size());
+        buf->putVar32(T_THREAD);
+        buf->putVar32(threads.size());
         for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
             jlong thread_id;
@@ -757,15 +768,15 @@ class Recording {
                 thread_id = 0;
             }
 
-            buf->putVarint(threads[i]);
+            buf->putVar32(threads[i]);
             buf->putUtf8(thread_name);
-            buf->putVarint(threads[i]);
+            buf->putVar32(threads[i]);
             if (thread_id == 0) {
                 buf->put8(0);
             } else {
                 buf->putUtf8(thread_name);
             }
-            buf->putVarint(thread_id);
+            buf->putVar64(thread_id);
             flushIfNeeded(buf);
         }
     }
@@ -774,25 +785,25 @@ class Recording {
         std::map<u32, CallTrace*> traces;
         Profiler::_instance._call_trace_storage.collectTraces(traces);
 
-        buf->putVarint(T_STACK_TRACE);
-        buf->putVarint(traces.size());
+        buf->putVar32(T_STACK_TRACE);
+        buf->putVar32(traces.size());
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
-            buf->putVarint(it->first);
-            buf->putVarint(0);  // truncated
-            buf->putVarint(trace->num_frames);
+            buf->putVar32(it->first);
+            buf->putVar32(0);  // truncated
+            buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = resolveMethod(trace->frames[i]);
-                buf->putVarint(mi->_key);
+                buf->putVar32(mi->_key);
                 jint bci = trace->frames[i].bci;
                 if (bci >= 0) {
-                    buf->putVarint(mi->getLineNumber(bci));
-                    buf->putVarint(bci);
+                    buf->putVar32(mi->getLineNumber(bci));
+                    buf->putVar32(bci);
                 } else {
                     buf->put8(0);
                     buf->put8(0);
                 }
-                buf->putVarint(mi->_type);
+                buf->putVar32(mi->_type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
@@ -802,16 +813,16 @@ class Recording {
     void writeMethods(Buffer* buf) {
         jvmtiEnv* jvmti = VM::jvmti();
 
-        buf->putVarint(T_METHOD);
-        buf->putVarint(_method_map.size());
+        buf->putVar32(T_METHOD);
+        buf->putVar32(_method_map.size());
         for (std::map<jmethodID, MethodInfo>::const_iterator it = _method_map.begin(); it != _method_map.end(); ++it) {
             const MethodInfo& mi = it->second;
-            buf->putVarint(mi._key);
-            buf->putVarint(mi._class);
-            buf->putVarint(mi._name);
-            buf->putVarint(mi._sig);
-            buf->putVarint(mi._modifiers);
-            buf->putVarint(0);  // hidden
+            buf->putVar32(mi._key);
+            buf->putVar32(mi._class);
+            buf->putVar32(mi._name);
+            buf->putVar32(mi._sig);
+            buf->putVar32(mi._modifiers);
+            buf->putVar32(0);  // hidden
             flushIfNeeded(buf);
 
             if (mi._line_number_table != NULL) {
@@ -824,15 +835,15 @@ class Recording {
         std::map<u32, const char*> classes;
         Profiler::_instance.classMap()->collect(classes);
 
-        buf->putVarint(T_CLASS);
-        buf->putVarint(classes.size());
+        buf->putVar32(T_CLASS);
+        buf->putVar32(classes.size());
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             const char* name = it->second;
-            buf->putVarint(it->first);
-            buf->putVarint(0);  // classLoader
-            buf->putVarint(_symbols.lookup(name));
-            buf->putVarint(getPackage(name));
-            buf->putVarint(0);  // access flags
+            buf->putVar32(it->first);
+            buf->putVar32(0);  // classLoader
+            buf->putVar32(_symbols.lookup(name));
+            buf->putVar32(getPackage(name));
+            buf->putVar32(0);  // access flags
             flushIfNeeded(buf);
         }
     }
@@ -841,11 +852,11 @@ class Recording {
         std::map<u32, const char*> packages;
         _packages.collect(packages);
 
-        buf->putVarint(T_PACKAGE);
-        buf->putVarint(packages.size());
+        buf->putVar32(T_PACKAGE);
+        buf->putVar32(packages.size());
         for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
-            buf->putVarint(it->first);
-            buf->putVarint(_symbols.lookup(it->second));
+            buf->putVar32(it->first);
+            buf->putVar32(_symbols.lookup(it->second));
             flushIfNeeded(buf);
         }
     }
@@ -854,10 +865,10 @@ class Recording {
         std::map<u32, const char*> symbols;
         _symbols.collect(symbols);
 
-        buf->putVarint(T_SYMBOL);
-        buf->putVarint(symbols.size());
+        buf->putVar32(T_SYMBOL);
+        buf->putVar32(symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
-            buf->putVarint(it->first);
+            buf->putVar32(it->first);
             buf->putUtf8(it->second);
             flushIfNeeded(buf);
         }
@@ -866,65 +877,65 @@ class Recording {
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
-        buf->putVarint(OS::nanotime());
-        buf->putVarint(tid);
-        buf->putVarint(call_trace_id);
-        buf->putVarint(event->_thread_state);
+        buf->putVar64(OS::nanotime());
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_thread_state);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
-        buf->putVarint(OS::nanotime());
-        buf->putVarint(tid);
-        buf->putVarint(call_trace_id);
-        buf->putVarint(event->_class_id);
-        buf->putVarint(event->_instance_size);
-        buf->putVarint(event->_total_size);
+        buf->putVar64(OS::nanotime());
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_instance_size);
+        buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_OUTSIDE_TLAB);
-        buf->putVarint(OS::nanotime());
-        buf->putVarint(tid);
-        buf->putVarint(call_trace_id);
-        buf->putVarint(event->_class_id);
-        buf->putVarint(event->_total_size);
+        buf->putVar64(OS::nanotime());
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_MONITOR_ENTER);
-        buf->putVarint(event->_start_time);
-        buf->putVarint(event->_end_time - event->_start_time);
-        buf->putVarint(tid);
-        buf->putVarint(call_trace_id);
-        buf->putVarint(event->_class_id);
-        buf->putVarint(event->_address);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_THREAD_PARK);
-        buf->putVarint(event->_start_time);
-        buf->putVarint(event->_end_time - event->_start_time);
-        buf->putVarint(tid);
-        buf->putVarint(call_trace_id);
-        buf->putVarint(event->_class_id);
-        buf->putVarint(event->_timeout);
-        buf->putVarint(event->_address);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_timeout);
+        buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
         int start = buf->skip(1);
         buf->put8(T_CPU_LOAD);
-        buf->putVarint(OS::nanotime());
+        buf->putVar64(OS::nanotime());
         buf->putFloat(proc_user);
         buf->putFloat(proc_system);
         buf->putFloat(machine_total);

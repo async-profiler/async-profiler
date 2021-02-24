@@ -262,7 +262,7 @@ Error Arguments::parse(const char* args) {
 }
 
 bool Arguments::hasOutputFile() const {
-    return _action >= ACTION_STATUS && _file != NULL;
+    return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
 }
 
 bool Arguments::addEvent(const char* event) {
