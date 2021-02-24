@@ -524,9 +524,9 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
-        if (event_type == 0) {
+        if (event_type == 0 && _engine == &perf_events) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
-            _engine->getNativeTrace(ucontext, tid, NULL, 0, &_java_methods, &_runtime_stubs);
+            PerfEvents::resetBuffer(tid);
         }
         return;
     }

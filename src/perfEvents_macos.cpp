@@ -49,6 +49,9 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
     return 0;
 }
 
+void PerfEvents::resetBuffer(int tid) {
+}
+
 bool PerfEvents::supported() {
     return false;
 }

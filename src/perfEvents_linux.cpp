@@ -429,6 +429,8 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
         ExecutionEvent event;
         Profiler::_instance.recordSample(ucontext, counter, 0, &event);
+    } else {
+        resetBuffer(OS::threadId());
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
@@ -626,6 +628,22 @@ stack_complete:
 
     event->unlock();
     return depth;
+}
+
+void PerfEvents::resetBuffer(int tid) {
+    PerfEvent* event = &_events[tid];
+    if (!event->tryLock()) {
+        return;  // the event is being destroyed
+    }
+
+    struct perf_event_mmap_page* page = event->_page;
+    if (page != NULL) {
+        u64 head = page->data_head;
+        rmb();
+        page->data_tail = head;
+    }
+
+    event->unlock();
 }
 
 bool PerfEvents::supported() {
