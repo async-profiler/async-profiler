@@ -39,8 +39,11 @@ struct CallTraceSample {
 
 class CallTraceStorage {
   private:
+    static CallTrace _overflow_trace;
+
     LinearAllocator _allocator;
     LongHashTable* _current_table;
+    u64 _overflow;
 
     u64 calcHash(int num_frames, ASGCT_CallFrame* frames);
     CallTrace* storeCallTrace(int num_frames, ASGCT_CallFrame* frames);

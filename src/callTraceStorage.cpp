@@ -22,6 +22,7 @@
 
 static const u32 INITIAL_CAPACITY = 65536;
 static const u32 CALL_TRACE_CHUNK = 8 * 1024 * 1024;
+static const u32 OVERFLOW_TRACE_ID = 0x7fffffff;
 static const size_t PAGE_ALIGNMENT = sysconf(_SC_PAGESIZE) - 1;
 
 
@@ -87,8 +88,11 @@ class LongHashTable {
 };
 
 
+CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, (jmethodID)"[storage_overflow]"}};
+
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
+    _overflow = 0;
 }
 
 CallTraceStorage::~CallTraceStorage() {
@@ -103,6 +107,7 @@ void CallTraceStorage::clear() {
     }
     _current_table->clear();
     _allocator.clear();
+    _overflow = 0;
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
@@ -116,6 +121,10 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
                 map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
             }
         }
+    }
+
+    if (_overflow > 0) {
+        map[OVERFLOW_TRACE_ID] = &_overflow_trace;
     }
 }
 
@@ -231,13 +240,13 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
 
         if (++step >= capacity) {
             // Very unlikely case of a table overflow
-            return 0;
+            atomicInc(_overflow);
+            return OVERFLOW_TRACE_ID;
         }
         // Improved version of linear probing
         slot = (slot + step) & (capacity - 1);
     }
 
-    // TODO: check overhead
     CallTraceSample& s = table->values()[slot];
     atomicInc(s.samples);
     atomicInc(s.counter, counter);

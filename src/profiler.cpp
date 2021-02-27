@@ -259,6 +259,10 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     ASGCT_CallTrace trace = {jni, 0, frames};
     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
 
+    if (trace.num_frames > 0) {
+        return trace.num_frames;
+    }
+
     if ((trace.num_frames == ticks_unknown_Java || trace.num_frames == ticks_not_walkable_Java) && _safe_mode < MAX_RECOVERY) {
         // If current Java stack is not walkable (e.g. the top frame is not fully constructed),
         // try to manually pop the top frame off, hoping that the previous frame is walkable.
@@ -345,54 +349,48 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
         }
     } else if (trace.num_frames == ticks_unknown_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
-        VMThread* thread = VMThread::fromEnv(jni);
-        if (thread != NULL) {
-            uintptr_t& sp = thread->lastJavaSP();
-            uintptr_t& pc = thread->lastJavaPC();
-            if (sp != 0 && pc == 0) {
-                // We have the last Java frame anchor, but it is not marked as walkable.
-                // Make it walkable here
-                uintptr_t saved_sp = sp;
-                pc = ((uintptr_t*)saved_sp)[-1];
+        uintptr_t& sp = vm_thread->lastJavaSP();
+        uintptr_t& pc = vm_thread->lastJavaPC();
+        if (sp != 0 && pc == 0) {
+            // We have the last Java frame anchor, but it is not marked as walkable.
+            // Make it walkable here
+            uintptr_t saved_sp = sp;
+            pc = ((uintptr_t*)saved_sp)[-1];
 
-                AddressType addr_type = getAddressType((instruction_t*)pc);
-                if (addr_type != ADDR_UNKNOWN) {
-                    // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
-                    // In this case we manually replace last Java frame to the previous frame
-                    if (addr_type == ADDR_STUB) {
-                        RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
-                        if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
-                            sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
-                            pc = ((uintptr_t*)sp)[-1];
-                        }
+            AddressType addr_type = getAddressType((instruction_t*)pc);
+            if (addr_type != ADDR_UNKNOWN) {
+                // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
+                // In this case we manually replace last Java frame to the previous frame
+                if (addr_type == ADDR_STUB) {
+                    RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
+                    if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
+                        sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
+                        pc = ((uintptr_t*)sp)[-1];
                     }
-                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
-
-                sp = saved_sp;
-                pc = 0;
+                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
+
+            sp = saved_sp;
+            pc = 0;
         }
     } else if (trace.num_frames == ticks_not_walkable_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
-        VMThread* thread = VMThread::fromEnv(jni);
-        if (thread != NULL) {
-            uintptr_t& sp = thread->lastJavaSP();
-            uintptr_t& pc = thread->lastJavaPC();
-            if (sp != 0 && pc != 0 && getAddressType((instruction_t*)pc) == ADDR_STUB) {
-                // Similar to the above: last Java frame is set,
-                // but points to a Runtime Stub with an invalid _frame_complete_offset
-                RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
-                if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
-                    uintptr_t saved_sp = sp;
-                    uintptr_t saved_pc = pc;
+        uintptr_t& sp = vm_thread->lastJavaSP();
+        uintptr_t& pc = vm_thread->lastJavaPC();
+        if (sp != 0 && pc != 0 && getAddressType((instruction_t*)pc) == ADDR_STUB) {
+            // Similar to the above: last Java frame is set,
+            // but points to a Runtime Stub with an invalid _frame_complete_offset
+            RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
+            if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
+                uintptr_t saved_sp = sp;
+                uintptr_t saved_pc = pc;
 
-                    sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
-                    pc = ((uintptr_t*)sp)[-1];
-                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
+                pc = ((uintptr_t*)sp)[-1];
+                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
 
-                    sp = saved_sp;
-                    pc = saved_pc;
-                }
+                sp = saved_sp;
+                pc = saved_pc;
             }
         }
     } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {

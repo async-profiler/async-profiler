@@ -703,7 +703,6 @@ class Recording {
         }
 
         jvmti->Deallocate((unsigned char*)keys);
-
     }
 
     void writeCpool(Buffer* buf) {
@@ -978,10 +977,9 @@ void FlightRecorder::stop() {
     }
 }
 
-// TODO: record events with call_trace_id == 0, and use stack allocated buffer if needed
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                                  int event_type, Event* event, u64 counter) {
-    if (_rec != NULL && call_trace_id != 0) {
+    if (_rec != NULL) {
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
             case 0:
