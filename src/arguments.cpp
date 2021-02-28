@@ -139,8 +139,12 @@ Error Arguments::parse(const char* args) {
             CASE("jfr")
                 _output = OUTPUT_JFR;
 
+            CASE("traces")
+                _output = OUTPUT_TEXT;
+                _dump_traces = value == NULL ? INT_MAX : atoi(value);
+
             CASE("flat")
-                _output = OUTPUT_FLAT;
+                _output = OUTPUT_TEXT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
             CASE("samples")
@@ -251,6 +255,10 @@ Error Arguments::parse(const char* args) {
 
     if (_file != NULL && _output == OUTPUT_NONE) {
         _output = detectOutputFormat(_file);
+        if (_output == OUTPUT_SVG) {
+            return Error("SVG format is obsolete, use .html for FlameGraph");
+        }
+        _dump_traces = 100;
         _dump_flat = 200;
     }
 
@@ -336,9 +344,11 @@ Output Arguments::detectOutputFormat(const char* file) {
             return OUTPUT_JFR;
         } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
             return OUTPUT_COLLAPSED;
+        } else if (strcmp(ext, ".svg") == 0) {
+            return OUTPUT_SVG;
         }
     }
-    return OUTPUT_FLAT;
+    return OUTPUT_TEXT;
 }
 
 long Arguments::parseUnits(const char* str) {

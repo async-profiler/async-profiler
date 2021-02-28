@@ -68,12 +68,9 @@ struct MethodSample {
     u64 samples;
     u64 counter;
 
-    MethodSample() : samples(0), counter(0) {
-    }
-
-    void add(CallTraceSample* s) {
-        samples += s->samples;
-        counter += s->counter;
+    void add(u64 add_samples, u64 add_counter) {
+        samples += add_samples;
+        counter += add_counter;
     }
 };
 
@@ -1002,8 +999,8 @@ void Profiler::dump(std::ostream& out, Arguments& args) {
         case OUTPUT_TREE:
             dumpFlameGraph(out, args, true);
             break;
-        case OUTPUT_FLAT:
-            dumpFlat(out, args);
+        case OUTPUT_TEXT:
+            dumpText(out, args);
             break;
         default:
             break;
@@ -1078,57 +1075,87 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     flamegraph.dump(out, tree);
 }
 
-void Profiler::dumpFlat(std::ostream& out, Arguments& args) {
+void Profiler::dumpText(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
     FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     char buf[1024] = {0};
 
-    std::map<std::string, MethodSample> histogram;
+    std::vector<CallTraceSample> samples;
     u64 total_counter = 0;
+    {
+        std::map<u64, CallTraceSample> map;
+        _call_trace_storage.collectSamples(map);
+        samples.reserve(map.size());
 
-    std::vector<CallTraceSample*> samples;
-    _call_trace_storage.collectSamples(samples);
-
-    for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-        total_counter += (*it)->counter;
-
-        CallTrace* trace = (*it)->trace;
-        if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
-
-        const char* frame_name = fn.name(trace->frames[0]);
-        histogram[frame_name].add(*it);
+        for (std::map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
+            total_counter += it->second.counter;
+            CallTrace* trace = it->second.trace;
+            if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
+            samples.push_back(it->second);
+        }
     }
 
-    std::vector<NamedMethodSample> methods(histogram.begin(), histogram.end());
-    std::sort(methods.begin(), methods.end(), sortByCounter);
-
+    // Print summary
     snprintf(buf, sizeof(buf) - 1,
             "--- Execution profile ---\n"
             "Total samples       : %lld\n",
             _total_samples);
     out << buf;
 
-    double percent = 100.0 / _total_samples;
+    double spercent = 100.0 / _total_samples;
+    double cpercent = 100.0 / total_counter;
     for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
         const char* err_string = asgctError(-i);
         if (err_string != NULL && _failures[i] > 0) {
-            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * percent);
+            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * spercent);
             out << buf;
         }
     }
+    out << std::endl;
 
-    out << "\n"
-           "     counter  percent  samples  top\n"
-           "  ----------  -------  -------  ---\n";
+    // Print top call stacks
+    if (args._dump_traces > 0) {
+        std::sort(samples.begin(), samples.end());
 
-    percent = 100.0 / total_counter;
-    int max_count = args._dump_flat;
-    for (std::vector<NamedMethodSample>::const_iterator it = methods.begin(); it != methods.end() && --max_count >= 0; ++it) {
-        snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
-                 it->second.counter, it->second.counter * percent, it->second.samples, it->first.c_str());
-        out << buf;
+        int max_count = args._dump_traces;
+        for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
+            snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
+                     it->counter, _engine->units(), it->counter * cpercent,
+                     it->samples, it->samples == 1 ? "" : "s");
+            out << buf;
+
+            CallTrace* trace = it->trace;
+            for (int j = 0; j < trace->num_frames; j++) {
+                const char* frame_name = fn.name(trace->frames[j]);
+                snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
+                out << buf;
+            }
+            out << "\n";
+        }
+    }
+
+    // Print top methods
+    if (args._dump_flat > 0) {
+        std::map<std::string, MethodSample> histogram;
+        for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+            const char* frame_name = fn.name(it->trace->frames[0]);
+            histogram[frame_name].add(it->samples, it->counter);
+        }
+
+        std::vector<NamedMethodSample> methods(histogram.begin(), histogram.end());
+        std::sort(methods.begin(), methods.end(), sortByCounter);
+
+        out << "     counter  percent  samples  top\n"
+               "  ----------  -------  -------  ---\n";
+
+        int max_count = args._dump_flat;
+        for (std::vector<NamedMethodSample>::const_iterator it = methods.begin(); it != methods.end() && --max_count >= 0; ++it) {
+            snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
+                     it->second.counter, it->second.counter * cpercent, it->second.samples, it->first.c_str());
+            out << buf;
+        }
     }
 }
 

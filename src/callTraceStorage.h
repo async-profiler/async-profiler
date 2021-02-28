@@ -35,6 +35,17 @@ struct CallTraceSample {
     CallTrace* trace;
     u64 samples;
     u64 counter;
+
+    CallTraceSample& operator+=(const CallTraceSample& s) {
+        trace = s.trace;
+        samples += s.samples;
+        counter += s.counter;
+        return *this;
+    }
+
+    bool operator<(const CallTraceSample& other) const {
+        return counter > other.counter;
+    }
 };
 
 class CallTraceStorage {
@@ -56,6 +67,7 @@ class CallTraceStorage {
     void clear();
     void collectTraces(std::map<u32, CallTrace*>& map);
     void collectSamples(std::vector<CallTraceSample*>& samples);
+    void collectSamples(std::map<u64, CallTraceSample>& map);
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
 };

@@ -75,7 +75,8 @@ enum CStack {
 
 enum Output {
     OUTPUT_NONE,
-    OUTPUT_FLAT,
+    OUTPUT_TEXT,
+    OUTPUT_SVG,  // obsolete
     OUTPUT_COLLAPSED,
     OUTPUT_FLAMEGRAPH,
     OUTPUT_TREE,
@@ -133,6 +134,7 @@ class Arguments {
     int _style;
     CStack _cstack;
     Output _output;
+    int _dump_traces;
     int _dump_flat;
     const char* _begin;
     const char* _end;
@@ -161,6 +163,8 @@ class Arguments {
         _style(0),
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
+        _dump_traces(0),
+        _dump_flat(0),
         _begin(NULL),
         _end(NULL),
         _title("Flame Graph"),

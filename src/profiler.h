@@ -191,7 +191,7 @@ class Profiler {
     void dump(std::ostream& out, Arguments& args);
     void dumpCollapsed(std::ostream& out, Arguments& args);
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
-    void dumpFlat(std::ostream& out, Arguments& args);
+    void dumpText(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
 
     void updateSymbols(bool kernel_symbols);

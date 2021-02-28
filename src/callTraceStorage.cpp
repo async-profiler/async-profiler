@@ -142,6 +142,20 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
     }
 }
 
+void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
+    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
+        u64* keys = table->keys();
+        CallTraceSample* values = table->values();
+        u32 capacity = table->capacity();
+
+        for (u32 slot = 0; slot < capacity; slot++) {
+            if (keys[slot] != 0) {
+                map[keys[slot]] += values[slot];
+            }
+        }
+    }
+}
+
 // Adaptation of MurmurHash64A by Austin Appleby
 u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames) {
     const u64 M = 0xc6a4a7935bd1e995ULL;
