@@ -26,6 +26,7 @@ typedef void (JNICALL *UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
 
 class LockTracer : public Engine {
   private:
+    static jlong _threshold;
     static jlong _start_time;
     static jclass _LockSupport;
     static jmethodID _getBlocker;
@@ -38,18 +39,6 @@ class LockTracer : public Engine {
     static void bindUnsafePark(UnsafeParkFunc entry);
 
   public:
-    const char* name() {
-        return "lock";
-    }
-
-    const char* units() {
-        return "ns";
-    }
-
-    CStack cstack() {
-        return CSTACK_NO;
-    }
-
     Error start(Arguments& args);
     void stop();
 

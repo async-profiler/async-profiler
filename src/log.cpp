@@ -47,6 +47,7 @@ inline void Log::log(const char* level, const char* msg, va_list args) {
     fputs(level, _file);
     vfprintf(_file, msg, args);
     fputs("\n", _file);
+    fflush(_file);
 }
 
 void Log::info(const char* msg, ...) {

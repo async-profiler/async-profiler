@@ -577,7 +577,7 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "counter", SETTING_COUNTER[args._counter]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event_desc);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "end", args._end);
@@ -585,12 +585,23 @@ class Recording {
         writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "safemode", args._safe_mode);
-        writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._events & EK_CPU);
-        writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
-        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._events & EK_ALLOC);
-        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._events & EK_ALLOC);
-        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._events & EK_LOCK);
-        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._events & EK_LOCK);
+
+        writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
+        if (args._event != NULL) {
+            writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
+        }
+
+        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc > 0);
+        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc > 0);
+        if (args._alloc > 0) {
+            writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
+        }
+
+        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock > 0);
+        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock > 0);
+        if (args._lock > 0) {
+            writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
+        }
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {

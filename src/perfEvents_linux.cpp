@@ -449,7 +449,7 @@ const char* PerfEvents::units() {
 }
 
 Error PerfEvents::check(Arguments& args) {
-    PerfEventType* event_type = PerfEventType::forName(args._event_desc);
+    PerfEventType* event_type = PerfEventType::forName(args._event);
     if (event_type == NULL) {
         return Error("Unsupported event type");
     }
@@ -498,7 +498,7 @@ Error PerfEvents::check(Arguments& args) {
 }
 
 Error PerfEvents::start(Arguments& args) {
-    _event_type = PerfEventType::forName(args._event_desc);
+    _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
         return Error("Unsupported event type");
     }

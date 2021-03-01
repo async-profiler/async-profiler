@@ -28,17 +28,13 @@ class ITimer : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
-    const char* name() {
-        return "itimer";
-    }
-
-    const char* units() {
-        return "ns";
-    }
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    CStack cstack() {
+        return CSTACK_FP;
+    }
 };
 
 #endif // _ITIMER_H

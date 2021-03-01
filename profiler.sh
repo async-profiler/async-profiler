@@ -22,7 +22,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
-    echo "  -o fmt            output format: flat|collapsed|flamegraph|tree|jfr"
+    echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
     echo "  -v, --version     display version string"
@@ -31,9 +31,10 @@ usage() {
     echo "  --minwidth pct    skip frames smaller than pct%"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
-    echo "  --all-kernel      only include kernel-mode events"
-    echo "  --all-user        only include user-mode events"
+    echo "  --alloc bytes     allocation profiling interval in bytes"
+    echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
+    echo "  --all-user        only include user-mode events"
     echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
@@ -42,7 +43,7 @@ usage() {
     echo "      or 'jps' keyword to find running JVM automatically"
     echo "      or the application's name as it would appear in the jps tool"
     echo ""
-    echo "Example: $0 -d 30 -f profile.svg 3456"
+    echo "Example: $0 -d 30 -f profile.html 3456"
     echo "         $0 start -i 999000 jps"
     echo "         $0 stop -o flat jps"
     echo "         $0 -d 5 -e alloc MyAppName"
@@ -68,9 +69,8 @@ check_if_terminated() {
 
 jattach() {
     set +e
-    "$JATTACH" "$PID" load "$PROFILER" true "$1" > /dev/null
+    "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
     RET=$?
-    set -e
 
     # Check if jattach failed
     if [ $RET -ne 0 ]; then
@@ -79,13 +79,20 @@ jattach() {
             if [ "$(uname -s)" = "Darwin" ]; then
                 otool -L "$PROFILER"
             else
-                ldd "$PROFILER"
+                LD_PRELOAD="$PROFILER" /bin/true
             fi
+        fi
+
+        if [ -f "$LOG" ]; then
+            cat "$LOG"
+            rm "$LOG"
         fi
         exit $RET
     fi
 
+    rm -f "$LOG"
     mirror_output
+    set -e
 }
 
 OPTIND=1
@@ -114,7 +121,7 @@ while [ $# -gt 0 ]; do
             ACTION="version"
             ;;
         -e)
-            EVENT="$(echo "$2" | sed 's/,/,event=/g')"
+            EVENT="$2"
             shift
             ;;
         -d)
@@ -176,14 +183,15 @@ while [ $# -gt 0 ]; do
         --reverse)
             FORMAT="$FORMAT,reverse"
             ;;
-        --all-kernel)
-            PARAMS="$PARAMS,allkernel"
-            ;;
-        --all-user)
-            PARAMS="$PARAMS,alluser"
+        --alloc|--lock)
+            PARAMS="$PARAMS,${1#--}=$2"
+            shift
             ;;
         --samples|--total)
             PARAMS="$PARAMS,${1#--}"
+            ;;
+        --all-user)
+            PARAMS="$PARAMS,alluser"
             ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"
@@ -247,6 +255,7 @@ else
             ;;
     esac
 fi
+LOG=/tmp/async-profiler-log.$$.$PID
 
 case $ACTION in
     start|resume|check)

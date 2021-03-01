@@ -30,18 +30,6 @@ class Instrument : public Engine {
     static volatile bool _running;
 
   public:
-    const char* name() {
-        return "instrument";
-    }
-
-    const char* units() {
-        return "calls";
-    }
-
-    CStack cstack() {
-        return CSTACK_NO;
-    }
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

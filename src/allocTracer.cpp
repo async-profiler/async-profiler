@@ -66,7 +66,7 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
-    if (_interval) {
+    if (_interval > 1) {
         // Do not record allocation unless allocated at least _interval bytes
         while (true) {
             u64 prev = _allocated_bytes;
@@ -131,7 +131,7 @@ Error AllocTracer::start(Arguments& args) {
         return error;
     }
 
-    _interval = args._interval;
+    _interval = args._alloc;
     _allocated_bytes = 0;
 
     OS::installSignalHandler(SIGTRAP, signalHandler);

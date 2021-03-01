@@ -29,8 +29,15 @@ extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
     const char* event_str = env->GetStringUTFChars(event, NULL);
-    args.addEvent(event_str); 
-    args._interval = interval;
+    if (strcmp(event_str, EVENT_ALLOC) == 0) {
+        args._alloc = interval > 0 ? interval : 1;
+    } else if (strcmp(event_str, EVENT_LOCK) == 0) {
+        args._lock = interval > 0 ? interval : 1;
+    } else {
+        args._event = event_str;
+        args._interval = interval;
+    }
+
     Error error = Profiler::_instance.start(args, reset);
     env->ReleaseStringUTFChars(event, event_str);
 

@@ -52,9 +52,11 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     status          - print profiling status (inactive / running for X seconds)
 //     list            - show the list of available profiling events
 //     version[=full]  - display the agent version
-//     event=EVENT     - which event to trace (cpu, alloc, lock, cache-misses etc.)
+//     event=EVENT     - which event to trace (cpu, wall, cache-misses, etc.)
+//     alloc[=BYTES]   - profile allocations with BYTES interval
+//     lock[=DURATION] - profile contended locks longer than DURATION ns
 //     collapsed       - dump collapsed stacks (the format used by FlameGraph script)
-//     html            - produce Flame Graph in HTML format
+//     flamegraph      - produce Flame Graph in HTML format
 //     tree            - produce call tree in HTML format
 //     jfr             - dump events in Java Flight Recorder format
 //     flat[=N]        - dump top N methods (aka flat profile)
@@ -157,8 +159,26 @@ Error Arguments::parse(const char* args) {
             CASE("event")
                 if (value == NULL || value[0] == 0) {
                     msg = "event must not be empty";
-                } else if (!addEvent(value)) {
-                    msg = "multiple incompatible events";
+                } else if (strcmp(value, EVENT_ALLOC) == 0) {
+                    if (_alloc <= 0) _alloc = 1;
+                } else if (strcmp(value, EVENT_LOCK) == 0) {
+                    if (_lock <= 0) _lock = 1;
+                } else if (_event != NULL) {
+                    msg = "Duplicate event argument";
+                } else {
+                    _event = value;
+                }
+
+            CASE("alloc")
+                _alloc = value == NULL ? 1 : parseUnits(value);
+                if (_alloc < 0) {
+                    msg = "alloc must be >= 0";
+                }
+
+            CASE("lock")
+                _lock = value == NULL ? 1 : parseUnits(value);
+                if (_lock < 0) {
+                    msg = "lock must be >= 0";
                 }
 
             CASE("interval")
@@ -249,6 +269,10 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
+    if (_event == NULL && _alloc == 0 && _lock == 0) {
+        _event = EVENT_CPU;
+    }
+
     if (_file != NULL && strchr(_file, '%') != NULL) {
         _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
     }
@@ -271,21 +295,6 @@ Error Arguments::parse(const char* args) {
 
 bool Arguments::hasOutputFile() const {
     return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
-}
-
-bool Arguments::addEvent(const char* event) {
-    if (strcmp(event, EVENT_ALLOC) == 0) {
-        _events |= EK_ALLOC;
-    } else if (strcmp(event, EVENT_LOCK) == 0) {
-        _events |= EK_LOCK;
-    } else {
-        if (_events & EK_CPU) {
-            return false;
-        }
-        _events |= EK_CPU;
-        _event_desc = event;
-    }
-    return true;
 }
 
 // The linked list of string offsets is embedded right into _buf array

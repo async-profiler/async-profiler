@@ -36,18 +36,18 @@ class PerfEvents : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
-    const char* name() {
-        return "perf";
-    }
-
-    const char* units();
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
+    CStack cstack() {
+        return CSTACK_FP;
+    }
+
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                        CodeCache* java_methods, CodeCache* runtime_stubs);
+
+    const char* units();
 
     static void resetBuffer(int tid);
 

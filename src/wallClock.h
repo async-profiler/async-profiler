@@ -47,16 +47,12 @@ class WallClock : public Engine {
     static void sleep(long interval);
 
   public:
-    const char* name() {
-        return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
-    }
-
-    const char* units() {
-        return "ns";
-    }
-
     Error start(Arguments& args);
     void stop();
+
+    CStack cstack() {
+        return CSTACK_FP;
+    }
 };
 
 #endif // _WALLCLOCK_H

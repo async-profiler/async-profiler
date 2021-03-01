@@ -92,7 +92,7 @@ Error WallClock::start(Arguments& args) {
         return Error("interval must be positive");
     }
 
-    _sample_idle_threads = strcmp(args._event_desc, EVENT_WALL) == 0;
+    _sample_idle_threads = strcmp(args._event, EVENT_WALL) == 0;
 
     // Increase default interval for wall clock mode due to larger number of sampled threads
     _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);

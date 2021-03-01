@@ -359,14 +359,13 @@ static int read_response(int fd, int argc, char** argv) {
         result = atoi(strncmp(buf + 2, "return code: ", 13) == 0 ? buf + 15 : buf + 2);
     }
 
-    // Mirror error response to stderr or normal response to stdout
-    FILE* out = result ? stderr : stdout;
-    fprintf(out, "JVM response code = ");
+    // Mirror JVM response to stdout
+    printf("JVM response code = ");
     do {
-        fwrite(buf, 1, bytes, out);
+        fwrite(buf, 1, bytes, stdout);
         bytes = read(fd, buf, sizeof(buf));
     } while (bytes > 0);
-    fprintf(out, "\n");
+    printf("\n");
 
     return result;
 }

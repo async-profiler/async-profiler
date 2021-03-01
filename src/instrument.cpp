@@ -509,7 +509,7 @@ Error Instrument::start(Arguments& args) {
         return Error("interval must be positive");
     }
 
-    setupTargetClassAndMethod(args._event_desc);
+    setupTargetClassAndMethod(args._event);
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
     _running = true;

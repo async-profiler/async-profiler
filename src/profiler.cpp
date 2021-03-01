@@ -42,7 +42,7 @@
 
 Profiler Profiler::_instance;
 
-static NoopEngine noop_engine;
+static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
@@ -61,6 +61,13 @@ enum StackRecovery {
     LAST_JAVA_PC = 0x10,
     GC_TRACES    = 0x20,
     MAX_RECOVERY = 0x3f
+};
+
+
+enum EventMask {
+    EM_CPU   = 1,
+    EM_ALLOC = 2,
+    EM_LOCK  = 4
 };
 
 
@@ -143,6 +150,23 @@ const char* Profiler::asgctError(int code) {
         default:
             // Should not happen
             return "unexpected_state";
+    }
+}
+
+const char* Profiler::units() {
+    switch (_event_mask) {
+        case EM_ALLOC:
+            return "bytes";
+        case EM_LOCK:
+            return "ns";
+        default:
+            if (_engine == &perf_events) {
+                return perf_events.units();
+            } else if (_engine == &instrument) {
+                return "calls";
+            } else {
+                return "ns";
+            }
     }
 }
 
@@ -806,10 +830,6 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
-    } else if (strcmp(event_name, EVENT_ALLOC) == 0) {
-        return &alloc_tracer;
-    } else if (strcmp(event_name, EVENT_LOCK) == 0) {
-        return &lock_tracer;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
@@ -848,9 +868,12 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    if (args._events == 0) {
+    _event_mask = (args._event != NULL ? EM_CPU : 0) |
+                  (args._alloc > 0 ? EM_ALLOC : 0) |
+                  (args._lock > 0 ? EM_LOCK : 0);
+    if (_event_mask == 0) {
         return Error("No profiling events specified");
-    } else if ((args._events & (args._events - 1)) && args._output != OUTPUT_JFR) {
+    } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
     }
 
@@ -897,7 +920,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
     _thread_filter.init(args._filter);
 
-    _engine = selectEngine(args._event_desc);
+    _engine = selectEngine(args._event);
     _cstack = args._cstack == CSTACK_DEFAULT ? _engine->cstack() : args._cstack;
     if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
@@ -918,15 +941,21 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     error = _engine->start(args);
     if (error) {
-        uninstallTraps();
-        _jfr.stop();
-        return error;
+        goto error1;
     }
 
-    // TODO: check if engines available
-    _events = args._events;
-    if (_events & EK_ALLOC) alloc_tracer.start(args);
-    if (_events & EK_LOCK) lock_tracer.start(args);
+    if (_event_mask & EM_ALLOC) {
+        error = alloc_tracer.start(args);
+        if (error) {
+            goto error2;
+        }
+    }
+    if (_event_mask & EM_LOCK) {
+        error = lock_tracer.start(args);
+        if (error) {
+            goto error3;
+        }
+    }
 
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
@@ -935,6 +964,19 @@ Error Profiler::start(Arguments& args, bool reset) {
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
+
+error3:
+    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
+
+error2:
+    _engine->stop();
+
+error1:
+    uninstallTraps();
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    _jfr.stop();
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+    return error;
 }
 
 Error Profiler::stop() {
@@ -945,8 +987,8 @@ Error Profiler::stop() {
 
     uninstallTraps();
 
-    if (_events & EK_LOCK) lock_tracer.stop();
-    if (_events & EK_ALLOC) alloc_tracer.stop();
+    if (_event_mask & EM_LOCK) lock_tracer.stop();
+    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
 
     _engine->stop();
 
@@ -975,7 +1017,7 @@ Error Profiler::check(Arguments& args) {
         return error;
     }
 
-    _engine = selectEngine(args._event_desc);
+    _engine = selectEngine(args._event);
     return _engine->check(args);
 }
 
@@ -1105,7 +1147,6 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
     out << buf;
 
     double spercent = 100.0 / _total_samples;
-    double cpercent = 100.0 / total_counter;
     for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
         const char* err_string = asgctError(-i);
         if (err_string != NULL && _failures[i] > 0) {
@@ -1115,6 +1156,9 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
     }
     out << std::endl;
 
+    double cpercent = 100.0 / total_counter;
+    const char* units_str = units();
+
     // Print top call stacks
     if (args._dump_traces > 0) {
         std::sort(samples.begin(), samples.end());
@@ -1122,7 +1166,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         int max_count = args._dump_traces;
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
             snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
-                     it->counter, _engine->units(), it->counter * cpercent,
+                     it->counter, units_str, it->counter * cpercent,
                      it->samples, it->samples == 1 ? "" : "s");
             out << buf;
 
@@ -1147,8 +1191,9 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         std::vector<NamedMethodSample> methods(histogram.begin(), histogram.end());
         std::sort(methods.begin(), methods.end(), sortByCounter);
 
-        out << "     counter  percent  samples  top\n"
-               "  ----------  -------  -------  ---\n";
+        snprintf(buf, sizeof(buf) - 1, "%12s  percent  samples  top\n"
+                                       "  ----------  -------  -------  ---\n", units_str);
+        out << buf;
 
         int max_count = args._dump_flat;
         for (std::vector<NamedMethodSample>::const_iterator it = methods.begin(); it != methods.end() && --max_count >= 0; ++it) {

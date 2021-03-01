@@ -38,18 +38,6 @@ class AllocTracer : public Engine {
                                  uintptr_t total_size, uintptr_t instance_size);
 
   public:
-    const char* name() {
-        return "alloc";
-    }
-
-    const char* units() {
-        return "bytes";
-    }
-
-    CStack cstack() {
-        return CSTACK_NO;
-    }
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

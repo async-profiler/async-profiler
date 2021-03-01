@@ -58,6 +58,9 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void start(String event, long interval) throws IllegalStateException {
+        if (event == null) {
+            throw new NullPointerException();
+        }
         start0(event, interval, true);
     }
 
@@ -71,6 +74,9 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void resume(String event, long interval) throws IllegalStateException {
+        if (event == null) {
+            throw new NullPointerException();
+        }
         start0(event, interval, false);
     }
 
@@ -117,6 +123,9 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public String execute(String command) throws IllegalArgumentException, IllegalStateException, IOException {
+        if (command == null) {
+            throw new NullPointerException();
+        }
         return execute0(command);
     }
 

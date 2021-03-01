@@ -26,12 +26,9 @@ class Engine {
     static volatile bool _enabled;
 
   public:
-    virtual const char* name() = 0;
-    virtual const char* units() = 0;
-
     virtual Error check(Arguments& args);
-    virtual Error start(Arguments& args) = 0;
-    virtual void stop() = 0;
+    virtual Error start(Arguments& args);
+    virtual void stop();
 
     virtual CStack cstack();
     virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
@@ -39,28 +36,6 @@ class Engine {
 
     void enableEvents(bool enabled) {
         _enabled = enabled;
-    }
-};
-
-class NoopEngine : public Engine {
-  public:
-    const char* name() {
-        return "noop";
-    }
-
-    const char* units() {
-        return "ns";
-    }
-
-    Error start(Arguments& args) {
-        return Error::OK;
-    }
-
-    void stop() {
-    }
-
-    CStack cstack() {
-        return CSTACK_NO;
     }
 };
 

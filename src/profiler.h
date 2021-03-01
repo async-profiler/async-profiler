@@ -83,7 +83,7 @@ class Profiler {
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _engine;
-    int _events;
+    int _event_mask;
     time_t _start_time;
 
     u64 _total_samples;
@@ -133,6 +133,7 @@ class Profiler {
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 
     const char* asgctError(int code);
+    const char* units();
     u32 getLockIndex(int tid);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);

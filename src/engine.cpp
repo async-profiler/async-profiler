@@ -24,8 +24,15 @@ Error Engine::check(Arguments& args) {
     return Error::OK;
 }
 
+Error Engine::start(Arguments& args) {
+    return Error::OK;
+}
+
+void Engine::stop() {
+}
+
 CStack Engine::cstack() {
-    return CSTACK_FP;
+    return CSTACK_NO;
 }
 
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
