@@ -16,6 +16,14 @@
 ### Changes
  - Removed non-ASL code. No more CDDL license
 
+## [1.8.4] - 2021-02-24
+
+### Improvements
+ - Smaller and faster agent library
+
+### Bug fixes
+ - Fixed JDK 7 crash during wall-clock profiling
+
 ## [1.8.3] - 2021-01-06
 
 ### Improvements
