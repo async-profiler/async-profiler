@@ -84,7 +84,7 @@ jattach() {
         fi
 
         if [ -f "$LOG" ]; then
-            cat "$LOG"
+            cat "$LOG" >&2
             rm "$LOG"
         fi
         exit $RET
@@ -272,11 +272,17 @@ case $ACTION in
         ;;
     collect)
         jattach "start,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
+        echo Profiling for "$DURATION" seconds >&2
+        trap 'set +e; DURATION=0' INT
+
         while [ "$DURATION" -gt 0 ]; do
             DURATION=$(( DURATION-1 ))
             check_if_terminated
             sleep 1
         done
+
+        trap - INT
+        echo Done >&2
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
         ;;
     version)
