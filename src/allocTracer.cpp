@@ -15,7 +15,6 @@
  */
 
 #include "allocTracer.h"
-#include "os.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
@@ -30,7 +29,7 @@ volatile u64 AllocTracer::_allocated_bytes;
 
 
 // Called whenever our breakpoint trap is hit
-void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
     int event_type;
     uintptr_t total_size;
@@ -51,6 +50,7 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         instance_size = 0;
     } else {
         // Not our trap
+        Profiler::_instance.trapHandler(signo, siginfo, ucontext);
         return;
     }
 
@@ -59,7 +59,6 @@ void AllocTracer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     frame.ret();
 
     if (_enabled) {
-        // TODO: _enabled also uses traps
         recordAllocation(ucontext, event_type, klass, total_size, instance_size);
     }
 }
@@ -133,8 +132,6 @@ Error AllocTracer::start(Arguments& args) {
 
     _interval = args._alloc;
     _allocated_bytes = 0;
-
-    OS::installSignalHandler(SIGTRAP, signalHandler);
 
     _in_new_tlab.install();
     _outside_tlab.install();

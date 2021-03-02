@@ -32,8 +32,6 @@ class AllocTracer : public Engine {
     static u64 _interval;
     static volatile u64 _allocated_bytes;
 
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-
     static void recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                  uintptr_t total_size, uintptr_t instance_size);
 
@@ -41,6 +39,8 @@ class AllocTracer : public Engine {
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    static void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
 };
 
 #endif // _ALLOCTRACER_H

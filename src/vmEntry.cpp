@@ -132,6 +132,8 @@ void VM::ready() {
         VMStructs::init(libjvm);
     }
 
+    Profiler::_instance.setupTrapHandler();
+
     _libjava = getLibraryHandle("libjava.so");
 
     // Make sure we reload method IDs upon class retransformation

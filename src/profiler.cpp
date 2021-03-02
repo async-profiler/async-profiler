@@ -717,7 +717,6 @@ Error Profiler::installTraps(const char* begin, const char* end) {
         _engine->enableEvents(true);
     } else {
         _engine->enableEvents(false);
-        OS::installSignalHandler(SIGTRAP, trapHandler);
         _begin_trap.install();
     }
 
@@ -730,10 +729,6 @@ void Profiler::uninstallTraps() {
 }
 
 void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    _instance.trapHandlerImpl(ucontext);
-}
-
-void Profiler::trapHandlerImpl(void* ucontext) {
     StackFrame frame(ucontext);
 
     if (_begin_trap.covers(frame.pc())) {
@@ -746,6 +741,15 @@ void Profiler::trapHandlerImpl(void* ucontext) {
         _end_trap.uninstall();
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
+    } else if (_orig_trapHandler != NULL) {
+        _orig_trapHandler(signo, siginfo, ucontext);
+    }
+}
+
+void Profiler::setupTrapHandler() {
+    _orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
+    if (_orig_trapHandler == (void*)SIG_DFL || _orig_trapHandler == (void*)SIG_IGN) {
+        _orig_trapHandler = NULL;
     }
 }
 

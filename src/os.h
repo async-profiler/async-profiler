@@ -22,6 +22,10 @@
 #include "arch.h"
 
 
+typedef void (*SigAction)(int, siginfo_t*, void*);
+typedef void (*SigHandler)(int);
+typedef void (*TimerCallback)(void*);
+
 enum ThreadState {
     THREAD_INVALID,
     THREAD_RUNNING,
@@ -43,11 +47,6 @@ class ThreadList {
 
 
 class OS {
-  private:
-    typedef void (*SigAction)(int, siginfo_t*, void*);
-    typedef void (*SigHandler)(int);
-    typedef void (*TimerCallback)(void*);
-
   public:
     static u64 nanotime();
     static u64 millis();
@@ -65,7 +64,7 @@ class OS {
 
     static bool isJavaLibraryVisible();
 
-    static void installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
+    static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static bool sendSignalToThread(int thread_id, int signo);
 
     static void* safeAlloc(size_t size);
