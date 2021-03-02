@@ -31,10 +31,6 @@ class ITimer : public Engine {
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
-
-    CStack cstack() {
-        return CSTACK_FP;
-    }
 };
 
 #endif // _ITIMER_H

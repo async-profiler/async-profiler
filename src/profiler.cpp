@@ -242,10 +242,10 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
+int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                                &_java_methods, &_runtime_stubs);
+    int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
+                                               &_java_methods, &_runtime_stubs);
 
     int depth = 0;
     jmethodID prev_method = NULL;
@@ -556,8 +556,12 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
-    if (_cstack != CSTACK_NO) {
-        num_frames += getNativeTrace(ucontext, frames + num_frames, tid);
+
+    // Use engine stack walker for execution samples, or basic stack walker for other events
+    if (event_type == 0 && _cstack != CSTACK_NO) {
+        num_frames += getNativeTrace(_engine, ucontext, frames + num_frames, tid);
+    } else if (event_type != 0 && _cstack > CSTACK_NO) {
+        num_frames += getNativeTrace(&noop_engine, ucontext, frames + num_frames, tid);
     }
 
     int first_java_frame = num_frames;
@@ -925,7 +929,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _thread_filter.init(args._filter);
 
     _engine = selectEngine(args._event);
-    _cstack = args._cstack == CSTACK_DEFAULT ? _engine->cstack() : args._cstack;
+    _cstack = args._cstack;
     if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
     }

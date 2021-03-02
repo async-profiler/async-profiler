@@ -40,10 +40,6 @@ class PerfEvents : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    CStack cstack() {
-        return CSTACK_FP;
-    }
-
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                        CodeCache* java_methods, CodeCache* runtime_stubs);
 

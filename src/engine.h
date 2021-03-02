@@ -30,7 +30,6 @@ class Engine {
     virtual Error start(Arguments& args);
     virtual void stop();
 
-    virtual CStack cstack();
     virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                                CodeCache* java_methods, CodeCache* runtime_stubs);
 

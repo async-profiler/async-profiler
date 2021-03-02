@@ -49,10 +49,6 @@ class WallClock : public Engine {
   public:
     Error start(Arguments& args);
     void stop();
-
-    CStack cstack() {
-        return CSTACK_FP;
-    }
 };
 
 #endif // _WALLCLOCK_H

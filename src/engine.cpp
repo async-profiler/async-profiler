@@ -31,10 +31,6 @@ Error Engine::start(Arguments& args) {
 void Engine::stop() {
 }
 
-CStack Engine::cstack() {
-    return CSTACK_NO;
-}
-
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                            CodeCache* java_methods, CodeCache* runtime_stubs) {
     const void* pc;
