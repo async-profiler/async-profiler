@@ -66,6 +66,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     jstackdepth=N   - maximum Java stack depth (default: 2048)
 //     safemode=BITS   - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME   - output file name for dumping
+//     log=FILENAME    - log warnings and errors to the given dedicated stream
 //     filter=FILTER   - thread filter
 //     threads         - profile different threads separately
 //     cstack=MODE     - how to collect C stack frames in addition to Java stack
