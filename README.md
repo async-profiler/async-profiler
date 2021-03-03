@@ -21,8 +21,8 @@ to learn about all features.
 [Current version](https://github.com/jvm-profiling-tools/async-profiler/releases/tag/v2.0-rc) (2.0-rc):
 
  - Linux x64 (glibc): [async-profiler-2.0-rc-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/async-profiler-2.0-rc-linux-x64.tar.gz)
- - macOS x64: [async-profiler-2.0-rc-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/async-profiler-2.0-rc-macos-x64.tar.gz)
-
+ - macOS x64: [async-profiler-2.0-rc-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/async-profiler-2.0-rc-macos-x64.tar.gz)  
+   &nbsp;
  - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
@@ -267,7 +267,7 @@ $ jps
 $ ./profiler.sh -d 30 -f /tmp/flamegraph.html 8983
 ```
 
-[![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.png)](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.html)
+[![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.html)
 
 ## Profiler Options
 
