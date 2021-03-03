@@ -157,8 +157,9 @@ bool OS::isJavaLibraryVisible() {
     return true;
 }
 
-void OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
+SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
     struct sigaction sa;
+    struct sigaction oldsa;
     sigemptyset(&sa.sa_mask);
 
     if (handler != NULL) {
@@ -169,7 +170,8 @@ void OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
         sa.sa_flags = SA_SIGINFO | SA_RESTART;
     }
 
-    sigaction(signo, &sa, NULL);
+    sigaction(signo, &sa, &oldsa);
+    return oldsa.sa_sigaction;
 }
 
 bool OS::sendSignalToThread(int thread_id, int signo) {
