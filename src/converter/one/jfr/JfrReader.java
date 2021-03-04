@@ -51,7 +51,7 @@ public class JfrReader implements Closeable {
 
     public final long startNanos;
     public final long stopNanos;
-    public final Map<Integer, Frame[]> stackTraces = new HashMap<>();
+    public final Map<Integer, StackTrace> stackTraces = new HashMap<>();
     public final Map<Long, MethodRef> methods = new HashMap<>();
     public final Map<Long, ClassRef> classes = new HashMap<>();
     public final Map<Long, byte[]> symbols = new HashMap<>();
@@ -82,17 +82,26 @@ public class JfrReader implements Closeable {
             int size = buf.getInt();
             int type = buf.getInt();
             if (type == EVENT_EXECUTION_SAMPLE) {
-                long time = buf.getLong();
-                int tid = buf.getInt();
-                int stackTraceId = (int) buf.getLong();
-                short threadState = buf.getShort();
-                samples.add(new Sample(time, tid, stackTraceId, threadState));
+                readExecutionSample();
             } else {
                 buf.position(buf.position() + size - 8);
             }
         }
 
         Collections.sort(samples);
+    }
+
+    private void readExecutionSample() {
+        long time = buf.getLong();
+        int tid = buf.getInt();
+        int stackTraceId = (int) buf.getLong();
+        short threadState = buf.getShort();
+        samples.add(new Sample(time, tid, stackTraceId, threadState));
+
+        StackTrace stackTrace = stackTraces.get(stackTraceId);
+        if (stackTrace != null) {
+            stackTrace.samples++;
+        }
     }
 
     private void readCheckpoint(int checkpointOffset) {
@@ -135,7 +144,7 @@ public class JfrReader implements Closeable {
                 byte type = buf.get();
                 frames[j] = new Frame(method, type);
             }
-            stackTraces.put(id, frames);
+            stackTraces.put(id, new StackTrace(frames));
         }
     }
 

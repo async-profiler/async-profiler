@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
@@ -69,32 +71,36 @@ public class FlameGraph {
 
                 String[] trace = line.substring(0, space).split(";");
                 long ticks = Long.parseLong(line.substring(space + 1));
-
-                depth = Math.max(depth, trace.length);
-
-                Frame frame = root;
-                if (reverse) {
-                    for (int i = trace.length; --i >= skip; ) {
-                        frame.total += ticks;
-                        frame = frame.child(trace[i]);
-                    }
-                } else {
-                    for (int i = skip; i < trace.length; i++) {
-                        frame.total += ticks;
-                        frame = frame.child(trace[i]);
-                    }
-                }
-                frame.total += ticks;
-                frame.self += ticks;
+                addSample(trace, ticks);
             }
         }
+    }
+
+    public void addSample(String[] trace, long ticks) {
+        Frame frame = root;
+        if (reverse) {
+            for (int i = trace.length; --i >= skip; ) {
+                frame.total += ticks;
+                frame = frame.child(trace[i]);
+            }
+        } else {
+            for (int i = skip; i < trace.length; i++) {
+                frame.total += ticks;
+                frame = frame.child(trace[i]);
+            }
+        }
+        frame.total += ticks;
+        frame.self += ticks;
+
+        depth = Math.max(depth, trace.length);
     }
 
     public void dump() throws IOException {
         if (output == null) {
             dump(System.out);
         } else {
-            try (PrintStream out = new PrintStream(output, "UTF-8")) {
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(output), 32768);
+                 PrintStream out = new PrintStream(bos, false, "UTF-8")) {
                 dump(out);
             }
         }
@@ -137,7 +143,7 @@ public class FlameGraph {
     private void printFrame(PrintStream out, String title, Frame frame, int level, long x) {
         int type = frameType(title);
         title = stripSuffix(title);
-        if (title.indexOf('"') >= 0) {
+        if (title.indexOf('\'') >= 0) {
             title = title.replace("'", "\\'");
         }
 

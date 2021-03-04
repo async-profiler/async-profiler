@@ -19,6 +19,7 @@ import one.jfr.Frame;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.Sample;
+import one.jfr.StackTrace;
 import one.proto.Proto;
 
 import java.io.File;
@@ -60,10 +61,10 @@ public class jfr2nflx {
         Proto nodes = new Proto(10000);
         Proto node = new Proto(10000);
 
-        for (Map.Entry<Integer, Frame[]> entry : jfr.stackTraces.entrySet()) {
+        for (Map.Entry<Integer, StackTrace> entry : jfr.stackTraces.entrySet()) {
             profile.field(5, nodes
                     .field(1, entry.getKey())
-                    .field(2, packNode(node, entry.getValue())));
+                    .field(2, packNode(node, entry.getValue().frames)));
             nodes.reset();
             node.reset();
         }
