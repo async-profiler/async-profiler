@@ -169,13 +169,13 @@ that can load the agent into the target process will also be compiled to the
 
 ## Basic Usage
 
-As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-
-root process requires setting two runtime variables. You can set them using
+As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
+process requires setting two runtime variables. You can set them using
 sysctl or as follows:
 
 ```
-# echo 1 > /proc/sys/kernel/perf_event_paranoid
-# echo 0 > /proc/sys/kernel/kptr_restrict
+# sysctl kernel.perf_event_paranoid=1
+# sysctl kernel.kptr_restrict=0
 ```
 
 To run the agent and pass commands to it, the helper script `profiler.sh`
@@ -385,6 +385,12 @@ The following is a complete list of the command-line options accepted by
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
+
+* `--begin function`, `--end function` - automatically start/stop profiling
+  when the specified native function is executed.
+
+* `--ttsp` - time-to-safepoint profiling. An alias for  
+  `--begin SafepointSynchronize::begin --end RuntimeService::record_safepoint_synchronized`
 
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
   gets the version of the library loaded into the given process.

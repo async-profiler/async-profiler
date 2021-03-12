@@ -201,6 +201,9 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;
+        --ttsp)
+            PARAMS="$PARAMS,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized"
+            ;;
         --safe-mode)
             PARAMS="$PARAMS,safemode=$2"
             shift
