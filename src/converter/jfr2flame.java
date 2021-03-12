@@ -41,13 +41,15 @@ public class jfr2flame {
         jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
             @Override
             public void visit(long id, StackTrace stackTrace) {
-                long[] methods = stackTrace.methods;
-                byte[] types = stackTrace.types;
-                String[] trace = new String[methods.length];
-                for (int i = 0; i < methods.length; i++) {
-                    trace[trace.length - 1 - i] = getMethodName(methods[i], types[i]);
+                if (stackTrace.samples > 0) {
+                    long[] methods = stackTrace.methods;
+                    byte[] types = stackTrace.types;
+                    String[] trace = new String[methods.length];
+                    for (int i = 0; i < methods.length; i++) {
+                        trace[trace.length - 1 - i] = getMethodName(methods[i], types[i]);
+                    }
+                    fg.addSample(trace, stackTrace.samples);
                 }
-                fg.addSample(trace, stackTrace.samples);
             }
         });
     }

@@ -59,6 +59,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     flamegraph      - produce Flame Graph in HTML format
 //     tree            - produce call tree in HTML format
 //     jfr             - dump events in Java Flight Recorder format
+//     traces[=N]      - dump top N call traces
 //     flat[=N]        - dump top N methods (aka flat profile)
 //     samples         - count the number of samples (default)
 //     total           - count the total value (time, bytes, etc.) instead of samples"
@@ -141,6 +142,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("jfr")
                 _output = OUTPUT_JFR;
+                _jfr_options = value == NULL ? 0 :
+                               strcmp(value, "combine") == 0 ? JFR_COMBINE :
+                               (int)strtol(value, NULL, 0);
 
             CASE("traces")
                 _output = OUTPUT_TEXT;
@@ -292,10 +296,6 @@ Error Arguments::parse(const char* args) {
     }
 
     return Error::OK;
-}
-
-bool Arguments::hasOutputFile() const {
-    return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
 }
 
 // The linked list of string offsets is embedded right into _buf array

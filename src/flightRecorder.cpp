@@ -18,6 +18,7 @@
 #include <string>
 #include <arpa/inet.h>
 #include <cxxabi.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -28,10 +29,16 @@
 #include "flightRecorder.h"
 #include "jfrMetadata.h"
 #include "dictionary.h"
+#include "log.h"
 #include "os.h"
 #include "profiler.h"
 #include "threadFilter.h"
 #include "vmStructs.h"
+
+
+static const unsigned char JFR_COMBINER_CLASS[] = {
+#include "helper/one/profiler/JfrCombiner.class.h"
+};
 
 
 const int BUFFER_SIZE = 1024;
@@ -220,6 +227,7 @@ class RecordingBuffer : public Buffer {
 class Recording {
   private:
     static SpinLock _cpu_monitor_lock;
+    static int _append_fd;
 
     static char* _agent_properties;
     static char* _jvm_args;
@@ -243,17 +251,19 @@ class Recording {
     Timer* _cpu_monitor;
     CpuTimes _last_times;
 
-    void startCpuMonitor() {
+    void startCpuMonitor(bool enabled) {
         _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
         _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
 
-        _cpu_monitor = OS::startTimer(1000000000, cpuMonitorCallback, this);
+        _cpu_monitor = enabled ? OS::startTimer(1000000000, cpuMonitorCallback, this) : NULL;
         _cpu_monitor_lock.unlock();
     }
 
     void stopCpuMonitor() {
         _cpu_monitor_lock.lock();
-        OS::stopTimer(_cpu_monitor);
+        if (_cpu_monitor != NULL) {
+            OS::stopTimer(_cpu_monitor);
+        }
     }
 
     void cpuMonitorCycle() {
@@ -308,12 +318,16 @@ class Recording {
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
         writeSettings(_buf, args);
-        writeOsCpuInfo(_buf);
-        writeJvmInfo(_buf);
-        writeSystemProperties(_buf);
+        if (!args.hasOption(NO_SYSTEM_INFO)) {
+            writeOsCpuInfo(_buf);
+            writeJvmInfo(_buf);
+        }
+        if (!args.hasOption(NO_SYSTEM_PROPS)) {
+            writeSystemProperties(_buf);
+        }
         flush(_buf);
 
-        startCpuMonitor();
+        startCpuMonitor(!args.hasOption(NO_CPU_LOAD));
     }
 
     ~Recording() {
@@ -347,7 +361,30 @@ class Recording {
         result = pwrite(_fd, _buf->data(), 40, 8);
         (void)result;
 
+        if (_append_fd >= 0) {
+            OS::copyFile(_fd, _append_fd, 0, chunk_size);
+        }
+
         close(_fd);
+    }
+
+    static void JNICALL appendRecording(JNIEnv* env, jclass cls, jstring file_name) {
+        const char* file_name_str = env->GetStringUTFChars(file_name, NULL);
+        if (file_name_str == NULL) {
+            return;
+        }
+
+        _append_fd = open(file_name_str, O_WRONLY);
+        if (_append_fd >= 0) {
+            lseek(_append_fd, 0, SEEK_END);
+            Profiler::_instance.stop();
+            close(_append_fd);
+            _append_fd = -1;
+        } else {
+            Log::warn("Failed to open JFR recording at %s: %s", file_name_str, strerror(errno));
+        }
+
+        env->ReleaseStringUTFChars(file_name, file_name_str);
     }
 
     Buffer* buffer(int lock_index) {
@@ -585,6 +622,7 @@ class Recording {
         writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "safemode", args._safe_mode);
+        writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
 
         writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
         if (args._event != NULL) {
@@ -960,6 +998,7 @@ class Recording {
 };
 
 SpinLock Recording::_cpu_monitor_lock(1);
+int Recording::_append_fd = -1;
 
 char* Recording::_agent_properties = NULL;
 char* Recording::_jvm_args = NULL;
@@ -972,9 +1011,17 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    int fd = open(args._file, O_CREAT | O_WRONLY | (reset ? O_TRUNC : 0), 0644);
+    if (args.hasOption(JFR_SYNC) && !loadJavaHelper()) {
+        return Error("Could not load JFR combiner class");
+    }
+
+    int fd = open(args._file, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
-        return Error("Cannot open Flight Recorder output file");
+        return Error("Could not open Flight Recorder output file");
+    }
+
+    if (args.hasOption(JFR_TEMP_FILE)) {
+        unlink(args._file);
     }
 
     _rec = new Recording(fd, args);
@@ -986,6 +1033,26 @@ void FlightRecorder::stop() {
         delete _rec;
         _rec = NULL;
     }
+}
+
+bool FlightRecorder::loadJavaHelper() {
+    if (!_java_helper_loaded) {
+        JNIEnv* jni = VM::jni();
+        const JNINativeMethod native_method = {
+            (char*)"appendRecording", (char*)"(Ljava/lang/String;)V",
+            (void*)Recording::appendRecording
+        };
+
+        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)JFR_COMBINER_CLASS, sizeof(JFR_COMBINER_CLASS));
+        if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0 || jni->GetMethodID(cls, "<init>", "()V") == NULL) {
+            jni->ExceptionClear();
+            return false;
+        }
+
+        _java_helper_loaded = true;
+    }
+
+    return true;
 }
 
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,

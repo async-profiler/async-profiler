@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
@@ -316,6 +317,17 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
 
     close(fd);
     return real;
+}
+
+void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
+    // copy_file_range() is probably better, but not supported on all kernels
+    while (size > 0) {
+        ssize_t bytes = sendfile(dst_fd, src_fd, &offset, size);
+        if (bytes <= 0) {
+            break;
+        }
+        size -= (size_t)bytes;
+    }
 }
 
 #endif // __linux__

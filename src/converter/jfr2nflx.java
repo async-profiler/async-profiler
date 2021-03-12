@@ -67,11 +67,13 @@ public class jfr2nflx {
         jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
             @Override
             public void visit(long id, StackTrace stackTrace) {
-                profile.field(5, nodes
-                        .field(1, (int) id)
-                        .field(2, packNode(node, stackTrace)));
-                nodes.reset();
-                node.reset();
+                if (stackTrace.samples > 0) {
+                    profile.field(5, nodes
+                            .field(1, (int) id)
+                            .field(2, packNode(node, stackTrace)));
+                    nodes.reset();
+                    node.reset();
+                }
             }
         });
 

@@ -69,6 +69,8 @@ public class JfrReader implements Closeable {
             throw new IOException("Unsupported JFR version: " + (version >>> 16) + "." + (version & 0xffff));
         }
 
+        buf.limit((int) buf.getLong(8));
+
         this.startNanos = buf.getLong(32);
         this.durationNanos = buf.getLong(40);
         this.startTicks = buf.getLong(48);

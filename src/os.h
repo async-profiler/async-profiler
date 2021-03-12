@@ -19,6 +19,7 @@
 
 #include <signal.h>
 #include <stddef.h>
+#include <sys/types.h>
 #include "arch.h"
 
 
@@ -76,6 +77,8 @@ class OS {
     static bool getCpuDescription(char* buf, size_t size);
     static u64 getProcessCpuTime(u64* utime, u64* stime);
     static u64 getTotalCpuTime(u64* utime, u64* stime);
+
+    static void copyFile(int src_fd, int dst_fd, off_t offset, size_t size);
 };
 
 #endif // _OS_H

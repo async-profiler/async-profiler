@@ -26,9 +26,12 @@ class Recording;
 class FlightRecorder {
   private:
     Recording* _rec;
+    bool _java_helper_loaded;
+
+    bool loadJavaHelper();
 
   public:
-    FlightRecorder() : _rec(NULL) {
+    FlightRecorder() : _rec(NULL), _java_helper_loaded(false) {
     }
 
     Error start(Arguments& args, bool reset);

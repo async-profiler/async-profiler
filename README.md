@@ -323,7 +323,7 @@ The following is a complete list of the command-line options accepted by
   Example: `./profiler.sh -i 500us 8983`
 
 * `--alloc N` - allocation profiling interval in bytes or in other units,
-  if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (for gigabytes).
+  if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (gigabytes).
 
 * `--lock N` - lock profiling threshold in nanoseconds (or other units).
   In lock profiling mode, record contended locks that the JVM has waited for

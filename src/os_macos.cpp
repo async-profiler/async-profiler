@@ -28,6 +28,7 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#include <unistd.h>
 #include "os.h"
 
 
@@ -211,10 +212,8 @@ Timer* OS::startTimer(u64 interval, TimerCallback callback, void* arg) {
 
 void OS::stopTimer(Timer* timer) {
     dispatch_source_t source = (dispatch_source_t)timer;
-    if (source != NULL) {
-        dispatch_source_cancel(source);
-        dispatch_release(source);
-    }
+    dispatch_source_cancel(source);
+    dispatch_release(source);
 }
 
 bool OS::getCpuDescription(char* buf, size_t size) {
@@ -255,6 +254,24 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
     *utime = user;
     *stime = system;
     return user + system + idle;
+}
+
+void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
+    char* buf = (char*)mmap(NULL, size + offset, PROT_READ, MAP_PRIVATE, src_fd, 0);
+    if (buf == NULL) {
+        return;
+    }
+
+    while (size > 0) {
+        ssize_t bytes = write(dst_fd, buf + offset, size < 262144 ? size : 262144);
+        if (bytes <= 0) {
+            break;
+        }
+        offset += (size_t)bytes;
+        size -= (size_t)bytes;
+    }
+
+    munmap(buf, offset);
 }
 
 #endif // __APPLE__

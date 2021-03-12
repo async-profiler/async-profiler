@@ -20,6 +20,7 @@ JAR=$(JAVA_HOME)/bin/jar
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h)
+JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
@@ -82,7 +83,7 @@ $(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 
 build/$(JATTACH): src/jattach/jattach.c
@@ -99,6 +100,12 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
 	$(JAR) cvfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
+
+%.class.h: %.class
+	hexdump -v -e '1/1 "%u,"' $^ > $@
+
+%.class: %.java
+	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $(*D)/*.java
 
 test: all
 	test/smoke-test.sh

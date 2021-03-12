@@ -77,6 +77,17 @@ enum Output {
     OUTPUT_JFR
 };
 
+enum JfrOption {
+    NO_SYSTEM_INFO  = 0x1,
+    NO_SYSTEM_PROPS = 0x2,
+    NO_CPU_LOAD     = 0x4,
+
+    JFR_SYNC        = 0x10,
+    JFR_TEMP_FILE   = 0x20,
+
+    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
+};
+
 
 class Error {
   private:
@@ -129,6 +140,7 @@ class Arguments {
     int _style;
     CStack _cstack;
     Output _output;
+    int _jfr_options;
     int _dump_traces;
     int _dump_flat;
     const char* _begin;
@@ -159,6 +171,7 @@ class Arguments {
         _style(0),
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
+        _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),
         _begin(NULL),
@@ -174,7 +187,13 @@ class Arguments {
 
     Error parse(const char* args);
 
-    bool hasOutputFile() const;
+    bool hasOutputFile() const {
+        return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
+    }
+
+    bool hasOption(JfrOption option) const {
+        return (_jfr_options & option) != 0;
+    }
 
     friend class FrameName;
     friend class Recording;

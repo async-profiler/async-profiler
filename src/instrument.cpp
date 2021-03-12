@@ -24,28 +24,9 @@
 #include "instrument.h"
 
 
-// A class with a single native recordSample() method
-static const char INSTRUMENT_CLASS[] =
-    "\xCA\xFE\xBA\xBE"                     // magic
-    "\x00\x00\x00\x32"                     // version: 50
-    "\x00\x07"                             // constant_pool_count: 7
-    "\x07\x00\x02"                         //   #1 = CONSTANT_Class: #2
-    "\x01\x00\x17one/profiler/Instrument"  //   #2 = CONSTANT_Utf8: "one/profiler/Instrument"
-    "\x07\x00\x04"                         //   #3 = CONSTANT_Class: #4
-    "\x01\x00\x10java/lang/Object"         //   #4 = CONSTANT_Utf8: "java/lang/Object"
-    "\x01\x00\x0CrecordSample"             //   #5 = CONSTANT_Utf8: "recordSample"
-    "\x01\x00\x03()V"                      //   #6 = CONSTANT_Utf8: "()V"
-    "\x00\x21"                             // access_flags: public super
-    "\x00\x01"                             // this_class: #1
-    "\x00\x03"                             // super_class: #3
-    "\x00\x00"                             // interfaces_count: 0
-    "\x00\x00"                             // fields_count: 0
-    "\x00\x01"                             // methods_count: 1
-    "\x01\x09"                             //   access_flags: public static native
-    "\x00\x05"                             //   name_index: #5
-    "\x00\x06"                             //   descriptor_index: #6
-    "\x00\x00"                             //   attributes_count: 0
-    "\x00";                                // attributes_count: 0
+static const unsigned char INSTRUMENT_CLASS[] = {
+#include "helper/one/profiler/Instrument.class.h"
+};
 
 
 enum ConstantTag {
