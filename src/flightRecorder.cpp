@@ -236,7 +236,7 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    off_t _file_offset;
+    off_t _chunk_start;
     ThreadFilter _thread_set;
     Dictionary _packages;
     Dictionary _symbols;
@@ -307,7 +307,7 @@ class Recording {
 
   public:
     Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
-        _file_offset = lseek(_fd, 0, SEEK_END);
+        _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
         _tid = OS::threadId();
@@ -345,24 +345,24 @@ class Recording {
         writeCpool(_buf);
         flush(_buf);
 
-        off_t chunk_size = lseek(_fd, 0, SEEK_CUR);
+        off_t chunk_end = lseek(_fd, 0, SEEK_CUR);
 
-        // Patch checkpoint size field
-        _buf->putVar32(0, chunk_size - cpool_offset);
+        // Patch cpool size field
+        _buf->putVar32(0, chunk_end - cpool_offset);
         ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
         (void)result;
 
         // Patch chunk header
-        _buf->put64(chunk_size);
-        _buf->put64(cpool_offset);
+        _buf->put64(chunk_end - _chunk_start);
+        _buf->put64(cpool_offset - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000000);
         _buf->put64(_stop_nanos - _start_nanos);
-        result = pwrite(_fd, _buf->data(), 40, 8);
+        result = pwrite(_fd, _buf->data(), 40, _chunk_start + 8);
         (void)result;
 
         if (_append_fd >= 0) {
-            OS::copyFile(_fd, _append_fd, 0, chunk_size);
+            OS::copyFile(_fd, _append_fd, 0, chunk_end);
         }
 
         close(_fd);
