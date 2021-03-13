@@ -262,47 +262,21 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
-// When thread is in Java state, it should have Java frame somewhere on the top of the stack
-bool Profiler::checkWalkable(void* ucontext) {
+// When a thread in Java state has a Java frame on the top of the stack,
+// it is known to be safe for stack walking
+bool Profiler::inJavaCode(void* ucontext) {
     if (ucontext == NULL) {
         return false;
     }
 
-    StackFrame frame(ucontext);
-    const void* pc = (const void*)frame.pc();
-    uintptr_t fp = frame.fp();
-    uintptr_t prev_fp = (uintptr_t)&fp;
-    uintptr_t bottom = prev_fp + 0x40000;
-
-    const void* const valid_pc = (const void*)0x1000;
-
-    // Walk until the bottom of the stack or until the first Java frame
-    for (int depth = 0; depth < 5 && pc >= valid_pc; depth++) {
-        if (_runtime_stubs.contains(pc)) {
-            _stubs_lock.lockShared();
-            jmethodID method = _runtime_stubs.find(pc);
-            _stubs_lock.unlockShared();
-            return method == NULL || strcmp((const char*)method, "call_stub") != 0;
-        } else if (_java_methods.contains(pc)) {
-            return true;
-        }
-
-        // Check if the next frame is below on the current stack
-        if (fp <= prev_fp || fp >= bottom) {
-            break;
-        }
-
-        // Frame pointer must be word aligned
-        if ((fp & (sizeof(uintptr_t) - 1)) != 0) {
-            break;
-        }
-
-        prev_fp = fp;
-        pc = ((const void**)fp)[1];
-        fp = ((uintptr_t*)fp)[0];
+    const void* pc = (const void*)StackFrame(ucontext).pc();
+    if (_runtime_stubs.contains(pc)) {
+        _stubs_lock.lockShared();
+        jmethodID method = _runtime_stubs.find(pc);
+        _stubs_lock.unlockShared();
+        return method == NULL || strcmp((const char*)method, "call_stub") != 0;
     }
-
-    return false;
+    return _java_methods.contains(pc);
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
@@ -336,7 +310,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
     if (_safe_mode & CHECK_STATE) {
         int state = vm_thread->state();
-        if ((state == 8 || state == 9) && !checkWalkable(ucontext)) {
+        if ((state == 8 || state == 9) && !inJavaCode(ucontext)) {
             // Thread is in Java state, but does not have a valid Java frame on top of the stack
             return 0;
         }
