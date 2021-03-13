@@ -60,7 +60,8 @@ enum StackRecovery {
     SCAN_STACK   = 0x8,
     LAST_JAVA_PC = 0x10,
     GC_TRACES    = 0x20,
-    MAX_RECOVERY = 0x3f
+    JAVA_STATE   = 0x40,
+    MAX_RECOVERY = 0x7f
 };
 
 
@@ -133,14 +134,15 @@ const char* Profiler::asgctError(int code) {
         case ticks_not_walkable_not_Java:
             // Not in Java context at all; this is not an error
             return NULL;
+        case ticks_thread_exit:
+            // The last Java frame has been popped off, only native frames left
+            return NULL;
         case ticks_GC_active:
             return "GC_active";
         case ticks_unknown_Java:
             return "unknown_Java";
         case ticks_not_walkable_Java:
             return "not_walkable_Java";
-        case ticks_thread_exit:
-            return "thread_exit";
         case ticks_deopt:
             return "deoptimization";
         case ticks_safepoint:
@@ -242,6 +244,23 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
+// Make sure the top frame is Java, otherwise AsyncGetCallTrace
+// will attempt to use frame pointer based stack walking
+bool Profiler::inJavaCode(void* ucontext) {
+    if (ucontext == NULL) {
+        return true;
+    }
+
+    const void* pc = (const void*)StackFrame(ucontext).pc();
+    if (_runtime_stubs.contains(pc)) {
+        _stubs_lock.lockShared();
+        jmethodID method = _runtime_stubs.find(pc);
+        _stubs_lock.unlockShared();
+        return method == NULL || strcmp((const char*)method, "call_stub") != 0;
+    }
+    return _java_methods.contains(pc);
+}
+
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
@@ -275,6 +294,14 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     if (jni == NULL) {
         // Not a Java thread
         return 0;
+    }
+
+    if (_safe_mode & JAVA_STATE) {
+        int state = vm_thread->state();
+        if ((state == 8 || state == 9) && !inJavaCode(ucontext)) {
+            // Thread is in Java state, but does not have a valid Java frame on top of the stack
+            return 0;
+        }
     }
 
     ASGCT_CallTrace trace = {jni, 0, frames};

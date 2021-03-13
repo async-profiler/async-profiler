@@ -197,7 +197,7 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("safemode")
-                _safe_mode = value == NULL ? INT_MAX : atoi(value);
+                _safe_mode = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {
