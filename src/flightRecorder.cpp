@@ -48,7 +48,6 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 
 
-static const char* const SETTING_COUNTER[] = {"samples", "total"};
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "lbr"};
 
@@ -611,7 +610,6 @@ class Recording {
 
     void writeSettings(Buffer* buf, Arguments& args) {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "counter", SETTING_COUNTER[args._counter]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);

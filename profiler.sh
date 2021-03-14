@@ -100,7 +100,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
-EVENT="cpu"
 DURATION="60"
 FILE=""
 USE_TMP="true"
@@ -121,7 +120,7 @@ while [ $# -gt 0 ]; do
             ACTION="version"
             ;;
         -e)
-            EVENT="$2"
+            PARAMS="$PARAMS,event=$2"
             shift
             ;;
         -d)
@@ -183,12 +182,12 @@ while [ $# -gt 0 ]; do
         --reverse)
             FORMAT="$FORMAT,reverse"
             ;;
+        --samples|--total)
+            FORMAT="$FORMAT,${1#--}"
+            ;;
         --alloc|--lock)
             PARAMS="$PARAMS,${1#--}=$2"
             shift
-            ;;
-        --samples|--total)
-            PARAMS="$PARAMS,${1#--}"
             ;;
         --all-user)
             PARAMS="$PARAMS,alluser"
@@ -262,7 +261,7 @@ LOG=/tmp/async-profiler-log.$$.$PID
 
 case $ACTION in
     start|resume|check)
-        jattach "$ACTION,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
+        jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         ;;
     stop)
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
@@ -274,7 +273,7 @@ case $ACTION in
         jattach "list,file=$FILE"
         ;;
     collect)
-        jattach "start,event=$EVENT,file=$FILE,$OUTPUT$FORMAT$PARAMS"
+        jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         echo Profiling for "$DURATION" seconds >&2
         trap 'set +e; DURATION=0' INT
 
