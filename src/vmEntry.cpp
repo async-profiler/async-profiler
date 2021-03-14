@@ -46,11 +46,13 @@ jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass
 volatile int VM::_in_redefine_classes = 0;
 
 
-void VM::init(JavaVM* vm, bool attach) {
-    if (_jvmti != NULL) return;
+bool VM::init(JavaVM* vm, bool attach) {
+    if (_jvmti != NULL) return true;
 
     _vm = vm;
-    _vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0);
+    if (_vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0) != 0) {
+        return false;
+    }
 
     char* prop;
     if (_jvmti->GetSystemProperty("java.vm.name", &prop) == 0) {
@@ -122,6 +124,8 @@ void VM::init(JavaVM* vm, bool attach) {
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     }
+
+    return true;
 }
 
 // Run late initialization when JVM is ready
@@ -246,7 +250,10 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
         return ARGUMENTS_ERROR;
     }
 
-    VM::init(vm, false);
+    if (!VM::init(vm, false)) {
+        Log::error("JVM does not support Tool Interface");
+        return COMMAND_ERROR;
+    }
 
     return 0;
 }
@@ -261,7 +268,10 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         return ARGUMENTS_ERROR;
     }
 
-    VM::init(vm, true);
+    if (!VM::init(vm, true)) {
+        Log::error("JVM does not support Tool Interface");
+        return COMMAND_ERROR;
+    }
 
     // Save the arguments in case of shutdown
     if (args._action == ACTION_START || args._action == ACTION_RESUME) {
@@ -279,7 +289,10 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
-    VM::init(vm, true);
+    if (!VM::init(vm, true)) {
+        return 0;
+    }
+
     JavaAPI::registerNatives(VM::jvmti(), VM::jni());
     return JNI_VERSION_1_6;
 }
