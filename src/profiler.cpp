@@ -794,7 +794,7 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_update_thread_names) {
+    if (_update_thread_names && VMThread::hasNativeId()) {
         VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
@@ -806,7 +806,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::updateJavaThreadNames() {
-    if (_update_thread_names) {
+    if (_update_thread_names && VMThread::hasNativeId()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -955,7 +955,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
-    _update_thread_names = (args._threads || args._output == OUTPUT_JFR) && VMThread::hasNativeId();
+    _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
     _engine = selectEngine(args._event);
