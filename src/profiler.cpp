@@ -300,7 +300,10 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         int state = vm_thread->state();
         if ((state == 8 || state == 9) && !inJavaCode(ucontext)) {
             // Thread is in Java state, but does not have a valid Java frame on top of the stack
-            return 0;
+            atomicInc(_failures[-ticks_unknown_Java]);
+            frames->bci = BCI_ERROR;
+            frames->method_id = (jmethodID)asgctError(ticks_unknown_Java);
+            return 1;
         }
     }
 
