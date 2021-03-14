@@ -38,6 +38,7 @@ usage() {
     echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
+    echo "  --ttsp            time-to-safepoint profiling"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"

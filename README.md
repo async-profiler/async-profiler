@@ -18,22 +18,17 @@ to learn about all features.
 
 ## Download
 
-[Current version](https://github.com/jvm-profiling-tools/async-profiler/releases/tag/v2.0-rc) (2.0-rc):
+Current release (2.0):
 
- - Linux x64 (glibc): [async-profiler-2.0-rc-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/async-profiler-2.0-rc-linux-x64.tar.gz)
- - macOS x64: [async-profiler-2.0-rc-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/async-profiler-2.0-rc-macos-x64.tar.gz)  
+ - Linux x64 (glibc): [async-profiler-2.0-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-2.0-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-linux-x86.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.0-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-linux-musl-x64.tar.gz)
+ - Linux ARM: [async-profiler-2.0-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-linux-arm.tar.gz)
+ - Linux AArch64: [async-profiler-2.0-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-linux-aarch64.tar.gz)
+ - macOS x64: [async-profiler-2.0-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/async-profiler-2.0-macos-x64.tar.gz)
    &nbsp;
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-rc/converter.jar)  
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
-
-Stable release (1.8.4):
-
- - Linux x64 (glibc): [async-profiler-1.8.4-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.8.4-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-linux-x86.tar.gz)
- - Linux x64 (musl): [async-profiler-1.8.4-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-linux-musl-x64.tar.gz)
- - Linux ARM: [async-profiler-1.8.4-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-linux-arm.tar.gz)
- - Linux AArch64: [async-profiler-1.8.4-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-linux-aarch64.tar.gz)
- - macOS x64: [async-profiler-1.8.4-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.4/async-profiler-1.8.4-macos-x64.tar.gz)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
@@ -245,7 +240,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.8.4/src/arguments.cpp#L49).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.0/src/arguments.cpp#L44).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
@@ -253,6 +248,33 @@ is converted to `file=profile.html`, and so on. However, some arguments are proc
 directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions:
 attaching profiler agent with start command, sleeping for 5 seconds,
 and then attaching the agent again with stop command.
+
+## Multiple events
+
+It is possible to profile CPU, allocations, and locks at the same time.
+Or, instead of CPU, you may choose any other execution event: wall-clock,
+perf event, tracepoint, Java method, etc.
+
+The only output format that supports multiple events together is JFR.
+The recording will contain the following event types:
+ - `jdk.ExecutionSample`
+ - `jdk.ObjectAllocationInNewTLAB` (alloc)
+ - `jdk.ObjectAllocationOutsideTLAB` (alloc)
+ - `jdk.JavaMonitorEnter` (lock)
+ - `jdk.ThreadPark` (lock)
+
+To start profiling cpu + allocations + locks together, specify
+```
+./profiler.sh -e cpu,alloc,lock -f profile.jfr ...
+```
+or use `--alloc` and `--lock` parameters with the desired threshold:
+```
+./profiler.sh -e cpu --alloc 2m --lock 10ms -f profile.jfr ...
+```
+The same, when starting profiler as an agent:
+```
+-agentpath:/path/to/libasyncProfiler.so=start,event=cpu,alloc=2m,lock=10ms,file=profile.jfr
+```
 
 ## Flame Graph visualization
 
@@ -390,7 +412,11 @@ The following is a complete list of the command-line options accepted by
   when the specified native function is executed.
 
 * `--ttsp` - time-to-safepoint profiling. An alias for  
-  `--begin SafepointSynchronize::begin --end RuntimeService::record_safepoint_synchronized`
+  `--begin SafepointSynchronize::begin --end RuntimeService::record_safepoint_synchronized`  
+  It is not a separate event type, but rather a constraint. Whatever event type
+  you choose (e.g. `cpu` or `wall`), the profiler will work as usual, except that
+  only events between the safepoint request and the start of the VM operation
+  will be recorded.
 
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
   gets the version of the library loaded into the given process.

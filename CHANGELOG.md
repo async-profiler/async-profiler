@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.0-rc] - Release candidate
+## [2.0] - 2021-03-14
 
 ### Features
  - Profile multiple events together (cpu + alloc + lock)
@@ -8,7 +8,7 @@
  - JFR v2 output format, compatible with FlightRecorder API
  - JFR to Flame Graph converter
  - Automatically turn profiling on/off at `--begin`/`--end` functions
- - Time-to-safepoint profiling
+ - Time-to-safepoint profiling: `--ttsp`
 
 ### Improvements
  - Unlimited frame buffer. Removed `-b` option and 64K stack traces limit
