@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.5] - 2021-03-22
+
+### Improvements
+ - Backported JFR to FlameGraph converter
+
+### Bug fixes
+ - Stricter `safemode` to avoid stack walking in suspicious cases
+
 ## [1.8.4] - 2021-02-24
 
 ### Improvements
