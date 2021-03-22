@@ -52,12 +52,8 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         total_size = _trap_kind == 1 ? frame.arg2() : frame.arg1();
         instance_size = 0;
     } else {
-        // Not our trap, call the the VM's handler if there is one
-        if ((void*)_next_handler != SIG_DFL && (void*)_next_handler != SIG_ERR && (void*)_next_handler != SIG_IGN && _next_handler != NULL ) {
-            (*_next_handler)(signo, siginfo, ucontext);
-        } else {
-            Profiler::_instance.trapHandler(signo, siginfo, ucontext);
-        }
+        // Not our trap
+        Profiler::_instance.trapHandler(signo, siginfo, ucontext);
         return;
     }
 
@@ -139,12 +135,6 @@ Error AllocTracer::start(Arguments& args) {
 
     _interval = args._alloc;
     _allocated_bytes = 0;
-
-    // remember the previously installed handler to call it next (only once)
-    if (_next_handler == NULL) {
-        _next_handler = (void (*)(int, siginfo_t*, void*)) OS::getSignalHandler(SIGTRAP);
-    }
-    OS::installSignalHandler(SIGTRAP, trapHandler);
 
     _in_new_tlab.install();
     _outside_tlab.install();
