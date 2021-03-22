@@ -52,7 +52,11 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         instance_size = 0;
     } else {
         // Not our trap
+<<<<<<< HEAD
         Profiler::instance()->trapHandler(signo, siginfo, ucontext);
+=======
+        Profiler::_instance.trapHandler(signo, siginfo, ucontext);
+>>>>>>> Fix wrong merge
         return;
     }
 
