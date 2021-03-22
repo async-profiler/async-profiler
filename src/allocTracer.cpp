@@ -34,9 +34,7 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     int event_type;
     uintptr_t total_size;
     uintptr_t instance_size;
-    struct sigaction oact, nex;
 
-    sigaction(signo, NULL, &oact);
     // PC points either to BREAKPOINT instruction or to the next one
     if (_in_new_tlab.covers(frame.pc())) {
         // send_allocation_in_new_tlab(Klass* klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread)

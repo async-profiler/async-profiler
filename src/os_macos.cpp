@@ -238,13 +238,6 @@ bool OS::sendSignalToThread(int thread_id, int signo) {
 #endif
 }
 
-void* OS::getSignalHandler(int signo) {
-    struct sigaction oact, nex;
-    sigaction(signo, NULL, &oact);
-
-    return (void*)oact.sa_handler;
-}
-
 void* OS::safeAlloc(size_t size) {
     // mmap() is not guaranteed to be async signal safe, but in practice, it is.
     // There is no a reasonable alternative anyway.
