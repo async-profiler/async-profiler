@@ -76,7 +76,6 @@ class OS {
     static const char* schedPolicy();
     static bool threadName(int thread_id, char* name_buf, size_t name_len);
     static ThreadState threadState(int thread_id);
-    static void* getSignalHandler(int signo);
     static ThreadList* listThreads();
 
     static bool isJavaLibraryVisible();

@@ -59,10 +59,10 @@ void StackFrame::ret() {
 }
 
 static inline bool inC1EpilogueCrit(uintptr_t pc) {
-	if (!(pc & 0xFFF)) {
-		// Make sure we are not at the page boundary, so that reading [pc - 1] is safe
-		return false;
-	}
+    if (!(pc & 0xFFF)) {
+        // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
+        return false;
+    }
     // C1 epilogue and critical section (posX)
     //        3821**** add     r1,r1,xx
     // pos3   xxxxxxxx
