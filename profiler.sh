@@ -276,7 +276,8 @@ case $ACTION in
     collect)
         jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         echo Profiling for "$DURATION" seconds >&2
-        trap 'set +e; DURATION=0' INT
+        set +e
+        trap 'DURATION=0' INT
 
         while [ "$DURATION" -gt 0 ]; do
             DURATION=$(( DURATION-1 ))
@@ -284,6 +285,7 @@ case $ACTION in
             sleep 1
         done
 
+        set -e
         trap - INT
         echo Done >&2
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"

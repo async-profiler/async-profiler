@@ -872,7 +872,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
-    } else if (strchr(event_name, '.') != NULL) {
+    } else if (strchr(event_name, '.') != NULL && strchr(event_name, ':') == NULL) {
         return &instrument;
     } else {
         return &perf_events;

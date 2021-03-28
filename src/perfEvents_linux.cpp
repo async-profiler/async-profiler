@@ -62,6 +62,19 @@ enum {
 
 static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
 
+static int fetchInt(const char* file_name) {
+    int fd = open(file_name, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    char num[16] = "0";
+    ssize_t r = read(fd, num, sizeof(num) - 1);
+    (void) r;
+    close(fd);
+    return atoi(num);
+}
+
 // Get perf_event_attr.config numeric value of the given tracepoint name
 // by reading /sys/kernel/debug/tracing/events/<name>/id file
 static int findTracepointId(const char* name) {
@@ -72,16 +85,66 @@ static int findTracepointId(const char* name) {
 
     *strchr(buf, ':') = '/';  // make path from event name
 
-    int fd = open(buf, O_RDONLY);
-    if (fd == -1) {
+    return fetchInt(buf);
+}
+
+// Get perf_event_attr.type for the given event source
+// by reading /sys/bus/event_source/devices/<name>/type
+static int findDeviceType(const char* name) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/type", name) >= sizeof(buf)) {
         return 0;
     }
+    return fetchInt(buf);
+}
 
-    char id[16] = "0";
-    ssize_t r = read(fd, id, sizeof(id) - 1);
-    (void) r;
+// Convert pmu/event-name/ to pmu/param1=N,param2=M/
+static void resolvePmuEventName(const char* device, char* event, size_t size) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/events/%s", device, event) >= sizeof(buf)) {
+        return;
+    }
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return;
+    }
+
+    ssize_t r = read(fd, event, size);
+    if (r > 0 && (r == size || event[r - 1] == '\n')) {
+        event[r - 1] = 0;
+    }
     close(fd);
-    return atoi(id);
+}
+
+// Set a PMU parameter (such as umask) to the corresponding config field
+static bool setPmuConfig(const char* device, const char* param, __u64* config, __u64 val) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/format/%s", device, param) >= sizeof(buf)) {
+        return false;
+    }
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    ssize_t r = read(fd, buf, sizeof(buf));
+    close(fd);
+
+    if (r > 0 && r < sizeof(buf)) {
+        if (strncmp(buf, "config:", 7) == 0) {
+            config[0] |= val << atoi(buf + 7);
+            return true;
+        } else if (strncmp(buf, "config1:", 8) == 0) {
+            config[1] |= val << atoi(buf + 8);
+            return true;
+        } else if (strncmp(buf, "config2:", 8) == 0) {
+            config[2] |= val << atoi(buf + 8);
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -95,9 +158,19 @@ struct PerfEventType {
     long default_interval;
     __u32 type;
     __u64 config;
-    __u32 bp_type;
-    __u32 bp_len;
+    __u64 config1;
+    __u64 config2;
     int counter_arg;
+
+    enum {
+        IDX_PREDEFINED = 12,
+        IDX_RAW,
+        IDX_PMU,
+        IDX_BREAKPOINT,
+        IDX_TRACEPOINT,
+        IDX_KPROBE,
+        IDX_UPROBE,
+    };
 
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
@@ -111,14 +184,6 @@ struct PerfEventType {
             }
         }
         return 0;
-    }
-
-    static PerfEventType* findByType(__u32 type) {
-        for (PerfEventType* event = AVAILABLE_EVENTS; ; event++) {
-            if (event->type == type) {
-                return event;
-            }
-        }
     }
 
     // Breakpoint format: func[+offset][/len][:rwx]
@@ -173,21 +238,114 @@ struct PerfEventType {
             return NULL;
         }
 
-        PerfEventType* breakpoint = findByType(PERF_TYPE_BREAKPOINT);
-        breakpoint->config = addr + offset;
-        breakpoint->bp_type = bp_type;
-        breakpoint->bp_len = bp_len;
+        PerfEventType* breakpoint = &AVAILABLE_EVENTS[IDX_BREAKPOINT];
+        breakpoint->config = bp_type;
+        breakpoint->config1 = addr + offset;
+        breakpoint->config2 = bp_len;
         breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
         return breakpoint;
     }
 
     static PerfEventType* getTracepoint(int tracepoint_id) {
-        PerfEventType* tracepoint = findByType(PERF_TYPE_TRACEPOINT);
+        PerfEventType* tracepoint = &AVAILABLE_EVENTS[IDX_TRACEPOINT];
         tracepoint->config = tracepoint_id;
         return tracepoint;
     }
 
+    static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
+        static char probe_func[256];
+        strncpy(probe_func, name, sizeof(probe_func) - 1);
+        probe_func[sizeof(probe_func) - 1] = 0;
+
+        if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
+            return NULL;
+        }
+
+        long long offset = 0;
+        char* c = strrchr(probe_func, '+');
+        if (c != NULL) {
+            *c++ = 0;
+            offset = strtoll(c, NULL, 0);
+        }
+
+        probe->config = ret;
+        probe->config1 = (__u64)(uintptr_t)probe_func;
+        probe->config2 = offset;
+        return probe;
+    }
+
+    static PerfEventType* getRawEvent(__u64 config) {
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_RAW];
+        raw->config = config;
+        return raw;
+    }
+
+    static PerfEventType* getPmuEvent(const char* name) {
+        char buf[256];
+        strncpy(buf, name, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = 0;
+
+        char* descriptor = strchr(buf, '/');
+        *descriptor++ = 0;
+        descriptor[strlen(descriptor) - 1] = 0;
+
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_PMU];
+        if ((raw->type = findDeviceType(buf)) == 0) {
+            return NULL;
+        }
+
+        // pmu/rNNN/
+        if (descriptor[0] == 'r' && descriptor[1] >= '0') {
+            char* end;
+            raw->config = strtoull(descriptor + 1, &end, 16);
+            if (*end == 0) {
+                return raw;
+            }
+        }
+
+        // Resolve event name to the list of parameters
+        resolvePmuEventName(buf, descriptor, sizeof(buf) - (descriptor - buf));
+
+        raw->config = 0;
+        raw->config1 = 0;
+        raw->config2 = 0;
+
+        // Parse parameters
+        while (descriptor != NULL && descriptor[0]) {
+            char* p = descriptor;
+            if ((descriptor = strchr(p, ',')) != NULL || (descriptor = strchr(p, ':')) != NULL) {
+                *descriptor++ = 0;
+            }
+
+            __u64 val = 1;
+            char* eq = strchr(p, '=');
+            if (eq != NULL) {
+                *eq++ = 0;
+                val = strtoull(eq, NULL, 0);
+            }
+
+            if (strcmp(p, "config") == 0) {
+                raw->config = val;
+            } else if (strcmp(p, "config1") == 0) {
+                raw->config1 = val;
+            } else if (strcmp(p, "config2") == 0) {
+                raw->config2 = val;
+            } else if (!setPmuConfig(buf, p, &raw->config, val)) {
+                return NULL;
+            }
+        }
+
+        return raw;
+    }
+
     static PerfEventType* forName(const char* name) {
+        // Look through the table of predefined perf events
+        for (int i = 0; i < IDX_PREDEFINED; i++) {
+            if (strcmp(name, AVAILABLE_EVENTS[i].name) == 0) {
+                return &AVAILABLE_EVENTS[i];
+            }
+        }
+
         // Hardware breakpoint
         if (strncmp(name, "mem:", 4) == 0) {
             return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
@@ -199,16 +357,38 @@ struct PerfEventType {
             return tracepoint_id > 0 ? getTracepoint(tracepoint_id) : NULL;
         }
 
-        // Look through the table of predefined perf events
-        for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
-            if (strcmp(name, event->name) == 0) {
-                return event;
+        // kprobe or uprobe
+        if (strncmp(name, "kprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 7, 0);
+        }
+        if (strncmp(name, "uprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 7, 0);
+        }
+        if (strncmp(name, "kretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 10, 1);
+        }
+        if (strncmp(name, "uretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 10, 1);
+        }
+
+        // Raw PMU register: rNNN
+        if (name[0] == 'r' && name[1] >= '0') {
+            char* end;
+            __u64 reg = strtoull(name + 1, &end, 16);
+            if (*end == 0) {
+                return getRawEvent(reg);
             }
         }
 
+        // Raw perf event descriptor: pmu/event-descriptor/
+        const char* s = strchr(name, '/');
+        if (s > name && s[1] != 0 && s[strlen(s) - 1] == '/') {
+            return getPmuEvent(name);
+        }
+
         // Kernel tracepoints defined in debugfs
-        const char* c = strchr(name, ':');
-        if (c != NULL && c[1] != ':') {
+        s = strchr(name, ':');
+        if (s != NULL && s[1] != ':') {
             int tracepoint_id = findTracepointId(name);
             if (tracepoint_id > 0) {
                 return getTracepoint(tracepoint_id);
@@ -233,7 +413,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
     {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
     {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
-    {"branches",              1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
     {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
     {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
 
@@ -241,10 +421,14 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
     {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
-    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0},
-    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0},
+    {"rNNN",                     1000, PERF_TYPE_RAW, 0}, /* IDX_RAW */
+    {"pmu/event-descriptor/",    1000, PERF_TYPE_RAW, 0}, /* IDX_PMU */
 
-    {NULL}
+    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
+    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0}, /* IDX_TRACEPOINT */
+
+    {"kprobe:func",                 1, 0, 0}, /* IDX_KPROBE */
+    {"uprobe:path",                 1, 0, 0}, /* IDX_UPROBE */
 };
 
 FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
@@ -319,12 +503,12 @@ int PerfEvents::createForThread(int tid) {
     attr.type = event_type->type;
 
     if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_addr = event_type->config;
-        attr.bp_type = event_type->bp_type;
-        attr.bp_len = event_type->bp_len;
+        attr.bp_type = event_type->config;
     } else {
         attr.config = event_type->config;
     }
+    attr.config1 = event_type->config1;
+    attr.config2 = event_type->config2;
 
     // Hardware events may not always support zero skid
     if (attr.type == PERF_TYPE_SOFTWARE) {
@@ -440,12 +624,12 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 const char* PerfEvents::units() {
     if (_event_type == NULL || _event_type->name == EVENT_CPU) {
         return "ns";
-    } else if (_event_type->type == PERF_TYPE_BREAKPOINT || _event_type->type == PERF_TYPE_TRACEPOINT) {
+    } else if (_event_type->type == PERF_TYPE_SOFTWARE || _event_type->type == PERF_TYPE_HARDWARE || _event_type->type == PERF_TYPE_HW_CACHE) {
+        const char* dash = strrchr(_event_type->name, '-');
+        return dash != NULL ? dash + 1 : _event_type->name;
+    } else {
         return "events";
     }
-
-    const char* dash = strrchr(_event_type->name, '-');
-    return dash != NULL ? dash + 1 : _event_type->name;
 }
 
 Error PerfEvents::check(Arguments& args) {
@@ -459,12 +643,12 @@ Error PerfEvents::check(Arguments& args) {
     attr.type = event_type->type;
 
     if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_addr = event_type->config;
-        attr.bp_type = event_type->bp_type;
-        attr.bp_len = event_type->bp_len;
+        attr.bp_type = event_type->config;
     } else {
         attr.config = event_type->config;
     }
+    attr.config1 = event_type->config1;
+    attr.config2 = event_type->config2;
 
     attr.sample_period = event_type->default_interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
