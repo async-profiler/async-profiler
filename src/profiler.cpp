@@ -32,6 +32,7 @@
 #include "itimer.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
+#include "fdTransfer.h"
 #include "frameName.h"
 #include "os.h"
 #include "stackFrame.h"
@@ -943,6 +944,17 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Only JFR output supports multiple events");
     }
 
+    if (args._fdtransfer) {
+        if (!FdTransfer::isListenerInitialized()) {
+            if (!FdTransfer::initializeListener()) {
+                return Error("Failed to initialize FdTransfer listener");
+            }
+        }
+        if (!FdTransfer::acceptPeer()) {
+            return Error("Failed to accept FdTransfer peer");
+        }
+    }
+
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
@@ -1072,6 +1084,7 @@ Error Profiler::stop() {
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
 
+    FdTransfer::closePeer();
     _state = IDLE;
     return Error::OK;
 }

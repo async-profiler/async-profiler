@@ -32,6 +32,7 @@
 #include <string>
 #include "symbols.h"
 #include "arch.h"
+#include "fdTransfer.h"
 #include "log.h"
 
 
@@ -343,20 +344,45 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
-    std::ifstream maps("/proc/kallsyms");
-    std::string str;
+void Symbols::parseKernelSymbol(NativeCodeCache* cc, const char *symbol_str) {
+    SymbolDesc symbol(symbol_str);
+    char type = symbol.type();
+    if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
+        const char* addr = symbol.addr();
+        if (addr != NULL) {
+            cc->add(addr, 0, symbol.name());
+            _have_kernel_symbols = true;
+        }
+    }
+}
 
-    while (std::getline(maps, str)) {
-        str += "_[k]";
-        SymbolDesc symbol(str.c_str());
-        char type = symbol.type();
-        if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
-            const char* addr = symbol.addr();
-            if (addr != NULL) {
-                cc->add(addr, 0, symbol.name());
-                _have_kernel_symbols = true;
-            }
+void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+    if (FdTransfer::hasPeer()) {
+        // ask the peer
+        int fd = FdTransfer::requestKallsymsFd();
+        if (fd == -1) {
+            return;
+        }
+
+        // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
+        FILE *fp = fdopen(fd, "r");
+
+        char str[256];
+        while (fgets(str, sizeof(str), fp)) {
+            size_t len = strlen(str) - 1; // trim the '\n'
+            strncpy(str + len, "_[k]", sizeof(str) - len);
+            parseKernelSymbol(cc, str);
+        }
+
+        fclose(fp);
+        close(fd);
+    } else {
+        std::ifstream maps("/proc/kallsyms");
+        std::string str;
+
+        while (std::getline(maps, str)) {
+            str += "_[k]";
+            parseKernelSymbol(cc, str.c_str());
         }
     }
 }

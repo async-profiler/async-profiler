@@ -40,6 +40,7 @@ usage() {
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
+    echo "  --fdtransfer      use fdtransfer to pass perf & kallsyms fds to the lower privileged target"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -85,6 +86,9 @@ check_if_terminated() {
 }
 
 jattach() {
+    case "$1" in
+    *"fdtransfer"*) "$FDTRANSFER" "$PID" &
+    esac
     set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
     RET=$?
@@ -112,6 +116,7 @@ jattach() {
 OPTIND=1
 SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
+FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 DURATION="60"
@@ -219,6 +224,9 @@ while [ $# -gt 0 ]; do
             ;;
         --ttsp)
             PARAMS="$PARAMS,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized"
+            ;;
+        --fdtransfer)
+            PARAMS="$PARAMS,fdtransfer"
             ;;
         --safe-mode)
             PARAMS="$PARAMS,safemode=$2"

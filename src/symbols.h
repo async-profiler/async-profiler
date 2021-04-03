@@ -28,6 +28,8 @@ class Symbols {
     static std::set<const void*> _parsed_libraries;
     static bool _have_kernel_symbols;
 
+    static void parseKernelSymbol(NativeCodeCache* cc, const char *str);
+
   public:
     static void parseKernelSymbols(NativeCodeCache* cc);
     static void parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols);

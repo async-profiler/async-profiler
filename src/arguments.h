@@ -140,6 +140,7 @@ class Arguments {
     bool _sched;
     int _style;
     CStack _cstack;
+    bool _fdtransfer;
     Output _output;
     int _jfr_options;
     int _dump_traces;
@@ -172,6 +173,7 @@ class Arguments {
         _sched(false),
         _style(0),
         _cstack(CSTACK_DEFAULT),
+        _fdtransfer(false),
         _output(OUTPUT_NONE),
         _jfr_options(0),
         _dump_traces(0),

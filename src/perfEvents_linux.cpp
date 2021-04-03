@@ -34,6 +34,7 @@
 #include "log.h"
 #include "os.h"
 #include "perfEvents.h"
+#include "fdTransfer.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
@@ -494,7 +495,7 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 
-int PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(pid_t tid) {
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;
@@ -544,11 +545,20 @@ int PerfEvents::createForThread(int tid) {
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
 
-    int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
-    if (fd == -1) {
-        int err = errno;
-        Log::warn("perf_event_open failed: %s", strerror(errno));
-        return err;
+    int fd;
+
+    if (FdTransfer::hasPeer()) {
+        fd = FdTransfer::requestPerfFd(tid, &attr);
+        if (fd == -1) {
+            return -1;
+        }
+    } else {
+        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+        if (fd == -1) {
+            int err = errno;
+            Log::warn("perf_event_open failed: %s", strerror(errno));
+            return err;
+        }
     }
 
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
