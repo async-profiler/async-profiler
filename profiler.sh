@@ -77,27 +77,33 @@ jattach() {
     if [ $RET -ne 0 ]; then
         if [ $RET -eq 255 ]; then
             echo "Failed to inject profiler into $PID"
-            if [ "$(uname -s)" = "Darwin" ]; then
+            if [ "$UNAME_S" = "Darwin" ]; then
                 otool -L "$PROFILER"
             else
                 LD_PRELOAD="$PROFILER" /bin/true
             fi
         fi
 
+        # try both LOG and LOG_HOST, in case we don't have permissions for LOG_HOST but LOG
+        # is in our namespace.
         if [ -f "$LOG" ]; then
             cat "$LOG" >&2
             rm "$LOG"
+        elif [ "$LOG" != "$LOG_HOST" ] && [ -f "$LOG_HOST" ]; then
+            cat "$LOG_HOST" >&2
+            rm "$LOG_HOST"
         fi
         exit $RET
     fi
 
-    rm -f "$LOG"
+    rm -f "$LOG_HOST" "$LOG"
     mirror_output
     set -e
 }
 
 OPTIND=1
 SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
+UNAME_S=$(uname -s)
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
@@ -259,6 +265,11 @@ else
     esac
 fi
 LOG=/tmp/async-profiler-log.$$.$PID
+if [ "$UNAME_S" = "Linux" ]; then
+    LOG_HOST="/proc/$PID/root/$LOG"
+else
+    LOG_HOST="$LOG"
+fi
 
 case $ACTION in
     start|resume|check)
