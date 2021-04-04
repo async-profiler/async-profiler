@@ -68,10 +68,6 @@ int StackFrame::callerLookupSlots() {
     return 0;
 }
 
-bool StackFrame::isReturnAddress(instruction_t* pc) {
-    return false;
-}
-
 bool StackFrame::isSyscall(instruction_t* pc) {
     // swi #0
     return *pc == 0xef000000;
