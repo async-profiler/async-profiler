@@ -31,7 +31,9 @@ void CodeCache::expand() {
     }
 
     _count = live;
-    _capacity *= 2;
+    if (live * 2 > _capacity) {
+        _capacity = live * 2;
+    }
     _blobs = new_blobs;
     delete[] old_blobs;
 }
