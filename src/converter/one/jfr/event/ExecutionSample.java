@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package one.jfr;
+package one.jfr.event;
 
-public class StackTrace {
-    public final long[] methods;
-    public final byte[] types;
+public class ExecutionSample extends Event {
+    public final int threadState;
 
-    public StackTrace(long[] methods, byte[] types) {
-        this.methods = methods;
-        this.types = types;
+    public ExecutionSample(long time, int tid, int stackTraceId, int threadState) {
+        super(time, tid, stackTraceId);
+        this.threadState = threadState;
     }
 }

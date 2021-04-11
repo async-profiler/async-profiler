@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,34 @@
  * limitations under the License.
  */
 
-package one.jfr;
+package one.jfr.event;
 
-public class Sample implements Comparable<Sample> {
+public abstract class Event implements Comparable<Event> {
     public final long time;
     public final int tid;
     public final int stackTraceId;
-    public final int threadState;
 
-    public Sample(long time, int tid, int stackTraceId, int threadState) {
+    protected Event(long time, int tid, int stackTraceId) {
         this.time = time;
         this.tid = tid;
         this.stackTraceId = stackTraceId;
-        this.threadState = threadState;
     }
 
     @Override
-    public int compareTo(Sample o) {
+    public int compareTo(Event o) {
         return Long.compare(time, o.time);
+    }
+
+    @Override
+    public int hashCode() {
+        return stackTraceId;
+    }
+
+    public boolean sameGroup(Event o) {
+        return getClass() == o.getClass();
+    }
+
+    public long value() {
+        return 1;
     }
 }

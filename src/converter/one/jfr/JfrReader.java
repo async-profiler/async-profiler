@@ -16,6 +16,11 @@
 
 package one.jfr;
 
+import one.jfr.event.AllocationSample;
+import one.jfr.event.ContendedLock;
+import one.jfr.event.Event;
+import one.jfr.event.ExecutionSample;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -54,7 +59,13 @@ public class JfrReader implements Closeable {
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
     public final Map<Integer, String> frameTypes = new HashMap<>();
     public final Map<Integer, String> threadStates = new HashMap<>();
-    public final List<Sample> samples = new ArrayList<>();
+
+    private final int executionSample;
+    private final int nativeMethodSample;
+    private final int allocationInNewTLAB;
+    private final int allocationOutsideTLAB;
+    private final int monitorEnter;
+    private final int threadPark;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -78,12 +89,90 @@ public class JfrReader implements Closeable {
 
         readMeta();
         readConstantPool();
-        readEvents();
+
+        this.executionSample = getTypeId("jdk.ExecutionSample");
+        this.nativeMethodSample = getTypeId("jdk.NativeMethodSample");
+        this.allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
+        this.allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
+        this.monitorEnter = getTypeId("jdk.JavaMonitorEnter");
+        this.threadPark = getTypeId("jdk.ThreadPark");
+
+        buf.position(CHUNK_HEADER_SIZE);
     }
 
     @Override
     public void close() throws IOException {
         ch.close();
+    }
+
+    public List<Event> readAllEvents() {
+        return readAllEvents(null);
+    }
+
+    public <E extends Event> List<E> readAllEvents(Class<E> cls) {
+        ArrayList<E> events = new ArrayList<>();
+        for (E event; (event = readEvent(cls)) != null; ) {
+            events.add(event);
+        }
+        Collections.sort(events);
+        return events;
+    }
+
+    public Event readEvent() {
+        return readEvent(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <E extends Event> E readEvent(Class<E> cls) {
+        while (buf.hasRemaining()) {
+            int position = buf.position();
+            int size = getVarint();
+            int type = getVarint();
+
+            if (type == executionSample || type == nativeMethodSample) {
+                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
+            } else if (type == allocationInNewTLAB) {
+                if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
+            } else if (type == allocationOutsideTLAB) {
+                if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+            } else if (type == monitorEnter) {
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
+            } else if (type == threadPark) {
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            }
+
+            buf.position(position + size);
+        }
+        return null;
+    }
+
+    private ExecutionSample readExecutionSample() {
+        long time = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        int threadState = getVarint();
+        return new ExecutionSample(time, tid, stackTraceId, threadState);
+    }
+
+    private AllocationSample readAllocationSample(boolean tlab) {
+        long time = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        int classId = getVarint();
+        long allocationSize = getVarlong();
+        long tlabSize = tlab ? getVarlong() : 0;
+        return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
+    }
+
+    private ContendedLock readContendedLock(boolean hasTimeout) {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        int classId = getVarint();
+        if (hasTimeout) getVarlong();
+        long address = getVarlong();
+        return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
 
     private void readMeta() {
@@ -293,38 +382,6 @@ public class JfrReader implements Closeable {
             } else {
                 getString();
             }
-        }
-    }
-
-    private void readEvents() {
-        int executionSample = getTypeId("jdk.ExecutionSample");
-        int nativeMethodSample = getTypeId("jdk.NativeMethodSample");
-
-        buf.position(CHUNK_HEADER_SIZE);
-        while (buf.hasRemaining()) {
-            int position = buf.position();
-            int size = getVarint();
-            int type = getVarint();
-            if (type == executionSample || type == nativeMethodSample) {
-                readExecutionSample();
-            } else {
-                buf.position(position + size);
-            }
-        }
-
-        Collections.sort(samples);
-    }
-
-    private void readExecutionSample() {
-        long time = getVarlong();
-        int tid = getVarint();
-        int stackTraceId = getVarint();
-        int threadState = getVarint();
-        samples.add(new Sample(time, tid, stackTraceId, threadState));
-
-        StackTrace stackTrace = stackTraces.get(stackTraceId);
-        if (stackTrace != null) {
-            stackTrace.samples++;
         }
     }
 

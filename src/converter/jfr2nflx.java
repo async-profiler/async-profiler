@@ -15,11 +15,12 @@
  */
 
 import one.jfr.ClassRef;
-import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
-import one.jfr.Sample;
 import one.jfr.StackTrace;
+import one.jfr.event.Event;
+import one.jfr.event.EventAggregator;
+import one.jfr.event.ExecutionSample;
 import one.proto.Proto;
 
 import java.io.File;
@@ -27,6 +28,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Converts .jfr output produced by async-profiler to nflxprofile format
@@ -39,16 +41,18 @@ public class jfr2nflx {
     private static final byte[] NO_STACK = "[no_stack]".getBytes();
 
     private final JfrReader jfr;
+    private final List<ExecutionSample> samples;
 
     public jfr2nflx(JfrReader jfr) {
         this.jfr = jfr;
+        this.samples = jfr.readAllEvents(ExecutionSample.class);
     }
 
     public void dump(OutputStream out) throws IOException {
         long startTime = System.nanoTime();
 
-        int samples = jfr.samples.size();
-        long durationTicks = samples == 0 ? 0 : jfr.samples.get(samples - 1).time - jfr.startTicks + 1;
+        int size = samples.size();
+        long durationTicks = size == 0 ? 0 : samples.get(size - 1).time - jfr.startTicks + 1;
 
         final Proto profile = new Proto(200000)
                 .field(1, 0.0)
@@ -63,13 +67,19 @@ public class jfr2nflx {
         final Proto nodes = new Proto(10000);
         final Proto node = new Proto(10000);
 
+        EventAggregator agg = new EventAggregator(false, false);
+        for (ExecutionSample sample : samples) {
+            agg.collect(sample);
+        }
+
         // Don't use lambda for faster startup
-        jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
+        agg.forEach(new EventAggregator.Visitor() {
             @Override
-            public void visit(long id, StackTrace stackTrace) {
-                if (stackTrace.samples > 0) {
+            public void visit(Event event, long value) {
+                StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
+                if (stackTrace != null) {
                     profile.field(5, nodes
-                            .field(1, (int) id)
+                            .field(1, event.stackTraceId)
                             .field(2, packNode(node, stackTrace)));
                     nodes.reset();
                     node.reset();
@@ -103,7 +113,7 @@ public class jfr2nflx {
 
     private Proto packSamples() {
         Proto proto = new Proto(10000);
-        for (Sample sample : jfr.samples) {
+        for (ExecutionSample sample : samples) {
             proto.writeInt(sample.stackTraceId);
         }
         return proto;
@@ -113,7 +123,7 @@ public class jfr2nflx {
         Proto proto = new Proto(10000);
         double ticksPerSec = jfr.ticksPerSec;
         long prevTime = jfr.startTicks;
-        for (Sample sample : jfr.samples) {
+        for (ExecutionSample sample : samples) {
             proto.writeDouble((sample.time - prevTime) / ticksPerSec);
             prevTime = sample.time;
         }
@@ -122,7 +132,7 @@ public class jfr2nflx {
 
     private Proto packTids() {
         Proto proto = new Proto(10000);
-        for (Sample sample : jfr.samples) {
+        for (ExecutionSample sample : samples) {
             proto.writeInt(sample.tid);
         }
         return proto;

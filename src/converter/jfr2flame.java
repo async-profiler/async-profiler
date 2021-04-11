@@ -19,8 +19,15 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
+import one.jfr.event.AllocationSample;
+import one.jfr.event.ContendedLock;
+import one.jfr.event.Event;
+import one.jfr.event.EventAggregator;
+import one.jfr.event.ExecutionSample;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
 
 /**
  * Converts .jfr output produced by async-profiler to HTML Flame Graph.
@@ -36,22 +43,95 @@ public class jfr2flame {
         this.jfr = jfr;
     }
 
-    public void convert(final FlameGraph fg) {
+    public void convert(final FlameGraph fg, final boolean threads, final boolean total,
+                        final Class<? extends Event> eventClass) {
+        EventAggregator agg = new EventAggregator(threads, total);
+        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+            agg.collect(event);
+        }
+
         // Don't use lambda for faster startup
-        jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
+        agg.forEach(new EventAggregator.Visitor() {
             @Override
-            public void visit(long id, StackTrace stackTrace) {
-                if (stackTrace.samples > 0) {
+            public void visit(Event event, long value) {
+                StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
+                if (stackTrace != null) {
                     long[] methods = stackTrace.methods;
                     byte[] types = stackTrace.types;
-                    String[] trace = new String[methods.length];
-                    for (int i = 0; i < methods.length; i++) {
-                        trace[trace.length - 1 - i] = getMethodName(methods[i], types[i]);
+                    String classFrame = getClassFrame(event);
+                    String[] trace = new String[methods.length + (threads ? 1 : 0) + (classFrame != null ? 1 : 0)];
+                    if (threads) {
+                        trace[0] = getThreadFrame(event.tid);
                     }
-                    fg.addSample(trace, stackTrace.samples);
+                    int idx = trace.length;
+                    if (classFrame != null) {
+                        trace[--idx] = classFrame;
+                    }
+                    for (int i = 0; i < methods.length; i++) {
+                        trace[--idx] = getMethodName(methods[i], types[i]);
+                    }
+                    fg.addSample(trace, value);
                 }
             }
         });
+    }
+
+    private String getThreadFrame(int tid) {
+        String threadName = jfr.threads.get(tid);
+        return threadName == null ? "[tid=" + tid + ']' : '[' + threadName + " tid=" + tid + ']';
+    }
+
+    private String getClassFrame(Event event) {
+        long classId;
+        String suffix;
+        if (event instanceof AllocationSample) {
+            classId = ((AllocationSample) event).classId;
+            suffix = ((AllocationSample) event).tlabSize == 0 ? "_[k]" : "_[i]";
+        } else if (event instanceof ContendedLock) {
+            classId = ((ContendedLock) event).classId;
+            suffix = "_[i]";
+        } else {
+            return null;
+        }
+
+        ClassRef cls = jfr.classes.get(classId);
+        byte[] className = jfr.symbols.get(cls.name);
+
+        int arrayDepth = 0;
+        while (className[arrayDepth] == '[') {
+            arrayDepth++;
+        }
+
+        StringBuilder sb = new StringBuilder(toJavaClassName(className, arrayDepth));
+        while (arrayDepth-- > 0) {
+            sb.append("[]");
+        }
+        return sb.append(suffix).toString();
+    }
+
+    private String toJavaClassName(byte[] symbol, int start) {
+        switch (symbol[start]) {
+            case 'B':
+                return "byte";
+            case 'C':
+                return "char";
+            case 'S':
+                return "short";
+            case 'I':
+                return "int";
+            case 'J':
+                return "long";
+            case 'Z':
+                return "boolean";
+            case 'F':
+                return "float";
+            case 'D':
+                return "double";
+            case 'L':
+                return new String(symbol, start + 1, symbol.length - start - 2, StandardCharsets.UTF_8).replace('/', '.');
+            default:
+                return new String(symbol, start, symbol.length - start, StandardCharsets.UTF_8).replace('/', '.');
+        }
     }
 
     private String getMethodName(long methodId, int type) {
@@ -82,11 +162,30 @@ public class jfr2flame {
         FlameGraph fg = new FlameGraph(args);
         if (fg.input == null) {
             System.out.println("Usage: java " + jfr2flame.class.getName() + " [options] input.jfr [output.html]");
+            System.out.println();
+            System.out.println("options include all supported FlameGraph options, plus the following:");
+            System.out.println("  --alloc    Allocation Flame Graph");
+            System.out.println("  --lock     Lock contention Flame Graph");
+            System.out.println("  --threads  Split profile by threads");
+            System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
             System.exit(1);
         }
 
+        HashSet<String> options = new HashSet<>(Arrays.asList(args));
+        boolean threads = options.contains("--threads");
+        boolean total = options.contains("--total");
+
+        Class<? extends Event> eventClass;
+        if (options.contains("--alloc")) {
+            eventClass = AllocationSample.class;
+        } else if (options.contains("--lock")) {
+            eventClass = ContendedLock.class;
+        } else {
+            eventClass = ExecutionSample.class;
+        }
+
         try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2flame(jfr).convert(fg);
+            new jfr2flame(jfr).convert(fg, threads, total, eventClass);
         }
 
         fg.dump();
