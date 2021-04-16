@@ -63,6 +63,38 @@ int FdTransfer::_listener = -1;
 int FdTransfer::_peer = -1;
 unsigned int FdTransfer::_request_id = 0;
 
+static bool send_all(int fd, const void *buf, size_t count, bool *eof) {
+    const unsigned char *p = (const unsigned char*)buf;
+    size_t n = 0;
+
+    while (n < count) {
+        ssize_t sent = send(fd, p + n, count - n, 0);
+        if (sent <= 0) {
+            *eof == sent == 0;
+            return false;
+        }
+        n += sent;
+    }
+
+    return true;
+}
+
+static bool recv_all(int fd, void *buf, size_t count, bool *eof) {
+    unsigned char *p = (unsigned char*)buf;
+    size_t n = 0;
+
+    while (n < count) {
+        ssize_t recvd = recv(fd, p + n, count - n, 0);
+        if (recvd <= 0) {
+            *eof = recvd == 0;
+            return false;
+        }
+        n += recvd;
+    }
+
+    return true;
+}
+
 // this function uses perror & fprintf instead of the Log class, because it doesn't execute
 // as part of async-profiler (but instead, in fdtransfer).
 bool FdTransfer::serveRequests() {
@@ -70,21 +102,19 @@ bool FdTransfer::serveRequests() {
         unsigned char request_buf[MAX_REQUEST_LENGTH];
         struct fd_request *header = (struct fd_request *)request_buf;
 
-        ssize_t ret = recv(_peer, header, sizeof(*header), 0);
-        if (ret < 0) {
-            perror("recv()");
-            break;
-        } else if (ret == 0) {
-            // EOF means done
-            return true;
-        } else if (ret != sizeof(*header)) {
-            // TODO truncated reads
-            fprintf(stderr, "truncated request header\n");
-            break;
+        bool eof;
+        if (!recv_all(_peer, header, sizeof(*header), &eof)) {
+            if (eof) {
+                // EOF means done
+                return true;
+            } else {
+                perror("recv()");
+                break;
+            }
         }
 
         if (header->length > MAX_REQUEST_LENGTH) {
-            fprintf(stderr, "too large request: %zd\n", ret);
+            fprintf(stderr, "too large request: %u\n", header->length);
             break;
         } else if (header->length < sizeof(*header)) {
             fprintf(stderr, "bogus header length\n");
@@ -93,14 +123,14 @@ bool FdTransfer::serveRequests() {
 
         const size_t left = header->length - sizeof(*header);
         if (left > 0) {
-            ret = recv(_peer, &header[1], header->length, 0);
-            if (ret < 0) {
-                perror("recv()");
-                break;
-            } else if (ret != left) {
-                // TODO truncated reads
-                fprintf(stderr, "truncated request\n");
-                break;
+            if (!recv_all(_peer, &header[1], left, &eof)) {
+                if (eof) {
+                    fprintf(stderr, "truncated request\n");
+                    break;
+                } else {
+                    perror("recv()");
+                    break;
+                }
             }
         }
 
@@ -248,7 +278,13 @@ int FdTransfer::requestPerfFd(pid_t tid, struct perf_event_attr *attr) {
     request.tid = tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    bool eof;
+    if (!send_all(_peer, &request, sizeof(request), &eof)) {
+        if (eof) {
+            Log::warn("FdTransfer unexpected EOF");
+        } else {
+            Log::warn("FdTransfer send(): %s", strerror(errno));
+        }
         return -1;
     }
 
@@ -262,7 +298,13 @@ int FdTransfer::requestKallsymsFd() {
     request.length = sizeof(request);
     request.request_id = nextRequestId();
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    bool eof;
+    if (!send_all(_peer, &request, sizeof(request), &eof)) {
+        if (eof) {
+            Log::warn("FdTransfer unexpected EOF");
+        } else {
+            Log::warn("FdTransfer send(): %s", strerror(errno));
+        }
         return -1;
     }
 
@@ -296,7 +338,6 @@ bool FdTransfer::sendFd(int fd, unsigned int request_id) {
     memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
 
     if (sizeof(request_id) != sendmsg(_peer, &msg, 0)) {
-        // TODO truncated writes
         perror("sendmsg()");
         return false;
     }
@@ -308,7 +349,7 @@ int FdTransfer::recvFd(unsigned int request_id) {
     struct msghdr msg = {0};
 
     struct iovec iov[1];
-    int recv_request_id;
+    unsigned int recv_request_id;
     iov[0].iov_base = &recv_request_id;
     iov[0].iov_len = sizeof(recv_request_id);
     msg.msg_iov = iov;
@@ -328,9 +369,13 @@ int FdTransfer::recvFd(unsigned int request_id) {
         return -1;
     }
 
-    if (ret != sizeof(recv_request_id) || recv_request_id != request_id) {
-        // TODO truncated reads
-        Log::warn("FdTransfer recvmsg(): truncated read", strerror(errno));
+    if (ret != sizeof(recv_request_id)) {
+        Log::warn("FdTransfer recvmsg(): truncated read");
+        return -1;
+    }
+
+    if (recv_request_id != request_id) {
+        Log::warn("FdTransfer recvmsg(): bad response ID");
         return -1;
     }
 
