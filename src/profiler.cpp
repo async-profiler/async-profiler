@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "profiler.h"
 #include "perfEvents.h"
 #include "allocTracer.h"
@@ -1113,16 +1115,37 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     }
 }
 
+static void memstat(int fd, const char* msg, int val = 0) {
+    char buf[512];
+    ssize_t r = pread(fd, buf, sizeof(buf), 0);
+    if (r > 0) {
+        char* s = strchr(buf, ')');
+        if (s != NULL) {
+            for (int field = 0; *s != ' ' || ++field < 21; s++) ;
+            unsigned long vsize = atol(++s);
+            while (*s != ' ') s++;
+            unsigned long rss = atol(++s);
+            printf("[memstat] vsz=%luK, rss=%luK | %s %d\n", vsize / 1024, rss * 4, msg, val);
+            fflush(stdout);
+        }
+    }
+}
+
 void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
+
+    int fd = open("/proc/self/stat", O_RDONLY);
+    memstat(fd, "Start dumping");
 
     FlameGraph flamegraph(args._title, args._counter, args._minwidth, args._reverse);
     FrameName fn(args, args._style, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
+    memstat(fd, "Collected samples", samples.size());
 
+    int index = 0;
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->trace;
         if (excludeTrace(&fn, trace)) continue;
@@ -1150,9 +1173,15 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
             }
         }
         f->addLeaf(samples);
+        if ((++index % 100) == 0) {
+            memstat(fd, "Added trace", index);
+        }
     }
 
     flamegraph.dump(out, tree);
+
+    memstat(fd, "Dump complete");
+    close(fd);
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
