@@ -1,5 +1,4 @@
 PROFILER_VERSION=2.0
-JAVAC_RELEASE_VERSION=6
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -26,6 +25,12 @@ CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
+endif
+
+ifeq ($(findstring release,$(MAKECMDGOALS)),release)
+  JAVAC_RELEASE_VERSION=6
+else
+  JAVAC_RELEASE_VERSION=7
 endif
 
 OS:=$(shell uname -s)
