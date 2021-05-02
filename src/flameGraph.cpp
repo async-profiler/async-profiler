@@ -20,6 +20,9 @@
 #include "flameGraph.h"
 
 
+// Browsers refuse to draw on canvas larger than 32767 px
+const int MAX_CANVAS_HEIGHT = 32767;
+
 static const char FLAMEGRAPH_HEADER[] =
     "<!DOCTYPE html>\n"
     "<html lang='en'>\n"
@@ -479,7 +482,8 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
         out << TREE_FOOTER;
     } else {
         char buf[sizeof(FLAMEGRAPH_HEADER) + 256];
-        snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title, depth * 16, _reverse ? "true" : "false", depth);
+        snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title,
+                 std::min(depth * 16, MAX_CANVAS_HEIGHT), _reverse ? "true" : "false", depth);
         out << buf;
 
         printFrame(out, "all", _root, 0, 0);
