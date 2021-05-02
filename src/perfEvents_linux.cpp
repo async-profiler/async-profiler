@@ -621,15 +621,18 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-const char* PerfEvents::units() {
+const char* PerfEvents::title() {
     if (_event_type == NULL || _event_type->name == EVENT_CPU) {
-        return "ns";
+        return "CPU profile";
     } else if (_event_type->type == PERF_TYPE_SOFTWARE || _event_type->type == PERF_TYPE_HARDWARE || _event_type->type == PERF_TYPE_HW_CACHE) {
-        const char* dash = strrchr(_event_type->name, '-');
-        return dash != NULL ? dash + 1 : _event_type->name;
+        return _event_type->name;
     } else {
-        return "events";
+        return "Flame Graph";
     }
+}
+
+const char* PerfEvents::units() {
+    return _event_type == NULL || _event_type->name == EVENT_CPU ? "ns" : "events";
 }
 
 Error PerfEvents::check(Arguments& args) {

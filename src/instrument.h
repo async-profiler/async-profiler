@@ -30,6 +30,14 @@ class Instrument : public Engine {
     static volatile bool _running;
 
   public:
+    const char* title() {
+        return "Java method profile";
+    }
+
+    const char* units() {
+        return "calls";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

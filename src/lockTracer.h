@@ -39,6 +39,14 @@ class LockTracer : public Engine {
     static void bindUnsafePark(UnsafeParkFunc entry);
 
   public:
+    const char* title() {
+        return "Lock profile";
+    }
+
+    const char* units() {
+        return "ns";
+    }
+
     Error start(Arguments& args);
     void stop();
 

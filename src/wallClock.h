@@ -47,6 +47,14 @@ class WallClock : public Engine {
     static void sleep(long interval);
 
   public:
+    const char* title() {
+        return _sample_idle_threads ? "Wall clock profile" : "CPU profile";
+    }
+
+    const char* units() {
+        return "ns";
+    }
+
     Error start(Arguments& args);
     void stop();
 };

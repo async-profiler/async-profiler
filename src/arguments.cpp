@@ -259,7 +259,7 @@ Error Arguments::parse(const char* args) {
 
             // FlameGraph options
             CASE("title")
-                if (value != NULL) _title = value;
+                _title = value;
 
             CASE("minwidth")
                 if (value != NULL) _minwidth = atof(value);

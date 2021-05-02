@@ -176,7 +176,7 @@ class Arguments {
         _dump_flat(0),
         _begin(NULL),
         _end(NULL),
-        _title("Flame Graph"),
+        _title(NULL),
         _minwidth(0),
         _reverse(false) {
     }

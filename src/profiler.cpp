@@ -155,23 +155,6 @@ const char* Profiler::asgctError(int code) {
     }
 }
 
-const char* Profiler::units() {
-    switch (_event_mask) {
-        case EM_ALLOC:
-            return "bytes";
-        case EM_LOCK:
-            return "ns";
-        default:
-            if (_engine == &perf_events) {
-                return perf_events.units();
-            } else if (_engine == &instrument) {
-                return "calls";
-            } else {
-                return "ns";
-            }
-    }
-}
-
 inline u32 Profiler::getLockIndex(int tid) {
     u32 lock_index = tid;
     lock_index ^= lock_index >> 8;
@@ -879,6 +862,17 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
+Engine* Profiler::activeEngine() {
+    switch (_event_mask) {
+        case EM_ALLOC:
+            return &alloc_tracer;
+        case EM_LOCK:
+            return &lock_tracer;
+        default:
+            return _engine;
+    }
+}
+
 Error Profiler::checkJvmCapabilities() {
     if (VMStructs::libjvm() == NULL) {
         return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
@@ -1117,7 +1111,17 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE || _engine == NULL) return;
 
-    FlameGraph flamegraph(args._title, args._counter, args._minwidth, args._reverse);
+    char title[64];
+    if (args._title == NULL) {
+        Engine* active_engine = activeEngine();
+        if (args._counter == COUNTER_SAMPLES) {
+            strcpy(title, active_engine->title());
+        } else {
+            sprintf(title, "%s (%s)", active_engine->title(), active_engine->units());
+        }
+    }
+
+    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
     FrameName fn(args, args._style, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
@@ -1195,7 +1199,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
     out << std::endl;
 
     double cpercent = 100.0 / total_counter;
-    const char* units_str = units();
+    const char* units_str = activeEngine()->units();
 
     // Print top call stacks
     if (args._dump_traces > 0) {

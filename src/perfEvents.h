@@ -43,6 +43,7 @@ class PerfEvents : public Engine {
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
                        CodeCache* java_methods, CodeCache* runtime_stubs);
 
+    const char* title();
     const char* units();
 
     static void resetBuffer(int tid);

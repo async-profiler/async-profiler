@@ -28,6 +28,14 @@ class ITimer : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
+    const char* title() {
+        return "CPU profile";
+    }
+
+    const char* units() {
+        return "ns";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

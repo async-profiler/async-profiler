@@ -132,7 +132,6 @@ class Profiler {
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 
     const char* asgctError(int code);
-    const char* units();
     u32 getLockIndex(int tid);
     bool inJavaCode(void* ucontext);
     int getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid);
@@ -148,6 +147,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
+    Engine* activeEngine();
     Error checkJvmCapabilities();
 
   public:

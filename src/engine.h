@@ -26,6 +26,14 @@ class Engine {
     static volatile bool _enabled;
 
   public:
+    virtual const char* title() {
+        return "Flame Graph";
+    }
+
+    virtual const char* units() {
+        return "events";
+    }
+
     virtual Error check(Arguments& args);
     virtual Error start(Arguments& args);
     virtual void stop();

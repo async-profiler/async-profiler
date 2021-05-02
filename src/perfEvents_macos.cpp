@@ -29,8 +29,12 @@ Ring PerfEvents::_ring;
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
+const char* PerfEvents::title() {
+    return Engine::title();
+}
+
 const char* PerfEvents::units() {
-    return "ns";
+    return Engine::units();
 }
 
 Error PerfEvents::check(Arguments& args) {
