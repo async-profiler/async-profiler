@@ -186,14 +186,22 @@ struct PerfEventType {
         return 0;
     }
 
-    // Breakpoint format: func[+offset][/len][:rwx]
+    // Breakpoint format: func[+offset][/len][:rwx][{arg}]
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
         strncpy(buf, name, sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = 0;
 
+        // Parse counter arg [{arg}]
+        int counter_arg = 0;
+        char* c = strrchr(buf, '{');
+        if (c != NULL && c[1] >= '1' && c[1] <= '9') {
+            *c++ = 0;
+            counter_arg = atoi(c);
+        }
+
         // Parse access type [:rwx]
-        char* c = strrchr(buf, ':');
+        c = strrchr(buf, ':');
         if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
             if (strcmp(c, "r") == 0) {
@@ -242,7 +250,7 @@ struct PerfEventType {
         breakpoint->config = bp_type;
         breakpoint->config1 = addr + offset;
         breakpoint->config2 = bp_len;
-        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
+        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X && counter_arg == 0 ? findCounterArg(buf) : counter_arg;
         return breakpoint;
     }
 
@@ -434,6 +442,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
 FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {"malloc",   1},
     {"mmap",     2},
+    {"munmap",   2},
     {"read",     3},
     {"write",    3},
     {"send",     3},
@@ -632,13 +641,15 @@ const char* PerfEvents::title() {
 }
 
 const char* PerfEvents::units() {
-    return _event_type == NULL || _event_type->name == EVENT_CPU ? "ns" : "events";
+    return _event_type == NULL || _event_type->name == EVENT_CPU ? "ns" : "total";
 }
 
 Error PerfEvents::check(Arguments& args) {
     PerfEventType* event_type = PerfEventType::forName(args._event);
     if (event_type == NULL) {
         return Error("Unsupported event type");
+    } else if (event_type->counter_arg > 4) {
+        return Error("Only arguments 1-4 can be counted");
     }
 
     struct perf_event_attr attr = {0};
@@ -688,6 +699,8 @@ Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
         return Error("Unsupported event type");
+    } else if (_event_type->counter_arg > 4) {
+        return Error("Only arguments 1-4 can be counted");
     }
 
     if (args._interval < 0) {

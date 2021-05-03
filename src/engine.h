@@ -31,7 +31,7 @@ class Engine {
     }
 
     virtual const char* units() {
-        return "events";
+        return "total";
     }
 
     virtual Error check(Arguments& args);
