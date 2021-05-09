@@ -52,8 +52,8 @@ Error ITimer::start(Arguments& args) {
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 
-    long sec = _interval / 1000000000;
-    long usec = (_interval % 1000000000) / 1000;
+    time_t sec = _interval / 1000000000;
+    suseconds_t usec = (_interval % 1000000000) / 1000;
     struct itimerval tv = {{sec, usec}, {sec, usec}};
     
     if (setitimer(ITIMER_PROF, &tv, NULL) != 0) {
