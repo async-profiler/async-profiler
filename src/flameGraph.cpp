@@ -416,9 +416,9 @@ class StringUtils {
         return len >= suffixlen && s.compare(len - suffixlen, suffixlen, suffix) == 0; 
     }
 
-    static void replace(std::string& s, char c, const char* replacement) {
-        for (size_t i = 0; (i = s.find(c, i)) != std::string::npos; i++) {
-            s.replace(i, 1, replacement);
+    static void replace(std::string& s, char c, const char* replacement, size_t rlen) {
+        for (size_t i = 0; (i = s.find(c, i)) != std::string::npos; i += rlen) {
+            s.replace(i, 1, replacement, rlen);
         }
     }
 };
@@ -495,7 +495,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
 void FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x) {
     std::string name_copy = name;
     int type = frameType(name_copy);
-    StringUtils::replace(name_copy, '\'', "\\'");
+    StringUtils::replace(name_copy, '\'', "\\'", 2);
 
     snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%d,'%s')\n", level, x, f._total, type, name_copy.c_str());
     out << _buf;
@@ -522,9 +522,9 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
         const Trie* trie = subnodes[i]._trie;
 
         int type = frameType(name);
-        StringUtils::replace(name, '&', "&amp;");
-        StringUtils::replace(name, '<', "&lt;");
-        StringUtils::replace(name, '>', "&gt;");
+        StringUtils::replace(name, '&', "&amp;", 5);
+        StringUtils::replace(name, '<', "&lt;", 4);
+        StringUtils::replace(name, '>', "&gt;", 4);
 
         if (_reverse) {
             snprintf(_buf, sizeof(_buf) - 1,
