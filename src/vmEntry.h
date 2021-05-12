@@ -78,7 +78,9 @@ typedef VMManagement* (*JVM_GetManagement)(jint);
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
-    void* unused2[64];
+    void* unused2[35];
+    jvmtiError (JNICALL *GenerateEvents)(jvmtiEnv*, jvmtiEvent);
+    void* unused3[28];
     jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
 
@@ -90,6 +92,7 @@ class VM {
     static JVM_GetManagement _getManagement;
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+    static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
     static volatile int _in_redefine_classes;
     static int _hotspot_version;
 
@@ -139,6 +142,7 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+    static jvmtiError JNICALL GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type);
 };
 
 #endif // _VMENTRY_H

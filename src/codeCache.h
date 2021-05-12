@@ -71,6 +71,10 @@ class CodeCache {
         delete[] _blobs;
     }
 
+    void reset() {
+        _count = 0;
+    }
+
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
     }

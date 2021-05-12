@@ -101,6 +101,12 @@ void Profiler::removeJavaMethod(const void* address, jmethodID method) {
     _jit_lock.unlock();
 }
 
+void Profiler::resetJavaMethods() {
+    _jit_lock.lock();
+    _java_methods.reset();
+    _jit_lock.unlock();
+}
+
 void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
     _stubs_lock.lock();
     _runtime_stubs.add(address, length, name, true);

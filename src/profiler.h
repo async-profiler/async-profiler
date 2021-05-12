@@ -199,6 +199,7 @@ class Profiler {
     const void* resolveSymbol(const char* name);
     NativeCodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);
+    void resetJavaMethods();
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
     void setupTrapHandler();

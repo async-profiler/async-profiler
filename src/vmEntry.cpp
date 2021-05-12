@@ -43,6 +43,7 @@ AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+jvmtiError (JNICALL *VM::_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
 volatile int VM::_in_redefine_classes = 0;
 
 
@@ -123,6 +124,13 @@ bool VM::init(JavaVM* vm, bool attach) {
         loadAllMethodIDs(jvmti(), jni());
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
+    }
+
+    if (hotspot_version() > 0 && hotspot_version() < 11) {
+        // Avoid GenerateEvents conflict with another agent
+        JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
+        _orig_GenerateEvents = functions->GenerateEvents;
+        functions->GenerateEvents = GenerateEventsHook;
     }
 
     return true;
@@ -238,6 +246,15 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
     atomicInc(_in_redefine_classes, -1);
     return result;
+}
+
+jvmtiError VM::GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type) {
+    if (event_type == JVMTI_EVENT_COMPILED_METHOD_LOAD) {
+        // Workaround for JDK-8222072: prepare to receive events designated for another agent
+        Log::warn("async-profiler conflicts with another agent calling GenerateEvents()");
+        Profiler::_instance.resetJavaMethods();
+    }
+    return _orig_GenerateEvents(jvmti, event_type);
 }
 
 
