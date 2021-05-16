@@ -57,6 +57,9 @@ mirror_output() {
         if [ -f "$FILE" ]; then
             cat "$FILE"
             rm "$FILE"
+        elif [ -f "$ROOT_PREFIX$FILE" ]; then
+            cat "$ROOT_PREFIX$FILE"
+            rm "$ROOT_PREFIX$FILE"
         fi
     fi
 }
@@ -84,26 +87,25 @@ jattach() {
             fi
         fi
 
-        # try both LOG and LOG_HOST, in case we don't have permissions for LOG_HOST but LOG
-        # is in our namespace.
+        # Try to access the log file both directly and through /proc/[pid]/root,
+        # in case the target namespace differs
         if [ -f "$LOG" ]; then
             cat "$LOG" >&2
             rm "$LOG"
-        elif [ "$LOG" != "$LOG_HOST" ] && [ -f "$LOG_HOST" ]; then
-            cat "$LOG_HOST" >&2
-            rm "$LOG_HOST"
+        elif [ -f "$ROOT_PREFIX$LOG" ]; then
+            cat "$ROOT_PREFIX$LOG" >&2
+            rm "$ROOT_PREFIX$LOG"
         fi
         exit $RET
     fi
 
-    rm -f "$LOG_HOST" "$LOG"
+    rm -f "$LOG" "$ROOT_PREFIX$LOG"
     mirror_output
     set -e
 }
 
 OPTIND=1
 SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
-UNAME_S=$(uname -s)
 JATTACH=$SCRIPT_DIR/build/jattach
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
@@ -265,10 +267,12 @@ else
     esac
 fi
 LOG=/tmp/async-profiler-log.$$.$PID
+
+UNAME_S=$(uname -s)
 if [ "$UNAME_S" = "Linux" ]; then
-    LOG_HOST="/proc/$PID/root/$LOG"
+    ROOT_PREFIX="/proc/$PID/root"
 else
-    LOG_HOST="$LOG"
+    ROOT_PREFIX=""
 fi
 
 case $ACTION in
