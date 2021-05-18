@@ -16,8 +16,7 @@ fi
      ${JAVA_HOME}/bin/javac Target.java
   fi
 
-  # run as non-root
-  nsenter -F -U 1111 ${JAVA_HOME}/bin/java Target &
+  ${JAVA_HOME}/bin/java Target &
 
   FILENAME=/tmp/java.trace
   JAVAPID=$!
