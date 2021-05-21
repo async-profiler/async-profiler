@@ -44,7 +44,10 @@ static inline void storeRelease(u64& var, u64 value) {
 
 typedef unsigned char instruction_t;
 const instruction_t BREAKPOINT = 0xcc;
+<<<<<<< HEAD
 
+=======
+>>>>>>> Move BP offset closer to symbol resolution
 const bool CAN_MOVE_SP = true;
 
 const int SYSCALL_SIZE = 2;
@@ -78,6 +81,10 @@ const bool CAN_MOVE_SP = true;
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xd4200000;
+<<<<<<< HEAD
+=======
+const bool CAN_MOVE_SP = true;
+>>>>>>> Move BP offset closer to symbol resolution
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);
@@ -86,7 +93,11 @@ const int PLT_ENTRY_SIZE = 16;
 const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
 
 #define offsetBPaddr(addr) (addr)
+<<<<<<< HEAD
 #define spinPause()       asm volatile("isb")
+=======
+#define spinPause()       asm volatile("yield")
+>>>>>>> Move BP offset closer to symbol resolution
 #define rmb()             asm volatile("dmb ish" : : : "memory")
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
