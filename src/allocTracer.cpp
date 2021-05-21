@@ -117,9 +117,10 @@ Error AllocTracer::check(Arguments& args) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
 
-    if (!_in_new_tlab.assign(ne) || !_outside_tlab.assign(oe)) {
+    if (!_in_new_tlab.assign(offsetBPaddr(ne)) || !_outside_tlab.assign(offsetBPaddr(oe))) {
         return Error("Unable to install allocation trap");
     }
+
 
     return Error::OK;
 }

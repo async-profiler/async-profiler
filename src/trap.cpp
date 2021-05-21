@@ -38,7 +38,7 @@ bool Trap::assign(const void* address) {
         if (mprotect((void*)(entry & -page_size), page_size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
             return false;
         }
-        _entry = (uintptr_t)((instruction_t*) entry + BREAKPOINT_OFFSET);
+        _entry = (uintptr_t)((instruction_t*) entry);
         _saved_insn = *(instruction_t*)_entry;
     }
 
