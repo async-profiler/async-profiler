@@ -303,7 +303,10 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
     for (; symbols < symbols_end; symbols += symtab->sh_entsize) {
         ElfSymbol* sym = (ElfSymbol*)symbols;
         if (sym->st_name != 0 && sym->st_value != 0) {
-            _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
+            // Skip special AArch64 mapping symbols: $x and $d
+            if (sym->st_size != 0 || sym->st_info != 0 || strings[sym->st_name] != '$') {
+                _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
+            }
         }
     }
 }
