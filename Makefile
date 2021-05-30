@@ -9,8 +9,8 @@ JATTACH=jattach
 API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
 
-CFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
-CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
+CFLAGS=-O3 -fno-omit-frame-pointer -momit-leaf-frame-pointer -fvisibility=hidden
+CXXFLAGS=-O3 -fno-omit-frame-pointer -momit-leaf-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
 
@@ -83,6 +83,7 @@ $(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
 	rm -r $(PACKAGE_DIR)
 
 %.$(SOEXT): %.so
+	rm -f $@
 	-ln -s $(<F) $@
 
 build:

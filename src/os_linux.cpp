@@ -108,6 +108,18 @@ class LinuxThreadList : public ThreadList {
 };
 
 
+JitWriteProtection::JitWriteProtection(bool enable) {
+    // Not used on Linux
+}
+
+JitWriteProtection::~JitWriteProtection() {
+    // Not used on Linux
+}
+
+
+const size_t OS::page_size = sysconf(_SC_PAGESIZE);
+const size_t OS::page_mask = OS::page_size - 1;
+
 u64 OS::nanotime() {
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC, &tp);

@@ -44,7 +44,7 @@ const int PERF_REG_PC = 8;  // PERF_REG_X86_IP
 
 #define spinPause()       asm volatile("pause")
 #define rmb()             asm volatile("lfence" : : : "memory")
-#define flushCache(addr)  asm volatile("mfence; clflush (%0); mfence" : : "r"(addr) : "memory")
+#define flushCache(addr)  asm volatile("mfence; clflush (%0); mfence" : : "r" (addr) : "memory")
 
 #elif defined(__arm__) || defined(__thumb__)
 
@@ -79,6 +79,24 @@ const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
 
 #error "Compiling on unsupported arch"
 
+#endif
+
+
+// Return address signing support.
+// Apple M1 has 47 bit virtual addresses.
+#if defined(__aarch64__) && defined(__APPLE__)
+#  define ADDRESS_BITS 47
+#  define WX_MEMORY    true
+#else
+#  define WX_MEMORY    false
+#endif
+
+#ifdef ADDRESS_BITS
+static inline const void* stripPointer(const void* p) {
+    return (const void*) ((unsigned long)p & ((1UL << ADDRESS_BITS) - 1));
+}
+#else
+#  define stripPointer(p)  (p)
 #endif
 
 

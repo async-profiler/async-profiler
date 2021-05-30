@@ -296,6 +296,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         }
     }
 
+    JitWriteProtection jit(false);
     ASGCT_CallTrace trace = {jni, 0, frames};
     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
 
@@ -465,6 +466,7 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
         return 0;
     }
 
+    JitWriteProtection jit(false);
     VMThread* vm_thread = VMThread::fromEnv(jni);
     int num_frames;
     if (VMStructs::_get_stack_trace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
@@ -718,29 +720,26 @@ void Profiler::switchNativeMethodTraps(bool enable) {
 }
 
 Error Profiler::installTraps(const char* begin, const char* end) {
-    if (begin == NULL) {
-        _begin_trap.assign(NULL);
-    } else {
-        const void* begin_addr = resolveSymbol(begin);
-        if (begin_addr == NULL || !_begin_trap.assign(begin_addr)) {
-            return Error("Begin address not found");
-        }
+    const void* begin_addr = NULL;
+    if (begin != NULL && (begin_addr = resolveSymbol(begin)) == NULL) {
+        return Error("Begin address not found");
     }
 
-    if (end == NULL) {
-        _end_trap.assign(NULL);
-    } else {
-        const void* end_addr = resolveSymbol(end);
-        if (end_addr == NULL || !_end_trap.assign(end_addr)) {
-            return Error("End address not found");
-        }
+    const void* end_addr = NULL;
+    if (end != NULL && (end_addr = resolveSymbol(end)) == NULL) {
+        return Error("End address not found");
     }
+
+    _begin_trap.assign(begin_addr);
+    _end_trap.assign(end_addr);
 
     if (_begin_trap.entry() == 0) {
         _engine->enableEvents(true);
     } else {
         _engine->enableEvents(false);
-        _begin_trap.install();
+        if (!_begin_trap.install()) {
+            return Error("Cannot install begin breakpoint");
+        }
     }
 
     return Error::OK;
@@ -784,6 +783,7 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     if (_update_thread_names && VMThread::hasNativeId()) {
+        JitWriteProtection jit(true);  // workaround for JDK-8262896
         VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
         if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {

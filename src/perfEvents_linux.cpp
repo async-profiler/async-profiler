@@ -60,8 +60,6 @@ enum {
 };
 
 
-static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
-
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
@@ -460,21 +458,21 @@ class RingBuffer {
 
   public:
     RingBuffer(struct perf_event_mmap_page* page) {
-        _start = (const char*)page + PERF_PAGE_SIZE;
+        _start = (const char*)page + OS::page_size;
     }
 
     struct perf_event_header* seek(u64 offset) {
-        _offset = (unsigned long)offset & (PERF_PAGE_SIZE - 1);
+        _offset = (unsigned long)offset & OS::page_mask;
         return (struct perf_event_header*)(_start + _offset);
     }
 
     u64 next() {
-        _offset = (_offset + sizeof(u64)) & (PERF_PAGE_SIZE - 1);
+        _offset = (_offset + sizeof(u64)) & OS::page_mask;
         return *(u64*)(_start + _offset);
     }
 
     u64 peek(unsigned long words) {
-        unsigned long peek_offset = (_offset + words * sizeof(u64)) & (PERF_PAGE_SIZE - 1);
+        unsigned long peek_offset = (_offset + words * sizeof(u64)) & OS::page_mask;
         return *(u64*)(_start + peek_offset);
     }
 };
@@ -559,7 +557,7 @@ int PerfEvents::createForThread(int tid) {
         return -1;
     }
 
-    void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
         Log::warn("perf_event mmap failed: %s", strerror(errno));
         page = NULL;
@@ -595,7 +593,7 @@ void PerfEvents::destroyForThread(int tid) {
     }
     if (event->_page != NULL) {
         event->lock();
-        munmap(event->_page, 2 * PERF_PAGE_SIZE);
+        munmap(event->_page, 2 * OS::page_size);
         event->_page = NULL;
         event->unlock();
     }

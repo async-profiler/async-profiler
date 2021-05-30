@@ -50,8 +50,7 @@ void CodeCache::add(const void* start, int length, jmethodID method, bool update
     _count++;
 
     if (update_bounds) {
-        if (start < _min_address) _min_address = start;
-        if (end > _max_address) _max_address = end;
+        updateBounds(start, end);
     }
 }
 
@@ -62,6 +61,11 @@ void CodeCache::remove(const void* start, jmethodID method) {
             return;
         }
     }
+}
+
+void CodeCache::updateBounds(const void* start, const void* end) {
+    if (start < _min_address) _min_address = start;
+    if (end > _max_address) _max_address = end;
 }
 
 jmethodID CodeCache::find(const void* address) {

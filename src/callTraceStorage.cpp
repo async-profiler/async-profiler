@@ -15,7 +15,6 @@
  */
 
 #include <string.h>
-#include <unistd.h>
 #include "callTraceStorage.h"
 #include "os.h"
 
@@ -23,7 +22,6 @@
 static const u32 INITIAL_CAPACITY = 65536;
 static const u32 CALL_TRACE_CHUNK = 8 * 1024 * 1024;
 static const u32 OVERFLOW_TRACE_ID = 0x7fffffff;
-static const size_t PAGE_ALIGNMENT = sysconf(_SC_PAGESIZE) - 1;
 
 
 class LongHashTable {
@@ -37,7 +35,7 @@ class LongHashTable {
 
     static size_t getSize(u32 capacity) {
         size_t size = sizeof(LongHashTable) + (sizeof(u64) + sizeof(CallTraceSample)) * capacity;
-        return (size + PAGE_ALIGNMENT) & ~PAGE_ALIGNMENT;
+        return (size + OS::page_mask) & ~OS::page_mask;
     }
 
   public:

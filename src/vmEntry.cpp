@@ -141,6 +141,7 @@ void VM::ready() {
     Profiler::_instance.updateSymbols(false);
     NativeCodeCache* libjvm = Profiler::_instance.findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
+        JitWriteProtection jit(true);  // workaround for JDK-8262896
         VMStructs::init(libjvm);
     }
 

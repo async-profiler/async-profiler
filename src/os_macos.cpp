@@ -82,6 +82,39 @@ class MacThreadList : public ThreadList {
 };
 
 
+JitWriteProtection::JitWriteProtection(bool enable) {
+#ifdef __aarch64__
+    // Mimic pthread_jit_write_protect_np(), but save the previous state
+    u64 val = enable ? *(volatile u64*)0xfffffc118 : *(volatile u64*)0xfffffc110;
+    u64 prev;
+    asm volatile("mrs %0, s3_6_c15_c1_5" : "=r" (prev) : : );
+    if (prev != val) {
+        _prev = prev;
+        _restore = true;
+        asm volatile("msr s3_6_c15_c1_5, %0\n"
+                     "isb"
+                     : "+r" (val) : : "memory");
+    } else {
+        _restore = false;
+    }
+#endif
+}
+
+JitWriteProtection::~JitWriteProtection() {
+#ifdef __aarch64__
+    if (_restore) {
+        u64 prev = _prev;
+        asm volatile("msr s3_6_c15_c1_5, %0\n"
+                     "isb"
+                     : "+r" (prev) : : "memory");
+    }
+#endif
+}
+
+
+const size_t OS::page_size = sysconf(_SC_PAGESIZE);
+const size_t OS::page_mask = OS::page_size - 1;
+
 static mach_timebase_info_data_t timebase = {0, 0};
 
 u64 OS::nanotime() {
@@ -176,12 +209,23 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
 }
 
 bool OS::sendSignalToThread(int thread_id, int signo) {
-   int result;
-   asm volatile("syscall"
-                : "=a" (result)
-                : "a" (0x2000148), "D" (thread_id), "S" (signo)
-                : "rcx", "r11", "memory");
-   return result == 0;
+#ifdef __aarch64__
+    register long x0 asm("x0") = thread_id;
+    register long x1 asm("x1") = signo;
+    register long x16 asm("x16") = 328;
+    asm volatile("svc #0x80"
+                 : "+r" (x0)
+                 : "r" (x1), "r" (x16)
+                 : "memory");
+    return x0 == 0;
+#else
+    int result;
+    asm volatile("syscall"
+                 : "=a" (result)
+                 : "a" (0x2000148), "D" (thread_id), "S" (signo)
+                 : "rcx", "r11", "memory");
+    return result == 0;
+#endif
 }
 
 void* OS::safeAlloc(size_t size) {

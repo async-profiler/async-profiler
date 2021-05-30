@@ -22,42 +22,42 @@
 
 
 #ifdef __APPLE__
-#  define REG(l, m)  _ucontext->uc_mcontext->__ss.m
+#  define REG(l, m)  _ucontext->uc_mcontext->__ss.__##m
 #else
-#  define REG(l, m)  _ucontext->uc_mcontext.gregs[l]
+#  define REG(l, m)  _ucontext->uc_mcontext.gregs[REG_##l]
 #endif
 
 
 uintptr_t& StackFrame::pc() {
-    return (uintptr_t&)REG(REG_RIP, __rip);
+    return (uintptr_t&)REG(RIP, rip);
 }
 
 uintptr_t& StackFrame::sp() {
-    return (uintptr_t&)REG(REG_RSP, __rsp);
+    return (uintptr_t&)REG(RSP, rsp);
 }
 
 uintptr_t& StackFrame::fp() {
-    return (uintptr_t&)REG(REG_RBP, __rbp);
+    return (uintptr_t&)REG(RBP, rbp);
 }
 
 uintptr_t StackFrame::retval() {
-    return (uintptr_t)REG(REG_RAX, __rax);
+    return (uintptr_t)REG(RAX, rax);
 }
 
 uintptr_t StackFrame::arg0() {
-    return (uintptr_t)REG(REG_RDI, __rdi);
+    return (uintptr_t)REG(RDI, rdi);
 }
 
 uintptr_t StackFrame::arg1() {
-    return (uintptr_t)REG(REG_RSI, __rsi);
+    return (uintptr_t)REG(RSI, rsi);
 }
 
 uintptr_t StackFrame::arg2() {
-    return (uintptr_t)REG(REG_RDX, __rdx);
+    return (uintptr_t)REG(RDX, rdx);
 }
 
 uintptr_t StackFrame::arg3() {
-    return (uintptr_t)REG(REG_RCX, __rcx);
+    return (uintptr_t)REG(RCX, rcx);
 }
 
 void StackFrame::ret() {
@@ -113,7 +113,7 @@ bool StackFrame::checkInterruptedSyscall() {
     }
     // If CF is set, the error code is in low byte of eax,
     // some other syscalls (ulock_wait) do not set CF when interrupted
-    if (REG(REG_EFL, __rflags) & 1) {
+    if (REG(EFL, rflags) & 1) {
         return (retval() & 0xff) == EINTR || (retval() & 0xff) == ETIMEDOUT;
     } else {
         return retval() == (uintptr_t)-EINTR; 

@@ -81,6 +81,7 @@ class CodeCache {
 
     void add(const void* start, int length, jmethodID method, bool update_bounds = false);
     void remove(const void* start, jmethodID method);
+    void updateBounds(const void* start, const void* end);
     jmethodID find(const void* address);
 };
 

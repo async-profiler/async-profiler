@@ -14,50 +14,75 @@
  * limitations under the License.
  */
 
-#include <unistd.h>
 #include <sys/mman.h>
 #include "trap.h"
+#include "os.h"
+#include "stackFrame.h"
 
 
-bool Trap::assign(const void* address) {
-    uintptr_t entry = (uintptr_t)address;
-    if (entry == 0) {
-        _entry = 0;
-        return true;
+uintptr_t Trap::_page_start[TRAP_COUNT] = {0};
+struct sigaction Trap::_jvm_handler = {NULL};
+
+
+void Trap::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    // Ignore access violations on our traps
+    uintptr_t pc = StackFrame(ucontext).pc();
+    for (int i = 0; i < TRAP_COUNT; i++) {
+        if (pc - _page_start[i] < OS::page_size) {
+            return;
+        }
+    }
+
+    // Otherwise, delegate to the JVM signal handler
+    _jvm_handler.sa_sigaction(signo, siginfo, ucontext);
+}
+
+void Trap::assign(const void* address) {
+    _entry = (uintptr_t)address;
+    if (_entry == 0) {
+        return;
     }
 
 #if defined(__arm__) || defined(__thumb__)
-    if (entry & 1) {
-        entry ^= 1;
-        _breakpoint_insn = BREAKPOINT_THUMB;
-    }
+    _breakpoint_insn = (_entry & 1) ? BREAKPOINT_THUMB : BREAKPOINT;
+    _entry ^= 1;
 #endif
 
-    if (entry != _entry) {
-        // Make the entry point writable, so we can rewrite instructions
-        long page_size = sysconf(_SC_PAGESIZE);
-        if (mprotect((void*)(entry & -page_size), page_size, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
+    _saved_insn = *(instruction_t*)_entry;
+    _page_start[_id] = _entry & -OS::page_size;
+
+    if (WX_MEMORY && _jvm_handler.sa_sigaction == NULL) {
+        // While we are patching the code in RW mode, another thread may attempt to execute it
+        sigaction(SIGBUS, NULL, &_jvm_handler);
+        struct sigaction sa = _jvm_handler;
+        sa.sa_sigaction = signalHandler;
+        sigaction(SIGBUS, &sa, NULL);
+    }
+}
+
+// Two allocation traps are always enabled/disabled together.
+// If both traps belong to the same page, protect/unprotect it just once.
+void Trap::pair(Trap& second) {
+    if (_page_start[_id] == _page_start[second._id]) {
+        _protect = false;
+        second._unprotect = false;
+    }
+}
+
+// Patch instruction at the entry point
+bool Trap::patch(instruction_t insn) {
+    if (_unprotect) {
+        int prot = WX_MEMORY ? (PROT_READ | PROT_WRITE) : (PROT_READ | PROT_WRITE | PROT_EXEC);
+        if (mprotect((void*)(_entry & -OS::page_size), OS::page_size, prot) != 0) {
             return false;
         }
-        _entry = entry;
-        _saved_insn = *(instruction_t*)entry;
     }
 
+    *(instruction_t*)_entry = insn;
+    flushCache(_entry);
+
+    if (_protect) {
+        mprotect((void*)(_entry & -OS::page_size), OS::page_size, PROT_READ | PROT_EXEC);
+    }
     return true;
-}
-
-// Insert breakpoint at the very first instruction
-void Trap::install() {
-    if (_entry) {
-        *(instruction_t*)_entry = _breakpoint_insn;
-        flushCache(_entry);
-    }
-}
-
-// Clear breakpoint - restore the original instruction
-void Trap::uninstall() {
-    if (_entry) {
-        *(instruction_t*)_entry = _saved_insn;
-        flushCache(_entry);
-    }
 }

@@ -21,8 +21,8 @@
 
 
 int AllocTracer::_trap_kind;
-Trap AllocTracer::_in_new_tlab;
-Trap AllocTracer::_outside_tlab;
+Trap AllocTracer::_in_new_tlab(0);
+Trap AllocTracer::_outside_tlab(1);
 
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
@@ -117,9 +117,9 @@ Error AllocTracer::check(Arguments& args) {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }
 
-    if (!_in_new_tlab.assign(ne) || !_outside_tlab.assign(oe)) {
-        return Error("Unable to install allocation trap");
-    }
+    _in_new_tlab.assign(ne);
+    _outside_tlab.assign(oe);
+    _in_new_tlab.pair(_outside_tlab);
 
     return Error::OK;
 }
@@ -133,8 +133,9 @@ Error AllocTracer::start(Arguments& args) {
     _interval = args._alloc;
     _allocated_bytes = 0;
 
-    _in_new_tlab.install();
-    _outside_tlab.install();
+    if (!_in_new_tlab.install() || !_outside_tlab.install()) {
+        return Error("Cannot install allocation breakpoints");
+    }
 
     return Error::OK;
 }

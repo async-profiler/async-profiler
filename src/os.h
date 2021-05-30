@@ -47,8 +47,23 @@ class ThreadList {
 };
 
 
+// W^X memory support
+class JitWriteProtection {
+  private:
+    u64 _prev;
+    bool _restore;
+
+  public:
+    JitWriteProtection(bool enable);
+    ~JitWriteProtection();
+};
+
+
 class OS {
   public:
+    static const size_t page_size;
+    static const size_t page_mask;
+
     static u64 nanotime();
     static u64 millis();
     static u64 processStartTime();

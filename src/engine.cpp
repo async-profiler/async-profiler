@@ -69,7 +69,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
         }
 
         prev_fp = fp;
-        pc = ((const void**)fp)[1];
+        pc = stripPointer(((const void**)fp)[1]);
         fp = ((uintptr_t*)fp)[0];
     }
 
