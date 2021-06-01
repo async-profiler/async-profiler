@@ -16,3 +16,6 @@ jobs:
       - run: sudo sysctl kernel.perf_event_paranoid=1
       - run: make
       - run: make test
+      - uses: actions/upload-artifact@v2
+        with:
+          path: build/
