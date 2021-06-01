@@ -1,0 +1,18 @@
+name: C++ CI
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-java@v2.1.0
+        with:
+          java-version: "11"
+      - name: make
+        run: make
+      - name: make test
+        run: make test
