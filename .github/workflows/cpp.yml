@@ -14,7 +14,5 @@ jobs:
           distribution: "adopt"
           java-version: "11"
       - run: sudo sysctl kernel.perf_event_paranoid=1
-      - name: make
-        run: make
-      - name: make test
-        run: make test
+      - run: make
+      - run: make test
