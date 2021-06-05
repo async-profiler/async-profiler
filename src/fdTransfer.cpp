@@ -341,8 +341,12 @@ bool FdTransfer::sendFd(int fd, unsigned int request_id) {
     cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
     memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
 
-    if (sizeof(request_id) != sendmsg(_peer, &msg, 0)) {
+    ssize_t ret = sendmsg(_peer, &msg, 0);
+    if (ret < 0) {
         perror("sendmsg()");
+        return false;
+    } else if (ret != sizeof(request_id)) {
+        fprintf(stderr, "truncated sendmsg(): %zd", ret);
         return false;
     }
 
