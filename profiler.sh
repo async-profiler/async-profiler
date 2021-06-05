@@ -85,10 +85,21 @@ check_if_terminated() {
     fi
 }
 
+run_fdtransfer() {
+    if [ "$ACTION" = "start" ] || [ "$ACTION" = "resume" ] ; then
+        nohup "$FDTRANSFER" "$PID" &
+    elif [ "$ACTION" = "collect" ]; then
+        case "$1" in
+        "start"*) "$FDTRANSFER" "$PID" &
+        esac
+    fi
+}
+
 jattach() {
-    case "$1" in
-    *"fdtransfer"*) "$FDTRANSFER" "$PID" &
-    esac
+    if [ "$UNAME_S" = "Linux" ] && [ "$USE_FDTRANSFER" = "true" ]; then
+        run_fdtransfer "$1"
+    fi
+
     set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
     RET=$?
@@ -117,6 +128,7 @@ OPTIND=1
 SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
+USE_FDTRANSFER="false"
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 DURATION="60"
@@ -227,6 +239,7 @@ while [ $# -gt 0 ]; do
             ;;
         --fdtransfer)
             PARAMS="$PARAMS,fdtransfer"
+            USE_FDTRANSFER="true"
             ;;
         --safe-mode)
             PARAMS="$PARAMS,safemode=$2"
