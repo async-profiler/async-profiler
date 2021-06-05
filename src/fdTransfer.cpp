@@ -57,7 +57,7 @@ struct perf_fd_request {
     struct perf_event_attr attr;
 };
 
-#define TMP_KALLSYMS_PATH "/tmp/async-profiler-kallsyms"
+#define TMP_KALLSYMS_PATH "/tmp/async-profiler-kallsyms.%d"
 
 int FdTransfer::_listener = -1;
 int FdTransfer::_peer = -1;
@@ -153,17 +153,21 @@ bool FdTransfer::serveRequests() {
             // was conducted on each read.
             // it's simpler to copy the file to a temporary location and pass the fd of it (compared to passing the
             // entire contents over the peer socket)
+            char tmp_path[256];
+            snprintf(tmp_path, sizeof(tmp_path), TMP_KALLSYMS_PATH, getpid());
             {
-                // TODO from Linux 3.15, we can use memfds here
+                // TODO from Linux 3.15, we can use memfds here. Also, from 3.11 we can use O_TMPFILE.
                 std::ifstream src("/proc/kallsyms", std::ios::binary);
-                // TODO this creates the file with 0611, it should be 0600.
-                std::ofstream dst(TMP_KALLSYMS_PATH, std::ios::binary);
+                close(creat(tmp_path, S_IRUSR | S_IWUSR));  // create it with 0600 so others can't read.
+                std::ofstream dst(tmp_path, std::ios::binary);
                 dst << src.rdbuf();
             }
 
-            int kallsyms_fd = open(TMP_KALLSYMS_PATH, O_RDONLY);
+            int kallsyms_fd = open(tmp_path, O_RDONLY);
             if (kallsyms_fd == -1) {
                 perror("open() tmp kallsyms");
+            } else {
+                unlink(tmp_path);
             }
 
             sendFd(kallsyms_fd, header->request_id);
