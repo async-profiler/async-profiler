@@ -36,6 +36,7 @@
 
 #include "fdTransfer.h"
 #include "log.h"
+#include "jattach/utils.h"
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
 
@@ -97,7 +98,7 @@ static bool recv_all(int fd, void *buf, size_t count, bool *eof) {
 
 // this function uses perror & fprintf instead of the Log class, because it doesn't execute
 // as part of async-profiler (but instead, in fdtransfer).
-bool FdTransfer::serveRequests() {
+bool FdTransfer::serveRequests(pid_t pid) {
     while (1) {
         unsigned char request_buf[MAX_REQUEST_LENGTH];
         struct fd_request *header = (struct fd_request *)request_buf;
@@ -136,12 +137,23 @@ bool FdTransfer::serveRequests() {
 
         switch (header->type) {
         case PERF_FD: {
-            // TODO validate 'tid' is indeed a thread of 'nspid'
             struct perf_fd_request *request = (struct perf_fd_request*)header;
+            int perf_fd = -1;
 
-            int perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
-            if (perf_fd == -1) {
-                perror("perf_event_open()");
+            uid_t _uid;
+            gid_t _gid;
+            pid_t _nspid;
+            pid_t target_pid = -1;
+            if (!get_process_info(request->tid, &_uid, &_gid, &_nspid, &target_pid)) {
+                fprintf(stderr, "target has requested perf_event_open for nonexistent PID %d\n", request->tid);
+            }
+            else if (target_pid == pid) {
+                perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
+                if (perf_fd == -1) {
+                    perror("perf_event_open()");
+                }
+            } else {
+                fprintf(stderr, "target has requested perf_event_open for TID %d which belongs to another process %d instead of %d?\n", request->tid, target_pid, pid);
             }
 
             sendFd(perf_fd, request->header.request_id);

@@ -59,7 +59,7 @@ int main(int argc, const char *argv[]) {
     if (0 == fork()) {
         // do the actual work
         if (FdTransfer::connectToTarget(nspid)) {
-            _exit(FdTransfer::serveRequests() ? 0 : 1);
+            _exit(FdTransfer::serveRequests(nspid) ? 0 : 1);
         } else {
             _exit(1);
         }

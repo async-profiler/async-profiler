@@ -47,7 +47,7 @@ class FdTransfer {
         }
     }
 
-    static bool serveRequests();
+    static bool serveRequests(pid_t pid);
 
     static int requestPerfFd(pid_t tid, struct perf_event_attr *attr);
     static int requestKallsymsFd();
