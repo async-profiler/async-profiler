@@ -344,14 +344,17 @@ bool FdTransfer::sendFd(int fd, unsigned int request_id) {
        char buf[CMSG_SPACE(sizeof(fd))];
        struct cmsghdr align;
     } u;
-    msg.msg_control = u.buf;
-    msg.msg_controllen = sizeof(u.buf);
 
-    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-    cmsg->cmsg_level = SOL_SOCKET;
-    cmsg->cmsg_type = SCM_RIGHTS;
-    cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
-    memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+    if (fd != -1) {
+        msg.msg_control = u.buf;
+        msg.msg_controllen = sizeof(u.buf);
+
+        struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_RIGHTS;
+        cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+        memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+    }
 
     ssize_t ret = sendmsg(_peer, &msg, 0);
     if (ret < 0) {
