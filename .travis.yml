@@ -1,6 +1,6 @@
 language: cpp
 
-dist: precise
+dist: bionic
 
 sudo: required
 
