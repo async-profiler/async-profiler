@@ -21,8 +21,10 @@
 #include "utils.h"
 #include "../fdTransfer.h"
 
-static bool enter_pid_and_net(pid_t pid) {
-    return enter_ns(pid, "net") == 1 && enter_ns(pid, "pid") == 1;
+static bool enter_pid_net_mnt(pid_t pid) {
+    // the last one works - because we still have the old /proc accessible, so we see PIDs as they are
+    // the NS before we moved.
+    return enter_ns(pid, "net") == 1 && enter_ns(pid, "pid") == 1 && enter_ns(pid, "mnt");
 }
 
 int main(int argc, const char *argv[]) {
@@ -50,8 +52,8 @@ int main(int argc, const char *argv[]) {
         nspid = alt_lookup_nspid(pid);
     }
 
-    if (!enter_pid_and_net(pid)) {
-        perror("Failed to enter PID / net NS of target process");
+    if (!enter_pid_net_mnt(pid)) {
+        perror("Failed to enter the net NS / PID NS / mount NS of target process");
         return 1;
     }
 
