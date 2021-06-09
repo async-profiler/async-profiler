@@ -221,11 +221,13 @@ jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmt
     atomicInc(_in_redefine_classes);
     jvmtiError result = _orig_RedefineClasses(jvmti, class_count, class_definitions);
 
-    // jmethodIDs are invalidated after RedefineClasses
-    JNIEnv* env = jni();
-    for (int i = 0; i < class_count; i++) {
-        if (class_definitions[i].klass != NULL) {
-            loadMethodIDs(jvmti, env, class_definitions[i].klass);
+    if (result == 0) {
+        // jmethodIDs are invalidated after RedefineClasses
+        JNIEnv* env = jni();
+        for (int i = 0; i < class_count; i++) {
+            if (class_definitions[i].klass != NULL) {
+                loadMethodIDs(jvmti, env, class_definitions[i].klass);
+            }
         }
     }
 
@@ -237,11 +239,13 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
     atomicInc(_in_redefine_classes);
     jvmtiError result = _orig_RetransformClasses(jvmti, class_count, classes);
 
-    // jmethodIDs are invalidated after RetransformClasses
-    JNIEnv* env = jni();
-    for (int i = 0; i < class_count; i++) {
-        if (classes[i] != NULL) {
-            loadMethodIDs(jvmti, env, classes[i]);
+    if (result == 0) {
+        // jmethodIDs are invalidated after RetransformClasses
+        JNIEnv* env = jni();
+        for (int i = 0; i < class_count; i++) {
+            if (classes[i] != NULL) {
+                loadMethodIDs(jvmti, env, classes[i]);
+            }
         }
     }
 
