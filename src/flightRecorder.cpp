@@ -305,7 +305,7 @@ class Recording {
     }
 
   public:
-    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
+    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(true), _packages(), _symbols(), _method_map() {
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();

@@ -157,7 +157,7 @@ class Profiler {
         _state(IDLE),
         _begin_trap(2),
         _end_trap(3),
-        _thread_filter(),
+        _thread_filter(false),
         _call_trace_storage(),
         _jfr(),
         _start_time(0),

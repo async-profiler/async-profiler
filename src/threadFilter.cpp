@@ -20,18 +20,23 @@
 #include "os.h"
 
     
-ThreadFilter::ThreadFilter() {
+ThreadFilter::ThreadFilter(bool cleanup) {
     memset(_bitmap, 0, sizeof(_bitmap));
     _bitmap[0] = (u32*)OS::safeAlloc(BITMAP_SIZE);
 
+    _cleanup = cleanup;
     _enabled = false;
     _size = 0;
 }
 
 ThreadFilter::~ThreadFilter() {
-    for (int i = 0; i < MAX_BITMAPS; i++) {
-        if (_bitmap[i] != NULL) {
-            OS::safeFree(_bitmap[i], BITMAP_SIZE);
+    // Do not free the main profiler's thread filter,
+    // as it may be accessed concurrently during VM shutdown
+    if (_cleanup) {
+        for (int i = 0; i < MAX_BITMAPS; i++) {
+            if (_bitmap[i] != NULL) {
+                OS::safeFree(_bitmap[i], BITMAP_SIZE);
+            }
         }
     }
 }
