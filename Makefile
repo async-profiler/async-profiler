@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.0
+PROFILER_VERSION=2.1-ea
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -16,6 +16,7 @@ LIBS=-ldl -lpthread
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h)
@@ -27,22 +28,18 @@ ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
 endif
 
-ifeq ($(findstring release,$(MAKECMDGOALS)),release)
-  JAVAC_RELEASE_VERSION=6
-else
-  JAVAC_RELEASE_VERSION=7
-endif
-
 OS:=$(shell uname -s)
 ifeq ($(OS), Darwin)
   CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   SOEXT=dylib
+  PACKAGE_EXT=zip
   OS_TAG=macos
 else
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   SOEXT=so
+  PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
   else
@@ -55,7 +52,11 @@ ifeq ($(ARCH),x86_64)
   ARCH_TAG=x64
 else
   ifeq ($(findstring arm,$(ARCH)),arm)
-    ARCH_TAG=arm
+    ifeq ($(findstring 64,$(ARCH)),64)
+      ARCH_TAG=aarch64
+    else
+      ARCH_TAG=arm
+    endif
   else
     ifeq ($(findstring aarch64,$(ARCH)),aarch64)
       ARCH_TAG=aarch64
@@ -70,17 +71,24 @@ endif
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: build $(PACKAGE_NAME).tar.gz
+release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
-$(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
-                        build/$(API_JAR) build/$(CONVERTER_JAR) \
-                        profiler.sh LICENSE *.md
+$(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
+	tar cvzf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
+	rm -r $(PACKAGE_DIR)
+
+$(PACKAGE_NAME).zip: $(PACKAGE_DIR)
+	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/build/$(JATTACH) $(PACKAGE_DIR)/build/$(LIB_PROFILER_SO)
+	ditto -c -k --keepParent $(PACKAGE_DIR) $@
+	rm -r $(PACKAGE_DIR)
+
+$(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) \
+                build/$(API_JAR) build/$(CONVERTER_JAR) \
+                profiler.sh LICENSE *.md
 	mkdir -p $(PACKAGE_DIR)
 	cp -RP build profiler.sh LICENSE *.md $(PACKAGE_DIR)
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/*.md $(PACKAGE_DIR)/build/*.jar
-	tar cvzf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
-	rm -r $(PACKAGE_DIR)
 
 %.$(SOEXT): %.so
 	rm -f $@
