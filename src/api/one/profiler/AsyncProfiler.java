@@ -112,6 +112,12 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    /**
+     * Checks whether a feature is supported by the profiler
+     *
+     * @param feature Profiling feature, see {@link Features}
+     * @return true if the feature is supported
+     */
     @Override
     public boolean check(String feature) {
         return check0(feature);
