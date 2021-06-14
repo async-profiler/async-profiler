@@ -94,6 +94,10 @@ class VMStructs {
                                             jvmtiFrameInfo* frame_buffer, jint* count_ptr);
     static GetStackTraceFunc _get_stack_trace;
 
+    static bool hasDebugSymbols() {
+        return _get_stack_trace != NULL;
+    }
+
     typedef void (JNICALL *UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
     static UnsafeParkFunc _unsafe_park;
 };

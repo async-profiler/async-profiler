@@ -888,7 +888,7 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
-    if (VMStructs::_get_stack_trace == NULL) {
+    if (!VMStructs::hasDebugSymbols()) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 
@@ -1051,12 +1051,19 @@ Error Profiler::check(Arguments& args) {
     }
 
     Error error = checkJvmCapabilities();
-    if (error) {
-        return error;
+
+    if (!error && args._event != NULL) {
+        _engine = selectEngine(args._event);
+        error = _engine->check(args);
+    }
+    if (!error && args._alloc > 0) {
+        error = alloc_tracer.check(args);
+    }
+    if (!error && args._lock > 0) {
+        error = lock_tracer.check(args);
     }
 
-    _engine = selectEngine(args._event);
-    return _engine->check(args);
+    return error;
 }
 
 void Profiler::switchThreadEvents(jvmtiEventMode mode) {
