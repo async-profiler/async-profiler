@@ -118,6 +118,33 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_one_profiler_AsyncProfiler_check0(JNIEnv* env, jobject unused, jstring featureJava) {
+    const char *feature = env->GetStringUTFChars(featureJava, 0);
+
+    bool result = false;
+    if (strcmp(feature, "DEBUG_SYMBOLS") == 0) {
+        NativeCodeCache* libjvm = VMStructs::libjvm();
+
+        if (libjvm->findSymbolByPrefix("_ZN11AllocTracer27send_allocation_in_new_tlab") != NULL &&
+            libjvm->findSymbolByPrefix("_ZN11AllocTracer28send_allocation_outside_tlab") != NULL) {
+            result = true;
+        } else if (libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandleP8HeapWord") != NULL &&
+                   libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandleP8HeapWord") != NULL) {
+            result = true;
+        } else if (libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_event") != NULL &&
+                   libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_event") != NULL) {
+            result = true;
+        } else {
+            result = false;
+        }
+    }
+
+    env->ReleaseStringUTFChars(featureJava, feature);
+
+    return result;
+}
+
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
@@ -127,6 +154,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
+    F(check0, "(Ljava/lang/String;)Z"),
 };
 
 #undef F

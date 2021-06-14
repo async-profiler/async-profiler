@@ -112,6 +112,11 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    @Override
+    public boolean check(String feature) {
+        return check0(feature);
+    }
+
     /**
      * Execute an agent-compatible profiling command -
      * the comma-separated list of arguments described in arguments.cpp
@@ -212,4 +217,5 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
+    private native boolean check0(String feature);
 }
