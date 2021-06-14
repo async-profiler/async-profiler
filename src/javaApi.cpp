@@ -154,7 +154,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
-    F(check0, "(Ljava/lang/String;)Z"),
+    F(check0,        "(Ljava/lang/String;)Z"),
 };
 
 #undef F
