@@ -94,9 +94,7 @@ CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
 }
 
 CallTraceStorage::~CallTraceStorage() {
-    while (_current_table != NULL) {
-        _current_table = _current_table->destroy();
-    }
+    // Do not free memory, as it may be accessed concurrently during VM shutdown
 }
 
 void CallTraceStorage::clear() {
