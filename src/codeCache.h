@@ -101,6 +101,14 @@ class NativeCodeCache : public CodeCache {
         return _name;
     }
 
+    const void* minAddress() {
+        return _min_address;
+    }
+
+    const void* maxAddress() {
+        return _max_address;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void sort();
     const char* binarySearch(const void* address);

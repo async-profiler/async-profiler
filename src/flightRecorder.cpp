@@ -29,9 +29,9 @@
 #include "flightRecorder.h"
 #include "jfrMetadata.h"
 #include "dictionary.h"
-#include "log.h"
 #include "os.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "threadFilter.h"
 #include "vmStructs.h"
 
@@ -190,7 +190,8 @@ class Buffer {
         if (v == NULL) {
             put8(0);
         } else {
-            putUtf8(v, strlen(v) & MAX_STRING_LENGTH);
+            size_t len = strlen(v);
+            putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
         }
     }
 
@@ -331,14 +332,16 @@ class Recording {
 
     ~Recording() {
         stopCpuMonitor();
+        flush(&_cpu_monitor_buf);
 
-        _stop_nanos = OS::nanotime();
-        _stop_time = OS::millis();
+        writeNativeLibraries(_buf);
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             flush(&_buf[i]);
         }
-        flush(&_cpu_monitor_buf);
+
+        _stop_nanos = OS::nanotime();
+        _stop_time = OS::millis();
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
         writeCpool(_buf);
@@ -638,6 +641,10 @@ class Recording {
         if (args._lock > 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
+
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "loadLibraryHook", Profiler::_instance._original_NativeLibrary_load != NULL);
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
@@ -752,6 +759,23 @@ class Recording {
         jvmti->Deallocate((unsigned char*)keys);
     }
 
+    void writeNativeLibraries(Buffer* buf) {
+        NativeCodeCache** native_libs = Profiler::_instance._native_libs;
+        int native_lib_count = Profiler::_instance._native_lib_count;
+
+        for (int i = 0; i < native_lib_count; i++) {
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
+            int start = buf->skip(5);
+            buf->put8(T_NATIVE_LIBRARY);
+            buf->putVar64(_start_nanos);
+            buf->putUtf8(native_libs[i]->name());
+            buf->putVar64((uintptr_t) native_libs[i]->minAddress());
+            buf->putVar64((uintptr_t) native_libs[i]->maxAddress());
+            buf->putVar32(start, buf->offset() - start);
+            
+        }
+    }
+
     void writeCpool(Buffer* buf) {
         buf->skip(5);  // size will be patched later
         buf->putVar32(T_CPOOL);
@@ -760,7 +784,7 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(8);
+        buf->putVar32(9);
 
         writeFrameTypes(buf);
         writeThreadStates(buf);
@@ -770,6 +794,7 @@ class Recording {
         writeClasses(buf);
         writePackages(buf);
         writeSymbols(buf);
+        writeLogLevels(buf);
     }
 
     void writeFrameTypes(Buffer* buf) {
@@ -920,6 +945,15 @@ class Recording {
         }
     }
 
+    void writeLogLevels(Buffer* buf) {
+        buf->putVar32(T_LOG_LEVEL);
+        buf->putVar32(LOG_ERROR - LOG_TRACE + 1);
+        for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
+            buf->putVar32(i);
+            buf->putUtf8(Log::LEVEL_NAME[i]);
+        }
+    }
+
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
@@ -1023,11 +1057,13 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
     }
 
     _rec = new Recording(fd, args);
+    _rec_lock.unlock();
     return Error::OK;
 }
 
 void FlightRecorder::stop() {
     if (_rec != NULL) {
+        _rec_lock.lock();
         delete _rec;
         _rec = NULL;
     }
@@ -1077,4 +1113,25 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
         _rec->flushIfNeeded(buf);
         _rec->addThread(tid);
     }
+}
+
+void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) {
+    if (!_rec_lock.tryLockShared()) {
+        // No active recording
+        return;
+    }
+
+    if (len > MAX_STRING_LENGTH) len = MAX_STRING_LENGTH;
+    Buffer* buf = (Buffer*)alloca(len + 40);
+    buf->reset();
+
+    int start = buf->skip(5);
+    buf->put8(T_LOG);
+    buf->putVar64(OS::nanotime());
+    buf->put8(level);
+    buf->putUtf8(message, len);
+    buf->putVar32(start, buf->offset() - start);
+    _rec->flush(buf);
+
+    _rec_lock.unlockShared();
 }

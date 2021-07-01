@@ -28,6 +28,7 @@
 #include "engine.h"
 #include "event.h"
 #include "flightRecorder.h"
+#include "log.h"
 #include "mutex.h"
 #include "spinLock.h"
 #include "threadFilter.h"
@@ -194,6 +195,8 @@ class Profiler {
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
     void dumpText(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void writeLog(LogLevel level, const char* message);
+    void writeLog(LogLevel level, const char* message, size_t len);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);

@@ -33,7 +33,6 @@
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
-#include "log.h"
 #include "os.h"
 #include "stackFrame.h"
 #include "symbols.h"
@@ -617,6 +616,14 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     _locks[lock_index].unlock();
 }
 
+void Profiler::writeLog(LogLevel level, const char* message) {
+    _jfr.recordLog(level, message, strlen(message));
+}
+
+void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
+    _jfr.recordLog(level, message, len);
+}
+
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
     jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean))
                        _instance._original_NativeLibrary_load)(env, self, name, builtin);
@@ -969,10 +976,13 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
+    switchNativeMethodTraps(true);
+
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
+            switchNativeMethodTraps(false);
             return error;
         }
     }
@@ -997,7 +1007,6 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
-    switchNativeMethodTraps(true);
 
     _state = RUNNING;
     _start_time = time(NULL);
@@ -1011,6 +1020,7 @@ error2:
 
 error1:
     uninstallTraps();
+    switchNativeMethodTraps(false);
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
     _jfr.stop();
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();

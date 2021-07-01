@@ -20,18 +20,21 @@
 #include "arch.h"
 #include "arguments.h"
 #include "event.h"
+#include "log.h"
+#include "spinLock.h"
 
 class Recording;
 
 class FlightRecorder {
   private:
+    SpinLock _rec_lock;
     Recording* _rec;
     bool _java_helper_loaded;
 
     bool loadJavaHelper();
 
   public:
-    FlightRecorder() : _rec(NULL), _java_helper_loaded(false) {
+    FlightRecorder() : _rec_lock(1), _rec(NULL), _java_helper_loaded(false) {
     }
 
     Error start(Arguments& args, bool reset);
@@ -43,6 +46,8 @@ class FlightRecorder {
 
     void recordEvent(int lock_index, int tid, u32 call_trace_id,
                      int event_type, Event* event, u64 counter);
+
+    void recordLog(LogLevel level, const char* message, size_t len);
 };
 
 #endif // _FLIGHTRECORDER_H

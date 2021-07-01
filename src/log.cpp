@@ -16,7 +16,10 @@
 
 #include <string.h>
 #include "log.h"
+#include "profiler.h"
 
+
+const char* const Log::LEVEL_NAME[] = {NULL, "TRACE", "DEBUG", "INFO", "WARN", "ERROR"};
 
 FILE* Log::_file = stdout;
 
@@ -43,30 +46,39 @@ void Log::close() {
     }
 }
 
-inline void Log::log(const char* level, const char* msg, va_list args) {
-    fputs(level, _file);
-    vfprintf(_file, msg, args);
-    fputs("\n", _file);
+void Log::log(LogLevel level, const char* msg, va_list args) {
+    char buf[1024];
+    size_t len = vsnprintf(buf, sizeof(buf), msg, args);
+    if (len >= sizeof(buf)) {
+        len = sizeof(buf) - 1;
+        buf[len] = 0;
+    }
+
+    if (level < LOG_ERROR) {
+        Profiler::_instance.writeLog(level, buf, len);
+    }
+
+    fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
     fflush(_file);
 }
 
 void Log::info(const char* msg, ...) {
     va_list args;
     va_start(args, msg);
-    log("[INFO] ", msg, args);
+    log(LOG_INFO, msg, args);
     va_end(args);
 }
 
 void Log::warn(const char* msg, ...) {
     va_list args;
     va_start(args, msg);
-    log("[WARN] ", msg, args);
+    log(LOG_WARN, msg, args);
     va_end(args);
 }
 
 void Log::error(const char* msg, ...) {
     va_list args;
     va_start(args, msg);
-    log("[ERROR] ", msg, args);
+    log(LOG_ERROR, msg, args);
     va_end(args);
 }

@@ -48,6 +48,7 @@ enum JfrType {
     T_METHOD = 28,
     T_PACKAGE = 29,
     T_SYMBOL = 30,
+    T_LOG_LEVEL = 31,
 
     T_EVENT = 100,
     T_EXECUTION_SAMPLE = 101,
@@ -62,6 +63,8 @@ enum JfrType {
     T_CPU_INFORMATION = 110,
     T_JVM_INFORMATION = 111,
     T_INITIAL_SYSTEM_PROPERTY = 112,
+    T_NATIVE_LIBRARY = 113,
+    T_LOG = 114,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,

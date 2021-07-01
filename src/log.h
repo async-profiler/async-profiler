@@ -21,15 +21,27 @@
 #include <stdio.h>
 
 
+enum LogLevel {
+    LOG_NONE,
+    LOG_TRACE,
+    LOG_DEBUG,
+    LOG_INFO,
+    LOG_WARN,
+    LOG_ERROR
+};
+
+
 class Log {
   private:
     static FILE* _file;
 
-    static void log(const char* level, const char* msg, va_list args);
-
   public:
+    static const char* const LEVEL_NAME[];
+
     static void open(const char* file_name);
     static void close();
+
+    static void log(LogLevel level, const char* msg, va_list args);
 
     static void info(const char* msg, ...);
     static void warn(const char* msg, ...);

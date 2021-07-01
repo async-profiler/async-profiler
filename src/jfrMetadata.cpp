@@ -82,6 +82,9 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << (type("jdk.types.Symbol", T_SYMBOL, "Symbol", true)
                 << field("string", T_STRING, "String"))
 
+            << (type("profiler.types.LogLevel", T_LOG_LEVEL, "Log Level", true)
+                << field("name", T_STRING, "Name"))
+
             << (type("jdk.ExecutionSample", T_EXECUTION_SAMPLE, "Method Profiling Sample")
                 << category("Java Virtual Machine", "Profiling")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
@@ -184,6 +187,19 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("key", T_STRING, "Key")
                 << field("value", T_STRING, "Value"))
+
+            << (type("jdk.NativeLibrary", T_NATIVE_LIBRARY, "Native Library")
+                << category("Java Virtual Machine", "Runtime")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("name", T_STRING, "Name")
+                << field("baseAddress", T_LONG, "Base Address", F_ADDRESS)
+                << field("topAddress", T_LONG, "Top Address", F_ADDRESS))
+
+            << (type("profiler.Log", T_LOG, "Log Message")
+                << category("Profiler")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("level", T_LOG_LEVEL, "Level", F_CPOOL)
+                << field("message", T_STRING, "Message"))
 
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))

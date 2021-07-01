@@ -64,6 +64,18 @@ mirror_output() {
     fi
 }
 
+mirror_log() {
+    # Try to access the log file both directly and through /proc/[pid]/root,
+    # in case the target namespace differs
+    if [ -f "$LOG" ]; then
+        cat "$LOG" >&2
+        rm "$LOG"
+    elif [ -f "$ROOT_PREFIX$LOG" ]; then
+        cat "$ROOT_PREFIX$LOG" >&2
+        rm "$ROOT_PREFIX$LOG"
+    fi
+}
+
 check_if_terminated() {
     if ! kill -0 "$PID" 2> /dev/null; then
         mirror_output
@@ -87,19 +99,11 @@ jattach() {
             fi
         fi
 
-        # Try to access the log file both directly and through /proc/[pid]/root,
-        # in case the target namespace differs
-        if [ -f "$LOG" ]; then
-            cat "$LOG" >&2
-            rm "$LOG"
-        elif [ -f "$ROOT_PREFIX$LOG" ]; then
-            cat "$ROOT_PREFIX$LOG" >&2
-            rm "$ROOT_PREFIX$LOG"
-        fi
+        mirror_log
         exit $RET
     fi
 
-    rm -f "$LOG" "$ROOT_PREFIX$LOG"
+    mirror_log
     mirror_output
     set -e
 }
