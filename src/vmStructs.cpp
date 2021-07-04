@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <string.h>
+#include <unistd.h>
 #include "vmStructs.h"
 #include "vmEntry.h"
 
@@ -55,6 +56,8 @@ VMStructs::UnsafeParkFunc VMStructs::_unsafe_park = NULL;
 VMStructs::FindBlobFunc VMStructs::_find_blob = NULL;
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
+char* VMStructs::_method_flushing = NULL;
+int* VMStructs::_sweep_started = NULL;
 
 
 uintptr_t VMStructs::readSymbol(const char* symbol_name) {
@@ -187,6 +190,11 @@ void VMStructs::initJvmFunctions() {
         _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
         _has_class_loader_data = _lock_func != NULL && _unlock_func != NULL;
     }
+
+    if (VM::hotspot_version() > 0 && VM::hotspot_version() <= 8) {
+        _method_flushing = (char*)_libjvm->findSymbol("MethodFlushing");
+        _sweep_started = (int*)_libjvm->findSymbol("_ZN14NMethodSweeper14_sweep_startedE");
+    }
 }
 
 void VMStructs::initThreadBridge(JNIEnv* env) {
@@ -237,4 +245,28 @@ void VMStructs::initLogging(JNIEnv* env) {
 
 VMThread* VMThread::current() {
     return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+}
+
+DisableSweeper::DisableSweeper() {
+    // Workaround for JDK-8212160: Temporarily disable MethodFlushing
+    // while generating initial set of CompiledMethodLoad events
+    _enabled = _method_flushing != NULL && *_method_flushing;
+    if (!_enabled) return;
+
+    *_method_flushing = 0;
+    __sync_synchronize();
+
+    // Wait a bit in case sweeping has already started
+    for (int i = 0; i < 4; i++) {
+        if (_sweep_started == NULL || *_sweep_started) {
+            usleep(1000);
+        }
+    }
+}
+
+DisableSweeper::~DisableSweeper() {
+    if (!_enabled) return;
+
+    *_method_flushing = 1;
+    __sync_synchronize();
 }

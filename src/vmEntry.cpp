@@ -115,6 +115,7 @@ void VM::init(JavaVM* vm, bool attach) {
 
     if (attach) {
         loadAllMethodIDs(jvmti(), jni());
+        DisableSweeper ds;
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
     }
