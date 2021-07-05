@@ -535,9 +535,11 @@ Error PerfEvents::start(Arguments& args) {
 
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
-        fprintf(stderr, "WARNING: Kernel symbols are unavailable due to restrictions. Try\n"
-                        "  echo 0 > /proc/sys/kernel/kptr_restrict\n"
-                        "  echo 1 > /proc/sys/kernel/perf_event_paranoid\n");
+        if (args._log) {
+            fprintf(stderr, "WARNING: Kernel symbols are unavailable due to restrictions. Try\n"
+                            "  echo 0 > /proc/sys/kernel/kptr_restrict\n"
+                            "  echo 1 > /proc/sys/kernel/perf_event_paranoid\n");
+        }
         _ring = RING_USER;
     }
     _cstack = args._cstack;

@@ -180,7 +180,7 @@ class Profiler {
     void updateNativeThreadNames();
     bool excludeTrace(FrameName* fn, CallTraceSample* trace);
     Engine* selectEngine(const char* event_name);
-    Error checkJvmCapabilities();
+    Error checkJvmCapabilities(bool print_warnings);
 
   public:
     static Profiler _instance;

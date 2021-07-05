@@ -789,7 +789,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Error Profiler::checkJvmCapabilities() {
+Error Profiler::checkJvmCapabilities(bool print_warnings) {
     if (VMStructs::libjvm() == NULL) {
         return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
     }
@@ -798,7 +798,7 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
-    if (VMStructs::_get_stack_trace == NULL) {
+    if (VMStructs::_get_stack_trace == NULL && print_warnings) {
         fprintf(stderr, "WARNING: Install JVM debug symbols to improve profile accuracy\n");
     }
 
@@ -811,7 +811,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
-    Error error = checkJvmCapabilities();
+    Error error = checkJvmCapabilities(args._log);
     if (error) {
         return error;
     }
@@ -934,7 +934,7 @@ Error Profiler::check(Arguments& args) {
         return Error("Profiler already started");
     }
 
-    Error error = checkJvmCapabilities();
+    Error error = checkJvmCapabilities(args._log);
     if (error) {
         return error;
     }

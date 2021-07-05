@@ -201,6 +201,9 @@ Error Arguments::parse(const char* args) {
             CASE("threads")
                 _threads = true;
 
+            CASE("log")
+                _log = value == NULL || (strcmp(value, "none") != 0 && strcmp(value, "/dev/null") != 0);
+
             CASE("allkernel")
                 _ring = RING_KERNEL;
 

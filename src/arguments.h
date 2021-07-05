@@ -123,6 +123,7 @@ class Arguments {
     int _include;
     int _exclude;
     bool _threads;
+    bool _log;
     int _style;
     CStack _cstack;
     Output _output;
@@ -150,6 +151,7 @@ class Arguments {
         _include(0),
         _exclude(0),
         _threads(false),
+        _log(true),
         _style(0),
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
