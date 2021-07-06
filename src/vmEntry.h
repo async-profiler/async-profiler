@@ -90,6 +90,7 @@ class VM {
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
     static volatile int _in_redefine_classes;
     static int _hotspot_version;
+    static int _hotspot_minor;
 
     static void ready();
     static void* getLibraryHandle(const char* name);
@@ -118,6 +119,10 @@ class VM {
 
     static int hotspot_version() {
         return _hotspot_version;
+    }
+
+    static int hotspot_minor() {
+        return _hotspot_minor;
     }
 
     static bool inRedefineClasses() {

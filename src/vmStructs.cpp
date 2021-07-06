@@ -191,7 +191,8 @@ void VMStructs::initJvmFunctions() {
         _has_class_loader_data = _lock_func != NULL && _unlock_func != NULL;
     }
 
-    if (VM::hotspot_version() > 0 && VM::hotspot_version() <= 8) {
+    if ((VM::hotspot_version() > 0 && VM::hotspot_version() < 11) ||
+        (VM::hotspot_version() == 11 && VM::hotspot_minor() < 10)) {
         _method_flushing = (char*)_libjvm->findSymbol("MethodFlushing");
         _sweep_started = (int*)_libjvm->findSymbol("_ZN14NMethodSweeper14_sweep_startedE");
     }

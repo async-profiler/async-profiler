@@ -33,6 +33,7 @@ static Arguments _agent_args;
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
+int VM::_hotspot_minor = 0;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -64,6 +65,11 @@ void VM::init(JavaVM* vm, bool attach) {
                 _hotspot_version = 6;
             } else if ((_hotspot_version = atoi(prop)) < 9) {
                 _hotspot_version = 9;
+            } else {
+                const char* p = strchr(prop, '.');
+                if (p != NULL && (p = strchr(p + 1, '.')) != NULL) {
+                    _hotspot_minor = atoi(p + 1);
+                }
             }
             _jvmti->Deallocate((unsigned char*)prop);
         }
