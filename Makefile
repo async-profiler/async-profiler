@@ -33,11 +33,13 @@ ifeq ($(OS), Darwin)
   CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   SOEXT=dylib
+  CODESIGN=codesign -s "Developer ID" -o runtime --timestamp -v $(1)
   OS_TAG=macos
 else
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   SOEXT=so
+  CODESIGN=
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
   else
@@ -70,6 +72,8 @@ release: build $(PACKAGE_NAME).tar.gz
 $(PACKAGE_NAME).tar.gz: build/$(LIB_PROFILER) build/$(JATTACH) \
                         build/$(API_JAR) build/$(CONVERTER_JAR) \
                         profiler.sh LICENSE NOTICE *.md
+	$(call CODESIGN,build/$(LIB_PROFILER))
+	$(call CODESIGN,build/$(JATTACH))
 	mkdir -p $(PACKAGE_DIR)
 	cp -RP build profiler.sh LICENSE NOTICE *.md $(PACKAGE_DIR)
 	chmod -R 755 $(PACKAGE_DIR)
