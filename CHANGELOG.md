@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.6] - 2021-07-08
+
+### Improvements
+ - `log=none` option to suppress warnings about missing JVM symbols
+ - Sign macOS binaries
+
+### Bug fixes
+ - Workaround for JDK-8212160
+
 ## [1.8.5] - 2021-03-22
 
 ### Improvements

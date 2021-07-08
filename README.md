@@ -14,21 +14,16 @@ async-profiler can trace the following kinds of events:
 
 ## Download
 
-Latest release (1.8.5):
+Latest v1 release (1.8.6):
 
- - Linux x64 (glibc): [async-profiler-1.8.5-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-linux-x64.tar.gz)
- - Linux x86 (glibc): [async-profiler-1.8.5-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-linux-x86.tar.gz)
- - Linux x64 (musl): [async-profiler-1.8.5-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-linux-musl-x64.tar.gz)
- - Linux ARM: [async-profiler-1.8.5-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-linux-arm.tar.gz)
- - Linux AArch64: [async-profiler-1.8.5-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-linux-aarch64.tar.gz)
- - macOS x64: [async-profiler-1.8.5-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.5/async-profiler-1.8.5-macos-x64.tar.gz)
+ - Linux x64 (glibc): [async-profiler-1.8.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-linux-x64.tar.gz)
+ - Linux x86 (glibc): [async-profiler-1.8.6-linux-x86.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-linux-x86.tar.gz)
+ - Linux x64 (musl): [async-profiler-1.8.6-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-linux-musl-x64.tar.gz)
+ - Linux ARM: [async-profiler-1.8.6-linux-arm.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-linux-arm.tar.gz)
+ - Linux AArch64: [async-profiler-1.8.6-linux-aarch64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-linux-aarch64.tar.gz)
+ - macOS x64: [async-profiler-1.8.6-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v1.8.6/async-profiler-1.8.6-macos-x64.tar.gz)
 
-[Early access](https://github.com/jvm-profiling-tools/async-profiler/releases/tag/v2.0-b1) (2.0-b1):
-
- - Linux x64 (glibc): [async-profiler-2.0-b1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-b1/async-profiler-2.0-b1-linux-x64.tar.gz)
- - macOS x64: [async-profiler-2.0-b1-macos-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.0-b1/async-profiler-2.0-b1-macos-x64.tar.gz)
-
-[Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
+[Other releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
 Note: async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.
 For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-profiler.html).
@@ -241,7 +236,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,file=profile.svg ...
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.8.5/src/arguments.cpp#L49).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v1.8.6/src/arguments.cpp#L49).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e alloc` is converted to `event=alloc`, `-f profile.svg`
