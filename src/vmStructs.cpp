@@ -52,7 +52,6 @@ int VMStructs::_tls_index = -1;
 intptr_t VMStructs::_env_offset;
 
 VMStructs::GetStackTraceFunc VMStructs::_get_stack_trace = NULL;
-VMStructs::UnsafeParkFunc VMStructs::_unsafe_park = NULL;
 VMStructs::FindBlobFunc VMStructs::_find_blob = NULL;
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
@@ -170,12 +169,6 @@ void VMStructs::initJvmFunctions() {
     _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP15_jvmtiFrameInfoPi");
     if (_get_stack_trace == NULL) {
         _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbol("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP14jvmtiFrameInfoPi");
-    }
-
-    _unsafe_park = (UnsafeParkFunc)_libjvm->findSymbol("Unsafe_Park");
-    if (_unsafe_park == NULL) {
-        // In some macOS builds of JDK 11 Unsafe_Park appears to have a C++ decorated name
-        _unsafe_park = (UnsafeParkFunc)_libjvm->findSymbol("_ZL11Unsafe_ParkP7JNIEnv_P8_jobjecthl");
     }
 
     if (_frame_size_offset >= 0) {

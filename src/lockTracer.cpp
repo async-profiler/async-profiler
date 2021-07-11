@@ -18,16 +18,23 @@
 #include "lockTracer.h"
 #include "os.h"
 #include "profiler.h"
-#include "vmStructs.h"
 
 
 jlong LockTracer::_threshold;
 jlong LockTracer::_start_time = 0;
+jclass LockTracer::_UnsafeClass = NULL;
 jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
+RegisterNativesFunc LockTracer::_orig_RegisterNatives = NULL;
+UnsafeParkFunc LockTracer::_orig_Unsafe_park = NULL;
+bool LockTracer::_initialized = false;
 
 Error LockTracer::start(Arguments& args) {
     _threshold = args._lock;
+
+    if (!_initialized) {
+        initialize();
+    }
 
     // Enable Java Monitor events
     jvmtiEnv* jvmti = VM::jvmti();
@@ -35,15 +42,9 @@ Error LockTracer::start(Arguments& args) {
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
     _start_time = OS::nanotime();
 
-    if (_getBlocker == NULL) {
-        JNIEnv* env = VM::jni();
-        _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));
-        _getBlocker = env->GetStaticMethodID(_LockSupport, "getBlocker", "(Ljava/lang/Thread;)Ljava/lang/Object;");
-    }
-
     // Intercept Unsafe.park() for tracing contended ReentrantLocks
-    if (VMStructs::_unsafe_park != NULL) {
-        bindUnsafePark(UnsafeParkTrap);
+    if (_orig_Unsafe_park != NULL) {
+        bindUnsafePark(UnsafeParkHook);
     }
 
     return Error::OK;
@@ -56,9 +57,42 @@ void LockTracer::stop() {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
 
     // Reset Unsafe.park() trap
-    if (VMStructs::_unsafe_park != NULL) {
-        bindUnsafePark(VMStructs::_unsafe_park);
+    if (_orig_Unsafe_park != NULL) {
+        bindUnsafePark(_orig_Unsafe_park);
     }
+}
+
+void LockTracer::initialize() {
+    jvmtiEnv* jvmti = VM::jvmti();
+    JNIEnv* env = VM::jni();
+
+    // Try JDK 9+ package first, then fallback to JDK 8 package
+    jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
+    if (unsafe == NULL && (unsafe = env->FindClass("sun/misc/Unsafe")) == NULL) {
+        env->ExceptionClear();
+        return;
+    }
+
+    _UnsafeClass = (jclass)env->NewGlobalRef(unsafe);
+    jmethodID register_natives = env->GetStaticMethodID(_UnsafeClass, "registerNatives", "()V");
+    jniNativeInterface* jni_functions;
+    if (register_natives != NULL && jvmti->GetJNIFunctionTable(&jni_functions) == 0) {
+        _orig_RegisterNatives = jni_functions->RegisterNatives;
+        jni_functions->RegisterNatives = RegisterNativesHook;
+        jvmti->SetJNIFunctionTable(jni_functions);
+
+        // Trace Unsafe.registerNatives() to find the original address of Unsafe.park() native  
+        env->CallStaticVoidMethod(_UnsafeClass, register_natives);
+
+        jni_functions->RegisterNatives = _orig_RegisterNatives;
+        jvmti->SetJNIFunctionTable(jni_functions);
+    }
+
+    _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));
+    _getBlocker = env->GetStaticMethodID(_LockSupport, "getBlocker", "(Ljava/lang/Thread;)Ljava/lang/Object;");
+
+    env->ExceptionClear();
+    _initialized = true;
 }
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
@@ -79,7 +113,20 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     }
 }
 
-void JNICALL LockTracer::UnsafeParkTrap(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
+jint JNICALL LockTracer::RegisterNativesHook(JNIEnv* env, jclass cls, const JNINativeMethod* methods, jint nMethods) {
+    if (env->IsSameObject(cls, _UnsafeClass)) {
+        for (jint i = 0; i < nMethods; i++) {
+            if (strcmp(methods[i].name, "park") == 0 && strcmp(methods[i].signature, "(ZJ)V") == 0) {
+                _orig_Unsafe_park = (UnsafeParkFunc)methods[i].fnPtr;
+                break;
+            } 
+        }
+        return 0;
+    }
+    return _orig_RegisterNatives(env, cls, methods, nMethods);
+}
+
+void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
     jvmtiEnv* jvmti = VM::jvmti();
     jobject park_blocker = _enabled ? getParkBlocker(jvmti, env) : NULL;
     jlong park_start_time, park_end_time;
@@ -88,7 +135,7 @@ void JNICALL LockTracer::UnsafeParkTrap(JNIEnv* env, jobject instance, jboolean 
         park_start_time = OS::nanotime();
     }
 
-    VMStructs::_unsafe_park(env, instance, isAbsolute, time);
+    _orig_Unsafe_park(env, instance, isAbsolute, time);
 
     if (park_blocker != NULL) {
         park_end_time = OS::nanotime();
@@ -149,15 +196,8 @@ void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_tim
 
 void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {
     JNIEnv* env = VM::jni();
-
-    // Try JDK 9+ package first, then fallback to JDK 8 package
-    jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
-    if (unsafe == NULL) unsafe = env->FindClass("sun/misc/Unsafe");
-
-    if (unsafe != NULL) {
-        const JNINativeMethod unsafe_park = {(char*)"park", (char*)"(ZJ)V", (void*)entry};
-        env->RegisterNatives(unsafe, &unsafe_park, 1);
+    const JNINativeMethod park = {(char*)"park", (char*)"(ZJ)V", (void*)entry};
+    if (env->RegisterNatives(_UnsafeClass, &park, 1) != 0) {
+        env->ExceptionClear();
     }
-
-    env->ExceptionClear();
 }
