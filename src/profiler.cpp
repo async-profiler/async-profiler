@@ -436,7 +436,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
         if (VMStructs::_get_stack_trace != NULL && CollectedHeap::isGCActive() && !VM::inRedefineClasses()) {
             // While GC is running Java threads are known to be at safepoint
-            return getJavaTraceJvmti((jvmtiFrameInfo*)frames, frames, max_depth);
+            return getJavaTraceInternal((jvmtiFrameInfo*)frames, frames, max_depth);
         }
     }
 
@@ -456,7 +456,15 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     return trace.frames - frames + 1;
 }
 
-int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
+int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth) {
+    int num_frames;
+    if (VM::jvmti()->GetStackTrace(NULL, start_depth, _max_stack_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+        return convertFrames(jvmti_frames, frames, num_frames);
+    }
+    return 0;
+}
+
+int Profiler::getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
     // We cannot call pure JVM TI here, because it assumes _thread_in_native state,
     // but allocation events happen in _thread_in_vm state,
     // see https://github.com/jvm-profiling-tools/async-profiler/issues/64
@@ -469,16 +477,21 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
     VMThread* vm_thread = VMThread::fromEnv(jni);
     int num_frames;
     if (VMStructs::_get_stack_trace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
-        // Profiler expects stack trace in AsyncGetCallTrace format; convert it now
-        for (int i = 0; i < num_frames; i++) {
-            frames[i].method_id = jvmti_frames[i].method;
-            frames[i].bci = 0;
-        }
-        return num_frames;
+        return convertFrames(jvmti_frames, frames, num_frames);
     }
-
     return 0;
 }
+
+inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames) {
+    // Convert to AsyncGetCallTrace format.
+    // Note: jvmti_frames and frames may overlap.
+    for (int i = 0; i < num_frames; i++) {
+        jint bci = jvmti_frames[i].location;
+        frames[i].method_id = jvmti_frames[i].method;
+        frames[i].bci = bci;
+    }
+    return num_frames;
+} 
 
 inline int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id) {
     frames[0].bci = event_type;
@@ -571,6 +584,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     }
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
+    jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
@@ -585,20 +599,22 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     }
 
     int first_java_frame = num_frames;
-    if (event_type != 0 && VMStructs::_get_stack_trace != NULL) {
-        // Events like object allocation happen at known places where it is safe to call JVM TI
-        jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
-        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-    } else {
+    if (event_type <= BCI_LOCK) {
+        // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
+        // Skip Instrument.recordSample() method
+        int start_depth = event_type == BCI_INSTRUMENT ? 1 : 0;
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
+    } else if (event_type == 0 || VMStructs::_get_stack_trace == NULL) {
+        // Async events
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+    } else {
+        // Events like object allocation happen at known places where it is safe to call JVM TI,
+        // but not directly, since the thread is in_vm rather than in_native
+        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     }
 
     if (num_frames == 0) {
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)"no_Java_frame");
-    } else if (event_type == BCI_INSTRUMENT) {
-        // Skip Instrument.recordSample() method
-        frames++;
-        num_frames--;
     }
 
     // TODO: Zero out top bci to reduce the number of stack traces

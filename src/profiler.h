@@ -137,7 +137,9 @@ class Profiler {
     bool inJavaCode(void* ucontext);
     int getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
-    int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
+    int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
+    int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
+    int convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id);
     bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
     AddressType getAddressType(instruction_t* pc);
