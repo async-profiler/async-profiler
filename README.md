@@ -36,7 +36,7 @@ Note: async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and l
 For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-profiler.html).
 
 ## Supported platforms
-
+ - **Windows** / x64 - <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/IntelliJ_IDEA_Icon.svg/1024px-IntelliJ_IDEA_Icon.svg.png" width="16"/> [IntelliJ IDEA](https://www.jetbrains.com/idea/) 2021.2 and later
  - **Linux** / x64 / x86 / ARM / AArch64
  - **macOS** / x64
 
