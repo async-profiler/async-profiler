@@ -306,7 +306,7 @@ class Recording {
     }
 
   public:
-    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(true), _packages(), _symbols(), _method_map() {
+    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _packages(), _symbols(), _method_map() {
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
         _start_nanos = OS::nanotime();
@@ -379,7 +379,7 @@ class Recording {
         _append_fd = open(file_name_str, O_WRONLY);
         if (_append_fd >= 0) {
             lseek(_append_fd, 0, SEEK_END);
-            Profiler::_instance.stop();
+            Profiler::instance()->stop();
             close(_append_fd);
             _append_fd = -1;
         } else {
@@ -394,7 +394,7 @@ class Recording {
     }
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        mi->_class = Profiler::_instance.classMap()->lookup("");
+        mi->_class = Profiler::instance()->classMap()->lookup("");
         mi->_modifiers = 0x100;
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
@@ -435,11 +435,11 @@ class Recording {
         if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
             jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
             jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
-            mi->_class = Profiler::_instance.classMap()->lookup(class_name + 1, strlen(class_name) - 2);
+            mi->_class = Profiler::instance()->classMap()->lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
         } else {
-            mi->_class = Profiler::_instance.classMap()->lookup("");
+            mi->_class = Profiler::instance()->classMap()->lookup("");
             mi->_name = _symbols.lookup("jvmtiError");
             mi->_sig = _symbols.lookup("()L;");
         }
@@ -644,7 +644,7 @@ class Recording {
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
-        writeBoolSetting(buf, T_ACTIVE_RECORDING, "loadLibraryHook", Profiler::_instance._original_NativeLibrary_load != NULL);
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "loadLibraryHook", Profiler::instance()->_original_NativeLibrary_load != NULL);
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
@@ -760,8 +760,9 @@ class Recording {
     }
 
     void writeNativeLibraries(Buffer* buf) {
-        NativeCodeCache** native_libs = Profiler::_instance._native_libs;
-        int native_lib_count = Profiler::_instance._native_lib_count;
+        Profiler* profiler = Profiler::instance();
+        NativeCodeCache** native_libs = profiler->_native_libs;
+        int native_lib_count = profiler->_native_lib_count;
 
         for (int i = 0; i < native_lib_count; i++) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
@@ -819,9 +820,10 @@ class Recording {
         std::vector<int> threads;
         _thread_set.collect(threads);
 
-        MutexLocker ml(Profiler::_instance._thread_names_lock);
-        std::map<int, std::string>& thread_names = Profiler::_instance._thread_names;
-        std::map<int, jlong>& thread_ids = Profiler::_instance._thread_ids;
+        Profiler* profiler = Profiler::instance();
+        MutexLocker ml(profiler->_thread_names_lock);
+        std::map<int, std::string>& thread_names = profiler->_thread_names;
+        std::map<int, jlong>& thread_ids = profiler->_thread_ids;
         char name_buf[32];
 
         buf->putVar32(T_THREAD);
@@ -854,7 +856,7 @@ class Recording {
 
     void writeStackTraces(Buffer* buf) {
         std::map<u32, CallTrace*> traces;
-        Profiler::_instance._call_trace_storage.collectTraces(traces);
+        Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
         buf->putVar32(T_STACK_TRACE);
         buf->putVar32(traces.size());
@@ -904,7 +906,7 @@ class Recording {
 
     void writeClasses(Buffer* buf) {
         std::map<u32, const char*> classes;
-        Profiler::_instance.classMap()->collect(classes);
+        Profiler::instance()->classMap()->collect(classes);
 
         buf->putVar32(T_CLASS);
         buf->putVar32(classes.size());

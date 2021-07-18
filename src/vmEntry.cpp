@@ -139,14 +139,15 @@ bool VM::init(JavaVM* vm, bool attach) {
 
 // Run late initialization when JVM is ready
 void VM::ready() {
-    Profiler::_instance.updateSymbols(false);
-    NativeCodeCache* libjvm = Profiler::_instance.findNativeLibrary((const void*)_asyncGetCallTrace);
+    Profiler* profiler = Profiler::instance();
+    profiler->updateSymbols(false);
+    NativeCodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
         VMStructs::init(libjvm);
     }
 
-    Profiler::_instance.setupTrapHandler();
+    profiler->setupTrapHandler();
 
     _libjava = getLibraryHandle("libjava.so");
 
@@ -208,14 +209,14 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     loadAllMethodIDs(jvmti, jni);
 
     // Delayed start of profiler if agent has been loaded at VM bootstrap
-    Error error = Profiler::_instance.run(_agent_args);
+    Error error = Profiler::instance()->run(_agent_args);
     if (error) {
         Log::error(error.message());
     }
 }
 
 void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
-    Profiler::_instance.shutdown(_agent_args);
+    Profiler::instance()->shutdown(_agent_args);
 }
 
 jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions) {
@@ -258,7 +259,7 @@ jvmtiError VM::GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type) {
     if (event_type == JVMTI_EVENT_COMPILED_METHOD_LOAD) {
         // Workaround for JDK-8222072: prepare to receive events designated for another agent
         Log::warn("async-profiler conflicts with another agent calling GenerateEvents()");
-        Profiler::_instance.resetJavaMethods();
+        Profiler::instance()->resetJavaMethods();
     }
     return _orig_GenerateEvents(jvmti, event_type);
 }
@@ -301,7 +302,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         _agent_args.save(args);
     }
 
-    error = Profiler::_instance.run(args);
+    error = Profiler::instance()->run(args);
     if (error) {
         Log::error(error.message());
         return COMMAND_ERROR;

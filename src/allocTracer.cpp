@@ -50,7 +50,7 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         instance_size = 0;
     } else {
         // Not our trap
-        Profiler::_instance.trapHandler(signo, siginfo, ucontext);
+        Profiler::instance()->trapHandler(signo, siginfo, ucontext);
         return;
     }
 
@@ -89,10 +89,10 @@ void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rkl
 
     if (VMStructs::hasClassNames()) {
         VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
-        event._class_id = Profiler::_instance.classMap()->lookup(symbol->body(), symbol->length());
+        event._class_id = Profiler::instance()->classMap()->lookup(symbol->body(), symbol->length());
     }
 
-    Profiler::_instance.recordSample(ucontext, total_size, event_type, &event);
+    Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
 }
 
 Error AllocTracer::check(Arguments& args) {

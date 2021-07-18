@@ -91,7 +91,7 @@ FrameName::FrameName(Arguments& args, int style, Mutex& thread_names_lock, Threa
     buildFilter(_include, args._buf, args._include);
     buildFilter(_exclude, args._buf, args._exclude);
 
-    Profiler::_instance.classMap()->collect(_class_names);
+    Profiler::instance()->classMap()->collect(_class_names);
 }
 
 FrameName::~FrameName() {

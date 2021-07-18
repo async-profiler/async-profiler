@@ -55,7 +55,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     }
 
     if (level < LOG_ERROR) {
-        Profiler::_instance.writeLog(level, buf, len);
+        Profiler::instance()->writeLog(level, buf, len);
     }
 
     fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);

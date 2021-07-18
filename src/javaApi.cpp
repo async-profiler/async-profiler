@@ -38,7 +38,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
         args._interval = interval;
     }
 
-    Error error = Profiler::_instance.start(args, reset);
+    Error error = Profiler::instance()->start(args, reset);
     env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
@@ -48,7 +48,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
 
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
-    Error error = Profiler::_instance.stop();
+    Error error = Profiler::instance()->stop();
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -69,7 +69,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
 
     if (!args.hasOutputFile()) {
         std::ostringstream out;
-        error = Profiler::_instance.runInternal(args, out);
+        error = Profiler::instance()->runInternal(args, out);
         if (!error) {
             return env->NewStringUTF(out.str().c_str());
         }
@@ -79,7 +79,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
             JavaAPI::throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;
         }
-        error = Profiler::_instance.runInternal(args, out);
+        error = Profiler::instance()->runInternal(args, out);
         out.close();
         if (!error) {
             return env->NewStringUTF("OK");
@@ -92,7 +92,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
-    return (jlong)Profiler::_instance.total_samples();
+    return (jlong)Profiler::instance()->total_samples();
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -110,7 +110,7 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
         return;
     }
 
-    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     if (enable) {
         thread_filter->add(thread_id);
     } else {

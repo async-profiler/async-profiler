@@ -153,14 +153,14 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
-  public:
-    static Profiler _instance;
+    static Profiler* const _instance;
 
+  public:
     Profiler() :
         _state(IDLE),
         _begin_trap(2),
         _end_trap(3),
-        _thread_filter(false),
+        _thread_filter(),
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
@@ -177,6 +177,10 @@ class Profiler {
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
         }
+    }
+
+    static Profiler* instance() {
+        return _instance;
     }
 
     u64 total_samples() { return _total_samples; }
@@ -214,25 +218,25 @@ class Profiler {
                                            jint code_size, const void* code_addr,
                                            jint map_length, const jvmtiAddrLocationMap* map,
                                            const void* compile_info) {
-        _instance.addJavaMethod(code_addr, code_size, method);
+        instance()->addJavaMethod(code_addr, code_size, method);
     }
 
     static void JNICALL CompiledMethodUnload(jvmtiEnv* jvmti, jmethodID method,
                                              const void* code_addr) {
-        _instance.removeJavaMethod(code_addr, method);
+        instance()->removeJavaMethod(code_addr, method);
     }
 
     static void JNICALL DynamicCodeGenerated(jvmtiEnv* jvmti, const char* name,
                                              const void* address, jint length) {
-        _instance.addRuntimeStub(address, length, name);
+        instance()->addRuntimeStub(address, length, name);
     }
 
     static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        _instance.onThreadStart(jvmti, jni, thread);
+        instance()->onThreadStart(jvmti, jni, thread);
     }
 
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        _instance.onThreadEnd(jvmti, jni, thread);
+        instance()->onThreadEnd(jvmti, jni, thread);
     }
 
     friend class Recording;

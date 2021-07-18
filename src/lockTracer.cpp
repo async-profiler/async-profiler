@@ -185,13 +185,13 @@ void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_tim
 
     if (lock_name != NULL) {
         if (lock_name[0] == 'L') {
-            event._class_id = Profiler::_instance.classMap()->lookup(lock_name + 1, strlen(lock_name) - 2);
+            event._class_id = Profiler::instance()->classMap()->lookup(lock_name + 1, strlen(lock_name) - 2);
         } else {
-            event._class_id = Profiler::_instance.classMap()->lookup(lock_name);
+            event._class_id = Profiler::instance()->classMap()->lookup(lock_name);
         }
     }
 
-    Profiler::_instance.recordSample(NULL, end_time - start_time, event_type, &event);
+    Profiler::instance()->recordSample(NULL, end_time - start_time, event_type, &event);
 }
 
 void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {

@@ -34,7 +34,6 @@ const u32 MAX_BITMAPS = (1 << 31) / BITMAP_CAPACITY;
 class ThreadFilter {
   private:
     u32* _bitmap[MAX_BITMAPS];
-    bool _cleanup;
     bool _enabled;
     volatile int _size;
 
@@ -47,7 +46,7 @@ class ThreadFilter {
     }
 
   public:
-    ThreadFilter(bool cleanup);
+    ThreadFilter();
     ~ThreadFilter();
 
     bool enabled() {

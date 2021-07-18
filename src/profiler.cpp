@@ -39,7 +39,9 @@
 #include "vmStructs.h"
 
 
-Profiler Profiler::_instance;
+// The instance is not deleted on purpose, since profiler structures
+// can be still accessed concurrently during VM termination
+Profiler* const Profiler::_instance = new Profiler();
 
 static Engine noop_engine;
 static PerfEvents perf_events;
@@ -642,21 +644,21 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
     jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean))
-                       _instance._original_NativeLibrary_load)(env, self, name, builtin);
-    _instance.updateSymbols(false);
+                       instance()->_original_NativeLibrary_load)(env, self, name, builtin);
+    instance()->updateSymbols(false);
     return result;
 }
 
 jboolean JNICALL Profiler::NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni) {
     jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jobject, jstring, jboolean, jboolean))
-                       _instance._original_NativeLibrary_load)(env, self, lib, name, builtin, jni);
-    _instance.updateSymbols(false);
+                       instance()->_original_NativeLibrary_load)(env, self, lib, name, builtin, jni);
+    instance()->updateSymbols(false);
     return result;
 }
 
 void JNICALL Profiler::ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name) {
-    ((void JNICALL (*)(JNIEnv*, jobject, jstring))_instance._original_Thread_setNativeName)(env, self, name);
-    _instance.updateThreadName(VM::jvmti(), env, self);
+    ((void JNICALL (*)(JNIEnv*, jobject, jstring)) instance()->_original_Thread_setNativeName)(env, self, name);
+    instance()->updateThreadName(VM::jvmti(), env, self);
 }
 
 void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {

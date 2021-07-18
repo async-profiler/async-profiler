@@ -236,7 +236,7 @@ struct PerfEventType {
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
-                addr = (__u64)(uintptr_t)Profiler::_instance.resolveSymbol(buf);
+                addr = (__u64)(uintptr_t)Profiler::instance()->resolveSymbol(buf);
             }
         }
 
@@ -619,7 +619,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         }
 
         ExecutionEvent event;
-        Profiler::_instance.recordSample(ucontext, counter, 0, &event);
+        Profiler::instance()->recordSample(ucontext, counter, 0, &event);
     } else {
         resetBuffer(OS::threadId());
     }
@@ -671,7 +671,7 @@ Error PerfEvents::check(Arguments& args) {
     } else if (args._ring == RING_KERNEL) {
         attr.exclude_user = 1;
     } else if (!Symbols::haveKernelSymbols()) {
-        Profiler::_instance.updateSymbols(true);
+        Profiler::instance()->updateSymbols(true);
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
@@ -725,7 +725,7 @@ Error PerfEvents::start(Arguments& args) {
     OS::installSignalHandler(SIGPROF, signalHandler);
 
     // Enable thread events before traversing currently running threads
-    Profiler::_instance.switchThreadEvents(JVMTI_ENABLE);
+    Profiler::instance()->switchThreadEvents(JVMTI_ENABLE);
 
     // Create perf_events for all existing threads
     int err;
@@ -739,7 +739,7 @@ Error PerfEvents::start(Arguments& args) {
     delete thread_list;
 
     if (!created) {
-        Profiler::_instance.switchThreadEvents(JVMTI_DISABLE);
+        Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {

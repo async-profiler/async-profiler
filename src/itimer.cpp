@@ -27,7 +27,7 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     ExecutionEvent event;
-    Profiler::_instance.recordSample(ucontext, _interval, 0, &event);
+    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
 }
 
 Error ITimer::check(Arguments& args) {

@@ -53,7 +53,7 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 
     // Make sure the previous instruction address is readable
     uintptr_t prev_pc = pc - SYSCALL_SIZE;
-    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::_instance.findNativeLibrary((instruction_t*)prev_pc) != NULL) {
+    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::instance()->findNativeLibrary((instruction_t*)prev_pc) != NULL) {
         if (StackFrame::isSyscall((instruction_t*)prev_pc) && frame.checkInterruptedSyscall()) {
             return THREAD_SLEEPING;
         }
@@ -65,7 +65,7 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ExecutionEvent event;
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
-    Profiler::_instance.recordSample(ucontext, _interval, 0, &event);
+    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
 }
 
 void WallClock::wakeupHandler(int signo) {
@@ -117,7 +117,7 @@ void WallClock::stop() {
 
 void WallClock::timerLoop() {
     int self = OS::threadId();
-    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
