@@ -38,9 +38,11 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 ## Supported platforms
 
  - **Linux** / x64 / x86 / ARM / AArch64
- - **macOS** / x64
+ - **macOS** / x64 / AArch64 (Apple M1)
 
-Note: macOS profiling is limited to user space code only.
+### Community supported builds
+
+ - **Windows** / x64 - <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/IntelliJ_IDEA_Icon.svg" width="16" height="16"/> [IntelliJ IDEA](https://www.jetbrains.com/idea/) 2021.2 and later
 
 ## CPU profiling
 
@@ -447,6 +449,8 @@ you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubles
 
 ## Restrictions/Limitations
 
+* macOS profiling is limited to user space code only.
+
 * On most Linux systems, `perf_events` captures call stacks with a maximum depth
   of 127 frames. On recent Linux kernels, this can be configured using
   `sysctl kernel.perf_event_max_stack` or by writing to the
@@ -463,11 +467,11 @@ you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubles
   which means that in some rare cases, the captured Java stack might not match
   the captured native (user+kernel) stack.
 
-*  You will not see the non-Java frames _preceding_ the Java frames on the
-   stack. For example, if `start_thread` called `JavaMain` and then your Java
-   code started running, you will not see the first two frames in the resulting
-   stack. On the other hand, you _will_ see non-Java frames (user and kernel)
-   invoked by your Java code.
+* You will not see the non-Java frames _preceding_ the Java frames on the
+  stack. For example, if `start_thread` called `JavaMain` and then your Java
+  code started running, you will not see the first two frames in the resulting
+  stack. On the other hand, you _will_ see non-Java frames (user and kernel)
+  invoked by your Java code.
 
 * No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
   or negative.
