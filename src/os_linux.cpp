@@ -20,6 +20,7 @@
 #include <byteswap.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -175,6 +176,14 @@ int OS::processId() {
 
 int OS::threadId() {
     return syscall(__NR_gettid);
+}
+
+const char* OS::schedPolicy() {
+    int sched_policy = sched_getscheduler(0);
+    if (sched_policy >= SCHED_BATCH) {
+        return sched_policy >= SCHED_IDLE ? "[SCHED_IDLE]" : "[SCHED_BATCH]"; 
+    }
+    return "[SCHED_OTHER]";
 }
 
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {

@@ -70,6 +70,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     log=FILENAME    - log warnings and errors to the given dedicated stream
 //     filter=FILTER   - thread filter
 //     threads         - profile different threads separately
+//     sched           - group threads by scheduling policy
 //     cstack=MODE     - how to collect C stack frames in addition to Java stack
 //                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
 //     allkernel       - include only kernel-mode events
@@ -220,6 +221,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("threads")
                 _threads = true;
+
+            CASE("sched")
+                _sched = true;
 
             CASE("allkernel")
                 _ring = RING_KERNEL;

@@ -627,6 +627,9 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     if (_add_thread_frame) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
+    if (_add_sched_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy());
+    }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
@@ -980,6 +983,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
+    _add_sched_frame = args._sched;
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
@@ -1177,10 +1181,13 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 
         Trie* f = flamegraph.root();
         if (args._reverse) {
+            // Thread frames always come first
+            if (_add_sched_frame) {
+                const char* frame_name = fn.name(trace->frames[--num_frames]);
+                f = f->addChild(frame_name, samples);
+            }
             if (_add_thread_frame) {
-                // Thread frames always come first
-                num_frames--;
-                const char* frame_name = fn.name(trace->frames[num_frames]);
+                const char* frame_name = fn.name(trace->frames[--num_frames]);
                 f = f->addChild(frame_name, samples);
             }
 

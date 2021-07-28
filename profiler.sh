@@ -35,6 +35,7 @@ usage() {
     echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
     echo "  --all-user        only include user-mode events"
+    echo "  --sched           group threads by scheduling policy"
     echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
@@ -204,6 +205,9 @@ while [ $# -gt 0 ]; do
             ;;
         --all-user)
             PARAMS="$PARAMS,alluser"
+            ;;
+        --sched)
+            PARAMS="$PARAMS,sched"
             ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"

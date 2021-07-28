@@ -403,6 +403,8 @@ The following is a complete list of the command-line options accepted by
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
   is restricted by `perf_event_paranoid` settings.  
 
+* `--sched` - group threads by Linux-specific scheduling policy: BATCH/IDLE/OTHER.
+
 * `--cstack MODE` - how to traverse native frames (C stack). Possible modes are
   `fp` (Frame Pointer), `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
   and `no` (do not collect C stack).

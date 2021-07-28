@@ -86,7 +86,7 @@ class LongHashTable {
 };
 
 
-CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, (jmethodID)"[storage_overflow]"}};
+CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, (jmethodID)"storage_overflow"}};
 
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
