@@ -36,6 +36,7 @@ class VMStructs {
     static int _symbol_length_and_refcount_offset;
     static int _symbol_body_offset;
     static int _class_loader_data_offset;
+    static int _class_loader_data_next_offset;
     static int _methods_offset;
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
