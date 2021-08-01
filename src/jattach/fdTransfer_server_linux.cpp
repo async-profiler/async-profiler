@@ -72,6 +72,20 @@ bool FdTransferServer::waitForPeer(pid_t peer_pid) {
         return false;
     }
 
+    struct ucred cred;
+    socklen_t len = sizeof(cred);
+    if (getsockopt(_peer, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1) {
+        perror("getsockopt(SO_PEERCRED)");
+        close(_peer);
+        return false;
+    }
+
+    if (cred.pid != peer_pid) {
+        fprintf(stderr, "unexpected connection from PID %d, expected from %d\n", cred.pid, peer_pid);
+        close(_peer);
+        return false;
+    }
+
     return true;
 }
 
