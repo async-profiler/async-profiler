@@ -157,6 +157,7 @@ bool FdTransfer::serveRequests(pid_t pid) {
             }
 
             sendFd(perf_fd, request->header.request_id);
+            close(perf_fd);
             break;
         }
 
@@ -183,6 +184,7 @@ bool FdTransfer::serveRequests(pid_t pid) {
             }
 
             sendFd(kallsyms_fd, header->request_id);
+            close(kallsyms_fd);
             break;
         }
 
