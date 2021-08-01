@@ -17,28 +17,20 @@
 #ifndef _FDTRANSFER_H
 #define _FDTRANSFER_H
 
-#include <linux/perf_event.h>
+#ifdef __linux__
 
+#include "fdTransfer_shared_linux.h"
 
-class FdTransfer {
+class FdTransferClient {
   private:
-    static const int _connect_retries = 50;
-    static const int _connect_retry_interval_ms = 100;
-    static const int _accept_timeout_ms = 10000;
-    static int _listener; // if not -1, we're in listen mode.
     static int _peer;
     static unsigned int _request_id;
 
-    static void socketPathForPid(pid_t pid, struct sockaddr_un *sun, socklen_t *addrlen);
     static unsigned int nextRequestId() { return _request_id++; }
     static int recvFd(unsigned int request_id);
-    static bool sendFd(int fd, unsigned int request_id);
 
   public:
-    static bool connectToTarget(pid_t pid);
-    static bool initializeListener();
-    static bool isListenerInitialized() { return _listener != -1; }
-    static bool acceptPeer();
+    static bool connectToServer(pid_t pid);
     static bool hasPeer() { return _peer != -1; }
     static void closePeer() {
         if (_peer != -1) {
@@ -47,10 +39,19 @@ class FdTransfer {
         }
     }
 
-    static bool serveRequests(pid_t pid);
-
     static int requestPerfFd(pid_t tid, struct perf_event_attr *attr);
     static int requestKallsymsFd();
 };
+
+#else
+
+class FdTransferClient {
+  public:
+    static bool connectToServer(pid_t pid) { return false; }
+    static bool hasPeer() { return false; }
+    static void closePeer() { }
+};
+
+#endif // __linux__
 
 #endif // _FDTRANSFER_H

@@ -32,7 +32,7 @@
 #include <string>
 #include "symbols.h"
 #include "arch.h"
-#include "fdTransfer.h"
+#include "fdTransfer_client.h"
 #include "log.h"
 
 
@@ -357,9 +357,9 @@ void Symbols::parseKernelSymbol(NativeCodeCache* cc, const char *symbol_str) {
 }
 
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
-    if (FdTransfer::hasPeer()) {
+    if (FdTransferClient::hasPeer()) {
         // ask the peer
-        int fd = FdTransfer::requestKallsymsFd();
+        int fd = FdTransferClient::requestKallsymsFd();
         if (fd == -1) {
             return;
         }

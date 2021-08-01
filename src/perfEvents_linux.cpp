@@ -34,7 +34,7 @@
 #include "log.h"
 #include "os.h"
 #include "perfEvents.h"
-#include "fdTransfer.h"
+#include "fdTransfer_client.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
@@ -547,8 +547,8 @@ int PerfEvents::createForThread(pid_t tid) {
 
     int fd;
 
-    if (FdTransfer::hasPeer()) {
-        fd = FdTransfer::requestPerfFd(tid, &attr);
+    if (FdTransferClient::hasPeer()) {
+        fd = FdTransferClient::requestPerfFd(tid, &attr);
         if (fd == -1) {
             return -1;
         }

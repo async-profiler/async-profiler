@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "utils.h"
-#include "../fdTransfer.h"
+#include "fdTransfer_server_linux.h"
 
 static bool enter_pid_net_mnt(pid_t pid) {
     // the last one works - because we still have the old /proc accessible, so we see PIDs as they are
@@ -59,12 +59,7 @@ int main(int argc, const char *argv[]) {
 
     // CLONE_NEWPID affects children only - so we fork here.
     if (0 == fork()) {
-        // do the actual work
-        if (FdTransfer::connectToTarget(nspid)) {
-            _exit(FdTransfer::serveRequests(nspid) ? 0 : 1);
-        } else {
-            _exit(1);
-        }
+        _exit(FdTransferServer::serveRequests(nspid) ? 0 : 1);
     } else {
         int status;
         if (-1 == wait(&status)) {
