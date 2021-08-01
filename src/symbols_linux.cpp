@@ -344,47 +344,48 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbol(NativeCodeCache* cc, const char *symbol_str) {
-    SymbolDesc symbol(symbol_str);
-    char type = symbol.type();
-    if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
-        const char* addr = symbol.addr();
-        if (addr != NULL) {
-            cc->add(addr, 0, symbol.name());
-            _have_kernel_symbols = true;
-        }
-    }
-}
-
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+    int fd;
     if (FdTransferClient::hasPeer()) {
         // ask the peer
-        int fd = FdTransferClient::requestKallsymsFd();
+        fd = FdTransferClient::requestKallsymsFd();
         if (fd == -1) {
             return;
         }
-
-        // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
-        FILE *fp = fdopen(fd, "r");
-
-        char str[256];
-        while (fgets(str, sizeof(str), fp)) {
-            size_t len = strlen(str) - 1; // trim the '\n'
-            strncpy(str + len, "_[k]", sizeof(str) - len);
-            parseKernelSymbol(cc, str);
-        }
-
-        fclose(fp);
-        close(fd);
     } else {
-        std::ifstream maps("/proc/kallsyms");
-        std::string str;
-
-        while (std::getline(maps, str)) {
-            str += "_[k]";
-            parseKernelSymbol(cc, str.c_str());
+        fd = open("/proc/kallsyms", O_RDONLY);
+        if (fd == -1) {
+            Log::warn("open(\"/proc/kallsys\"): %s", strerror(errno));
+            return;
         }
     }
+
+    // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
+    FILE *fp = fdopen(fd, "r");
+    if (fp == NULL) {
+        Log::warn("fdopen(): %s", strerror(errno));
+        close(fd);
+        return;
+    }
+
+    char str[256];
+    while (fgets(str, sizeof(str), fp)) {
+        size_t len = strlen(str) - 1; // trim the '\n'
+        strncpy(str + len, "_[k]", sizeof(str) - len);
+
+        SymbolDesc symbol(str);
+        char type = symbol.type();
+        if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
+            const char* addr = symbol.addr();
+            if (addr != NULL) {
+                cc->add(addr, 0, symbol.name());
+                _have_kernel_symbols = true;
+            }
+        }
+    }
+
+    fclose(fp);
+    close(fd);
 }
 
 void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
