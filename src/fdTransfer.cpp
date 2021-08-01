@@ -140,20 +140,13 @@ bool FdTransfer::serveRequests(pid_t pid) {
             struct perf_fd_request *request = (struct perf_fd_request*)header;
             int perf_fd = -1;
 
-            uid_t _uid;
-            gid_t _gid;
-            pid_t _nspid;
-            pid_t target_pid = -1;
-            if (!get_process_info(request->tid, &_uid, &_gid, &_nspid, &target_pid)) {
-                fprintf(stderr, "target has requested perf_event_open for nonexistent PID %d\n", request->tid);
-            }
-            else if (target_pid == pid) {
+            if (syscall(__NR_tgkill, pid, request->tid, 0) == 0) {
                 perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
                 if (perf_fd == -1) {
                     perror("perf_event_open()");
                 }
             } else {
-                fprintf(stderr, "target has requested perf_event_open for TID %d which belongs to another process %d instead of %d?\n", request->tid, target_pid, pid);
+                fprintf(stderr, "target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, pid);
             }
 
             sendFd(perf_fd, request->header.request_id);
