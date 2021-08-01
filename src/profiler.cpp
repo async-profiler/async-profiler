@@ -1399,7 +1399,7 @@ void Profiler::shutdown(Arguments& args) {
         args._action = ACTION_DUMP;
         Error error = args._output == OUTPUT_NONE ? stop() : run(args);
         if (error) {
-            Log::error(error.message());
+            Log::error("%s", error.message());
         }
     }
 
