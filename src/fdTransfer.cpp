@@ -179,6 +179,7 @@ bool FdTransfer::serveRequests(pid_t pid) {
             int kallsyms_fd = open(tmp_path, O_RDONLY);
             if (kallsyms_fd == -1) {
                 perror("open() tmp kallsyms");
+                kallsyms_fd = open("/dev/null", O_RDONLY);
             } else {
                 unlink(tmp_path);
             }
