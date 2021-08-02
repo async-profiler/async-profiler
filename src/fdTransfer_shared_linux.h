@@ -43,6 +43,18 @@ struct perf_fd_request {
     struct perf_event_attr attr;
 };
 
+struct fd_response {
+    // matching request id
+    unsigned int response_id;
+    // 0 on success, otherwise errno
+    int error;
+};
+
+struct perf_fd_response {
+    struct fd_response header;
+    pid_t tid;
+};
+
 static inline void socketPathForPid(pid_t pid, struct sockaddr_un *sun, socklen_t *addrlen) {
     char path[sizeof(sun->sun_path)];
 

@@ -43,7 +43,7 @@ class FdTransferServer {
   private:
     static int _peer;
     static bool waitForPeer(pid_t peer_pid);
-    static bool sendFd(int fd, unsigned int request_id);
+    static bool sendFd(int fd, struct fd_response *resp, size_t resp_size);
 
   public:
     static bool serveRequests(pid_t pid);
@@ -105,9 +105,9 @@ bool FdTransferServer::serveRequests(pid_t pid) {
 
     while (1) {
         unsigned char request_buf[MAX_REQUEST_LENGTH];
-        struct fd_request *header = (struct fd_request *)request_buf;
+        struct fd_request *req = (struct fd_request *)request_buf;
 
-        ssize_t ret = recv(_peer, header, sizeof(request_buf), 0);
+        ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
         if (ret == 0) {
             // EOF means done
             return true;
@@ -116,21 +116,29 @@ bool FdTransferServer::serveRequests(pid_t pid) {
             break;
         }
 
-        switch (header->type) {
+        switch (req->type) {
         case PERF_FD: {
-            struct perf_fd_request *request = (struct perf_fd_request*)header;
+            struct perf_fd_request *request = (struct perf_fd_request*)req;
             int perf_fd = -1;
+            int error;
 
             if (syscall(__NR_tgkill, pid, request->tid, 0) == 0) {
                 perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
                 if (perf_fd == -1) {
-                    perror("perf_event_open()");
+                    error = errno;
+                } else {
+                    error = 0;
                 }
             } else {
                 fprintf(stderr, "target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, pid);
+                error = ESRCH;
             }
 
-            sendFd(perf_fd, request->header.request_id);
+            struct perf_fd_response resp;
+            resp.header.response_id = request->header.request_id;
+            resp.header.error = error;
+            resp.tid = request->tid;
+            sendFd(perf_fd, &resp.header, sizeof(resp));
             close(perf_fd);
             break;
         }
@@ -150,21 +158,23 @@ bool FdTransferServer::serveRequests(pid_t pid) {
                 dst << src.rdbuf();
             }
 
+            struct fd_response resp;
+            resp.response_id = req->request_id;
             int kallsyms_fd = open(tmp_path, O_RDONLY);
             if (kallsyms_fd == -1) {
-                perror("open() tmp kallsyms");
-                kallsyms_fd = open("/dev/null", O_RDONLY);
+                resp.error = errno;
             } else {
                 unlink(tmp_path);
+                resp.error = 0;
             }
 
-            sendFd(kallsyms_fd, header->request_id);
+            sendFd(kallsyms_fd, &resp, sizeof(resp));
             close(kallsyms_fd);
             break;
         }
 
         default:
-            fprintf(stderr, "unknown request type %u\n", header->type);
+            fprintf(stderr, "unknown request type %u\n", req->type);
             break;
         }
     }
@@ -172,15 +182,12 @@ bool FdTransferServer::serveRequests(pid_t pid) {
     return false;
 }
 
-bool FdTransferServer::sendFd(int fd, unsigned int request_id) {
+bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size) {
     struct msghdr msg = {0};
 
-    struct iovec iov[1] = {
-        {
-            &request_id,
-            sizeof(request_id),
-        },
-    };
+    struct iovec iov[1];
+    iov[0].iov_base = resp;
+    iov[0].iov_len = resp_size;
     msg.msg_iov = iov;
     msg.msg_iovlen = ARRAY_SIZE(iov);
 

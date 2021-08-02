@@ -39,7 +39,8 @@
 
 
 int FdTransferClient::_peer = -1;
-unsigned int FdTransferClient::_request_id = 0;
+// Starts from 1; 0 is used as wildcard.
+unsigned int FdTransferClient::_request_id = 1;
 
 bool FdTransferClient::connectToServer(pid_t pid) {
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -60,14 +61,14 @@ bool FdTransferClient::connectToServer(pid_t pid) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(pid_t tid, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(pid_t *tid, struct perf_event_attr *attr) {
     struct perf_fd_request request;
 
     request.header.type = PERF_FD;
     request.header.length = sizeof(request);
-    request.header.request_id = nextRequestId();
+    request.header.request_id = 0; // wildcard request ID, see comment next to recvFd.
 
-    request.tid = tid;
+    request.tid = *tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
     if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
@@ -75,7 +76,18 @@ int FdTransferClient::requestPerfFd(pid_t tid, struct perf_event_attr *attr) {
         return -1;
     }
 
-    return recvFd(request.header.request_id);
+    struct perf_fd_response resp;
+    int fd = recvFd(request.header.request_id, &resp.header, sizeof(resp));
+    if (fd == -1) {
+        // Update errno for our caller.
+        errno = resp.header.error;
+    } else {
+        // Update the TID of createForThread, in case the multiple threads' requests got mixed up and we're
+        // now handling the response destined to another. It's alright - the other thread(s) will finish the
+        // handling of our TID perf fd.
+        *tid = resp.tid;
+    }
+    return fd;
 }
 
 int FdTransferClient::requestKallsymsFd() {
@@ -83,6 +95,7 @@ int FdTransferClient::requestKallsymsFd() {
 
     request.type = KALLSYMS_FD;
     request.length = sizeof(request);
+    // Pass non-wildcard request_id - response should not mix up with others.
     request.request_id = nextRequestId();
 
     if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
@@ -90,16 +103,21 @@ int FdTransferClient::requestKallsymsFd() {
         return -1;
     }
 
-    return recvFd(request.request_id);
+    struct fd_response resp;
+    int fd = recvFd(request.request_id, &resp, sizeof(resp));
+    if (fd == -1) {
+        errno = resp.error;
+    }
+
+    return fd;
 }
 
-int FdTransferClient::recvFd(unsigned int request_id) {
+int FdTransferClient::recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size) {
     struct msghdr msg = {0};
 
     struct iovec iov[1];
-    unsigned int recv_request_id;
-    iov[0].iov_base = &recv_request_id;
-    iov[0].iov_len = sizeof(recv_request_id);
+    iov[0].iov_base = resp;
+    iov[0].iov_len = resp_size;
     msg.msg_iov = iov;
     msg.msg_iovlen = ARRAY_SIZE(iov);
 
@@ -117,18 +135,23 @@ int FdTransferClient::recvFd(unsigned int request_id) {
         return -1;
     }
 
-    if (recv_request_id != request_id) {
+    // If request_id is non-zero, caller expects it to match
+    if (request_id != 0 && resp->response_id != request_id) {
         Log::warn("FdTransferClient recvmsg(): bad response ID");
         return -1;
     }
 
-    struct cmsghdr *cmptr = CMSG_FIRSTHDR(&msg);
-    if (cmptr != NULL && cmptr->cmsg_len == CMSG_LEN(sizeof(newfd))
-        && cmptr->cmsg_level == SOL_SOCKET && cmptr->cmsg_type == SCM_RIGHTS) {
+    if (resp->error == 0) {
+        struct cmsghdr *cmptr = CMSG_FIRSTHDR(&msg);
+        if (cmptr != NULL && cmptr->cmsg_len == CMSG_LEN(sizeof(newfd))
+            && cmptr->cmsg_level == SOL_SOCKET && cmptr->cmsg_type == SCM_RIGHTS) {
 
-        newfd = *((typeof(newfd) *)CMSG_DATA(cmptr));
+            newfd = *((typeof(newfd) *)CMSG_DATA(cmptr));
+        } else {
+            Log::warn("FdTransferClient recvmsg(): unexpected response with no SCM_RIGHTS: %s", strerror(errno));
+            newfd = -1;
+        }
     } else {
-        Log::warn("FdTransferClient recvmsg(): unexpected response with no SCM_RIGHTS: %s", strerror(errno));
         newfd = -1;
     }
 

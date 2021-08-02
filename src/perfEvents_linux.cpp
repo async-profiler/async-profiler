@@ -548,17 +548,15 @@ int PerfEvents::createForThread(pid_t tid) {
     int fd;
 
     if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(tid, &attr);
-        if (fd == -1) {
-            return -1;
-        }
+        fd = FdTransferClient::requestPerfFd(&tid, &attr);
     } else {
         fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
-        if (fd == -1) {
-            int err = errno;
-            Log::warn("perf_event_open failed: %s", strerror(errno));
-            return err;
-        }
+    }
+
+    if (fd == -1) {
+        int err = errno;
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        return err;
     }
 
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {

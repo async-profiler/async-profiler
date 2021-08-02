@@ -27,7 +27,7 @@ class FdTransferClient {
     static unsigned int _request_id;
 
     static unsigned int nextRequestId() { return _request_id++; }
-    static int recvFd(unsigned int request_id);
+    static int recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size);
 
   public:
     static bool connectToServer(pid_t pid);
@@ -39,7 +39,7 @@ class FdTransferClient {
         }
     }
 
-    static int requestPerfFd(pid_t tid, struct perf_event_attr *attr);
+    static int requestPerfFd(pid_t *tid, struct perf_event_attr *attr);
     static int requestKallsymsFd();
 };
 
