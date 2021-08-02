@@ -35,6 +35,7 @@ ifeq ($(OS), Darwin)
   SOEXT=dylib
   PACKAGE_EXT=zip
   OS_TAG=macos
+  FDTRANSFER_BIN=
 else
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
@@ -45,6 +46,7 @@ else
   else
     OS_TAG=linux
   endif
+  FDTRANSFER_BIN=build/fdtransfer
 endif
 
 ARCH:=$(shell uname -m)
@@ -69,7 +71,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR) build/fdtransfer
+all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR) $(FDTRANSFER_BIN)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -103,7 +105,7 @@ build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
-build/fdtransfer: src/jattach/fdTransfer_server_linux.cpp src/jattach/fdtransfer_prog_linux.cpp src/jattach/utils.c
+build/fdtransfer: src/jattach/fdtransfer_server.cpp src/jattach/utils.c
 	$(CXX) $(CFLAGS) -o $@ $^
 
 build/$(API_JAR): $(API_SOURCES)
