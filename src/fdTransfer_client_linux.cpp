@@ -53,7 +53,23 @@ bool FdTransferClient::connectToServer(pid_t pid) {
     socklen_t addrlen;
     socketPathForPid(pid, &sun, &addrlen);
 
-    if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == -1) {
+    // Attempt to connect. There are retries because we may start before
+    // the server does.
+    const int retries = 10;
+    const int wait_interval = 50000000; // 50ms
+    for (int i = 0; i < retries; i++) {
+        if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == 0) {
+            break;
+        }
+
+        if (errno == ECONNREFUSED && i != retries - 1) {
+            struct timespec wait;
+            wait.tv_sec = wait_interval / 1000000000;
+            wait.tv_nsec = wait_interval % 1000000000;
+            nanosleep(&wait, NULL);
+            continue;
+        }
+
         Log::warn("FdTransferClient connect(): %s", strerror(errno));
         return false;
     }
