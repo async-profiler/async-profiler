@@ -1,0 +1,142 @@
+name: Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'     
+        required: true
+        default: 'warning'
+
+jobs:
+  build-native:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+        - build: macos
+          os: macos-latest
+
+        - build: linux-x64
+          os: ubuntu-latest
+
+        - build: linux-musl-x64
+          os: ubuntu-latest
+          TARGET: x86_64-unknown-linux-musl
+          COMPILER: gcc
+          LINKER: gcc
+
+        - build: linux-arm64
+          os: ubuntu-latest
+          TARGET: aarch64-unknown-linux-gnu
+          linker: gcc-aarch64-linux-gnu
+          cross: true
+        
+        - build: linux-ppc64le
+          os: ubuntu-latest
+          TARGET: powerpc64le-unknown-linux-gnu
+          linker: gcc-powerpc64le-linux-gnu
+          cross: true
+
+    name: Build ${{matrix.build}}
+    env: 
+      TARGET_OS: ${{matrix.build}}
+    steps:
+     - uses: actions/checkout@v1
+     - name: Set up JDK 11
+       uses: actions/setup-java@v2
+       with:
+         java-version: '11'
+         distribution: 'adopt'
+     - name: Build binaries
+       run: make all
+     - name: Run tests
+       run: |
+         if [ "${TARGET_OS}" != "macos" ]; then
+           sudo sysctl kernel.kptr_restrict=0
+           sudo sysctl kernel.perf_event_paranoid=1
+           make test
+         fi
+
+     - uses: actions/upload-artifact@master
+       with:
+         name: libasyncProfiler-${{matrix.build}}.so
+         path: build/libasyncProfiler.so
+
+  build-maven:
+    needs: build-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Get linux x64 binary
+        uses: actions/download-artifact@master
+        with:
+          name: libasyncProfiler-linux-x64.so
+          path: src/main/resources/native-libs/linux-x64
+      - name: Get linux musl x64 binary
+        uses: actions/download-artifact@master
+        with:
+          name: libasyncProfiler-linux-musl-x64.so
+          path: src/main/resources/native-libs/linux-musl-x64
+      - name: Get linux arm64 binary
+        uses: actions/download-artifact@master
+        with:
+          name: libasyncProfiler-linux-arm64.so
+          path: src/main/resources/native-libs/linux-arm64
+      - name: Get macos binary
+        uses: actions/download-artifact@master
+        with:
+          name: libasyncProfiler-macos.so
+          path: src/main/resources/native-libs/macos
+      - name: Get linux ppc64le binary
+        uses: actions/download-artifact@master
+        with:
+          name: libasyncProfiler-linux-ppc64le.so
+          path: src/main/resources/native-libs/linux-ppc64le
+      - name: Build with Maven
+        run: mvn --batch-mode --update-snapshots package
+      - name: Store version
+        run: mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*' > target/version.txt
+      - uses: actions/upload-artifact@v2
+        with:
+          name: async-profiler-archive.zip
+          path: |
+            target/*.jar
+            target/version.txt
+
+  publish-maven:
+    needs: build-maven
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: maven2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+      - name: Download artifacts
+        uses: actions/download-artifact@master
+        with:
+          name: async-profiler-archive.zip
+          path: tmp/
+      - name: Publish maven artifacts
+        run: |
+          VERSION=$(cat tmp/version.txt)
+          POM_VERSION="${VERSION}-DD"
+          echo "Version: ${VERSION}"
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=tmp/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=tmp/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=tmp/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          rm -rf tmp
+          git config user.email "none@datadoghq.com"
+          git config user.name "GH Action"
+          git add .
+          git commit -m 'Update m2 repository'
+          git push

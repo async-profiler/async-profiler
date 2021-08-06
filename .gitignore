@@ -5,5 +5,11 @@
 /test/*.class
 /src/helper/**/*.class
 /src/helper/**/*.class.h
+/target/
+/src/helper/*
+*.class
 .vscode
+.classpath
+.project
+.settings
 *.iml
