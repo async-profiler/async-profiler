@@ -105,7 +105,7 @@ build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
-build/fdtransfer: src/jattach/fdtransfer_server.cpp src/jattach/utils.c
+build/fdtransfer: src/jattach/fdtransfer_server.cpp src/fdTransfer_shared_linux.h src/jattach/utils.c
 	$(CXX) $(CFLAGS) -o $@ $^
 
 build/$(API_JAR): $(API_SOURCES)

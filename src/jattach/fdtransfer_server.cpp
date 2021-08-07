@@ -41,41 +41,45 @@
 
 class FdTransferServer {
   private:
+    static int _server;
     static int _peer;
-    static bool waitForPeer(pid_t peer_pid);
     static bool sendFd(int fd, struct fd_response *resp, size_t resp_size);
 
   public:
-    static bool serveRequests(pid_t pid);
+    static void closeServer() { close(_server); }
+    static void closePeer() { close(_peer); }
+    static bool bindServer(struct sockaddr_un *sun, socklen_t addrlen);
+    static bool acceptPeer(pid_t *peer_pid);
+    static bool serveRequests(pid_t peer_pid);
 };
 
+int FdTransferServer::_server;
 int FdTransferServer::_peer;
 
-bool FdTransferServer::waitForPeer(pid_t peer_pid) {
-    int listener = socket(AF_UNIX, SOCK_SEQPACKET, 0);
-    if (listener == -1) {
+bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen) {
+    _server = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    if (_server == -1) {
         perror("FdTransfer socket():");
         return false;
     }
 
-    struct sockaddr_un sun;
-    socklen_t addrlen;
-    socketPathForPid(peer_pid, &sun, &addrlen);
-
-    if (-1 == bind(listener, (const struct sockaddr*)&sun, addrlen)) {
+    if (-1 == bind(_server, (const struct sockaddr*)sun, addrlen)) {
         perror("FdTransfer bind()");
-        close(listener);
+        close(_server);
         return false;
     }
 
-    if (-1 == listen(listener, 1)) {
+    if (-1 == listen(_server, 1)) {
         perror("FdTransfer listen()");
-        close(listener);
+        close(_server);
         return false;
     }
 
-    _peer = accept(listener, NULL, NULL);
-    close(listener);
+    return true;
+}
+
+bool FdTransferServer::acceptPeer(pid_t *peer_pid) {
+    _peer = accept(_server, NULL, NULL);
     if (_peer == -1) {
         perror("FdTransfer accept()");
         return false;
@@ -89,19 +93,22 @@ bool FdTransferServer::waitForPeer(pid_t peer_pid) {
         return false;
     }
 
-    if (cred.pid != peer_pid) {
-        fprintf(stderr, "unexpected connection from PID %d, expected from %d\n", cred.pid, peer_pid);
-        close(_peer);
-        return false;
+    if (*peer_pid != 0) {
+        if (cred.pid != *peer_pid) {
+            fprintf(stderr, "unexpected connection from PID %d, expected from %d\n", cred.pid, *peer_pid);
+            close(_peer);
+            return false;
+        }
+    } else {
+        *peer_pid = cred.pid;
     }
 
     return true;
 }
 
-bool FdTransferServer::serveRequests(pid_t pid) {
-    if (!waitForPeer(pid)) {
-        return false;
-    }
+bool FdTransferServer::serveRequests(pid_t peer_pid) {
+    // Close the server side, don't need it anymore.
+    FdTransferServer::closeServer();
 
     while (1) {
         unsigned char request_buf[MAX_REQUEST_LENGTH];
@@ -122,7 +129,9 @@ bool FdTransferServer::serveRequests(pid_t pid) {
             int perf_fd = -1;
             int error;
 
-            if (syscall(__NR_tgkill, pid, request->tid, 0) == 0) {
+            // In pid == 0 mode, allow all perf_event_open requests.
+            // Otherwise, verify the thread belongs to PID.
+            if (peer_pid == 0 || syscall(__NR_tgkill, peer_pid, request->tid, 0) == 0) {
                 perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
                 if (perf_fd == -1) {
                     error = errno;
@@ -130,7 +139,7 @@ bool FdTransferServer::serveRequests(pid_t pid) {
                     error = 0;
                 }
             } else {
-                fprintf(stderr, "target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, pid);
+                fprintf(stderr, "target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, peer_pid);
                 error = ESRCH;
             }
 
@@ -216,24 +225,7 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
     return true;
 }
 
-static bool enter_pid_net_mnt(pid_t pid) {
-    // the last one works - because we still have the old /proc accessible, so we see PIDs as they are
-    // the NS before we moved.
-    return enter_ns(pid, "net") == 1 && enter_ns(pid, "pid") == 1 && enter_ns(pid, "mnt");
-}
-
-int main(int argc, const char *argv[]) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s pid\n", argv[0]);
-        return 1;
-    }
-
-    pid_t pid = atoi(argv[1]);
-    if (pid == 0) {
-        fprintf(stderr, "Invalid pid: '%s'\n", argv[1]);
-        return 1;
-    }
-
+static int single_pid_server(pid_t pid) {
     // get its nspid prior to moving to its PID namespace.
     pid_t nspid = -1;
     uid_t _target_uid;
@@ -247,23 +239,96 @@ int main(int argc, const char *argv[]) {
         nspid = alt_lookup_nspid(pid);
     }
 
-    if (!enter_pid_net_mnt(pid)) {
-        perror("Failed to enter the net NS / PID NS / mount NS of target process");
+    struct sockaddr_un sun;
+    socklen_t addrlen;
+    if (!socketPathForPid(nspid, &sun, &addrlen)) {
+        fprintf(stderr, "Path too long\n");
+        return 1;
+    }
+
+    // Create the server before forking, so w're ready to accept connections once our parent
+    // exits.
+
+    if (!enter_ns(pid, "net")) {
+        fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
+        return 1;
+    }
+
+    if (!FdTransferServer::bindServer(&sun, addrlen)) {
+        return 1;
+    }
+
+    if (!enter_ns(pid, "pid")) {
+        fprintf(stderr, "Failed to enter the PID NS of target process %d\n", pid);
         return 1;
     }
 
     // CLONE_NEWPID affects children only - so we fork here.
     if (0 == fork()) {
-        _exit(FdTransferServer::serveRequests(nspid) ? 0 : 1);
+        return FdTransferServer::acceptPeer(&nspid) && FdTransferServer::serveRequests(nspid) ? 0 : 1;
     } else {
-        int status;
-        if (-1 == wait(&status)) {
-            perror("wait");
+        // Exit now, let our caller continue.
+        return 0;
+    }
+}
+
+static int path_server(const char *path) {
+    struct sockaddr_un sun;
+    socklen_t addrlen;
+
+    if (!socketPath(path, &sun, &addrlen)) {
+        fprintf(stderr, "Path '%s' is too long\n", path);
+        return 1;
+    }
+
+    if (!FdTransferServer::bindServer(&sun, addrlen)) {
+        return 1;
+    }
+
+    printf("Server ready at '%s'\n", path);
+
+    while (1) {
+        pid_t peer_pid = 0;
+        if (!FdTransferServer::acceptPeer(&peer_pid)) {
             return 1;
-        } else {
-            bool success = WIFEXITED(status) && WEXITSTATUS(status) == 0;
-            printf("Done serving%s\n", success ? " successfully" : ", had an error");
-            return success ? 0 : 1;
         }
+
+        // At least a single fork() is need, to actually move a PID namespace.
+        // We fork() twice, so child is automatically repead and we don't have to wait() it.
+        if (0 == fork()) {
+            // Enter its PID namespace.
+            if (!enter_ns(peer_pid, "pid")) {
+                fprintf(stderr, "Failed to enter the PID NS of target process %d\n", peer_pid);
+                return 1;
+            }
+
+            printf("Serving PID %d\n", peer_pid);
+
+            if (0 == fork()) {
+                return FdTransferServer::serveRequests(0) ? 0 : 1;
+            } else {
+                return 0;
+            }
+        } else {
+            FdTransferServer::closePeer();
+        }
+    }
+}
+
+int main(int argc, const char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s [pid]/[path]\n", argv[0]);
+        return 1;
+    }
+
+    pid_t pid = atoi(argv[1]);
+    // 2 modes:
+    // pid == 0 - bind on a path and accept requests forever, from any PID, until being killed
+    // pid != 0 - bind on an abstract namespace UDS for that PID, accept requests only from that PID
+    //            until the single connection is closed.
+    if (pid != 0) {
+        return single_pid_server(pid);
+    } else {
+        return path_server(argv[1]);
     }
 }

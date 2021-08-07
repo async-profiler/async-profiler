@@ -20,6 +20,7 @@
 #ifdef __linux__
 
 #include <linux/perf_event.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -55,16 +56,32 @@ struct perf_fd_response {
     pid_t tid;
 };
 
-static inline void socketPathForPid(pid_t pid, struct sockaddr_un *sun, socklen_t *addrlen) {
-    char path[sizeof(sun->sun_path)];
-
-    path[0] = '\0';
-    snprintf(path + 1, sizeof(path) - 1, "async-profiler-%d", pid);
+static inline bool socketPathForPid(pid_t pid, struct sockaddr_un *sun, socklen_t *addrlen) {
+    sun->sun_path[0] = '\0';
+    const int max_size = sizeof(sun->sun_path) - 1;
+    const int path_len = snprintf(sun->sun_path + 1, max_size, "async-profiler-%d", pid);
+    if (path_len > max_size) {
+        return false;
+    }
 
     sun->sun_family = AF_UNIX;
-    memcpy(sun->sun_path, path, sizeof(sun->sun_path));
+    // +1 for the first \0 byte
+    *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - (path_len + 1));
 
-    *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - (strlen(path + 1) + 1));
+    return true;
+}
+
+static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen_t *addrlen) {
+    const int path_len = strlen(path);
+    if (path_len > sizeof(sun->sun_path) + 1) {
+        return false;
+    }
+    strcpy(sun->sun_path, path);
+
+    sun->sun_family = AF_UNIX;
+    *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - path_len);
+
+    return true;
 }
 
 #endif // __linux__

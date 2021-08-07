@@ -945,7 +945,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (args._fdtransfer) {
-        if (!FdTransferClient::connectToServer(OS::processId())) {
+        if (!FdTransferClient::connectToServer(args._fdtransfer_path, OS::processId())) {
             return Error("Failed to initialize FdTransferClient");
         }
     }

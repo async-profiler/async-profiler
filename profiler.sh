@@ -87,10 +87,10 @@ check_if_terminated() {
 
 run_fdtransfer() {
     if [ "$ACTION" = "start" ] || [ "$ACTION" = "resume" ] ; then
-        nohup "$FDTRANSFER" "$PID" &
+        nohup "$FDTRANSFER" "$PID"
     elif [ "$ACTION" = "collect" ]; then
         case "$1" in
-        "start"*) "$FDTRANSFER" "$PID" &
+        "start"*) "$FDTRANSFER" "$PID"
         esac
     fi
 }

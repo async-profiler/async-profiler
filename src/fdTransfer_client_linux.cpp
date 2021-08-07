@@ -42,7 +42,7 @@ int FdTransferClient::_peer = -1;
 // Starts from 1; 0 is used as wildcard.
 unsigned int FdTransferClient::_request_id = 1;
 
-bool FdTransferClient::connectToServer(pid_t pid) {
+bool FdTransferClient::connectToServer(const char *path, pid_t pid) {
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (_peer == -1) {
         Log::warn("FdTransferClient socket(): %s", strerror(errno));
@@ -51,7 +51,15 @@ bool FdTransferClient::connectToServer(pid_t pid) {
 
     struct sockaddr_un sun;
     socklen_t addrlen;
-    socketPathForPid(pid, &sun, &addrlen);
+    if (path != NULL) {
+        if (!socketPath(path, &sun, &addrlen)) {
+            return false;
+        }
+    } else {
+        if (!socketPathForPid(pid, &sun, &addrlen)) {
+            return false;
+        }
+    }
 
     if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == -1) {
         Log::warn("FdTransferClient connect(): %s", strerror(errno));
