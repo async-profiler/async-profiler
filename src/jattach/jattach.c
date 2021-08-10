@@ -16,30 +16,52 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/file.h>
-#include <sys/ipc.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/sem.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/syscall.h>
-#include <netinet/in.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <signal.h>
-#include <time.h>
 #include <unistd.h>
+#include "psutil.h"
 
-#define MAX_PATH 1024
-static char tmp_path[MAX_PATH - 100];
 
-#include "jattach_hotspot.h"
-#include "jattach_openj9.h"
-#include "process_util.h"
+extern int is_openj9_process(int pid);
+extern int jattach_openj9(int pid, int nspid, int argc, char** argv);
+extern int jattach_hotspot(int pid, int nspid, int argc, char** argv);
 
+
+int jattach(int pid, int argc, char** argv) {
+    uid_t my_uid = geteuid();
+    gid_t my_gid = getegid();
+    uid_t target_uid = my_uid;
+    gid_t target_gid = my_gid;
+    int nspid;
+    if (get_process_info(pid, &target_uid, &target_gid, &nspid) < 0) {
+        fprintf(stderr, "Process %d not found\n", pid);
+        return 1;
+    }
+
+    // Container support: switch to the target namespaces.
+    // Network and IPC namespaces are essential for OpenJ9 connection.
+    enter_ns(pid, "net");
+    enter_ns(pid, "ipc");
+    int mnt_changed = enter_ns(pid, "mnt");
+
+    // In HotSpot, dynamic attach is allowed only for the clients with the same euid/egid.
+    // If we are running under root, switch to the required euid/egid automatically.
+    if ((my_gid != target_gid && setegid(target_gid) != 0) ||
+        (my_uid != target_uid && seteuid(target_uid) != 0)) {
+        perror("Failed to change credentials to match the target process");
+        return 1;
+    }
+
+    get_tmp_path(mnt_changed > 0 ? nspid : pid);
+
+    // Make write() return EPIPE instead of abnormal process termination
+    signal(SIGPIPE, SIG_IGN);
+
+    if (is_openj9_process(nspid)) {
+        return jattach_openj9(pid, nspid, argc, argv);
+    } else {
+        return jattach_hotspot(pid, nspid, argc, argv);
+    }
+}
 
 int main(int argc, char** argv) {
     if (argc < 3) {
@@ -48,7 +70,7 @@ int main(int argc, char** argv) {
                "\n"
                "Usage: jattach <pid> <cmd> [args ...]\n"
                "\n"
-               "Available commands:\n"
+               "Commands:\n"
                "    load  threaddump   dumpheap  setflag    properties\n"
                "    jcmd  inspectheap  datadump  printflag  agentProperties\n"
                );
@@ -61,34 +83,5 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    uid_t my_uid = geteuid();
-    gid_t my_gid = getegid();
-    uid_t target_uid = my_uid;
-    gid_t target_gid = my_gid;
-    int nspid;
-    if (get_process_info(pid, &target_uid, &target_gid, &nspid) < 0) {
-        fprintf(stderr, "Process %d not found\n", pid);
-        return 1;
-    }
-
-    // Container support: switch to the target mount namespace
-    int ns_changed = enter_ns(pid, "mnt");
-    get_tmp_path(ns_changed > 0 ? nspid : pid, tmp_path, sizeof(tmp_path));
-
-    // Make write() return EPIPE instead of abnormal process termination
-    signal(SIGPIPE, SIG_IGN);
-
-    if (is_openj9_process(nspid)) {
-        return attach_openj9(nspid, target_uid, argc - 2, argv + 2);
-    } else {
-        // In HotSpot, dynamic attach is allowed only for the clients with the same euid/egid.
-        // If we are running under root, switch to the required euid/egid automatically.
-        if ((my_gid != target_gid && setegid(target_gid) != 0) ||
-            (my_uid != target_uid && seteuid(target_uid) != 0)) {
-            perror("Failed to change credentials to match the target process");
-            return 1;
-        }
-
-        return attach_hotspot(pid, nspid, argc - 2, argv + 2);
-    }
+    return jattach(pid, argc - 2, argv + 2);
 }

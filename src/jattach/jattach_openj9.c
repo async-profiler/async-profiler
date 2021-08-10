@@ -14,6 +14,23 @@
  * limitations under the License.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/file.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <time.h>
+#include <unistd.h>
+#include "psutil.h"
+
+
 #define MAX_NOTIF_FILES 256
 static int notif_lock[MAX_NOTIF_FILES];
 
@@ -92,7 +109,7 @@ static void print_unescaped(char* str) {
 }
 
 // Send command with arguments to socket
-static int write_openj9_command(int fd, const char* cmd) {
+static int write_command(int fd, const char* cmd) {
     size_t len = strlen(cmd) + 1;
     size_t off = 0;
     while (off < len) {
@@ -106,7 +123,7 @@ static int write_openj9_command(int fd, const char* cmd) {
 }
 
 // Mirror response from remote JVM to stdout
-static int read_openj9_response(int fd, const char* cmd) {
+static int read_response(int fd, const char* cmd) {
     size_t size = 8192;
     char* buf = malloc(size);
 
@@ -161,7 +178,7 @@ static int read_openj9_response(int fd, const char* cmd) {
 }
 
 static void detach(int fd) {
-    if (write_openj9_command(fd, "ATTACH_DETACHED") != 0) {
+    if (write_command(fd, "ATTACH_DETACHED") != 0) {
         return;
     }
 
@@ -245,17 +262,13 @@ static unsigned long long random_key() {
     return key;
 }
 
-static int write_reply_info(int pid, uid_t uid, int port, unsigned long long key) {
+static int write_reply_info(int pid, int port, unsigned long long key) {
     char path[MAX_PATH];
     snprintf(path, sizeof(path), "%s/.com_ibm_tools_attach/%d/replyInfo", tmp_path, pid);
 
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (fd < 0) {
         return -1;
-    }
-
-    if (uid >= 0) {
-        fchown(fd, uid, -1);
     }
 
     int chars = snprintf(path, sizeof(path), "%016llx\n%d\n", key, port);
@@ -296,7 +309,9 @@ static int accept_client(int s, unsigned long long key) {
     size_t off = 0;
     while (off < sizeof(buf)) {
         ssize_t bytes = recv(client, buf + off, sizeof(buf) - off, 0);
-        if (bytes <= 0) {
+        if (bytes == 0) {
+            break;
+        } else if (bytes < 0) {
             return -1;
         }
         off += bytes;
@@ -304,10 +319,10 @@ static int accept_client(int s, unsigned long long key) {
 
     char expected[35];
     snprintf(expected, sizeof(expected), "ATTACH_CONNECTED %016llx ", key);
-    if (memcmp(buf, expected, sizeof(expected) - 1) != 0) {
-        buf[sizeof(buf) - 1] = 0;
-        fprintf(stderr, "Unexpected JVM response: %s\n", buf);
+    if (off < sizeof(buf) || memcmp(buf, expected, sizeof(expected) - 1) != 0) {
+        fprintf(stderr, "Unexpected JVM response\n");
         close(client);
+        errno = EINVAL;
         return -1;
     }
 
@@ -352,7 +367,7 @@ int is_openj9_process(int pid) {
     return stat(path, &stats) == 0;
 }
 
-int attach_openj9(int nspid, uid_t target_uid, int argc, char** argv) {
+int jattach_openj9(int pid, int nspid, int argc, char** argv) {
     int attach_lock = acquire_lock("", "_attachlock");
     if (attach_lock < 0) {
         perror("Could not acquire attach lock");
@@ -368,7 +383,7 @@ int attach_openj9(int nspid, uid_t target_uid, int argc, char** argv) {
     }
 
     unsigned long long key = random_key();
-    if (write_reply_info(nspid, target_uid, port, key) != 0) {
+    if (write_reply_info(nspid, port, key) != 0) {
         perror("Could not write replyInfo");
         goto error;
     }
@@ -395,13 +410,13 @@ int attach_openj9(int nspid, uid_t target_uid, int argc, char** argv) {
     char cmd[8192];
     translate_command(cmd, sizeof(cmd), argc, argv);
 
-    if (write_openj9_command(fd, cmd) != 0) {
+    if (write_command(fd, cmd) != 0) {
         perror("Error writing to socket");
         close(fd);
         return 1;
     }
 
-    int result = read_openj9_response(fd, cmd);
+    int result = read_response(fd, cmd);
     if (result != 1) {
         detach(fd);
     }

@@ -17,12 +17,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "psutil.h"
+
+
+// Less than MAX_PATH to leave some space for appending
+char tmp_path[MAX_PATH - 100];
+
+// Called just once to fill in tmp_path buffer
+void get_tmp_path(int pid) {
+    // Try user-provided alternative path first
+    const char* jattach_path = getenv("JATTACH_PATH");
+    if (jattach_path != NULL && strlen(jattach_path) < sizeof(tmp_path)) {
+        strcpy(tmp_path, jattach_path);
+        return;
+    }
+
+    if (get_tmp_path_r(pid, tmp_path, sizeof(tmp_path)) != 0) {
+        strcpy(tmp_path, "/tmp");
+    }
+}
 
 
 #ifdef __linux__
@@ -87,7 +105,7 @@ static int alt_lookup_nspid(int pid) {
     return pid;
 }
 
-static int get_tmp_path_pd(int pid, char* buf, size_t bufsize) {
+int get_tmp_path_r(int pid, char* buf, size_t bufsize) {
     if (snprintf(buf, bufsize, "/proc/%d/root/tmp", pid) >= bufsize) {
         return -1;
     }
@@ -165,7 +183,7 @@ int enter_ns(int pid, const char* type) {
 #include <sys/sysctl.h>
 
 // macOS has a secure per-user temporary directory
-static int get_tmp_path_pd(int pid, char* buf, size_t bufsize) {
+int get_tmp_path_r(int pid, char* buf, size_t bufsize) {
     size_t path_size = confstr(_CS_DARWIN_USER_TEMP_DIR, buf, bufsize);
     return path_size > 0 && path_size <= sizeof(tmp_path) ? 0 : -1;
 }
@@ -196,7 +214,7 @@ int enter_ns(int pid, const char* type) {
 #include <sys/user.h>
 
 // Use default /tmp path on FreeBSD
-static int get_tmp_path_pd(int pid, char* buf, size_t bufsize) {
+int get_tmp_path_r(int pid, char* buf, size_t bufsize) {
     return -1;
 }
 
@@ -221,25 +239,3 @@ int enter_ns(int pid, const char* type) {
 }
 
 #endif
-
-
-int get_tmp_path(int pid, char* buf, size_t bufsize) {
-    // Try the user-provided alternative path first
-    const char* jattach_path = getenv("JATTACH_PATH");
-    if (jattach_path != NULL && strlen(jattach_path) < bufsize) {
-        strcpy(buf, jattach_path);
-        return 0;
-    }
-
-    if (get_tmp_path_pd(pid, buf, bufsize) == 0) {
-        return 0;
-    }
-
-    // Use /tmp as the last resort
-    if (bufsize >= sizeof("/tmp")) {
-        strcpy(buf, "/tmp");
-        return 0;
-    }
-
-    return -1;
-}

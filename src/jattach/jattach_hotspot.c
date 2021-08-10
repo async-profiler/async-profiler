@@ -14,6 +14,18 @@
  * limitations under the License.
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/un.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <time.h>
+#include <unistd.h>
+#include "psutil.h"
+
 
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
@@ -89,7 +101,7 @@ static int connect_socket(int pid) {
 }
 
 // Send command with arguments to socket
-static int write_hotspot_command(int fd, int argc, char** argv) {
+static int write_command(int fd, int argc, char** argv) {
     // Protocol version
     if (write(fd, "1", 2) <= 0) {
         return -1;
@@ -106,7 +118,7 @@ static int write_hotspot_command(int fd, int argc, char** argv) {
 }
 
 // Mirror response from remote JVM to stdout
-static int read_hotspot_response(int fd, int argc, char** argv) {
+static int read_response(int fd, int argc, char** argv) {
     char buf[8192];
     ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
     if (bytes == 0) {
@@ -145,7 +157,7 @@ static int read_hotspot_response(int fd, int argc, char** argv) {
     return result;
 }
 
-int attach_hotspot(int pid, int nspid, int argc, char** argv) {
+int jattach_hotspot(int pid, int nspid, int argc, char** argv) {
     if (check_socket(nspid) != 0 && start_attach_mechanism(pid, nspid) != 0) {
         perror("Could not start attach mechanism");
         return 1;
@@ -159,13 +171,13 @@ int attach_hotspot(int pid, int nspid, int argc, char** argv) {
 
     printf("Connected to remote JVM\n");
 
-    if (write_hotspot_command(fd, argc, argv) != 0) {
+    if (write_command(fd, argc, argv) != 0) {
         perror("Error writing to socket");
         close(fd);
         return 1;
     }
 
-    int result = read_hotspot_response(fd, argc, argv);
+    int result = read_response(fd, argc, argv);
     close(fd);
 
     return result;

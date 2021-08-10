@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef _PROCESS_UTIL_H
-#define _PROCESS_UTIL_H
+#ifndef _PSUTIL_H
+#define _PSUTIL_H
 
-#include <unistd.h>
+#include <sys/types.h>
+
+
+#define MAX_PATH 1024
+extern char tmp_path[];
 
 // Gets /tmp path of the specified process, as it can be accessed from the host.
-// Returns 0 on success, -1 on failure (bufsize too small).
-int get_tmp_path(int pid, char* buf, size_t bufsize);
+// The obtained path is stored in the global tmp_path buffer.
+void get_tmp_path(int pid);
+
+// The reentrant version of get_tmp_path.
+// Stores the process-specific temporary path into the provided buffer.
+// Returns 0 on success, -1 on failure.
+int get_tmp_path_r(int pid, char* buf, size_t bufsize);
 
 // Gets the owner uid/gid of the target process, and also its pid inside the container.
 // Returns 0 on success, -1 on failure.
@@ -34,4 +43,4 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid);
 //        -1, if the attempt failed.
 int enter_ns(int pid, const char* type);
 
-#endif // _PROCESS_UTIL_H
+#endif // _PSUTIL_H
