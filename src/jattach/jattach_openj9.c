@@ -218,6 +218,7 @@ static void release_lock(int lock_fd) {
 }
 
 static int create_attach_socket(int* port) {
+    // Try IPv6 socket first, then fall back to IPv4
     int s = socket(AF_INET6, SOCK_STREAM, 0);
     if (s != -1) {
         struct sockaddr_in6 addr = {AF_INET6, 0};
@@ -302,6 +303,7 @@ static int accept_client(int s, unsigned long long key) {
 
     int client = accept(s, NULL, NULL);
     if (client < 0) {
+        perror("JVM did not respond");
         return -1;
     }
 
@@ -309,9 +311,9 @@ static int accept_client(int s, unsigned long long key) {
     size_t off = 0;
     while (off < sizeof(buf)) {
         ssize_t bytes = recv(client, buf + off, sizeof(buf) - off, 0);
-        if (bytes == 0) {
-            break;
-        } else if (bytes < 0) {
+        if (bytes <= 0) {
+            fprintf(stderr, "The JVM connection was prematurely closed\n");
+            close(client);
             return -1;
         }
         off += bytes;
@@ -319,10 +321,9 @@ static int accept_client(int s, unsigned long long key) {
 
     char expected[35];
     snprintf(expected, sizeof(expected), "ATTACH_CONNECTED %016llx ", key);
-    if (off < sizeof(buf) || memcmp(buf, expected, sizeof(expected) - 1) != 0) {
+    if (memcmp(buf, expected, sizeof(expected) - 1) != 0) {
         fprintf(stderr, "Unexpected JVM response\n");
         close(client);
-        errno = EINVAL;
         return -1;
     }
 
@@ -396,7 +397,7 @@ int jattach_openj9(int pid, int nspid, int argc, char** argv) {
 
     int fd = accept_client(s, key);
     if (fd < 0) {
-        perror("Handshake failed");
+        // The error message has been already printed
         goto error;
     }
 

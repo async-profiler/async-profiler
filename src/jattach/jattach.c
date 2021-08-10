@@ -26,6 +26,7 @@ extern int jattach_openj9(int pid, int nspid, int argc, char** argv);
 extern int jattach_hotspot(int pid, int nspid, int argc, char** argv);
 
 
+__attribute__((visibility("default")))
 int jattach(int pid, int argc, char** argv) {
     uid_t my_uid = geteuid();
     gid_t my_gid = getegid();
