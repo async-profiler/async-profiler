@@ -9,7 +9,7 @@ JATTACH=jattach
 API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
 
-CFLAGS=-O3 -fno-omit-frame-pointer -momit-leaf-frame-pointer -fvisibility=hidden
+CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -momit-leaf-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
@@ -100,8 +100,8 @@ build:
 build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 
-build/$(JATTACH): src/jattach/jattach.c
-	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ $^
+build/$(JATTACH): src/jattach/*.c src/jattach/*.h
+	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
