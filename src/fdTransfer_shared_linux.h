@@ -31,11 +31,10 @@ enum request_type {
     PERF_FD,
     KALLSYMS_FD,
 };
+
 struct fd_request {
-    enum request_type type;
-    unsigned int length;
-#define MAX_REQUEST_LENGTH 2048
-    unsigned int request_id;
+    // of type "enum request_type"
+    unsigned int type;
 };
 
 struct perf_fd_request {
@@ -45,8 +44,8 @@ struct perf_fd_request {
 };
 
 struct fd_response {
-    // matching request id
-    unsigned int response_id;
+    // of type "enum request_type"
+    unsigned int type;
     // 0 on success, otherwise errno
     int error;
 };

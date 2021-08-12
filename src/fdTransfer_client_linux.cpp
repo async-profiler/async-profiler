@@ -39,8 +39,6 @@
 
 
 int FdTransferClient::_peer = -1;
-// Starts from 1; 0 is used as wildcard.
-unsigned int FdTransferClient::_request_id = 1;
 
 bool FdTransferClient::connectToServer(const char *path, pid_t pid) {
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -73,8 +71,6 @@ int FdTransferClient::requestPerfFd(pid_t *tid, struct perf_event_attr *attr) {
     struct perf_fd_request request;
 
     request.header.type = PERF_FD;
-    request.header.length = sizeof(request);
-    request.header.request_id = 0; // wildcard request ID, see comment next to recvFd.
 
     request.tid = *tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
@@ -85,7 +81,7 @@ int FdTransferClient::requestPerfFd(pid_t *tid, struct perf_event_attr *attr) {
     }
 
     struct perf_fd_response resp;
-    int fd = recvFd(request.header.request_id, &resp.header, sizeof(resp));
+    int fd = recvFd(request.header.type, &resp.header, sizeof(resp));
     if (fd == -1) {
         // Update errno for our caller.
         errno = resp.header.error;
@@ -102,9 +98,6 @@ int FdTransferClient::requestKallsymsFd() {
     struct fd_request request;
 
     request.type = KALLSYMS_FD;
-    request.length = sizeof(request);
-    // Pass non-wildcard request_id - response should not mix up with others.
-    request.request_id = nextRequestId();
 
     if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
@@ -112,7 +105,7 @@ int FdTransferClient::requestKallsymsFd() {
     }
 
     struct fd_response resp;
-    int fd = recvFd(request.request_id, &resp, sizeof(resp));
+    int fd = recvFd(request.type, &resp, sizeof(resp));
     if (fd == -1) {
         errno = resp.error;
     }
@@ -120,7 +113,7 @@ int FdTransferClient::requestKallsymsFd() {
     return fd;
 }
 
-int FdTransferClient::recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size) {
+int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t resp_size) {
     struct msghdr msg = {0};
 
     struct iovec iov[1];
@@ -143,9 +136,8 @@ int FdTransferClient::recvFd(unsigned int request_id, struct fd_response *resp, 
         return -1;
     }
 
-    // If request_id is non-zero, caller expects it to match
-    if (request_id != 0 && resp->response_id != request_id) {
-        Log::warn("FdTransferClient recvmsg(): bad response ID");
+    if (resp->type != type) {
+        Log::warn("FdTransferClient recvmsg(): bad response type");
         return -1;
     }
 

@@ -24,9 +24,7 @@
 class FdTransferClient {
   private:
     static int _peer;
-    static unsigned int _request_id;
 
-    static unsigned int nextRequestId() { return _request_id++; }
     static int recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size);
 
   public:

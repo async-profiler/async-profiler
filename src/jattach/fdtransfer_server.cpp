@@ -111,7 +111,7 @@ bool FdTransferServer::serveRequests(pid_t peer_pid) {
     FdTransferServer::closeServer();
 
     while (1) {
-        unsigned char request_buf[MAX_REQUEST_LENGTH];
+        unsigned char request_buf[1024];
         struct fd_request *req = (struct fd_request *)request_buf;
 
         ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
@@ -144,7 +144,7 @@ bool FdTransferServer::serveRequests(pid_t peer_pid) {
             }
 
             struct perf_fd_response resp;
-            resp.header.response_id = request->header.request_id;
+            resp.header.type = request->header.type;
             resp.header.error = error;
             resp.tid = request->tid;
             sendFd(perf_fd, &resp.header, sizeof(resp));
@@ -168,7 +168,7 @@ bool FdTransferServer::serveRequests(pid_t peer_pid) {
             }
 
             struct fd_response resp;
-            resp.response_id = req->request_id;
+            resp.type = req->type;
             int kallsyms_fd = open(tmp_path, O_RDONLY);
             if (kallsyms_fd == -1) {
                 resp.error = errno;
