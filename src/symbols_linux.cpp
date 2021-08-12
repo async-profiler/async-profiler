@@ -349,15 +349,13 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     if (FdTransferClient::hasPeer()) {
         // ask the peer
         fd = FdTransferClient::requestKallsymsFd();
-        if (fd == -1) {
-            return;
-        }
     } else {
         fd = open("/proc/kallsyms", O_RDONLY);
-        if (fd == -1) {
-            Log::warn("open(\"/proc/kallsys\"): %s", strerror(errno));
-            return;
-        }
+    }
+
+    if (fd == -1) {
+        Log::warn("open(\"/proc/kallsys\"): %s", strerror(errno));
+        return;
     }
 
     // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
