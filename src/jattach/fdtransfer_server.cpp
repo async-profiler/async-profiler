@@ -272,6 +272,11 @@ static int path_server(const char *path) {
     struct sockaddr_un sun;
     socklen_t addrlen;
 
+    struct sigaction sigchld_action;
+    sigchld_action.sa_handler = SIG_DFL;
+    sigchld_action.sa_flags = SA_NOCLDWAIT;
+    sigaction(SIGCHLD, &sigchld_action, NULL);
+
     if (!socketPath(path, &sun, &addrlen)) {
         fprintf(stderr, "Path '%s' is too long\n", path);
         return 1;
@@ -289,24 +294,25 @@ static int path_server(const char *path) {
             return 1;
         }
 
-        // At least a single fork() is need, to actually move a PID namespace.
-        // We fork() twice, so child is automatically repead and we don't have to wait() it.
+        // Enter its PID namespace.
+        if (enter_ns(peer_pid, "pid") == -1) {
+            fprintf(stderr, "Failed to enter the PID NS of target process %d\n", peer_pid);
+            return 1;
+        }
+
+        printf("Serving PID %d\n", peer_pid);
+
+        // We fork(), to actually move a PID namespace.
         if (0 == fork()) {
-            // Enter its PID namespace.
-            if (!enter_ns(peer_pid, "pid")) {
-                fprintf(stderr, "Failed to enter the PID NS of target process %d\n", peer_pid);
-                return 1;
-            }
-
-            printf("Serving PID %d\n", peer_pid);
-
-            if (0 == fork()) {
-                return FdTransferServer::serveRequests(0) ? 0 : 1;
-            } else {
-                return 0;
-            }
+            return FdTransferServer::serveRequests(0) ? 0 : 1;
         } else {
             FdTransferServer::closePeer();
+        }
+
+        // Move back to our original PID namespace (reverts pid_for_children)
+        if (enter_ns(getpid(), "pid") == -1) {
+            fprintf(stderr, "Failed to exit the PID NS of target process %d\n", peer_pid);
+            return 1;
         }
     }
 }
