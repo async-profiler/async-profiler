@@ -34,7 +34,7 @@
 #include <sys/wait.h>
 
 #include "../fdTransfer_shared_linux.h"
-#include "utils.h"
+#include "psutil.h"
 
 
 #define TMP_KALLSYMS_PATH "/tmp/async-profiler-kallsyms.%d"
@@ -230,13 +230,9 @@ static int single_pid_server(pid_t pid) {
     pid_t nspid = -1;
     uid_t _target_uid;
     gid_t _target_gid;
-    if (!get_process_info(pid, &_target_uid, &_target_gid, &nspid)) {
+    if (get_process_info(pid, &_target_uid, &_target_gid, &nspid)) {
         fprintf(stderr, "Process %d not found\n", pid);
         return 1;
-    }
-
-    if (nspid < 0) {
-        nspid = alt_lookup_nspid(pid);
     }
 
     struct sockaddr_un sun;
@@ -249,7 +245,7 @@ static int single_pid_server(pid_t pid) {
     // Create the server before forking, so w're ready to accept connections once our parent
     // exits.
 
-    if (!enter_ns(pid, "net")) {
+    if (enter_ns(pid, "net") == -1) {
         fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
         return 1;
     }
@@ -258,7 +254,7 @@ static int single_pid_server(pid_t pid) {
         return 1;
     }
 
-    if (!enter_ns(pid, "pid")) {
+    if (!enter_ns(pid, "pid") == -1) {
         fprintf(stderr, "Failed to enter the PID NS of target process %d\n", pid);
         return 1;
     }
