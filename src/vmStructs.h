@@ -93,6 +93,10 @@ class VMStructs {
         return _has_thread_bridge;
     }
 
+    static bool hasJavaThreadId() {
+        return _tid != NULL;
+    }
+
     typedef jvmtiError (*GetStackTraceFunc)(void* self, void* thread,
                                             jint start_depth, jint max_frame_count,
                                             jvmtiFrameInfo* frame_buffer, jint* count_ptr);
@@ -210,9 +214,7 @@ class VMThread : VMStructs {
         return env->GetLongField(thread, _tid);
     }
 
-    static bool hasNativeId() {
-        return _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
-    }
+    static int nativeThreadId(JNIEnv* jni, jthread thread);
 
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);

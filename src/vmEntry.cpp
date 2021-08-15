@@ -41,6 +41,7 @@ void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
+GetOSThreadID VM::_getOSThreadID = NULL;
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 jvmtiError (JNICALL *VM::_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
@@ -73,6 +74,21 @@ bool VM::init(JavaVM* vm, bool attach) {
                 _hotspot_version = 9;
             }
             _jvmti->Deallocate((unsigned char*)prop);
+        }
+    }
+
+    if (hotspot_version() == 0) {
+        // Look for OpenJ9-specific JVM TI extension
+        jint ext_count;
+        jvmtiExtensionFunctionInfo* extensions;
+        if (_jvmti->GetExtensionFunctions(&ext_count, &extensions) == 0) {
+            for (int i = 0; i < ext_count; i++) {
+                if (strcmp(extensions[i].id, "com.ibm.GetOSThreadID") == 0) {
+                    _getOSThreadID = (GetOSThreadID)extensions[i].func;
+                    break;
+                }
+            }
+           _jvmti->Deallocate((unsigned char*)extensions);
         }
     }
 

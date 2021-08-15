@@ -206,9 +206,9 @@ void VMStructs::initThreadBridge(JNIEnv* env) {
     }
 
     jclass thread_class = env->GetObjectClass(thread);
-    _eetop = env->GetFieldID(thread_class, "eetop", "J");
-    _tid = env->GetFieldID(thread_class, "tid", "J");
-    if (_eetop == NULL || _tid == NULL) {
+    if ((_tid = env->GetFieldID(thread_class, "tid", "J")) == NULL ||
+        (_eetop = env->GetFieldID(thread_class, "eetop", "J")) == NULL) {
+        env->ExceptionClear();
         return;
     }
 
@@ -246,6 +246,16 @@ void VMStructs::initLogging(JNIEnv* env) {
 
 VMThread* VMThread::current() {
     return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+}
+
+int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
+    if (_thread_osthread_offset >= 0 && _osthread_id_offset >= 0) {
+        VMThread* vm_thread = fromJavaThread(jni, thread);
+        if (vm_thread != NULL) {
+            return vm_thread->osThreadId();
+        }
+    }
+    return VM::getOSThreadID(thread);
 }
 
 DisableSweeper::DisableSweeper() {

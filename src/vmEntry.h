@@ -75,6 +75,8 @@ typedef struct {
 
 typedef VMManagement* (*JVM_GetManagement)(jint);
 
+typedef jvmtiError (*GetOSThreadID)(jvmtiEnv*, jthread, jlong*);
+
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -90,6 +92,7 @@ class VM {
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
     static JVM_GetManagement _getManagement;
+    static GetOSThreadID _getOSThreadID;
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
     static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
@@ -119,6 +122,16 @@ class VM {
 
     static VMManagement* management() {
         return _getManagement != NULL ? _getManagement(0x20030000) : NULL;
+    }
+
+    static int getOSThreadID(jthread thread) {
+        if (_getOSThreadID != NULL) {
+            jlong thread_id;
+            if (_getOSThreadID(_jvmti, thread, &thread_id) == 0) {
+                return (int)thread_id;
+            }
+        }
+        return -1;
     }
 
     static int hotspot_version() {

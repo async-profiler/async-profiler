@@ -810,20 +810,20 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_update_thread_names && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
-        VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
-        if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
+        int native_thread_id = VMThread::nativeThreadId(jni, thread);
+        if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
-            setThreadInfo(vm_thread->osThreadId(), thread_info.name, java_thread_id);
+            setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
 }
 
 void Profiler::updateJavaThreadNames() {
-    if (_update_thread_names && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -912,11 +912,11 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
     }
 
-    if (!VMStructs::hasThreadBridge()) {
-        return Error("Could not find VMThread bridge. Unsupported JVM?");
+    if (!VMStructs::hasJavaThreadId()) {
+        return Error("Could not find Thread ID field. Unsupported JVM?");
     }
 
-    if (!VMStructs::hasDebugSymbols()) {
+    if (!VMStructs::hasDebugSymbols() && VM::hotspot_version() > 0) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 
