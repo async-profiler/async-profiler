@@ -916,6 +916,10 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find Thread ID field. Unsupported JVM?");
     }
 
+    if (VMThread::current() == INVALID_VMTHREAD && VM::hotspot_version() > 0) {
+        return Error("Could not find VMThread bridge. Unsupported JVM?");
+    }
+
     if (!VMStructs::hasDebugSymbols() && VM::hotspot_version() > 0) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }

@@ -26,7 +26,7 @@ NativeCodeCache* VMStructs::_libjvm = NULL;
 
 bool VMStructs::_has_class_names = false;
 bool VMStructs::_has_class_loader_data = false;
-bool VMStructs::_has_thread_bridge = false;
+bool VMStructs::_has_native_thread_id = false;
 bool VMStructs::_has_perm_gen = false;
 
 int VMStructs::_klass_name_offset = -1;
@@ -78,7 +78,6 @@ void VMStructs::init(NativeCodeCache* libjvm) {
     JNIEnv* env = VM::jni();
     initThreadBridge(env);
     initLogging(env);
-    env->ExceptionClear();
 }
 
 void VMStructs::initOffsets() {
@@ -217,6 +216,9 @@ void VMStructs::initThreadBridge(JNIEnv* env) {
         return;
     }
 
+    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+    _has_native_thread_id = vm_thread != NULL && _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
+
     // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
     // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
     for (int i = 0; i < 1024; i++) {
@@ -225,13 +227,6 @@ void VMStructs::initThreadBridge(JNIEnv* env) {
             break;
         }
     }
-
-    if (_tls_index < 0) {
-        return;
-    }
-
-    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-    _has_thread_bridge = true;
 }
 
 void VMStructs::initLogging(JNIEnv* env) {
@@ -241,15 +236,16 @@ void VMStructs::initLogging(JNIEnv* env) {
         if (management != NULL) {
             management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log what=jni+resolve=error"));
         }
+        env->ExceptionClear();
     }
 }
 
 VMThread* VMThread::current() {
-    return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+    return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : INVALID_VMTHREAD;
 }
 
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
-    if (_thread_osthread_offset >= 0 && _osthread_id_offset >= 0) {
+    if (_has_native_thread_id) {
         VMThread* vm_thread = fromJavaThread(jni, thread);
         if (vm_thread != NULL) {
             return vm_thread->osThreadId();

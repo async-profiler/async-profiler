@@ -28,7 +28,7 @@ class VMStructs {
 
     static bool _has_class_names;
     static bool _has_class_loader_data;
-    static bool _has_thread_bridge;
+    static bool _has_native_thread_id;
     static bool _has_perm_gen;
 
     static int _klass_name_offset;
@@ -87,10 +87,6 @@ class VMStructs {
 
     static bool hasClassLoaderData() {
         return _has_class_loader_data;
-    }
-
-    static bool hasThreadBridge() {
-        return _has_thread_bridge;
     }
 
     static bool hasJavaThreadId() {
@@ -233,6 +229,8 @@ class VMThread : VMStructs {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
     }
 };
+
+VMThread* const INVALID_VMTHREAD = (VMThread*)-1;
 
 class RuntimeStub : VMStructs {
   public:
