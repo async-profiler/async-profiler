@@ -493,7 +493,10 @@ class Recording {
     bool parseAgentProperties() {
         JNIEnv* env = VM::jni();
         jclass vm_support = env->FindClass("jdk/internal/vm/VMSupport");
-        if (vm_support == NULL) vm_support = env->FindClass("sun/misc/VMSupport");
+        if (vm_support == NULL) {
+            env->ExceptionClear();
+            vm_support = env->FindClass("sun/misc/VMSupport");
+        }
         if (vm_support != NULL) {
             jmethodID get_agent_props = env->GetStaticMethodID(vm_support, "getAgentProperties", "()Ljava/util/Properties;");
             jmethodID to_string = env->GetMethodID(env->FindClass("java/lang/Object"), "toString", "()Ljava/lang/String;");

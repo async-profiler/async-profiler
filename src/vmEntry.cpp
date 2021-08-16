@@ -103,7 +103,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
     capabilities.can_retransform_classes = 1;
-    capabilities.can_retransform_any_class = 1;
+    capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;

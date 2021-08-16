@@ -138,6 +138,10 @@ class VM {
         return _hotspot_version;
     }
 
+    static bool isOpenJ9() {
+        return _getOSThreadID != NULL;
+    }
+
     static bool inRedefineClasses() {
         return _in_redefine_classes > 0;
     }
