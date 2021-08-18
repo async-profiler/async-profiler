@@ -40,7 +40,7 @@
 
 int FdTransferClient::_peer = -1;
 
-bool FdTransferClient::connectToServer(const char *path, pid_t pid) {
+bool FdTransferClient::connectToServer(const char *path, int pid) {
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (_peer == -1) {
         Log::warn("FdTransferClient socket(): %s", strerror(errno));
@@ -67,7 +67,7 @@ bool FdTransferClient::connectToServer(const char *path, pid_t pid) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(pid_t *tid, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
     struct perf_fd_request request;
 
     request.header.type = PERF_FD;

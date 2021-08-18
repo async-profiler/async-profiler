@@ -495,7 +495,7 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 
-int PerfEvents::createForThread(pid_t tid) {
+int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;

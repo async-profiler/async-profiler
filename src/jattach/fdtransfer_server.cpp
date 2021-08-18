@@ -49,8 +49,8 @@ class FdTransferServer {
     static void closeServer() { close(_server); }
     static void closePeer() { close(_peer); }
     static bool bindServer(struct sockaddr_un *sun, socklen_t addrlen);
-    static bool acceptPeer(pid_t *peer_pid);
-    static bool serveRequests(pid_t peer_pid);
+    static bool acceptPeer(int *peer_pid);
+    static bool serveRequests(int peer_pid);
 };
 
 int FdTransferServer::_server;
@@ -78,7 +78,7 @@ bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen) {
     return true;
 }
 
-bool FdTransferServer::acceptPeer(pid_t *peer_pid) {
+bool FdTransferServer::acceptPeer(int *peer_pid) {
     _peer = accept(_server, NULL, NULL);
     if (_peer == -1) {
         perror("FdTransfer accept()");
@@ -106,7 +106,7 @@ bool FdTransferServer::acceptPeer(pid_t *peer_pid) {
     return true;
 }
 
-bool FdTransferServer::serveRequests(pid_t peer_pid) {
+bool FdTransferServer::serveRequests(int peer_pid) {
     // Close the server side, don't need it anymore.
     FdTransferServer::closeServer();
 
@@ -225,9 +225,9 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
     return true;
 }
 
-static int single_pid_server(pid_t pid) {
+static int single_pid_server(int pid) {
     // get its nspid prior to moving to its PID namespace.
-    pid_t nspid = -1;
+    int nspid = -1;
     uid_t _target_uid;
     gid_t _target_gid;
     if (get_process_info(pid, &_target_uid, &_target_gid, &nspid)) {
@@ -289,7 +289,7 @@ static int path_server(const char *path) {
     printf("Server ready at '%s'\n", path);
 
     while (1) {
-        pid_t peer_pid = 0;
+        int peer_pid = 0;
         if (!FdTransferServer::acceptPeer(&peer_pid)) {
             return 1;
         }
@@ -323,7 +323,7 @@ int main(int argc, const char *argv[]) {
         return 1;
     }
 
-    pid_t pid = atoi(argv[1]);
+    int pid = atoi(argv[1]);
     // 2 modes:
     // pid == 0 - bind on a path and accept requests forever, from any PID, until being killed
     // pid != 0 - bind on an abstract namespace UDS for that PID, accept requests only from that PID

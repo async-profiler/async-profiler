@@ -39,7 +39,7 @@ struct fd_request {
 
 struct perf_fd_request {
     struct fd_request header;
-    pid_t tid;
+    int tid;
     struct perf_event_attr attr;
 };
 
@@ -52,10 +52,10 @@ struct fd_response {
 
 struct perf_fd_response {
     struct fd_response header;
-    pid_t tid;
+    int tid;
 };
 
-static inline bool socketPathForPid(pid_t pid, struct sockaddr_un *sun, socklen_t *addrlen) {
+static inline bool socketPathForPid(int pid, struct sockaddr_un *sun, socklen_t *addrlen) {
     sun->sun_path[0] = '\0';
     const int max_size = sizeof(sun->sun_path) - 1;
     const int path_len = snprintf(sun->sun_path + 1, max_size, "async-profiler-%d", pid);
