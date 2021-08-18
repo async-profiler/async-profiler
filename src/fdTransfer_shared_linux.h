@@ -72,10 +72,10 @@ static inline bool socketPathForPid(int pid, struct sockaddr_un *sun, socklen_t 
 
 static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen_t *addrlen) {
     const int path_len = strlen(path);
-    if (path_len > sizeof(sun->sun_path) + 1) {
+    if (path_len > sizeof(sun->sun_path)) {
         return false;
     }
-    strcpy(sun->sun_path, path);
+    memcpy(sun->sun_path, path, path_len);
 
     sun->sun_family = AF_UNIX;
     *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - path_len);
