@@ -48,7 +48,7 @@ class FdTransferServer {
   public:
     static void closeServer() { close(_server); }
     static void closePeer() { close(_peer); }
-    static bool bindServer(struct sockaddr_un *sun, socklen_t addrlen);
+    static bool bindServer(struct sockaddr_un *sun, socklen_t addrlen, bool oneshot);
     static bool acceptPeer(int *peer_pid);
     static bool serveRequests(int peer_pid);
 };
@@ -56,7 +56,7 @@ class FdTransferServer {
 int FdTransferServer::_server;
 int FdTransferServer::_peer;
 
-bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen) {
+bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen, bool oneshot) {
     _server = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (_server == -1) {
         perror("FdTransfer socket():");
@@ -67,6 +67,20 @@ bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen) {
         perror("FdTransfer bind()");
         close(_server);
         return false;
+    }
+
+    // Arbitrary timeout, to prevent it from listening forever.
+    if (oneshot) {
+        const int accept_timeout_s = 10;
+        const struct timeval timeout = {
+            accept_timeout_s,
+            0,
+        };
+        if (-1 == setsockopt(_server, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout))) {
+            perror("FdTransfer setsockopt(SO_RCVTIMEO)");
+            close(_server);
+            return false;
+        }
     }
 
     if (-1 == listen(_server, 1)) {
@@ -250,7 +264,7 @@ static int single_pid_server(int pid) {
         return 1;
     }
 
-    if (!FdTransferServer::bindServer(&sun, addrlen)) {
+    if (!FdTransferServer::bindServer(&sun, addrlen, true)) {
         return 1;
     }
 
@@ -282,7 +296,7 @@ static int path_server(const char *path) {
         return 1;
     }
 
-    if (!FdTransferServer::bindServer(&sun, addrlen)) {
+    if (!FdTransferServer::bindServer(&sun, addrlen, false)) {
         return 1;
     }
 
