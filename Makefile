@@ -19,7 +19,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
-HEADERS := $(wildcard src/*.h)
+HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
 JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
@@ -105,7 +105,7 @@ build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
-build/fdtransfer: src/jattach/fdtransfer_server.cpp src/fdTransfer_shared_linux.h src/jattach/psutil.c
+build/fdtransfer: src/fdtransfer/fdtransfer_server.cpp src/fdtransfer/fdTransfer_shared_linux.h src/jattach/psutil.c
 	$(CXX) $(CFLAGS) -o $@ $^
 
 build/$(API_JAR): $(API_SOURCES)

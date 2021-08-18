@@ -19,7 +19,7 @@
 
 #ifdef __linux__
 
-#include "fdTransfer_shared_linux.h"
+#include "fdtransfer/fdTransfer_shared_linux.h"
 
 class FdTransferClient {
   private:

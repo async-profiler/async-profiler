@@ -33,8 +33,8 @@
 #include <stdbool.h>
 #include <sys/wait.h>
 
-#include "../fdTransfer_shared_linux.h"
-#include "psutil.h"
+#include "fdTransfer_shared_linux.h"
+#include "../jattach/psutil.h"
 
 
 #define TMP_KALLSYMS_PATH "/tmp/async-profiler-kallsyms.%d"
