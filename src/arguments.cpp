@@ -48,6 +48,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     start           - start profiling
 //     resume          - start or resume profiling without resetting collected data
 //     stop            - stop profiling
+//     dump            - dump collected data without stopping profiling session
 //     check           - check if the specified profiling event is available
 //     status          - print profiling status (inactive / running for X seconds)
 //     list            - show the list of available profiling events
@@ -118,6 +119,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("stop")
                 _action = ACTION_STOP;
+
+            CASE("dump")
+                _action = ACTION_DUMP;
 
             CASE("check")
                 _action = ACTION_CHECK;
@@ -295,7 +299,7 @@ Error Arguments::parse(const char* args) {
         _dump_flat = 200;
     }
 
-    if (_output != OUTPUT_NONE && (_action == ACTION_NONE || _action == ACTION_STOP)) {
+    if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
     }
 

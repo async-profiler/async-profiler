@@ -39,6 +39,7 @@ class FlightRecorder {
 
     Error start(Arguments& args, bool reset);
     void stop();
+    void flush();
 
     bool active() {
         return _rec != NULL;

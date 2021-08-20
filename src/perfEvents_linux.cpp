@@ -173,6 +173,8 @@ struct PerfEventType {
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
 
+    static char probe_func[256];
+
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size
     static int findCounterArg(const char* name) {
@@ -259,7 +261,6 @@ struct PerfEventType {
     }
 
     static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
-        static char probe_func[256];
         strncpy(probe_func, name, sizeof(probe_func) - 1);
         probe_func[sizeof(probe_func) - 1] = 0;
 
@@ -449,6 +450,8 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {"recvfrom", 3},
     {NULL}
 };
+
+char PerfEventType::probe_func[256];
 
 
 class RingBuffer {

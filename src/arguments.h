@@ -34,12 +34,12 @@ enum Action {
     ACTION_START,
     ACTION_RESUME,
     ACTION_STOP,
+    ACTION_DUMP,
     ACTION_CHECK,
     ACTION_STATUS,
     ACTION_LIST,
     ACTION_VERSION,
-    ACTION_FULL_VERSION,
-    ACTION_DUMP
+    ACTION_FULL_VERSION
 };
 
 enum Counter {
@@ -80,12 +80,13 @@ enum Output {
 enum JfrOption {
     NO_SYSTEM_INFO  = 0x1,
     NO_SYSTEM_PROPS = 0x2,
-    NO_CPU_LOAD     = 0x4,
+    NO_NATIVE_LIBS  = 0x4,
+    NO_CPU_LOAD     = 0x8,
 
     JFR_SYNC        = 0x10,
     JFR_TEMP_FILE   = 0x20,
 
-    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
+    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
 };
 
 
@@ -190,7 +191,8 @@ class Arguments {
     Error parse(const char* args);
 
     bool hasOutputFile() const {
-        return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
+        return _file != NULL &&
+            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
     }
 
     bool hasOption(JfrOption option) const {

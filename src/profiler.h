@@ -63,6 +63,7 @@ union CallTraceBuffer {
 class FrameName;
 
 enum State {
+    NEW,
     IDLE,
     RUNNING,
     TERMINATED
@@ -154,11 +155,18 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
+    void lockAll();
+    void unlockAll();
+
+    void dumpCollapsed(std::ostream& out, Arguments& args);
+    void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
+    void dumpText(std::ostream& out, Arguments& args);
+
     static Profiler* const _instance;
 
   public:
     Profiler() :
-        _state(IDLE),
+        _state(NEW),
         _begin_trap(2),
         _end_trap(3),
         _thread_filter(),
@@ -196,11 +204,8 @@ class Profiler {
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
     Error stop();
+    Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
-    void dump(std::ostream& out, Arguments& args);
-    void dumpCollapsed(std::ostream& out, Arguments& args);
-    void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
-    void dumpText(std::ostream& out, Arguments& args);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);

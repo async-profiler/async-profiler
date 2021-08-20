@@ -273,7 +273,8 @@ static int write_reply_info(int pid, int port, unsigned long long key) {
     }
 
     int chars = snprintf(path, sizeof(path), "%016llx\n%d\n", key, port);
-    write(fd, path, chars);
+    ssize_t r = write(fd, path, chars);
+    (void)r;
     close(fd);
 
     return 0;
