@@ -93,6 +93,7 @@ class VM {
     static jvmtiEnv* _jvmti;
     static JVM_GetManagement _getManagement;
     static GetOSThreadID _getOSThreadID;
+    static int _instrumentableObjectAlloc;
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
     static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
@@ -100,6 +101,7 @@ class VM {
     static int _hotspot_version;
 
     static void ready();
+    static void checkJvmtiExtensions();
     static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
@@ -132,6 +134,10 @@ class VM {
             }
         }
         return -1;
+    }
+
+    static int instrumentableObjectAlloc() {
+        return _instrumentableObjectAlloc;
     }
 
     static int hotspot_version() {

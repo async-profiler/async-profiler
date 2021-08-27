@@ -27,6 +27,7 @@
 #include "perfEvents.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
+#include "objectSampler.h"
 #include "wallClock.h"
 #include "instrument.h"
 #include "itimer.h"
@@ -45,7 +46,7 @@ Profiler* const Profiler::_instance = new Profiler();
 
 static Engine noop_engine;
 static PerfEvents perf_events;
-static AllocTracer alloc_tracer;
+static ObjectSampler alloc_tracer;
 static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;

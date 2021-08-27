@@ -25,6 +25,7 @@
 #include "instrument.h"
 #include "lockTracer.h"
 #include "log.h"
+#include "objectSampler.h"
 #include "vmStructs.h"
 
 
@@ -42,6 +43,7 @@ void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
 GetOSThreadID VM::_getOSThreadID = NULL;
+int VM::_instrumentableObjectAlloc = -1;
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 jvmtiError (JNICALL *VM::_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
@@ -78,18 +80,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     if (hotspot_version() == 0) {
-        // Look for OpenJ9-specific JVM TI extension
-        jint ext_count;
-        jvmtiExtensionFunctionInfo* extensions;
-        if (_jvmti->GetExtensionFunctions(&ext_count, &extensions) == 0) {
-            for (int i = 0; i < ext_count; i++) {
-                if (strcmp(extensions[i].id, "com.ibm.GetOSThreadID") == 0) {
-                    _getOSThreadID = (GetOSThreadID)extensions[i].func;
-                    break;
-                }
-            }
-           _jvmti->Deallocate((unsigned char*)extensions);
-        }
+        checkJvmtiExtensions();
     }
 
     _libjvm = getLibraryHandle("libjvm.so");
@@ -104,6 +95,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_generate_all_class_hook_events = 1;
     capabilities.can_retransform_classes = 1;
     capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
+    capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -126,6 +118,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
+    callbacks.VMObjectAlloc = ObjectSampler::VMObjectAlloc;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
@@ -173,6 +166,35 @@ void VM::ready() {
     _orig_RetransformClasses = functions->RetransformClasses;
     functions->RedefineClasses = RedefineClassesHook;
     functions->RetransformClasses = RetransformClassesHook;
+}
+
+// Look for OpenJ9-specific JVM TI extension
+void VM::checkJvmtiExtensions() {
+    jint ext_count;
+    jvmtiExtensionFunctionInfo* ext_functions;
+    if (_jvmti->GetExtensionFunctions(&ext_count, &ext_functions) == 0) {
+        for (int i = 0; i < ext_count; i++) {
+            if (strcmp(ext_functions[i].id, "com.ibm.GetOSThreadID") == 0) {
+                _getOSThreadID = (GetOSThreadID)ext_functions[i].func;
+                break;
+            }
+        }
+       _jvmti->Deallocate((unsigned char*)ext_functions);
+    }
+
+    jvmtiExtensionEventInfo* ext_events;
+    if (_jvmti->GetExtensionEvents(&ext_count, &ext_events) == 0) {
+        for (int i = 0; i < ext_count; i++) {
+            if (strcmp(ext_events[i].id, "com.ibm.InstrumentableObjectAlloc") == 0) {
+                _instrumentableObjectAlloc = ext_events[i].extension_event_index;
+                // If we don't set a callback now, we won't be able to enable it later in runtime
+                _jvmti->SetExtensionEventCallback(_instrumentableObjectAlloc, (jvmtiExtensionEvent)ObjectSampler::JavaObjectAlloc);
+                _jvmti->SetExtensionEventCallback(_instrumentableObjectAlloc, NULL);
+                break;
+            }
+        }
+       _jvmti->Deallocate((unsigned char*)ext_events);
+    }
 }
 
 void* VM::getLibraryHandle(const char* name) {
