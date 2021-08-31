@@ -90,6 +90,12 @@ enum JfrOption {
 };
 
 
+struct Multiplier {
+    char symbol;
+    long multiplier;
+};
+
+
 class Error {
   private:
     const char* _message;
@@ -120,7 +126,7 @@ class Arguments {
     static long long hash(const char* arg);
     static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
-    static long parseUnits(const char* str);
+    static long parseUnits(const char* str, const Multiplier* multipliers);
 
   public:
     Action _action;
@@ -142,6 +148,8 @@ class Arguments {
     int _style;
     CStack _cstack;
     Output _output;
+    long _chunk_size;
+    long _chunk_time;
     int _jfr_options;
     int _dump_traces;
     int _dump_flat;
@@ -174,6 +182,8 @@ class Arguments {
         _style(0),
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
+        _chunk_size(100 * 1024 * 1024),
+        _chunk_time(3600),
         _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),

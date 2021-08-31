@@ -40,11 +40,10 @@ class WallClock : public Engine {
     }
 
     static ThreadState getThreadState(void* ucontext);
+
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void wakeupHandler(int signo);
 
     static long adjustInterval(long interval, int thread_count);
-    static void sleep(long interval);
 
   public:
     const char* title() {

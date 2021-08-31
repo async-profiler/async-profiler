@@ -200,7 +200,7 @@ while [ $# -gt 0 ]; do
         --samples|--total)
             FORMAT="$FORMAT,${1#--}"
             ;;
-        --alloc|--lock)
+        --alloc|--lock|--chunksize|--chunktime)
             PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;

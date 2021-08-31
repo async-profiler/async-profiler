@@ -1100,6 +1100,22 @@ Error Profiler::check(Arguments& args) {
     return error;
 }
 
+Error Profiler::flushJfr() {
+    MutexLocker ml(_state_lock);
+    if (_state != RUNNING) {
+        return Error("Profiler is not active");
+    }
+
+    updateJavaThreadNames();
+    updateNativeThreadNames();
+
+    lockAll();
+    _jfr.flush();
+    unlockAll();
+
+    return Error::OK;
+}
+
 Error Profiler::dump(std::ostream& out, Arguments& args) {
     MutexLocker ml(_state_lock);
     if (_state != IDLE && _state != RUNNING) {

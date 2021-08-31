@@ -47,6 +47,11 @@ jvmtiError (JNICALL *VM::_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event
 volatile int VM::_in_redefine_classes = 0;
 
 
+static void wakeupHandler(int signo) {
+    // Dummy handler for interrupting syscalls
+}
+
+
 bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti != NULL) return true;
 
@@ -133,6 +138,8 @@ bool VM::init(JavaVM* vm, bool attach) {
         _orig_GenerateEvents = functions->GenerateEvents;
         functions->GenerateEvents = GenerateEventsHook;
     }
+
+    OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
 
     return true;
 }

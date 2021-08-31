@@ -204,6 +204,7 @@ class Profiler {
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
     Error stop();
+    Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);

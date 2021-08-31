@@ -25,16 +25,14 @@
 
 typedef void (*SigAction)(int, siginfo_t*, void*);
 typedef void (*SigHandler)(int);
-typedef void (*TimerCallback)(void*);
+
+// Interrupt threads with this signal. The same signal is used inside JDK to interrupt I/O operations.
+const int WAKEUP_SIGNAL = SIGIO;
 
 enum ThreadState {
     THREAD_INVALID,
     THREAD_RUNNING,
     THREAD_SLEEPING
-};
-
-
-class Timer {
 };
 
 
@@ -67,6 +65,7 @@ class OS {
     static u64 nanotime();
     static u64 millis();
     static u64 processStartTime();
+    static void sleep(u64 nanos);
 
     static u64 hton64(u64 x);
     static u64 ntoh64(u64 x);
@@ -86,9 +85,6 @@ class OS {
 
     static void* safeAlloc(size_t size);
     static void safeFree(void* addr, size_t size);
-
-    static Timer* startTimer(u64 interval, TimerCallback callback, void* arg);
-    static void stopTimer(Timer* timer);
 
     static bool getCpuDescription(char* buf, size_t size);
     static u64 getProcessCpuTime(u64* utime, u64* stime);

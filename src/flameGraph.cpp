@@ -570,7 +570,7 @@ int FlameGraph::frameType(std::string& name) {
     } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
         // C++ function or Objective C method
         return 3;
-    } else if ((int)name.find('/') > 0 || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
+    } else if ((int)name.find('/') > 0 && name[0] != '[' || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
         return 0;
     } else {

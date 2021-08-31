@@ -122,9 +122,9 @@ const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
 
 u64 OS::nanotime() {
-    struct timespec tp;
-    clock_gettime(CLOCK_MONOTONIC, &tp);
-    return (u64)tp.tv_sec * 1000000000 + tp.tv_nsec;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (u64)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
 u64 OS::millis() {
@@ -147,6 +147,11 @@ u64 OS::processStartTime() {
     }
 
     return start_time;
+}
+
+void OS::sleep(u64 nanos) {
+    struct timespec ts = {nanos / 1000000000, nanos % 1000000000};
+    nanosleep(&ts, NULL);
 }
 
 u64 OS::hton64(u64 x) {
@@ -263,30 +268,6 @@ void* OS::safeAlloc(size_t size) {
 
 void OS::safeFree(void* addr, size_t size) {
     syscall(__NR_munmap, addr, size);
-}
-
-Timer* OS::startTimer(u64 interval, TimerCallback callback, void* arg) {
-    struct sigevent sev;
-    sev.sigev_notify = SIGEV_THREAD;
-    sev.sigev_value.sival_ptr = arg;
-    sev.sigev_notify_function = (void (*)(union sigval)) callback;
-    sev.sigev_notify_attributes = NULL;
-
-    timer_t timer;
-    if (timer_create(CLOCK_MONOTONIC, &sev, &timer) != 0) {
-        return NULL;
-    }
-
-    struct itimerspec spec;
-    spec.it_interval.tv_sec = spec.it_value.tv_sec = interval / 1000000000;
-    spec.it_interval.tv_nsec = spec.it_value.tv_nsec = interval % 1000000000;
-    timer_settime(timer, 0, &spec, NULL);
-
-    return (Timer*)timer;
-}
-
-void OS::stopTimer(Timer* timer) {
-    timer_delete((timer_t)timer);
 }
 
 bool OS::getCpuDescription(char* buf, size_t size) {

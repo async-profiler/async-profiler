@@ -176,7 +176,8 @@ public class FlameGraph {
             return 2;
         } else if (title.contains("::") || title.startsWith("-[") || title.startsWith("+[")) {
             return 3;
-        } else if (title.indexOf('/') > 0 || title.indexOf('.') > 0 && Character.isUpperCase(title.charAt(0))) {
+        } else if (title.indexOf('/') > 0 && title.charAt(0) != '['
+                || title.indexOf('.') > 0 && Character.isUpperCase(title.charAt(0))) {
             return 0;
         } else {
             return 4;
