@@ -232,6 +232,12 @@ class Lookup {
         if (package == NULL) {
             return 0;
         }
+        if (package[1] >= '0' && package[1] <= '9') {
+            // Seems like a hidden or anonymous class, e.g. com/example/Foo/0x012345
+            do {
+                if (package == class_name) return 0;
+            } while (*--package != '/');
+        }
         if (class_name[0] == '[') {
             class_name = strchr(class_name, 'L') + 1;
         }

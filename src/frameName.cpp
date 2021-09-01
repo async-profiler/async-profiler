@@ -23,6 +23,11 @@
 #include "vmStructs.h"
 
 
+static inline bool isDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+
 Matcher::Matcher(const char* pattern) {
     if (pattern[0] == '*') {
         _type = MATCH_ENDS_WITH;
@@ -191,13 +196,13 @@ char* FrameName::javaClassName(const char* symbol, int length, int style) {
 
     if (style & STYLE_SIMPLE) {
         for (char* s = result; *s; s++) {
-            if (*s == '/') result = s + 1;
+            if (*s == '/' && !isDigit(s[1])) result = s + 1;
         }
     }
 
     if (style & STYLE_DOTTED) {
         for (char* s = result; *s; s++) {
-            if (*s == '/') *s = '.';
+            if (*s == '/' && !isDigit(s[1])) *s = '.';
         }
     }
 
