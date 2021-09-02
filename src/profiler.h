@@ -151,6 +151,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
+    Engine* allocEngine();
     Engine* activeEngine();
     Error checkJvmCapabilities();
 

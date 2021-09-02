@@ -46,8 +46,9 @@ Profiler* const Profiler::_instance = new Profiler();
 
 static Engine noop_engine;
 static PerfEvents perf_events;
-static ObjectSampler alloc_tracer;
+static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
+static ObjectSampler object_sampler;
 static WallClock wall_clock;
 static ITimer itimer;
 static Instrument instrument;
@@ -897,10 +898,14 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
+Engine* Profiler::allocEngine() {
+    return VM::isOpenJ9() ? (Engine*)&object_sampler : (Engine*)&alloc_tracer;
+}
+
 Engine* Profiler::activeEngine() {
     switch (_event_mask) {
         case EM_ALLOC:
-            return &alloc_tracer;
+            return allocEngine();
         case EM_LOCK:
             return &lock_tracer;
         default:
@@ -1020,7 +1025,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        error = alloc_tracer.start(args);
+        error = allocEngine()->start(args);
         if (error) {
             goto error2;
         }
@@ -1040,7 +1045,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error3:
-    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
+    if (_event_mask & EM_ALLOC) allocEngine()->stop();
 
 error2:
     _engine->stop();
@@ -1063,7 +1068,7 @@ Error Profiler::stop() {
     uninstallTraps();
 
     if (_event_mask & EM_LOCK) lock_tracer.stop();
-    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
+    if (_event_mask & EM_ALLOC) allocEngine()->stop();
 
     _engine->stop();
 
@@ -1094,7 +1099,7 @@ Error Profiler::check(Arguments& args) {
         error = _engine->check(args);
     }
     if (!error && args._alloc > 0) {
-        error = alloc_tracer.check(args);
+        error = allocEngine()->check(args);
     }
     if (!error && args._lock > 0) {
         error = lock_tracer.check(args);
