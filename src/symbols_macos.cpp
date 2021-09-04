@@ -35,18 +35,29 @@ class MachOParser {
         return (const char*)base + offset;
     }
 
+    void findGlobalOffsetTable(const segment_command_64* sc) {
+        const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
+        for (uint32_t i = 0; i < sc->nsects; i++) {
+            if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
+                _cc->setGlobalOffsetTable(add(_image_base, section->addr), section->size);
+                break;
+            }
+            section++;
+        }
+    }
+
     void loadSymbols(const symtab_command* symtab, const char* text_base, const char* link_base) {
-        const nlist_64* symbol_table = (const nlist_64*)add(link_base, symtab->symoff);
+        const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
 
         for (uint32_t i = 0; i < symtab->nsyms; i++) {
-            nlist_64 sym = symbol_table[i];
-            if ((sym.n_type & 0xee) == 0x0e && sym.n_value != 0) {
-                const char* addr = text_base + sym.n_value;
-                const char* name = str_table + sym.n_un.n_strx;
+            if ((sym->n_type & 0xee) == 0x0e && sym->n_value != 0) {
+                const char* addr = text_base + sym->n_value;
+                const char* name = str_table + sym->n_un.n_strx;
                 if (name[0] == '_') name++;
                 _cc->add(addr, 0, name);
             }
+            sym++;
         }
     }
 
@@ -77,6 +88,10 @@ class MachOParser {
                 } else if ((sc->initprot & 7) == 1) {
                     if (link_base == UNDEFINED || strcmp(sc->segname, "__LINKEDIT") == 0) {
                         link_base = text_base + sc->vmaddr - sc->fileoff;
+                    }
+                } else if ((sc->initprot & 2) != 0) {
+                    if (strcmp(sc->segname, "__DATA") == 0) {
+                        findGlobalOffsetTable(sc);
                     }
                 }
             } else if (lc->cmd == LC_SYMTAB) {
@@ -130,6 +145,10 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
         array[count] = cc;
         atomicInc(count);
     }
+}
+
+void Symbols::makePatchable(NativeCodeCache* cc) {
+    // Global Offset Table is always writable
 }
 
 #endif // __APPLE__

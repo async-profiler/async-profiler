@@ -108,20 +108,10 @@ class Profiler {
     NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
     volatile int _native_lib_count;
 
-    // Support for intercepting NativeLibrary.load() / NativeLibraries.load()
-    JNINativeMethod _load_method;
-    void* _original_NativeLibrary_load;
-    void* _trapped_NativeLibrary_load;
-    static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
-    static jboolean JNICALL NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni);
-    void bindNativeLibraryLoad(JNIEnv* env, bool enable);
-
-    // Support for intercepting Thread.setNativeName()
-    void* _original_Thread_setNativeName;
-    static void JNICALL ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name);
-    void bindThreadSetNativeName(JNIEnv* env, bool enable);
-
-    void switchNativeMethodTraps(bool enable);
+    // dlopen() hook support
+    const void** _dlopen_entry;
+    static void* dlopen_hook(const char* filename, int flags);
+    void switchLibraryTrap(bool enable);
 
     void (*_orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
     Error installTraps(const char* begin, const char* end);
@@ -181,7 +171,7 @@ class Profiler {
         _java_methods(),
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
-        _original_NativeLibrary_load(NULL) {
+        _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;

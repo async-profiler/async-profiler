@@ -89,6 +89,8 @@ class CodeCache {
 class NativeCodeCache : public CodeCache {
   private:
     char* _name;
+    const void** _got_start;
+    const void** _got_end;
 
   public:
     NativeCodeCache(const char* name,
@@ -97,16 +99,29 @@ class NativeCodeCache : public CodeCache {
 
     ~NativeCodeCache();
 
-    const char* name() {
+    const char* name() const {
         return _name;
     }
 
-    const void* minAddress() {
+    const void* minAddress() const {
         return _min_address;
     }
 
-    const void* maxAddress() {
+    const void* maxAddress() const {
         return _max_address;
+    }
+
+    const void** gotStart() const {
+        return _got_start;
+    }
+
+    const void** gotEnd() const {
+        return _got_end;
+    }
+
+    void setGlobalOffsetTable(const void* start, unsigned int size) {
+        _got_start = (const void**) start;
+        _got_end = (const void**) ((const char*)start + size);
     }
 
     void add(const void* start, int length, const char* name, bool update_bounds = false);
@@ -115,6 +130,7 @@ class NativeCodeCache : public CodeCache {
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
+    const void** findGOTEntry(const void* address);
 };
 
 #endif // _CODECACHE_H

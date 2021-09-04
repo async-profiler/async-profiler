@@ -33,6 +33,7 @@
 #include "symbols.h"
 #include "arch.h"
 #include "log.h"
+#include "os.h"
 
 
 class SymbolDesc {
@@ -215,8 +216,8 @@ void ElfParser::loadSymbols(bool use_debug) {
     }
 
 loaded:
-    // Synthesize names for PLT stubs
     if (use_debug) {
+        // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
         ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
         if (reltab == NULL) {
@@ -224,6 +225,12 @@ loaded:
         }
         if (plt != NULL && reltab != NULL) {
             addRelocationSymbols(reltab, _base + plt->sh_offset + PLT_HEADER_SIZE);
+        }
+
+        // Find the bounds of the Global Offset Table
+        ElfSection* got = findSection(SHT_PROGBITS, ".got.plt");
+        if (got != NULL || (got = findSection(SHT_PROGBITS, ".got")) != NULL) {
+            _cc->setGlobalOffsetTable(_base + got->sh_addr, got->sh_size);
         }
     }
 }
@@ -401,6 +408,12 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
             atomicInc(count);
         }
     }
+}
+
+void Symbols::makePatchable(NativeCodeCache* cc) {
+    uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
+    uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
+    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE); 
 }
 
 #endif // __linux__
