@@ -422,6 +422,11 @@ The following is a complete list of the command-line options accepted by
   only events between the safepoint request and the start of the VM operation
   will be recorded.
 
+* `--fdtransfer` - runs "fdtransfer" alongside, which is a small program providing an interface
+  for the profiler to access, `perf_event_open` even while this syscall is unavailable for the
+  profiled process (due to low privileges).
+  See [Profiling Java in a container](#profiling-java-in-a-container).
+
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
   gets the version of the library loaded into the given process.
 
@@ -441,13 +446,12 @@ the target container can access `libasyncProfiler.so` by the same
 absolute path as on the host.
 
 By default, Docker container restricts the access to `perf_event_open`
-syscall. So, in order to allow profiling inside a container, you'll need
-to modify [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
+syscall. There are 3 alternatives to allow profiling in a container:
+1. You can modify the [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
 or disable it altogether with `--security-opt seccomp=unconfined` option. In
 addition, `--cap-add SYS_ADMIN` may be required.
-
-Alternatively, if changing Docker configuration is not possible,
-you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
+2. You can use "fdtransfer": see the help for `--fdtransfer`.
+3. Last, you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
 
 ## Restrictions/Limitations
 
@@ -532,7 +536,7 @@ Make sure the user of JVM process has permissions to access `libasyncProfiler.so
 For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
 
 ```
-No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'
+No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'
 ```
 or
 ```
@@ -542,9 +546,12 @@ Perf events unavailable
 
 Typical reasons include:
 1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
-2. seccomp disables perf_event_open API in a container.
+2. seccomp disables `perf_event_open` API in a container.
 3. OS runs under a hypervisor that does not virtualize performance counters.
 4. perf_event_open API is not supported on this system, e.g. WSL.
+
+For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
+as a privileged user will allow using perf_events.
 
 If changing the configuration is not possible, you may fall back to
 `-e itimer` profiling mode. It is similar to `cpu` mode, but does not

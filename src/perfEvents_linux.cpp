@@ -749,7 +749,7 @@ Error PerfEvents::start(Arguments& args) {
     if (!created) {
         Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
         if (err == EACCES || err == EPERM) {
-            return Error("No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
+            return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {
             return Error("Perf events unavailable");
         }
