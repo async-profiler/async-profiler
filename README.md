@@ -307,6 +307,8 @@ The following is a complete list of the command-line options accepted by
 
 * `stop` - stops profiling and prints the report.
 
+* `dump` - dump collected data without stopping profiling session.
+
 * `check` - check if the specified profiling event is available.
 
 * `status` - prints profiling status: whether profiler is active and
@@ -384,6 +386,9 @@ The following is a complete list of the command-line options accepted by
 
 * `--total` - count the total value of the collected metric instead of the number of samples,
   e.g. total allocation size.
+
+* `--chunksize N`, `--chunktime N` - approximate size and time limits for a single JFR chunk.
+  Example: `./profiler.sh -f profile.jfr --chunksize 100m --chunktime 1h 8983`
 
 * `-I include`, `-X exclude` - filter stack traces by the given pattern(s).
   `-I` defines the name pattern that *must* be present in the stack traces,

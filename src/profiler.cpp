@@ -117,23 +117,17 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    int tid = OS::threadId();
-    _thread_filter.remove(tid);
-    updateThreadName(jvmti, jni, thread);
-
-    if (_engine == &perf_events) {
-        PerfEvents::createForThread(tid);
+    if (_thread_filter.enabled()) {
+        _thread_filter.remove(OS::threadId());
     }
+    updateThreadName(jvmti, jni, thread);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    int tid = OS::threadId();
-    _thread_filter.remove(tid);
-    updateThreadName(jvmti, jni, thread);
-
-    if (_engine == &perf_events) {
-        PerfEvents::destroyForThread(tid);
+    if (_thread_filter.enabled()) {
+        _thread_filter.remove(OS::threadId());
     }
+    updateThreadName(jvmti, jni, thread);
 }
 
 const char* Profiler::asgctError(int code) {
@@ -649,106 +643,17 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
     _jfr.recordLog(level, message, len);
 }
 
-jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean))
-                       instance()->_original_NativeLibrary_load)(env, self, name, builtin);
-    instance()->updateSymbols(false);
+void* Profiler::dlopen_hook(const char* filename, int flags) {
+    void* result = dlopen(filename, flags);
+    if (result != NULL) {
+        instance()->updateSymbols(false);
+    }
     return result;
 }
 
-jboolean JNICALL Profiler::NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jobject, jstring, jboolean, jboolean))
-                       instance()->_original_NativeLibrary_load)(env, self, lib, name, builtin, jni);
-    instance()->updateSymbols(false);
-    return result;
-}
-
-void JNICALL Profiler::ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name) {
-    ((void JNICALL (*)(JNIEnv*, jobject, jstring)) instance()->_original_Thread_setNativeName)(env, self, name);
-    instance()->updateThreadName(VM::jvmti(), env, self);
-}
-
-void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
-    jclass NativeLibrary;
-
-    if (_original_NativeLibrary_load == NULL) {
-        char original_jni_name[64];
-
-        if ((NativeLibrary = env->FindClass("jdk/internal/loader/NativeLibraries")) != NULL) {
-            strcpy(original_jni_name, "Java_jdk_internal_loader_NativeLibraries_");
-            _trapped_NativeLibrary_load = (void*)NativeLibrariesLoadTrap;
-
-            // JDK 15+
-            _load_method.name = (char*)"load";
-            _load_method.signature = (char*)"(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZ)Z";
-
-        } else if ((NativeLibrary = env->FindClass("java/lang/ClassLoader$NativeLibrary")) != NULL) {
-            strcpy(original_jni_name, "Java_java_lang_ClassLoader_00024NativeLibrary_");
-            _trapped_NativeLibrary_load = (void*)NativeLibraryLoadTrap;
-
-            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)Z") != NULL) {
-                // JDK 9-14
-                _load_method.name = (char*)"load0";
-                _load_method.signature = (char*)"(Ljava/lang/String;Z)Z";
-            } else if (env->GetMethodID(NativeLibrary, "load", "(Ljava/lang/String;Z)V") != NULL) {
-                // JDK 8
-                _load_method.name = (char*)"load";
-                _load_method.signature = (char*)"(Ljava/lang/String;Z)V";
-            } else {
-                // JDK 7
-                _load_method.name = (char*)"load";
-                _load_method.signature = (char*)"(Ljava/lang/String;)V";
-            }
-
-        } else {
-            Log::warn("Failed to intercept NativeLibraries.load()");
-            return;
-        }
-
-        strcat(original_jni_name, _load_method.name);
-        if ((_original_NativeLibrary_load = dlsym(VM::_libjava, original_jni_name)) == NULL) {
-            Log::warn("Could not find %s", original_jni_name);
-            return;
-        }
-
-    } else {
-        const char* class_name = _trapped_NativeLibrary_load == NativeLibrariesLoadTrap
-            ? "jdk/internal/loader/NativeLibraries"
-            : "java/lang/ClassLoader$NativeLibrary";
-        if ((NativeLibrary = env->FindClass(class_name)) == NULL) {
-            Log::warn("Could not find %s", class_name);
-            return;
-        }
-    }
-
-    _load_method.fnPtr = enable ? _trapped_NativeLibrary_load : _original_NativeLibrary_load;
-    env->RegisterNatives(NativeLibrary, &_load_method, 1);
-}
-
-void Profiler::bindThreadSetNativeName(JNIEnv* env, bool enable) {
-    jclass Thread = env->FindClass("java/lang/Thread");
-    if (Thread == NULL) {
-        return;
-    }
-
-    // Find JNI entry for Thread.setNativeName() method
-    if (_original_Thread_setNativeName == NULL) {
-        _original_Thread_setNativeName = dlsym(VM::_libjvm, "JVM_SetNativeThreadName");
-    }
-
-    // Change function pointer for the native method
-    if (_original_Thread_setNativeName != NULL) {
-        void* entry = enable ? (void*)ThreadSetNativeNameTrap : _original_Thread_setNativeName;
-        const JNINativeMethod setNativeName = {(char*)"setNativeName", (char*)"(Ljava/lang/String;)V", entry};
-        env->RegisterNatives(Thread, &setNativeName, 1);
-    }
-}
-
-void Profiler::switchNativeMethodTraps(bool enable) {
-    JNIEnv* env = VM::jni();
-    bindNativeLibraryLoad(env, enable);
-    // bindThreadSetNativeName(env, enable);
-    env->ExceptionClear();
+void Profiler::switchLibraryTrap(bool enable) {
+    void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
+    __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
 }
 
 Error Profiler::installTraps(const char* begin, const char* end) {
@@ -916,7 +821,8 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    if (VMStructs::libjvm() == NULL) {
+    NativeCodeCache* libjvm = VMStructs::libjvm();
+    if (libjvm == NULL) {
         return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
     }
 
@@ -928,6 +834,13 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
+    if (_dlopen_entry == NULL) {
+        if ((_dlopen_entry = libjvm->findGOTEntry((const void*)dlopen)) == NULL) {
+            return Error("Could not set dlopen hook. Unsupported JVM?");
+        }
+        Symbols::makePatchable(libjvm);
+    }
+
     if (!VMStructs::hasDebugSymbols() && VM::hotspot_version() > 0) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
@@ -937,7 +850,7 @@ Error Profiler::checkJvmCapabilities() {
 
 Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) {
+    if (_state > IDLE) {
         return Error("Profiler already started");
     }
 
@@ -1010,13 +923,13 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    switchNativeMethodTraps(true);
+    switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
-            switchNativeMethodTraps(false);
+            switchLibraryTrap(false);
             return error;
         }
     }
@@ -1039,7 +952,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
 
     _state = RUNNING;
@@ -1054,10 +966,12 @@ error2:
 
 error1:
     uninstallTraps();
-    switchNativeMethodTraps(false);
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    switchLibraryTrap(false);
+
+    lockAll();
     _jfr.stop();
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+    unlockAll();
+
     return error;
 }
 
@@ -1074,15 +988,15 @@ Error Profiler::stop() {
 
     _engine->stop();
 
-    switchNativeMethodTraps(false);
+    switchLibraryTrap(false);
     switchThreadEvents(JVMTI_DISABLE);
     updateJavaThreadNames();
     updateNativeThreadNames();
 
     // Acquire all spinlocks to avoid race with remaining signals
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    lockAll();
     _jfr.stop();
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+    unlockAll();
 
     _state = IDLE;
     return Error::OK;
@@ -1090,7 +1004,7 @@ Error Profiler::stop() {
 
 Error Profiler::check(Arguments& args) {
     MutexLocker ml(_state_lock);
-    if (_state != IDLE) {
+    if (_state > IDLE) {
         return Error("Profiler already started");
     }
 
@@ -1110,16 +1024,33 @@ Error Profiler::check(Arguments& args) {
     return error;
 }
 
-void Profiler::switchThreadEvents(jvmtiEventMode mode) {
-    if (_thread_events_state != mode) {
-        jvmtiEnv* jvmti = VM::jvmti();
-        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
-        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
-        _thread_events_state = mode;
+Error Profiler::flushJfr() {
+    MutexLocker ml(_state_lock);
+    if (_state != RUNNING) {
+        return Error("Profiler is not active");
     }
+
+    updateJavaThreadNames();
+    updateNativeThreadNames();
+
+    lockAll();
+    _jfr.flush();
+    unlockAll();
+
+    return Error::OK;
 }
 
-void Profiler::dump(std::ostream& out, Arguments& args) {
+Error Profiler::dump(std::ostream& out, Arguments& args) {
+    MutexLocker ml(_state_lock);
+    if (_state != IDLE && _state != RUNNING) {
+        return Error("Profiler has not started");
+    }
+
+    if (_state == RUNNING) {
+        updateJavaThreadNames();
+        updateNativeThreadNames();
+    }
+
     switch (args._output) {
         case OUTPUT_COLLAPSED:
             dumpCollapsed(out, args);
@@ -1133,8 +1064,34 @@ void Profiler::dump(std::ostream& out, Arguments& args) {
         case OUTPUT_TEXT:
             dumpText(out, args);
             break;
-        default:
+        case OUTPUT_JFR:
+            if (_state == RUNNING) {
+                lockAll();
+                _jfr.flush();
+                unlockAll();
+            }
             break;
+        default:
+            return Error("No output format selected");
+    }
+
+    return Error::OK;
+}
+
+void Profiler::lockAll() {
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+}
+
+void Profiler::unlockAll() {
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+}
+
+void Profiler::switchThreadEvents(jvmtiEventMode mode) {
+    if (_thread_events_state != mode) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
+        jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
+        _thread_events_state = mode;
     }
 }
 
@@ -1144,15 +1101,15 @@ void Profiler::dump(std::ostream& out, Arguments& args) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE || _engine == NULL) return;
-
     FrameName fn(args, args._style, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+        u64 samples = args._counter == COUNTER_SAMPLES ? loadAcquire((*it)->samples) : loadAcquire((*it)->counter);
+        if (samples == 0) continue;
+
         CallTrace* trace = (*it)->trace;
         if (excludeTrace(&fn, trace)) continue;
 
@@ -1160,14 +1117,11 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << (args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter) << "\n";
+        out << samples << "\n";
     }
 }
 
 void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE || _engine == NULL) return;
-
     char title[64];
     if (args._title == NULL) {
         Engine* active_engine = activeEngine();
@@ -1185,10 +1139,12 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     _call_trace_storage.collectSamples(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+        u64 samples = args._counter == COUNTER_SAMPLES ? loadAcquire((*it)->samples) : loadAcquire((*it)->counter);
+        if (samples == 0) continue;
+
         CallTrace* trace = (*it)->trace;
         if (excludeTrace(&fn, trace)) continue;
 
-        u64 samples = (args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter);
         int num_frames = trace->num_frames;
 
         Trie* f = flamegraph.root();
@@ -1220,9 +1176,6 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    MutexLocker ml(_state_lock);
-    if (_state != IDLE || _engine == NULL) return;
-
     FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
     char buf[1024] = {0};
 
@@ -1319,10 +1272,20 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_STOP: {
             Error error = stop();
+            if (args._output == OUTPUT_NONE) {
+                if (error) {
+                    return error;
+                }
+                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
+                break;
+            }
+            // Fall through
+        }
+        case ACTION_DUMP: {
+            Error error = dump(out, args);
             if (error) {
                 return error;
             }
-            out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
             break;
         }
         case ACTION_CHECK: {
@@ -1371,10 +1334,6 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
         case ACTION_FULL_VERSION:
             out << FULL_VERSION_STRING;
             break;
-        case ACTION_DUMP:
-            stop();
-            dump(out, args);
-            break;
         default:
             break;
     }
@@ -1400,8 +1359,8 @@ void Profiler::shutdown(Arguments& args) {
 
     // The last chance to dump profile before VM terminates
     if (_state == RUNNING) {
-        args._action = ACTION_DUMP;
-        Error error = args._output == OUTPUT_NONE ? stop() : run(args);
+        args._action = ACTION_STOP;
+        Error error = run(args);
         if (error) {
             Log::error(error.message());
         }

@@ -21,24 +21,23 @@
 #include "arguments.h"
 #include "event.h"
 #include "log.h"
-#include "spinLock.h"
 
 class Recording;
 
 class FlightRecorder {
   private:
-    SpinLock _rec_lock;
     Recording* _rec;
     bool _java_helper_loaded;
 
     bool loadJavaHelper();
 
   public:
-    FlightRecorder() : _rec_lock(1), _rec(NULL), _java_helper_loaded(false) {
+    FlightRecorder() : _rec(NULL), _java_helper_loaded(false) {
     }
 
     Error start(Arguments& args, bool reset);
     void stop();
+    void flush();
 
     bool active() {
         return _rec != NULL;

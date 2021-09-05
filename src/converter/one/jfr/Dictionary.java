@@ -36,17 +36,21 @@ public class Dictionary<T> {
             throw new IllegalArgumentException("Zero key not allowed");
         }
 
-        if (++size * 2 > keys.length) {
-            resize(keys.length * 2);
-        }
-
         int mask = keys.length - 1;
         int i = hashCode(key) & mask;
-        while (keys[i] != 0 && keys[i] != key) {
+        while (keys[i] != 0) {
+            if (keys[i] == key) {
+                values[i] = value;
+                return;
+            }
             i = (i + 1) & mask;
         }
         keys[i] = key;
         values[i] = value;
+
+        if (++size * 2 > keys.length) {
+            resize(keys.length * 2);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -69,9 +73,8 @@ public class Dictionary<T> {
     }
 
     public int preallocate(int count) {
-        int newSize = size + count;
-        if (newSize * 2 > keys.length) {
-            resize(Integer.highestOneBit(newSize * 4 - 1));
+        if (count * 2 > keys.length) {
+            resize(Integer.highestOneBit(count * 4 - 1));
         }
         return count;
     }
@@ -98,6 +101,7 @@ public class Dictionary<T> {
     }
 
     private static int hashCode(long key) {
+        key *= 0xc6a4a7935bd1e995L;
         return (int) (key ^ (key >>> 32));
     }
 

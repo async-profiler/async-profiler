@@ -39,11 +39,12 @@ public class jfr2nflx {
 
     private static final String[] FRAME_TYPE = {"jit", "jit", "inlined", "user", "user", "kernel"};
     private static final byte[] NO_STACK = "[no_stack]".getBytes();
+    private static final byte[] UNKNOWN = "[unknown]".getBytes();
 
     private final JfrReader jfr;
     private final List<ExecutionSample> samples;
 
-    public jfr2nflx(JfrReader jfr) {
+    public jfr2nflx(JfrReader jfr) throws IOException {
         this.jfr = jfr;
         this.samples = jfr.readAllEvents(ExecutionSample.class);
     }
@@ -140,6 +141,10 @@ public class jfr2nflx {
 
     private byte[] getMethodName(long methodId) {
         MethodRef method = jfr.methods.get(methodId);
+        if (method == null) {
+            return UNKNOWN;
+        }
+
         ClassRef cls = jfr.classes.get(method.cls);
         byte[] className = jfr.symbols.get(cls.name);
         byte[] methodName = jfr.symbols.get(method.name);

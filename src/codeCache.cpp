@@ -83,6 +83,8 @@ NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, cons
     _name = strdup(name);
     _min_address = min_address;
     _max_address = max_address;
+    _got_start = NULL;
+    _got_end = NULL;
 }
 
 NativeCodeCache::~NativeCodeCache() {
@@ -152,6 +154,15 @@ const void* NativeCodeCache::findSymbolByPrefix(const char* prefix, int prefix_l
         const char* blob_name = (const char*)_blobs[i]._method;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
             return _blobs[i]._start;
+        }
+    }
+    return NULL;
+}
+
+const void** NativeCodeCache::findGOTEntry(const void* address) {
+    for (const void** entry = _got_start; entry < _got_end; entry++) {
+        if (*entry == address) {
+            return entry;
         }
     }
     return NULL;

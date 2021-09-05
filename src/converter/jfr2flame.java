@@ -25,6 +25,7 @@ import one.jfr.event.Event;
 import one.jfr.event.EventAggregator;
 import one.jfr.event.ExecutionSample;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -44,7 +45,7 @@ public class jfr2flame {
     }
 
     public void convert(final FlameGraph fg, final boolean threads, final boolean total,
-                        final Class<? extends Event> eventClass) {
+                        final Class<? extends Event> eventClass) throws IOException {
         EventAggregator agg = new EventAggregator(threads, total);
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             agg.collect(event);
@@ -95,6 +96,9 @@ public class jfr2flame {
         }
 
         ClassRef cls = jfr.classes.get(classId);
+        if (cls == null) {
+            return "null";
+        }
         byte[] className = jfr.symbols.get(cls.name);
 
         int arrayDepth = 0;
@@ -141,17 +145,21 @@ public class jfr2flame {
         }
 
         MethodRef method = jfr.methods.get(methodId);
-        ClassRef cls = jfr.classes.get(method.cls);
-        byte[] className = jfr.symbols.get(cls.name);
-        byte[] methodName = jfr.symbols.get(method.name);
-
-        if (className == null || className.length == 0) {
-            String methodStr = new String(methodName, StandardCharsets.UTF_8);
-            result = type == FRAME_KERNEL ? methodStr + "_[k]" : methodStr;
+        if (method == null) {
+            result = "unknown";
         } else {
-            String classStr = new String(className, StandardCharsets.UTF_8);
-            String methodStr = new String(methodName, StandardCharsets.UTF_8);
-            result = classStr + '.' + methodStr + "_[j]";
+            ClassRef cls = jfr.classes.get(method.cls);
+            byte[] className = jfr.symbols.get(cls.name);
+            byte[] methodName = jfr.symbols.get(method.name);
+
+            if (className == null || className.length == 0) {
+                String methodStr = new String(methodName, StandardCharsets.UTF_8);
+                result = type == FRAME_KERNEL ? methodStr + "_[k]" : methodStr;
+            } else {
+                String classStr = new String(className, StandardCharsets.UTF_8);
+                String methodStr = new String(methodName, StandardCharsets.UTF_8);
+                result = classStr + '.' + methodStr + "_[j]";
+            }
         }
 
         methodNames.put(methodId, result);

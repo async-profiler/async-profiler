@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -38,6 +39,7 @@
 #include "spinLock.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -146,6 +148,29 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
 }
 
 
+static const void** _pthread_entry = NULL;
+
+// Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
+// HotSpot puts VMThread into TLS on thread start, and resets on thread end.
+static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
+    if (key != VMThread::key()) {
+        return pthread_setspecific(key, value);
+    }
+    if (pthread_getspecific(key) == value) {
+        return 0;
+    }
+
+    if (value != NULL) {
+        int result = pthread_setspecific(key, value);
+        PerfEvents::createForThread(OS::threadId());
+        return result;
+    } else {
+        PerfEvents::destroyForThread(OS::threadId());
+        return pthread_setspecific(key, value);
+    }
+}
+
+
 struct FunctionWithCounter {
     const char* name;
     int counter_arg;
@@ -172,6 +197,8 @@ struct PerfEventType {
 
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
+
+    static char probe_func[256];
 
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size
@@ -259,7 +286,6 @@ struct PerfEventType {
     }
 
     static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
-        static char probe_func[256];
         strncpy(probe_func, name, sizeof(probe_func) - 1);
         probe_func[sizeof(probe_func) - 1] = 0;
 
@@ -450,6 +476,8 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {NULL}
 };
 
+char PerfEventType::probe_func[256];
+
 
 class RingBuffer {
   private:
@@ -505,6 +533,12 @@ int PerfEvents::createForThread(int tid) {
         return -1;
     }
 
+    // Mark _events[tid] early to prevent duplicates. Real fd will be put later.
+    if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, -1)) {
+        // Lost race. The event is created either from PerfEvents::start() or from pthread hook.
+        return -1;
+    }
+
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
     attr.type = event_type->type;
@@ -551,12 +585,6 @@ int PerfEvents::createForThread(int tid) {
         return err;
     }
 
-    if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
-        // Lost race. The event is created either from start() or from onThreadStart()
-        close(fd);
-        return -1;
-    }
-
     void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
         Log::warn("perf_event mmap failed: %s", strerror(errno));
@@ -564,6 +592,7 @@ int PerfEvents::createForThread(int tid) {
     }
 
     _events[tid].reset();
+    _events[tid]._fd = fd;
     _events[tid]._page = (struct perf_event_mmap_page*)page;
 
     struct f_owner_ex ex;
@@ -587,7 +616,7 @@ void PerfEvents::destroyForThread(int tid) {
 
     PerfEvent* event = &_events[tid];
     int fd = event->_fd;
-    if (fd != 0 && __sync_bool_compare_and_swap(&event->_fd, fd, 0)) {
+    if (fd > 0 && __sync_bool_compare_and_swap(&event->_fd, fd, 0)) {
         ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
         close(fd);
     }
@@ -650,6 +679,10 @@ Error PerfEvents::check(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
+    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+        return Error("Could not set pthread hook");
+    }
+
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
     attr.type = event_type->type;
@@ -701,6 +734,10 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
+    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+        return Error("Could not set pthread hook");
+    }
+
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
@@ -724,8 +761,8 @@ Error PerfEvents::start(Arguments& args) {
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 
-    // Enable thread events before traversing currently running threads
-    Profiler::instance()->switchThreadEvents(JVMTI_ENABLE);
+    // Enable pthread hook before traversing currently running threads
+    __atomic_store_n(_pthread_entry, (void*)pthread_setspecific_hook, __ATOMIC_RELEASE);
 
     // Create perf_events for all existing threads
     int err;
@@ -739,7 +776,7 @@ Error PerfEvents::start(Arguments& args) {
     delete thread_list;
 
     if (!created) {
-        Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
+        __atomic_store_n(_pthread_entry, (void*)pthread_setspecific, __ATOMIC_RELEASE);
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {
@@ -750,6 +787,7 @@ Error PerfEvents::start(Arguments& args) {
 }
 
 void PerfEvents::stop() {
+    __atomic_store_n(_pthread_entry, (void*)pthread_setspecific, __ATOMIC_RELEASE);
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }

@@ -30,6 +30,12 @@ const Error Error::OK(NULL);
 // Extra buffer space for expanding file pattern
 const size_t EXTRA_BUF_SIZE = 512;
 
+static const Multiplier NANOS[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {0, 0}};
+static const Multiplier BYTES[] = {{'b', 1}, {'k', 1024}, {'m', 1048576}, {'g', 1073741824}, {0, 0}};
+static const Multiplier SECONDS[] = {{'s', 1}, {'m', 60}, {'h', 3600}, {'d', 86400}, {0, 0}};
+static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {'b', 1}, {'k', 1024}, {'g', 1073741824}, {0, 0}};
+
+
 // Statically compute hash code of a string containing up to 12 [a-z] letters
 #define HASH(s)  ((s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
                   (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
@@ -48,6 +54,7 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     start           - start profiling
 //     resume          - start or resume profiling without resetting collected data
 //     stop            - stop profiling
+//     dump            - dump collected data without stopping profiling session
 //     check           - check if the specified profiling event is available
 //     status          - print profiling status (inactive / running for X seconds)
 //     list            - show the list of available profiling events
@@ -62,7 +69,9 @@ const size_t EXTRA_BUF_SIZE = 512;
 //     traces[=N]      - dump top N call traces
 //     flat[=N]        - dump top N methods (aka flat profile)
 //     samples         - count the number of samples (default)
-//     total           - count the total value (time, bytes, etc.) instead of samples"
+//     total           - count the total value (time, bytes, etc.) instead of samples
+//     chunksize=N     - approximate size of JFR chunk in bytes (default: 100 MB)
+//     chunktime=N     - duration of JFR chunk in seconds (default: 1 hour)
 //     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N   - maximum Java stack depth (default: 2048)
 //     safemode=BITS   - disable stack recovery techniques (default: 0, i.e. everything enabled)
@@ -119,6 +128,9 @@ Error Arguments::parse(const char* args) {
             CASE("stop")
                 _action = ACTION_STOP;
 
+            CASE("dump")
+                _action = ACTION_DUMP;
+
             CASE("check")
                 _action = ACTION_CHECK;
 
@@ -161,6 +173,16 @@ Error Arguments::parse(const char* args) {
             CASE("total")
                 _counter = COUNTER_TOTAL;
 
+            CASE("chunksize")
+                if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
+                    msg = "Invalid chunksize";
+                }
+            
+            CASE("chunktime")
+                if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
+                    msg = "Invalid chunktime";
+                }
+            
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
@@ -176,19 +198,19 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("alloc")
-                _alloc = value == NULL ? 1 : parseUnits(value);
+                _alloc = value == NULL ? 1 : parseUnits(value, BYTES);
                 if (_alloc < 0) {
                     msg = "alloc must be >= 0";
                 }
 
             CASE("lock")
-                _lock = value == NULL ? 1 : parseUnits(value);
+                _lock = value == NULL ? 1 : parseUnits(value, NANOS);
                 if (_lock < 0) {
                     msg = "lock must be >= 0";
                 }
 
             CASE("interval")
-                if (value == NULL || (_interval = parseUnits(value)) <= 0) {
+                if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
                     msg = "Invalid interval";
                 }
 
@@ -295,7 +317,7 @@ Error Arguments::parse(const char* args) {
         _dump_flat = 200;
     }
 
-    if (_output != OUTPUT_NONE && (_action == ACTION_NONE || _action == ACTION_STOP)) {
+    if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
     }
 
@@ -365,21 +387,22 @@ Output Arguments::detectOutputFormat(const char* file) {
     return OUTPUT_TEXT;
 }
 
-long Arguments::parseUnits(const char* str) {
+long Arguments::parseUnits(const char* str, const Multiplier* multipliers) {
     char* end;
     long result = strtol(str, &end, 0);
 
-    switch (*end) {
-        case 0:
-            return result;
-        case 'K': case 'k':
-        case 'U': case 'u': // microseconds
-            return result * 1000;
-        case 'M': case 'm': // million, megabytes or milliseconds
-            return result * 1000000;
-        case 'G': case 'g':
-        case 'S': case 's': // seconds
-            return result * 1000000000;
+    char c = *end;
+    if (c == 0) {
+        return result;
+    }
+    if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+    }
+
+    for (const Multiplier* m = multipliers; m->symbol; m++) {
+        if (c == m->symbol) {
+            return result * m->multiplier;
+        }
     }
 
     return -1;

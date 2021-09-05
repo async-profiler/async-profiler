@@ -34,12 +34,12 @@ enum Action {
     ACTION_START,
     ACTION_RESUME,
     ACTION_STOP,
+    ACTION_DUMP,
     ACTION_CHECK,
     ACTION_STATUS,
     ACTION_LIST,
     ACTION_VERSION,
-    ACTION_FULL_VERSION,
-    ACTION_DUMP
+    ACTION_FULL_VERSION
 };
 
 enum Counter {
@@ -80,12 +80,19 @@ enum Output {
 enum JfrOption {
     NO_SYSTEM_INFO  = 0x1,
     NO_SYSTEM_PROPS = 0x2,
-    NO_CPU_LOAD     = 0x4,
+    NO_NATIVE_LIBS  = 0x4,
+    NO_CPU_LOAD     = 0x8,
 
     JFR_SYNC        = 0x10,
     JFR_TEMP_FILE   = 0x20,
 
-    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
+    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
+};
+
+
+struct Multiplier {
+    char symbol;
+    long multiplier;
 };
 
 
@@ -119,7 +126,7 @@ class Arguments {
     static long long hash(const char* arg);
     static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
-    static long parseUnits(const char* str);
+    static long parseUnits(const char* str, const Multiplier* multipliers);
 
   public:
     Action _action;
@@ -141,6 +148,8 @@ class Arguments {
     int _style;
     CStack _cstack;
     Output _output;
+    long _chunk_size;
+    long _chunk_time;
     int _jfr_options;
     int _dump_traces;
     int _dump_flat;
@@ -173,6 +182,8 @@ class Arguments {
         _style(0),
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
+        _chunk_size(100 * 1024 * 1024),
+        _chunk_time(3600),
         _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),
@@ -190,7 +201,8 @@ class Arguments {
     Error parse(const char* args);
 
     bool hasOutputFile() const {
-        return _file != NULL && (_action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
+        return _file != NULL &&
+            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
     }
 
     bool hasOption(JfrOption option) const {

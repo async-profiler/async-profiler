@@ -7,6 +7,7 @@ usage() {
     echo "  start             start profiling and return immediately"
     echo "  resume            resume profiling without resetting collected data"
     echo "  stop              stop profiling"
+    echo "  dump              dump collected data without stopping profiling session"
     echo "  check             check if the specified profiling event is available"
     echo "  status            print profiling status"
     echo "  list              list profiling events supported by the target JVM"
@@ -127,7 +128,7 @@ while [ $# -gt 0 ]; do
         -h|"-?")
             usage
             ;;
-        start|resume|stop|check|status|list|collect)
+        start|resume|stop|dump|check|status|list|collect)
             ACTION="$1"
             ;;
         -v|--version)
@@ -199,7 +200,7 @@ while [ $# -gt 0 ]; do
         --samples|--total)
             FORMAT="$FORMAT,${1#--}"
             ;;
-        --alloc|--lock)
+        --alloc|--lock|--chunksize|--chunktime)
             PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;
@@ -287,14 +288,11 @@ case $ACTION in
     start|resume|check)
         jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         ;;
-    stop)
-        jattach "stop,file=$FILE,$OUTPUT$FORMAT"
+    stop|dump)
+        jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT"
         ;;
-    status)
-        jattach "status,file=$FILE"
-        ;;
-    list)
-        jattach "list,file=$FILE"
+    status|list)
+        jattach "$ACTION,file=$FILE"
         ;;
     collect)
         jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
