@@ -54,7 +54,7 @@ class Trap {
         return pc - _entry <= sizeof(instruction_t);
     }
 
-    void assign(const void* address);
+    void assign(const void* address, uintptr_t offset = BREAKPOINT_OFFSET);
     void pair(Trap& second);
 
     bool install() {
