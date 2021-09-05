@@ -215,6 +215,15 @@ const void* Profiler::resolveSymbol(const char* name) {
     return NULL;
 }
 
+NativeCodeCache* Profiler::findNativeLibraryBySymbol(const char* name) {
+    for (int i = 0; i < _native_lib_count; i++) {
+        if (_native_libs[i]->findSymbol(name) != NULL) {
+            return _native_libs[i];
+        }
+    }
+    return NULL;
+}
+
 NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
