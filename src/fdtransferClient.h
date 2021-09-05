@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#ifndef _FDTRANSFER_H
-#define _FDTRANSFER_H
+#ifndef _FDTRANSFER_CLIENT_H
+#define _FDTRANSFER_CLIENT_H
 
 #ifdef __linux__
 
-#include "fdtransfer/fdTransfer_shared_linux.h"
+#include "fdtransfer/fdtransfer.h"
 
 class FdTransferClient {
   private:
@@ -52,4 +52,4 @@ class FdTransferClient {
 
 #endif // __linux__
 
-#endif // _FDTRANSFER_H
+#endif // _FDTRANSFER_CLIENT_H

@@ -232,6 +232,10 @@ Error Arguments::parse(const char* args) {
             CASE("log")
                 _log = value == NULL || value[0] == 0 ? NULL : value;
 
+            CASE("fdtransfer")
+                _fdtransfer = true;
+                _fdtransfer_path = value;
+
             // Filters
             CASE("filter")
                 _filter = value == NULL ? "" : value;
@@ -263,12 +267,6 @@ Error Arguments::parse(const char* args) {
                     } else {
                         _cstack = CSTACK_FP;
                     }
-                }
-
-            CASE("fdtransfer")
-                _fdtransfer = true;
-                if (value != NULL) {
-                    _fdtransfer_path = value;
                 }
 
             // Output style modifiers

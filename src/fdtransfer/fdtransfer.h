@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _FDTRANSFER_SHARED_H
-#define _FDTRANSFER_SHARED_H
+#ifndef _FDTRANSFER_H
+#define _FDTRANSFER_H
 
 #ifdef __linux__
 
@@ -25,6 +25,7 @@
 #include <sys/un.h>
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
+
 
 // base header for all requests
 enum request_type {
@@ -54,6 +55,7 @@ struct perf_fd_response {
     struct fd_response header;
     int tid;
 };
+
 
 static inline bool socketPathForPid(int pid, struct sockaddr_un *sun, socklen_t *addrlen) {
     sun->sun_path[0] = '\0';
@@ -85,4 +87,4 @@ static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen
 
 #endif // __linux__
 
-#endif // _FDTRANSFER_SHARED_H
+#endif // _FDTRANSFER_H

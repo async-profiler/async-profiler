@@ -21,20 +21,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/syscall.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <time.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <asm/unistd.h>
-#include <stdbool.h>
-#include <sched.h>
-#include <fstream>
 
-#include "fdTransfer_client.h"
+#include "fdtransferClient.h"
 #include "log.h"
 
 
@@ -69,9 +60,7 @@ bool FdTransferClient::connectToServer(const char *path, int pid) {
 
 int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
     struct perf_fd_request request;
-
     request.header.type = PERF_FD;
-
     request.tid = *tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
@@ -96,7 +85,6 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
 
 int FdTransferClient::requestKallsymsFd() {
     struct fd_request request;
-
     request.type = KALLSYMS_FD;
 
     if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
@@ -146,7 +134,7 @@ int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t
         if (cmptr != NULL && cmptr->cmsg_len == CMSG_LEN(sizeof(newfd))
             && cmptr->cmsg_level == SOL_SOCKET && cmptr->cmsg_type == SCM_RIGHTS) {
 
-            newfd = *((typeof(newfd) *)CMSG_DATA(cmptr));
+            newfd = *((int*)CMSG_DATA(cmptr));
         } else {
             Log::warn("FdTransferClient recvmsg(): unexpected response with no SCM_RIGHTS: %s", strerror(errno));
             newfd = -1;

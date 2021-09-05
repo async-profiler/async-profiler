@@ -71,7 +71,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR) $(FDTRANSFER_BIN)
+all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -105,8 +105,8 @@ build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
-build/fdtransfer: src/fdtransfer/fdtransfer_server.cpp src/fdtransfer/fdTransfer_shared_linux.h src/jattach/psutil.c
-	$(CXX) $(CFLAGS) -o $@ $^
+build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c src/jattach/psutil.h
+	$(CXX) $(CFLAGS) -o $@ src/fdtransfer/*.cpp src/jattach/psutil.c
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api

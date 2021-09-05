@@ -32,7 +32,7 @@
 #include <string>
 #include "symbols.h"
 #include "arch.h"
-#include "fdTransfer_client.h"
+#include "fdtransferClient.h"
 #include "log.h"
 
 
@@ -347,19 +347,18 @@ bool Symbols::_have_kernel_symbols = false;
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     int fd;
     if (FdTransferClient::hasPeer()) {
-        // ask the peer
         fd = FdTransferClient::requestKallsymsFd();
     } else {
         fd = open("/proc/kallsyms", O_RDONLY);
     }
 
     if (fd == -1) {
-        Log::warn("open(\"/proc/kallsys\"): %s", strerror(errno));
+        Log::warn("open(\"/proc/kallsyms\"): %s", strerror(errno));
         return;
     }
 
     // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
-    FILE *fp = fdopen(fd, "r");
+    FILE* fp = fdopen(fd, "r");
     if (fp == NULL) {
         Log::warn("fdopen(): %s", strerror(errno));
         close(fd);
@@ -367,9 +366,9 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 
     char str[256];
-    while (fgets(str, sizeof(str), fp)) {
+    while (fgets(str, sizeof(str) - 8, fp) != NULL) {
         size_t len = strlen(str) - 1; // trim the '\n'
-        strncpy(str + len, "_[k]", sizeof(str) - len);
+        strcpy(str + len, "_[k]");
 
         SymbolDesc symbol(str);
         char type = symbol.type();

@@ -41,7 +41,8 @@ usage() {
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
-    echo "  --fdtransfer      use fdtransfer to pass perf & kallsyms fds to the lower privileged target"
+    echo "  --fdtransfer      use fdtransfer to serve perf requests"
+    echo "                    from the non-privileged target"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -86,21 +87,13 @@ check_if_terminated() {
     fi
 }
 
-run_fdtransfer() {
-    if [ "$ACTION" = "start" ] || [ "$ACTION" = "resume" ] ; then
-        nohup "$FDTRANSFER" "$PID"
-    elif [ "$ACTION" = "collect" ]; then
-        case "$1" in
-        "start"*) "$FDTRANSFER" "$PID"
-        esac
+fdtransfer() {
+    if [ "$USE_FDTRANSFER" = "true" ]; then
+        "$FDTRANSFER" "$PID"
     fi
 }
 
 jattach() {
-    if [ "$UNAME_S" = "Linux" ] && [ "$USE_FDTRANSFER" = "true" ]; then
-        run_fdtransfer "$1"
-    fi
-
     set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
     RET=$?
@@ -306,7 +299,11 @@ else
 fi
 
 case $ACTION in
-    start|resume|check)
+    start|resume)
+        fdtransfer
+        jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT$PARAMS"
+        ;;
+    check)
         jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         ;;
     stop|dump)
@@ -316,6 +313,7 @@ case $ACTION in
         jattach "$ACTION,file=$FILE"
         ;;
     collect)
+        fdtransfer
         jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         echo Profiling for "$DURATION" seconds >&2
         set +e
