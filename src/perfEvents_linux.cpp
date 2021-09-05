@@ -170,6 +170,14 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     }
 }
 
+static const void** lookupThreadEntry() {
+    NativeCodeCache* lib = VM::_j9thread_self != NULL
+        ? Profiler::instance()->findNativeLibrary((const void*)VM::_j9thread_self)
+        : VMStructs::libjvm();
+
+    return lib->findGOTEntry((const void*)&pthread_setspecific);
+}
+
 
 struct FunctionWithCounter {
     const char* name;
@@ -679,7 +687,7 @@ Error PerfEvents::check(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
-    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+    if (_pthread_entry == NULL && (_pthread_entry = lookupThreadEntry()) == NULL) {
         return Error("Could not set pthread hook");
     }
 
@@ -734,7 +742,7 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
-    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+    if (_pthread_entry == NULL && (_pthread_entry = lookupThreadEntry()) == NULL) {
         return Error("Could not set pthread hook");
     }
 

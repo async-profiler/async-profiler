@@ -98,7 +98,6 @@ class VM {
 
     static JVM_GetManagement _getManagement;
     static GetOSThreadID _getOSThreadID;
-    static J9ThreadSelf _j9thread_self;
     static int _instrumentableObjectAlloc;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -116,6 +115,7 @@ class VM {
     static void* _libjvm;
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
+    static J9ThreadSelf _j9thread_self;
 
     static bool init(JavaVM* vm, bool attach);
 
@@ -142,6 +142,10 @@ class VM {
         return _getManagement != NULL ? _getManagement(0x20030000) : NULL;
     }
 
+    static void* j9thread_self() {
+        return _j9thread_self != NULL ? _j9thread_self() : NULL;
+    }
+
     static int getOSThreadID(jthread thread) {
         if (_getOSThreadID != NULL) {
             jlong thread_id;
@@ -150,10 +154,6 @@ class VM {
             }
         }
         return -1;
-    }
-
-    static void* j9thread_self() {
-        return _j9thread_self != NULL ? _j9thread_self() : NULL;
     }
 
     static int instrumentableObjectAlloc() {

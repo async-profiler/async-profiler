@@ -44,8 +44,8 @@ void* VM::_libjava;
 
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
-GetOSThreadID VM::_getOSThreadID = NULL;
 J9ThreadSelf VM::_j9thread_self;
+GetOSThreadID VM::_getOSThreadID = NULL;
 int VM::_instrumentableObjectAlloc = -1;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -164,7 +164,9 @@ void VM::ready() {
 
     _j9thread_self = isOpenJ9() ? (J9ThreadSelf)profiler->resolveSymbol("j9thread_self") : NULL;
 
-    NativeCodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
+    NativeCodeCache* libjvm = isOpenJ9()
+        ? profiler->findNativeLibraryBySymbol("j9port_init_library")
+        : profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
         VMStructs::init(libjvm);
