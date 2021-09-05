@@ -32,6 +32,7 @@
 #include <string>
 #include "symbols.h"
 #include "arch.h"
+#include "fdTransfer_client.h"
 #include "log.h"
 
 
@@ -344,12 +345,33 @@ std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
-    std::ifstream maps("/proc/kallsyms");
-    std::string str;
+    int fd;
+    if (FdTransferClient::hasPeer()) {
+        // ask the peer
+        fd = FdTransferClient::requestKallsymsFd();
+    } else {
+        fd = open("/proc/kallsyms", O_RDONLY);
+    }
 
-    while (std::getline(maps, str)) {
-        str += "_[k]";
-        SymbolDesc symbol(str.c_str());
+    if (fd == -1) {
+        Log::warn("open(\"/proc/kallsys\"): %s", strerror(errno));
+        return;
+    }
+
+    // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
+    FILE *fp = fdopen(fd, "r");
+    if (fp == NULL) {
+        Log::warn("fdopen(): %s", strerror(errno));
+        close(fd);
+        return;
+    }
+
+    char str[256];
+    while (fgets(str, sizeof(str), fp)) {
+        size_t len = strlen(str) - 1; // trim the '\n'
+        strncpy(str + len, "_[k]", sizeof(str) - len);
+
+        SymbolDesc symbol(str);
         char type = symbol.type();
         if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
             const char* addr = symbol.addr();
@@ -359,6 +381,9 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
             }
         }
     }
+
+    fclose(fp);
+    close(fd);
 }
 
 void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {

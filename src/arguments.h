@@ -147,6 +147,8 @@ class Arguments {
     bool _sched;
     int _style;
     CStack _cstack;
+    bool _fdtransfer;
+    const char *_fdtransfer_path;
     Output _output;
     long _chunk_size;
     long _chunk_time;
@@ -181,6 +183,8 @@ class Arguments {
         _sched(false),
         _style(0),
         _cstack(CSTACK_DEFAULT),
+        _fdtransfer(false),
+        _fdtransfer_path(NULL),
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),

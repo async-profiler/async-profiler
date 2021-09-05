@@ -84,6 +84,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
 //     allkernel       - include only kernel-mode events
 //     alluser         - include only user-mode events
+//     fdtransfer      - use fdtransfer to pass fds to the profiler
 //     simple          - simple class names instead of FQN
 //     dot             - dotted class names
 //     sig             - print method signatures
@@ -262,6 +263,12 @@ Error Arguments::parse(const char* args) {
                     } else {
                         _cstack = CSTACK_FP;
                     }
+                }
+
+            CASE("fdtransfer")
+                _fdtransfer = true;
+                if (value != NULL) {
+                    _fdtransfer_path = value;
                 }
 
             // Output style modifiers

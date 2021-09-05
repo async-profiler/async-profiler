@@ -20,6 +20,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#ifdef __GNUC__
+#define ATTR_FORMAT __attribute__((format(printf, 1, 2)))
+#else
+#define ATTR_FORMAT
+#endif
+
 
 enum LogLevel {
     LOG_NONE,
@@ -43,9 +49,9 @@ class Log {
 
     static void log(LogLevel level, const char* msg, va_list args);
 
-    static void info(const char* msg, ...);
-    static void warn(const char* msg, ...);
-    static void error(const char* msg, ...);
+    static void ATTR_FORMAT info(const char* msg, ...);
+    static void ATTR_FORMAT warn(const char* msg, ...);
+    static void ATTR_FORMAT error(const char* msg, ...);
 };
 
 #endif // _LOG_H

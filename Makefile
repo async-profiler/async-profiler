@@ -19,7 +19,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
-HEADERS := $(wildcard src/*.h)
+HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
 JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
@@ -35,6 +35,7 @@ ifeq ($(OS), Darwin)
   SOEXT=dylib
   PACKAGE_EXT=zip
   OS_TAG=macos
+  FDTRANSFER_BIN=
 else
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
@@ -45,6 +46,7 @@ else
   else
     OS_TAG=linux
   endif
+  FDTRANSFER_BIN=build/fdtransfer
 endif
 
 ARCH:=$(shell uname -m)
@@ -69,7 +71,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR)
+all: build build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR) $(FDTRANSFER_BIN)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -103,6 +105,9 @@ build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
 
+build/fdtransfer: src/fdtransfer/fdtransfer_server.cpp src/fdtransfer/fdTransfer_shared_linux.h src/jattach/psutil.c
+	$(CXX) $(CFLAGS) -o $@ $^
+
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
 	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
@@ -126,6 +131,7 @@ test: all
 	test/thread-smoke-test.sh
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
+	test/fdtransfer-smoke-test.sh
 	echo "All tests passed"
 
 clean:
