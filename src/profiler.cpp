@@ -277,6 +277,8 @@ int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* fr
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+    // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
+    // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
     VMThread* vm_thread = VMThread::current();
     if (vm_thread == NULL) {
         return 0;
@@ -922,7 +924,7 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find Thread ID field. Unsupported JVM?");
     }
 
-    if (VMThread::current() == INVALID_VMTHREAD && VM::hotspot_version() > 0) {
+    if (VMThread::key() < 0) {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 

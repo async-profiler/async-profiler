@@ -197,34 +197,39 @@ void VMStructs::initJvmFunctions() {
     }
 }
 
+void VMStructs::initTLS(void* vm_thread) {
+    for (int i = 0; i < 1024; i++) {
+        if (pthread_getspecific((pthread_key_t)i) == vm_thread) {
+            _tls_index = i;
+            break;
+        }
+    }
+}
+
 void VMStructs::initThreadBridge(JNIEnv* env) {
-    // Get eetop field - a bridge from Java Thread to VMThread
     jthread thread;
     if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
         return;
     }
 
+    // Get eetop field - a bridge from Java Thread to VMThread
     jclass thread_class = env->GetObjectClass(thread);
     if ((_tid = env->GetFieldID(thread_class, "tid", "J")) == NULL ||
         (_eetop = env->GetFieldID(thread_class, "eetop", "J")) == NULL) {
+        // No such field - probably not a HotSpot JVM
         env->ExceptionClear();
-        return;
-    }
 
-    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
-    if (vm_thread == NULL) {
-        return;
-    }
-
-    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-    _has_native_thread_id = vm_thread != NULL && _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
-
-    // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
-    // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
-    for (int i = 0; i < 1024; i++) {
-        if (pthread_getspecific((pthread_key_t)i) == vm_thread) {
-            _tls_index = i;
-            break;
+        void* j9thread = VM::j9thread_self();
+        if (j9thread != NULL) {
+            initTLS(j9thread);
+        }
+    } else {
+        // HotSpot
+        VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+        if (vm_thread != NULL) {
+            _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+            _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
+            initTLS(vm_thread);
         }
     }
 }
@@ -241,7 +246,7 @@ void VMStructs::initLogging(JNIEnv* env) {
 }
 
 VMThread* VMThread::current() {
-    return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : INVALID_VMTHREAD;
+    return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
 }
 
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {

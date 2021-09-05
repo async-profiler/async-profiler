@@ -67,6 +67,7 @@ class VMStructs {
     static uintptr_t readSymbol(const char* symbol_name);
     static void initOffsets();
     static void initJvmFunctions();
+    static void initTLS(void* vm_thread);
     static void initThreadBridge(JNIEnv* env);
     static void initLogging(JNIEnv* env);
 
@@ -198,6 +199,10 @@ class VMThread : VMStructs {
   public:
     static VMThread* current();
 
+    static int key() {
+        return _tls_index;
+    }
+
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
@@ -229,8 +234,6 @@ class VMThread : VMStructs {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
     }
 };
-
-VMThread* const INVALID_VMTHREAD = (VMThread*)-1;
 
 class RuntimeStub : VMStructs {
   public:

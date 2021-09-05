@@ -37,13 +37,17 @@ static Arguments _agent_args;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
+
 int VM::_hotspot_version = 0;
 void* VM::_libjvm;
 void* VM::_libjava;
+
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
 GetOSThreadID VM::_getOSThreadID = NULL;
+J9ThreadSelf VM::_j9thread_self;
 int VM::_instrumentableObjectAlloc = -1;
+
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 jvmtiError (JNICALL *VM::_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
@@ -150,6 +154,9 @@ bool VM::init(JavaVM* vm, bool attach) {
 void VM::ready() {
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
+
+    _j9thread_self = isOpenJ9() ? (J9ThreadSelf)profiler->resolveSymbol("j9thread_self") : NULL;
+
     NativeCodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896

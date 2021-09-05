@@ -77,6 +77,8 @@ typedef VMManagement* (*JVM_GetManagement)(jint);
 
 typedef jvmtiError (*GetOSThreadID)(jvmtiEnv*, jthread, jlong*);
 
+typedef void* (*J9ThreadSelf)();
+
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -91,14 +93,18 @@ class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
+
+    static int _hotspot_version;
+
     static JVM_GetManagement _getManagement;
     static GetOSThreadID _getOSThreadID;
+    static J9ThreadSelf _j9thread_self;
     static int _instrumentableObjectAlloc;
+
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
     static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
     static volatile int _in_redefine_classes;
-    static int _hotspot_version;
 
     static void ready();
     static void checkJvmtiExtensions();
@@ -134,6 +140,10 @@ class VM {
             }
         }
         return -1;
+    }
+
+    static void* j9thread_self() {
+        return _j9thread_self != NULL ? _j9thread_self() : NULL;
     }
 
     static int instrumentableObjectAlloc() {
