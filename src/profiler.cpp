@@ -884,7 +884,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     if (event_name == NULL) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
+        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&itimer;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
