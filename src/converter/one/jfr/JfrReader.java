@@ -368,13 +368,15 @@ public class JfrReader implements Closeable {
         int depth = getVarint();
         long[] methods = new long[depth];
         byte[] types = new byte[depth];
+        int[] locations = new int[depth];
         for (int i = 0; i < depth; i++) {
             methods[i] = getVarlong();
             int line = getVarint();
             int bci = getVarint();
+            locations[i] = line << 16 | (bci & 0xffff);
             types[i] = buf.get();
         }
-        return new StackTrace(methods, types);
+        return new StackTrace(methods, types, locations);
     }
 
     private void readSymbols() {
