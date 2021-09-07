@@ -357,6 +357,24 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
             }
 
+            // Try to find the previous frame by looking a few top stack slots
+            // for something that resembles a return address
+            if (!(_safe_mode & SCAN_STACK)) {
+                for (int slot = 0; slot < StackFrame::callerLookupSlots(); slot++) {
+                    instruction_t* caller_pc = (instruction_t*)top_frame.stackAt(slot) - 1;
+                    if (getAddressType(caller_pc) != ADDR_UNKNOWN) {
+                        top_frame.pc() = (uintptr_t)caller_pc;
+                        top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
+                        VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                        top_frame.restore(pc, sp, fp);
+
+                        if (trace.num_frames > 0) {
+                            return trace.num_frames + (trace.frames - frames);
+                        }
+                    }
+                }
+            }
+
             // Retry moving stack pointer, but now in wider range: 3 to 6 slots.
             // Helps to recover from String.indexOf() intrinsic
             if (!(_safe_mode & MOVE_SP2) && CAN_MOVE_SP) {
@@ -372,23 +390,6 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     }
                 }
                 trace.frames = prev_frames;
-            }
-
-            // Try to find the previous frame by looking a few top stack slots
-            // for something that resembles a return address
-            if (!(_safe_mode & SCAN_STACK)) {
-                for (int slot = 0; slot < StackFrame::callerLookupSlots(); slot++) {
-                    if (getAddressType((instruction_t*)top_frame.stackAt(slot)) != ADDR_UNKNOWN) {
-                        top_frame.pc() = top_frame.stackAt(slot);
-                        top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
-                        VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-                        top_frame.restore(pc, sp, fp);
-
-                        if (trace.num_frames > 0) {
-                            return trace.num_frames + (trace.frames - frames);
-                        }
-                    }
-                }
             }
         }
     } else if (trace.num_frames == ticks_unknown_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
