@@ -64,7 +64,8 @@ bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti->GetSystemProperty("java.vm.name", &prop) == 0) {
         bool is_hotspot = strstr(prop, "OpenJDK") != NULL ||
                           strstr(prop, "HotSpot") != NULL ||
-                          strstr(prop, "GraalVM") != NULL;
+                          strstr(prop, "GraalVM") != NULL ||
+                          strstr(prop, "Dynamic Code Evolution") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
 
         if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
