@@ -77,6 +77,7 @@ const bool CAN_MOVE_SP = true;
 
 typedef unsigned int instruction_t;
 const instruction_t BREAKPOINT = 0xd4200000;
+const bool CAN_MOVE_SP = true;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);

@@ -121,6 +121,7 @@ Error AllocTracer::check(Arguments& args) {
     _outside_tlab.assign(offsetBPaddr(oe));
     _in_new_tlab.pair(_outside_tlab);
 
+
     return Error::OK;
 }
 
