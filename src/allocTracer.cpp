@@ -137,6 +137,7 @@ Error AllocTracer::start(Arguments& args) {
     if (!_in_new_tlab.install() || !_outside_tlab.install()) {
         return Error("Cannot install allocation breakpoints");
     }
+
     return Error::OK;
 }
 
