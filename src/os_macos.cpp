@@ -131,7 +131,7 @@ u64 OS::millis() {
 }
 
 void OS::sleep(u64 nanos) {
-    struct timespec ts = {nanos / 1000000000, nanos % 1000000000};
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
     nanosleep(&ts, NULL);
 }
 
