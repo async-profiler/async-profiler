@@ -10,7 +10,7 @@ API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
-CXXFLAGS=-O3 -fno-omit-frame-pointer -momit-leaf-frame-pointer -fvisibility=hidden
+CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
 
@@ -63,9 +63,17 @@ else
     ifeq ($(findstring aarch64,$(ARCH)),aarch64)
       ARCH_TAG=aarch64
     else
-      ARCH_TAG=x86
+      ifeq ($(ARCH),ppc64le)
+        ARCH_TAG=ppc64le
+      else
+        ARCH_TAG=x86
+      endif
     endif
   endif
+endif
+
+ifneq ($(ARCH),ppc64le)
+  CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
 
