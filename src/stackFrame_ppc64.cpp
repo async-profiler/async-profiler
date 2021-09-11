@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 #if defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 
 #include <errno.h>
-#include <sys/syscall.h>
 #include <signal.h>
 #include "stackFrame.h"
+
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)_ucontext->uc_mcontext.regs->nip;
@@ -60,7 +60,7 @@ void StackFrame::ret() {
 }
 
 static inline bool inC1EpilogueCrit(uintptr_t pc) {
-    if (!(pc & 0xFFF)) {
+    if (!(pc & 0xfff)) {
         // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
         return false;
     }
@@ -71,9 +71,10 @@ static inline bool inC1EpilogueCrit(uintptr_t pc) {
     // pos1   a603e87f mtlr    r31
     //        xxxxxxxx
     //        2000804e blr
-    if (*((unsigned int *)pc + 1) == 0xebe10010 && *((unsigned int *)pc + 2) == 0x7fe803a6 ||
-        *((unsigned int *)pc + 0) == 0xebe10010 && *((unsigned int *)pc + 1) == 0x7fe803a6 ||
-        *((unsigned int *)pc - 1) == 0xebe10010 && *((unsigned int *)pc + 0) == 0x7fe803a6) {
+    instruction_t* inst = (instruction_t*)pc;
+    if (inst[ 1] == 0xebe10010 && inst[2] == 0x7fe803a6 ||
+        inst[ 0] == 0xebe10010 && inst[1] == 0x7fe803a6 ||
+        inst[-1] == 0xebe10010 && inst[0] == 0x7fe803a6) {
         return true;
     }
 
@@ -84,7 +85,8 @@ static inline bool inC2PrologueCrit(uintptr_t pc) {
     // C2 prologue and critical section
     //        f821**** stdu    r1, (xx)r1
     // pos1   fa950010 std     r20,16(r21)
-    if (*((unsigned int *)pc) == 0xfa950010 && (*((unsigned int *)pc - 1) &0xFFFF0000 == 0xf8210000)) {
+    instruction_t* inst = (instruction_t*)pc;
+    if (inst[0] == 0xfa950010 && (inst[-1] & 0xffff0000) == 0xf8210000) {
         return true;
     }
 
@@ -103,7 +105,7 @@ bool StackFrame::pop(bool trust_frame_pointer) {
     if (inC1EpilogueCrit(pc())) {
         // lr not yet set: use the value stored in the frame
         pc() = stackAt(2);
-    } else if (inC2PrologueCrit(pc())){
+    } else if (inC2PrologueCrit(pc())) {
         // frame constructed but lr not yet stored in it: just do it here
         *(((unsigned long *) _ucontext->uc_mcontext.regs->gpr[21]) + 2) = (unsigned long) _ucontext->uc_mcontext.regs->gpr[20];
     } else {
@@ -113,8 +115,6 @@ bool StackFrame::pop(bool trust_frame_pointer) {
 
     return true;
 }
-
-
 
 bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
@@ -126,7 +126,7 @@ int StackFrame::callerLookupSlots() {
 
 bool StackFrame::isSyscall(instruction_t* pc) {
     // sc/svc
-    return (*pc & 0x1F) == 17;
+    return (*pc & 0x1f) == 17;
 }
 
 #endif // defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
