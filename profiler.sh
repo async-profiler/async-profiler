@@ -41,6 +41,7 @@ usage() {
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
+    echo "  --jfrsync config  synchronize profiler with JFR recording"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
     echo ""
@@ -230,6 +231,11 @@ while [ $# -gt 0 ]; do
             ;;
         --ttsp)
             PARAMS="$PARAMS,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized"
+            ;;
+        --jfrsync)
+            OUTPUT="jfr"
+            PARAMS="$PARAMS,jfrsync=$2"
+            shift
             ;;
         --fdtransfer)
             PARAMS="$PARAMS,fdtransfer"

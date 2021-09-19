@@ -83,10 +83,7 @@ enum JfrOption {
     NO_NATIVE_LIBS  = 0x4,
     NO_CPU_LOAD     = 0x8,
 
-    JFR_SYNC        = 0x10,
-    JFR_TEMP_FILE   = 0x20,
-
-    JFR_COMBINE     = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | JFR_SYNC | JFR_TEMP_FILE
+    JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD
 };
 
 
@@ -152,6 +149,7 @@ class Arguments {
     Output _output;
     long _chunk_size;
     long _chunk_time;
+    const char* _jfr_sync;
     int _jfr_options;
     int _dump_traces;
     int _dump_flat;
@@ -188,6 +186,7 @@ class Arguments {
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),
+        _jfr_sync(NULL),
         _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),

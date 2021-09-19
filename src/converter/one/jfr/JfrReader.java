@@ -65,6 +65,7 @@ public class JfrReader implements Closeable {
     private final int nativeMethodSample;
     private final int allocationInNewTLAB;
     private final int allocationOutsideTLAB;
+    private final int allocationSample;
     private final int monitorEnter;
     private final int threadPark;
 
@@ -90,6 +91,7 @@ public class JfrReader implements Closeable {
         this.nativeMethodSample = getTypeId("jdk.NativeMethodSample");
         this.allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         this.allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
+        this.allocationSample = getTypeId("jdk.ObjectAllocationSample");
         this.monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         this.threadPark = getTypeId("jdk.ThreadPark");
 
@@ -137,7 +139,7 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
-            } else if (type == allocationOutsideTLAB) {
+            } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
             } else if (type == monitorEnter) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false, hasPreviousOwner);
