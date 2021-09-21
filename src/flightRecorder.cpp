@@ -36,6 +36,7 @@
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
+#include "tsc.h"
 #include "vmStructs.h"
 
 
@@ -397,9 +398,9 @@ class Recording {
     MethodMap _method_map;
 
     u64 _start_time;
-    u64 _start_nanos;
+    u64 _start_ticks;
     u64 _stop_time;
-    u64 _stop_nanos;
+    u64 _stop_ticks;
 
     u64 _base_id;
     u64 _bytes_written;
@@ -505,7 +506,7 @@ class Recording {
         _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args._file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::millis();
-        _start_nanos = OS::nanotime();
+        _start_ticks = TSC::ticks();
         _base_id = 0;
         _bytes_written = 0;
 
@@ -566,7 +567,7 @@ class Recording {
             flush(&_buf[i]);
         }
 
-        _stop_nanos = OS::nanotime();
+        _stop_ticks = TSC::ticks();
         _stop_time = OS::millis();
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
@@ -585,7 +586,7 @@ class Recording {
         _buf->put64(cpool_offset - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000000);
-        _buf->put64(_stop_nanos - _start_nanos);
+        _buf->put64(_stop_ticks - _start_ticks);
         result = pwrite(_fd, _buf->data(), 40, _chunk_start + 8);
         (void)result;
 
@@ -596,7 +597,7 @@ class Recording {
     void switchChunk() {
         _chunk_start = finishChunk();
         _start_time = _stop_time;
-        _start_nanos = _stop_nanos;
+        _start_ticks = _stop_ticks;
         _base_id += 0x1000000;
         _bytes_written = 0;
 
@@ -694,15 +695,15 @@ class Recording {
         buf->put64(0);                      // meta offset
         buf->put64(_start_time * 1000000);  // start time, ns
         buf->put64(0);                      // duration, ns
-        buf->put64(_start_nanos);           // start ticks
-        buf->put64(1000000000);             // ticks per sec
+        buf->put64(_start_ticks);           // start ticks
+        buf->put64(TSC::frequency());       // ticks per sec
         buf->put32(1);                      // features
     }
 
     void writeMetadata(Buffer* buf) {
         int metadata_start = buf->skip(5);  // size will be patched later
         buf->putVar32(T_METADATA);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(1);
 
@@ -735,7 +736,7 @@ class Recording {
     void writeRecordingInfo(Buffer* buf) {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(_tid);
         buf->putVar32(1);
@@ -789,7 +790,7 @@ class Recording {
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
         int start = buf->skip(5);
         buf->put8(T_ACTIVE_SETTING);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(_tid);
         buf->putVar32(category);
@@ -803,9 +804,9 @@ class Recording {
         writeStringSetting(buf, category, key, value ? "true" : "false");
     }
 
-    void writeIntSetting(Buffer* buf, int category, const char* key, long value) {
+    void writeIntSetting(Buffer* buf, int category, const char* key, long long value) {
         char str[32];
-        sprintf(str, "%ld", value);
+        sprintf(str, "%lld", value);
         writeStringSetting(buf, category, key, str);
     }
 
@@ -828,19 +829,28 @@ class Recording {
 
         int start = buf->skip(5);
         buf->put8(T_OS_INFORMATION);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putUtf8(str);
         buf->putVar32(start, buf->offset() - start);
 
         start = buf->skip(5);
         buf->put8(T_CPU_INFORMATION);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putUtf8(u.machine);
         buf->putUtf8(OS::getCpuDescription(str, sizeof(str) - 1) ? str : "");
         buf->putVar32(1);
         buf->putVar32(_available_processors);
         buf->putVar32(_available_processors);
         buf->putVar32(start, buf->offset() - start);
+
+        start = buf->skip(1);
+        buf->put8(T_CPU_TSC);
+        buf->putVar64(_start_ticks);
+        buf->put8(TSC::enabled() ? 1 : 0);
+        buf->put8(TSC::enabled() ? 1 : 0);
+        buf->putVar64(1000000000);
+        buf->putVar64(TSC::frequency());
+        buf->put8(start, buf->offset() - start);
     }
 
     void writeJvmInfo(Buffer* buf) {
@@ -858,7 +868,7 @@ class Recording {
         flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 5 * MAX_STRING_LENGTH);
         int start = buf->skip(5);
         buf->put8(T_JVM_INFORMATION);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putUtf8(jvm_name);
         buf->putUtf8(jvm_version);
         buf->putUtf8(_jvm_args);
@@ -887,7 +897,7 @@ class Recording {
                 flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 2 * MAX_STRING_LENGTH);
                 int start = buf->skip(5);
                 buf->put8(T_INITIAL_SYSTEM_PROPERTY);
-                buf->putVar64(_start_nanos);
+                buf->putVar64(_start_ticks);
                 buf->putUtf8(key);
                 buf->putUtf8(value);
                 buf->putVar32(start, buf->offset() - start);
@@ -909,7 +919,7 @@ class Recording {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
             int start = buf->skip(5);
             buf->put8(T_NATIVE_LIBRARY);
-            buf->putVar64(_start_nanos);
+            buf->putVar64(_start_ticks);
             buf->putUtf8(native_libs[i]->name());
             buf->putVar64((uintptr_t) native_libs[i]->minAddress());
             buf->putVar64((uintptr_t) native_libs[i]->maxAddress());
@@ -922,7 +932,7 @@ class Recording {
     void writeCpool(Buffer* buf) {
         buf->skip(5);  // size will be patched later
         buf->putVar32(T_CPOOL);
-        buf->putVar64(_start_nanos);
+        buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(0);
         buf->putVar32(1);
@@ -1108,7 +1118,7 @@ class Recording {
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
-        buf->putVar64(OS::nanotime());
+        buf->putVar64(TSC::ticks());
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
@@ -1118,7 +1128,7 @@ class Recording {
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
-        buf->putVar64(OS::nanotime());
+        buf->putVar64(TSC::ticks());
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
@@ -1130,7 +1140,7 @@ class Recording {
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_OUTSIDE_TLAB);
-        buf->putVar64(OS::nanotime());
+        buf->putVar64(TSC::ticks());
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
@@ -1166,7 +1176,7 @@ class Recording {
     void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
         int start = buf->skip(1);
         buf->put8(T_CPU_LOAD);
-        buf->putVar64(OS::nanotime());
+        buf->putVar64(TSC::ticks());
         buf->putFloat(proc_user);
         buf->putFloat(proc_system);
         buf->putFloat(machine_total);
@@ -1203,6 +1213,10 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         filename_tmp = (char*)malloc(len + 16);
         snprintf(filename_tmp, len + 16, "%s.%d~", filename, OS::processId());
         filename = filename_tmp;
+    }
+
+    if (!TSC::initialized()) {
+        TSC::initialize();
     }
 
     int fd = open(filename, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
@@ -1318,7 +1332,7 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
 
     int start = buf->skip(5);
     buf->put8(T_LOG);
-    buf->putVar64(OS::nanotime());
+    buf->putVar64(TSC::ticks());
     buf->put8(level);
     buf->putUtf8(message, len);
     buf->putVar32(start, buf->offset() - start);
