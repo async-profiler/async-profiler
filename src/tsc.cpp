@@ -37,13 +37,12 @@ void TSC::initialize() {
             && ((counterTime = env->GetStaticMethodID(cls, "counterTime", "()J")) != NULL)) {
 
         u64 frequency = env->CallLongMethod(env->GetStaticObjectField(cls, jvm), getTicksFrequency);
-        u64 offset = env->CallStaticLongMethod(cls, counterTime);
-        offset = rdtsc() - offset;
-
-        if (offset != 0 && frequency > 1000000000) {
-            _enabled = true;
-            _offset = offset;
+        if (frequency > 1000000000) {
+            // Default 1GHz frequency might mean that rdtsc is not available
+            u64 jvm_ticks = env->CallStaticLongMethod(cls, counterTime);
+            _offset = rdtsc() - jvm_ticks;
             _frequency = frequency;
+            _enabled = true;
         }
     }
 

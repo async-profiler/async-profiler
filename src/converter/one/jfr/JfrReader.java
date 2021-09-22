@@ -172,7 +172,7 @@ public class JfrReader implements Closeable {
     }
 
     private void readChunk(int pos) throws IOException {
-        if (buf.getInt(pos) != CHUNK_SIGNATURE) {
+        if (pos + CHUNK_HEADER_SIZE > buf.limit() || buf.getInt(pos) != CHUNK_SIGNATURE) {
             throw new IOException("Not a valid JFR file");
         }
 

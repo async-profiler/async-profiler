@@ -429,8 +429,8 @@ The following is a complete list of the command-line options accepted by
 
 * `--jfrsync CONFIG` - start Java Flight Recording with the given configuration
   synchronously with the profiler. The output .jfr file will include all regular
-  JFR events, except that execution samples will be obtained from async-profiler
-  instead of the JVM. This option assumes `-o jfr`.
+  JFR events, except that execution samples will be obtained from async-profiler.
+  This option implies `-o jfr`.
     - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc).
 
   Example: `./profiler.sh -e cpu --jfrsync profile -f combined.jfr 8983`
