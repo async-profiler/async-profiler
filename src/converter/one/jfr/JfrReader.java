@@ -46,6 +46,7 @@ public class JfrReader implements Closeable {
     private ByteBuffer buf;
     private long filePosition;
 
+    public boolean incomplete;
     public long startNanos = Long.MAX_VALUE;
     public long endNanos = Long.MIN_VALUE;
     public long startTicks = Long.MAX_VALUE;
@@ -78,7 +79,9 @@ public class JfrReader implements Closeable {
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
-        readChunk(0);
+        if (!readChunk(0)) {
+            throw new IOException("Incomplete JFR file");
+        }
     }
 
     @Override
@@ -115,9 +118,10 @@ public class JfrReader implements Closeable {
             int type = getVarint();
 
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
-                resetMeta();
-                readChunk(pos);
-                continue;
+                if (readChunk(pos)) {
+                    continue;
+                }
+                break;
             }
 
             if (type == executionSample || type == nativeMethodSample) {
@@ -171,7 +175,7 @@ public class JfrReader implements Closeable {
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
 
-    private void readChunk(int pos) throws IOException {
+    private boolean readChunk(int pos) throws IOException {
         if (pos + CHUNK_HEADER_SIZE > buf.limit() || buf.getInt(pos) != CHUNK_SIGNATURE) {
             throw new IOException("Not a valid JFR file");
         }
@@ -183,11 +187,18 @@ public class JfrReader implements Closeable {
 
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
+        if (cpOffset == 0 || metaOffset == 0) {
+            incomplete = true;
+            return false;
+        }
 
         startNanos = Math.min(startNanos, buf.getLong(pos + 32));
         endNanos = Math.max(endNanos, buf.getLong(pos + 32) + buf.getLong(pos + 40));
         startTicks = Math.min(startTicks, buf.getLong(pos + 48));
         ticksPerSec = buf.getLong(pos + 56);
+
+        types.clear();
+        typesByName.clear();
 
         long chunkStart = filePosition + pos;
         readMeta(chunkStart + metaOffset);
@@ -195,6 +206,7 @@ public class JfrReader implements Closeable {
         cacheEventTypes();
 
         seek(chunkStart + CHUNK_HEADER_SIZE);
+        return true;
     }
 
     private void readMeta(long metaOffset) throws IOException {
@@ -406,11 +418,6 @@ public class JfrReader implements Closeable {
                 getString();
             }
         }
-    }
-
-    private void resetMeta() {
-        types.clear();
-        typesByName.clear();
     }
 
     private void cacheEventTypes() {
