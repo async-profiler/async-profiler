@@ -776,6 +776,11 @@ class Recording {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
+        writeBoolSetting(buf, T_HEAP_LIVE_OBJECT, "enabled", args._memleak > 0);
+        if (args._memleak > 0) {
+            writeIntSetting(buf, T_HEAP_LIVE_OBJECT, "memleak", args._memleak);
+        }
+
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "loadLibraryHook", Profiler::instance()->_original_NativeLibrary_load != NULL);
@@ -1133,6 +1138,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordHeapLiveObject(Buffer* buf, int tid, u32 call_trace_id, MemLeakEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_HEAP_LIVE_OBJECT);
+        buf->putVar64(OS::nanotime());
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_instance_size);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_MONITOR_ENTER);
@@ -1255,6 +1271,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case BCI_ALLOC_OUTSIDE_TLAB:
                 _rec->recordAllocationOutsideTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
+                break;
+            case BCI_MEMLEAK:
+                _rec->recordHeapLiveObject(buf, tid, call_trace_id, (MemLeakEvent*)event);
                 break;
             case BCI_LOCK:
                 _rec->recordMonitorBlocked(buf, tid, call_trace_id, (LockEvent*)event);

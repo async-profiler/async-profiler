@@ -27,6 +27,7 @@
 #include "perfEvents.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
+#include "memleakTracer.h"
 #include "wallClock.h"
 #include "instrument.h"
 #include "itimer.h"
@@ -51,6 +52,7 @@ static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;
 static Instrument instrument;
+static MemLeakTracer memleak_tracer;
 
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
@@ -70,7 +72,8 @@ enum StackRecovery {
 enum EventMask {
     EM_CPU   = 1,
     EM_ALLOC = 2,
-    EM_LOCK  = 4
+    EM_LOCK  = 4,
+    EM_MEMLEAK = 8
 };
 
 
@@ -567,6 +570,46 @@ AddressType Profiler::getAddressType(instruction_t* pc) {
     return ADDR_UNKNOWN;
 }
 
+void Profiler::recordSample(jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, int tid, u64 counter, jint event_type, Event* event) {
+    atomicInc(_total_samples);
+
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        // Too many concurrent signals already
+        atomicInc(_failures[-ticks_skipped]);
+
+        if (event_type == 0 && _engine == &perf_events) {
+            // Need to reset PerfEvents ring buffer, even though we discard the collected trace
+            PerfEvents::resetBuffer(tid);
+        }
+        return;
+    }
+
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
+
+    int num_frames = 0;
+    if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
+        num_frames = makeEventFrame(frames, event_type, event->id());
+    }
+
+    num_frames += convertFrames(jvmti_frames, frames + num_frames, num_jvmti_frames);
+
+    if (_add_thread_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
+    }
+    if (_add_sched_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy());
+    }
+
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
+
+    _locks[lock_index].unlock();
+}
+
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
@@ -903,6 +946,8 @@ Engine* Profiler::activeEngine() {
             return &alloc_tracer;
         case EM_LOCK:
             return &lock_tracer;
+        case EM_MEMLEAK:
+            return &memleak_tracer;
         default:
             return _engine;
     }
@@ -937,7 +982,8 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _event_mask = (args._event != NULL ? EM_CPU : 0) |
                   (args._alloc > 0 ? EM_ALLOC : 0) |
-                  (args._lock > 0 ? EM_LOCK : 0);
+                  (args._lock > 0 ? EM_LOCK : 0) |
+                  (args._memleak > 0 ? EM_MEMLEAK : 0);
     if (_event_mask == 0) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
@@ -1033,6 +1079,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error3;
         }
     }
+    if (_event_mask & EM_MEMLEAK) {
+        error = memleak_tracer.start(args);
+        if (error) {
+            goto error4;
+        }
+    }
 
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
@@ -1040,6 +1092,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
+
+error4:
+    if (_event_mask & EM_LOCK) lock_tracer.stop();
 
 error3:
     if (_event_mask & EM_ALLOC) alloc_tracer.stop();
@@ -1066,6 +1121,7 @@ Error Profiler::stop() {
 
     uninstallTraps();
 
+    if (_event_mask & EM_MEMLEAK) memleak_tracer.stop();
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) alloc_tracer.stop();
 
@@ -1103,6 +1159,9 @@ Error Profiler::check(Arguments& args) {
     }
     if (!error && args._lock > 0) {
         error = lock_tracer.check(args);
+    }
+    if (!error && args._memleak > 0) {
+        error = memleak_tracer.check(args);
     }
 
     return error;
@@ -1394,6 +1453,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_CPU << std::endl;
             out << "  " << EVENT_ALLOC << std::endl;
             out << "  " << EVENT_LOCK << std::endl;
+            out << "  " << EVENT_MEMLEAK << std::endl;
             out << "  " << EVENT_WALL << std::endl;
             out << "  " << EVENT_ITIMER << std::endl;
 

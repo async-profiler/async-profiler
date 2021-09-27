@@ -109,6 +109,14 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
                 << field("allocationSize", T_LONG, "Allocation Size", F_BYTES))
 
+            << (type("datadog.HeapLiveObject", T_HEAP_LIVE_OBJECT, "Heap Live Object")
+                << category("Datadog")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES))
+
             << (type("jdk.JavaMonitorEnter", T_MONITOR_ENTER, "Java Monitor Blocked")
                 << category("Java Application")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

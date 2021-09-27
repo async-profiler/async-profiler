@@ -26,6 +26,7 @@ const int DEFAULT_JSTACKDEPTH = 2048;
 const char* const EVENT_CPU    = "cpu";
 const char* const EVENT_ALLOC  = "alloc";
 const char* const EVENT_LOCK   = "lock";
+const char* const EVENT_MEMLEAK = "memleak";
 const char* const EVENT_WALL   = "wall";
 const char* const EVENT_ITIMER = "itimer";
 
@@ -136,6 +137,7 @@ class Arguments {
     long _interval;
     long _alloc;
     long _lock;
+    long _memleak;
     int  _jstackdepth;
     int _safe_mode;
     const char* _file;
@@ -172,6 +174,7 @@ class Arguments {
         _interval(0),
         _alloc(0),
         _lock(0),
+        _memleak(0),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _safe_mode(0),
         _file(NULL),

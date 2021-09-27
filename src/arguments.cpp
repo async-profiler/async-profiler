@@ -192,6 +192,8 @@ Error Arguments::parse(const char* args) {
                     if (_alloc <= 0) _alloc = 1;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock <= 0) _lock = 1;
+                } else if (strcmp(value, EVENT_MEMLEAK) == 0) {
+                    if (_memleak <= 0) _memleak = 1;
                 } else if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {
@@ -208,6 +210,12 @@ Error Arguments::parse(const char* args) {
                 _lock = value == NULL ? 1 : parseUnits(value, NANOS);
                 if (_lock < 0) {
                     msg = "lock must be >= 0";
+                }
+
+            CASE("memleak")
+                _memleak = value == NULL ? 1 : parseUnits(value, BYTES);
+                if (_memleak < 0) {
+                    msg = "memleak must be >= 0";
                 }
 
             CASE("interval")
@@ -305,7 +313,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc == 0 && _lock == 0) {
+    if (_event == NULL && _alloc == 0 && _lock == 0 && _memleak == 0) {
         _event = EVENT_CPU;
     }
 
