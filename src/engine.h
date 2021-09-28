@@ -18,7 +18,6 @@
 #define _ENGINE_H
 
 #include "arguments.h"
-#include "codeCache.h"
 
 
 class Engine {
@@ -38,8 +37,7 @@ class Engine {
     virtual Error start(Arguments& args);
     virtual void stop();
 
-    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs);
+    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     void enableEvents(bool enabled) {
         _enabled = enabled;
