@@ -140,6 +140,7 @@ test: all
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
 	test/fdtransfer-smoke-test.sh
+	test/sleep-test.sh
 	echo "All tests passed"
 
 clean:
