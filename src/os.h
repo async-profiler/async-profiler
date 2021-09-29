@@ -63,7 +63,7 @@ class OS {
     static const size_t page_mask;
 
     static u64 nanotime();
-    static u64 millis();
+    static u64 micros();
     static u64 processStartTime();
     static void sleep(u64 nanos);
 

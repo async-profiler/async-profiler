@@ -124,10 +124,10 @@ u64 OS::nanotime() {
     return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
 }
 
-u64 OS::millis() {
+u64 OS::micros() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (u64)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (u64)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 void OS::sleep(u64 nanos) {

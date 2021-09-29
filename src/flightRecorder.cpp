@@ -20,7 +20,6 @@
 #include <cxxabi.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -54,6 +53,7 @@ const int BUFFER_LIMIT = BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
+const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 
 
 static SpinLock _rec_lock(1);
@@ -446,7 +446,7 @@ class Recording {
     }
 
     bool needSwitchChunk() {
-        return loadAcquire(_bytes_written) >= _chunk_size || OS::millis() - _start_time >= _chunk_time;
+        return loadAcquire(_bytes_written) >= _chunk_size || OS::micros() - _start_time >= _chunk_time;
     }
 
     void timerLoop() {
@@ -505,13 +505,13 @@ class Recording {
     Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
         _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args._file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
-        _start_time = OS::millis();
+        _start_time = OS::micros();
         _start_ticks = TSC::ticks();
         _base_id = 0;
         _bytes_written = 0;
 
-        _chunk_size = args._chunk_size <= 0 ? LONG_MAX : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
-        _chunk_time = args._chunk_time <= 0 ? LONG_MAX : (args._chunk_time < 10 ? 10 : args._chunk_time) * 1000;
+        _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
+        _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 10 ? 10 : args._chunk_time) * 1000000ULL;
 
         _tid = OS::threadId();
         addThread(_tid);
@@ -567,8 +567,8 @@ class Recording {
             flush(&_buf[i]);
         }
 
+        _stop_time = OS::micros();
         _stop_ticks = TSC::ticks();
-        _stop_time = OS::millis();
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
         writeCpool(_buf);
@@ -581,13 +581,21 @@ class Recording {
         ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
         (void)result;
 
+        // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
+        u64 tsc_frequency = TSC::frequency();
+        if (tsc_frequency > 1000000000) {
+            tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
+        }
+
         // Patch chunk header
         _buf->put64(chunk_end - _chunk_start);
         _buf->put64(cpool_offset - _chunk_start);
         _buf->put64(68);
-        _buf->put64(_start_time * 1000000);
+        _buf->put64(_start_time * 1000);
         _buf->put64(_stop_ticks - _start_ticks);
-        result = pwrite(_fd, _buf->data(), 40, _chunk_start + 8);
+        _buf->put64(_start_ticks);
+        _buf->put64(tsc_frequency);
+        result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
 
         _buf->reset();
@@ -693,7 +701,7 @@ class Recording {
         buf->put64(0);                      // chunk size
         buf->put64(0);                      // cpool offset
         buf->put64(0);                      // meta offset
-        buf->put64(_start_time * 1000000);  // start time, ns
+        buf->put64(_start_time * 1000);     // start time, ns
         buf->put64(0);                      // duration, ns
         buf->put64(_start_ticks);           // start ticks
         buf->put64(TSC::frequency());       // ticks per sec
@@ -742,10 +750,10 @@ class Recording {
         buf->putVar32(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
-        buf->putVar64(0x7fffffffffffffffULL);
+        buf->putVar64(MAX_JLONG);
         buf->putVar32(0);
-        buf->putVar64(_start_time);
-        buf->putVar64(0x7fffffffffffffffULL);
+        buf->putVar64(_start_time / 1000);
+        buf->putVar64(MAX_JLONG);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -842,15 +850,6 @@ class Recording {
         buf->putVar32(_available_processors);
         buf->putVar32(_available_processors);
         buf->putVar32(start, buf->offset() - start);
-
-        start = buf->skip(1);
-        buf->put8(T_CPU_TSC);
-        buf->putVar64(_start_ticks);
-        buf->put8(TSC::enabled() ? 1 : 0);
-        buf->put8(TSC::enabled() ? 1 : 0);
-        buf->putVar64(1000000000);
-        buf->putVar64(TSC::frequency());
-        buf->put8(start, buf->offset() - start);
     }
 
     void writeJvmInfo(Buffer* buf) {
