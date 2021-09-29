@@ -220,6 +220,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
 
         case BCI_ALLOC:
         case BCI_ALLOC_OUTSIDE_TLAB:
+        case BCI_MEMLEAK:
         case BCI_LOCK:
         case BCI_PARK: {
             const char* symbol = _class_names[(uintptr_t)frame.method_id];

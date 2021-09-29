@@ -52,4 +52,11 @@ class LockEvent : public Event {
     long long _timeout;
 };
 
+class MemLeakEvent : public Event {
+  public:
+    u32 _class_id;
+    u64 _start_time;
+    u64 _instance_size;
+};
+
 #endif // _EVENT_H

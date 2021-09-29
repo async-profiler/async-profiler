@@ -193,6 +193,7 @@ class Profiler {
     }
 
     u64 total_samples() { return _total_samples; }
+    int max_stack_depth() { return _max_stack_depth; }
     time_t uptime()     { return time(NULL) - _start_time; }
 
     Dictionary* classMap() { return &_class_map; }
@@ -208,6 +209,7 @@ class Profiler {
     Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void recordSample(jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, int tid, u64 counter, jint event_type, Event* event);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
