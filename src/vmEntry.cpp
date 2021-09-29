@@ -29,12 +29,12 @@
 
 
 static Arguments _agent_args;
-static int _safe_mode = 0;
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
 int VM::_hotspot_minor = 0;
+int VM::_safe_mode = 0;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -285,7 +285,7 @@ JNI_OnLoad(JavaVM* vm, void* reserved) {
 
     const char* chars;
     if (prop != NULL && (chars = jni->GetStringUTFChars(prop, NULL)) != NULL) {
-        _safe_mode = strtol(chars, NULL, 0);
+        VM::_safe_mode = strtol(chars, NULL, 0);
         jni->ReleaseStringUTFChars(prop, chars);
     } else {
         jni->ExceptionClear();
