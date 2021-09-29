@@ -119,8 +119,12 @@ jattach() {
     set -e
 }
 
-OPTIND=1
-SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
+SCRIPT_BIN="$0"
+while [ -h "$SCRIPT_BIN" ]; do
+    SCRIPT_BIN="$(readlink "$SCRIPT_BIN")"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
+
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 USE_FDTRANSFER="false"
