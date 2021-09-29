@@ -18,7 +18,6 @@
 #define _ENGINE_H
 
 #include "arguments.h"
-#include "codeCache.h"
 
 
 class Engine {
@@ -34,8 +33,7 @@ class Engine {
     virtual void onThreadEnd(int tid) {}
 
     virtual CStack cstack();
-    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs);
+    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 };
 
 #endif // _ENGINE_H

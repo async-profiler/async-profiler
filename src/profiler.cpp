@@ -166,6 +166,8 @@ void Profiler::addJavaMethod(const void* address, int length, jmethodID method) 
     _jit_lock.lock();
     _java_methods.add(address, length, method, true);
     _jit_lock.unlock();
+
+    CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
 void Profiler::removeJavaMethod(const void* address, jmethodID method) {
@@ -178,6 +180,8 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     _stubs_lock.lock();
     _runtime_stubs.add(address, length, name, true);
     _stubs_lock.unlock();
+
+    CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -276,13 +280,12 @@ bool Profiler::inJavaCode(void* ucontext) {
         _stubs_lock.unlockShared();
         return method == NULL || strcmp((const char*)method, "call_stub") != 0;
     }
-    return _java_methods.contains(pc);
+    return CodeHeap::contains(pc);
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                                &_java_methods, &_runtime_stubs);
+    int native_frames = _engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
 
     int depth = 0;
     jmethodID prev_method = NULL;
@@ -549,7 +552,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
 
         if (event_type == 0) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
-            _engine->getNativeTrace(ucontext, tid, NULL, 0, &_java_methods, &_runtime_stubs);
+            _engine->getNativeTrace(ucontext, tid, NULL, 0);
         }
         return;
     }
@@ -868,7 +871,7 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     updateSymbols(args._ring != RING_USER);
 
-    _safe_mode = args._safe_mode;
+    _safe_mode = VM::_safe_mode | args._safe_mode;
     if (VM::hotspot_version() < 8) {
         // Cannot use JVM TI stack walker during GC on non-HotSpot JVMs or with PermGen
         _safe_mode |= GC_TRACES | LAST_JAVA_PC;

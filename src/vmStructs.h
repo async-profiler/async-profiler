@@ -46,6 +46,8 @@ class VMStructs {
     static int _frame_size_offset;
     static int _is_gc_active_offset;
     static char* _collected_heap_addr;
+    static const void* _code_heap_low;
+    static const void* _code_heap_high;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -238,6 +240,18 @@ class RuntimeStub : VMStructs {
 
     int frameSize() {
         return *(int*) at(_frame_size_offset);
+    }
+};
+
+class CodeHeap : VMStructs {
+  public:
+    static bool contains(const void* pc) {
+        return _code_heap_low <= pc && pc < _code_heap_high;
+    }
+
+    static void updateBounds(const void* start, const void* end) {
+        if (start < _code_heap_low) _code_heap_low = start;
+        if (end > _code_heap_high) _code_heap_high = end;
     }
 };
 

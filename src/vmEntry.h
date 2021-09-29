@@ -98,6 +98,7 @@ class VM {
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
 
   public:
+    static int _safe_mode;
     static void* _libjvm;
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;

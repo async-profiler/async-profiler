@@ -57,8 +57,7 @@ class PerfEvents : public Engine {
         destroyForThread(tid);
     }
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                       CodeCache* java_methods, CodeCache* runtime_stubs);
+    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     static bool supported();
     static const char* getEventName(int event_id);

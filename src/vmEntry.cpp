@@ -34,6 +34,7 @@ JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
 int VM::_hotspot_minor = 0;
+int VM::_safe_mode = 0;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -115,8 +116,11 @@ void VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
-    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
-    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
+    if ((_safe_mode & 14) != 14) {  // POP_FRAME + SCAN_STACK + LAST_JAVA_PC
+        // Workaround for JDK-8173361: avoid CompiledMethodLoad events when they are not needed  
+        _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_LOAD, NULL);
+        _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_COMPILED_METHOD_UNLOAD, NULL);
+    }
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
 
     if (attach) {
@@ -270,7 +274,24 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
+    JNIEnv* jni;
+    if (vm->GetEnv((void**)&jni, JNI_VERSION_1_6) != 0) {
+        return 0;
+    }
+
+    jclass cls = jni->FindClass("java/lang/System");
+    jmethodID getProperty = jni->GetStaticMethodID(cls, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
+    jstring prop = (jstring)jni->CallStaticObjectMethod(cls, getProperty, jni->NewStringUTF("AsyncProfiler.safemode"));
+
+    const char* chars;
+    if (prop != NULL && (chars = jni->GetStringUTFChars(prop, NULL)) != NULL) {
+        VM::_safe_mode = strtol(chars, NULL, 0);
+        jni->ReleaseStringUTFChars(prop, chars);
+    } else {
+        jni->ExceptionClear();
+    }
+
     VM::init(vm, true);
-    JavaAPI::registerNatives(VM::jvmti(), VM::jni());
+    JavaAPI::registerNatives(VM::jvmti(), jni);
     return JNI_VERSION_1_6;
 }
