@@ -27,9 +27,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/limits.h>
-#include <fstream>
-#include <iostream>
-#include <string>
 #include "symbols.h"
 #include "arch.h"
 #include "fdtransferClient.h"
@@ -357,16 +354,15 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
         return;
     }
 
-    // can't construct std::ifstream from a file descriptor, so we'll resort to C APIs here
-    FILE* fp = fdopen(fd, "r");
-    if (fp == NULL) {
+    FILE* f = fdopen(fd, "r");
+    if (f == NULL) {
         Log::warn("fdopen(): %s", strerror(errno));
         close(fd);
         return;
     }
 
     char str[256];
-    while (fgets(str, sizeof(str) - 8, fp) != NULL) {
+    while (fgets(str, sizeof(str) - 8, f) != NULL) {
         size_t len = strlen(str) - 1; // trim the '\n'
         strcpy(str + len, "_[k]");
 
@@ -381,7 +377,7 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
         }
     }
 
-    fclose(fp);
+    fclose(f);
     close(fd);
 }
 
@@ -401,11 +397,19 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
         }
     }
 
-    std::ifstream maps("/proc/self/maps");
-    std::string str;
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (f == NULL) {
+        return;
+    }
 
-    while (count < size && std::getline(maps, str)) {
-        MemoryMapDesc map(str.c_str());
+    char* str = NULL;
+    size_t str_size = 0;
+    ssize_t len;
+
+    while (count < size && (len = getline(&str, &str_size, f)) > 0) {
+        str[len - 1] = 0;
+
+        MemoryMapDesc map(str);
         if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
             const char* image_base = map.addr();
             if (!_parsed_libraries.insert(image_base).second) {
@@ -425,6 +429,9 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
             atomicInc(count);
         }
     }
+
+    free(str);
+    fclose(f);
 }
 
 #endif // __linux__

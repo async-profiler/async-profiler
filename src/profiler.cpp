@@ -1311,7 +1311,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             out << buf;
         }
     }
-    out << std::endl;
+    out << "\n";
 
     double cpercent = 100.0 / total_counter;
     const char* units_str = activeEngine()->units();
@@ -1369,7 +1369,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (error) {
                 return error;
             }
-            out << "Profiling started" << std::endl;
+            out << "Profiling started\n";
             break;
         }
         case ACTION_STOP: {
@@ -1378,7 +1378,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
                 if (error) {
                     return error;
                 }
-                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
+                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
                 break;
             }
             // Fall through
@@ -1395,36 +1395,36 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (error) {
                 return error;
             }
-            out << "OK" << std::endl;
+            out << "OK\n";
             break;
         }
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
             if (_state == RUNNING) {
-                out << "Profiling is running for " << uptime() << " seconds" << std::endl;
+                out << "Profiling is running for " << uptime() << " seconds\n";
             } else {
-                out << "Profiler is not active" << std::endl;
+                out << "Profiler is not active\n";
             }
             break;
         }
         case ACTION_LIST: {
-            out << "Basic events:" << std::endl;
-            out << "  " << EVENT_CPU << std::endl;
-            out << "  " << EVENT_ALLOC << std::endl;
-            out << "  " << EVENT_LOCK << std::endl;
-            out << "  " << EVENT_WALL << std::endl;
-            out << "  " << EVENT_ITIMER << std::endl;
+            out << "Basic events:\n";
+            out << "  " << EVENT_CPU << "\n";
+            out << "  " << EVENT_ALLOC << "\n";
+            out << "  " << EVENT_LOCK << "\n";
+            out << "  " << EVENT_WALL << "\n";
+            out << "  " << EVENT_ITIMER << "\n";
 
-            out << "Java method calls:" << std::endl;
-            out << "  ClassName.methodName" << std::endl;
+            out << "Java method calls:\n";
+            out << "  ClassName.methodName\n";
 
             if (PerfEvents::supported()) {
-                out << "Perf events:" << std::endl;
+                out << "Perf events:\n";
                 // The first perf event is "cpu" which is already printed
                 for (int event_id = 1; ; event_id++) {
                     const char* event_name = PerfEvents::getEventName(event_id);
                     if (event_name == NULL) break;
-                    out << "  " << event_name << std::endl;
+                    out << "  " << event_name << "\n";
                 }
             }
             break;
