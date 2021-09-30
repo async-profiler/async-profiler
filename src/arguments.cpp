@@ -90,6 +90,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     dot              - dotted class names
 //     sig              - print method signatures
 //     ann              - annotate Java method names
+//     lib              - prepend library names
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
@@ -287,6 +288,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("ann")
                 _style |= STYLE_ANNOTATE;
+
+            CASE("lib")
+                _style |= STYLE_LIB_NAMES;
 
             CASE("begin")
                 _begin = value;

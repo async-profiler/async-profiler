@@ -23,6 +23,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
+    echo "  -l                prepend library names"
     echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
@@ -181,6 +182,9 @@ while [ $# -gt 0 ]; do
             ;;
         -a)
             FORMAT="$FORMAT,ann"
+            ;;
+        -l)
+            FORMAT="$FORMAT,lib"
             ;;
         -o)
             OUTPUT="$2"

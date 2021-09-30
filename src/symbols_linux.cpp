@@ -412,7 +412,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
                 continue;  // the library was already parsed
             }
 
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), image_base, map.end());
+            NativeCodeCache* cc = new NativeCodeCache(map.file(), count, image_base, map.end());
 
             if (map.inode() != 0) {
                 ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);

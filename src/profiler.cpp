@@ -225,6 +225,19 @@ const void* Profiler::resolveSymbol(const char* name) {
     return NULL;
 }
 
+// For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name 
+const char* Profiler::getLibraryName(const char* native_symbol) {
+    short lib_index = *(short*)(native_symbol - LIB_INDEX_OFFSET);
+    if (lib_index >= 0 && lib_index < _native_lib_count) {
+        const char* s = _native_libs[lib_index]->name();
+        if (s != NULL) {
+            const char* p = strrchr(s, '/');
+            return p != NULL ? p + 1 : s;
+        }
+    }
+    return NULL;
+}
+
 NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -634,7 +647,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy());
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy());
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);

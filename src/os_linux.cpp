@@ -186,9 +186,9 @@ int OS::threadId() {
 const char* OS::schedPolicy() {
     int sched_policy = sched_getscheduler(0);
     if (sched_policy >= SCHED_BATCH) {
-        return sched_policy >= SCHED_IDLE ? "[SCHED_IDLE]" : "[SCHED_BATCH]"; 
+        return sched_policy >= SCHED_IDLE ? "SCHED_IDLE" : "SCHED_BATCH"; 
     }
-    return "[SCHED_OTHER]";
+    return "SCHED_OTHER";
 }
 
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {

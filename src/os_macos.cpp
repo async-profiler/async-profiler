@@ -176,7 +176,7 @@ int OS::threadId() {
 
 const char* OS::schedPolicy() {
     // Not used on macOS
-    return "[SCHED_OTHER]";
+    return "SCHED_OTHER";
 }
 
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {

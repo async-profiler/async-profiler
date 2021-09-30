@@ -369,6 +369,8 @@ The following is a complete list of the command-line options accepted by
 
 * `-a` - annotate Java method names by adding `_[j]` suffix.
 
+* `-l` - prepend library names to symbols, e.g. ``libjvm.so`JVM_DefineClassWithSource``.
+
 * `-o fmt` - specifies what information to dump when profiling ends.
   `fmt` can be one of the following options:
     - `traces[=N]` - dump call traces (at most N samples);
