@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.7] - 2021-10-01
+
+### Bug fixes
+ - Workaround for JDK-8173361
+ - Backported fix for "Accept timed out" exception
+
 ## [1.8.6] - 2021-07-08
 
 ### Improvements
