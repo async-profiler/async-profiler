@@ -23,8 +23,7 @@ Current release (2.5):
  - Linux x64 (glibc): [async-profiler-2.5-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-x64.tar.gz)
  - Linux x64 (musl): [async-profiler-2.5-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-musl-x64.tar.gz)
  - Linux arm64: [async-profiler-2.5-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.5-macos.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-macos.tar.gz)
-   &nbsp;
+ - macOS x64/arm64: [async-profiler-2.5-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-macos.zip)
  - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
