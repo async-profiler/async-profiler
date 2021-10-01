@@ -511,7 +511,7 @@ class Recording {
         _bytes_written = 0;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
-        _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 10 ? 10 : args._chunk_time) * 1000000ULL;
+        _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
 
         _tid = OS::threadId();
         addThread(_tid);
@@ -695,17 +695,17 @@ class Recording {
     }
 
     void writeHeader(Buffer* buf) {
-        buf->put("FLR\0", 4);               // magic
-        buf->put16(2);                      // major
-        buf->put16(0);                      // minor
-        buf->put64(0);                      // chunk size
-        buf->put64(0);                      // cpool offset
-        buf->put64(0);                      // meta offset
-        buf->put64(_start_time * 1000);     // start time, ns
-        buf->put64(0);                      // duration, ns
-        buf->put64(_start_ticks);           // start ticks
-        buf->put64(TSC::frequency());       // ticks per sec
-        buf->put32(1);                      // features
+        buf->put("FLR\0", 4);            // magic
+        buf->put16(2);                   // major
+        buf->put16(0);                   // minor
+        buf->put64(1024 * 1024 * 1024);  // chunk size (initially large, for JMC to skip incomplete chunk)
+        buf->put64(0);                   // cpool offset
+        buf->put64(0);                   // meta offset
+        buf->put64(_start_time * 1000);  // start time, ns
+        buf->put64(0);                   // duration, ns
+        buf->put64(_start_ticks);        // start ticks
+        buf->put64(TSC::frequency());    // ticks per sec
+        buf->put32(1);                   // features
     }
 
     void writeMetadata(Buffer* buf) {
