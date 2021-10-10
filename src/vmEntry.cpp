@@ -71,7 +71,8 @@ bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti->GetSystemProperty("java.vm.name", &prop) == 0) {
         bool is_hotspot = strstr(prop, "OpenJDK") != NULL ||
                           strstr(prop, "HotSpot") != NULL ||
-                          strstr(prop, "GraalVM") != NULL;
+                          strstr(prop, "GraalVM") != NULL ||
+                          strstr(prop, "Dynamic Code Evolution") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
 
         if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
@@ -265,7 +266,7 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Error error = Profiler::instance()->run(_agent_args);
     if (error) {
-        Log::error(error.message());
+        Log::error("%s", error.message());
     }
 }
 
@@ -324,7 +325,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
     Log::open(_agent_args._log);
     if (error) {
-        Log::error(error.message());
+        Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
     }
 
@@ -342,7 +343,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Error error = args.parse(options);
     Log::open(args._log);
     if (error) {
-        Log::error(error.message());
+        Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
     }
 
@@ -358,7 +359,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
     error = Profiler::instance()->run(args);
     if (error) {
-        Log::error(error.message());
+        Log::error("%s", error.message());
         return COMMAND_ERROR;
     }
 

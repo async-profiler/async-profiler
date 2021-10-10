@@ -79,8 +79,9 @@ jmethodID CodeCache::find(const void* address) {
 }
 
 
-NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, const void* max_address) {
-    _name = strdup(name);
+NativeCodeCache::NativeCodeCache(const char* name, short lib_index, const void* min_address, const void* max_address) {
+    _name = encodeLibrarySymbol(name, -1);
+    _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
     _got_start = NULL;
@@ -89,13 +90,19 @@ NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, cons
 
 NativeCodeCache::~NativeCodeCache() {
     for (int i = 0; i < _count; i++) {
-        free(_blobs[i]._method);
+        free((char*)_blobs[i]._method - LIB_INDEX_OFFSET);
     }
-    free(_name);
+    free(_name - LIB_INDEX_OFFSET);
+}
+
+char* NativeCodeCache::encodeLibrarySymbol(const char* name, short lib_index) {
+    void* s = malloc(strlen(name) + 1 + LIB_INDEX_OFFSET);
+    *(short*)s = lib_index;
+    return strcpy((char*)s + LIB_INDEX_OFFSET, name);
 }
 
 void NativeCodeCache::add(const void* start, int length, const char* name, bool update_bounds) {
-    char* name_copy = strdup(name);
+    char* name_copy = encodeLibrarySymbol(name, _lib_index);
     // Replace non-printable characters
     for (char* s = name_copy; *s != 0; s++) {
         if (*s < ' ') *s = '?';

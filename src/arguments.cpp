@@ -51,50 +51,53 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 // The format of the string is:
 //     arg[,arg...]
 // where arg is one of the following options:
-//     start           - start profiling
-//     resume          - start or resume profiling without resetting collected data
-//     stop            - stop profiling
-//     dump            - dump collected data without stopping profiling session
-//     check           - check if the specified profiling event is available
-//     status          - print profiling status (inactive / running for X seconds)
-//     list            - show the list of available profiling events
-//     version[=full]  - display the agent version
-//     event=EVENT     - which event to trace (cpu, wall, cache-misses, etc.)
-//     alloc[=BYTES]   - profile allocations with BYTES interval
-//     lock[=DURATION] - profile contended locks longer than DURATION ns
-//     collapsed       - dump collapsed stacks (the format used by FlameGraph script)
-//     flamegraph      - produce Flame Graph in HTML format
-//     tree            - produce call tree in HTML format
-//     jfr             - dump events in Java Flight Recorder format
-//     traces[=N]      - dump top N call traces
-//     flat[=N]        - dump top N methods (aka flat profile)
-//     samples         - count the number of samples (default)
-//     total           - count the total value (time, bytes, etc.) instead of samples
-//     chunksize=N     - approximate size of JFR chunk in bytes (default: 100 MB)
-//     chunktime=N     - duration of JFR chunk in seconds (default: 1 hour)
-//     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
-//     jstackdepth=N   - maximum Java stack depth (default: 2048)
-//     safemode=BITS   - disable stack recovery techniques (default: 0, i.e. everything enabled)
-//     file=FILENAME   - output file name for dumping
-//     log=FILENAME    - log warnings and errors to the given dedicated stream
-//     filter=FILTER   - thread filter
-//     threads         - profile different threads separately
-//     sched           - group threads by scheduling policy
-//     cstack=MODE     - how to collect C stack frames in addition to Java stack
-//                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
-//     allkernel       - include only kernel-mode events
-//     alluser         - include only user-mode events
-//     simple          - simple class names instead of FQN
-//     dot             - dotted class names
-//     sig             - print method signatures
-//     ann             - annotate Java method names
-//     include=PATTERN - include stack traces containing PATTERN
-//     exclude=PATTERN - exclude stack traces containing PATTERN
-//     begin=FUNCTION  - begin profiling when FUNCTION is executed
-//     end=FUNCTION    - end profiling when FUNCTION is executed
-//     title=TITLE     - FlameGraph title
-//     minwidth=PCT    - FlameGraph minimum frame width in percent
-//     reverse         - generate stack-reversed FlameGraph / Call tree
+//     start            - start profiling
+//     resume           - start or resume profiling without resetting collected data
+//     stop             - stop profiling
+//     dump             - dump collected data without stopping profiling session
+//     check            - check if the specified profiling event is available
+//     status           - print profiling status (inactive / running for X seconds)
+//     list             - show the list of available profiling events
+//     version[=full]   - display the agent version
+//     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
+//     alloc[=BYTES]    - profile allocations with BYTES interval
+//     lock[=DURATION]  - profile contended locks longer than DURATION ns
+//     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
+//     flamegraph       - produce Flame Graph in HTML format
+//     tree             - produce call tree in HTML format
+//     jfr              - dump events in Java Flight Recorder format
+//     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler 
+//     traces[=N]       - dump top N call traces
+//     flat[=N]         - dump top N methods (aka flat profile)
+//     samples          - count the number of samples (default)
+//     total            - count the total value (time, bytes, etc.) instead of samples
+//     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
+//     chunktime=N      - duration of JFR chunk in seconds (default: 1 hour)
+//     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
+//     jstackdepth=N    - maximum Java stack depth (default: 2048)
+//     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
+//     file=FILENAME    - output file name for dumping
+//     log=FILENAME     - log warnings and errors to the given dedicated stream
+//     filter=FILTER    - thread filter
+//     threads          - profile different threads separately
+//     sched            - group threads by scheduling policy
+//     cstack=MODE      - how to collect C stack frames in addition to Java stack
+//                        MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
+//     allkernel        - include only kernel-mode events
+//     alluser          - include only user-mode events
+//     fdtransfer       - use fdtransfer to pass fds to the profiler
+//     simple           - simple class names instead of FQN
+//     dot              - dotted class names
+//     sig              - print method signatures
+//     ann              - annotate Java method names
+//     lib              - prepend library names
+//     include=PATTERN  - include stack traces containing PATTERN
+//     exclude=PATTERN  - exclude stack traces containing PATTERN
+//     begin=FUNCTION   - begin profiling when FUNCTION is executed
+//     end=FUNCTION     - end profiling when FUNCTION is executed
+//     title=TITLE      - FlameGraph title
+//     minwidth=PCT     - FlameGraph minimum frame width in percent
+//     reverse          - generate stack-reversed FlameGraph / Call tree
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -155,9 +158,14 @@ Error Arguments::parse(const char* args) {
 
             CASE("jfr")
                 _output = OUTPUT_JFR;
-                _jfr_options = value == NULL ? 0 :
-                               strcmp(value, "combine") == 0 ? JFR_COMBINE :
-                               (int)strtol(value, NULL, 0);
+                if (value != NULL) {
+                    _jfr_options = (int)strtol(value, NULL, 0);
+                }
+
+            CASE("jfrsync")
+                _output = OUTPUT_JFR;
+                _jfr_options = JFR_SYNC_OPTS;
+                _jfr_sync = value == NULL ? "default" : value;
 
             CASE("traces")
                 _output = OUTPUT_TEXT;
@@ -231,6 +239,10 @@ Error Arguments::parse(const char* args) {
             CASE("log")
                 _log = value == NULL || value[0] == 0 ? NULL : value;
 
+            CASE("fdtransfer")
+                _fdtransfer = true;
+                _fdtransfer_path = value;
+
             // Filters
             CASE("filter")
                 _filter = value == NULL ? "" : value;
@@ -276,6 +288,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("ann")
                 _style |= STYLE_ANNOTATE;
+
+            CASE("lib")
+                _style |= STYLE_LIB_NAMES;
 
             CASE("begin")
                 _begin = value;

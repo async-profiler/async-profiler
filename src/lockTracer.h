@@ -27,6 +27,7 @@ typedef void (JNICALL *UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
 
 class LockTracer : public Engine {
   private:
+    static double _ticks_to_nanos;
     static jlong _threshold;
     static jlong _start_time;
     static jclass _UnsafeClass;

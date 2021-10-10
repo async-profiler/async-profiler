@@ -75,7 +75,7 @@ class FrameName {
 
     void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     char* truncate(char* name, int max_length);
-    const char* cppDemangle(const char* name);
+    const char* decodeNativeSymbol(const char* name);
     char* javaMethodName(jmethodID method);
     char* javaClassName(const char* symbol, int length, int style);
 

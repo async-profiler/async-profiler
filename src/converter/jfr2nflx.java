@@ -57,7 +57,7 @@ public class jfr2nflx {
 
         final Proto profile = new Proto(200000)
                 .field(1, 0.0)
-                .field(2, Math.max(jfr.durationNanos / 1e9, durationTicks / (double) jfr.ticksPerSec))
+                .field(2, Math.max(jfr.durationNanos() / 1e9, durationTicks / (double) jfr.ticksPerSec))
                 .field(3, packSamples())
                 .field(4, packDeltas())
                 .field(6, "async-profiler")

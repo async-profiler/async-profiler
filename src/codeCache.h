@@ -24,6 +24,7 @@
 #define NO_MAX_ADDRESS  ((const void*)0)
 
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
+const int LIB_INDEX_OFFSET = 2;
 
 
 class CodeBlob {
@@ -89,11 +90,15 @@ class CodeCache {
 class NativeCodeCache : public CodeCache {
   private:
     char* _name;
+    short _lib_index;
     const void** _got_start;
     const void** _got_end;
 
+    static char* encodeLibrarySymbol(const char* name, short lib_index);
+
   public:
     NativeCodeCache(const char* name,
+                    short lib_index = -1,
                     const void* min_address = NO_MIN_ADDRESS,
                     const void* max_address = NO_MAX_ADDRESS);
 

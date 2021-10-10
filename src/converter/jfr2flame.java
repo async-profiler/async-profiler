@@ -35,7 +35,7 @@ import java.util.HashSet;
  */
 public class jfr2flame {
 
-    private static final int FRAME_KERNEL = 5;
+    private static final String[] FRAME_SUFFIX = {"_[j]", "_[j]", "_[i]", "", "", "_[k]"};
 
     private final JfrReader jfr;
     private final Dictionary<String> methodNames = new Dictionary<>();
@@ -45,11 +45,15 @@ public class jfr2flame {
     }
 
     public void convert(final FlameGraph fg, final boolean threads, final boolean total,
+                        final boolean lines, final boolean bci,
                         final Class<? extends Event> eventClass) throws IOException {
         EventAggregator agg = new EventAggregator(threads, total);
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             agg.collect(event);
         }
+
+        final double ticksToNanos = 1e9 / jfr.ticksPerSec;
+        final boolean scale = total && eventClass == ContendedLock.class && ticksToNanos != 1.0;
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -59,6 +63,7 @@ public class jfr2flame {
                 if (stackTrace != null) {
                     long[] methods = stackTrace.methods;
                     byte[] types = stackTrace.types;
+                    int[] locations = stackTrace.locations;
                     String classFrame = getClassFrame(event);
                     String[] trace = new String[methods.length + (threads ? 1 : 0) + (classFrame != null ? 1 : 0)];
                     if (threads) {
@@ -69,9 +74,16 @@ public class jfr2flame {
                         trace[--idx] = classFrame;
                     }
                     for (int i = 0; i < methods.length; i++) {
-                        trace[--idx] = getMethodName(methods[i], types[i]);
+                        String methodName = getMethodName(methods[i]);
+                        int location;
+                        if (lines && (location = locations[i] >>> 16) != 0) {
+                            methodName += ":" + location;
+                        } else if (bci && (location = locations[i] & 0xffff) != 0) {
+                            methodName += "@" + location;
+                        }
+                        trace[--idx] = methodName + FRAME_SUFFIX[types[i]];
                     }
-                    fg.addSample(trace, value);
+                    fg.addSample(trace, scale ? (long) (value * ticksToNanos) : value);
                 }
             }
         });
@@ -138,7 +150,7 @@ public class jfr2flame {
         }
     }
 
-    private String getMethodName(long methodId, int type) {
+    private String getMethodName(long methodId) {
         String result = methodNames.get(methodId);
         if (result != null) {
             return result;
@@ -153,12 +165,11 @@ public class jfr2flame {
             byte[] methodName = jfr.symbols.get(method.name);
 
             if (className == null || className.length == 0) {
-                String methodStr = new String(methodName, StandardCharsets.UTF_8);
-                result = type == FRAME_KERNEL ? methodStr + "_[k]" : methodStr;
+                result = new String(methodName, StandardCharsets.UTF_8);
             } else {
                 String classStr = new String(className, StandardCharsets.UTF_8);
                 String methodStr = new String(methodName, StandardCharsets.UTF_8);
-                result = classStr + '.' + methodStr + "_[j]";
+                result = classStr + '.' + methodStr;
             }
         }
 
@@ -176,12 +187,16 @@ public class jfr2flame {
             System.out.println("  --lock     Lock contention Flame Graph");
             System.out.println("  --threads  Split profile by threads");
             System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
+            System.out.println("  --lines    Show line numbers");
+            System.out.println("  --bci      Show bytecode indices");
             System.exit(1);
         }
 
         HashSet<String> options = new HashSet<>(Arrays.asList(args));
         boolean threads = options.contains("--threads");
         boolean total = options.contains("--total");
+        boolean lines = options.contains("--lines");
+        boolean bci = options.contains("--bci");
 
         Class<? extends Event> eventClass;
         if (options.contains("--alloc")) {
@@ -193,7 +208,7 @@ public class jfr2flame {
         }
 
         try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2flame(jfr).convert(fg, threads, total, eventClass);
+            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, eventClass);
         }
 
         fg.dump();

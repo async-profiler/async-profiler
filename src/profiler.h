@@ -204,6 +204,7 @@ class Profiler {
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
+    const char* getLibraryName(const char* native_symbol);
     NativeCodeCache* findNativeLibraryBySymbol(const char* name);
     NativeCodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);

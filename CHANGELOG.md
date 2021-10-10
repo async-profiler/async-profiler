@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.5] - 2021-10-01
+
+### Features
+ - macOS/ARM64 (aka Apple M1) port
+ - PPC64LE port (contributed by @ghaug)
+ - Profile low-privileged processes with perf_events (contributed by @Jongy)
+ - Raw PMU events; kprobes & uprobes
+ - Dump results in the middle of profiling session
+ - Chunked JFR; support JFR files larger than 2 GB
+ - Integrate async-profiler events with JDK Flight Recordings
+
+### Improvements
+ - Use RDTSC for JFR timestamps when possible
+ - Show line numbers and bci in Flame Graphs
+ - jfr2flame can produce Allocation and Lock flame graphs
+ - Flame Graph title depends on the event and `--total`
+ - Include profiler logs and native library list in JFR output
+ - Lock profiling no longer requires JVM symbols
+ - Better container support
+ - Native function profiler can count the specified argument
+ - An option to group threads by scheduling policy
+ - An option to prepend library name to native symbols
+
+### Notes
+ - macOS build is provided as a fat binary that works both on x86-64 and ARM64
+ - 32-bit binaries are no longer shipped. It is still possible to build them from sources
+ - Dropped JDK 6 support (may still work though)
+
 ## [2.0] - 2021-03-14
 
 ### Features

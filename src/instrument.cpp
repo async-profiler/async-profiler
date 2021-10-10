@@ -470,7 +470,7 @@ Error Instrument::check(Arguments& args) {
 
         jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
-            jni->ExceptionClear();
+            jni->ExceptionDescribe();
             return Error("Could not load Instrument class");
         }
 

@@ -134,7 +134,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
             continue;
         }
 
-        NativeCodeCache* cc = new NativeCodeCache(path);
+        NativeCodeCache* cc = new NativeCodeCache(path, count);
         MachOParser parser(cc, image_base);
         if (!parser.parse()) {
             Log::warn("Could not parse symbols from %s", path);
