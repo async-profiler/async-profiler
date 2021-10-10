@@ -199,8 +199,10 @@ class Profiler {
     Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
+    int getNativeTrace(ASGCT_CallFrame* frames, int tid);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);

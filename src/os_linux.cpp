@@ -183,8 +183,8 @@ int OS::threadId() {
     return syscall(__NR_gettid);
 }
 
-const char* OS::schedPolicy() {
-    int sched_policy = sched_getscheduler(0);
+const char* OS::schedPolicy(int thread_id) {
+    int sched_policy = sched_getscheduler(thread_id);
     if (sched_policy >= SCHED_BATCH) {
         return sched_policy >= SCHED_IDLE ? "SCHED_IDLE" : "SCHED_BATCH"; 
     }

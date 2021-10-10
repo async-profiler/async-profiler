@@ -32,6 +32,7 @@
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"
+#include "j9StackTraces.h"
 #include "log.h"
 #include "os.h"
 #include "perfEvents.h"
@@ -148,6 +149,8 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
     return false;
 }
 
+
+static J9StackTraces _j9_stack_traces; 
 
 static const void** _pthread_entry = NULL;
 
@@ -647,6 +650,27 @@ void PerfEvents::destroyForThread(int tid) {
     }
 }
 
+void PerfEvents::resetForThread(int tid) {
+    int fd = _events[tid]._fd;
+    if (fd > 0) {
+        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+        ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
+    }
+}
+
+u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
+    switch (_event_type->counter_arg) {
+        case 1: return StackFrame(ucontext).arg0();
+        case 2: return StackFrame(ucontext).arg1();
+        case 3: return StackFrame(ucontext).arg2();
+        case 4: return StackFrame(ucontext).arg3();
+        default: {
+            u64 counter;
+            return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
+        }
+    }
+}
+
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (siginfo->si_code <= 0) {
         // Looks like an external signal; don't treat as a profiling event
@@ -654,18 +678,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     if (_enabled) {
-        u64 counter;
-        switch (_event_type->counter_arg) {
-            case 1: counter = StackFrame(ucontext).arg0(); break;
-            case 2: counter = StackFrame(ucontext).arg1(); break;
-            case 3: counter = StackFrame(ucontext).arg2(); break;
-            case 4: counter = StackFrame(ucontext).arg3(); break;
-            default:
-                if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
-                    counter = 1;
-                }
-        }
-
+        u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
         Profiler::instance()->recordSample(ucontext, counter, 0, &event);
     } else {
@@ -674,6 +687,22 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+}
+
+void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
+    if (siginfo->si_code <= 0) {
+        // Looks like an external signal; don't treat as a profiling event
+        return;
+    }
+
+    if (_enabled) {
+        u64 counter = readCounter(siginfo, ucontext);
+        _j9_stack_traces.checkpoint(counter);
+    } else {
+        resetBuffer(OS::threadId());
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
+        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
+    }
 }
 
 const char* PerfEvents::title() {
@@ -778,7 +807,15 @@ Error PerfEvents::start(Arguments& args) {
         _max_events = max_events;
     }
 
-    OS::installSignalHandler(SIGPROF, signalHandler);
+    if (VM::isOpenJ9()) {
+        OS::installSignalHandler(SIGPROF, signalHandlerJ9);
+        Error error = _j9_stack_traces.start(args);
+        if (error) {
+            return error;
+        }
+    } else {
+        OS::installSignalHandler(SIGPROF, signalHandler);
+    }
 
     // Enable pthread hook before traversing currently running threads
     __atomic_store_n(_pthread_entry, (void*)pthread_setspecific_hook, __ATOMIC_RELEASE);
@@ -796,6 +833,7 @@ Error PerfEvents::start(Arguments& args) {
 
     if (!created) {
         __atomic_store_n(_pthread_entry, (void*)pthread_setspecific, __ATOMIC_RELEASE);
+        _j9_stack_traces.stop();
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {
@@ -810,6 +848,7 @@ void PerfEvents::stop() {
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
+    _j9_stack_traces.stop();
 }
 
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {

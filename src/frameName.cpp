@@ -142,6 +142,14 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     }
 }
 
+const char* FrameName::typeSuffix(int bci) {
+    switch (bci >> 24) {
+        case 0:  return "";
+        case 2:  return "_[i]";
+        default: return "_[j]";
+    }
+}
+
 char* FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
@@ -264,11 +272,13 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         default: {
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {
-                return it->second.c_str();
+                snprintf(_buf, sizeof(_buf) - 1, "%s%s", it->second.c_str(), typeSuffix(frame.bci));
+                return _buf;
             }
 
-            const char* newName = javaMethodName(frame.method_id);
+            char* newName = javaMethodName(frame.method_id);
             _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
+            strcat(newName, typeSuffix(frame.bci));
             return newName;
         }
     }

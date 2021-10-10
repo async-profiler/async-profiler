@@ -46,6 +46,9 @@ AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
 J9ThreadSelf VM::_j9thread_self;
 GetOSThreadID VM::_getOSThreadID = NULL;
+GetJ9vmThread VM::_getJ9vmThread = NULL;
+GetStackTraceExtended VM::_getStackTraceExtended = NULL;
+GetAllStackTracesExtended VM::_getAllStackTracesExtended = NULL;
 int VM::_instrumentableObjectAlloc = -1;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -193,7 +196,12 @@ void VM::checkJvmtiExtensions() {
         for (int i = 0; i < ext_count; i++) {
             if (strcmp(ext_functions[i].id, "com.ibm.GetOSThreadID") == 0) {
                 _getOSThreadID = (GetOSThreadID)ext_functions[i].func;
-                break;
+            } else if (strcmp(ext_functions[i].id, "com.ibm.GetJ9vmThread") == 0) {
+                _getJ9vmThread = (GetJ9vmThread)ext_functions[i].func;
+            } else if (strcmp(ext_functions[i].id, "com.ibm.GetStackTraceExtended") == 0) {
+                _getStackTraceExtended = (GetStackTraceExtended)ext_functions[i].func;
+            } else if (strcmp(ext_functions[i].id, "com.ibm.GetAllStackTracesExtended") == 0) {
+                _getAllStackTracesExtended = (GetAllStackTracesExtended)ext_functions[i].func;
             }
         }
        _jvmti->Deallocate((unsigned char*)ext_functions);

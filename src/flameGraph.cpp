@@ -75,8 +75,9 @@ static const char FLAMEGRAPH_HEADER[] =
     "\tc.font = document.body.style.font;\n"
     "\n"
     "\tconst palette = [\n"
+    "\t\t[0xa6e1a6, 20, 20, 20],\n"
     "\t\t[0x50e150, 30, 30, 30],\n"
-    "\t\t[0x50bebe, 30, 30, 30],\n"
+    "\t\t[0x50cccc, 30, 30, 30],\n"
     "\t\t[0xe17d00, 30, 30,  0],\n"
     "\t\t[0xc8c83c, 30, 30, 10],\n"
     "\t\t[0xe15a5a, 30, 40, 40],\n"
@@ -558,24 +559,24 @@ int FlameGraph::frameType(std::string& name) {
     if (StringUtils::endsWith(name, "_[j]", 4)) {
         // Java compiled frame
         name = name.substr(0, name.length() - 4);
-        return 0;
+        return 1;
     } else if (StringUtils::endsWith(name, "_[i]", 4)) {
         // Java inlined frame
         name = name.substr(0, name.length() - 4);
-        return 1;
+        return 2;
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
         // Kernel function
         name = name.substr(0, name.length() - 4);
-        return 2;
+        return 3;
     } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
         // C++ function or Objective C method
-        return 3;
+        return 4;
     } else if (((int)name.find('/') > 0 && name[0] != '[')
             || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
         // Java regular method
         return 0;
     } else {
         // Other native code
-        return 4;
+        return 5;
     }
 }

@@ -275,6 +275,10 @@ bool Profiler::inJavaCode(void* ucontext) {
     return CodeHeap::contains(pc);
 }
 
+int Profiler::getNativeTrace(ASGCT_CallFrame* frames, int tid) {
+    return getNativeTrace(_engine, NULL, frames, tid);
+}
+
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
@@ -654,11 +658,39 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy());
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(0));
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
+
+    _locks[lock_index].unlock();
+}
+
+void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames) {
+    atomicInc(_total_samples);
+
+    if (_add_thread_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
+    }
+    if (_add_sched_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy(tid));
+    }
+
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        // Too many concurrent signals already
+        atomicInc(_failures[-ticks_skipped]);
+        return;
+    }
+
+    ExecutionEvent event;
+    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
 
     _locks[lock_index].unlock();
 }

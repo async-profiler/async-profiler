@@ -73,7 +73,7 @@ class OS {
     static int getMaxThreadId();
     static int processId();
     static int threadId();
-    static const char* schedPolicy();
+    static const char* schedPolicy(int thread_id);
     static bool threadName(int thread_id, char* name_buf, size_t name_len);
     static ThreadState threadState(int thread_id);
     static ThreadList* listThreads();
