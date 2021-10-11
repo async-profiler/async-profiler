@@ -279,9 +279,11 @@ static bool is_cpp_interpreter_method(const char* mn) {
 
     // These are methods from OpenJDK C++ Interpreter:
     //   BytecodeInterpreter::run
+    //   ZeroIntepreter::main_loop
     //   ZeroIntepreter::*_entry
     //
-    // It is fine to over-match a little.
+    // It is fine to over-match ZeroInterpreter a little to do
+    // fewer tests on this relatively hot path.
     return is_prefix(mn, "_ZN15ZeroInterpreter") ||
            is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
