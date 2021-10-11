@@ -95,6 +95,7 @@ static bool findThreadCounter(jthread thread, SignalledThread* array, size_t len
 
 Error J9StackTraces::start(Arguments& args) {
     _max_stack_depth = args._jstackdepth; 
+    _cstack = args._cstack;
 
     if (pipe(_pipe) != 0) {
         return Error("Failed to create pipe");
@@ -155,7 +156,10 @@ void J9StackTraces::timerLoop() {
             }
 
             int tid = VM::getOSThreadID(threads[i]);
-            int num_frames = Profiler::instance()->getNativeTrace(frames, tid);
+            int num_frames = 0;
+            if (_cstack != CSTACK_NO) {
+                num_frames = Profiler::instance()->getNativeTrace(frames, tid);
+            }
             PerfEvents::resetForThread(tid);
 
             jint num_jvmti_frames;

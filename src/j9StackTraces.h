@@ -26,6 +26,7 @@ class J9StackTraces {
   private:
     pthread_t _thread;
     int _max_stack_depth;
+    bool _cstack;
     int _pipe[2];
 
     void timerLoop();
