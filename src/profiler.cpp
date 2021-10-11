@@ -282,7 +282,7 @@ static bool is_cpp_interpreter_method(const char* mn) {
     //   ZeroIntepreter::*_entry
     //
     // It is fine to over-match a little.
-    return is_prefix(mn, "_ZN15ZeroInterpreter9") ||
+    return is_prefix(mn, "_ZN15ZeroInterpreter") ||
            is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
 
