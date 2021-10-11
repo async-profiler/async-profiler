@@ -277,16 +277,13 @@ static bool is_prefix(const char* str, const char* prefix) {
 static bool is_cpp_interpreter_method(const char* mn) {
     if (mn == NULL) return false;
 
-    // These are C++ Interpreter methods from OpenJDK C++ Interpreter:
+    // These are methods from OpenJDK C++ Interpreter:
     //   BytecodeInterpreter::run
     //   ZeroIntepreter::*_entry
     //
-    // It is fine to over-match a little.  Handle both mangled and unmangled
-    // method names, in case the engine feeds us either.
+    // It is fine to over-match a little.
     return is_prefix(mn, "_ZN15ZeroInterpreter9") ||
-           is_prefix(mn, "_ZN19BytecodeInterpreter3run") ||
-           is_prefix(mn, "ZeroInterpreter::") ||
-           is_prefix(mn, "BytecodeInterpreter::run");
+           is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
 
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
