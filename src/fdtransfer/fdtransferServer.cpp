@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
@@ -135,6 +136,15 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             } else {
                 fprintf(stderr, "Target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, peer_pid);
                 error = ESRCH;
+            }
+
+            // Map the perf buffer here (mapping perf fds may require privileges, and fdtransfer has them while the target application does not
+            // necessarily; if pages are already mapped, the same physical pages will be used when the profiler agent maps them again, requiring
+            // no privileges this time)
+            if (error == 0) {
+                // Settings match the mmap() done in PerfEvents::createForThread().
+                (void)mmap(NULL, 2 * sysconf(_SC_PAGESIZE), PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
+                // Ignore errors - if this fails, let it fail again in the profiler again & produce a proper error for the user.
             }
 
             struct perf_fd_response resp;
