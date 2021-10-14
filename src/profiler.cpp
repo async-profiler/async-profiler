@@ -690,21 +690,21 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 }
 
 jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean))
+    jboolean result = ((NativeLibraryLoadFunc)
                        instance()->_original_NativeLibrary_load)(env, self, name, builtin);
     instance()->updateSymbols(false);
     return result;
 }
 
 jboolean JNICALL Profiler::NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jobject, jstring, jboolean, jboolean))
+    jboolean result = ((NativeLibrariesLoadFunc)
                        instance()->_original_NativeLibrary_load)(env, self, lib, name, builtin, jni);
     instance()->updateSymbols(false);
     return result;
 }
 
 void JNICALL Profiler::ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name) {
-    ((void JNICALL (*)(JNIEnv*, jobject, jstring)) instance()->_original_Thread_setNativeName)(env, self, name);
+    (instance()->_original_Thread_setNativeName)(env, self, name);
     instance()->updateThreadName(VM::jvmti(), env, self);
 }
 
@@ -773,12 +773,12 @@ void Profiler::bindThreadSetNativeName(JNIEnv* env, bool enable) {
 
     // Find JNI entry for Thread.setNativeName() method
     if (_original_Thread_setNativeName == NULL) {
-        _original_Thread_setNativeName = dlsym(VM::_libjvm, "JVM_SetNativeThreadName");
+        _original_Thread_setNativeName = (ThreadSetNativeNameFunc)dlsym(VM::_libjvm, "JVM_SetNativeThreadName");
     }
 
     // Change function pointer for the native method
     if (_original_Thread_setNativeName != NULL) {
-        void* entry = enable ? (void*)ThreadSetNativeNameTrap : _original_Thread_setNativeName;
+        void* entry = enable ? (void*)ThreadSetNativeNameTrap : (void*)_original_Thread_setNativeName;
         const JNINativeMethod setNativeName = {(char*)"setNativeName", (char*)"(Ljava/lang/String;)V", entry};
         env->RegisterNatives(Thread, &setNativeName, 1);
     }
