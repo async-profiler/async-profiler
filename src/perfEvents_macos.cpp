@@ -48,6 +48,12 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
+void PerfEvents::onThreadStart(jvmtiEnv *jvmti, JNIEnv *jni, int tid, jthread thread) {
+}
+
+void PerfEvents::onThreadEnd(jvmtiEnv *jvmti, JNIEnv *jni, int tid, jthread thread) {
+}
+
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     return 0;
 }

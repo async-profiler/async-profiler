@@ -17,6 +17,7 @@
 #ifndef _ENGINE_H
 #define _ENGINE_H
 
+#include <jvmti.h>
 #include "arguments.h"
 
 
@@ -36,6 +37,9 @@ class Engine {
     virtual Error check(Arguments& args);
     virtual Error start(Arguments& args);
     virtual void stop();
+
+    virtual void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread);
+    virtual void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread);
 
     virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 

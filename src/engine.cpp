@@ -32,6 +32,12 @@ Error Engine::start(Arguments& args) {
 void Engine::stop() {
 }
 
+void Engine::onThreadStart(jvmtiEnv *jvmti, JNIEnv *jni, int tid, jthread thread) {
+}
+
+void Engine::onThreadEnd(jvmtiEnv *jvmti, JNIEnv *jni, int tid, jthread thread) {
+}
+
 int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     const void* pc;
     uintptr_t fp;

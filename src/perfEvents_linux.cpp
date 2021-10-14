@@ -770,6 +770,14 @@ void PerfEvents::stop() {
     }
 }
 
+void PerfEvents::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread) {
+    createForThread(tid);
+}
+
+void PerfEvents::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread) {
+    destroyForThread(tid);
+}
+
 int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {

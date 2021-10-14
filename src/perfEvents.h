@@ -40,6 +40,9 @@ class PerfEvents : public Engine {
     Error start(Arguments& args);
     void stop();
 
+    void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread);
+    void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, int tid, jthread thread);
+
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     const char* title();
