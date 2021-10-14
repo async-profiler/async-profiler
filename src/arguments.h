@@ -17,6 +17,7 @@
 #ifndef _ARGUMENTS_H
 #define _ARGUMENTS_H
 
+#include <string>
 #include <stddef.h>
 
 
@@ -96,20 +97,20 @@ struct Multiplier {
 
 class Error {
   private:
-    const char* _message;
+    std::string _message;
 
   public:
     static const Error OK;
 
-    explicit Error(const char* message) : _message(message) {
+    explicit Error(const std::string& message) : _message(message) {
     }
 
     const char* message() {
-        return _message;
+        return _message.c_str();
     }
 
     operator bool() {
-        return _message != NULL;
+        return !_message.empty();
     }
 };
 

@@ -25,7 +25,7 @@
 
 
 // Predefined value that denotes successful operation
-const Error Error::OK(NULL);
+const Error Error::OK("");
 
 // Extra buffer space for expanding file pattern
 const size_t EXTRA_BUF_SIZE = 512;
