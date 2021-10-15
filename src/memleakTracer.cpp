@@ -18,7 +18,18 @@
 #include "memleakTracer.h"
 #include "os.h"
 #include "profiler.h"
+#include "log.h"
+#include "tsc.h"
 #include "vmStructs.h"
+
+
+static const unsigned char MEM_LEAK_CLASS[] = {
+#include "helper/one/profiler/MemLeak.class.h"
+};
+
+static const unsigned char MEM_LEAK_ENTRY_CLASS[] = {
+#include "helper/one/profiler/MemLeakEntry.class.h"
+};
 
 bool MemLeakTracer::_initialized = false;
 
@@ -30,34 +41,129 @@ int MemLeakTracer::_max_stack_depth;
 
 jclass MemLeakTracer::_Class;
 jmethodID MemLeakTracer::_Class_getName;
+jclass MemLeakTracer::_MemLeak;
+jmethodID MemLeakTracer::_MemLeak_process;
+jclass MemLeakTracer::_MemLeakEntry;
+jmethodID MemLeakTracer::_MemLeakEntry_init;
 
-void MemLeakTracer::cleanup_entry(JNIEnv* env, MemLeakTableEntry *entry) {
-    env->DeleteWeakGlobalRef(entry->ref);
+pthread_t MemLeakTracer::_cleanup_thread;
+pthread_mutex_t MemLeakTracer::_cleanup_mutex;
+pthread_cond_t MemLeakTracer::_cleanup_cond;
+u32 MemLeakTracer::_cleanup_round;
+bool MemLeakTracer::_cleanup_run;
+
+static inline u32 __min(u32 a, u32 b) {
+    return a < b ? a : b;
 }
 
-void MemLeakTracer::cleanup_table(JNIEnv* env) {
+void MemLeakTracer::cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nentries) {
+    if (entries) {
+        *nentries = 0;
+    }
+
+    u64 start = OS::nanotime(), end;
+
     _table_lock.lock();
 
-    int sz = 0;
-    for (int i = 0; i < _table_size; i++) {
+    if (entries) {
+        *entries = env->NewObjectArray(__min(_table_size, MEMLEAK_TABLE_MAX_SIZE), _MemLeakEntry, NULL);
+    }
+
+    u32 sz, newsz = 0;
+    for (u32 i = 0; i < (sz = __min(_table_size, MEMLEAK_TABLE_MAX_SIZE)); i++) {
         jobject ref = env->NewLocalRef(_table[i].ref);
         if (ref != NULL) {
-            memcpy(&_table[sz++], &_table[i], sizeof(_table[sz++]));
+            // it survived one more GarbageCollectionFinish event
+            _table[i].age += 1;
+
+            _table[newsz++] = _table[i];
+            if (entries) {
+                env->SetObjectArrayElement(*entries, (*nentries)++,
+                    env->NewObject(_MemLeakEntry, _MemLeakEntry_init, _table[i].ref, _table[i].ref_size, _table[i].age));
+            }
         } else {
-            cleanup_entry(env, &_table[i]);
+            env->DeleteWeakGlobalRef(_table[i].ref);
         }
 
         env->DeleteLocalRef(ref);
     }
 
-    _table_size = sz;
+    _table_size = newsz;
 
     _table_lock.unlock();
+
+    end = OS::nanotime();
+    Log::debug("Memory Leak profiler cleanup took %.2fms (%.2fus/element)",
+                1.0f * (end - start) / 1000 / 1000, 1.0f * (end - start) / 1000 / sz);
+}
+
+void MemLeakTracer::flush_table(JNIEnv *env) {
+    u64 start = OS::nanotime(), end;
+
+    _table_lock.lockShared();
+
+    u32 sz;
+    for (int i = 0; i < (sz = __min(_table_size, MEMLEAK_TABLE_MAX_SIZE)); i++) {
+        jobject ref = env->NewLocalRef(_table[i].ref);
+        if (ref != NULL) {
+            MemLeakEvent event;
+            event._start_time = _table[i].time;
+            event._age = _table[i].age;
+            event._instance_size = _table[i].ref_size;
+
+            jstring name_str = (jstring)env->CallObjectMethod(env->GetObjectClass(ref), _Class_getName);
+            const char *name = env->GetStringUTFChars(name_str, NULL);
+            event._class_id = name != NULL ? Profiler::instance()->classMap()->lookup(name) : 0;
+            env->ReleaseStringUTFChars(name_str, name);
+
+            Profiler::instance()->recordSample(_table[i].frames, _table[i].frames_size, _table[i].tid,
+                                                _table[i].ref_size, BCI_MEMLEAK, &event);
+        }
+
+        env->DeleteLocalRef(ref);
+    }
+
+    _table_lock.unlockShared();
+
+    end = OS::nanotime();
+    Log::debug("Memory Leak profiler flush took %.2fms (%.2fus/element)",
+                1.0f * (end - start) / 1000 / 1000, 1.0f * (end - start) / 1000 / sz);
+}
+
+void* MemLeakTracer::cleanup_thread(void *arg) {
+    VM::attachThread("Async-profiler Memory Leak cleanup");
+
+    while (true) {
+        pthread_mutex_lock(&_cleanup_mutex);
+        while (_cleanup_round == 0) {
+            if (!_cleanup_run) {
+                goto exit;
+            }
+            pthread_cond_wait(&_cleanup_cond, &_cleanup_mutex);
+        }
+        _cleanup_round -= 1;
+        pthread_mutex_unlock(&_cleanup_mutex);
+
+        jobjectArray entries = NULL;
+        jint nentries = 0;
+
+        JNIEnv *env = VM::jni();
+        cleanup_table(env, &entries, &nentries);
+
+        env->CallStaticObjectMethod(_MemLeak, _MemLeak_process, entries, nentries);
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+    }
+
+exit:
+    VM::detachThread();
+    return NULL;
 }
 
 Error MemLeakTracer::start(Arguments& args) {
     if (!_initialized) {
-        initialize();
+        Error err = initialize();
+        if (err) { return err; }
     }
 
     if (VM::hotspot_version() < 11) {
@@ -74,33 +180,8 @@ Error MemLeakTracer::start(Arguments& args) {
 
 void MemLeakTracer::stop() {
     JNIEnv* env = VM::jni();
-
-    cleanup_table(env);
-
-    _table_lock.lockShared();
-
-    for (int i = 0; i < _table_size; i++) {
-        jobject ref = env->NewLocalRef(_table[i].ref);
-        if (ref != NULL) {
-            MemLeakEvent event;
-            event._class_id = 0;
-            event._start_time = _table[i].time;
-            event._instance_size = _table[i].ref_size;
-            if (VMStructs::hasClassNames()) {
-                jstring name_str = (jstring)env->CallObjectMethod(env->GetObjectClass(ref), _Class_getName);
-                const char *name = env->GetStringUTFChars(name_str, NULL);
-                event._class_id = name != NULL ? Profiler::instance()->classMap()->lookup(name) : 0;
-                env->ReleaseStringUTFChars(name_str, name);
-            }
-
-            Profiler::instance()->recordSample(_table[i].frames, _table[i].frames_size, _table[i].tid,
-                                                _table[i].ref_size, BCI_MEMLEAK, &event);
-        }
-
-        env->DeleteLocalRef(ref);
-    }
-
-    _table_lock.unlockShared();
+    cleanup_table(env, NULL, NULL);
+    flush_table(env);
 
     // Disable Java Object Sample events
     jvmtiEnv* jvmti = VM::jvmti();
@@ -110,7 +191,7 @@ void MemLeakTracer::stop() {
 
 static int _min(int a, int b) { return a < b ? a : b; }
 
-void MemLeakTracer::initialize() {
+Error MemLeakTracer::initialize() {
     // jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 
@@ -119,11 +200,54 @@ void MemLeakTracer::initialize() {
 
     _max_stack_depth = _min(MEMLEAK_STACKFRAMES_MAX_DEPTH, Profiler::instance()->max_stack_depth());
 
-    _Class = env->FindClass("java/lang/Class");
-    _Class_getName = env->GetMethodID(_Class, "getName", "()Ljava/lang/String;");
+    if (!(_Class = env->FindClass("java/lang/Class"))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Unable to find java/lang/Class");
+    }
+    if (!(_Class_getName = env->GetMethodID(_Class, "getName", "()Ljava/lang/String;"))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Unable to find java/lang/Class.getName");
+    }
+
+    if (!(_MemLeak = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_CLASS, sizeof(MEM_LEAK_CLASS))) ||
+        !(_MemLeak = (jclass)env->NewGlobalRef(_MemLeak))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Failed to initialize one/profiler/MemLeak class");
+    }
+    if (!(_MemLeak_process = env->GetStaticMethodID(_MemLeak, "process", "([Lone/profiler/MemLeakEntry;I)V"))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Unable to find one/profiler/MemLeak.process");
+    }
+    if (!(_MemLeakEntry = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_ENTRY_CLASS, sizeof(MEM_LEAK_ENTRY_CLASS))) ||
+        !(_MemLeakEntry = (jclass)env->NewGlobalRef(_MemLeakEntry))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Failed to initialize one/profiler/MemLeakEntry class");
+    }
+    if (!(_MemLeakEntry_init = env->GetMethodID(_MemLeakEntry, "<init>", "(Ljava/lang/Object;IJ)V"))) {
+        delete[] _table;
+        env->ExceptionDescribe();
+        return Error("Unable to find one/profiler/MemLeakEntry.<init>");
+    }
+
+    _cleanup_round = 0;
+    _cleanup_run = true;
+    if (pthread_mutex_init(&_cleanup_mutex, NULL) != 0 ||
+        pthread_cond_init(&_cleanup_cond, NULL) != 0 ||
+        pthread_create(&_cleanup_thread, NULL, cleanup_thread, NULL) != 0) {
+        _cleanup_run = false;
+        delete[] _table;
+        return Error("Unable to create Memory Leak cleanup thread");
+    }
 
     env->ExceptionClear();
     _initialized = true;
+
+    return Error::OK;
 }
 
 void JNICALL MemLeakTracer::SampledObjectAlloc(jvmtiEnv *jvmti, JNIEnv* env,
@@ -143,17 +267,31 @@ void JNICALL MemLeakTracer::SampledObjectAlloc(jvmtiEnv *jvmti, JNIEnv* env,
     _table_lock.lockShared();
 
     int idx = __sync_fetch_and_add(&_table_size, 1);
-    _table[idx].ref = ref;
-    _table[idx].ref_size = size;
-    memcpy(&_table[idx].frames, &frames, sizeof(_table[idx].frames));
-    _table[idx].frames_size = frames_size;
-    _table[idx].tid = OS::threadId();
+    if (idx < MEMLEAK_TABLE_MAX_SIZE) {
+        _table[idx].ref = ref;
+        _table[idx].ref_size = size;
+        _table[idx].age = 0;
+        _table[idx].frames_size = frames_size;
+        memcpy(&_table[idx].frames, &frames, sizeof(jvmtiFrameInfo) * _table[idx].frames_size);
+        _table[idx].tid = OS::threadId();
+        _table[idx].time = TSC::ticks();
+    } else {
+        Log::warn("Cannot add sampled object to Memory Leak table, it's overflowing");
+    }
 
     _table_lock.unlockShared();
 }
 
 void JNICALL MemLeakTracer::GarbageCollectionFinish(jvmtiEnv *jvmti_env) {
-    //TODO: Trigger cleanup_table on a different thread
-    // Maybe, it's not a good idea as it would block MemLeakTracer::SampledObjectAlloc
-    //  through acquiring _table_lock. I need to measure it.
+    if (!_initialized) {
+        return;
+    }
+
+    if (pthread_mutex_lock(&_cleanup_mutex) != 0) {
+        Log::warn("Unable to lock Memory Leak cleanup mutex in GarbageCollectionFinish");
+        return;
+    }
+    _cleanup_round += 1;
+    pthread_cond_signal(&_cleanup_cond);
+    pthread_mutex_unlock(&_cleanup_mutex);
 }

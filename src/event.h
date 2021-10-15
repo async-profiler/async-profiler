@@ -56,6 +56,7 @@ class MemLeakEvent : public Event {
   public:
     u32 _class_id;
     u64 _start_time;
+    u64 _age;
     u64 _instance_size;
 };
 

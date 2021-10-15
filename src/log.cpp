@@ -62,6 +62,13 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     fflush(_file);
 }
 
+void Log::debug(const char* msg, ...) {
+    va_list args;
+    va_start(args, msg);
+    log(LOG_DEBUG, msg, args);
+    va_end(args);
+}
+
 void Log::info(const char* msg, ...) {
     va_list args;
     va_start(args, msg);

@@ -18,6 +18,7 @@
 #define _MEMLEAKTRACER_H
 
 #include <jvmti.h>
+#include <pthread.h>
 #include "arch.h"
 #include "engine.h"
 #include "spinLock.h"
@@ -32,6 +33,7 @@ typedef struct MemLeakTableEntry {
     jint frames_size;
     jint tid;
     jlong time;
+    jlong age;
 } MemLeakTableEntry;
 
 class MemLeakTracer : public Engine {
@@ -47,11 +49,24 @@ class MemLeakTracer : public Engine {
 
     static jclass _Class;
     static jmethodID _Class_getName;
+    static jclass _MemLeak;
+    static jmethodID _MemLeak_process;
+    static jclass _MemLeakEntry;
+    static jmethodID _MemLeakEntry_init;
 
-    static void initialize();
+    static pthread_t _cleanup_thread;
+    static pthread_mutex_t _cleanup_mutex;
+    static pthread_cond_t _cleanup_cond;
+    static u32 _cleanup_round;
+    static bool _cleanup_run;
 
-    static void cleanup_entry(JNIEnv* env, MemLeakTableEntry *entry);
-    static void cleanup_table(JNIEnv* env);
+    static Error initialize();
+
+    static void cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nentries);
+
+    static void flush_table(JNIEnv* env);
+
+    static void* cleanup_thread(void *arg);
 
   public:
     const char* title() {

@@ -49,6 +49,7 @@ class Log {
 
     static void log(LogLevel level, const char* msg, va_list args);
 
+    static void ATTR_FORMAT debug(const char* msg, ...);
     static void ATTR_FORMAT info(const char* msg, ...);
     static void ATTR_FORMAT warn(const char* msg, ...);
     static void ATTR_FORMAT error(const char* msg, ...);

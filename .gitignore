@@ -3,5 +3,7 @@
 /out/
 /.idea/
 /test/*.class
+/src/helper/**/*.class
+/src/helper/**/*.class.h
 .vscode
 *.iml
