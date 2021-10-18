@@ -58,7 +58,8 @@ enum Style {
     STYLE_SIMPLE     = 1,
     STYLE_DOTTED     = 2,
     STYLE_SIGNATURES = 4,
-    STYLE_ANNOTATE   = 8
+    STYLE_ANNOTATE   = 8,
+    STYLE_LIB_NAMES  = 16
 };
 
 enum CStack {

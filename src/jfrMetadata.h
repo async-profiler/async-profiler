@@ -67,7 +67,6 @@ enum JfrType {
     T_INITIAL_SYSTEM_PROPERTY = 114,
     T_NATIVE_LIBRARY = 115,
     T_LOG = 116,
-
     T_ANNOTATION = 200,
     T_LABEL = 201,
     T_CATEGORY = 202,
@@ -77,7 +76,6 @@ enum JfrType {
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
     T_PERCENTAGE = 208,
-    T_FREQUENCY = 209,
 };
 
 
@@ -146,7 +144,6 @@ class JfrMetadata : Element {
         F_DURATION_MILLIS = 0x100,
         F_ADDRESS         = 0x200,
         F_PERCENTAGE      = 0x400,
-        F_FREQUENCY       = 0x800,
     };
 
     static Element& element(const char* name) {
@@ -201,8 +198,6 @@ class JfrMetadata : Element {
             e << annotation(T_UNSIGNED) << annotation(T_MEMORY_ADDRESS);
         } else if (flags & F_PERCENTAGE) {
             e << annotation(T_PERCENTAGE);
-        } else if (flags & F_FREQUENCY) {
-            e << annotation(T_FREQUENCY);
         }
         return e;
     }

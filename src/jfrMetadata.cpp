@@ -180,14 +180,6 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("cores", T_INT, "Cores", F_UNSIGNED)
                 << field("hwThreads", T_INT, "Hardware Threads", F_UNSIGNED))
 
-            << (type("jdk.CPUTimeStampCounter", T_CPU_TSC, "CPU Time Stamp Counter")
-                << category("Operating System", "Processor")
-                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
-                << field("fastTimeEnabled", T_BOOLEAN, "Fast Time")
-                << field("fastTimeAutoEnabled", T_BOOLEAN, "Trusted Platform")
-                << field("osFrequency", T_LONG, "OS Frequency", F_FREQUENCY)
-                << field("fastTimeFrequency", T_LONG, "Fast Time Frequency", F_FREQUENCY))
-
             << (type("jdk.JVMInformation", T_JVM_INFORMATION, "JVM Information")
                 << category("Java Virtual Machine")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
@@ -237,9 +229,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
 
             << type("jdk.jfr.Unsigned", T_UNSIGNED, "Unsigned Value")
 
-            << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage")
-
-            << type("jdk.jfr.Frequency", T_FREQUENCY, "Frequency"))
+            << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage"))
 
         << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
 

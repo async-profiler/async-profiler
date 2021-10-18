@@ -23,6 +23,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
+    echo "  -l                prepend library names"
     echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
@@ -119,8 +120,12 @@ jattach() {
     set -e
 }
 
-OPTIND=1
-SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
+SCRIPT_BIN="$0"
+while [ -h "$SCRIPT_BIN" ]; do
+    SCRIPT_BIN="$(readlink "$SCRIPT_BIN")"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
+
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 USE_FDTRANSFER="false"
@@ -177,6 +182,9 @@ while [ $# -gt 0 ]; do
             ;;
         -a)
             FORMAT="$FORMAT,ann"
+            ;;
+        -l)
+            FORMAT="$FORMAT,lib"
             ;;
         -o)
             OUTPUT="$2"

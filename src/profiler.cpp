@@ -99,6 +99,8 @@ void Profiler::addJavaMethod(const void* address, int length, jmethodID method) 
     _jit_lock.lock();
     _java_methods.add(address, length, method, true);
     _jit_lock.unlock();
+
+    CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
 void Profiler::removeJavaMethod(const void* address, jmethodID method) {
@@ -117,6 +119,8 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     _stubs_lock.lock();
     _runtime_stubs.add(address, length, name, true);
     _stubs_lock.unlock();
+
+    CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -224,6 +228,19 @@ const void* Profiler::resolveSymbol(const char* name) {
     return NULL;
 }
 
+// For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name 
+const char* Profiler::getLibraryName(const char* native_symbol) {
+    short lib_index = *(short*)(native_symbol - LIB_INDEX_OFFSET);
+    if (lib_index >= 0 && lib_index < _native_lib_count) {
+        const char* s = _native_libs[lib_index]->name();
+        if (s != NULL) {
+            const char* p = strrchr(s, '/');
+            return p != NULL ? p + 1 : s;
+        }
+    }
+    return NULL;
+}
+
 NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -253,19 +270,43 @@ bool Profiler::inJavaCode(void* ucontext) {
         _stubs_lock.unlockShared();
         return method == NULL || strcmp((const char*)method, "call_stub") != 0;
     }
-    return _java_methods.contains(pc);
+    return CodeHeap::contains(pc);
+}
+
+static bool is_prefix(const char* str, const char* prefix) {
+    return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
+static bool is_cpp_interpreter_method(const char* mn) {
+    if (mn == NULL) return false;
+
+    // These are methods from OpenJDK C++ Interpreter:
+    //   BytecodeInterpreter::run
+    //   ZeroIntepreter::main_loop
+    //   ZeroIntepreter::*_entry
+    //
+    // It is fine to over-match ZeroInterpreter a little to do
+    // fewer tests on this relatively hot path.
+    return is_prefix(mn, "_ZN15ZeroInterpreter") ||
+           is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
 
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES,
-                                               &_java_methods, &_runtime_stubs);
+    int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
 
     int depth = 0;
     jmethodID prev_method = NULL;
 
     for (int i = 0; i < native_frames; i++) {
-        jmethodID current_method = (jmethodID)findNativeMethod(native_callchain[i]);
+        const char* current_method_name = findNativeMethod(native_callchain[i]);
+        if (is_cpp_interpreter_method(current_method_name)) {
+            // This is C++ interpreter frame, this and later frames should be reported
+            // as Java frames returned by AGCT. Terminate the scan here.
+            return depth;
+        }
+
+        jmethodID current_method = (jmethodID)current_method_name;
         if (current_method == prev_method && _cstack == CSTACK_LBR) {
             // Skip duplicates in LBR stack, where branch_stack[N].from == branch_stack[N+1].to
             prev_method = NULL;
@@ -674,7 +715,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy());
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy());
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
@@ -1354,7 +1395,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             out << buf;
         }
     }
-    out << std::endl;
+    out << "\n";
 
     double cpercent = 100.0 / total_counter;
     const char* units_str = activeEngine()->units();
@@ -1412,7 +1453,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (error) {
                 return error;
             }
-            out << "Profiling started" << std::endl;
+            out << "Profiling started\n";
             break;
         }
         case ACTION_STOP: {
@@ -1421,7 +1462,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
                 if (error) {
                     return error;
                 }
-                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified" << std::endl;
+                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
                 break;
             }
             // Fall through
@@ -1438,15 +1479,15 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             if (error) {
                 return error;
             }
-            out << "OK" << std::endl;
+            out << "OK\n";
             break;
         }
         case ACTION_STATUS: {
             MutexLocker ml(_state_lock);
             if (_state == RUNNING) {
-                out << "Profiling is running for " << uptime() << " seconds" << std::endl;
+                out << "Profiling is running for " << uptime() << " seconds\n";
             } else {
-                out << "Profiler is not active" << std::endl;
+                out << "Profiler is not active\n";
             }
             break;
         }
@@ -1459,16 +1500,16 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_WALL << std::endl;
             out << "  " << EVENT_ITIMER << std::endl;
 
-            out << "Java method calls:" << std::endl;
-            out << "  ClassName.methodName" << std::endl;
+            out << "Java method calls:\n";
+            out << "  ClassName.methodName\n";
 
             if (PerfEvents::supported()) {
-                out << "Perf events:" << std::endl;
+                out << "Perf events:\n";
                 // The first perf event is "cpu" which is already printed
                 for (int event_id = 1; ; event_id++) {
                     const char* event_name = PerfEvents::getEventName(event_id);
                     if (event_name == NULL) break;
-                    out << "  " << event_name << std::endl;
+                    out << "  " << event_name << "\n";
                 }
             }
             break;

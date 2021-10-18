@@ -39,6 +39,7 @@
 #include "spinLock.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -769,8 +770,7 @@ void PerfEvents::stop() {
     }
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs) {
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -794,7 +794,7 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
-                        if (java_methods->contains(iptr) || runtime_stubs->contains(iptr) || depth >= max_depth) {
+                        if (CodeHeap::contains(iptr) || depth >= max_depth) {
                             // Stop at the first Java frame
                             goto stack_complete;
                         }
@@ -807,7 +807,7 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
 
                     // Last userspace PC is stored right after branch stack
                     const void* pc = (const void*)ring.peek(bnr * 3 + 2);
-                    if (java_methods->contains(pc) || runtime_stubs->contains(pc) || depth >= max_depth) {
+                    if (CodeHeap::contains(pc) || depth >= max_depth) {
                         goto stack_complete;
                     }
                     callchain[depth++] = pc;
@@ -817,12 +817,12 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
                         const void* to = (const void*)ring.next();
                         ring.next();
 
-                        if (java_methods->contains(to) || runtime_stubs->contains(to) || depth >= max_depth) {
+                        if (CodeHeap::contains(to) || depth >= max_depth) {
                             goto stack_complete;
                         }
                         callchain[depth++] = to;
 
-                        if (java_methods->contains(from) || runtime_stubs->contains(from) || depth >= max_depth) {
+                        if (CodeHeap::contains(from) || depth >= max_depth) {
                             goto stack_complete;
                         }
                         callchain[depth++] = from;

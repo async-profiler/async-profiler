@@ -117,17 +117,29 @@ char* FrameName::truncate(char* name, int max_length) {
     return name;
 }
 
-const char* FrameName::cppDemangle(const char* name) {
-    if (name != NULL && name[0] == '_' && name[1] == 'Z') {
+const char* FrameName::decodeNativeSymbol(const char* name) {
+    const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
+
+    if (name[0] == '_' && name[1] == 'Z') {
         int status;
         char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
         if (demangled != NULL) {
-            strncpy(_buf, demangled, sizeof(_buf) - 1);
+            if (lib_name != NULL) {
+                snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, demangled);
+            } else {
+                strncpy(_buf, demangled, sizeof(_buf) - 1);
+            }
             free(demangled);
             return _buf;
         }
     }
-    return name;
+
+    if (lib_name != NULL) {
+        snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, name);
+        return _buf;
+    } else {
+        return name;
+    }
 }
 
 char* FrameName::javaMethodName(jmethodID method) {
@@ -216,7 +228,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
 
     switch (frame.bci) {
         case BCI_NATIVE_FRAME:
-            return cppDemangle((const char*)frame.method_id);
+            return decodeNativeSymbol((const char*)frame.method_id);
 
         case BCI_ALLOC:
         case BCI_ALLOC_OUTSIDE_TLAB:

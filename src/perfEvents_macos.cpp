@@ -48,8 +48,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs) {
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     return 0;
 }
 

@@ -109,7 +109,7 @@ public class FlameGraph {
     public void dump(PrintStream out) {
         out.print(applyReplacements(HEADER,
                 "{title}", title,
-                "{height}", (depth + 1) * 16,
+                "{height}", Math.min((depth + 1) * 16, 32767),
                 "{depth}", depth + 1,
                 "{reverse}", reverse));
 
