@@ -54,6 +54,7 @@ const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
+const u64 MIN_JLONG = 0x8000000000000000ULL;
 
 
 static SpinLock _rec_lock(1);
@@ -1157,6 +1158,7 @@ class Recording {
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
+        buf->put8(0);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }
@@ -1170,6 +1172,7 @@ class Recording {
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_timeout);
+        buf->putVar64(MIN_JLONG);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
     }

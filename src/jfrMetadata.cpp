@@ -116,6 +116,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("monitorClass", T_CLASS, "Monitor Class", F_CPOOL)
+                << field("previousOwner", T_THREAD, "Previous Monitor Owner", F_CPOOL)
                 << field("address", T_LONG, "Monitor Address", F_ADDRESS))
 
             << (type("jdk.ThreadPark", T_THREAD_PARK, "Java Thread Park")
@@ -126,6 +127,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("parkedClass", T_CLASS, "Class Parked On", F_CPOOL)
                 << field("timeout", T_LONG, "Park Timeout", F_DURATION_NANOS)
+                << field("until", T_LONG, "Park Until", F_TIME_MILLIS)
                 << field("address", T_LONG, "Address of Object Parked", F_ADDRESS))
 
             << (type("jdk.CPULoad", T_CPU_LOAD, "CPU Load")
@@ -135,7 +137,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("jvmSystem", T_FLOAT, "JVM System", F_PERCENTAGE)
                 << field("machineTotal", T_FLOAT, "Machine Total", F_PERCENTAGE))
 
-            << (type("jdk.ActiveRecording", T_ACTIVE_RECORDING, "Flight Recording")
+            << (type("jdk.ActiveRecording", T_ACTIVE_RECORDING, "Async-profiler Recording")
                 << category("Flight Recorder")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
@@ -148,7 +150,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("recordingStart", T_LONG, "Start Time", F_TIME_MILLIS)
                 << field("recordingDuration", T_LONG, "Recording Duration", F_DURATION_MILLIS))
 
-            << (type("jdk.ActiveSetting", T_ACTIVE_SETTING, "Recording Setting")
+            << (type("jdk.ActiveSetting", T_ACTIVE_SETTING, "Async-profiler Setting")
                 << category("Flight Recorder")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
