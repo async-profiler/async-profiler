@@ -493,7 +493,9 @@ class Recording {
         if (_timer_is_running) {
             _timer_is_running = false;
             pthread_kill(_timer_thread, WAKEUP_SIGNAL);
-            pthread_join(_timer_thread, NULL);
+            // Do not wait until timer thread finishes, otherwise we can deadlock.
+            // timerLoop() is harmless; it's OK to finish it asynchronously.
+            pthread_detach(_timer_thread);
         }
     }
 
