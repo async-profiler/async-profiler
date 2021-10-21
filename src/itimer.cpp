@@ -34,12 +34,12 @@ Error ITimer::check(Arguments& args) {
     OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
 
     struct itimerval tv_on = {{1, 0}, {1, 0}};
-    if (setitimer(ITIMER_PROF|ITIMER_VIRTUAL, &tv_on, NULL) != 0) {
-        return Error("ITIMER_PROF|ITIMER_VIRTUAL is not supported on this system");
+    if (setitimer(ITIMER_PROF, &tv_on, NULL) != 0) {
+        return Error("ITIMER_PROF is not supported on this system");
     }
 
     struct itimerval tv_off = {{0, 0}, {0, 0}};
-    setitimer(ITIMER_PROF|ITIMER_VIRTUAL, &tv_off, NULL);
+    setitimer(ITIMER_PROF, &tv_off, NULL);
 
     return Error::OK;
 }
@@ -56,8 +56,8 @@ Error ITimer::start(Arguments& args) {
     suseconds_t usec = (_interval % 1000000000) / 1000;
     struct itimerval tv = {{sec, usec}, {sec, usec}};
     
-    if (setitimer(ITIMER_PROF|ITIMER_VIRTUAL, &tv, NULL) != 0) {
-        return Error("ITIMER_PROF|ITIMER_VIRTUAL is not supported on this system");
+    if (setitimer(ITIMER_PROF, &tv, NULL) != 0) {
+        return Error("ITIMER_PROF is not supported on this system");
     }
 
     return Error::OK;
@@ -65,5 +65,5 @@ Error ITimer::start(Arguments& args) {
 
 void ITimer::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
-    setitimer(ITIMER_PROF|ITIMER_VIRTUAL, &tv, NULL);
+    setitimer(ITIMER_PROF, &tv, NULL);
 }
