@@ -29,6 +29,7 @@
 #include "lockTracer.h"
 #include "objectSampler.h"
 #include "wallClock.h"
+#include "j9WallClock.h"
 #include "instrument.h"
 #include "itimer.h"
 #include "flameGraph.h"
@@ -51,6 +52,7 @@ static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
 static WallClock wall_clock;
+static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
@@ -855,7 +857,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
-        return &wall_clock;
+        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
     } else if (strchr(event_name, '.') != NULL && strchr(event_name, ':') == NULL) {
