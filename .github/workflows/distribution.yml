@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-        - build: macos
+        - build: macos-x64
           os: macos-latest
 
         - build: linux-x64
@@ -52,7 +52,7 @@ jobs:
        run: make all
      - name: Run tests
        run: |
-         if [ "${TARGET_OS}" != "macos" ]; then
+         if [ "${TARGET_OS}" != "macos-x64" ]; then
            sudo sysctl kernel.kptr_restrict=0
            sudo sysctl kernel.perf_event_paranoid=1
            make test
@@ -91,8 +91,8 @@ jobs:
       - name: Get macos binary
         uses: actions/download-artifact@master
         with:
-          name: libasyncProfiler-macos.so
-          path: src/main/resources/native-libs/macos
+          name: libasyncProfiler-macos-x64.so
+          path: src/main/resources/native-libs/macos-x64
       - name: Get linux ppc64le binary
         uses: actions/download-artifact@master
         with:
