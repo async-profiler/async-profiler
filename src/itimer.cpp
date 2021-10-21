@@ -16,9 +16,13 @@
 
 #include <sys/time.h>
 #include "itimer.h"
+#include "j9StackTraces.h"
 #include "os.h"
 #include "profiler.h"
+#include "stackFrame.h"
 
+
+static J9StackTraces _j9_stack_traces; 
 
 long ITimer::_interval;
 
@@ -28,6 +32,12 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     ExecutionEvent event;
     Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+}
+
+void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
+    if (!_enabled) return;
+
+    _j9_stack_traces.checkpoint((void*)StackFrame(ucontext).pc(), 1);
 }
 
 Error ITimer::check(Arguments& args) {
@@ -50,7 +60,15 @@ Error ITimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
 
-    OS::installSignalHandler(SIGPROF, signalHandler);
+    if (VM::isOpenJ9()) {
+        OS::installSignalHandler(SIGPROF, signalHandlerJ9);
+        Error error = _j9_stack_traces.start(args);
+        if (error) {
+            return error;
+        }
+    } else {
+        OS::installSignalHandler(SIGPROF, signalHandler);
+    }
 
     time_t sec = _interval / 1000000000;
     suseconds_t usec = (_interval % 1000000000) / 1000;
@@ -66,4 +84,6 @@ Error ITimer::start(Arguments& args) {
 void ITimer::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
+
+    _j9_stack_traces.stop();
 }

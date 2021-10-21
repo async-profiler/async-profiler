@@ -697,7 +697,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        _j9_stack_traces.checkpoint(counter);
+        _j9_stack_traces.checkpoint(NULL, counter);
     } else {
         resetBuffer(OS::threadId());
         ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);

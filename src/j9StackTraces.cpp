@@ -26,6 +26,7 @@
 
 struct SignalledThread {
     JNIEnv* env;
+    void* pc;
     u64 counter;
 };
 
@@ -79,17 +80,16 @@ class J9VMThread {
 
 static JNIEnv* _self_env = NULL;
 
-static bool findThreadCounter(jthread thread, SignalledThread* array, size_t length, u64* counter) {
+static SignalledThread* findThread(jthread thread, SignalledThread* array, size_t length) {
     JNIEnv* vm_thread = VM::getJ9vmThread(thread);
     if (vm_thread != NULL) {
         for (size_t i = 0; i < length; i++) {
             if (array[i].env == vm_thread) {
-                *counter = array[i].counter;
-                return true;
+                return &array[i];
             }
         }
     }
-    return false;
+    return NULL;
 }
 
 
@@ -150,15 +150,24 @@ void J9StackTraces::timerLoop() {
         }
 
         for (int i = 0; i < thread_count; i++) {
-            u64 counter;
-            if (!findThreadCounter(threads[i], signalled_threads, signalled_thread_count, &counter)) {
+            SignalledThread* st = findThread(threads[i], signalled_threads, signalled_thread_count);
+            if (st == NULL) {
                 continue;
             }
 
             int tid = VM::getOSThreadID(threads[i]);
             int num_frames = 0;
             if (_cstack != CSTACK_NO) {
-                num_frames = Profiler::instance()->getNativeTrace(frames, tid);
+                if (st->pc != NULL) {
+                    jmethodID method_id = (jmethodID)Profiler::instance()->findNativeMethod(st->pc);
+                    if (method_id != NULL) {
+                        frames[num_frames].bci = BCI_NATIVE_FRAME;
+                        frames[num_frames].method_id = method_id;
+                        num_frames++;
+                    }
+                } else {
+                    num_frames = Profiler::instance()->getNativeTrace(frames, tid);
+                }
             }
             PerfEvents::resetForThread(tid);
 
@@ -170,7 +179,7 @@ void J9StackTraces::timerLoop() {
                     frames[num_frames].bci = (jvmti_frames[j].type << 24) | jvmti_frames[j].location;
                     num_frames++;
                 }
-                Profiler::instance()->recordExternalSample(counter, tid, num_frames, frames);
+                Profiler::instance()->recordExternalSample(st->counter, tid, num_frames, frames);
             }
         }
 
@@ -185,7 +194,7 @@ void J9StackTraces::timerLoop() {
     VM::detachThread();
 }
 
-void J9StackTraces::checkpoint(u64 counter) {
+void J9StackTraces::checkpoint(void* pc, u64 counter) {
     JNIEnv* self_env = __atomic_load_n(&_self_env, __ATOMIC_ACQUIRE);
     if (self_env == NULL) {
         // Sampler thread is not ready
@@ -196,9 +205,12 @@ void J9StackTraces::checkpoint(u64 counter) {
     if (env != NULL && env != self_env) {
         J9VMThread* vm_thread = (J9VMThread*)env;
         uintptr_t flags = vm_thread->getAndSetFlag(J9_HALT_THREAD_INSPECTION);
-        if (!(flags & J9_STOPPED)) {
+        if (flags & J9_HALT_THREAD_INSPECTION) {
+            // Thread is already scheduled for inspection, no need to notify again
+            return;
+        } else if (!(flags & J9_STOPPED)) {
             vm_thread->setOverflowMark();
-            SignalledThread st = {env, counter};
+            SignalledThread st = {env, pc, counter};
             if (write(_pipe[1], &st, sizeof(st)) > 0) {
                 return;
             }

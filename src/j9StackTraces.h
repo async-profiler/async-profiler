@@ -43,7 +43,7 @@ class J9StackTraces {
     Error start(Arguments& args);
     void stop();
 
-    void checkpoint(u64 counter);
+    void checkpoint(void* pc, u64 counter);
 };
 
 #endif // _J9STACKTRACES_H
