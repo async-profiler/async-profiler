@@ -169,7 +169,9 @@ void J9StackTraces::timerLoop() {
                     num_frames = Profiler::instance()->getNativeTrace(frames, tid);
                 }
             }
-            PerfEvents::resetForThread(tid);
+            if (st->pc == NULL) {
+                PerfEvents::resetForThread(tid);
+            }
 
             jint num_jvmti_frames;
             if (VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, threads[i],
