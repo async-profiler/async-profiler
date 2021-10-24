@@ -63,7 +63,7 @@ const char* PerfEvents::getEventName(int event_id) {
     return NULL;
 }
 
-int PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(int tid, cpu) {
     return -1;
 }
 

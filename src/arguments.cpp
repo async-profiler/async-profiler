@@ -98,6 +98,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree
+//     cpu=CPU          - the cpu to profile. cpu's are 0 based. (default: -1)
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -114,7 +115,7 @@ Error Arguments::parse(const char* args) {
     }
     strcpy(_buf, args);
 
-    const char* msg = NULL;    
+    const char* msg = NULL;
 
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -307,6 +308,11 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
+
+            CASE("cpu")
+                if (value == NULL || (_cpu = atoi(value)) < 0) {
+                    msg = "cpu must >= 0";
+                }
         }
     }
 

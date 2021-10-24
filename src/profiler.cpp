@@ -120,13 +120,13 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
-void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
+void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, int cpu) {
     int tid = OS::threadId();
     _thread_filter.remove(tid);
     updateThreadName(jvmti, jni, thread);
 
     if (_engine == &perf_events) {
-        PerfEvents::createForThread(tid);
+        PerfEvents::createForThread(tid, cpu);
     }
 }
 

@@ -503,7 +503,7 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 
-int PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(int tid, int cpu) {
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;
@@ -557,7 +557,7 @@ int PerfEvents::createForThread(int tid) {
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, &attr);
     } else {
-        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+        fd = syscall(__NR_perf_event_open, &attr, tid, cpu, -1, 0);
     }
 
     if (fd == -1) {
@@ -747,7 +747,7 @@ Error PerfEvents::start(Arguments& args) {
     bool created = false;
     ThreadList* thread_list = OS::listThreads();
     for (int tid; (tid = thread_list->next()) != -1; ) {
-        if ((err = createForThread(tid)) == 0) {
+        if ((err = createForThread(tid, args._cpu)) == 0) {
             created = true;
         }
     }

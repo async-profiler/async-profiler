@@ -131,7 +131,7 @@ class Profiler {
     void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
 
-    void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, int cpu);
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
 
     const char* asgctError(int code);
@@ -239,8 +239,8 @@ class Profiler {
         instance()->addRuntimeStub(address, length, name);
     }
 
-    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-        instance()->onThreadStart(jvmti, jni, thread);
+    static void JNICALL ThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, int cpu) {
+        instance()->onThreadStart(jvmti, jni, thread, cpu);
     }
 
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {

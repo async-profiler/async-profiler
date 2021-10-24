@@ -50,7 +50,7 @@ class PerfEvents : public Engine {
     static bool supported();
     static const char* getEventName(int event_id);
 
-    static int createForThread(int tid);
+    static int createForThread(int tid, int cpu);
     static void destroyForThread(int tid);
 };
 
