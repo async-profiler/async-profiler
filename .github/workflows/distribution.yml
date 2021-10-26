@@ -7,7 +7,11 @@ on:
         description: 'Log level'     
         required: true
         default: 'warning'
-
+      deployment:
+        description: Deployment type (snapshot, release)
+        default: 'snapshot'
+        required: true
+        
 jobs:
   build-native:
     runs-on: ${{ matrix.os }}
@@ -66,6 +70,8 @@ jobs:
   build-maven:
     needs: build-native
     runs-on: ubuntu-latest
+    env:
+      DEPLOYMENT_TYPE: ${{inputs.deployment}}
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
@@ -101,13 +107,23 @@ jobs:
       - name: Build with Maven
         run: mvn --batch-mode --update-snapshots package
       - name: Store version
-        run: mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*' > target/version.txt
+        run: |
+          BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
+          BRANCH=$(git branch --show-current | tr '/' '_')
+          if [ "${BRANCH}" == "main" ]; then
+            BRANCH="DD"
+          fi
+          if [ -z "${DEPLOYMENT_TYPE}" ]; then
+            DEPLOYMENT_TYPE="snapshot"
+          fi
+          echo "VERSION=${BASE_VERSION}" > target/versions
+          echo "POM_VERSION=${BASE_VERSION}-${BRANCH^^}-${DEPLOYMENT_TYPE^^}" >> target/versions
       - uses: actions/upload-artifact@v2
         with:
           name: async-profiler-archive.zip
           path: |
             target/*.jar
-            target/version.txt
+            target/versions
 
   publish-maven:
     needs: build-maven
@@ -128,9 +144,8 @@ jobs:
           path: tmp/
       - name: Publish maven artifacts
         run: |
-          VERSION=$(cat tmp/version.txt)
-          POM_VERSION="${VERSION}-DD"
-          echo "Version: ${VERSION}"
+          source tmp/versions
+          echo "Version: ${VERSION}, pom: ${POM_VERSION} "
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=tmp/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=tmp/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=tmp/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
