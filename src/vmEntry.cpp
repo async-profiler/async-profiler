@@ -102,7 +102,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_generate_compiled_method_load_events = 1;
     capabilities.can_generate_monitor_events = 1;
     capabilities.can_tag_objects = 1;
-    if (_hotspot_version >= 11) {
+    if (hotspot_version() >= 11) {
         capabilities.can_generate_sampled_object_alloc_events = 1;
         capabilities.can_generate_garbage_collection_events = 1;
     }
@@ -121,7 +121,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
-    if (_hotspot_version >= 11) {
+    if (hotspot_version() >= 11) {
         callbacks.SampledObjectAlloc = MemLeakTracer::SampledObjectAlloc;
         callbacks.GarbageCollectionFinish = MemLeakTracer::GarbageCollectionFinish;
     }
