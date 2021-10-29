@@ -360,8 +360,6 @@ public class SeparatedStateFlameGraph {
             "\n" +
             "\t\tfunction drawFrame(f, y, alpha) {\n" +
             "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n" +
-            "\t\t\t\tc.strokeStyle = '#414141';\n" +
-            "\t\t\t\tc.strokeRect((f.left - x0) * px, y, f.width * px, 15);\n" +
             "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
             "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px * f.onCPURatio, 15);\n" +
             "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? desaturate('#ee00ee') : desaturate(f.color);\n" +
