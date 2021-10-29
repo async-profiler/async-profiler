@@ -400,7 +400,7 @@ public class SeparatedStateFlameGraph {
             "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n" +
             "\t\t\t\thl.firstChild.textContent = f.title;\n" +
             "\t\t\t\thl.style.display = 'block';\n" +
-            "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
+            "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%, on-CPU ratio: ' + Math.round(f.onCPURatio * 100 * 100) / 100 + '%)';\n" +
             "\t\t\t\tcanvas.style.cursor = 'pointer';\n" +
             "\t\t\t\tcanvas.onclick = function() {\n" +
             "\t\t\t\t\tif (f != root) {\n" +
