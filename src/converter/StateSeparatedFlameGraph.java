@@ -22,8 +22,8 @@ import java.io.PrintStream;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class SeparatedStateFlameGraph {
-    public String title = "Separated State Flame Graph";
+public class StateSeparatedFlameGraph {
+    public String title = "State Separated Flame Graph";
     public boolean reverse;
     public double minwidth;
     public int skip;
@@ -34,7 +34,7 @@ public class SeparatedStateFlameGraph {
     private int depth;
     private long mintotal;
 
-    public SeparatedStateFlameGraph(String... args) {
+    public StateSeparatedFlameGraph(String... args) {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if (!arg.startsWith("--") && !arg.isEmpty()) {

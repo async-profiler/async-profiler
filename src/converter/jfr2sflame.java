@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 /**
- * Converts .jfr output produced by async-profiler to HTML Separated State Flame Graph.
+ * Converts .jfr output produced by async-profiler to HTML State Separated Flame Graph.
  */
 public class jfr2sflame {
 
@@ -36,7 +36,7 @@ public class jfr2sflame {
         this.jfr = jfr;
     }
 
-    public void convert(final SeparatedStateFlameGraph fg, final boolean threads, final boolean total,
+    public void convert(final StateSeparatedFlameGraph fg, final boolean threads, final boolean total,
                         final boolean lines, final boolean bci,
                         final Class<? extends Event> eventClass) throws IOException {
         EventAggregator agg = new EventAggregator(threads, total);
@@ -170,7 +170,7 @@ public class jfr2sflame {
     }
 
     public static void main(String[] args) throws Exception {
-        SeparatedStateFlameGraph fg = new SeparatedStateFlameGraph(args);
+        StateSeparatedFlameGraph fg = new StateSeparatedFlameGraph(args);
         if (fg.input == null) {
             System.out.println("Usage: java " + jfr2sflame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
