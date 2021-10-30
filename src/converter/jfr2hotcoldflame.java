@@ -23,20 +23,20 @@ import java.util.Arrays;
 import java.util.HashSet;
 
 /**
- * Converts .jfr output produced by async-profiler to HTML State Separated Flame Graph.
+ * Converts .jfr output produced by async-profiler to HTML Hot/Cold Flame Graph.
  */
-public class jfr2sflame {
+public class jfr2hotcoldflame {
 
     private static final String[] FRAME_SUFFIX = {"_[j]", "_[j]", "_[i]", "", "", "_[k]"};
 
     private final JfrReader jfr;
     private final Dictionary<String> methodNames = new Dictionary<>();
 
-    public jfr2sflame(JfrReader jfr) {
+    public jfr2hotcoldflame(JfrReader jfr) {
         this.jfr = jfr;
     }
 
-    public void convert(final StateSeparatedFlameGraph fg, final boolean threads, final boolean total,
+    public void convert(final HotColdFlameGraph fg, final boolean threads, final boolean total,
                         final boolean lines, final boolean bci,
                         final Class<? extends Event> eventClass) throws IOException {
         EventAggregator agg = new EventAggregator(threads, total);
@@ -170,9 +170,9 @@ public class jfr2sflame {
     }
 
     public static void main(String[] args) throws Exception {
-        StateSeparatedFlameGraph fg = new StateSeparatedFlameGraph(args);
+        HotColdFlameGraph fg = new HotColdFlameGraph(args);
         if (fg.input == null) {
-            System.out.println("Usage: java " + jfr2sflame.class.getName() + " [options] input.jfr [output.html]");
+            System.out.println("Usage: java " + jfr2hotcoldflame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
             System.out.println("options include all supported FlameGraph options, plus the following:");
             System.out.println("  --alloc    Allocation Flame Graph");
@@ -200,7 +200,7 @@ public class jfr2sflame {
         }
 
         try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2sflame(jfr).convert(fg, threads, total, lines, bci, eventClass);
+            new jfr2hotcoldflame(jfr).convert(fg, threads, total, lines, bci, eventClass);
         }
 
         fg.dump();

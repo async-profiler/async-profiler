@@ -26,7 +26,7 @@ public class Main {
         System.out.println("Available converters:");
         System.out.println("  FlameGraph input.collapsed output.html");
         System.out.println("  jfr2flame  input.jfr       output.html");
-        System.out.println("  jfr2sflame input.jfr       output.html");
+        System.out.println("  jfr2hotcoldflame input.jfr       output.html");
         System.out.println("  jfr2nflx   input.jfr       output.nflx");
     }
 }
