@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -58,7 +59,7 @@ bool FdTransferClient::connectToServer(const char *path, int pid) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr, void **server_mmap_addr) {
     struct perf_fd_request request;
     request.header.type = PERF_FD;
     request.tid = *tid;
@@ -74,13 +75,26 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
     if (fd == -1) {
         // Update errno for our caller.
         errno = resp.header.error;
+        *server_mmap_addr = MAP_FAILED;
     } else {
         // Update the TID of createForThread, in case the multiple threads' requests got mixed up and we're
         // now handling the response destined to another. It's alright - the other thread(s) will finish the
         // handling of our TID perf fd.
         *tid = resp.tid;
+        *server_mmap_addr = resp.server_mmap_addr;
     }
     return fd;
+}
+
+void FdTransferClient::requestPerfMunmap(void *server_mmap_addr) {
+    struct perf_munmap_request request;
+    request.header.type = PERF_MUNMAP;
+    request.server_mmap_addr = server_mmap_addr;
+
+    // This is done best-effort
+    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+        Log::warn("FdTransferClient send(): %s", strerror(errno));
+    }
 }
 
 int FdTransferClient::requestKallsymsFd() {

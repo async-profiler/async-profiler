@@ -31,6 +31,7 @@
 enum request_type {
     PERF_FD,
     KALLSYMS_FD,
+    PERF_MUNMAP,
 };
 
 struct fd_request {
@@ -44,6 +45,11 @@ struct perf_fd_request {
     struct perf_event_attr attr;
 };
 
+struct perf_munmap_request {
+    struct fd_request header;
+    void *server_mmap_addr;
+};
+
 struct fd_response {
     // of type "enum request_type"
     unsigned int type;
@@ -54,6 +60,7 @@ struct fd_response {
 struct perf_fd_response {
     struct fd_response header;
     int tid;
+    void *server_mmap_addr;
 };
 
 

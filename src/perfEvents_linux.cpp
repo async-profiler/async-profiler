@@ -554,25 +554,29 @@ int PerfEvents::createForThread(int tid) {
 #endif
 
     int fd;
+    void *server_mmap_addr;
+    void* page = MAP_FAILED;
     if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(&tid, &attr);
+        fd = FdTransferClient::requestPerfFd(&tid, &attr, &server_mmap_addr);
     } else {
         fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
     }
 
+    int err = 0;
     if (fd == -1) {
-        int err = errno;
+        err = errno;
         Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
-        return err;
+        goto fdtransfer_munmap;
     }
 
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
         // Lost race. The event is created either from start() or from onThreadStart()
         close(fd);
-        return -1;
+        err = -1;
+        goto fdtransfer_munmap;
     }
 
-    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
         Log::warn("perf_event mmap failed: %s", strerror(errno));
         page = NULL;
@@ -592,7 +596,12 @@ int PerfEvents::createForThread(int tid) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
 
-    return 0;
+fdtransfer_munmap:
+    if (FdTransferClient::hasPeer()) {
+        FdTransferClient::requestPerfMunmap(server_mmap_addr);
+    }
+
+    return err;
 }
 
 void PerfEvents::destroyForThread(int tid) {
