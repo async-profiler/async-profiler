@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.Reader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
@@ -29,6 +22,7 @@ import java.util.TreeMap;
 public class FlameGraph {
     public String title = "Flame Graph";
     public boolean reverse;
+    public boolean hotcold;
     public double minwidth;
     public int skip;
     public String input;
@@ -51,6 +45,8 @@ public class FlameGraph {
                 title = args[++i];
             } else if (arg.equals("--reverse")) {
                 reverse = true;
+            } else if (arg.equals("--hotcold")) {
+                hotcold = true;
             } else if (arg.equals("--minwidth")) {
                 minwidth = Double.parseDouble(args[++i]);
             } else if (arg.equals("--skip")) {
@@ -77,17 +73,30 @@ public class FlameGraph {
     }
 
     public void addSample(String[] trace, long ticks) {
+        addSample(trace, true, ticks);
+    }
+
+    public void addSample(String[] trace, boolean isOnCPU, long ticks) {
         Frame frame = root;
         if (reverse) {
             for (int i = trace.length; --i >= skip; ) {
+                if (isOnCPU) {
+                    frame.totalOnCPU += ticks;
+                }
                 frame.total += ticks;
                 frame = frame.child(trace[i]);
             }
         } else {
             for (int i = skip; i < trace.length; i++) {
+                if (isOnCPU) {
+                    frame.totalOnCPU += ticks;
+                }
                 frame.total += ticks;
                 frame = frame.child(trace[i]);
             }
+        }
+        if (isOnCPU) {
+            frame.totalOnCPU += ticks;
         }
         frame.total += ticks;
         frame.self += ticks;
@@ -111,7 +120,8 @@ public class FlameGraph {
                 "{title}", title,
                 "{height}", (depth + 1) * 16,
                 "{depth}", depth + 1,
-                "{reverse}", reverse));
+                "{reverse}", reverse,
+                "{hotcold}", hotcold));
 
         mintotal = (long) (root.total * minwidth / 100);
         printFrame(out, "all", root, 0, 0);
@@ -147,7 +157,7 @@ public class FlameGraph {
             title = title.replace("'", "\\'");
         }
 
-        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "')");
+        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "'," + (hotcold ? frame.getTotalOnCPURatio() : 100) + ")");
 
         x += frame.self;
         for (Map.Entry<String, Frame> e : frame.entrySet()) {
@@ -204,6 +214,7 @@ public class FlameGraph {
     static class Frame extends TreeMap<String, Frame> {
         long total;
         long self;
+        long totalOnCPU;
 
         Frame child(String title) {
             Frame child = get(title);
@@ -211,6 +222,10 @@ public class FlameGraph {
                 put(title, child = new Frame());
             }
             return child;
+        }
+
+        double getTotalOnCPURatio() {
+            return (double) totalOnCPU / (double) total;
         }
     }
 
@@ -246,6 +261,7 @@ public class FlameGraph {
             "\t'use strict';\n" +
             "\tvar root, rootLevel, px, pattern;\n" +
             "\tvar reverse = ${reverse};\n" +
+            "\tvar hotcold = ${hotcold};\n" +
             "\tconst levels = Array(${depth});\n" +
             "\tfor (let h = 0; h < levels.length; h++) {\n" +
             "\t\tlevels[h] = [];\n" +
@@ -277,8 +293,34 @@ public class FlameGraph {
             "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n" +
             "\t}\n" +
             "\n" +
-            "\tfunction f(level, left, width, type, title) {\n" +
-            "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title});\n" +
+            "\tfunction lighten(colorCode) {\n" +
+            "\t\tconst r = parseInt(colorCode.slice(1, 3), 16);\n" +
+            "\t\tconst g = parseInt(colorCode.slice(3, 5), 16);\n" +
+            "\t\tconst b = parseInt(colorCode.slice(5, 7), 16);\n" +
+            "\t\tconst maxIdx = [r, g, b].indexOf(Math.max(r, g, b));\n" +
+            "\t\tlet newR, newG, newB;\n" +
+            "\t\tswitch (maxIdx) {\n" +
+            "\t\t\tcase 0:\n" +
+            "\t\t\t\tnewR = r;\n" +
+            "\t\t\t\tnewG = 215;\n" +
+            "\t\t\t\tnewB = 215;\n" +
+            "\t\t\t\tbreak;\n" +
+            "\t\t\tcase 1:\n" +
+            "\t\t\t\tnewR = 215;\n" +
+            "\t\t\t\tnewG = g;\n" +
+            "\t\t\t\tnewB = 215;\n" +
+            "\t\t\t\tbreak;\n" +
+            "\t\t\tcase 2:\n" +
+            "\t\t\t\tnewR = 215;\n" +
+            "\t\t\t\tnewG = 215;\n" +
+            "\t\t\t\tnewB = b;\n" +
+            "\t\t\t\tbreak;\n" +
+            "\t\t}\n" +
+            "\t\treturn '#' + newR.toString(16).padStart(2, '0') + newG.toString(16).padStart(2, '0') + newB.toString(16).padStart(2, '0');\n" +
+            "\t}\n" +
+            "\n" +
+            "\tfunction f(level, left, width, type, title, onCPURatio) {\n" +
+            "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title, onCPURatio: onCPURatio});\n" +
             "\t}\n" +
             "\n" +
             "\tfunction samples(n) {\n" +
@@ -355,8 +397,15 @@ public class FlameGraph {
             "\n" +
             "\t\tfunction drawFrame(f, y, alpha) {\n" +
             "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n" +
-            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
-            "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
+            "\t\t\t\tif (hotcold) {\n" +
+            "\t\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
+            "\t\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px * f.onCPURatio, 15);\n" +
+            "\t\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? lighten('#ee00ee') : lighten(f.color);\n" +
+            "\t\t\t\t\tc.fillRect((f.left - x0) * px + f.width * px * f.onCPURatio, y, f.width * px * (1 - f.onCPURatio), 15);\n" +
+            "\t\t\t\t} else {\n" +
+            "\t\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
+            "\t\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
+            "\t\t\t\t}\n" +
             "\n" +
             "\t\t\t\tif (f.width * px >= 21) {\n" +
             "\t\t\t\t\tconst chars = Math.floor(f.width * px / 7);\n" +
@@ -393,7 +442,11 @@ public class FlameGraph {
             "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n" +
             "\t\t\t\thl.firstChild.textContent = f.title;\n" +
             "\t\t\t\thl.style.display = 'block';\n" +
-            "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
+            "\t\t\t\tif (hotcold) {\n" +
+            "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%, on-CPU ratio: ' + Math.round(f.onCPURatio * 100 * 100) / 100 + '%)';\n" +
+            "\t\t\t\ti} else {\n" +
+            "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
+            "\t\t\t\ti}\n" +
             "\t\t\t\tcanvas.style.cursor = 'pointer';\n" +
             "\t\t\t\tcanvas.onclick = function() {\n" +
             "\t\t\t\t\tif (f != root) {\n" +
