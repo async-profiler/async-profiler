@@ -164,7 +164,7 @@ public class FlameGraph {
             title = title.replace("'", "\\'");
         }
 
-        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "'," + (hotcold ? frame.getTotalOnCPURatio() : 100) + ")");
+        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "'," + (hotcold ? frame.getTotalOnCPURatio() : 1) + ")");
 
         x += frame.self;
         for (Map.Entry<String, Frame> e : frame.entrySet()) {
