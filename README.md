@@ -151,6 +151,24 @@ where `getProperty` method is called from.
 Only non-native Java methods are supported. To profile a native method,
 use hardware breakpoint event instead, e.g. `-e Java_java_lang_Throwable_fillInStackTrace`
 
+**Be aware** that if you attach the Async-profiler at runtime the first instrumentation
+of a non-native Java method may cause codecache flush invoked by a stack:
+
+```
+VM_RedefineClasses::redefine_single_class
+VM_RedefineClasses::flush_dependent_code
+CodeCache::mark_all_nmethods_for_deoptimization
+```
+
+A next instrumentation doesn't cause a codecache flush, but it flushes all _dependent code_, 
+
+The codecache flush doesn't occur if you attach the Async-profiler as an agent.
+
+Here are some useful native methods that you may want to profile:
+* ```G1CollectedHeap::humongous_obj_allocate``` - tracing the _humongous allocation_ of the G1GC,
+* ```JVM_StartThread``` - tracing the new thread creation,
+* ```Java_java_lang_ClassLoader_defineClass1``` - tracing a loading of a new class.
+
 ## Building
 
 Build status: [![Build Status](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/cpp.yml/badge.svg?branch=master)](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/cpp.yml)
