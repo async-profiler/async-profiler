@@ -451,9 +451,9 @@ public class FlameGraph {
             "\t\t\t\thl.style.display = 'block';\n" +
             "\t\t\t\tif (hotcold) {\n" +
             "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%, on-CPU ratio: ' + Math.round(f.onCPURatio * 100 * 100) / 100 + '%)';\n" +
-            "\t\t\t\ti} else {\n" +
+            "\t\t\t\t} else {\n" +
             "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
-            "\t\t\t\ti}\n" +
+            "\t\t\t\t}\n" +
             "\t\t\t\tcanvas.style.cursor = 'pointer';\n" +
             "\t\t\t\tcanvas.onclick = function() {\n" +
             "\t\t\t\t\tif (f != root) {\n" +
