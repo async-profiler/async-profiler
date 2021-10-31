@@ -23,6 +23,7 @@ usage() {
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
     echo "  -a                annotate Java method names"
+    echo "  -l                prepend library names"
     echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
     echo "  -X exclude        exclude stack traces with the specified pattern"
@@ -41,6 +42,7 @@ usage() {
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
+    echo "  --jfrsync config  synchronize profiler with JFR recording"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
     echo ""
@@ -118,8 +120,12 @@ jattach() {
     set -e
 }
 
-OPTIND=1
-SCRIPT_DIR="$(cd "$(dirname "$0")" > /dev/null 2>&1; pwd -P)"
+SCRIPT_BIN="$0"
+while [ -h "$SCRIPT_BIN" ]; do
+    SCRIPT_BIN="$(readlink "$SCRIPT_BIN")"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
+
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 USE_FDTRANSFER="false"
@@ -177,6 +183,9 @@ while [ $# -gt 0 ]; do
         -a)
             FORMAT="$FORMAT,ann"
             ;;
+        -l)
+            FORMAT="$FORMAT,lib"
+            ;;
         -o)
             OUTPUT="$2"
             shift
@@ -230,6 +239,11 @@ while [ $# -gt 0 ]; do
             ;;
         --ttsp)
             PARAMS="$PARAMS,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized"
+            ;;
+        --jfrsync)
+            OUTPUT="jfr"
+            PARAMS="$PARAMS,jfrsync=$2"
+            shift
             ;;
         --fdtransfer)
             PARAMS="$PARAMS,fdtransfer"

@@ -16,10 +16,11 @@
 
 #include <string.h>
 #include "lockTracer.h"
-#include "os.h"
 #include "profiler.h"
+#include "tsc.h"
 
 
+double LockTracer::_ticks_to_nanos;
 jlong LockTracer::_threshold;
 jlong LockTracer::_start_time = 0;
 jclass LockTracer::_UnsafeClass = NULL;
@@ -30,7 +31,8 @@ UnsafeParkFunc LockTracer::_orig_Unsafe_park = NULL;
 bool LockTracer::_initialized = false;
 
 Error LockTracer::start(Arguments& args) {
-    _threshold = args._lock;
+    _ticks_to_nanos = 1e9 / TSC::frequency();
+    _threshold = (jlong)(args._lock * (TSC::frequency() / 1e9));
 
     if (!_initialized) {
         initialize();
@@ -40,7 +42,7 @@ Error LockTracer::start(Arguments& args) {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTER, NULL);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_MONITOR_CONTENDED_ENTERED, NULL);
-    _start_time = OS::nanotime();
+    _start_time = TSC::ticks();
 
     // Intercept Unsafe.park() for tracing contended ReentrantLocks
     if (_orig_Unsafe_park != NULL) {
@@ -96,12 +98,12 @@ void LockTracer::initialize() {
 }
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong enter_time = OS::nanotime();
+    jlong enter_time = TSC::ticks();
     jvmti->SetTag(thread, enter_time);
 }
 
 void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong entered_time = OS::nanotime();
+    jlong entered_time = TSC::ticks();
     jlong enter_time;
     jvmti->GetTag(thread, &enter_time);
 
@@ -132,13 +134,13 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
     jlong park_start_time, park_end_time;
 
     if (park_blocker != NULL) {
-        park_start_time = OS::nanotime();
+        park_start_time = TSC::ticks();
     }
 
     _orig_Unsafe_park(env, instance, isAbsolute, time);
 
     if (park_blocker != NULL) {
-        park_end_time = OS::nanotime();
+        park_end_time = TSC::ticks();
         if (park_end_time - park_start_time >= _threshold) {
             char* lock_name = getLockName(jvmti, env, park_blocker);
             if (lock_name == NULL || isConcurrentLock(lock_name)) {
@@ -191,7 +193,8 @@ void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_tim
         }
     }
 
-    Profiler::instance()->recordSample(NULL, end_time - start_time, event_type, &event);
+    u64 duration_nanos = (u64)((end_time - start_time) * _ticks_to_nanos);
+    Profiler::instance()->recordSample(NULL, duration_nanos, event_type, &event);
 }
 
 void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {

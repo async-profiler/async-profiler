@@ -48,6 +48,7 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = 2;
+const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 16;
 const int PLT_ENTRY_SIZE = 16;
 const int PERF_REG_PC = 8;  // PERF_REG_X86_IP
@@ -65,6 +66,7 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 20;
 const int PLT_ENTRY_SIZE = 12;
 const int PERF_REG_PC = 15;  // PERF_REG_ARM_PC
@@ -81,12 +83,36 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
 const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
 
 #define spinPause()       asm volatile("isb")
 #define rmb()             asm volatile("dmb ish" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+
+#elif defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+
+typedef unsigned int instruction_t;
+const instruction_t BREAKPOINT = 0x7fe00008;
+// We place the break point in the third instruction slot on PPCLE as the first two are skipped if
+// the call comes from within the same compilation unit according to the LE ABI.
+const int BREAKPOINT_OFFSET = 8;
+
+// The sp may not be moved on ppc. There is a valid back link to the previous frame at all times.
+// The callee stores the return address in the caller's frame before it constructs its own frame
+// with one atomic operation.
+const bool CAN_MOVE_SP = false;
+
+const int SYSCALL_SIZE = sizeof(instruction_t);
+const int FRAME_PC_SLOT = 2;
+const int PLT_HEADER_SIZE = 24;
+const int PLT_ENTRY_SIZE = 24;
+const int PERF_REG_PC = 32;  // PERF_REG_POWERPC_NIP
+
+#define spinPause()       asm volatile("yield") // does nothing, but using or 1,1,1 would lead to other problems
+#define rmb()             asm volatile ("sync" : : : "memory") // lwsync would do but better safe than sorry
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
 #else

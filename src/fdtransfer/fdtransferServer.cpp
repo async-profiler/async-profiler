@@ -195,8 +195,12 @@ int FdTransferServer::copyFile(const char* src_name, const char* dst_name, mode_
         return result;
     }
 
-    while (sendfile(dst, src, NULL, 1048576) > 0) {
-        // Keep going
+    // copy_file_range() doesn't exist in older kernels, sendfile() no longer works in newer ones
+    char buf[65536];
+    ssize_t r;
+    while ((r = read(src, buf, sizeof(buf))) > 0) {
+        ssize_t w = write(dst, buf, r);
+        (void)w;
     }
 
     close(dst);

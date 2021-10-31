@@ -52,6 +52,9 @@ public class jfr2flame {
             agg.collect(event);
         }
 
+        final double ticksToNanos = 1e9 / jfr.ticksPerSec;
+        final boolean scale = total && eventClass == ContendedLock.class && ticksToNanos != 1.0;
+
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
             @Override
@@ -84,7 +87,7 @@ public class jfr2flame {
                     if (event instanceof ExecutionSample) {
                         isOnCPU = ((ExecutionSample) event).threadState == 1;
                     }
-                    fg.addSample(trace, isOnCPU, value);
+                    fg.addSample(trace, isOnCPU, scale ? (long) (value * ticksToNanos) : value);
                 }
             }
         });

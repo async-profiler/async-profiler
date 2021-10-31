@@ -120,7 +120,7 @@ class VM {
     static JNIEnv* attachThread(const char* name) {
         JNIEnv* jni;
         JavaVMAttachArgs args = {JNI_VERSION_1_6, (char*)name, NULL};
-        return _vm->AttachCurrentThread((void**)&jni, &args) == 0 ? jni : NULL;
+        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, &args) == 0 ? jni : NULL;
     }
 
     static void detachThread() {

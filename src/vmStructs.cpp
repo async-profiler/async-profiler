@@ -45,6 +45,8 @@ int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_frame_size_offset = -1;
 int VMStructs::_is_gc_active_offset = -1;
 char* VMStructs::_collected_heap_addr = NULL;
+const void* VMStructs::_code_heap_low = NO_MIN_ADDRESS;
+const void* VMStructs::_code_heap_high = NO_MAX_ADDRESS;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -92,6 +94,11 @@ void VMStructs::initOffsets() {
     if (entry == 0 || stride == 0) {
         return;
     }
+
+    char* code_heap_addr = NULL;
+    int code_heap_memory_offset = -1;
+    int vs_low_offset = -1;
+    int vs_high_offset = -1;
 
     while (true) {
         const char* type = *(const char**)(entry + type_offset);
@@ -149,6 +156,24 @@ void VMStructs::initOffsets() {
             if (strcmp(field, "_frame_size") == 0) {
                 _frame_size_offset = *(int*)(entry + offset_offset);
             }
+        } else if (strcmp(type, "CodeCache") == 0) {
+            if (strcmp(field, "_heap") == 0) {
+                code_heap_addr = **(char***)(entry + address_offset);
+            } else if (strcmp(field, "_high_bound") == 0) {
+                _code_heap_high = **(const void***)(entry + address_offset);
+            } else if (strcmp(field, "_low_bound") == 0) {
+                _code_heap_low = **(const void***)(entry + address_offset);
+            }
+        } else if (strcmp(type, "CodeHeap") == 0) {
+            if (strcmp(field, "_memory") == 0) {
+                code_heap_memory_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "VirtualSpace") == 0) {
+            if (strcmp(field, "_low_boundary") == 0) {
+                vs_low_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_high_boundary") == 0) {
+                vs_high_offset = *(int*)(entry + offset_offset);
+            }
         } else if (strcmp(type, "Universe") == 0) {
             if (strcmp(field, "_collectedHeap") == 0) {
                 _collected_heap_addr = **(char***)(entry + address_offset);
@@ -168,6 +193,11 @@ void VMStructs::initOffsets() {
             && (_symbol_length_offset >= 0 || _symbol_length_and_refcount_offset >= 0)
             && _symbol_body_offset >= 0
             && _klass != NULL;
+
+    if (code_heap_addr != NULL && code_heap_memory_offset >= 0 && vs_low_offset >= 0 && vs_high_offset >= 0) {
+        _code_heap_low = *(const void**)(code_heap_addr + code_heap_memory_offset + vs_low_offset);
+        _code_heap_high = *(const void**)(code_heap_addr + code_heap_memory_offset + vs_high_offset);
+    }
 }
 
 void VMStructs::initJvmFunctions() {

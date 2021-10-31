@@ -125,7 +125,7 @@ public class FlameGraph {
     public void dump(PrintStream out) {
         out.print(applyReplacements(HEADER,
                 "{title}", title,
-                "{height}", (depth + 1) * 16,
+                "{height}", Math.min((depth + 1) * 16, 32767),
                 "{depth}", depth + 1,
                 "{reverse}", reverse,
                 "{hotcold}", hotcold));
@@ -393,12 +393,12 @@ public class FlameGraph {
             "\t\tfunction totalMarked() {\n" +
             "\t\t\tlet total = 0;\n" +
             "\t\t\tlet left = 0;\n" +
-            "\t\t\tfor (let x in marked) {\n" +
+            "\t\t\tObject.keys(marked).sort(function(a, b) { return a - b; }).forEach(function(x) {\n" +
             "\t\t\t\tif (+x >= left) {\n" +
             "\t\t\t\t\ttotal += marked[x];\n" +
             "\t\t\t\t\tleft = +x + marked[x];\n" +
             "\t\t\t\t}\n" +
-            "\t\t\t}\n" +
+            "\t\t\t});\n" +
             "\t\t\treturn total;\n" +
             "\t\t}\n" +
             "\n" +

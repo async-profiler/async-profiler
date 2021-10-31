@@ -46,10 +46,11 @@ public class JfrReader implements Closeable {
     private ByteBuffer buf;
     private long filePosition;
 
-    public final long startNanos;
-    public final long durationNanos;
-    public final long startTicks;
-    public final long ticksPerSec;
+    public boolean incomplete;
+    public long startNanos = Long.MAX_VALUE;
+    public long endNanos = Long.MIN_VALUE;
+    public long startTicks = Long.MAX_VALUE;
+    public long ticksPerSec;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
@@ -61,47 +62,32 @@ public class JfrReader implements Closeable {
     public final Map<Integer, String> frameTypes = new HashMap<>();
     public final Map<Integer, String> threadStates = new HashMap<>();
 
-    private final int executionSample;
-    private final int nativeMethodSample;
-    private final int allocationInNewTLAB;
-    private final int allocationOutsideTLAB;
-    private final int monitorEnter;
-    private final int threadPark;
-
-    private final boolean hasPreviousOwner;
-    private final boolean hasParkUntil;
+    private int executionSample;
+    private int nativeMethodSample;
+    private int allocationInNewTLAB;
+    private int allocationOutsideTLAB;
+    private int allocationSample;
+    private int monitorEnter;
+    private int threadPark;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
 
-        long[] times = {Long.MAX_VALUE, Long.MIN_VALUE, Long.MAX_VALUE, 0};
-
-        for (long chunkStart = 0, fileSize = ch.size(); chunkStart < fileSize; ) {
-            chunkStart += readChunk(chunkStart, times);
+        buf.flip();
+        ensureBytes(CHUNK_HEADER_SIZE);
+        if (!readChunk(0)) {
+            throw new IOException("Incomplete JFR file");
         }
-
-        this.startNanos = times[0];
-        this.durationNanos = times[1] - startNanos;
-        this.startTicks = times[2];
-        this.ticksPerSec = times[3];
-
-        this.executionSample = getTypeId("jdk.ExecutionSample");
-        this.nativeMethodSample = getTypeId("jdk.NativeMethodSample");
-        this.allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
-        this.allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
-        this.monitorEnter = getTypeId("jdk.JavaMonitorEnter");
-        this.threadPark = getTypeId("jdk.ThreadPark");
-
-        this.hasPreviousOwner = hasField("jdk.JavaMonitorEnter", "previousOwner");
-        this.hasParkUntil = hasField("jdk.ThreadPark", "until");
-
-        seek(CHUNK_HEADER_SIZE);
     }
 
     @Override
     public void close() throws IOException {
         ch.close();
+    }
+
+    public long durationNanos() {
+        return endNanos - startNanos;
     }
 
     public List<Event> readAllEvents() throws IOException {
@@ -129,20 +115,22 @@ public class JfrReader implements Closeable {
             int type = getVarint();
 
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
-                buf.position(pos + CHUNK_HEADER_SIZE);
-                continue;
+                if (readChunk(pos)) {
+                    continue;
+                }
+                break;
             }
 
             if (type == executionSample || type == nativeMethodSample) {
                 if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
-            } else if (type == allocationOutsideTLAB) {
+            } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
             } else if (type == monitorEnter) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false, hasPreviousOwner);
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true, hasParkUntil);
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
             }
 
             if ((pos += size) <= buf.limit()) {
@@ -172,44 +160,50 @@ public class JfrReader implements Closeable {
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
     }
 
-    private ContendedLock readContendedLock(boolean hasTimeout, boolean hasExtraField) {
+    private ContendedLock readContendedLock(boolean hasTimeout) {
         long time = getVarlong();
         long duration = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int classId = getVarint();
         if (hasTimeout) getVarlong();
-        if (hasExtraField) getVarlong();
+        long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
 
-    private long readChunk(long chunkStart, long[] times) throws IOException {
-        seek(chunkStart);
-        ensureBytes(CHUNK_HEADER_SIZE);
-
-        if (buf.getInt(0) != CHUNK_SIGNATURE) {
+    private boolean readChunk(int pos) throws IOException {
+        if (pos + CHUNK_HEADER_SIZE > buf.limit() || buf.getInt(pos) != CHUNK_SIGNATURE) {
             throw new IOException("Not a valid JFR file");
         }
 
-        int version = buf.getInt(4);
+        int version = buf.getInt(pos + 4);
         if (version < 0x20000 || version > 0x2ffff) {
             throw new IOException("Unsupported JFR version: " + (version >>> 16) + "." + (version & 0xffff));
         }
 
-        long chunkSize = buf.getLong(8);
-        long cpOffset = buf.getLong(16);
-        long metaOffset = buf.getLong(24);
+        long cpOffset = buf.getLong(pos + 16);
+        long metaOffset = buf.getLong(pos + 24);
+        if (cpOffset == 0 || metaOffset == 0) {
+            incomplete = true;
+            return false;
+        }
 
-        times[0] = Math.min(times[0], buf.getLong(32));
-        times[1] = Math.max(times[1], buf.getLong(32) + buf.getLong(40));
-        times[2] = Math.min(times[2], buf.getLong(48));
-        times[3] = buf.getLong(56);
+        startNanos = Math.min(startNanos, buf.getLong(pos + 32));
+        endNanos = Math.max(endNanos, buf.getLong(pos + 32) + buf.getLong(pos + 40));
+        startTicks = Math.min(startTicks, buf.getLong(pos + 48));
+        ticksPerSec = buf.getLong(pos + 56);
 
+        types.clear();
+        typesByName.clear();
+
+        long chunkStart = filePosition + pos;
         readMeta(chunkStart + metaOffset);
         readConstantPool(chunkStart + cpOffset);
+        cacheEventTypes();
 
-        return chunkSize;
+        seek(chunkStart + CHUNK_HEADER_SIZE);
+        return true;
     }
 
     private void readMeta(long metaOffset) throws IOException {
@@ -423,14 +417,19 @@ public class JfrReader implements Closeable {
         }
     }
 
+    private void cacheEventTypes() {
+        executionSample = getTypeId("jdk.ExecutionSample");
+        nativeMethodSample = getTypeId("jdk.NativeMethodSample");
+        allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
+        allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
+        allocationSample = getTypeId("jdk.ObjectAllocationSample");
+        monitorEnter = getTypeId("jdk.JavaMonitorEnter");
+        threadPark = getTypeId("jdk.ThreadPark");
+    }
+
     private int getTypeId(String typeName) {
         JfrClass type = typesByName.get(typeName);
         return type != null ? type.id : -1;
-    }
-
-    private boolean hasField(String typeName, String fieldName) {
-        JfrClass type = typesByName.get(typeName);
-        return type != null && type.field(fieldName) != null;
     }
 
     private int getVarint() {

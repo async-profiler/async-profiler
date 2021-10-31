@@ -16,6 +16,7 @@
 
 #include "engine.h"
 #include "stackFrame.h"
+#include "vmStructs.h"
 
 
 volatile bool Engine::_enabled;
@@ -31,8 +32,7 @@ Error Engine::start(Arguments& args) {
 void Engine::stop() {
 }
 
-int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                           CodeCache* java_methods, CodeCache* runtime_stubs) {
+int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     const void* pc;
     uintptr_t fp;
     uintptr_t prev_fp = (uintptr_t)&fp;
@@ -52,7 +52,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth && pc >= valid_pc) {
-        if (java_methods->contains(pc) || runtime_stubs->contains(pc)) {
+        if (CodeHeap::contains(pc)) {
             break;
         }
 
@@ -69,7 +69,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
         }
 
         prev_fp = fp;
-        pc = stripPointer(((const void**)fp)[1]);
+        pc = stripPointer(((const void**)fp)[FRAME_PC_SLOT]);
         fp = ((uintptr_t*)fp)[0];
     }
 
