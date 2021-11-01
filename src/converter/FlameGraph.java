@@ -143,6 +143,9 @@ public class FlameGraph {
     private void printFrame(PrintStream out, String title, Frame frame, int level, long x) {
         int type = frameType(title);
         title = stripSuffix(title);
+        if (title.indexOf('\\') >= 0) {
+            title = title.replace("\\", "\\\\");
+        }
         if (title.indexOf('\'') >= 0) {
             title = title.replace("'", "\\'");
         }
