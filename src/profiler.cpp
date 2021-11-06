@@ -29,6 +29,7 @@
 #include "lockTracer.h"
 #include "objectSampler.h"
 #include "wallClock.h"
+#include "j9StackTraces.h"
 #include "j9WallClock.h"
 #include "instrument.h"
 #include "itimer.h"
@@ -295,14 +296,13 @@ static bool is_cpp_interpreter_method(const char* mn) {
            is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
 
-int Profiler::getNativeTrace(ASGCT_CallFrame* frames, int tid) {
-    return getNativeTrace(_engine, NULL, frames, tid);
-}
-
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
+    return getNativeTrace(native_frames, native_callchain, frames);
+}
 
+int Profiler::getNativeTrace(int native_frames, const void** native_callchain, ASGCT_CallFrame* frames) {
     int depth = 0;
     jmethodID prev_method = NULL;
 

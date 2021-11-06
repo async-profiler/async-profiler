@@ -202,7 +202,7 @@ class Profiler {
     void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
-    int getNativeTrace(ASGCT_CallFrame* frames, int tid);
+    int getNativeTrace(int native_frames, const void** native_callchain, ASGCT_CallFrame* frames);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);

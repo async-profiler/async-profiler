@@ -19,16 +19,11 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <map>
 #include "j9StackTraces.h"
 #include "profiler.h"
 #include "perfEvents.h"
 
-
-struct SignalledThread {
-    JNIEnv* env;
-    void* pc;
-    u64 counter;
-};
 
 struct jvmtiFrameInfoExtended {
     jmethodID method;
@@ -80,22 +75,9 @@ class J9VMThread {
 
 static JNIEnv* _self_env = NULL;
 
-static SignalledThread* findThread(jthread thread, SignalledThread* array, size_t length) {
-    JNIEnv* vm_thread = VM::getJ9vmThread(thread);
-    if (vm_thread != NULL) {
-        for (size_t i = 0; i < length; i++) {
-            if (array[i].env == vm_thread) {
-                return &array[i];
-            }
-        }
-    }
-    return NULL;
-}
-
 
 Error J9StackTraces::start(Arguments& args) {
     _max_stack_depth = args._jstackdepth; 
-    _cstack = args._cstack;
 
     if (pipe(_pipe) != 0) {
         return Error("Failed to create pipe");
@@ -124,69 +106,66 @@ void J9StackTraces::timerLoop() {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
     __atomic_store_n(&_self_env, jni, __ATOMIC_RELEASE);
 
-    jvmtiEnv* jvmti = VM::jvmti();
-    SignalledThread signalled_threads[256];
+    jni->PushLocalFrame(64);
 
-    int max_frames = _max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES;
+    jvmtiEnv* jvmti = VM::jvmti();
+    char notification_buf[65536];
+    std::map<void*, jthread> known_threads;
+
+    int max_frames = _max_stack_depth + MAX_J9_NATIVE_FRAMES + RESERVED_FRAMES;
     ASGCT_CallFrame* frames = (ASGCT_CallFrame*)malloc(max_frames * sizeof(ASGCT_CallFrame));
     jvmtiFrameInfoExtended* jvmti_frames = (jvmtiFrameInfoExtended*)malloc(max_frames * sizeof(jvmtiFrameInfoExtended));
 
     while (true) {
-        ssize_t bytes = read(_pipe[0], signalled_threads, sizeof(signalled_threads));
+        ssize_t bytes = read(_pipe[0], notification_buf, sizeof(notification_buf));
         if (bytes <= 0) {
             if (bytes < 0 && errno == EAGAIN) {
                 continue;
             }
             break;
         }
-        size_t signalled_thread_count = bytes / sizeof(SignalledThread);
 
-        jni->PushLocalFrame(64);
+        ssize_t ptr = 0;
+        while (ptr < bytes) {
+            J9StackTraceNotification* notif = (J9StackTraceNotification*)(notification_buf + ptr);
 
-        jint thread_count;
-        jthread* threads;
-        if (jvmti->GetAllThreads(&thread_count, &threads) != 0) {
-            break;
-        }
+            jthread thread = known_threads[notif->env];
+            if (thread == NULL) {
+                jni->PopLocalFrame(NULL);
+                jni->PushLocalFrame(64);
 
-        for (int i = 0; i < thread_count; i++) {
-            SignalledThread* st = findThread(threads[i], signalled_threads, signalled_thread_count);
-            if (st == NULL) {
-                continue;
-            }
-
-            int tid = VM::getOSThreadID(threads[i]);
-            int num_frames = 0;
-            if (_cstack != CSTACK_NO) {
-                if (st->pc != NULL) {
-                    jmethodID method_id = (jmethodID)Profiler::instance()->findNativeMethod(st->pc);
-                    if (method_id != NULL) {
-                        frames[num_frames].bci = BCI_NATIVE_FRAME;
-                        frames[num_frames].method_id = method_id;
-                        num_frames++;
+                jint thread_count;
+                jthread* threads;
+                if (jvmti->GetAllThreads(&thread_count, &threads) == 0) {
+                    known_threads.clear();
+                    for (jint i = 0; i < thread_count; i++) {
+                        known_threads[VM::getJ9vmThread(threads[i])] = threads[i];
                     }
-                } else {
-                    num_frames = Profiler::instance()->getNativeTrace(frames, tid);
+                    jvmti->Deallocate((unsigned char*)threads);
+                }
+
+                if ((thread = known_threads[notif->env]) == NULL) {
+                    continue;
                 }
             }
-            if (st->pc == NULL) {
-                PerfEvents::resetForThread(tid);
-            }
+
+            int num_frames = Profiler::instance()->getNativeTrace(notif->num_frames, notif->addr, frames);
 
             jint num_jvmti_frames;
-            if (VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, threads[i],
+            if (VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
                                            0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) == 0) {
                 for (int j = 0; j < num_jvmti_frames; j++) {
                     frames[num_frames].method_id = jvmti_frames[j].method;
                     frames[num_frames].bci = (jvmti_frames[j].type << 24) | jvmti_frames[j].location;
                     num_frames++;
                 }
-                Profiler::instance()->recordExternalSample(st->counter, tid, num_frames, frames);
-            }
-        }
 
-        jvmti->Deallocate((unsigned char*)threads);
-        jni->PopLocalFrame(NULL);
+                int tid = VM::getOSThreadID(thread);
+                Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames);
+            }
+
+            ptr += notif->size();
+        }
     }
 
     free(jvmti_frames);
@@ -196,7 +175,7 @@ void J9StackTraces::timerLoop() {
     VM::detachThread();
 }
 
-void J9StackTraces::checkpoint(void* pc, u64 counter) {
+void J9StackTraces::checkpoint(u64 counter, J9StackTraceNotification* notif) {
     JNIEnv* self_env = __atomic_load_n(&_self_env, __ATOMIC_ACQUIRE);
     if (self_env == NULL) {
         // Sampler thread is not ready
@@ -212,8 +191,9 @@ void J9StackTraces::checkpoint(void* pc, u64 counter) {
             return;
         } else if (!(flags & J9_STOPPED)) {
             vm_thread->setOverflowMark();
-            SignalledThread st = {env, pc, counter};
-            if (write(_pipe[1], &st, sizeof(st)) > 0) {
+            notif->env = env;
+            notif->counter = counter;
+            if (write(_pipe[1], notif, notif->size()) > 0) {
                 return;
             }
         }

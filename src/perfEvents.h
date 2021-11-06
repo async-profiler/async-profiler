@@ -55,7 +55,6 @@ class PerfEvents : public Engine {
 
     static int createForThread(int tid);
     static void destroyForThread(int tid);
-    static void resetForThread(int tid);
 };
 
 #endif // _PERFEVENTS_H

@@ -19,10 +19,10 @@
 #include "j9StackTraces.h"
 #include "os.h"
 #include "profiler.h"
-#include "stackFrame.h"
 
 
-static J9StackTraces _j9_stack_traces; 
+static J9StackTraces _j9_stack_traces;
+static ITimer _prototype;  // FIXME: remove
 
 long ITimer::_interval;
 
@@ -37,7 +37,9 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
-    _j9_stack_traces.checkpoint((void*)StackFrame(ucontext).pc(), 1);
+    J9StackTraceNotification notif;
+    notif.num_frames = _prototype.getNativeTrace(ucontext, 0, notif.addr, MAX_J9_NATIVE_FRAMES);
+    _j9_stack_traces.checkpoint(_interval, &notif);
 }
 
 Error ITimer::check(Arguments& args) {

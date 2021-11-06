@@ -77,7 +77,4 @@ int PerfEvents::createForThread(int tid) {
 void PerfEvents::destroyForThread(int tid) {
 }
 
-void PerfEvents::resetForThread(int tid) {
-}
-
 #endif // __APPLE__

@@ -22,11 +22,25 @@
 #include "arguments.h"
 
 
+const int MAX_J9_NATIVE_FRAMES = 128;
+
+struct J9StackTraceNotification {
+    void* env;
+    u64 counter;
+    int num_frames;
+    int reserved;
+    const void* addr[MAX_J9_NATIVE_FRAMES];
+
+    size_t size() {
+        return sizeof(*this) - sizeof(this->addr) + num_frames * sizeof(const void*);
+    }
+};
+
+
 class J9StackTraces {
   private:
     pthread_t _thread;
     int _max_stack_depth;
-    bool _cstack;
     int _pipe[2];
 
     void timerLoop();
@@ -43,7 +57,7 @@ class J9StackTraces {
     Error start(Arguments& args);
     void stop();
 
-    void checkpoint(void* pc, u64 counter);
+    void checkpoint(u64 counter, J9StackTraceNotification* notif);
 };
 
 #endif // _J9STACKTRACES_H

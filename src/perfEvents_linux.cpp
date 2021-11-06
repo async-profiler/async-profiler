@@ -531,6 +531,8 @@ class PerfEvent : public SpinLock {
 };
 
 
+static PerfEvents _prototype;  // FIXME: remove
+
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
@@ -652,14 +654,6 @@ void PerfEvents::destroyForThread(int tid) {
     }
 }
 
-void PerfEvents::resetForThread(int tid) {
-    int fd = _events[tid]._fd;
-    if (fd > 0) {
-        ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-        ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
-    }
-}
-
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
     switch (_event_type->counter_arg) {
         case 1: return StackFrame(ucontext).arg0();
@@ -699,12 +693,15 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        _j9_stack_traces.checkpoint(NULL, counter);
+        J9StackTraceNotification notif;
+        notif.num_frames = _prototype.getNativeTrace(ucontext, OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        _j9_stack_traces.checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
-        ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
-        ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
     }
+
+    ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
+    ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
 const char* PerfEvents::title() {
