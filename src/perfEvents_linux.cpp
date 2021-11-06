@@ -590,6 +590,8 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
         attr.exclude_callchain_user = 1;
     }
+    // FIXME
+    attr.exclude_callchain_user = 1;
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
@@ -920,6 +922,10 @@ stack_complete:
     }
 
     event->unlock();
+
+    // FIXME
+    depth += Engine::getNativeTrace(ucontext, tid, callchain + depth, max_depth - depth);
+
     return depth;
 }
 

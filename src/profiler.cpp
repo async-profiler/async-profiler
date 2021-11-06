@@ -277,6 +277,24 @@ bool Profiler::inJavaCode(void* ucontext) {
     return CodeHeap::contains(pc);
 }
 
+static bool is_prefix(const char* str, const char* prefix) {
+    return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
+static bool is_cpp_interpreter_method(const char* mn) {
+    if (mn == NULL) return false;
+
+    // These are methods from OpenJDK C++ Interpreter:
+    //   BytecodeInterpreter::run
+    //   ZeroIntepreter::main_loop
+    //   ZeroIntepreter::*_entry
+    //
+    // It is fine to over-match ZeroInterpreter a little to do
+    // fewer tests on this relatively hot path.
+    return is_prefix(mn, "_ZN15ZeroInterpreter") ||
+           is_prefix(mn, "_ZN19BytecodeInterpreter3run");
+}
+
 int Profiler::getNativeTrace(ASGCT_CallFrame* frames, int tid) {
     return getNativeTrace(_engine, NULL, frames, tid);
 }
@@ -289,7 +307,14 @@ int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* fr
     jmethodID prev_method = NULL;
 
     for (int i = 0; i < native_frames; i++) {
-        jmethodID current_method = (jmethodID)findNativeMethod(native_callchain[i]);
+        const char* current_method_name = findNativeMethod(native_callchain[i]);
+        if (is_cpp_interpreter_method(current_method_name)) {
+            // This is C++ interpreter frame, this and later frames should be reported
+            // as Java frames returned by AGCT. Terminate the scan here.
+            return depth;
+        }
+
+        jmethodID current_method = (jmethodID)current_method_name;
         if (current_method == prev_method && _cstack == CSTACK_LBR) {
             // Skip duplicates in LBR stack, where branch_stack[N].from == branch_stack[N+1].to
             prev_method = NULL;

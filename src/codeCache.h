@@ -26,6 +26,8 @@
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 const int LIB_INDEX_OFFSET = 2;
 
+class FrameDesc;
+
 
 class CodeBlob {
   public:
@@ -94,6 +96,9 @@ class NativeCodeCache : public CodeCache {
     const void** _got_start;
     const void** _got_end;
 
+    FrameDesc* _dwarf_table;
+    int _dwarf_table_length;
+
     static char* encodeLibrarySymbol(const char* name, short lib_index);
 
   public:
@@ -136,6 +141,9 @@ class NativeCodeCache : public CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
     const void** findGOTEntry(const void* address);
+
+    void setDwarfTable(FrameDesc* table, int length);
+    FrameDesc* findFrameDesc(const void* pc);
 };
 
 #endif // _CODECACHE_H

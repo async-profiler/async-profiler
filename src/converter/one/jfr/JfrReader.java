@@ -70,9 +70,6 @@ public class JfrReader implements Closeable {
     private int monitorEnter;
     private int threadPark;
 
-    private boolean hasPreviousOwner;
-    private boolean hasParkUntil;
-
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
@@ -131,9 +128,9 @@ public class JfrReader implements Closeable {
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
             } else if (type == monitorEnter) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false, hasPreviousOwner);
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true, hasParkUntil);
+                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
             }
 
             if ((pos += size) <= buf.limit()) {
@@ -163,14 +160,14 @@ public class JfrReader implements Closeable {
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
     }
 
-    private ContendedLock readContendedLock(boolean hasTimeout, boolean hasExtraField) {
+    private ContendedLock readContendedLock(boolean hasTimeout) {
         long time = getVarlong();
         long duration = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int classId = getVarint();
         if (hasTimeout) getVarlong();
-        if (hasExtraField) getVarlong();
+        long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
@@ -428,19 +425,11 @@ public class JfrReader implements Closeable {
         allocationSample = getTypeId("jdk.ObjectAllocationSample");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
-
-        hasPreviousOwner = hasField("jdk.JavaMonitorEnter", "previousOwner");
-        hasParkUntil = hasField("jdk.ThreadPark", "until");
     }
 
     private int getTypeId(String typeName) {
         JfrClass type = typesByName.get(typeName);
         return type != null ? type.id : -1;
-    }
-
-    private boolean hasField(String typeName, String fieldName) {
-        JfrClass type = typesByName.get(typeName);
-        return type != null && type.field(fieldName) != null;
     }
 
     private int getVarint() {

@@ -29,6 +29,7 @@
 #include <linux/limits.h>
 #include "symbols.h"
 #include "arch.h"
+#include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
 #include "os.h"
@@ -153,7 +154,7 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
 
     for (int i = 0; i < _header->e_shnum; i++) {
         ElfSection* section = this->section(i);
-        if (section->sh_type == type && section->sh_name != 0) {
+        if ((type == 0 || section->sh_type == type) && section->sh_name != 0) {
             if (strcmp(strtab + section->sh_name, name) == 0) {
                 return section;
             }
@@ -229,6 +230,13 @@ loaded:
         ElfSection* got = findSection(SHT_PROGBITS, ".got.plt");
         if (got != NULL || (got = findSection(SHT_PROGBITS, ".got")) != NULL) {
             _cc->setGlobalOffsetTable(_base + got->sh_addr, got->sh_size);
+        }
+
+        // Read DWARF unwind info
+        ElfSection* eh_frame = findSection(0, ".eh_frame");
+        if (eh_frame != NULL) {
+            DwarfParser dwarf(at(eh_frame), (const char*)_header);
+            _cc->setDwarfTable(dwarf.table(), dwarf.count());
         }
     }
 }
@@ -444,7 +452,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
 void Symbols::makePatchable(NativeCodeCache* cc) {
     uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
     uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
-    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE); 
+    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
 }
 
 #endif // __linux__
