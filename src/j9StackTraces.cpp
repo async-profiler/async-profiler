@@ -130,7 +130,9 @@ void J9StackTraces::timerLoop() {
             J9StackTraceNotification* notif = (J9StackTraceNotification*)(notification_buf + ptr);
 
             jthread thread = known_threads[notif->env];
-            if (thread == NULL) {
+            jint num_jvmti_frames;
+            if (thread == NULL || VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
+                                                             0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
                 jni->PopLocalFrame(NULL);
                 jni->PushLocalFrame(64);
 
@@ -144,25 +146,23 @@ void J9StackTraces::timerLoop() {
                     jvmti->Deallocate((unsigned char*)threads);
                 }
 
-                if ((thread = known_threads[notif->env]) == NULL) {
+                if ((thread = known_threads[notif->env]) == NULL ||
+                    VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
+                                               0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
                     continue;
                 }
             }
 
             int num_frames = Profiler::instance()->getNativeTrace(notif->num_frames, notif->addr, frames);
 
-            jint num_jvmti_frames;
-            if (VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
-                                           0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) == 0) {
-                for (int j = 0; j < num_jvmti_frames; j++) {
-                    frames[num_frames].method_id = jvmti_frames[j].method;
-                    frames[num_frames].bci = (jvmti_frames[j].type << 24) | jvmti_frames[j].location;
-                    num_frames++;
-                }
-
-                int tid = VM::getOSThreadID(thread);
-                Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames);
+            for (int j = 0; j < num_jvmti_frames; j++) {
+                frames[num_frames].method_id = jvmti_frames[j].method;
+                frames[num_frames].bci = (jvmti_frames[j].type << 24) | jvmti_frames[j].location;
+                num_frames++;
             }
+
+            int tid = VM::getOSThreadID(thread);
+            Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames);
 
             ptr += notif->size();
         }
