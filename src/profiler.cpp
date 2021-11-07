@@ -293,7 +293,12 @@ static bool is_cpp_interpreter_method(const char* mn) {
     // It is fine to over-match ZeroInterpreter a little to do
     // fewer tests on this relatively hot path.
     return is_prefix(mn, "_ZN15ZeroInterpreter") ||
-           is_prefix(mn, "_ZN19BytecodeInterpreter3run");
+           is_prefix(mn, "_ZN19BytecodeInterpreter3run") ||
+           is_prefix(mn, "jit") ||
+           is_prefix(mn, "_ZN32VM_BytecodeInterpreterCompressed") ||
+           is_prefix(mn, "_ZN26VM_BytecodeInterpreterFull") ||
+           is_prefix(mn, "bytecodeLoopCompressed") ||
+           is_prefix(mn, "cInterpreter");
 }
 
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
