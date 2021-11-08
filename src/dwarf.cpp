@@ -15,13 +15,9 @@
  */
 
 #include <stdlib.h>
-#include "dwarf.h"
-
-// FIXME
-#include <stdio.h>
-#include <unistd.h>
 #include <map>
-#include "os.h"
+#include "dwarf.h"
+#include "log.h"
 
 
 enum {
@@ -83,7 +79,6 @@ DwarfParser::DwarfParser(const char* eh_frame, const char* image_base) :
 }
 
 void DwarfParser::parse() {
-    u64 start = OS::nanotime();
     std::map<u32, bool> gaps;
 
     u32 fde_len;
@@ -123,9 +118,6 @@ void DwarfParser::parse() {
 
     // TODO: expensive; postpone until later
     qsort(_table, _count, sizeof(FrameDesc), FrameDesc::comparator);
-
-    u64 end = OS::nanotime();
-    printf(" - total_records = %d, time = %.6f\n", _count, (end - start) / 1e9);
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end) {
@@ -245,8 +237,7 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         skipLeb();
                         break;
                     default:
-                        // TODO
-                        printf("Unknown instruction 0x%x\n", op);
+                        Log::warn("Unknown DWARF instruction 0x%x\n", op);
                         return;
                 }
                 break;
@@ -311,8 +302,7 @@ int DwarfParser::parseExpression() {
                 pc_off += tos;
                 break;
             default:
-                // TODO
-                printf("Unknown DW_OP: 0x%x\n", op);
+                Log::warn("Unknown DWARF opcode 0x%x\n", op);
                 return 0;
         }
     }

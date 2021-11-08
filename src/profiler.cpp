@@ -283,7 +283,7 @@ static bool is_prefix(const char* str, const char* prefix) {
 }
 
 static bool is_cpp_interpreter_method(const char* mn) {
-    if (mn == NULL) return false;
+    if (mn == NULL) return true;
 
     // These are methods from OpenJDK C++ Interpreter:
     //   BytecodeInterpreter::run
@@ -294,7 +294,6 @@ static bool is_cpp_interpreter_method(const char* mn) {
     // fewer tests on this relatively hot path.
     return is_prefix(mn, "_ZN15ZeroInterpreter") ||
            is_prefix(mn, "_ZN19BytecodeInterpreter3run") ||
-           is_prefix(mn, "jit") ||
            is_prefix(mn, "_ZN32VM_BytecodeInterpreterCompressed") ||
            is_prefix(mn, "_ZN26VM_BytecodeInterpreterFull") ||
            is_prefix(mn, "bytecodeLoopCompressed") ||
