@@ -69,15 +69,6 @@ enum StackRecovery {
 };
 
 
-// The same constants are used in JfrSync
-enum EventMask {
-    EM_CPU   = 1,
-    EM_ALLOC = 2,
-    EM_LOCK  = 4,
-    EM_MEMLEAK = 8
-};
-
-
 struct MethodSample {
     u64 samples;
     u64 counter;

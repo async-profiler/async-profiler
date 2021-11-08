@@ -53,6 +53,13 @@ enum AddressType {
     ADDR_NATIVE
 };
 
+// The same constants are used in JfrSync
+enum EventMask {
+    EM_CPU   = 1,
+    EM_ALLOC = 2,
+    EM_LOCK  = 4,
+    EM_MEMLEAK = 8
+};
 
 union CallTraceBuffer {
     ASGCT_CallFrame _asgct_frames[1];

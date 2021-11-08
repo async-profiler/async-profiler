@@ -23,7 +23,6 @@
 #include "engine.h"
 #include "spinLock.h"
 
-#define MEMLEAK_TABLE_MAX_SIZE (64 * 1024)
 #define MEMLEAK_STACKFRAMES_MAX_DEPTH (64)
 
 typedef struct MemLeakTableEntry {
@@ -40,10 +39,12 @@ class MemLeakTracer : public Engine {
   private:
 
     static bool _initialized;
+    static int _interval;
 
     static SpinLock _table_lock;
-    static MemLeakTableEntry *_table;
     static volatile int _table_size;
+    static int _table_max_size;
+    static MemLeakTableEntry *_table;
 
     static int _max_stack_depth;
 
