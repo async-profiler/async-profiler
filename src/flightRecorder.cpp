@@ -1290,9 +1290,10 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
 
     jobject jfilename = env->NewStringUTF(args._file);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
-    int event_mask = (args._event != NULL ? 1 : 0) |
-                     (args._alloc > 0 ? 2 : 0) |
-                     (args._lock > 0 ? 4 : 0);
+    int event_mask = (args._event != NULL ? EM_CPU : 0) |
+                     (args._alloc > 0 ? EM_ALLOC : 0) |
+                     (args._lock > 0 ? EM_LOCK : 0) |
+                     (args._memleak > 0 ? EM_MEMLEAK : 0);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

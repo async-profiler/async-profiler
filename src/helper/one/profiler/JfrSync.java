@@ -76,19 +76,27 @@ class JfrSync implements FlightRecorderListener {
         }
     }
 
+    final static int EM_CPU   = 1;
+    final static int EM_ALLOC = 2;
+    final static int EM_LOCK  = 4;
+    final static int EM_MEMLEAK = 8;
+
     private static void disableBuiltinEvents(Recording recording, int eventMask) {
-        if ((eventMask & 1) != 0) {
+        if ((eventMask & EM_CPU) != 0) {
             recording.disable("jdk.ExecutionSample");
             recording.disable("jdk.NativeMethodSample");
         }
-        if ((eventMask & 2) != 0) {
+        if ((eventMask & EM_ALLOC) != 0) {
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationSample");
         }
-        if ((eventMask & 4) != 0) {
+        if ((eventMask & EM_LOCK) != 0) {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
+        }
+        if ((eventMask & EM_MEMLEAK) != 0) {
+            recording.disable("jdk.OldObjectSample");
         }
     }
 
