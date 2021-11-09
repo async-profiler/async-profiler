@@ -81,6 +81,7 @@ void MemLeakTracer::cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nent
             }
         } else {
             env->DeleteWeakGlobalRef(_table[i].ref);
+            delete[] _table[i].frames;
         }
 
         env->DeleteLocalRef(ref);
@@ -203,7 +204,7 @@ Error MemLeakTracer::initialize() {
     _table_max_size = 2048; // with default 512k sampling interval, it's enough for 1G of heap
     _table = (MemLeakTableEntry*)malloc(sizeof(MemLeakTableEntry) * _table_max_size);
 
-    _max_stack_depth = _min(MEMLEAK_STACKFRAMES_MAX_DEPTH, Profiler::instance()->max_stack_depth());
+    _max_stack_depth = Profiler::instance()->max_stack_depth();
 
     if (!(_Class = env->FindClass("java/lang/Class"))) {
         free(_table);
@@ -262,10 +263,11 @@ void JNICALL MemLeakTracer::SampledObjectAlloc(jvmtiEnv *jvmti, JNIEnv* env,
         return;
     }
 
-    jvmtiFrameInfo frames[MEMLEAK_STACKFRAMES_MAX_DEPTH];
-    jint frames_size;
+    jvmtiFrameInfo *frames = new jvmtiFrameInfo[_max_stack_depth];
+    jint frames_size = 0;
     if (jvmti->GetStackTrace(thread, 0, _max_stack_depth,
                                 frames, &frames_size) != JVMTI_ERROR_NONE || frames_size <= 0) {
+        delete[] frames;
         return;
     }
 
@@ -287,7 +289,8 @@ retry:
         _table[idx].ref_size = size;
         _table[idx].age = 0;
         _table[idx].frames_size = frames_size;
-        memcpy(&_table[idx].frames, &frames, sizeof(jvmtiFrameInfo) * _table[idx].frames_size);
+        _table[idx].frames = new jvmtiFrameInfo[_table[idx].frames_size];
+        memcpy(_table[idx].frames, frames, sizeof(jvmtiFrameInfo) * _table[idx].frames_size);
         _table[idx].tid = OS::threadId();
         _table[idx].time = TSC::ticks();
     }
@@ -315,6 +318,8 @@ retry:
             Log::warn("Cannot add sampled object to Memory Leak table, it's overflowing");
         }
     }
+
+    delete[] frames;
 }
 
 void JNICALL MemLeakTracer::GarbageCollectionFinish(jvmtiEnv *jvmti_env) {

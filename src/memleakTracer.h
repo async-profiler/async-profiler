@@ -23,13 +23,11 @@
 #include "engine.h"
 #include "spinLock.h"
 
-#define MEMLEAK_STACKFRAMES_MAX_DEPTH (64)
-
 typedef struct MemLeakTableEntry {
     jweak ref;
     jint ref_size;
-    jvmtiFrameInfo frames[MEMLEAK_STACKFRAMES_MAX_DEPTH];
     jint frames_size;
+    jvmtiFrameInfo *frames;
     jint tid;
     jlong time;
     jlong age;

@@ -14,7 +14,7 @@ public class MemLeakTarget implements Runnable {
     public void run() {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         while (true) {
-            allocate(random, random.nextInt(6));
+            allocate(random, random.nextInt(256));
         }
     }
 
