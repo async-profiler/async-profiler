@@ -67,6 +67,12 @@ void MemLeakTracer::cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nent
         *entries = env->NewObjectArray(_table_size, _MemLeakEntry, NULL);
     }
 
+    if (env->PushLocalFrame(_table_size + 1) != 0) {
+        Log::debug("Memory Leak profiler failed to push local frame");
+        _table_lock.unlock();
+        return;
+    }
+
     u32 sz, newsz = 0;
     for (u32 i = 0; i < (sz = _table_size); i++) {
         jobject ref = env->NewLocalRef(_table[i].ref);
@@ -88,6 +94,8 @@ void MemLeakTracer::cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nent
     }
 
     _table_size = newsz;
+
+    env->PopLocalFrame(NULL);
 
     _table_lock.unlock();
 
@@ -152,6 +160,8 @@ void* MemLeakTracer::cleanup_thread(void *arg) {
         env->CallStaticObjectMethod(_MemLeak, _MemLeak_process, entries, nentries);
         env->ExceptionDescribe();
         env->ExceptionClear();
+
+        env->DeleteLocalRef(entries);
     }
 
 exit:
