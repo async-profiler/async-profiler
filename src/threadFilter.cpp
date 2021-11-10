@@ -16,13 +16,13 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 #include "threadFilter.h"
+#include "os.h"
 
     
 ThreadFilter::ThreadFilter() {
     memset(_bitmap, 0, sizeof(_bitmap));
-    _bitmap[0] = (u32*)mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    _bitmap[0] = (u32*)OS::safeAlloc(BITMAP_SIZE);
 
     _enabled = false;
     _size = 0;
@@ -31,7 +31,7 @@ ThreadFilter::ThreadFilter() {
 ThreadFilter::~ThreadFilter() {
     for (int i = 0; i < MAX_BITMAPS; i++) {
         if (_bitmap[i] != NULL) {
-            munmap(_bitmap[i], BITMAP_SIZE);
+            OS::safeFree(_bitmap[i], BITMAP_SIZE);
         }
     }
 }
@@ -81,11 +81,10 @@ bool ThreadFilter::accept(int thread_id) {
 void ThreadFilter::add(int thread_id) {
     u32* b = bitmap(thread_id);
     if (b == NULL) {
-        // Use mmap() rather than malloc() to allow calling from signal handler
-        b = (u32*)mmap(NULL, BITMAP_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        b = (u32*)OS::safeAlloc(BITMAP_SIZE);
         u32* oldb = __sync_val_compare_and_swap(&_bitmap[(u32)thread_id / BITMAP_CAPACITY], NULL, b);
         if (oldb != NULL) {
-            munmap(b, BITMAP_SIZE);
+            OS::safeFree(b, BITMAP_SIZE);
             b = oldb;
         }
     }
@@ -108,9 +107,7 @@ void ThreadFilter::remove(int thread_id) {
     }
 }
 
-int ThreadFilter::collect(int* array, int max_count) {
-    int count = 0;
-
+void ThreadFilter::collect(std::vector<int>& v) {
     for (int i = 0; i < MAX_BITMAPS; i++) {
         u32* b = _bitmap[i];
         if (b != NULL) {
@@ -120,14 +117,11 @@ int ThreadFilter::collect(int* array, int max_count) {
                 if (word) {
                     for (int bit = 0; bit < 32; bit++) {
                         if (word & (1 << bit)) {
-                            if (count >= max_count) return count;
-                            array[count++] = start_id + j * 32 + bit;
+                            v.push_back(start_id + j * 32 + bit);
                         }
                     }
                 }
             }
         }
     }
-
-    return count;
 }

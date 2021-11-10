@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<style>
+	body {margin: 0; padding: 10px; background-color: #ffffff}
+	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
+	header {margin: -24px 0 5px 0; line-height: 24px}
+	button {font: 12px sans-serif; cursor: pointer}
+	p {margin: 5px 0 5px 0}
+	a {color: #0366d6}
+	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
+	#hl span {padding: 0 3px 0 3px}
+	#status {overflow: hidden; white-space: nowrap}
+	#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}
+	#reset {cursor: pointer}
+</style>
+</head>
+<body style='font: 12px Verdana, sans-serif'>
+<h1>Flame Graph</h1>
+<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>
+<canvas id='canvas' style='width: 100%; height: 752px'></canvas>
+<div id='hl'><span></span></div>
+<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+<p id='status'>&nbsp;</p>
+<script>
+	// Copyright 2020 Andrei Pangin
+	// Licensed under the Apache License, Version 2.0.
+	'use strict';
+	var root, rootLevel, px, pattern;
+	var reverse = false;
+	const levels = Array(47);
+	for (let h = 0; h < levels.length; h++) {
+		levels[h] = [];
+	}
+
+	const canvas = document.getElementById('canvas');
+	const c = canvas.getContext('2d');
+	const hl = document.getElementById('hl');
+	const status = document.getElementById('status');
+
+	const canvasWidth = canvas.offsetWidth;
+	const canvasHeight = canvas.offsetHeight;
+	canvas.style.width = canvasWidth + 'px';
+	canvas.width = canvasWidth * (devicePixelRatio || 1);
+	canvas.height = canvasHeight * (devicePixelRatio || 1);
+	if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
+	c.font = document.body.style.font;
+
+	const palette = [
+		[0x50e150, 30, 30, 30],
+		[0x50bebe, 30, 30, 30],
+		[0xe17d00, 30, 30,  0],
+		[0xc8c83c, 30, 30, 10],
+		[0xe15a5a, 30, 40, 40],
+	];
+
+	function getColor(p) {
+		const v = Math.random();
+		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
+	}
+
+	function f(level, left, width, type, title) {
+		levels[level].push({left: left, width: width, color: getColor(palette[type]), title: title});
+	}
+
+	function samples(n) {
+		return n === 1 ? '1 sample' : n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' samples';
+	}
+
+	function pct(a, b) {
+		return a >= b ? '100' : (100 * a / b).toFixed(2);
+	}
+
+	function findFrame(frames, x) {
+		let left = 0;
+		let right = frames.length - 1;
+
+		while (left <= right) {
+			const mid = (left + right) >>> 1;
+			const f = frames[mid];
+
+			if (f.left > x) {
+				right = mid - 1;
+			} else if (f.left + f.width <= x) {
+				left = mid + 1;
+			} else {
+				return f;
+			}
+		}
+
+		if (frames[left] && (frames[left].left - x) * px < 0.5) return frames[left];
+		if (frames[right] && (x - (frames[right].left + frames[right].width)) * px < 0.5) return frames[right];
+
+		return null;
+	}
+
+	function search(r) {
+		if (r && (r = prompt('Enter regexp to search:', '')) === null) {
+			return;
+		}
+
+		pattern = r ? RegExp(r) : undefined;
+		const matched = render(root, rootLevel);
+		document.getElementById('matchval').textContent = pct(matched, root.width) + '%';
+		document.getElementById('match').style.display = r ? 'inherit' : 'none';
+	}
+
+	function render(newRoot, newLevel) {
+		if (root) {
+			c.fillStyle = '#ffffff';
+			c.fillRect(0, 0, canvasWidth, canvasHeight);
+		}
+
+		root = newRoot || levels[0][0];
+		rootLevel = newLevel || 0;
+		px = canvasWidth / root.width;
+
+		const x0 = root.left;
+		const x1 = x0 + root.width;
+		const marked = [];
+
+		function mark(f) {
+			return marked[f.left] >= f.width || (marked[f.left] = f.width);
+		}
+
+		function totalMarked() {
+			let total = 0;
+			let left = 0;
+			for (let x in marked) {
+				if (+x >= left) {
+					total += marked[x];
+					left = +x + marked[x];
+				}
+			}
+			return total;
+		}
+
+		function drawFrame(f, y, alpha) {
+			if (f.left < x1 && f.left + f.width > x0) {
+				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;
+				c.fillRect((f.left - x0) * px, y, f.width * px, 15);
+
+				if (f.width * px >= 21) {
+					const chars = Math.floor(f.width * px / 7);
+					const title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + '..';
+					c.fillStyle = '#000000';
+					c.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);
+				}
+
+				if (alpha) {
+					c.fillStyle = 'rgba(255, 255, 255, 0.5)';
+					c.fillRect((f.left - x0) * px, y, f.width * px, 15);
+				}
+			}
+		}
+
+		for (let h = 0; h < levels.length; h++) {
+			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
+			const frames = levels[h];
+			for (let i = 0; i < frames.length; i++) {
+				drawFrame(frames[i], y, h < rootLevel);
+			}
+		}
+
+		return totalMarked();
+	}
+
+	canvas.onmousemove = function() {
+		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+		if (h >= 0 && h < levels.length) {
+			const f = findFrame(levels[h], event.offsetX / px + root.left);
+			if (f) {
+				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
+				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
+				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
+				hl.firstChild.textContent = f.title;
+				hl.style.display = 'block';
+				canvas.title = f.title + '\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%)';
+				canvas.style.cursor = 'pointer';
+				canvas.onclick = function() {
+					if (f != root) {
+						render(f, h);
+						canvas.onmousemove();
+					}
+				};
+				status.textContent = 'Function: ' + canvas.title;
+				return;
+			}
+		}
+		canvas.onmouseout();
+	}
+
+	canvas.onmouseout = function() {
+		hl.style.display = 'none';
+		status.textContent = '\xa0';
+		canvas.title = '';
+		canvas.style.cursor = '';
+		canvas.onclick = '';
+	}
+
+	document.getElementById('reverse').onclick = function() {
+		reverse = !reverse;
+		render();
+	}
+
+	document.getElementById('search').onclick = function() {
+		search(true);
+	}
+
+	document.getElementById('reset').onclick = function() {
+		search(false);
+	}
+
+	window.onkeydown = function() {
+		if (event.ctrlKey && event.keyCode === 70) {
+			event.preventDefault();
+			search(true);
+		} else if (event.keyCode === 27) {
+			search(false);
+		}
+	}
+f(0,0,641,4,'all')
+f(1,0,5,0,'com/sun/glass/ui/InvokeLaterDispatcher.run')
+f(2,0,4,0,'com/sun/glass/ui/gtk/GtkApplication.submitForLaterInvocation')
+f(3,0,4,0,'com/sun/glass/ui/gtk/GtkApplication._submitForLaterInvocation')
+f(4,0,4,4,'Java_com_sun_glass_ui_gtk_GtkApplication__1submitForLaterInvocation')
+f(5,0,4,4,'__write')
+f(6,0,4,2,'entry_SYSCALL_64_after_hwframe')
+f(7,0,4,2,'do_syscall_64')
+f(8,0,4,2,'__x64_sys_write')
+f(9,0,4,2,'ksys_write')
+f(10,0,4,2,'vfs_write')
+f(11,0,4,2,'__vfs_write')
+f(12,0,4,2,'eventfd_write')
+f(1,5,408,0,'java/lang/Thread.run')
+f(2,5,179,0,'com/sun/glass/ui/gtk/GtkApplication$$Lambda$42/1642360923.run')
+f(3,5,179,0,'com/sun/glass/ui/gtk/GtkApplication.lambda$null$48')
+f(4,5,179,0,'com/sun/glass/ui/gtk/GtkApplication._runLoop')
+f(5,5,4,4,'Java_com_sun_glass_ui_gtk_GtkApplication__1runLoop')
+f(6,6,2,4,'__writev')
+f(7,6,2,2,'entry_SYSCALL_64_after_hwframe')
+f(8,6,2,2,'do_syscall_64')
+f(9,6,2,2,'__x64_sys_writev')
+f(10,6,2,2,'do_writev')
+f(11,6,2,2,'vfs_writev')
+f(12,6,2,2,'do_iter_write')
+f(13,6,2,2,'do_iter_readv_writev')
+f(14,6,2,2,'sock_write_iter')
+f(15,6,2,2,'sock_sendmsg')
+f(16,6,2,2,'inet_sendmsg')
+f(17,6,2,2,'tcp_sendmsg')
+f(18,6,2,2,'tcp_sendmsg_locked')
+f(19,6,2,2,'tcp_push')
+f(20,6,2,2,'__tcp_push_pending_frames')
+f(21,6,2,2,'tcp_write_xmit')
+f(22,6,2,2,'__tcp_transmit_skb')
+f(23,6,2,2,'ip_queue_xmit')
+f(24,6,2,2,'__ip_queue_xmit')
+f(25,6,2,2,'ip_local_out')
+f(26,6,2,2,'ip_output')
+f(27,6,2,2,'ip_finish_output')
+f(28,6,2,2,'__ip_finish_output')
+f(29,6,2,2,'ip_finish_output2')
+f(30,6,2,2,'dev_queue_xmit')
+f(31,6,2,2,'__dev_queue_xmit')
+f(32,6,2,2,'sch_direct_xmit')
+f(33,6,2,2,'dev_hard_start_xmit')
+f(34,6,2,2,'e1000_xmit_frame?[e1000]')
+f(5,10,161,0,'com/sun/glass/ui/InvokeLaterDispatcher$Future.run')
+f(6,10,6,3,'InterpreterRuntime::monitorexit(JavaThread*, BasicObjectLock*)')
+f(7,10,6,3,'ObjectMonitor::ExitEpilog(Thread*, ObjectWaiter*)')
+f(8,10,6,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(9,10,6,2,'entry_SYSCALL_64_after_hwframe')
+f(10,10,6,2,'do_syscall_64')
+f(11,10,6,2,'__x64_sys_futex')
+f(12,10,6,2,'do_futex')
+f(13,10,6,2,'wake_up_q')
+f(14,10,6,2,'try_to_wake_up')
+f(15,10,6,2,'_raw_spin_unlock_irqrestore')
+f(6,16,58,0,'com/sun/javafx/application/PlatformImpl$$Lambda$53/233530418.run')
+f(7,16,58,0,'com/sun/javafx/application/PlatformImpl.lambda$runLater$173')
+f(8,17,57,0,'java/security/AccessController.doPrivileged')
+f(9,17,57,0,'com/sun/javafx/application/PlatformImpl$$Lambda$54/1140247440.run')
+f(10,17,57,0,'com/sun/javafx/application/PlatformImpl.lambda$null$172')
+f(11,17,55,0,'com/sun/javafx/application/PlatformImpl$$Lambda$52/1364335809.run')
+f(12,17,55,0,'com/sun/javafx/application/PlatformImpl.lambda$runAndWait$174')
+f(13,17,4,0,'com/sun/javafx/application/LauncherImpl$$Lambda$57/1790390841.run')
+f(14,17,4,0,'com/sun/javafx/application/LauncherImpl.lambda$launchApplication1$160')
+f(15,17,4,0,'java/lang/reflect/Constructor.newInstance')
+f(16,17,4,0,'sun/reflect/DelegatingConstructorAccessorImpl.newInstance')
+f(17,17,4,0,'sun/reflect/NativeConstructorAccessorImpl.newInstance')
+f(18,17,4,0,'sun/reflect/NativeConstructorAccessorImpl.newInstance0')
+f(19,17,4,0,'demo/parallel/Main.<init>')
+f(20,17,2,0,'java/lang/ClassLoader.loadClass')
+f(21,17,2,0,'java/lang/ClassLoader.loadClass')
+f(22,17,2,0,'java/net/URLClassLoader.findClass')
+f(23,17,2,0,'java/security/AccessController.doPrivileged')
+f(24,17,2,0,'java/net/URLClassLoader$1.run')
+f(25,17,2,0,'java/net/URLClassLoader$1.run')
+f(26,17,2,0,'java/net/URLClassLoader.access$100')
+f(27,17,2,0,'java/net/URLClassLoader.defineClass')
+f(28,17,2,0,'java/security/SecureClassLoader.defineClass')
+f(13,21,50,0,'com/sun/javafx/application/LauncherImpl$$Lambda$63/508611611.run')
+f(14,21,50,0,'com/sun/javafx/application/LauncherImpl.lambda$launchApplication1$161')
+f(15,21,49,0,'demo/parallel/Main.start')
+f(16,22,17,0,'demo/parallel/Main.createContent')
+f(17,23,14,0,'demo/parallel/Main.createControlPane')
+f(18,26,8,0,'javafx/scene/control/Control.<clinit>')
+f(19,26,8,0,'com/sun/javafx/application/PlatformImpl.setDefaultPlatformUserAgentStylesheet')
+f(20,26,8,0,'com/sun/javafx/application/PlatformImpl.setPlatformUserAgentStylesheet')
+f(21,26,8,0,'com/sun/javafx/application/PlatformImpl._setPlatformUserAgentStylesheet')
+f(22,27,7,0,'java/security/AccessController.doPrivileged')
+f(23,27,7,0,'com/sun/javafx/application/PlatformImpl$$Lambda$68/360857571.run')
+f(24,27,7,0,'com/sun/javafx/application/PlatformImpl.lambda$_setPlatformUserAgentStylesheet$181')
+f(25,27,7,0,'com/sun/javafx/css/StyleManager.setUserAgentStylesheets')
+f(26,27,6,0,'com/sun/javafx/css/StyleManager._setDefaultUserAgentStylesheet')
+f(27,28,5,0,'com/sun/javafx/css/StyleManager.loadStylesheet')
+f(28,28,5,0,'com/sun/javafx/css/StyleManager.loadStylesheetUnPrivileged')
+f(29,28,2,0,'com/sun/javafx/css/StyleManager.getURL')
+f(30,28,2,0,'java/lang/Class.forName')
+f(31,28,2,0,'java/lang/Class.forName0')
+f(32,28,2,0,'com/sun/javafx/scene/control/skin/Utils.<clinit>')
+f(29,30,3,0,'com/sun/javafx/css/Stylesheet.loadBinary')
+f(30,30,3,0,'com/sun/javafx/css/Stylesheet.readBinary')
+f(31,30,3,0,'com/sun/javafx/css/Rule.readBinary')
+f(32,30,3,0,'com/sun/javafx/css/Selector.readBinary')
+f(33,30,2,0,'com/sun/javafx/css/CompoundSelector.readBinary')
+f(16,40,11,0,'javafx/scene/Scene.<init>')
+f(17,40,11,0,'javafx/scene/Scene.<init>')
+f(18,40,11,0,'javafx/scene/Scene.setRoot')
+f(19,40,11,0,'javafx/beans/property/ObjectPropertyBase.set')
+f(20,40,11,0,'javafx/beans/property/ObjectPropertyBase.markInvalid')
+f(21,40,11,0,'javafx/scene/Scene$9.invalidated')
+f(22,40,11,0,'javafx/scene/Node.setScenes')
+f(23,40,11,0,'javafx/scene/Node.invalidatedScenes')
+f(24,40,11,0,'javafx/scene/Node.impl_reapplyCSS')
+f(25,41,10,0,'javafx/scene/Node.reapplyCss')
+f(26,42,3,0,'javafx/scene/CssStyleHelper.<clinit>')
+f(27,42,3,0,'javafx/scene/text/Font.getDefault')
+f(28,42,3,0,'javafx/scene/text/Font.<init>')
+f(29,42,3,0,'com/sun/javafx/font/PrismFontLoader.loadFont')
+f(30,42,2,0,'com/sun/javafx/font/PrismFontFactory.createFont')
+f(31,42,2,0,'com/sun/javafx/font/LogicalFont.getLogicalFont')
+f(32,42,2,0,'com/sun/javafx/font/LogicalFont.getLogicalFont')
+f(33,42,2,0,'com/sun/javafx/font/LogicalFont.<init>')
+f(34,42,2,0,'com/sun/javafx/font/FontConfigManager.getFontConfigFont')
+f(35,42,2,0,'com/sun/javafx/font/FontConfigManager.initFontConfigLogFonts')
+f(36,42,2,0,'com/sun/javafx/font/FontConfigManager.getFontConfig')
+f(26,45,2,0,'javafx/scene/CssStyleHelper.createStyleHelper')
+f(26,47,4,0,'javafx/scene/Node.reapplyCss')
+f(27,47,3,0,'javafx/scene/CssStyleHelper.createStyleHelper')
+f(28,47,3,0,'com/sun/javafx/css/StyleManager.findMatchingStyles')
+f(29,47,3,0,'com/sun/javafx/css/StyleManager.gatherParentStylesheets')
+f(30,47,3,0,'com/sun/javafx/css/StyleManager.processStylesheets')
+f(31,47,3,0,'com/sun/javafx/css/StyleManager.loadStylesheet')
+f(32,47,3,0,'com/sun/javafx/css/StyleManager.loadStylesheetUnPrivileged')
+f(33,48,2,0,'com/sun/javafx/css/parser/CSSParser.parse')
+f(34,48,2,0,'com/sun/javafx/css/parser/CSSParser.parse')
+f(16,51,19,0,'javafx/stage/Stage.show')
+f(17,51,19,0,'javafx/stage/Window.show')
+f(18,51,19,0,'javafx/stage/Window.setShowing')
+f(19,51,19,0,'javafx/beans/property/BooleanPropertyBase.set')
+f(20,51,19,0,'javafx/beans/property/BooleanPropertyBase.markInvalid')
+f(21,51,19,0,'javafx/stage/Window$9.invalidated')
+f(22,52,3,0,'javafx/scene/Scene.impl_initPeer')
+f(22,55,14,0,'javafx/scene/Scene.impl_preferredSize')
+f(23,55,14,0,'javafx/scene/Scene.preferredSize')
+f(24,55,11,0,'javafx/scene/Scene.doCSSPass')
+f(25,55,11,0,'javafx/scene/Node.processCSS')
+f(26,55,11,0,'javafx/scene/Parent.impl_processCSS')
+f(27,56,10,0,'javafx/scene/Parent.impl_processCSS')
+f(28,56,10,0,'javafx/scene/control/Control.impl_processCSS')
+f(29,56,3,0,'javafx/scene/Parent.impl_processCSS')
+f(30,56,3,0,'javafx/scene/Node.impl_processCSS')
+f(31,56,3,0,'javafx/scene/CssStyleHelper.transitionToState')
+f(29,59,4,0,'javafx/scene/control/Button.createDefaultSkin')
+f(30,59,4,0,'com/sun/javafx/scene/control/skin/ButtonSkin.<init>')
+f(31,59,4,0,'com/sun/javafx/scene/control/skin/LabeledSkinBase.<init>')
+f(32,61,2,0,'com/sun/javafx/scene/control/skin/LabeledText.<init>')
+f(33,61,2,0,'javafx/css/StyleableObjectProperty.bind')
+f(34,61,2,0,'javafx/beans/property/ObjectPropertyBase.bind')
+f(35,61,2,0,'javafx/beans/property/ObjectPropertyBase.markInvalid')
+f(36,61,2,0,'javafx/scene/text/Text$5.invalidated')
+f(37,61,2,0,'javafx/scene/text/Text.access$200')
+f(38,61,2,0,'javafx/scene/text/Text.needsFullTextLayout')
+f(39,61,2,0,'javafx/scene/text/Text.getTextLayout')
+f(40,61,2,0,'com/sun/javafx/text/PrismTextLayout.setContent')
+f(41,61,2,0,'com/sun/javafx/font/PrismFont.getStrike')
+f(42,61,2,0,'com/sun/javafx/font/LogicalFont.getStrike')
+f(43,61,2,0,'com/sun/javafx/font/LogicalFont.getDefaultAAMode')
+f(44,61,2,0,'com/sun/javafx/font/LogicalFont.getSlot0Resource')
+f(45,61,2,0,'com/sun/javafx/font/PrismFontFactory.getFontResource')
+f(46,61,2,0,'com/sun/javafx/font/PrismFontFactory.getFullNameToFileMap')
+f(29,64,2,0,'javafx/scene/control/ProgressIndicator.createDefaultSkin')
+f(24,67,2,0,'javafx/scene/Scene.resizeRootToPreferredSize')
+f(25,67,2,0,'javafx/scene/Scene.getPreferredWidth')
+f(26,67,2,0,'javafx/scene/layout/Region.prefWidth')
+f(27,67,2,0,'javafx/scene/Parent.prefWidth')
+f(28,67,2,0,'javafx/scene/layout/Region.computePrefWidth')
+f(29,67,2,0,'javafx/scene/Parent.computePrefWidth')
+f(30,67,2,0,'javafx/scene/layout/Region.prefWidth')
+f(31,67,2,0,'javafx/scene/Parent.prefWidth')
+f(32,67,2,0,'javafx/scene/layout/GridPane.computePrefWidth')
+f(33,67,2,0,'javafx/scene/layout/GridPane.computePrefWidths')
+f(34,67,2,0,'javafx/scene/layout/Region.computeChildPrefAreaWidth')
+f(35,67,2,0,'javafx/scene/layout/Region.minWidth')
+f(36,67,2,0,'javafx/scene/Parent.minWidth')
+f(37,67,2,0,'javafx/scene/control/Control.computeMinWidth')
+f(38,67,2,0,'com/sun/javafx/scene/control/skin/LabeledSkinBase.computeMinWidth')
+f(39,67,2,0,'com/sun/javafx/scene/control/skin/LabeledSkinBase.computeMinLabeledPartWidth')
+f(40,67,2,0,'com/sun/javafx/scene/control/skin/Utils.computeTextWidth')
+f(41,67,2,0,'com/sun/javafx/text/PrismTextLayout.getBounds')
+f(42,67,2,0,'com/sun/javafx/text/PrismTextLayout.ensureLayout')
+f(43,67,2,0,'com/sun/javafx/text/PrismTextLayout.layout')
+f(44,67,2,0,'com/sun/javafx/text/PrismTextLayout.buildRuns')
+f(45,67,2,0,'com/sun/javafx/text/GlyphLayout.breakRuns')
+f(6,74,12,0,'com/sun/javafx/tk/quantum/QuantumToolkit$$Lambda$46/1696939523.run')
+f(7,74,12,0,'com/sun/javafx/tk/quantum/QuantumToolkit.lambda$runToolkit$403')
+f(8,74,12,0,'com/sun/javafx/tk/quantum/QuantumToolkit.pulseFromQueue')
+f(9,74,12,0,'com/sun/javafx/tk/quantum/QuantumToolkit.pulse')
+f(10,74,12,0,'com/sun/javafx/tk/quantum/QuantumToolkit.pulse')
+f(11,74,8,0,'com/sun/javafx/tk/Toolkit.firePulse')
+f(12,74,6,0,'com/sun/javafx/tk/Toolkit.runPulse')
+f(13,74,6,0,'java/security/AccessController.doPrivileged')
+f(14,74,6,0,'com/sun/javafx/tk/Toolkit$$Lambda$193/1813875389.run')
+f(15,74,6,0,'com/sun/javafx/tk/Toolkit.lambda$runPulse$29')
+f(16,74,6,0,'javafx/scene/Scene$ScenePulseListener.pulse')
+f(17,76,4,0,'javafx/scene/Scene.doLayoutPass')
+f(18,76,4,0,'javafx/scene/Parent.layout')
+f(19,76,4,0,'demo/parallel/Main$1.layoutChildren')
+f(20,76,4,0,'javafx/scene/Parent.layoutChildren')
+f(21,76,4,0,'javafx/scene/Node.autosize')
+f(22,76,2,0,'javafx/scene/layout/Region.prefHeight')
+f(23,76,2,0,'javafx/scene/Parent.prefHeight')
+f(24,76,2,0,'javafx/scene/layout/GridPane.computePrefHeight')
+f(25,76,2,0,'javafx/scene/layout/GridPane.computePrefHeights')
+f(22,78,2,0,'javafx/scene/layout/Region.prefWidth')
+f(23,78,2,0,'javafx/scene/Parent.prefWidth')
+f(24,78,2,0,'javafx/scene/layout/GridPane.computePrefWidth')
+f(25,78,2,0,'javafx/scene/layout/GridPane.computePrefWidths')
+f(11,82,3,0,'com/sun/javafx/tk/quantum/PaintCollector.renderAll')
+f(12,82,3,0,'com/sun/javafx/tk/quantum/ViewScene.repaint')
+f(13,82,3,0,'com/sun/javafx/tk/quantum/QuantumToolkit.addRenderJob')
+f(14,82,3,0,'com/sun/javafx/tk/quantum/QuantumRenderer.submitRenderJob')
+f(15,82,3,0,'java/util/concurrent/AbstractExecutorService.submit')
+f(16,82,3,0,'java/util/concurrent/ThreadPoolExecutor.execute')
+f(17,82,3,0,'java/util/concurrent/LinkedBlockingQueue.offer')
+f(18,82,3,0,'java/util/concurrent/LinkedBlockingQueue.signalNotEmpty')
+f(19,82,3,0,'java/util/concurrent/locks/ReentrantLock.unlock')
+f(20,82,3,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.release')
+f(21,82,3,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.unparkSuccessor')
+f(22,82,3,0,'java/util/concurrent/locks/LockSupport.unpark')
+f(23,82,3,0,'sun/misc/Unsafe.unpark')
+f(24,82,3,4,'Unsafe_Unpark')
+f(25,82,3,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(26,82,3,2,'entry_SYSCALL_64_after_hwframe')
+f(27,82,3,2,'do_syscall_64')
+f(28,82,3,2,'__x64_sys_futex')
+f(29,82,3,2,'do_futex')
+f(30,82,3,2,'wake_up_q')
+f(31,82,3,2,'try_to_wake_up')
+f(32,82,3,2,'_raw_spin_unlock_irqrestore')
+f(6,86,85,0,'com/sun/javafx/tk/quantum/SceneState$$Lambda$205/1725489206.run')
+f(7,86,85,0,'com/sun/javafx/tk/quantum/SceneState.lambda$uploadPixels$305')
+f(8,86,85,0,'com/sun/javafx/tk/quantum/SceneState.access$001')
+f(9,86,85,0,'com/sun/prism/PresentableState.uploadPixels')
+f(10,86,85,0,'com/sun/glass/ui/View.uploadPixels')
+f(11,86,85,0,'com/sun/glass/ui/gtk/GtkView._uploadPixels')
+f(12,86,85,0,'com/sun/glass/ui/gtk/GtkView._uploadPixelsDirect')
+f(13,86,85,4,'Java_com_sun_glass_ui_gtk_GtkView__1uploadPixelsDirect')
+f(14,86,85,4,'__writev')
+f(15,86,85,2,'entry_SYSCALL_64_after_hwframe')
+f(16,86,85,2,'do_syscall_64')
+f(17,86,85,2,'__x64_sys_writev')
+f(18,86,85,2,'do_writev')
+f(19,86,85,2,'vfs_writev')
+f(20,86,85,2,'do_iter_write')
+f(21,86,85,2,'do_iter_readv_writev')
+f(22,86,85,2,'sock_write_iter')
+f(23,86,85,2,'sock_sendmsg')
+f(24,86,85,2,'inet_sendmsg')
+f(25,86,85,2,'tcp_sendmsg')
+f(26,86,3,2,'lock_sock_nested')
+f(27,86,3,2,'_raw_spin_lock_bh')
+f(28,86,3,2,'queued_spin_lock_slowpath')
+f(29,86,3,2,'native_queued_spin_lock_slowpath')
+f(26,90,81,2,'tcp_sendmsg_locked')
+f(27,90,3,2,'__sk_flush_backlog')
+f(28,90,3,2,'__release_sock')
+f(29,90,3,2,'tcp_v4_do_rcv')
+f(30,90,3,2,'tcp_rcv_established')
+f(31,90,3,2,'__tcp_push_pending_frames')
+f(32,90,3,2,'tcp_write_xmit')
+f(33,90,3,2,'__tcp_transmit_skb')
+f(34,90,3,2,'ip_queue_xmit')
+f(35,90,3,2,'__ip_queue_xmit')
+f(36,90,3,2,'ip_local_out')
+f(37,90,3,2,'ip_output')
+f(38,90,3,2,'ip_finish_output')
+f(39,90,3,2,'__ip_finish_output')
+f(40,90,3,2,'ip_finish_output2')
+f(41,90,3,2,'dev_queue_xmit')
+f(42,90,3,2,'__dev_queue_xmit')
+f(43,90,3,2,'sch_direct_xmit')
+f(44,90,3,2,'dev_hard_start_xmit')
+f(45,90,3,2,'e1000_xmit_frame?[e1000]')
+f(27,93,78,2,'tcp_push_one')
+f(28,93,78,2,'tcp_write_xmit')
+f(29,93,78,2,'__tcp_transmit_skb')
+f(30,93,78,2,'ip_queue_xmit')
+f(31,93,78,2,'__ip_queue_xmit')
+f(32,93,78,2,'ip_local_out')
+f(33,93,78,2,'ip_output')
+f(34,93,78,2,'ip_finish_output')
+f(35,93,78,2,'__ip_finish_output')
+f(36,93,78,2,'ip_finish_output2')
+f(37,93,9,2,'__local_bh_enable_ip')
+f(38,93,9,2,'do_softirq')
+f(39,93,9,2,'do_softirq_own_stack')
+f(40,93,9,2,'__softirqentry_text_start')
+f(41,93,9,2,'net_rx_action')
+f(42,93,9,2,'e1000_clean?[e1000]')
+f(37,102,69,2,'dev_queue_xmit')
+f(38,102,69,2,'__dev_queue_xmit')
+f(39,102,69,2,'sch_direct_xmit')
+f(40,102,69,2,'dev_hard_start_xmit')
+f(41,102,69,2,'e1000_xmit_frame?[e1000]')
+f(5,171,3,0,'com/sun/glass/ui/View.notifyMouse')
+f(6,171,3,0,'com/sun/glass/ui/View.handleMouseEvent')
+f(7,171,3,0,'com/sun/javafx/tk/quantum/GlassViewEventHandler.handleMouseEvent')
+f(8,171,3,0,'com/sun/javafx/tk/quantum/QuantumToolkit.runWithoutRenderLock')
+f(9,171,3,0,'com/sun/javafx/tk/quantum/GlassViewEventHandler$$Lambda$181/241733715.get')
+f(10,171,3,0,'com/sun/javafx/tk/quantum/GlassViewEventHandler.lambda$handleMouseEvent$353')
+f(11,171,3,0,'java/security/AccessController.doPrivileged')
+f(12,171,3,0,'com/sun/javafx/tk/quantum/GlassViewEventHandler$MouseEventNotification.run')
+f(13,171,3,0,'com/sun/javafx/tk/quantum/GlassViewEventHandler$MouseEventNotification.run')
+f(14,171,3,0,'javafx/scene/Scene$ScenePeerListener.mouseEvent')
+f(15,171,3,0,'javafx/scene/Scene.impl_processMouseEvent')
+f(16,171,3,0,'javafx/scene/Scene$MouseHandler.access$1500')
+f(17,171,3,0,'javafx/scene/Scene$MouseHandler.process')
+f(18,172,2,0,'javafx/scene/Scene.access$6700')
+f(19,172,2,0,'javafx/scene/Scene.pick')
+f(20,172,2,0,'javafx/scene/Scene$MouseHandler.access$1600')
+f(21,172,2,0,'javafx/scene/Scene$MouseHandler.pickNode')
+f(22,172,2,0,'javafx/scene/Node.impl_pickNode')
+f(23,172,2,0,'javafx/scene/layout/Region.impl_pickNodeLocal')
+f(5,174,2,0,'com/sun/javafx/tk/quantum/QuantumToolkit$$Lambda$47/605813029.run')
+f(6,174,2,0,'com/sun/javafx/tk/quantum/QuantumToolkit.lambda$runToolkit$404')
+f(7,174,2,0,'com/sun/javafx/tk/quantum/QuantumToolkit.postPulse')
+f(8,174,2,0,'com/sun/glass/ui/Application.invokeLater')
+f(9,174,2,0,'com/sun/glass/ui/gtk/GtkApplication._invokeLater')
+f(10,174,2,0,'com/sun/glass/ui/InvokeLaterDispatcher.invokeLater')
+f(11,174,2,0,'java/util/concurrent/LinkedBlockingDeque.addLast')
+f(12,174,2,0,'java/util/concurrent/LinkedBlockingDeque.offerLast')
+f(13,174,2,0,'java/util/concurrent/locks/ReentrantLock.unlock')
+f(14,174,2,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.release')
+f(15,174,2,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.unparkSuccessor')
+f(16,174,2,0,'java/util/concurrent/locks/LockSupport.unpark')
+f(17,174,2,0,'sun/misc/Unsafe.unpark')
+f(18,174,2,4,'Unsafe_Unpark')
+f(19,174,2,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(20,174,2,2,'entry_SYSCALL_64_after_hwframe')
+f(21,174,2,2,'do_syscall_64')
+f(22,174,2,2,'__x64_sys_futex')
+f(23,174,2,2,'do_futex')
+f(24,174,2,2,'wake_up_q')
+f(25,174,2,2,'try_to_wake_up')
+f(26,174,2,2,'_raw_spin_unlock_irqrestore')
+f(5,176,8,4,'recvmsg')
+f(6,176,8,2,'entry_SYSCALL_64_after_hwframe')
+f(7,176,8,2,'do_syscall_64')
+f(8,176,8,2,'__x64_sys_recvmsg')
+f(9,176,8,2,'__sys_recvmsg')
+f(10,176,8,2,'___sys_recvmsg')
+f(11,176,8,2,'sock_recvmsg')
+f(12,176,8,2,'inet_recvmsg')
+f(13,176,8,2,'tcp_recvmsg')
+f(14,176,3,2,'lock_sock_nested')
+f(15,176,3,2,'_raw_spin_lock_bh')
+f(16,176,3,2,'queued_spin_lock_slowpath')
+f(17,176,3,2,'native_queued_spin_lock_slowpath')
+f(14,180,4,2,'tcp_cleanup_rbuf')
+f(15,180,4,2,'tcp_send_ack')
+f(16,180,4,2,'__tcp_send_ack.part.45')
+f(17,180,4,2,'__tcp_transmit_skb')
+f(18,180,4,2,'ip_queue_xmit')
+f(19,180,4,2,'__ip_queue_xmit')
+f(20,180,4,2,'ip_local_out')
+f(21,180,4,2,'ip_output')
+f(22,180,4,2,'ip_finish_output')
+f(23,180,4,2,'__ip_finish_output')
+f(24,180,4,2,'ip_finish_output2')
+f(25,180,4,2,'dev_queue_xmit')
+f(26,180,4,2,'__dev_queue_xmit')
+f(27,180,4,2,'sch_direct_xmit')
+f(28,180,4,2,'dev_hard_start_xmit')
+f(29,180,4,2,'e1000_xmit_frame?[e1000]')
+f(2,184,45,0,'com/sun/javafx/tk/quantum/QuantumRenderer$PipelineRunnable.run')
+f(3,184,45,0,'java/util/concurrent/ThreadPoolExecutor$Worker.run')
+f(4,184,45,0,'java/util/concurrent/ThreadPoolExecutor.runWorker')
+f(5,184,45,0,'com/sun/javafx/tk/RenderJob.run')
+f(6,184,45,0,'java/util/concurrent/FutureTask.runAndReset')
+f(7,184,45,0,'java/util/concurrent/Executors$RunnableAdapter.call')
+f(8,184,45,0,'com/sun/javafx/tk/quantum/UploadingPainter.run')
+f(9,184,2,0,'com/sun/javafx/tk/quantum/SceneState.uploadPixels')
+f(10,184,2,0,'com/sun/glass/ui/Application.invokeLater')
+f(11,184,2,0,'com/sun/glass/ui/gtk/GtkApplication._invokeLater')
+f(12,184,2,0,'com/sun/glass/ui/InvokeLaterDispatcher.invokeLater')
+f(13,184,2,0,'java/util/concurrent/LinkedBlockingDeque.addLast')
+f(14,184,2,0,'java/util/concurrent/LinkedBlockingDeque.offerLast')
+f(15,184,2,0,'java/util/concurrent/locks/ReentrantLock.unlock')
+f(16,184,2,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.release')
+f(17,184,2,0,'java/util/concurrent/locks/AbstractQueuedSynchronizer.unparkSuccessor')
+f(18,184,2,0,'java/util/concurrent/locks/LockSupport.unpark')
+f(19,184,2,0,'sun/misc/Unsafe.unpark')
+f(20,184,2,4,'Unsafe_Unpark')
+f(21,184,2,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(22,184,2,2,'entry_SYSCALL_64_after_hwframe')
+f(23,184,2,2,'do_syscall_64')
+f(24,184,2,2,'__x64_sys_futex')
+f(25,184,2,2,'do_futex')
+f(26,184,2,2,'wake_up_q')
+f(27,184,2,2,'try_to_wake_up')
+f(28,184,2,2,'_raw_spin_unlock_irqrestore')
+f(9,186,40,0,'com/sun/javafx/tk/quantum/ViewPainter.paintImpl')
+f(10,188,38,0,'com/sun/javafx/tk/quantum/ViewPainter.doPaint')
+f(11,188,38,0,'com/sun/javafx/sg/prism/NGNode.render')
+f(12,188,38,0,'com/sun/javafx/sg/prism/NGNode.doRender')
+f(13,188,38,0,'com/sun/javafx/sg/prism/NGRegion.renderContent')
+f(14,188,38,0,'com/sun/javafx/sg/prism/NGGroup.renderContent')
+f(15,188,38,0,'com/sun/javafx/sg/prism/NGNode.render')
+f(16,188,38,0,'com/sun/javafx/sg/prism/NGNode.doRender')
+f(17,188,21,0,'com/sun/javafx/sg/prism/NGCanvas.renderContent')
+f(18,188,15,0,'com/sun/javafx/sg/prism/NGCanvas.renderStream')
+f(19,188,15,0,'com/sun/javafx/sg/prism/NGCanvas.handleRenderOp')
+f(20,188,11,0,'com/sun/prism/impl/BaseResourceFactory.getCachedTexture')
+f(21,188,11,0,'com/sun/prism/impl/BaseResourceFactory.getCachedTexture')
+f(22,189,10,0,'com/sun/prism/sw/SWTexture.update')
+f(23,189,10,0,'com/sun/prism/sw/SWArgbPreTexture.update')
+f(24,189,10,0,'com/sun/javafx/image/impl/BaseByteToIntConverter.convert')
+f(25,189,10,0,'com/sun/javafx/image/impl/BaseByteToIntConverter.convert')
+f(26,189,10,0,'com/sun/javafx/image/impl/ByteBgra$ToIntArgbSameConv.doConvert')
+f(20,199,3,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(21,199,3,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(22,199,3,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(23,199,3,0,'com/sun/pisces/PiscesRenderer.drawImage')
+f(24,199,3,0,'com/sun/pisces/PiscesRenderer.drawImageImpl')
+f(25,199,3,4,'Java_com_sun_pisces_PiscesRenderer_drawImageImpl')
+f(26,199,3,4,'fillRect')
+f(27,200,2,4,'emitLinePTSourceOver8888_pre')
+f(18,203,6,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(19,203,6,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(20,203,6,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(21,203,6,0,'com/sun/pisces/PiscesRenderer.drawImage')
+f(22,203,6,0,'com/sun/pisces/PiscesRenderer.drawImageImpl')
+f(23,203,6,4,'Java_com_sun_pisces_PiscesRenderer_drawImageImpl')
+f(24,203,6,4,'fillRect')
+f(25,204,5,4,'emitLinePTSourceOver8888_pre')
+f(17,209,17,0,'com/sun/javafx/sg/prism/NGNode.renderOpacity')
+f(18,210,10,0,'com/sun/javafx/sg/prism/NGRegion.renderContent')
+f(19,210,10,0,'com/sun/javafx/sg/prism/NGGroup.renderContent')
+f(20,210,10,0,'com/sun/javafx/sg/prism/NGNode.render')
+f(21,210,10,0,'com/sun/javafx/sg/prism/NGNode.doRender')
+f(22,210,10,0,'com/sun/javafx/sg/prism/NGRegion.renderContent')
+f(23,210,8,0,'com/sun/javafx/sg/prism/NGGroup.renderContent')
+f(24,210,8,0,'com/sun/javafx/sg/prism/NGNode.render')
+f(25,210,8,0,'com/sun/javafx/sg/prism/NGNode.doRender')
+f(26,210,3,0,'com/sun/javafx/sg/prism/NGRegion.renderContent')
+f(27,211,2,0,'com/sun/javafx/sg/prism/NGRegion.renderAsRectangle')
+f(28,211,2,0,'com/sun/javafx/sg/prism/NGRegion.renderBackgroundRectangle')
+f(29,211,2,0,'com/sun/javafx/sg/prism/NGRegion.renderBackgroundRectanglesDirectly')
+f(30,211,2,0,'com/sun/prism/sw/SWGraphics.fill')
+f(31,211,2,0,'com/sun/prism/sw/SWGraphics.paintShape')
+f(32,211,2,0,'com/sun/prism/sw/SWGraphics.paintShapePaintAlreadySet')
+f(33,211,2,0,'com/sun/prism/sw/SWContext.renderShape')
+f(34,211,2,0,'com/sun/prism/sw/SWContext$JavaShapeRenderer.renderShape')
+f(35,211,2,0,'com/sun/prism/impl/shape/OpenPiscesPrismUtils.setupRenderer')
+f(26,213,5,0,'com/sun/javafx/sg/prism/NGShape.renderContent')
+f(27,213,5,0,'com/sun/javafx/sg/prism/NGText.renderContent2D')
+f(28,213,4,0,'com/sun/javafx/sg/prism/NGText.renderText')
+f(29,213,4,0,'com/sun/prism/sw/SWGraphics.drawString')
+f(30,214,3,0,'com/sun/prism/sw/SWGraphics.drawGlyph')
+f(23,218,2,0,'com/sun/javafx/sg/prism/NGRegion.renderAsRectangle')
+f(24,218,2,0,'com/sun/javafx/sg/prism/NGRegion.renderBackgroundRectangle')
+f(18,220,5,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(19,220,5,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(20,220,5,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(21,220,5,0,'com/sun/prism/sw/SWGraphics.drawTexture')
+f(22,220,5,0,'com/sun/pisces/PiscesRenderer.drawImage')
+f(23,220,5,0,'com/sun/pisces/PiscesRenderer.drawImageImpl')
+f(24,220,5,4,'Java_com_sun_pisces_PiscesRenderer_drawImageImpl')
+f(25,220,5,4,'fillRect')
+f(26,220,3,4,'emitLinePTSourceOver8888_pre')
+f(26,223,2,4,'genTexturePaintMultiply')
+f(9,227,2,0,'java/nio/DirectIntBufferU.put')
+f(10,227,2,0,'java/nio/Bits.copyFromArray')
+f(11,227,2,0,'sun/misc/Unsafe.copyMemory')
+f(12,227,2,4,'acl_CopyRight')
+f(2,229,184,0,'java/util/concurrent/FutureTask.run')
+f(3,229,184,0,'javafx/concurrent/Task$TaskCallable.call')
+f(4,229,184,0,'demo/parallel/MandelbrotSetTask.call')
+f(5,229,184,0,'demo/parallel/MandelbrotSetTask.call')
+f(6,233,175,0,'java/util/stream/IntPipeline$Head.forEach')
+f(7,233,68,0,'java/util/stream/IntPipeline.forEach')
+f(8,233,68,0,'java/util/stream/AbstractPipeline.evaluate')
+f(9,233,68,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.evaluateParallel')
+f(10,233,68,0,'java/util/stream/ForEachOps$ForEachOp.evaluateParallel')
+f(11,233,68,0,'java/util/concurrent/ForkJoinTask.invoke')
+f(12,233,68,0,'java/util/concurrent/ForkJoinTask.doInvoke')
+f(13,233,25,0,'java/util/concurrent/ForkJoinTask.doExec')
+f(14,233,25,0,'java/util/concurrent/CountedCompleter.exec')
+f(15,233,25,0,'java/util/stream/ForEachOps$ForEachTask.compute')
+f(16,233,24,0,'java/util/stream/AbstractPipeline.copyInto')
+f(17,233,24,0,'java/util/Spliterator$OfInt.forEachRemaining')
+f(18,233,24,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(19,233,24,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.accept')
+f(20,233,24,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(21,233,24,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(22,234,2,3,'SharedRuntime::complete_monitor_locking_C(oopDesc*, BasicLock*, JavaThread*)')
+f(23,234,2,3,'ObjectMonitor::enter(Thread*)')
+f(24,234,2,3,'ObjectMonitor::TrySpin_VaryDuration(Thread*)')
+f(22,236,21,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(23,237,19,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(24,237,19,0,'demo/parallel/MandelbrotSetTask.calc')
+f(25,248,5,0,'demo/parallel/Complex.lengthSQ')
+f(25,253,3,0,'demo/parallel/Complex.plus')
+f(13,258,43,0,'java/util/concurrent/ForkJoinTask.externalAwaitDone')
+f(14,258,43,0,'java/util/concurrent/ForkJoinPool.externalHelpComplete')
+f(15,258,43,0,'java/util/concurrent/ForkJoinPool.helpComplete')
+f(16,258,14,0,'java/util/concurrent/ForkJoinPool$WorkQueue.pollAndExecCC')
+f(17,258,14,0,'java/util/concurrent/ForkJoinTask.doExec')
+f(18,258,14,0,'java/util/concurrent/CountedCompleter.exec')
+f(19,258,14,0,'java/util/stream/ForEachOps$ForEachTask.compute')
+f(20,258,14,0,'java/util/stream/AbstractPipeline.copyInto')
+f(21,258,14,0,'java/util/Spliterator$OfInt.forEachRemaining')
+f(22,258,14,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(23,258,14,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.accept')
+f(24,258,14,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(25,258,14,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(26,258,14,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(27,259,13,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(28,259,13,0,'demo/parallel/MandelbrotSetTask.calc')
+f(29,267,4,0,'demo/parallel/Complex.plus')
+f(16,272,29,0,'java/util/concurrent/ForkJoinTask.doExec')
+f(17,272,29,0,'java/util/concurrent/CountedCompleter.exec')
+f(18,272,29,0,'java/util/stream/ForEachOps$ForEachTask.compute')
+f(19,272,29,0,'java/util/stream/AbstractPipeline.copyInto')
+f(20,272,29,0,'java/util/Spliterator$OfInt.forEachRemaining')
+f(21,272,29,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(22,272,29,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.accept')
+f(23,272,29,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(24,272,29,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(25,273,28,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(26,274,27,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(27,274,27,0,'demo/parallel/MandelbrotSetTask.calc')
+f(28,287,3,0,'demo/parallel/Complex.lengthSQ')
+f(28,290,8,0,'demo/parallel/Complex.plus')
+f(28,298,3,0,'demo/parallel/Complex.times')
+f(7,301,107,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(8,301,107,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(9,301,107,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(10,301,105,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(11,309,97,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(12,312,94,0,'demo/parallel/MandelbrotSetTask.calc')
+f(13,357,23,0,'demo/parallel/Complex.lengthSQ')
+f(13,380,16,0,'demo/parallel/Complex.plus')
+f(13,396,10,0,'demo/parallel/Complex.times')
+f(6,408,5,0,'javafx/scene/image/WritableImage$2.setColor')
+f(7,408,3,0,'java/lang/Math.round')
+f(7,411,2,0,'javafx/scene/image/WritableImage$2.setArgb')
+f(8,411,2,0,'com/sun/prism/Image.setArgb')
+f(1,413,163,0,'java/util/concurrent/ForkJoinWorkerThread.run')
+f(2,413,163,0,'java/util/concurrent/ForkJoinPool.runWorker')
+f(3,413,163,0,'java/util/concurrent/ForkJoinPool$WorkQueue.runTask')
+f(4,413,38,0,'java/util/concurrent/ForkJoinPool$WorkQueue.execLocalTasks')
+f(5,413,38,0,'java/util/concurrent/ForkJoinTask.doExec')
+f(6,413,38,0,'java/util/concurrent/CountedCompleter.exec')
+f(7,413,38,0,'java/util/stream/ForEachOps$ForEachTask.compute')
+f(8,413,38,0,'java/util/stream/AbstractPipeline.copyInto')
+f(9,413,38,0,'java/util/Spliterator$OfInt.forEachRemaining')
+f(10,413,38,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(11,413,38,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.accept')
+f(12,413,38,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(13,413,38,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(14,415,32,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(15,421,26,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(16,424,22,0,'demo/parallel/MandelbrotSetTask.calc')
+f(17,432,7,0,'demo/parallel/Complex.lengthSQ')
+f(17,439,7,0,'demo/parallel/Complex.plus')
+f(14,447,4,0,'javafx/scene/image/WritableImage$2.setColor')
+f(15,448,3,0,'javafx/scene/image/WritableImage$2.setArgb')
+f(16,449,2,0,'javafx/scene/image/Image.getWritablePlatformImage')
+f(4,451,125,0,'java/util/concurrent/ForkJoinTask.doExec')
+f(5,451,125,0,'java/util/concurrent/CountedCompleter.exec')
+f(6,451,125,0,'java/util/stream/ForEachOps$ForEachTask.compute')
+f(7,452,124,0,'java/util/stream/AbstractPipeline.copyInto')
+f(8,452,124,0,'java/util/Spliterator$OfInt.forEachRemaining')
+f(9,452,124,0,'java/util/stream/Streams$RangeIntSpliterator.forEachRemaining')
+f(10,452,124,0,'java/util/stream/ForEachOps$ForEachOp$OfInt.accept')
+f(11,452,124,0,'demo/parallel/MandelbrotSetTask$$Lambda$99/105194951.accept')
+f(12,452,124,0,'demo/parallel/MandelbrotSetTask.lambda$call$19')
+f(13,454,119,0,'demo/parallel/MandelbrotSetTask.calcAntialiasedPixel')
+f(14,462,111,0,'demo/parallel/MandelbrotSetTask.calcPixel')
+f(15,464,109,0,'demo/parallel/MandelbrotSetTask.calc')
+f(16,504,39,0,'demo/parallel/Complex.lengthSQ')
+f(16,543,22,0,'demo/parallel/Complex.plus')
+f(16,565,8,0,'demo/parallel/Complex.times')
+f(13,573,3,0,'javafx/scene/image/WritableImage$2.setColor')
+f(1,576,65,4,'start_thread')
+f(2,576,65,4,'java_start(Thread*)')
+f(3,576,4,3,'GCTaskThread::run()')
+f(4,577,3,3,'OldToYoungRootsTask::do_it(GCTaskManager*, unsigned int)')
+f(5,577,3,3,'CardTableExtension::scavenge_contents_parallel(ObjectStartArray*, MutableSpace*, HeapWord*, PSPromotionManager*, unsigned int, unsigned int)')
+f(6,577,3,3,'PSPromotionManager::drain_stacks_depth(bool)')
+f(7,578,2,3,'oopDesc* PSPromotionManager::copy_to_survivor_space<false>(oopDesc*)')
+f(3,580,61,3,'JavaThread::run()')
+f(4,580,61,3,'JavaThread::thread_main_inner()')
+f(5,580,61,3,'CompileBroker::compiler_thread_loop()')
+f(6,580,58,3,'CompileBroker::invoke_compiler_on_method(CompileTask*)')
+f(7,580,58,3,'C2Compiler::compile_method(ciEnv*, ciMethod*, int)')
+f(8,580,58,3,'Compile::Compile(ciEnv*, C2Compiler*, ciMethod*, int, bool, bool, bool)')
+f(9,580,32,3,'Compile::Code_Gen()')
+f(10,582,3,3,'PhaseCFG::do_global_code_motion()')
+f(11,582,3,3,'PhaseCFG::global_code_motion()')
+f(10,585,27,3,'PhaseChaitin::Register_Allocate()')
+f(11,585,2,3,'PhaseChaitin::Select()')
+f(12,585,2,3,'PhaseIFG::re_insert(unsigned int)')
+f(11,589,9,3,'PhaseChaitin::build_ifg_physical(ResourceArea*)')
+f(12,592,3,3,'PhaseChaitin::interfere_with_live(unsigned int, IndexSet*)')
+f(12,596,2,3,'RegMask::smear_to_sets(int)')
+f(11,599,3,3,'PhaseChaitin::gather_lrg_masks(bool)')
+f(11,602,5,3,'PhaseChaitin::post_allocate_copy_removal()')
+f(12,604,2,3,'PhaseChaitin::elide_copy(Node*, int, Block*, Node_List&, Node_List&, bool)')
+f(11,609,2,3,'PhaseIFG::init(unsigned int)')
+f(12,609,2,3,'IndexSet::initialize(unsigned int)')
+f(9,613,15,3,'Compile::Optimize()')
+f(10,614,13,3,'PhaseIdealLoop::build_and_optimize(bool, bool)')
+f(11,617,2,3,'PhaseIdealLoop::build_loop_early(VectorSet&, Node_List&, Node_Stack&)')
+f(11,619,4,3,'PhaseIdealLoop::build_loop_late(VectorSet&, Node_List&, Node_Stack&)')
+f(11,625,2,3,'PhaseIterGVN::optimize()')
+f(12,625,2,3,'PhaseIterGVN::transform_old(Node*)')
+f(9,629,3,3,'ParseGenerator::generate(JVMState*)')
+f(10,629,3,3,'Parse::Parse(JVMState*, ciMethod*, float)')
+f(11,629,3,3,'Parse::do_all_blocks()')
+f(12,629,3,3,'Parse::do_one_block()')
+f(13,629,3,3,'Parse::do_one_bytecode()')
+f(14,629,3,3,'Parse::do_call()')
+f(15,630,2,3,'PredictedCallGenerator::generate(JVMState*)')
+f(16,630,2,3,'ParseGenerator::generate(JVMState*)')
+f(17,630,2,3,'Parse::Parse(JVMState*, ciMethod*, float)')
+f(18,630,2,3,'Parse::do_all_blocks()')
+f(19,630,2,3,'Parse::do_one_block()')
+f(20,630,2,3,'Parse::do_one_bytecode()')
+f(21,630,2,3,'Parse::do_call()')
+f(9,632,6,3,'ciEnv::register_method(ciMethod*, int, CodeOffsets*, int, CodeBuffer*, int, OopMapSet*, ExceptionHandlerTable*, ImplicitExceptionTable*, AbstractCompiler*, int, bool, bool, RTMState)')
+f(10,632,6,3,'nmethod::post_compiled_method_load_event()')
+f(11,632,6,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(12,632,6,2,'entry_SYSCALL_64_after_hwframe')
+f(13,632,6,2,'do_syscall_64')
+f(14,632,6,2,'__x64_sys_futex')
+f(15,632,6,2,'do_futex')
+f(16,632,6,2,'wake_up_q')
+f(17,632,6,2,'try_to_wake_up')
+f(18,632,6,2,'_raw_spin_unlock_irqrestore')
+f(6,638,3,3,'CompileQueue::get()')
+f(7,638,3,4,'pthread_cond_signal@@GLIBC_2.3.2')
+f(8,638,3,2,'entry_SYSCALL_64_after_hwframe')
+f(9,638,3,2,'do_syscall_64')
+f(10,638,3,2,'__x64_sys_futex')
+f(11,638,3,2,'do_futex')
+f(12,638,3,2,'wake_up_q')
+f(13,638,3,2,'try_to_wake_up')
+f(14,638,3,2,'_raw_spin_unlock_irqrestore')
+render();
+</script></body></html>

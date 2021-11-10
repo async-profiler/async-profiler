@@ -71,10 +71,6 @@ class StackFrame {
     // 0 = do not use stack snooping heuristics.
     static int callerLookupSlots();
 
-    // Check if PC looks like a valid return address (i.e. the previous instruction is a CALL).
-    // It's safe to return false to skip return address heuristics.
-    static bool isReturnAddress(instruction_t* pc);
-
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);
 };

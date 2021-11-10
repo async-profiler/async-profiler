@@ -30,62 +30,74 @@ const Error Error::OK(NULL);
 // Extra buffer space for expanding file pattern
 const size_t EXTRA_BUF_SIZE = 512;
 
-// Statically compute hash code of a string containing up to 12 [a-z] letters
-#define HASH(s)    (HASH12(s "            "))
+static const Multiplier NANOS[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {0, 0}};
+static const Multiplier BYTES[] = {{'b', 1}, {'k', 1024}, {'m', 1048576}, {'g', 1073741824}, {0, 0}};
+static const Multiplier SECONDS[] = {{'s', 1}, {'m', 60}, {'h', 3600}, {'d', 86400}, {0, 0}};
+static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {'b', 1}, {'k', 1024}, {'g', 1073741824}, {0, 0}};
 
-#define HASH12(s)  (s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
-                   (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
-                   (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55
+
+// Statically compute hash code of a string containing up to 12 [a-z] letters
+#define HASH(s)  ((s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
+                  (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
+                  (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55)
 
 // Simulate switch statement over string hashes
 #define SWITCH(arg)    long long arg_hash = hash(arg); if (0)
 
-#define CASE(s)        } else if (arg_hash == HASH(s)) {
-
-#define CASE2(s1, s2)  } else if (arg_hash == HASH(s1) || arg_hash == HASH(s2)) {
+#define CASE(s)        } else if (arg_hash == HASH(s "            ")) {
 
 
 // Parses agent arguments.
 // The format of the string is:
 //     arg[,arg...]
 // where arg is one of the following options:
-//     start           - start profiling
-//     resume          - start or resume profiling without resetting collected data
-//     stop            - stop profiling
-//     check           - check if the specified profiling event is available
-//     status          - print profiling status (inactive / running for X seconds)
-//     list            - show the list of available profiling events
-//     version[=full]  - display the agent version
-//     event=EVENT     - which event to trace (cpu, alloc, lock, cache-misses etc.)
-//     collapsed[=C]   - dump collapsed stacks (the format used by FlameGraph script)
-//     svg[=C]         - produce Flame Graph in SVG format
-//     tree[=C]        - produce call tree in HTML format
-//                       C is counter type: 'samples' or 'total'
-//     jfr             - dump events in Java Flight Recorder format
-//     summary         - dump profiling summary (number of collected samples of each type)
-//     traces[=N]      - dump top N call traces
-//     flat[=N]        - dump top N methods (aka flat profile)
-//     interval=N      - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
-//     jstackdepth=N   - maximum Java stack depth (default: 2048)
-//     framebuf=N      - size of the buffer for stack frames (default: 1'000'000)
-//     file=FILENAME   - output file name for dumping
-//     filter=FILTER   - thread filter
-//     threads         - profile different threads separately
-//     cstack=MODE     - how to collect C stack frames in addition to Java stack
-//                       MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
-//     allkernel       - include only kernel-mode events
-//     alluser         - include only user-mode events
-//     simple          - simple class names instead of FQN
-//     dot             - dotted class names
-//     sig             - print method signatures
-//     ann             - annotate Java method names
-//     include=PATTERN - include stack traces containing PATTERN
-//     exclude=PATTERN - exclude stack traces containing PATTERN
-//     title=TITLE     - FlameGraph title
-//     width=PX        - FlameGraph image width
-//     height=PX       - FlameGraph frame height
-//     minwidth=PX     - FlameGraph minimum frame width
-//     reverse         - generate stack-reversed FlameGraph / Call tree
+//     start            - start profiling
+//     resume           - start or resume profiling without resetting collected data
+//     stop             - stop profiling
+//     dump             - dump collected data without stopping profiling session
+//     check            - check if the specified profiling event is available
+//     status           - print profiling status (inactive / running for X seconds)
+//     list             - show the list of available profiling events
+//     version[=full]   - display the agent version
+//     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
+//     alloc[=BYTES]    - profile allocations with BYTES interval
+//     lock[=DURATION]  - profile contended locks longer than DURATION ns
+//     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
+//     flamegraph       - produce Flame Graph in HTML format
+//     tree             - produce call tree in HTML format
+//     jfr              - dump events in Java Flight Recorder format
+//     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler 
+//     traces[=N]       - dump top N call traces
+//     flat[=N]         - dump top N methods (aka flat profile)
+//     samples          - count the number of samples (default)
+//     total            - count the total value (time, bytes, etc.) instead of samples
+//     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
+//     chunktime=N      - duration of JFR chunk in seconds (default: 1 hour)
+//     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
+//     jstackdepth=N    - maximum Java stack depth (default: 2048)
+//     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
+//     file=FILENAME    - output file name for dumping
+//     log=FILENAME     - log warnings and errors to the given dedicated stream
+//     filter=FILTER    - thread filter
+//     threads          - profile different threads separately
+//     sched            - group threads by scheduling policy
+//     cstack=MODE      - how to collect C stack frames in addition to Java stack
+//                        MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
+//     allkernel        - include only kernel-mode events
+//     alluser          - include only user-mode events
+//     fdtransfer       - use fdtransfer to pass fds to the profiler
+//     simple           - simple class names instead of FQN
+//     dot              - dotted class names
+//     sig              - print method signatures
+//     ann              - annotate Java method names
+//     lib              - prepend library names
+//     include=PATTERN  - include stack traces containing PATTERN
+//     exclude=PATTERN  - exclude stack traces containing PATTERN
+//     begin=FUNCTION   - begin profiling when FUNCTION is executed
+//     end=FUNCTION     - end profiling when FUNCTION is executed
+//     title=TITLE      - FlameGraph title
+//     minwidth=PCT     - FlameGraph minimum frame width in percent
+//     reverse          - generate stack-reversed FlameGraph / Call tree
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -102,6 +114,8 @@ Error Arguments::parse(const char* args) {
     }
     strcpy(_buf, args);
 
+    const char* msg = NULL;    
+
     for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
         if (value != NULL) *value++ = 0;
@@ -117,6 +131,9 @@ Error Arguments::parse(const char* args) {
             CASE("stop")
                 _action = ACTION_STOP;
 
+            CASE("dump")
+                _action = ACTION_DUMP;
+
             CASE("check")
                 _action = ACTION_CHECK;
 
@@ -130,23 +147,25 @@ Error Arguments::parse(const char* args) {
                 _action = value == NULL ? ACTION_VERSION : ACTION_FULL_VERSION;
 
             // Output formats
-            CASE2("collapsed", "folded")
+            CASE("collapsed")
                 _output = OUTPUT_COLLAPSED;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
-            CASE2("flamegraph", "svg")
+            CASE("flamegraph")
                 _output = OUTPUT_FLAMEGRAPH;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
             CASE("tree")
                 _output = OUTPUT_TREE;
-                _counter = value == NULL || strcmp(value, "samples") == 0 ? COUNTER_SAMPLES : COUNTER_TOTAL;
 
             CASE("jfr")
                 _output = OUTPUT_JFR;
+                if (value != NULL) {
+                    _jfr_options = (int)strtol(value, NULL, 0);
+                }
 
-            CASE("summary")
-                _output = OUTPUT_TEXT;
+            CASE("jfrsync")
+                _output = OUTPUT_JFR;
+                _jfr_options = JFR_SYNC_OPTS;
+                _jfr_sync = value == NULL ? "default" : value;
 
             CASE("traces")
                 _output = OUTPUT_TEXT;
@@ -156,33 +175,73 @@ Error Arguments::parse(const char* args) {
                 _output = OUTPUT_TEXT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
+            CASE("samples")
+                _counter = COUNTER_SAMPLES;
+
+            CASE("total")
+                _counter = COUNTER_TOTAL;
+
+            CASE("chunksize")
+                if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
+                    msg = "Invalid chunksize";
+                }
+            
+            CASE("chunktime")
+                if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
+                    msg = "Invalid chunktime";
+                }
+            
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
-                    return Error("event must not be empty");
+                    msg = "event must not be empty";
+                } else if (strcmp(value, EVENT_ALLOC) == 0) {
+                    if (_alloc <= 0) _alloc = 1;
+                } else if (strcmp(value, EVENT_LOCK) == 0) {
+                    if (_lock <= 0) _lock = 1;
+                } else if (_event != NULL) {
+                    msg = "Duplicate event argument";
+                } else {
+                    _event = value;
                 }
-                _event = value;
+
+            CASE("alloc")
+                _alloc = value == NULL ? 1 : parseUnits(value, BYTES);
+                if (_alloc < 0) {
+                    msg = "alloc must be >= 0";
+                }
+
+            CASE("lock")
+                _lock = value == NULL ? 1 : parseUnits(value, NANOS);
+                if (_lock < 0) {
+                    msg = "lock must be >= 0";
+                }
 
             CASE("interval")
-                if (value == NULL || (_interval = parseUnits(value)) <= 0) {
-                    return Error("interval must be > 0");
+                if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
+                    msg = "Invalid interval";
                 }
 
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
-                    return Error("jstackdepth must be > 0");
+                    msg = "jstackdepth must be > 0";
                 }
 
-            CASE("framebuf")
-                if (value == NULL || (_framebuf = atoi(value)) <= 0) {
-                    return Error("framebuf must be > 0");
-                }
+            CASE("safemode")
+                _safe_mode = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {
-                    return Error("file must not be empty");
+                    msg = "file must not be empty";
                 }
                 _file = value;
+
+            CASE("log")
+                _log = value == NULL || value[0] == 0 ? NULL : value;
+
+            CASE("fdtransfer")
+                _fdtransfer = true;
+                _fdtransfer_path = value;
 
             // Filters
             CASE("filter")
@@ -196,6 +255,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("threads")
                 _threads = true;
+
+            CASE("sched")
+                _sched = true;
 
             CASE("allkernel")
                 _ring = RING_KERNEL;
@@ -227,15 +289,18 @@ Error Arguments::parse(const char* args) {
             CASE("ann")
                 _style |= STYLE_ANNOTATE;
 
+            CASE("lib")
+                _style |= STYLE_LIB_NAMES;
+
+            CASE("begin")
+                _begin = value;
+
+            CASE("end")
+                _end = value;
+
             // FlameGraph options
             CASE("title")
-                if (value != NULL) _title = value;
-
-            CASE("width")
-                if (value != NULL) _width = atoi(value);
-
-            CASE("height")
-                if (value != NULL) _height = atoi(value);
+                _title = value;
 
             CASE("minwidth")
                 if (value != NULL) _minwidth = atof(value);
@@ -245,17 +310,29 @@ Error Arguments::parse(const char* args) {
         }
     }
 
+    // Return error only after parsing all arguments, when 'log' is already set
+    if (msg != NULL) {
+        return Error(msg);
+    }
+
+    if (_event == NULL && _alloc == 0 && _lock == 0) {
+        _event = EVENT_CPU;
+    }
+
     if (_file != NULL && strchr(_file, '%') != NULL) {
         _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
     }
 
     if (_file != NULL && _output == OUTPUT_NONE) {
         _output = detectOutputFormat(_file);
-        _dump_traces = 200;
+        if (_output == OUTPUT_SVG) {
+            return Error("SVG format is obsolete, use .html for FlameGraph");
+        }
+        _dump_traces = 100;
         _dump_flat = 200;
     }
 
-    if (_output != OUTPUT_NONE && (_action == ACTION_NONE || _action == ACTION_STOP)) {
+    if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
     }
 
@@ -312,45 +389,46 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
 Output Arguments::detectOutputFormat(const char* file) {
     const char* ext = strrchr(file, '.');
     if (ext != NULL) {
-        if (strcmp(ext, ".svg") == 0) {
+        if (strcmp(ext, ".html") == 0) {
             return OUTPUT_FLAMEGRAPH;
-        } else if (strcmp(ext, ".html") == 0) {
-            return OUTPUT_TREE;
         } else if (strcmp(ext, ".jfr") == 0) {
             return OUTPUT_JFR;
         } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
             return OUTPUT_COLLAPSED;
+        } else if (strcmp(ext, ".svg") == 0) {
+            return OUTPUT_SVG;
         }
     }
     return OUTPUT_TEXT;
 }
 
-long Arguments::parseUnits(const char* str) {
+long Arguments::parseUnits(const char* str, const Multiplier* multipliers) {
     char* end;
     long result = strtol(str, &end, 0);
 
-    if (*end) {
-        switch (*end) {
-            case 'K': case 'k':
-            case 'U': case 'u': // microseconds
-                return result * 1000;
-            case 'M': case 'm': // million, megabytes or milliseconds
-                return result * 1000000;
-            case 'G': case 'g':
-            case 'S': case 's': // seconds
-                return result * 1000000000;
+    char c = *end;
+    if (c == 0) {
+        return result;
+    }
+    if (c >= 'A' && c <= 'Z') {
+        c += 'a' - 'A';
+    }
+
+    for (const Multiplier* m = multipliers; m->symbol; m++) {
+        if (c == m->symbol) {
+            return result * m->multiplier;
         }
     }
 
-    return result;
+    return -1;
 }
 
 Arguments::~Arguments() {
-    free(_buf);
+    if (!_shared) free(_buf);
 }
 
 void Arguments::save(Arguments& other) {
-    free(_buf);
+    if (!_shared) free(_buf);
     *this = other;
-    other._buf = NULL;
+    other._shared = true;
 }

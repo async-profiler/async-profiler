@@ -40,15 +40,14 @@ class WallClock : public Engine {
     }
 
     static ThreadState getThreadState(void* ucontext);
+
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void wakeupHandler(int signo);
 
     static long adjustInterval(long interval, int thread_count);
-    static void sleep(long interval);
 
   public:
-    const char* name() {
-        return _sample_idle_threads ? EVENT_WALL : EVENT_CPU;
+    const char* title() {
+        return _sample_idle_threads ? "Wall clock profile" : "CPU profile";
     }
 
     const char* units() {

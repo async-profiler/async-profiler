@@ -31,12 +31,15 @@
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
 #include "arch.h"
+#include "log.h"
 #include "os.h"
 #include "perfEvents.h"
+#include "fdtransferClient.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
 #include "symbols.h"
+#include "vmStructs.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -59,7 +62,18 @@ enum {
 };
 
 
-static const unsigned long PERF_PAGE_SIZE = sysconf(_SC_PAGESIZE);
+static int fetchInt(const char* file_name) {
+    int fd = open(file_name, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    char num[16] = "0";
+    ssize_t r = read(fd, num, sizeof(num) - 1);
+    (void) r;
+    close(fd);
+    return atoi(num);
+}
 
 // Get perf_event_attr.config numeric value of the given tracepoint name
 // by reading /sys/kernel/debug/tracing/events/<name>/id file
@@ -71,16 +85,66 @@ static int findTracepointId(const char* name) {
 
     *strchr(buf, ':') = '/';  // make path from event name
 
-    int fd = open(buf, O_RDONLY);
-    if (fd == -1) {
+    return fetchInt(buf);
+}
+
+// Get perf_event_attr.type for the given event source
+// by reading /sys/bus/event_source/devices/<name>/type
+static int findDeviceType(const char* name) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/type", name) >= sizeof(buf)) {
         return 0;
     }
+    return fetchInt(buf);
+}
 
-    char id[16] = "0";
-    ssize_t r = read(fd, id, sizeof(id) - 1);
-    (void) r;
+// Convert pmu/event-name/ to pmu/param1=N,param2=M/
+static void resolvePmuEventName(const char* device, char* event, size_t size) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/events/%s", device, event) >= sizeof(buf)) {
+        return;
+    }
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return;
+    }
+
+    ssize_t r = read(fd, event, size);
+    if (r > 0 && (r == size || event[r - 1] == '\n')) {
+        event[r - 1] = 0;
+    }
     close(fd);
-    return atoi(id);
+}
+
+// Set a PMU parameter (such as umask) to the corresponding config field
+static bool setPmuConfig(const char* device, const char* param, __u64* config, __u64 val) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/bus/event_source/devices/%s/format/%s", device, param) >= sizeof(buf)) {
+        return false;
+    }
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return false;
+    }
+
+    ssize_t r = read(fd, buf, sizeof(buf));
+    close(fd);
+
+    if (r > 0 && r < sizeof(buf)) {
+        if (strncmp(buf, "config:", 7) == 0) {
+            config[0] |= val << atoi(buf + 7);
+            return true;
+        } else if (strncmp(buf, "config1:", 8) == 0) {
+            config[1] |= val << atoi(buf + 8);
+            return true;
+        } else if (strncmp(buf, "config2:", 8) == 0) {
+            config[2] |= val << atoi(buf + 8);
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -94,12 +158,24 @@ struct PerfEventType {
     long default_interval;
     __u32 type;
     __u64 config;
-    __u32 bp_type;
-    __u32 bp_len;
+    __u64 config1;
+    __u64 config2;
     int counter_arg;
+
+    enum {
+        IDX_PREDEFINED = 12,
+        IDX_RAW,
+        IDX_PMU,
+        IDX_BREAKPOINT,
+        IDX_TRACEPOINT,
+        IDX_KPROBE,
+        IDX_UPROBE,
+    };
 
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
+
+    static char probe_func[256];
 
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size
@@ -112,38 +188,22 @@ struct PerfEventType {
         return 0;
     }
 
-    static void mangle(char* name, char* buf, size_t size) {
-        char* buf_end = buf + size;
-        strcpy(buf, "_ZN");
-        buf += 3;
-
-        for (char* c; (c = strstr(name, "::")) != NULL && buf < buf_end; name = c + 2) {
-            *c = 0;
-            buf += snprintf(buf, buf_end - buf, "%d%s", (int)strlen(name), name);
-        }
-
-        if (buf < buf_end) {
-            snprintf(buf, buf_end - buf, "%d%sE", (int)strlen(name), name);
-        }
-        buf_end[-1] = 0;
-    }
-
-    static PerfEventType* findByType(__u32 type) {
-        for (PerfEventType* event = AVAILABLE_EVENTS; ; event++) {
-            if (event->type == type) {
-                return event;
-            }
-        }
-    }
-
-    // Breakpoint format: func[+offset][/len][:rwx]
+    // Breakpoint format: func[+offset][/len][:rwx][{arg}]
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
         strncpy(buf, name, sizeof(buf) - 1);
         buf[sizeof(buf) - 1] = 0;
 
+        // Parse counter arg [{arg}]
+        int counter_arg = 0;
+        char* c = strrchr(buf, '{');
+        if (c != NULL && c[1] >= '1' && c[1] <= '9') {
+            *c++ = 0;
+            counter_arg = atoi(c);
+        }
+
         // Parse access type [:rwx]
-        char* c = strrchr(buf, ':');
+        c = strrchr(buf, ':');
         if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
             if (strcmp(c, "r") == 0) {
@@ -177,20 +237,14 @@ struct PerfEventType {
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
             addr = (__u64)strtoll(buf, NULL, 0);
-        } else if (strstr(buf, "::") != NULL) {
-            char mangled_name[256];
-            mangle(buf, mangled_name, sizeof(mangled_name));
-            addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(mangled_name);
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
-                size_t len = strlen(buf);
-                if (len > 0 && buf[len - 1] == '*') {
-                    buf[len - 1] = 0;
-                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbolByPrefix(buf);
-                } else {
-                    addr = (__u64)(uintptr_t)Profiler::_instance.findSymbol(buf);
-                }
+                addr = (__u64)(uintptr_t)Profiler::instance()->resolveSymbol(buf);
+            }
+            if (c == NULL) {
+                // If offset is not specified explicitly, add the default breakpoint offset
+                offset = BREAKPOINT_OFFSET;
             }
         }
 
@@ -198,21 +252,113 @@ struct PerfEventType {
             return NULL;
         }
 
-        PerfEventType* breakpoint = findByType(PERF_TYPE_BREAKPOINT);
-        breakpoint->config = addr + offset;
-        breakpoint->bp_type = bp_type;
-        breakpoint->bp_len = bp_len;
-        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X ? findCounterArg(buf) : 0;
+        PerfEventType* breakpoint = &AVAILABLE_EVENTS[IDX_BREAKPOINT];
+        breakpoint->config = bp_type;
+        breakpoint->config1 = addr + offset;
+        breakpoint->config2 = bp_len;
+        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X && counter_arg == 0 ? findCounterArg(buf) : counter_arg;
         return breakpoint;
     }
 
     static PerfEventType* getTracepoint(int tracepoint_id) {
-        PerfEventType* tracepoint = findByType(PERF_TYPE_TRACEPOINT);
+        PerfEventType* tracepoint = &AVAILABLE_EVENTS[IDX_TRACEPOINT];
         tracepoint->config = tracepoint_id;
         return tracepoint;
     }
 
+    static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
+        strncpy(probe_func, name, sizeof(probe_func) - 1);
+        probe_func[sizeof(probe_func) - 1] = 0;
+
+        if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
+            return NULL;
+        }
+
+        long long offset = 0;
+        char* c = strrchr(probe_func, '+');
+        if (c != NULL) {
+            *c++ = 0;
+            offset = strtoll(c, NULL, 0);
+        }
+
+        probe->config = ret;
+        probe->config1 = (__u64)(uintptr_t)probe_func;
+        probe->config2 = offset;
+        return probe;
+    }
+
+    static PerfEventType* getRawEvent(__u64 config) {
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_RAW];
+        raw->config = config;
+        return raw;
+    }
+
+    static PerfEventType* getPmuEvent(const char* name) {
+        char buf[256];
+        strncpy(buf, name, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = 0;
+
+        char* descriptor = strchr(buf, '/');
+        *descriptor++ = 0;
+        descriptor[strlen(descriptor) - 1] = 0;
+
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_PMU];
+        if ((raw->type = findDeviceType(buf)) == 0) {
+            return NULL;
+        }
+
+        // pmu/rNNN/
+        if (descriptor[0] == 'r' && descriptor[1] >= '0') {
+            char* end;
+            raw->config = strtoull(descriptor + 1, &end, 16);
+            if (*end == 0) {
+                return raw;
+            }
+        }
+
+        // Resolve event name to the list of parameters
+        resolvePmuEventName(buf, descriptor, sizeof(buf) - (descriptor - buf));
+
+        raw->config = 0;
+        raw->config1 = 0;
+        raw->config2 = 0;
+
+        // Parse parameters
+        while (descriptor != NULL && descriptor[0]) {
+            char* p = descriptor;
+            if ((descriptor = strchr(p, ',')) != NULL || (descriptor = strchr(p, ':')) != NULL) {
+                *descriptor++ = 0;
+            }
+
+            __u64 val = 1;
+            char* eq = strchr(p, '=');
+            if (eq != NULL) {
+                *eq++ = 0;
+                val = strtoull(eq, NULL, 0);
+            }
+
+            if (strcmp(p, "config") == 0) {
+                raw->config = val;
+            } else if (strcmp(p, "config1") == 0) {
+                raw->config1 = val;
+            } else if (strcmp(p, "config2") == 0) {
+                raw->config2 = val;
+            } else if (!setPmuConfig(buf, p, &raw->config, val)) {
+                return NULL;
+            }
+        }
+
+        return raw;
+    }
+
     static PerfEventType* forName(const char* name) {
+        // Look through the table of predefined perf events
+        for (int i = 0; i < IDX_PREDEFINED; i++) {
+            if (strcmp(name, AVAILABLE_EVENTS[i].name) == 0) {
+                return &AVAILABLE_EVENTS[i];
+            }
+        }
+
         // Hardware breakpoint
         if (strncmp(name, "mem:", 4) == 0) {
             return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
@@ -224,16 +370,38 @@ struct PerfEventType {
             return tracepoint_id > 0 ? getTracepoint(tracepoint_id) : NULL;
         }
 
-        // Look through the table of predefined perf events
-        for (PerfEventType* event = AVAILABLE_EVENTS; event->name != NULL; event++) {
-            if (strcmp(name, event->name) == 0) {
-                return event;
+        // kprobe or uprobe
+        if (strncmp(name, "kprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 7, 0);
+        }
+        if (strncmp(name, "uprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 7, 0);
+        }
+        if (strncmp(name, "kretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 10, 1);
+        }
+        if (strncmp(name, "uretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 10, 1);
+        }
+
+        // Raw PMU register: rNNN
+        if (name[0] == 'r' && name[1] >= '0') {
+            char* end;
+            __u64 reg = strtoull(name + 1, &end, 16);
+            if (*end == 0) {
+                return getRawEvent(reg);
             }
         }
 
+        // Raw perf event descriptor: pmu/event-descriptor/
+        const char* s = strchr(name, '/');
+        if (s > name && s[1] != 0 && s[strlen(s) - 1] == '/') {
+            return getPmuEvent(name);
+        }
+
         // Kernel tracepoints defined in debugfs
-        const char* c = strchr(name, ':');
-        if (c != NULL && c[1] != ':') {
+        s = strchr(name, ':');
+        if (s != NULL && s[1] != ':') {
             int tracepoint_id = findTracepointId(name);
             if (tracepoint_id > 0) {
                 return getTracepoint(tracepoint_id);
@@ -258,7 +426,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
     {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
     {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
-    {"branches",              1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
     {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
     {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
 
@@ -266,15 +434,20 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
     {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
-    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0},
-    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0},
+    {"rNNN",                     1000, PERF_TYPE_RAW, 0}, /* IDX_RAW */
+    {"pmu/event-descriptor/",    1000, PERF_TYPE_RAW, 0}, /* IDX_PMU */
 
-    {NULL}
+    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
+    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0}, /* IDX_TRACEPOINT */
+
+    {"kprobe:func",                 1, 0, 0}, /* IDX_KPROBE */
+    {"uprobe:path",                 1, 0, 0}, /* IDX_UPROBE */
 };
 
 FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {"malloc",   1},
     {"mmap",     2},
+    {"munmap",   2},
     {"read",     3},
     {"write",    3},
     {"send",     3},
@@ -284,6 +457,8 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {NULL}
 };
 
+char PerfEventType::probe_func[256];
+
 
 class RingBuffer {
   private:
@@ -292,21 +467,21 @@ class RingBuffer {
 
   public:
     RingBuffer(struct perf_event_mmap_page* page) {
-        _start = (const char*)page + PERF_PAGE_SIZE;
+        _start = (const char*)page + OS::page_size;
     }
 
     struct perf_event_header* seek(u64 offset) {
-        _offset = (unsigned long)offset & (PERF_PAGE_SIZE - 1);
+        _offset = (unsigned long)offset & OS::page_mask;
         return (struct perf_event_header*)(_start + _offset);
     }
 
     u64 next() {
-        _offset = (_offset + sizeof(u64)) & (PERF_PAGE_SIZE - 1);
+        _offset = (_offset + sizeof(u64)) & OS::page_mask;
         return *(u64*)(_start + _offset);
     }
 
     u64 peek(unsigned long words) {
-        unsigned long peek_offset = (_offset + words * sizeof(u64)) & (PERF_PAGE_SIZE - 1);
+        unsigned long peek_offset = (_offset + words * sizeof(u64)) & OS::page_mask;
         return *(u64*)(_start + peek_offset);
     }
 };
@@ -327,17 +502,16 @@ PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
-bool PerfEvents::_print_extended_warning;
 
-bool PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
-        fprintf(stderr, "WARNING: tid[%d] > pid_max[%d]. Restart profiler after changing pid_max\n", tid, _max_events);
-        return false;
+        Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
+        return -1;
     }
 
     PerfEventType* event_type = _event_type;
     if (event_type == NULL) {
-        return false;
+        return -1;
     }
 
     struct perf_event_attr attr = {0};
@@ -345,12 +519,12 @@ bool PerfEvents::createForThread(int tid) {
     attr.type = event_type->type;
 
     if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_addr = event_type->config;
-        attr.bp_type = event_type->bp_type;
-        attr.bp_len = event_type->bp_len;
+        attr.bp_type = event_type->config;
     } else {
         attr.config = event_type->config;
     }
+    attr.config1 = event_type->config1;
+    attr.config2 = event_type->config2;
 
     // Hardware events may not always support zero skid
     if (attr.type == PERF_TYPE_SOFTWARE) {
@@ -379,27 +553,28 @@ bool PerfEvents::createForThread(int tid) {
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
 
-    int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+    int fd;
+    if (FdTransferClient::hasPeer()) {
+        fd = FdTransferClient::requestPerfFd(&tid, &attr);
+    } else {
+        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+    }
+
     if (fd == -1) {
         int err = errno;
-        perror("perf_event_open failed");
-        if (err == EACCES && _print_extended_warning) {
-            fprintf(stderr, "Due to permission restrictions, you cannot collect kernel events.\n"
-                            "Try with --all-user option, or 'echo 1 > /proc/sys/kernel/perf_event_paranoid'\n");
-            _print_extended_warning = false;
-        }
-        return false;
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        return err;
     }
 
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
         // Lost race. The event is created either from start() or from onThreadStart()
         close(fd);
-        return false;
+        return -1;
     }
 
-    void* page = mmap(NULL, 2 * PERF_PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (page == MAP_FAILED) {
-        perror("perf_event mmap failed");
+        Log::warn("perf_event mmap failed: %s", strerror(errno));
         page = NULL;
     }
 
@@ -417,7 +592,7 @@ bool PerfEvents::createForThread(int tid) {
     ioctl(fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
 
-    return true;
+    return 0;
 }
 
 void PerfEvents::destroyForThread(int tid) {
@@ -433,7 +608,7 @@ void PerfEvents::destroyForThread(int tid) {
     }
     if (event->_page != NULL) {
         event->lock();
-        munmap(event->_page, 2 * PERF_PAGE_SIZE);
+        munmap(event->_page, 2 * OS::page_size);
         event->_page = NULL;
         event->unlock();
     }
@@ -445,38 +620,49 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    u64 counter;
-    switch (_event_type->counter_arg) {
-        case 1: counter = StackFrame(ucontext).arg0(); break;
-        case 2: counter = StackFrame(ucontext).arg1(); break;
-        case 3: counter = StackFrame(ucontext).arg2(); break;
-        case 4: counter = StackFrame(ucontext).arg3(); break;
-        default:
-            if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
-                counter = 1;
-            }
+    if (_enabled) {
+        u64 counter;
+        switch (_event_type->counter_arg) {
+            case 1: counter = StackFrame(ucontext).arg0(); break;
+            case 2: counter = StackFrame(ucontext).arg1(); break;
+            case 3: counter = StackFrame(ucontext).arg2(); break;
+            case 4: counter = StackFrame(ucontext).arg3(); break;
+            default:
+                if (read(siginfo->si_fd, &counter, sizeof(counter)) != sizeof(counter)) {
+                    counter = 1;
+                }
+        }
+
+        ExecutionEvent event;
+        Profiler::instance()->recordSample(ucontext, counter, 0, &event);
+    } else {
+        resetBuffer(OS::threadId());
     }
 
-    Profiler::_instance.recordSample(ucontext, counter, 0, NULL);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);
 }
 
-const char* PerfEvents::units() {
+const char* PerfEvents::title() {
     if (_event_type == NULL || _event_type->name == EVENT_CPU) {
-        return "ns";
-    } else if (_event_type->type == PERF_TYPE_BREAKPOINT || _event_type->type == PERF_TYPE_TRACEPOINT) {
-        return "events";
+        return "CPU profile";
+    } else if (_event_type->type == PERF_TYPE_SOFTWARE || _event_type->type == PERF_TYPE_HARDWARE || _event_type->type == PERF_TYPE_HW_CACHE) {
+        return _event_type->name;
+    } else {
+        return "Flame Graph";
     }
+}
 
-    const char* dash = strrchr(_event_type->name, '-');
-    return dash != NULL ? dash + 1 : _event_type->name;
+const char* PerfEvents::units() {
+    return _event_type == NULL || _event_type->name == EVENT_CPU ? "ns" : "total";
 }
 
 Error PerfEvents::check(Arguments& args) {
     PerfEventType* event_type = PerfEventType::forName(args._event);
     if (event_type == NULL) {
         return Error("Unsupported event type");
+    } else if (event_type->counter_arg > 4) {
+        return Error("Only arguments 1-4 can be counted");
     }
 
     struct perf_event_attr attr = {0};
@@ -484,21 +670,24 @@ Error PerfEvents::check(Arguments& args) {
     attr.type = event_type->type;
 
     if (attr.type == PERF_TYPE_BREAKPOINT) {
-        attr.bp_addr = event_type->config;
-        attr.bp_type = event_type->bp_type;
-        attr.bp_len = event_type->bp_len;
+        attr.bp_type = event_type->config;
     } else {
         attr.config = event_type->config;
     }
+    attr.config1 = event_type->config1;
+    attr.config2 = event_type->config2;
 
     attr.sample_period = event_type->default_interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
 
-    if (args._ring == RING_USER || !Symbols::haveKernelSymbols()) {
+    if (args._ring == RING_USER) {
         attr.exclude_kernel = 1;
     } else if (args._ring == RING_KERNEL) {
         attr.exclude_user = 1;
+    } else if (!Symbols::haveKernelSymbols()) {
+        Profiler::instance()->updateSymbols(true);
+        attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
 #ifdef PERF_ATTR_SIZE_VER5
@@ -523,6 +712,8 @@ Error PerfEvents::start(Arguments& args) {
     _event_type = PerfEventType::forName(args._event);
     if (_event_type == NULL) {
         return Error("Unsupported event type");
+    } else if (_event_type->counter_arg > 4) {
+        return Error("Only arguments 1-4 can be counted");
     }
 
     if (args._interval < 0) {
@@ -532,13 +723,12 @@ Error PerfEvents::start(Arguments& args) {
 
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
-        fprintf(stderr, "WARNING: Kernel symbols are unavailable due to restrictions. Try\n"
-                        "  echo 0 > /proc/sys/kernel/kptr_restrict\n"
-                        "  echo 1 > /proc/sys/kernel/perf_event_paranoid\n");
+        Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
+                  "  sysctl kernel.kptr_restrict=0\n"
+                  "  sysctl kernel.perf_event_paranoid=1");
         _ring = RING_USER;
     }
     _cstack = args._cstack;
-    _print_extended_warning = _ring != RING_USER;
 
     int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
@@ -550,19 +740,26 @@ Error PerfEvents::start(Arguments& args) {
     OS::installSignalHandler(SIGPROF, signalHandler);
 
     // Enable thread events before traversing currently running threads
-    Profiler::_instance.switchThreadEvents(JVMTI_ENABLE);
+    Profiler::instance()->switchThreadEvents(JVMTI_ENABLE);
 
     // Create perf_events for all existing threads
+    int err;
     bool created = false;
     ThreadList* thread_list = OS::listThreads();
     for (int tid; (tid = thread_list->next()) != -1; ) {
-        created |= createForThread(tid);
+        if ((err = createForThread(tid)) == 0) {
+            created = true;
+        }
     }
     delete thread_list;
 
     if (!created) {
-        Profiler::_instance.switchThreadEvents(JVMTI_DISABLE);
-        return Error("Perf events unavailable. See stderr of the target process.");
+        Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
+        if (err == EACCES || err == EPERM) {
+            return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
+        } else {
+            return Error("Perf events unavailable");
+        }
     }
     return Error::OK;
 }
@@ -573,12 +770,7 @@ void PerfEvents::stop() {
     }
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs) {
-    if (max_depth <= 0) {
-        return 0;
-    }
-
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -602,11 +794,11 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
-                        callchain[depth++] = iptr;
-                        if (java_methods->contains(iptr) || runtime_stubs->contains(iptr) || depth >= max_depth) {
+                        if (CodeHeap::contains(iptr) || depth >= max_depth) {
                             // Stop at the first Java frame
                             goto stack_complete;
                         }
+                        callchain[depth++] = iptr;
                     }
                 }
 
@@ -615,25 +807,25 @@ int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, 
 
                     // Last userspace PC is stored right after branch stack
                     const void* pc = (const void*)ring.peek(bnr * 3 + 2);
-                    callchain[depth++] = pc;
-                    if (java_methods->contains(pc) || runtime_stubs->contains(pc) || depth >= max_depth) {
+                    if (CodeHeap::contains(pc) || depth >= max_depth) {
                         goto stack_complete;
                     }
+                    callchain[depth++] = pc;
 
                     while (bnr-- > 0) {
                         const void* from = (const void*)ring.next();
                         const void* to = (const void*)ring.next();
                         ring.next();
 
+                        if (CodeHeap::contains(to) || depth >= max_depth) {
+                            goto stack_complete;
+                        }
                         callchain[depth++] = to;
-                        if (java_methods->contains(to) || runtime_stubs->contains(to) || depth >= max_depth) {
-                            goto stack_complete;
-                        }
 
-                        callchain[depth++] = from;
-                        if (java_methods->contains(from) || runtime_stubs->contains(from) || depth >= max_depth) {
+                        if (CodeHeap::contains(from) || depth >= max_depth) {
                             goto stack_complete;
                         }
+                        callchain[depth++] = from;
                     }
                 }
 
@@ -648,6 +840,22 @@ stack_complete:
 
     event->unlock();
     return depth;
+}
+
+void PerfEvents::resetBuffer(int tid) {
+    PerfEvent* event = &_events[tid];
+    if (!event->tryLock()) {
+        return;  // the event is being destroyed
+    }
+
+    struct perf_event_mmap_page* page = event->_page;
+    if (page != NULL) {
+        u64 head = page->data_head;
+        rmb();
+        page->data_tail = head;
+    }
+
+    event->unlock();
 }
 
 bool PerfEvents::supported() {

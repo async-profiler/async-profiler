@@ -20,14 +20,22 @@
 #include <jvmti.h>
 
 
+#if __GNUC__ == 4
+#  undef JNIEXPORT
+#  define JNIEXPORT __attribute__((visibility("default")))
+#endif
+
+
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
-    BCI_NATIVE_FRAME        = -10,  // method_id is native function name (char*)
-    BCI_SYMBOL              = -11,  // method_id is VMSymbol*
-    BCI_SYMBOL_OUTSIDE_TLAB = -12,  // VMSymbol* specifically for allocations outside TLAB
-    BCI_THREAD_ID           = -13,  // method_id designates a thread
-    BCI_ERROR               = -14,  // method_id is error string
-    BCI_INSTRUMENT          = -15,  // synthetic method_id that should not appear in the call stack
+    BCI_NATIVE_FRAME        = -10,  // native function name (char*)
+    BCI_ALLOC               = -11,  // name of the allocated class
+    BCI_ALLOC_OUTSIDE_TLAB  = -12,  // name of the class allocated outside TLAB
+    BCI_LOCK                = -13,  // class name of the locked object
+    BCI_PARK                = -14,  // class name of the park() blocker
+    BCI_THREAD_ID           = -15,  // method_id designates a thread
+    BCI_ERROR               = -16,  // method_id is an error string
+    BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp
@@ -60,23 +68,45 @@ typedef struct {
 
 typedef void (*AsyncGetCallTrace)(ASGCT_CallTrace*, jint, void*);
 
+typedef struct {
+    void* unused[38];
+    jstring (JNICALL *ExecuteDiagnosticCommand)(JNIEnv*, jstring);
+} VMManagement;
+
+typedef VMManagement* (*JVM_GetManagement)(jint);
+
+typedef struct {
+    void* unused1[86];
+    jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+    void* unused2[35];
+    jvmtiError (JNICALL *GenerateEvents)(jvmtiEnv*, jvmtiEvent);
+    void* unused3[28];
+    jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
+} JVMTIFunctions;
+
 
 class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
-    static bool _hotspot;
+    static JVM_GetManagement _getManagement;
+    static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+    static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+    static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
+    static volatile int _in_redefine_classes;
+    static int _hotspot_version;
 
+    static void ready();
     static void* getLibraryHandle(const char* name);
-    static void loadMethodIDs(jvmtiEnv* jvmti, jclass klass);
-    static void loadAllMethodIDs(jvmtiEnv* jvmti);
+    static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
+    static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
 
   public:
     static void* _libjvm;
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
 
-    static void init(JavaVM* vm, bool attach);
+    static bool init(JavaVM* vm, bool attach);
 
     static jvmtiEnv* jvmti() {
         return _jvmti;
@@ -87,8 +117,26 @@ class VM {
         return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
     }
 
-    static bool is_hotspot() {
-        return _hotspot;
+    static JNIEnv* attachThread(const char* name) {
+        JNIEnv* jni;
+        JavaVMAttachArgs args = {JNI_VERSION_1_6, (char*)name, NULL};
+        return _vm->AttachCurrentThreadAsDaemon((void**)&jni, &args) == 0 ? jni : NULL;
+    }
+
+    static void detachThread() {
+        _vm->DetachCurrentThread();
+    }
+
+    static VMManagement* management() {
+        return _getManagement != NULL ? _getManagement(0x20030000) : NULL;
+    }
+
+    static int hotspot_version() {
+        return _hotspot_version;
+    }
+
+    static bool inRedefineClasses() {
+        return _in_redefine_classes > 0;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -99,8 +147,12 @@ class VM {
     }
 
     static void JNICALL ClassPrepare(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread, jclass klass) {
-        loadMethodIDs(jvmti, klass);
+        loadMethodIDs(jvmti, jni, klass);
     }
+
+    static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
+    static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+    static jvmtiError JNICALL GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type);
 };
 
 #endif // _VMENTRY_H

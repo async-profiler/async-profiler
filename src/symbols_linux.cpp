@@ -27,11 +27,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/limits.h>
-#include <fstream>
-#include <iostream>
-#include <string>
 #include "symbols.h"
 #include "arch.h"
+#include "fdtransferClient.h"
+#include "log.h"
 
 
 class SymbolDesc {
@@ -174,12 +173,7 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     close(fd);
 
     if (addr == MAP_FAILED) {
-        if (strcmp(file_name, "/") == 0) {
-            // https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018
-            fprintf(stderr, "Could not parse symbols due to the OS bug\n");
-        } else {
-            fprintf(stderr, "Could not parse symbols from %s: %s\n", file_name, strerror(errno));
-        }
+        Log::warn("Could not parse symbols from %s: %s", file_name, strerror(errno));
     } else {
         ElfParser elf(cc, base, addr, file_name);
         elf.loadSymbols(use_debug);
@@ -307,7 +301,10 @@ void ElfParser::loadSymbolTable(ElfSection* symtab) {
     for (; symbols < symbols_end; symbols += symtab->sh_entsize) {
         ElfSymbol* sym = (ElfSymbol*)symbols;
         if (sym->st_name != 0 && sym->st_value != 0) {
-            _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
+            // Skip special AArch64 mapping symbols: $x and $d
+            if (sym->st_size != 0 || sym->st_info != 0 || strings[sym->st_name] != '$') {
+                _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
+            }
         }
     }
 }
@@ -345,12 +342,31 @@ std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
 void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
-    std::ifstream maps("/proc/kallsyms");
-    std::string str;
+    int fd;
+    if (FdTransferClient::hasPeer()) {
+        fd = FdTransferClient::requestKallsymsFd();
+    } else {
+        fd = open("/proc/kallsyms", O_RDONLY);
+    }
 
-    while (std::getline(maps, str)) {
-        str += "_[k]";
-        SymbolDesc symbol(str.c_str());
+    if (fd == -1) {
+        Log::warn("open(\"/proc/kallsyms\"): %s", strerror(errno));
+        return;
+    }
+
+    FILE* f = fdopen(fd, "r");
+    if (f == NULL) {
+        Log::warn("fdopen(): %s", strerror(errno));
+        close(fd);
+        return;
+    }
+
+    char str[256];
+    while (fgets(str, sizeof(str) - 8, f) != NULL) {
+        size_t len = strlen(str) - 1; // trim the '\n'
+        strcpy(str + len, "_[k]");
+
+        SymbolDesc symbol(str);
         char type = symbol.type();
         if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
             const char* addr = symbol.addr();
@@ -360,12 +376,15 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
             }
         }
     }
+
+    fclose(f);
+    close(fd);
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size) {
+void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
-    if (!haveKernelSymbols()) {
+    if (kernel_symbols && !haveKernelSymbols()) {
         NativeCodeCache* cc = new NativeCodeCache("[kernel]");
         parseKernelSymbols(cc);
 
@@ -378,18 +397,26 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
         }
     }
 
-    std::ifstream maps("/proc/self/maps");
-    std::string str;
+    FILE* f = fopen("/proc/self/maps", "r");
+    if (f == NULL) {
+        return;
+    }
 
-    while (count < size && std::getline(maps, str)) {
-        MemoryMapDesc map(str.c_str());
+    char* str = NULL;
+    size_t str_size = 0;
+    ssize_t len;
+
+    while (count < size && (len = getline(&str, &str_size, f)) > 0) {
+        str[len - 1] = 0;
+
+        MemoryMapDesc map(str);
         if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
             const char* image_base = map.addr();
             if (!_parsed_libraries.insert(image_base).second) {
                 continue;  // the library was already parsed
             }
 
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), image_base, map.end());
+            NativeCodeCache* cc = new NativeCodeCache(map.file(), count, image_base, map.end());
 
             if (map.inode() != 0) {
                 ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
@@ -402,6 +429,9 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
             atomicInc(count);
         }
     }
+
+    free(str);
+    fclose(f);
 }
 
 #endif // __linux__

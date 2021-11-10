@@ -57,53 +57,27 @@ class Trie {
     }
 };
 
-class Node {
-  public:
-    std::string _name;
-    const Trie* _trie;
-
-    Node(std::string name, const Trie& trie) : _name(name), _trie(&trie) {
-    }
-
-    bool operator<(const Node& other) const {
-        return _trie->_total > other._trie->_total;
-    }
-};
-
-
-class Palette;
-
 
 class FlameGraph {
   private:
     Trie _root;
     char _buf[4096];
+    u64 _mintotal;
 
     const char* _title;
     Counter _counter;
-    int _imagewidth;
-    int _imageheight;
-    int _frameheight;
     double _minwidth;
-    double _scale;
-    double _pct;
     bool _reverse;
 
-    void printHeader(std::ostream& out);
-    void printFooter(std::ostream& out);
-    double printFrame(std::ostream& out, const std::string& name, const Trie& f, double x, double y);
-    void printTreeHeader(std::ostream& out);
-    void printTreeFooter(std::ostream& out);
-    bool printTreeFrame(std::ostream& out, const Trie& f, int depth);
-    const Palette& selectFramePalette(std::string& name);
+    void printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x);
+    void printTreeFrame(std::ostream& out, const Trie& f, int level);
+    int frameType(std::string& name);
 
   public:
-    FlameGraph(const char* title, Counter counter, int width, int height, double minwidth, bool reverse) :
+    FlameGraph(const char* title, Counter counter, double minwidth, bool reverse) :
         _root(),
         _title(title),
         _counter(counter),
-        _imagewidth(width),
-        _frameheight(height),
         _minwidth(minwidth),
         _reverse(reverse) {
         _buf[sizeof(_buf) - 1] = 0;

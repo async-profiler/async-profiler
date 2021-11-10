@@ -1,5 +1,120 @@
 # Changelog
 
+## [2.5] - 2021-10-01
+
+### Features
+ - macOS/ARM64 (aka Apple M1) port
+ - PPC64LE port (contributed by @ghaug)
+ - Profile low-privileged processes with perf_events (contributed by @Jongy)
+ - Raw PMU events; kprobes & uprobes
+ - Dump results in the middle of profiling session
+ - Chunked JFR; support JFR files larger than 2 GB
+ - Integrate async-profiler events with JDK Flight Recordings
+
+### Improvements
+ - Use RDTSC for JFR timestamps when possible
+ - Show line numbers and bci in Flame Graphs
+ - jfr2flame can produce Allocation and Lock flame graphs
+ - Flame Graph title depends on the event and `--total`
+ - Include profiler logs and native library list in JFR output
+ - Lock profiling no longer requires JVM symbols
+ - Better container support
+ - Native function profiler can count the specified argument
+ - An option to group threads by scheduling policy
+ - An option to prepend library name to native symbols
+
+### Notes
+ - macOS build is provided as a fat binary that works both on x86-64 and ARM64
+ - 32-bit binaries are no longer shipped. It is still possible to build them from sources
+ - Dropped JDK 6 support (may still work though)
+
+## [2.0] - 2021-03-14
+
+### Features
+ - Profile multiple events together (cpu + alloc + lock)
+ - HTML 5 Flame Graphs: faster rendering, smaller size
+ - JFR v2 output format, compatible with FlightRecorder API
+ - JFR to Flame Graph converter
+ - Automatically turn profiling on/off at `--begin`/`--end` functions
+ - Time-to-safepoint profiling: `--ttsp`
+
+### Improvements
+ - Unlimited frame buffer. Removed `-b` option and 64K stack traces limit
+ - Additional JFR events: OS, CPU, and JVM information; CPU load
+ - Record bytecode indices / line numbers
+ - Native stack traces for Java events
+ - Improved CLI experience
+ - Better error handling; an option to log warnings/errors to a dedicated stream
+ - Reduced the amount of unknown stack traces
+
+### Changes
+ - Removed non-ASL code. No more CDDL license
+
+## [1.8.4] - 2021-02-24
+
+### Improvements
+ - Smaller and faster agent library
+
+### Bug fixes
+ - Fixed JDK 7 crash during wall-clock profiling
+
+## [1.8.3] - 2021-01-06
+
+### Improvements
+ - libasyncProfiler.dylib symlink on macOS
+
+### Bug fixes
+ - Fixed possible deadlock on non-HotSpot JVMs
+ - Gracefully stop profiler when terminating JVM
+ - Fixed GetStackTrace problem after RedefineClasses
+
+## [1.8.2] - 2020-11-02
+
+### Improvements
+ - AArch64 build is now provided out of the box
+ - Compatibility with JDK 15 and JDK 16
+
+### Bug fixes
+ - More careful native stack walking in wall-clock mode
+ - `resume` command is not compatible with JFR format
+ - Wrong allocation sizes on JDK 8u262
+
+## [1.8.1] - 2020-09-05
+
+### Improvements
+ - Possibility to specify application name instead of `pid` (contributed by @yuzawa-san)
+
+### Bug fixes
+ - Fixed long attach time and slow class loading on JDK 8
+ - `UnsatisfiedLinkError` during Java method profiling
+ - Avoid reading `/proc/kallsyms` when `--all-user` is specified
+
+## [1.8] - 2020-08-10
+
+### Features
+ - Converters between different output formats:
+   - JFR -> nflx (FlameScope)
+   - Collapsed stacks -> HTML 5 Flame Graph 
+
+### Improvements
+ - `profiler.sh` no longer requires bash (contributed by @cfstras)
+ - Fixed long attach time and slow class loading on JDK 8
+ - Fixed deadlocks in wall-clock profiling mode
+ - Per-thread reverse Flame Graph and Call Tree
+ - ARM build now works with ARM and THUMB flavors of JDK
+
+### Changes
+ - Release package is extracted into a separate folder
+
+## [1.7.1] - 2020-05-14
+
+### Features
+ - LBR call stack support (available since Haswell)
+
+### Improvements
+ - `--filter` to profile only specified thread IDs in wall-clock mode
+ - `--safe-mode` to disable selected stack recovery techniques
+
 ## [1.7] - 2020-03-17
 
 ### Features

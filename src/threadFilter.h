@@ -17,6 +17,7 @@
 #ifndef _THREADFILTER_H
 #define _THREADFILTER_H
 
+#include <vector>
 #include "arch.h"
 
 
@@ -63,7 +64,7 @@ class ThreadFilter {
     void add(int thread_id);
     void remove(int thread_id);
 
-    int collect(int* array, int max_count);
+    void collect(std::vector<int>& v);
 };
 
 #endif // _THREADFILTER_H

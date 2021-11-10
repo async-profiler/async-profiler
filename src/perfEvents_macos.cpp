@@ -24,15 +24,17 @@ PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
-bool PerfEvents::_print_extended_warning;
 
 
-bool PerfEvents::createForThread(int tid) { return false; }
-void PerfEvents::destroyForThread(int tid) {}
-void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {}
+void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+}
+
+const char* PerfEvents::title() {
+    return Engine::title();
+}
 
 const char* PerfEvents::units() {
-    return "ns";
+    return Engine::units();
 }
 
 Error PerfEvents::check(Arguments& args) {
@@ -46,9 +48,11 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                               CodeCache* java_methods, CodeCache* runtime_stubs) {
+int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     return 0;
+}
+
+void PerfEvents::resetBuffer(int tid) {
 }
 
 bool PerfEvents::supported() {
@@ -57,6 +61,13 @@ bool PerfEvents::supported() {
 
 const char* PerfEvents::getEventName(int event_id) {
     return NULL;
+}
+
+int PerfEvents::createForThread(int tid) {
+    return -1;
+}
+
+void PerfEvents::destroyForThread(int tid) {
 }
 
 #endif // __APPLE__

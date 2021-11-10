@@ -22,8 +22,18 @@
 void CodeCache::expand() {
     CodeBlob* old_blobs = _blobs;
     CodeBlob* new_blobs = new CodeBlob[_capacity * 2];
-    memcpy(new_blobs, old_blobs, _capacity * sizeof(CodeBlob));
-    _capacity *= 2;
+
+    int live = 0;
+    for (int i = 0; i < _count; i++) {
+        if (_blobs[i]._method != NULL) {
+            new_blobs[live++] = _blobs[i];
+        }
+    }
+
+    _count = live;
+    if (live * 2 > _capacity) {
+        _capacity = live * 2;
+    }
     _blobs = new_blobs;
     delete[] old_blobs;
 }
@@ -40,8 +50,7 @@ void CodeCache::add(const void* start, int length, jmethodID method, bool update
     _count++;
 
     if (update_bounds) {
-        if (start < _min_address) _min_address = start;
-        if (end > _max_address) _max_address = end;
+        updateBounds(start, end);
     }
 }
 
@@ -54,9 +63,15 @@ void CodeCache::remove(const void* start, jmethodID method) {
     }
 }
 
+void CodeCache::updateBounds(const void* start, const void* end) {
+    if (start < _min_address) _min_address = start;
+    if (end > _max_address) _max_address = end;
+}
+
 jmethodID CodeCache::find(const void* address) {
     for (int i = 0; i < _count; i++) {
-        if (address >= _blobs[i]._start && address < _blobs[i]._end) {
+        CodeBlob* cb = _blobs + i;
+        if (address >= cb->_start && address < cb->_end && cb->_method != NULL) {
             return _blobs[i]._method;
         }
     }
@@ -64,21 +79,28 @@ jmethodID CodeCache::find(const void* address) {
 }
 
 
-NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, const void* max_address) {
-    _name = strdup(name);
+NativeCodeCache::NativeCodeCache(const char* name, short lib_index, const void* min_address, const void* max_address) {
+    _name = encodeLibrarySymbol(name, -1);
+    _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
 }
 
 NativeCodeCache::~NativeCodeCache() {
     for (int i = 0; i < _count; i++) {
-        free(_blobs[i]._method);
+        free((char*)_blobs[i]._method - LIB_INDEX_OFFSET);
     }
-    free(_name);
+    free(_name - LIB_INDEX_OFFSET);
+}
+
+char* NativeCodeCache::encodeLibrarySymbol(const char* name, short lib_index) {
+    void* s = malloc(strlen(name) + 1 + LIB_INDEX_OFFSET);
+    *(short*)s = lib_index;
+    return strcpy((char*)s + LIB_INDEX_OFFSET, name);
 }
 
 void NativeCodeCache::add(const void* start, int length, const char* name, bool update_bounds) {
-    char* name_copy = strdup(name);
+    char* name_copy = encodeLibrarySymbol(name, _lib_index);
     // Replace non-printable characters
     for (char* s = name_copy; *s != 0; s++) {
         if (*s < ' ') *s = '?';
@@ -110,8 +132,9 @@ const char* NativeCodeCache::binarySearch(const void* address) {
         }
     }
 
-    // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code
-    if (low > 0 && _blobs[low - 1]._start == _blobs[low - 1]._end) {
+    // Symbols with zero size can be valid functions: e.g. ASM entry points or kernel code.
+    // Also, in some cases (endless loop) the return address may point beyond the function.
+    if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
         return (const char*)_blobs[low - 1]._method;
     }
     return _name;
@@ -128,7 +151,10 @@ const void* NativeCodeCache::findSymbol(const char* name) {
 }
 
 const void* NativeCodeCache::findSymbolByPrefix(const char* prefix) {
-    int prefix_len = strlen(prefix);
+    return findSymbolByPrefix(prefix, strlen(prefix));
+}
+
+const void* NativeCodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     for (int i = 0; i < _count; i++) {
         const char* blob_name = (const char*)_blobs[i]._method;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {

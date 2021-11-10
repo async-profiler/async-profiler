@@ -24,6 +24,7 @@
 #define NO_MAX_ADDRESS  ((const void*)0)
 
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
+const int LIB_INDEX_OFFSET = 2;
 
 
 class CodeBlob {
@@ -71,12 +72,17 @@ class CodeCache {
         delete[] _blobs;
     }
 
+    void reset() {
+        _count = 0;
+    }
+
     bool contains(const void* address) {
         return address >= _min_address && address < _max_address;
     }
 
     void add(const void* start, int length, jmethodID method, bool update_bounds = false);
     void remove(const void* start, jmethodID method);
+    void updateBounds(const void* start, const void* end);
     jmethodID find(const void* address);
 };
 
@@ -84,9 +90,13 @@ class CodeCache {
 class NativeCodeCache : public CodeCache {
   private:
     char* _name;
+    short _lib_index;
+
+    static char* encodeLibrarySymbol(const char* name, short lib_index);
 
   public:
     NativeCodeCache(const char* name,
+                    short lib_index = -1,
                     const void* min_address = NO_MIN_ADDRESS,
                     const void* max_address = NO_MAX_ADDRESS);
 
@@ -96,11 +106,20 @@ class NativeCodeCache : public CodeCache {
         return _name;
     }
 
+    const void* minAddress() {
+        return _min_address;
+    }
+
+    const void* maxAddress() {
+        return _max_address;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void sort();
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
+    const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 };
 
 #endif // _CODECACHE_H

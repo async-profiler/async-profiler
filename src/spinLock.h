@@ -30,7 +30,7 @@ class SpinLock {
     volatile int _lock;
 
   public:
-    SpinLock() : _lock(0) {
+    SpinLock(int initial_state = 0) : _lock(initial_state) {
     }
 
     void reset() {
@@ -51,9 +51,19 @@ class SpinLock {
         __sync_fetch_and_sub(&_lock, 1);
     }
 
+    bool tryLockShared() {
+        int value;
+        while ((value = _lock) <= 0) {
+            if (__sync_bool_compare_and_swap(&_lock, value, value - 1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void lockShared() {
         int value;
-        while ((value = _lock) == 1 || !__sync_bool_compare_and_swap(&_lock, value, value - 1)) {
+        while ((value = _lock) > 0 || !__sync_bool_compare_and_swap(&_lock, value, value - 1)) {
             spinPause();
         }
     }

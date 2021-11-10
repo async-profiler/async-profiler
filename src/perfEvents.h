@@ -32,36 +32,26 @@ class PerfEvents : public Engine {
     static long _interval;
     static Ring _ring;
     static CStack _cstack;
-    static bool _print_extended_warning;
 
-    static bool createForThread(int tid);
-    static void destroyForThread(int tid);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
-    const char* name() {
-        return "perf";
-    }
-
-    const char* units();
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
-    void onThreadStart(int tid) {
-        createForThread(tid);
-    }
+    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
-    void onThreadEnd(int tid) {
-        destroyForThread(tid);
-    }
+    const char* title();
+    const char* units();
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth,
-                       CodeCache* java_methods, CodeCache* runtime_stubs);
+    static void resetBuffer(int tid);
 
     static bool supported();
     static const char* getEventName(int event_id);
+
+    static int createForThread(int tid);
+    static void destroyForThread(int tid);
 };
 
 #endif // _PERFEVENTS_H

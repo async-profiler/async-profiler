@@ -27,19 +27,15 @@ class Instrument : public Engine {
     static bool _instrument_class_loaded;
     static u64 _interval;
     static volatile u64 _calls;
-    static volatile bool _enabled;
+    static volatile bool _running;
 
   public:
-    const char* name() {
-        return "instrument";
+    const char* title() {
+        return "Java method profile";
     }
 
     const char* units() {
         return "calls";
-    }
-
-    CStack cstack() {
-        return CSTACK_NO;
     }
 
     Error check(Arguments& args);
@@ -56,7 +52,7 @@ class Instrument : public Engine {
                                           jint class_data_len, const u8* class_data,
                                           jint* new_class_data_len, u8** new_class_data);
 
-    static void recordSample();
+    static void JNICALL recordSample(JNIEnv* jni, jobject unused);
 };
 
 #endif // _INSTRUMENT_H

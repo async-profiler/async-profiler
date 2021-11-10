@@ -28,8 +28,8 @@ class ITimer : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
-    const char* name() {
-        return "itimer";
+    const char* title() {
+        return "CPU profile";
     }
 
     const char* units() {

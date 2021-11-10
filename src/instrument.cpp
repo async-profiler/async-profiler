@@ -24,28 +24,9 @@
 #include "instrument.h"
 
 
-// A class with a single native recordSample() method
-static const char INSTRUMENT_CLASS[] =
-    "\xCA\xFE\xBA\xBE"                     // magic
-    "\x00\x00\x00\x32"                     // version: 50
-    "\x00\x07"                             // constant_pool_count: 7
-    "\x07\x00\x02"                         //   #1 = CONSTANT_Class: #2
-    "\x01\x00\x17one/profiler/Instrument"  //   #2 = CONSTANT_Utf8: "one/profiler/Instrument"
-    "\x07\x00\x04"                         //   #3 = CONSTANT_Class: #4
-    "\x01\x00\x10java/lang/Object"         //   #4 = CONSTANT_Utf8: "java/lang/Object"
-    "\x01\x00\x0CrecordSample"             //   #5 = CONSTANT_Utf8: "recordSample"
-    "\x01\x00\x03()V"                      //   #6 = CONSTANT_Utf8: "()V"
-    "\x00\x21"                             // access_flags: public super
-    "\x00\x01"                             // this_class: #1
-    "\x00\x03"                             // super_class: #3
-    "\x00\x00"                             // interfaces_count: 0
-    "\x00\x00"                             // fields_count: 0
-    "\x00\x01"                             // methods_count: 1
-    "\x01\x09"                             //   access_flags: public static native
-    "\x00\x05"                             //   name_index: #5
-    "\x00\x06"                             //   descriptor_index: #6
-    "\x00\x00"                             //   attributes_count: 0
-    "\x00";                                // attributes_count: 0
+static const unsigned char INSTRUMENT_CLASS[] = {
+#include "helper/one/profiler/Instrument.class.h"
+};
 
 
 enum ConstantTag {
@@ -480,15 +461,19 @@ char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
 volatile u64 Instrument::_calls;
-volatile bool Instrument::_enabled;
+volatile bool Instrument::_running;
 
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
         JNIEnv* jni = VM::jni();
-        if (jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS)) == NULL) {
-            jni->ExceptionClear();
+        const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
+
+        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS));
+        if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
+            jni->ExceptionDescribe();
             return Error("Could not load Instrument class");
         }
+
         _instrument_class_loaded = true;
     }
 
@@ -508,7 +493,7 @@ Error Instrument::start(Arguments& args) {
     setupTargetClassAndMethod(args._event);
     _interval = args._interval ? args._interval : 1;
     _calls = 0;
-    _enabled = true;
+    _running = true;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
@@ -518,7 +503,7 @@ Error Instrument::start(Arguments& args) {
 }
 
 void Instrument::stop() {
-    _enabled = false;
+    _running = false;
 
     jvmtiEnv* jvmti = VM::jvmti();
     retransformMatchedClasses(jvmti);  // undo transformation
@@ -571,9 +556,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
                                            jint class_data_len, const u8* class_data,
                                            jint* new_class_data_len, u8** new_class_data) {
     // Do not retransform if the profiling has stopped
-    if (!_enabled) {
-        return;
-    }
+    if (!_running) return;
 
     if (name == NULL || strcmp(name, _target_class) == 0) {
         BytecodeRewriter rewriter(class_data, class_data_len, _target_class);
@@ -581,14 +564,11 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     }
 }
 
-void Instrument::recordSample() {
+void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
+    if (!_enabled) return;
+
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
-        Profiler::_instance.recordSample(NULL, _interval, BCI_INSTRUMENT, NULL);
+        ExecutionEvent event;
+        Profiler::instance()->recordSample(NULL, _interval, BCI_INSTRUMENT, &event);
     }
-}
-
-
-extern "C" JNIEXPORT void JNICALL
-Java_one_profiler_Instrument_recordSample(JNIEnv* env, jobject unused) {
-    Instrument::recordSample();
 }

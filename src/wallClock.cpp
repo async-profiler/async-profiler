@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-#include <signal.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include "wallClock.h"
@@ -34,9 +32,6 @@ const int THREADS_PER_TICK = 8;
 // Smaller intervals are practically unusable due to large overhead.
 const long MIN_INTERVAL = 100000;
 
-// Stop profiling thread with this signal. The same signal is used inside JDK to interrupt I/O operations.
-const int WAKEUP_SIGNAL = SIGIO;
-
 
 long WallClock::_interval;
 bool WallClock::_sample_idle_threads;
@@ -53,7 +48,7 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 
     // Make sure the previous instruction address is readable
     uintptr_t prev_pc = pc - SYSCALL_SIZE;
-    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::_instance.findNativeLibrary((instruction_t*)prev_pc) != NULL) {
+    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::instance()->findNativeLibrary((instruction_t*)prev_pc) != NULL) {
         if (StackFrame::isSyscall((instruction_t*)prev_pc) && frame.checkInterruptedSyscall()) {
             return THREAD_SLEEPING;
         }
@@ -63,12 +58,9 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    ThreadState thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
-    Profiler::_instance.recordSample(ucontext, _interval, 0, NULL, thread_state);
-}
-
-void WallClock::wakeupHandler(int signo) {
-    // Dummy handler for interrupting syscalls
+    ExecutionEvent event;
+    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
 }
 
 long WallClock::adjustInterval(long interval, int thread_count) {
@@ -76,14 +68,6 @@ long WallClock::adjustInterval(long interval, int thread_count) {
         interval /= (thread_count + THREADS_PER_TICK - 1) / THREADS_PER_TICK;
     }
     return interval;
-}
-
-void WallClock::sleep(long interval) {
-    struct timespec timeout;
-    timeout.tv_sec = interval / 1000000000;
-    timeout.tv_nsec = interval % 1000000000;
-
-    nanosleep(&timeout, NULL);
 }
 
 Error WallClock::start(Arguments& args) {
@@ -97,7 +81,6 @@ Error WallClock::start(Arguments& args) {
     _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
 
     OS::installSignalHandler(SIGVTALRM, signalHandler);
-    OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
 
     _running = true;
 
@@ -116,7 +99,7 @@ void WallClock::stop() {
 
 void WallClock::timerLoop() {
     int self = OS::threadId();
-    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
@@ -124,6 +107,11 @@ void WallClock::timerLoop() {
     long long next_cycle_time = OS::nanotime();
 
     while (_running) {
+        if (!_enabled) {
+            OS::sleep(_interval);
+            continue;
+        }
+
         if (sample_idle_threads) {
             // Try to keep the wall clock interval stable, regardless of the number of profiled threads
             int estimated_thread_count = thread_filter_enabled ? thread_filter->size() : thread_list->size();
@@ -151,13 +139,13 @@ void WallClock::timerLoop() {
         if (sample_idle_threads) {
             long long current_time = OS::nanotime();
             if (next_cycle_time - current_time > MIN_INTERVAL) {
-                sleep(next_cycle_time - current_time);
+                OS::sleep(next_cycle_time - current_time);
             } else {
                 next_cycle_time = current_time + MIN_INTERVAL;
-                sleep(MIN_INTERVAL);
+                OS::sleep(MIN_INTERVAL);
             }
         } else {
-            sleep(_interval);
+            OS::sleep(_interval);
         }
     }
 

@@ -28,10 +28,18 @@
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
-    args._event = env->GetStringUTFChars(event, NULL);
-    args._interval = interval;
-    Error error = Profiler::_instance.start(args, reset);
-    env->ReleaseStringUTFChars(event, args._event);
+    const char* event_str = env->GetStringUTFChars(event, NULL);
+    if (strcmp(event_str, EVENT_ALLOC) == 0) {
+        args._alloc = interval > 0 ? interval : 1;
+    } else if (strcmp(event_str, EVENT_LOCK) == 0) {
+        args._lock = interval > 0 ? interval : 1;
+    } else {
+        args._event = event_str;
+        args._interval = interval;
+    }
+
+    Error error = Profiler::instance()->start(args, reset);
+    env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -40,7 +48,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
 
 extern "C" JNIEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
-    Error error = Profiler::_instance.stop();
+    Error error = Profiler::instance()->stop();
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -59,26 +67,32 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
-    if (args._file == NULL || args._output == OUTPUT_JFR) {
+    if (!args.hasOutputFile()) {
         std::ostringstream out;
-        Profiler::_instance.runInternal(args, out);
-        return env->NewStringUTF(out.str().c_str());
+        error = Profiler::instance()->runInternal(args, out);
+        if (!error) {
+            return env->NewStringUTF(out.str().c_str());
+        }
     } else {
         std::ofstream out(args._file, std::ios::out | std::ios::trunc);
-        if (out.is_open()) {
-            Profiler::_instance.runInternal(args, out);
-            out.close();
-            return env->NewStringUTF("OK");
-        } else {
+        if (!out.is_open()) {
             JavaAPI::throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;
         }
+        error = Profiler::instance()->runInternal(args, out);
+        out.close();
+        if (!error) {
+            return env->NewStringUTF("OK");
+        }
     }
+
+    JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+    return NULL;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
-    return (jlong)Profiler::_instance.total_samples();
+    return (jlong)Profiler::instance()->total_samples();
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -96,7 +110,7 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
         return;
     }
 
-    ThreadFilter* thread_filter = Profiler::_instance.threadFilter();
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     if (enable) {
         thread_filter->add(thread_id);
     } else {
@@ -108,11 +122,11 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,            "(Ljava/lang/String;JZ)V"),
-    F(stop0,             "()V"),
-    F(execute0,          "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,        "()J"),
-    F(filterThread0,     "(Ljava/lang/Thread;Z)V"),
+    F(start0,        "(Ljava/lang/String;JZ)V"),
+    F(stop0,         "()V"),
+    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,    "()J"),
+    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
 #undef F
@@ -144,7 +158,9 @@ void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
         if (frame[i].method == load || frame[i].method == loadLibrary) {
             jclass profiler_class;
             if (jvmti->GetMethodDeclaringClass(frame[i + 1].method, &profiler_class) == 0) {
-                jni->RegisterNatives(profiler_class, profiler_natives, sizeof(profiler_natives) / sizeof(JNINativeMethod));
+                for (int j = 0; j < sizeof(profiler_natives) / sizeof(JNINativeMethod); j++) {
+                    jni->RegisterNatives(profiler_class, &profiler_natives[j], 1);
+                }
             }
             break;
         }
