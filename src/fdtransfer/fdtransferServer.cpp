@@ -109,7 +109,8 @@ bool FdTransferServer::serveRequests(int peer_pid) {
     // Close the server side, don't need it anymore.
     FdTransferServer::closeServer();
 
-    void *last_perf_mmap = NULL;
+    void *perf_mmap_ringbuf[1024] = {};
+    size_t ringbuf_index = 0;
     const int perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
 
     while (1) {
@@ -117,12 +118,6 @@ bool FdTransferServer::serveRequests(int peer_pid) {
         struct fd_request *req = (struct fd_request *)request_buf;
 
         ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
-
-        // Upon receiving the next request / error / EOF, we know that the profiler has already
-        // mmaped or closed the last perf fd that we'd sent it, so we can munmap it here.
-        if (last_perf_mmap != NULL && last_perf_mmap != MAP_FAILED) {
-            (void)munmap(last_perf_mmap, perf_mmap_size);
-        }
 
         if (ret == 0) {
             // EOF means done
@@ -153,8 +148,18 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             // no privileges this time)
             if (error == 0) {
                 // Settings match the mmap() done in PerfEvents::createForThread().
-                last_perf_mmap = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
+                void *map_result = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
                 // Ignore errors - if this fails, let it fail again in the profiler again & produce a proper error for the user.
+
+                // Free next entry in the ring buffer, if it was previously allocated.
+                if (perf_mmap_ringbuf[ringbuf_index] != NULL && perf_mmap_ringbuf[ringbuf_index] != MAP_FAILED) {
+                    (void)munmap(perf_mmap_ringbuf[ringbuf_index], perf_mmap_size);
+                }
+                // Store it in the ring buffer so we can free it later.
+                perf_mmap_ringbuf[ringbuf_index] = map_result;
+
+                ringbuf_index++;
+                ringbuf_index = ringbuf_index % ARRAY_SIZE(perf_mmap_ringbuf);
             }
 
             struct perf_fd_response resp;
