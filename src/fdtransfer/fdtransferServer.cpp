@@ -109,13 +109,20 @@ bool FdTransferServer::serveRequests(int peer_pid) {
     // Close the server side, don't need it anymore.
     FdTransferServer::closeServer();
 
-    const size_t perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
+    void *last_perf_mmap = NULL;
+    const int perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
 
     while (1) {
         unsigned char request_buf[1024];
         struct fd_request *req = (struct fd_request *)request_buf;
 
         ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
+
+        // Upon receiving the next request / error / EOF, we know that the profiler has already
+        // mmaped or closed the last perf fd that we'd sent it, so we can munmap it here.
+        if (last_perf_mmap != NULL && last_perf_mmap != MAP_FAILED) {
+            (void)munmap(last_perf_mmap, perf_mmap_size);
+        }
 
         if (ret == 0) {
             // EOF means done
@@ -144,10 +151,9 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             // Map the perf buffer here (mapping perf fds may require privileges, and fdtransfer has them while the target application does not
             // necessarily; if pages are already mapped, the same physical pages will be used when the profiler agent maps them again, requiring
             // no privileges this time)
-            void *server_mmap_addr = MAP_FAILED;
             if (error == 0) {
                 // Settings match the mmap() done in PerfEvents::createForThread().
-                server_mmap_addr = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
+                last_perf_mmap = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
                 // Ignore errors - if this fails, let it fail again in the profiler again & produce a proper error for the user.
             }
 
@@ -155,17 +161,8 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             resp.header.type = request->header.type;
             resp.header.error = error;
             resp.tid = request->tid;
-            resp.server_mmap_addr = server_mmap_addr;
             sendFd(perf_fd, &resp.header, sizeof(resp));
             close(perf_fd);
-            break;
-        }
-
-        case PERF_MUNMAP: {
-            struct perf_munmap_request *request = (struct perf_munmap_request*)req;
-            if (request->server_mmap_addr != MAP_FAILED) {
-                munmap(request->server_mmap_addr, perf_mmap_size);
-            }
             break;
         }
 

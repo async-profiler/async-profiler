@@ -37,8 +37,7 @@ class FdTransferClient {
         }
     }
 
-    static int requestPerfFd(int *tid, struct perf_event_attr *attr, void **server_mmap_addr);
-    static void requestPerfMunmap(void *server_mmap_addr);
+    static int requestPerfFd(int *tid, struct perf_event_attr *attr);
     static int requestKallsymsFd();
 };
 
