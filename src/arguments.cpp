@@ -307,6 +307,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
+
+            } else {
+                msg = "Unknown argument";
         }
     }
 
