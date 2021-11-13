@@ -46,6 +46,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 
 #define CASE(s)        } else if (arg_hash == HASH(s "            ")) {
 
+#define DEFAULT()      } else {
+
 
 // Parses agent arguments.
 // The format of the string is:
@@ -308,7 +310,7 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
-            } else {
+            DEFAULT()
                 msg = "Unknown argument";
         }
     }
