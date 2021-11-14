@@ -111,7 +111,7 @@ bool FdTransferServer::serveRequests(int peer_pid) {
 
     void *perf_mmap_ringbuf[1024] = {};
     size_t ringbuf_index = 0;
-    const int perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
+    const size_t perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
 
     while (1) {
         unsigned char request_buf[1024];
