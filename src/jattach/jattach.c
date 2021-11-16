@@ -15,7 +15,6 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 #include "psutil.h"
@@ -62,27 +61,4 @@ int jattach(int pid, int argc, char** argv) {
     } else {
         return jattach_hotspot(pid, nspid, argc, argv);
     }
-}
-
-int main(int argc, char** argv) {
-    if (argc < 3) {
-        printf("jattach " JATTACH_VERSION " built on " __DATE__ "\n"
-               "Copyright 2021 Andrei Pangin\n"
-               "\n"
-               "Usage: jattach <pid> <cmd> [args ...]\n"
-               "\n"
-               "Commands:\n"
-               "    load  threaddump   dumpheap  setflag    properties\n"
-               "    jcmd  inspectheap  datadump  printflag  agentProperties\n"
-               );
-        return 1;
-    }
-
-    int pid = atoi(argv[1]);
-    if (pid <= 0) {
-        fprintf(stderr, "%s is not a valid process ID\n", argv[1]);
-        return 1;
-    }
-
-    return jattach(pid, argc - 2, argv + 2);
 }
