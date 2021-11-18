@@ -2,6 +2,8 @@
 
 This is a fork of the upstream project https://github.com/jvm-profiling-tools/async-profiler.
 This fork aims to integrate changes and improvements for the specific needs of SAP customers.
+However, the master branch will not differ from the upstream project. The profiler works with 
+SapMachine as well as with SAP JVM.
 
 This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).

@@ -12,6 +12,8 @@ jobs:
         run: |
           git config --global user.name 'SapMachine'
           git config --global user.email 'sapmachine@sap.com'
+          repo=`git remote -v | grep origin | grep fetch | cut -d$'\t' -f 2 | cut -d ' ' -f 1`
+          if [[ $repo != 'https://github.com/SAP/async-profiler.git' ]] ; then exit 0 ; fi
 
           # "git checkout master" is unnecessary, already here by default
           git pull --unshallow  # this option is very important, you would get
@@ -24,4 +26,5 @@ jobs:
 
           git checkout master
           git merge --no-edit upstream/master
-          git push origin master
+          git push --follow-tags origin master
+
