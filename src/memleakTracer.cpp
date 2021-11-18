@@ -54,6 +54,10 @@ pthread_cond_t MemLeakTracer::_cleanup_cond;
 u32 MemLeakTracer::_cleanup_round;
 bool MemLeakTracer::_cleanup_run;
 
+static int __min(int a, int b) {
+    return a < b ? a : b;
+}
+
 void MemLeakTracer::cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nentries) {
     if (entries) {
         *nentries = 0;
@@ -284,7 +288,11 @@ void JNICALL MemLeakTracer::SampledObjectAlloc(jvmtiEnv *jvmti, JNIEnv* env,
     bool retried = false;
 
 retry:
-    _table_lock.lockShared();
+    if (!_table_lock.tryLockShared()) {
+        // another thread is holding the non-shared lock
+        delete[] frames;
+        return;
+    }
 
     // Increment _table_size in a thread-safe manner (CAS) and store the new value in idx
     // It bails out if _table_size would overflow _table_max_size
@@ -308,7 +316,7 @@ retry:
     _table_lock.unlockShared();
 
     if (idx == _table_max_size) {
-        if (!retried) {
+        if (!retried && _table_max_size < MEMLEAK_TABLE_MAX_SIZE) {
             // guarantees we don't busy loop until memory exhaustion
             retried = true;
 
@@ -318,8 +326,12 @@ retry:
             // the size of the table, not decreasing it.
             _table_lock.lock();
 
-            _table = (MemLeakTableEntry*)realloc(_table, sizeof(MemLeakTableEntry) * (_table_max_size *= 2));
-            Log::warn("Increased size of Memory Leak table to %d entries", _table_max_size);
+            // Only increase the size of the table to 8k elements
+            int newsz = __min(_table_max_size * 2, MEMLEAK_TABLE_MAX_SIZE);
+            if (_table_max_size != newsz) {
+                _table = (MemLeakTableEntry*)realloc(_table, sizeof(MemLeakTableEntry) * (_table_max_size = newsz));
+                Log::warn("Increased size of Memory Leak table to %d entries", _table_max_size);
+            }
 
             _table_lock.unlock();
 

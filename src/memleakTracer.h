@@ -23,6 +23,8 @@
 #include "engine.h"
 #include "spinLock.h"
 
+#define MEMLEAK_TABLE_MAX_SIZE 8192
+
 typedef struct MemLeakTableEntry {
     jweak ref;
     jint ref_size;
