@@ -64,7 +64,7 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "lbr"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr"};
 
 
 enum FrameTypeId {

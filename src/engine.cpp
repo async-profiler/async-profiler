@@ -15,8 +15,6 @@
  */
 
 #include "engine.h"
-#include "stackFrame.h"
-#include "vmStructs.h"
 
 
 volatile bool Engine::_enabled;
@@ -30,48 +28,4 @@ Error Engine::start(Arguments& args) {
 }
 
 void Engine::stop() {
-}
-
-int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
-    const void* pc;
-    uintptr_t fp;
-    uintptr_t prev_fp = (uintptr_t)&fp;
-    uintptr_t bottom = prev_fp + 0x100000;
-
-    if (ucontext == NULL) {
-        pc = __builtin_return_address(0);
-        fp = (uintptr_t)__builtin_frame_address(1);
-    } else {
-        StackFrame frame(ucontext);
-        pc = (const void*)frame.pc();
-        fp = frame.fp();
-    }
-
-    int depth = 0;
-    const void* const valid_pc = (const void* const)0x1000;
-
-    // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= valid_pc) {
-        if (CodeHeap::contains(pc)) {
-            break;
-        }
-
-        callchain[depth++] = pc;
-
-        // Check if the next frame is below on the current stack
-        if (fp <= prev_fp || fp >= prev_fp + 0x40000 || fp >= bottom) {
-            break;
-        }
-
-        // Frame pointer must be word aligned
-        if ((fp & (sizeof(uintptr_t) - 1)) != 0) {
-            break;
-        }
-
-        prev_fp = fp;
-        pc = stripPointer(((const void**)fp)[FRAME_PC_SLOT]);
-        fp = ((uintptr_t*)fp)[0];
-    }
-
-    return depth;
 }

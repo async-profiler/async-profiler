@@ -36,6 +36,7 @@
 #include "frameName.h"
 #include "os.h"
 #include "stackFrame.h"
+#include "stackWalker.h"
 #include "symbols.h"
 #include "vmStructs.h"
 
@@ -288,15 +289,35 @@ static bool is_cpp_interpreter_method(const char* mn) {
            is_prefix(mn, "_ZN19BytecodeInterpreter3run");
 }
 
-int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
-    const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
+    const void* callchain[MAX_NATIVE_FRAMES];
+    int native_frames;
 
+    if (_cstack == CSTACK_NO || (event_type != 0 && _cstack == CSTACK_DEFAULT)) {
+        return 0;
+    }
+
+    // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
+    if (event_type == 0 && _engine == &perf_events) {
+        native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES);
+        if (_cstack == CSTACK_DWARF) {
+            native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        }
+    } else if (_cstack == CSTACK_DWARF) {
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES);
+    } else {
+        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES);
+    }
+
+    return convertNativeTrace(native_frames, callchain, frames);
+}
+
+int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames) {
     int depth = 0;
     jmethodID prev_method = NULL;
 
     for (int i = 0; i < native_frames; i++) {
-        const char* current_method_name = findNativeMethod(native_callchain[i]);
+        const char* current_method_name = findNativeMethod(callchain[i]);
         if (is_cpp_interpreter_method(current_method_name)) {
             // This is C++ interpreter frame, this and later frames should be reported
             // as Java frames returned by AGCT. Terminate the scan here.
@@ -637,12 +658,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
 
-    // Use engine stack walker for execution samples, or basic stack walker for other events
-    if (event_type == 0 && _cstack != CSTACK_NO) {
-        num_frames += getNativeTrace(_engine, ucontext, frames + num_frames, tid);
-    } else if (event_type != 0 && _cstack > CSTACK_NO) {
-        num_frames += getNativeTrace(&noop_engine, ucontext, frames + num_frames, tid);
-    }
+    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
 
     int first_java_frame = num_frames;
     if (event_type <= BCI_LOCK) {
@@ -662,11 +678,6 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     if (num_frames == 0) {
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)"no_Java_frame");
     }
-
-    // TODO: Zero out top bci to reduce the number of stack traces
-    // if (first_java_frame < num_frames && frames[first_java_frame].bci > 0) {
-    //     frames[first_java_frame].bci = 0;
-    // }
 
     if (_add_thread_frame) {
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);

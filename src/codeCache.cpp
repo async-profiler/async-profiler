@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "codeCache.h"
+#include "dwarf.h"
 
 
 void CodeCache::expand() {
@@ -84,6 +85,8 @@ NativeCodeCache::NativeCodeCache(const char* name, short lib_index, const void* 
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
+    _dwarf_table = NULL;
+    _dwarf_table_length = 0;
 }
 
 NativeCodeCache::~NativeCodeCache() {
@@ -91,6 +94,7 @@ NativeCodeCache::~NativeCodeCache() {
         free((char*)_blobs[i]._method - LIB_INDEX_OFFSET);
     }
     free(_name - LIB_INDEX_OFFSET);
+    free(_dwarf_table);
 }
 
 char* NativeCodeCache::encodeLibrarySymbol(const char* name, short lib_index) {
@@ -162,4 +166,28 @@ const void* NativeCodeCache::findSymbolByPrefix(const char* prefix, int prefix_l
         }
     }
     return NULL;
+}
+
+void NativeCodeCache::setDwarfTable(FrameDesc* table, int length) {
+    _dwarf_table = table;
+    _dwarf_table_length = length;
+}
+
+FrameDesc* NativeCodeCache::findFrameDesc(const void* pc) {
+    u32 target_loc = (const char*)pc - (const char*)_min_address;
+    int low = 0;
+    int high = _dwarf_table_length - 1;
+
+    while (low <= high) {
+        int mid = (unsigned int)(low + high) >> 1;
+        if (_dwarf_table[mid].loc < target_loc) {
+            low = mid + 1;
+        } else if (_dwarf_table[mid].loc > target_loc) {
+            high = mid - 1;
+        } else {
+            return &_dwarf_table[mid];
+        }
+    }
+
+    return low > 0 ? &_dwarf_table[low - 1] : NULL;
 }
