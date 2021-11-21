@@ -21,19 +21,38 @@
 #include "arch.h"
 
 
-// TODO: make platform dependent
-enum {
-    DW_REG_FP = 6,
-    DW_REG_SP = 7,
-    DW_REG_PC = 16,
-    DW_REG_PLT = 128,     // denotes special rule for PLT entries
-    DW_REG_INVALID = 255  // denotes unsupported configuration
-};
+#if defined(__x86_64__)
 
-enum {
-    DW_PC_OFFSET = 1,
-    DW_SAME_FP = 0x80000000
-};
+#define DWARF_SUPPORTED true
+
+const int DW_REG_FP = 6;
+const int DW_REG_SP = 7;
+const int DW_REG_PC = 16;
+
+#elif defined(__i386__)
+
+#define DWARF_SUPPORTED true
+
+const int DW_REG_FP = 5;
+const int DW_REG_SP = 4;
+const int DW_REG_PC = 8;
+
+#else
+
+#define DWARF_SUPPORTED false
+
+const int DW_REG_FP = 0;
+const int DW_REG_SP = 1;
+const int DW_REG_PC = 2;
+
+#endif
+
+const int DW_REG_PLT = 128;      // denotes special rule for PLT entries
+const int DW_REG_INVALID = 255;  // denotes unsupported configuration
+
+const int DW_PC_OFFSET = 1;
+const int DW_SAME_FP = 0x80000000;
+const int DW_STACK_SLOT = sizeof(void*);
 
 
 struct FrameDesc {
@@ -41,7 +60,7 @@ struct FrameDesc {
     int cfa;
     int fp_off;
 
-    static FrameDesc _default;
+    static FrameDesc default_frame;
 
     static int comparator(const void* p1, const void* p2) {
         FrameDesc* fd1 = (FrameDesc*)p1;
@@ -60,6 +79,9 @@ class DwarfParser {
     int _count;
     FrameDesc* _table;
     FrameDesc* _prev;
+
+    u32 _code_align;
+    int _data_align;
 
     const char* add(size_t size) {
         const char* ptr = _ptr;

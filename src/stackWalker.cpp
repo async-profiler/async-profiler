@@ -102,7 +102,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         FrameDesc* f;
         NativeCodeCache* cc = profiler->findNativeLibrary(pc);
         if (cc == NULL || (f = cc->findFrameDesc(pc)) == NULL) {
-            f = &FrameDesc::_default;
+            f = &FrameDesc::default_frame;
         }
 
         u8 cfa_reg = (u8)f->cfa;
@@ -113,10 +113,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             sp = fp + cfa_off;
         } else if (cfa_reg == DW_REG_PLT) {
             sp += ((uintptr_t)pc & 15) >= 11 ? cfa_off * 2 : cfa_off;
+        } else {
+            break;
         }
 
         // Check if the next frame is below on the current stack
-        if (sp <= prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
+        if (sp < prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
             break;
         }
 

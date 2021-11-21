@@ -51,7 +51,7 @@ enum {
 };
 
 enum {
-    DW_OP_breg_pc = 0x80,
+    DW_OP_breg_pc = 0x70 + DW_REG_PC,
     DW_OP_const1u = 0x08,
     DW_OP_const1s = 0x09,
     DW_OP_const2u = 0x0a,
@@ -64,12 +64,8 @@ enum {
     DW_OP_plus    = 0x22,
 };
 
-enum {
-    DW_STACK_SLOT = sizeof(void*)
-};
 
-
-FrameDesc FrameDesc::_default = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
+FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
 
 
 DwarfParser::DwarfParser(const char* image_base, const char* eh_frame_hdr) : _image_base(image_base) {
@@ -78,10 +74,12 @@ DwarfParser::DwarfParser(const char* image_base, const char* eh_frame_hdr) : _im
     _table = (FrameDesc*)malloc(_capacity * sizeof(FrameDesc));
     _prev = NULL;
 
-#ifdef __x86_64__
-    // DWARF stack unwinding is currently supported only on x64
-    parse(eh_frame_hdr);
-#endif
+    _code_align = sizeof(instruction_t);
+    _data_align = -sizeof(void*);
+
+    if (DWARF_SUPPORTED) {
+        parse(eh_frame_hdr);
+    }
 }
 
 void DwarfParser::parse(const char* eh_frame_hdr) {
@@ -112,8 +110,8 @@ void DwarfParser::parseCie() {
     const char* cie_start = _ptr;
     _ptr += 5;
     while (*_ptr++) {}
-    skipLeb();
-    skipLeb();
+    _code_align = getLeb();
+    _data_align = getSLeb();
     skipLeb();
     _ptr += getLeb();
     parseInstructions(0, cie_start + cie_len);
@@ -141,13 +139,18 @@ void DwarfParser::parseFde() {
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end) {
+    const u32 code_align = _code_align;
+    const int data_align = _data_align;
+
     u32 cfa_reg = DW_REG_SP;
     int cfa_off = DW_STACK_SLOT;
     int fp_off = DW_SAME_FP;
+    int pc_off = -DW_STACK_SLOT;
 
-    u32 rem_cfa_reg = 0;
-    int rem_cfa_off = 0;
-    int rem_fp_off = 0;
+    u32 rem_cfa_reg;
+    int rem_cfa_off;
+    int rem_fp_off;
+    int rem_pc_off;
 
     while (_ptr < end) {
         u8 op = get8();
@@ -160,21 +163,21 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         break;
                     case DW_CFA_advance_loc1:
                         addRecord(loc, cfa_reg, cfa_off, fp_off);
-                        loc += get8();
+                        loc += get8() * code_align;
                         break;
                     case DW_CFA_advance_loc2:
                         addRecord(loc, cfa_reg, cfa_off, fp_off);
-                        loc += get16();
+                        loc += get16() * code_align;
                         break;
                     case DW_CFA_advance_loc4:
                         addRecord(loc, cfa_reg, cfa_off, fp_off);
-                        loc += get32();
+                        loc += get32() * code_align;
                         break;
                     case DW_CFA_offset_extended:
-                        if (getLeb() == DW_REG_FP) {
-                            fp_off = getLeb() * -DW_STACK_SLOT;
-                        } else {
-                            skipLeb();
+                        switch (getLeb()) {
+                            case DW_REG_FP: fp_off = getLeb() * data_align; break;
+                            case DW_REG_PC: pc_off = getLeb() * data_align; break;
+                            default: skipLeb();
                         }
                         break;
                     case DW_CFA_restore_extended:
@@ -190,11 +193,13 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         rem_cfa_reg = cfa_reg;
                         rem_cfa_off = cfa_off;
                         rem_fp_off = fp_off;
+                        rem_pc_off = pc_off;
                         break;
                     case DW_CFA_restore_state:
                         cfa_reg = rem_cfa_reg;
                         cfa_off = rem_cfa_off;
                         fp_off = rem_fp_off;
+                        pc_off = rem_pc_off;
                         break;
                     case DW_CFA_def_cfa:
                         cfa_reg = getLeb();
@@ -218,18 +223,18 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         _ptr += getLeb();
                         break;
                     case DW_CFA_offset_extended_sf:
-                        if (getLeb() == DW_REG_FP) {
-                            fp_off = getSLeb() * -DW_STACK_SLOT;
-                        } else {
-                            skipLeb();
+                        switch (getLeb()) {
+                            case DW_REG_FP: fp_off = getSLeb() * data_align; break;
+                            case DW_REG_PC: pc_off = getSLeb() * data_align; break;
+                            default: skipLeb();
                         }
                         break;
                     case DW_CFA_def_cfa_sf:
                         cfa_reg = getLeb();
-                        cfa_off = getSLeb() * -DW_STACK_SLOT;
+                        cfa_off = getSLeb() * data_align;
                         break;
                     case DW_CFA_def_cfa_offset_sf:
-                        cfa_off = getSLeb() * -DW_STACK_SLOT;
+                        cfa_off = getSLeb() * data_align;
                         break;
                     case DW_CFA_val_offset:
                     case DW_CFA_val_offset_sf:
@@ -256,13 +261,13 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                 break;
             case DW_CFA_advance_loc:
                 addRecord(loc, cfa_reg, cfa_off, fp_off);
-                loc += op & 0x3f;
+                loc += (op & 0x3f) * code_align;
                 break;
             case DW_CFA_offset:
-                if ((op & 0x3f) == DW_REG_FP) {
-                    fp_off = getLeb() * -DW_STACK_SLOT;
-                } else {
-                    skipLeb();
+                switch (op & 0x3f) {
+                    case DW_REG_FP: fp_off = getLeb() * data_align; break;
+                    case DW_REG_PC: pc_off = getLeb() * data_align; break;
+                    default: skipLeb();
                 }
                 break;
             case DW_CFA_restore:
@@ -319,6 +324,7 @@ int DwarfParser::parseExpression() {
                 break;
             default:
                 Log::warn("Unknown DWARF opcode 0x%x\n", op);
+                _ptr = end;
                 return 0;
         }
     }

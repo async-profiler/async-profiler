@@ -30,6 +30,7 @@
 #include "wallClock.h"
 #include "instrument.h"
 #include "itimer.h"
+#include "dwarf.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "fdtransferClient.h"
@@ -1050,7 +1051,9 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _engine = selectEngine(args._event);
     _cstack = args._cstack;
-    if (_cstack == CSTACK_LBR && _engine != &perf_events) {
+    if (_cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
+        return Error("DWARF unwinding is not supported on this platform");
+    } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
     }
 
