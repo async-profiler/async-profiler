@@ -72,6 +72,7 @@ struct FrameDesc {
 
 class DwarfParser {
   private:
+    const char* _name;
     const char* _image_base;
     const char* _ptr;
 
@@ -145,7 +146,7 @@ class DwarfParser {
     FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off);
 
   public:
-    DwarfParser(const char* image_base, const char* eh_frame_hdr);
+    DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);
 
     FrameDesc* table() const {
         return _table;

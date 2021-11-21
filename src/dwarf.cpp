@@ -68,7 +68,10 @@ enum {
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
 
 
-DwarfParser::DwarfParser(const char* image_base, const char* eh_frame_hdr) : _image_base(image_base) {
+DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
+    _name = name;
+    _image_base = image_base;
+
     _capacity = 128;
     _count = 0;
     _table = (FrameDesc*)malloc(_capacity * sizeof(FrameDesc));
@@ -77,9 +80,7 @@ DwarfParser::DwarfParser(const char* image_base, const char* eh_frame_hdr) : _im
     _code_align = sizeof(instruction_t);
     _data_align = -sizeof(void*);
 
-    if (DWARF_SUPPORTED) {
-        parse(eh_frame_hdr);
-    }
+    parse(eh_frame_hdr);
 }
 
 void DwarfParser::parse(const char* eh_frame_hdr) {
@@ -89,7 +90,8 @@ void DwarfParser::parse(const char* eh_frame_hdr) {
     u8 table_enc = eh_frame_hdr[3];
 
     if (version != 1 || (eh_frame_ptr_enc & 0x7) != 0x3 || (fde_count_enc & 0x7) != 0x3 || (table_enc & 0xf7) != 0x33) {
-        Log::warn("Unsupported .eh_frame_hdr format: %02x%02x%02x%02x", version, eh_frame_ptr_enc, fde_count_enc, table_enc);
+        Log::warn("Unsupported .eh_frame_hdr [%02x%02x%02x%02x] in %s",
+                  version, eh_frame_ptr_enc, fde_count_enc, table_enc, _name);
         return;
     }
 
@@ -255,7 +257,7 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         skipLeb();
                         break;
                     default:
-                        Log::warn("Unknown DWARF instruction 0x%x\n", op);
+                        Log::warn("Unknown DWARF instruction 0x%x in %s", op, _name);
                         return;
                 }
                 break;
@@ -323,7 +325,7 @@ int DwarfParser::parseExpression() {
                 pc_off += tos;
                 break;
             default:
-                Log::warn("Unknown DWARF opcode 0x%x\n", op);
+                Log::warn("Unknown DWARF opcode 0x%x in %s", op, _name);
                 _ptr = end;
                 return 0;
         }
