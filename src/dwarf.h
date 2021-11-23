@@ -21,17 +21,46 @@
 #include "arch.h"
 
 
-enum {
-    DW_PC_OFFSET = 1,
-    DW_SAME_FP = 2,
-    DW_CFA_PLT = 128
-};
+#if defined(__x86_64__)
+
+#define DWARF_SUPPORTED true
+
+const int DW_REG_FP = 6;
+const int DW_REG_SP = 7;
+const int DW_REG_PC = 16;
+
+#elif defined(__i386__)
+
+#define DWARF_SUPPORTED true
+
+const int DW_REG_FP = 5;
+const int DW_REG_SP = 4;
+const int DW_REG_PC = 8;
+
+#else
+
+#define DWARF_SUPPORTED false
+
+const int DW_REG_FP = 0;
+const int DW_REG_SP = 1;
+const int DW_REG_PC = 2;
+
+#endif
+
+const int DW_REG_PLT = 128;      // denotes special rule for PLT entries
+const int DW_REG_INVALID = 255;  // denotes unsupported configuration
+
+const int DW_PC_OFFSET = 1;
+const int DW_SAME_FP = 0x80000000;
+const int DW_STACK_SLOT = sizeof(void*);
 
 
 struct FrameDesc {
     u32 loc;
     int cfa;
     int fp_off;
+
+    static FrameDesc default_frame;
 
     static int comparator(const void* p1, const void* p2) {
         FrameDesc* fd1 = (FrameDesc*)p1;
@@ -43,14 +72,17 @@ struct FrameDesc {
 
 class DwarfParser {
   private:
-    const char* _eh_frame;
-    const char* _ptr;
+    const char* _name;
     const char* _image_base;
+    const char* _ptr;
 
     int _capacity;
     int _count;
     FrameDesc* _table;
     FrameDesc* _prev;
+
+    u32 _code_align;
+    int _data_align;
 
     const char* add(size_t size) {
         const char* ptr = _ptr;
@@ -104,15 +136,17 @@ class DwarfParser {
         return ptr + *(int*)add(4);
     }
 
-    void parse();
+    void parse(const char* eh_frame_hdr);
+    void parseCie();
+    void parseFde();
     void parseInstructions(u32 loc, const char* end);
     int parseExpression();
 
     void addRecord(u32 loc, u32 cfa_reg, int cfa_off, int fp_off);
-    void addRecordRaw(u32 loc, int cfa, int fp_off);
+    FrameDesc* addRecordRaw(u32 loc, int cfa, int fp_off);
 
   public:
-    DwarfParser(const char* eh_frame, const char* image_base);
+    DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);
 
     FrameDesc* table() const {
         return _table;

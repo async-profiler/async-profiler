@@ -127,7 +127,7 @@ class Profiler {
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
     bool inJavaCode(void* ucontext);
-    int getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
@@ -198,6 +198,7 @@ class Profiler {
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
+    int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
     void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames);
     void writeLog(LogLevel level, const char* message);

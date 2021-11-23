@@ -233,9 +233,9 @@ loaded:
         }
 
         // Read DWARF unwind info
-        ElfSection* eh_frame = findSection(0, ".eh_frame");
-        if (eh_frame != NULL) {
-            DwarfParser dwarf(at(eh_frame), (const char*)_header);
+        ElfSection* eh_frame_hdr = findSection(0, ".eh_frame_hdr");
+        if (eh_frame_hdr != NULL && DWARF_SUPPORTED) {
+            DwarfParser dwarf(_cc->name(), (const char*)_header, at(eh_frame_hdr));
             _cc->setDwarfTable(dwarf.table(), dwarf.count());
         }
     }

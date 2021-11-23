@@ -43,11 +43,10 @@ class PerfEvents : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
-
     const char* title();
     const char* units();
 
+    static int walk(int tid, const void** callchain, int max_depth);
     static void resetBuffer(int tid);
 
     static bool supported();

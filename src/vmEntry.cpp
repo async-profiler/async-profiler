@@ -134,7 +134,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.VMObjectAlloc = ObjectSampler::VMObjectAlloc;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
-    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
@@ -147,6 +146,8 @@ bool VM::init(JavaVM* vm, bool attach) {
         DisableSweeper ds;
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
         _jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD);
+    } else {
+        _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     }
 
     if (hotspot_version() > 0 && hotspot_version() < 11) {

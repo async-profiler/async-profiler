@@ -26,8 +26,8 @@
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 const int LIB_INDEX_OFFSET = 2;
 
-class FrameDesc;
 
+class FrameDesc;
 
 class CodeBlob {
   public:
@@ -95,6 +95,9 @@ class NativeCodeCache : public CodeCache {
     short _lib_index;
     const void** _got_start;
     const void** _got_end;
+
+    FrameDesc* _dwarf_table;
+    int _dwarf_table_length;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
