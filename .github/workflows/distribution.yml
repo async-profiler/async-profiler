@@ -4,14 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       logLevel:
-        description: 'Log level'     
+        description: 'Log level'
         required: true
         default: 'warning'
       deployment:
         description: Deployment type (snapshot, release)
         default: 'snapshot'
         required: true
-        
+  push:
+    branches: [ main ]
+
 jobs:
   build-native:
     runs-on: ${{ matrix.os }}
