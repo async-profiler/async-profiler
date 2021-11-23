@@ -10,7 +10,7 @@ API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
-CXXFLAGS=-g -fno-omit-frame-pointer -fvisibility=hidden
+CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
 
