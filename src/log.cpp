@@ -18,13 +18,18 @@
 #include "log.h"
 #include "profiler.h"
 
-
-const char* const Log::LEVEL_NAME[] = {NULL, "TRACE", "DEBUG", "INFO", "WARN", "ERROR"};
+const char* const Log::LEVEL_NAME[] = {
+#define LOG_LEVEL_STR(level) #level,
+LOG_LEVELS(LOG_LEVEL_STR)
+#undef LOG_LEVEL_STR
+    "none",
+    NULL
+};
 
 FILE* Log::_file = stdout;
+LogLevel Log::_level = LOG_TRACE;
 
-
-void Log::open(const char* file_name) {
+void Log::open(const char* file_name, const char* level) {
     if (_file != stdout && _file != stderr) {
         fclose(_file);
     }
@@ -37,6 +42,15 @@ void Log::open(const char* file_name) {
         _file = stdout;
         warn("Could not open log file: %s", file_name);
     }
+
+    if (level != NULL) {
+        for (int i = 0; LEVEL_NAME[i] != NULL; i++) {
+            if (strcasecmp(LEVEL_NAME[i], level) == 0) {
+                _level = (LogLevel)i;
+                break;
+            }
+        }
+    }
 }
 
 void Log::close() {
@@ -47,6 +61,10 @@ void Log::close() {
 }
 
 void Log::log(LogLevel level, const char* msg, va_list args) {
+    if (level < _level) {
+        return;
+    }
+
     char buf[1024];
     size_t len = vsnprintf(buf, sizeof(buf), msg, args);
     if (len >= sizeof(buf)) {
@@ -63,6 +81,10 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
 }
 
 void Log::debug(const char* msg, ...) {
+    if (LOG_DEBUG < _level) {
+        return;
+    }
+
     va_list args;
     va_start(args, msg);
     log(LOG_DEBUG, msg, args);
@@ -70,6 +92,10 @@ void Log::debug(const char* msg, ...) {
 }
 
 void Log::info(const char* msg, ...) {
+    if (LOG_INFO < _level) {
+        return;
+    }
+
     va_list args;
     va_start(args, msg);
     log(LOG_INFO, msg, args);
@@ -77,6 +103,10 @@ void Log::info(const char* msg, ...) {
 }
 
 void Log::warn(const char* msg, ...) {
+    if (LOG_WARN < _level) {
+        return;
+    }
+
     va_list args;
     va_start(args, msg);
     log(LOG_WARN, msg, args);
@@ -84,6 +114,10 @@ void Log::warn(const char* msg, ...) {
 }
 
 void Log::error(const char* msg, ...) {
+    if (LOG_ERROR < _level) {
+        return;
+    }
+
     va_list args;
     va_start(args, msg);
     log(LOG_ERROR, msg, args);

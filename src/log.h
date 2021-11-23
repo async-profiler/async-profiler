@@ -26,25 +26,28 @@
 #define ATTR_FORMAT
 #endif
 
+#define LOG_LEVELS(fn) \
+    fn(TRACE) \
+    fn(DEBUG) \
+    fn(INFO) \
+    fn(WARN) \
+    fn(ERROR)
 
 enum LogLevel {
-    LOG_NONE,
-    LOG_TRACE,
-    LOG_DEBUG,
-    LOG_INFO,
-    LOG_WARN,
-    LOG_ERROR
+#define LOG_LEVEL_ENUM(level) LOG_##level,
+LOG_LEVELS(LOG_LEVEL_ENUM)
+#undef LOG_LEVEL_ENUM
 };
-
 
 class Log {
   private:
     static FILE* _file;
+    static LogLevel _level;
 
   public:
     static const char* const LEVEL_NAME[];
 
-    static void open(const char* file_name);
+    static void open(const char* file_name, const char *level);
     static void close();
 
     static void log(LogLevel level, const char* msg, va_list args);

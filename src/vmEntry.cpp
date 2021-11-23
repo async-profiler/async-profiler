@@ -285,7 +285,7 @@ jvmtiError VM::GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type) {
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
-    Log::open(_agent_args._log);
+    Log::open(_agent_args._log, _agent_args._loglevel);
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
@@ -303,7 +303,7 @@ extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args;
     Error error = args.parse(options);
-    Log::open(args._log);
+    Log::open(args._log, args._loglevel);
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;

@@ -247,6 +247,12 @@ Error Arguments::parse(const char* args) {
             CASE("log")
                 _log = value == NULL || value[0] == 0 ? NULL : value;
 
+            CASE("loglevel")
+                if (value == NULL || value[0] == 0) {
+                    msg = "loglevel must not be empty";
+                }
+                _loglevel = value;
+
             CASE("fdtransfer")
                 _fdtransfer = true;
                 _fdtransfer_path = value;
