@@ -93,11 +93,9 @@ class NativeCodeCache : public CodeCache {
   private:
     char* _name;
     short _lib_index;
+
     const void** _got_start;
     const void** _got_end;
-
-    FrameDesc* _dwarf_table;
-    int _dwarf_table_length;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;

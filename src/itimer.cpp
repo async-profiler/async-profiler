@@ -19,10 +19,10 @@
 #include "j9StackTraces.h"
 #include "os.h"
 #include "profiler.h"
+#include "stackWalker.h"
 
 
 static J9StackTraces _j9_stack_traces;
-static ITimer _prototype;  // FIXME: remove
 
 long ITimer::_interval;
 
@@ -38,7 +38,8 @@ void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     J9StackTraceNotification notif;
-    notif.num_frames = _prototype.getNativeTrace(ucontext, 0, notif.addr, MAX_J9_NATIVE_FRAMES);
+    // TODO: FP vs. DWARF
+    notif.num_frames = StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
     _j9_stack_traces.checkpoint(_interval, &notif);
 }
 

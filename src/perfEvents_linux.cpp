@@ -40,6 +40,7 @@
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
+#include "stackWalker.h"
 #include "symbols.h"
 #include "vmStructs.h"
 
@@ -531,8 +532,6 @@ class PerfEvent : public SpinLock {
 };
 
 
-static PerfEvents _prototype;  // FIXME: remove
-
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
@@ -596,8 +595,6 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
         attr.exclude_callchain_user = 1;
     }
-    // FIXME
-    attr.exclude_callchain_user = 1;
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
@@ -698,7 +695,10 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
-        notif.num_frames = _prototype.getNativeTrace(ucontext, OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        notif.num_frames = walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        if (_cstack == CSTACK_DWARF) {
+            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+        }
         _j9_stack_traces.checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -927,10 +927,6 @@ stack_complete:
     }
 
     event->unlock();
-
-    // FIXME
-    depth += Engine::getNativeTrace(ucontext, tid, callchain + depth, max_depth - depth);
-
     return depth;
 }
 
