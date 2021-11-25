@@ -121,6 +121,12 @@ JitWriteProtection::~JitWriteProtection() {
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
 
+u64 OS::cputime() {
+    struct timespec ts;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
+    return (u64)ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
 u64 OS::nanotime() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

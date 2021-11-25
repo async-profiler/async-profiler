@@ -499,6 +499,7 @@ class PerfEvent : public SpinLock {
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
+volatile u64 PerfEvents::_cputime_epoch = 0;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
@@ -621,6 +622,9 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     if (_enabled) {
+        static __thread u64 cputime_epoch;
+        static __thread u64 cputime_prev;
+
         u64 counter;
         switch (_event_type->counter_arg) {
             case 1: counter = StackFrame(ucontext).arg0(); break;
@@ -634,7 +638,11 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         }
 
         ExecutionEvent event;
+        event._cpu_time = _cputime_epoch == cputime_epoch ? OS::cputime() - cputime_prev : 0;
         Profiler::instance()->recordSample(ucontext, counter, 0, &event);
+
+        cputime_epoch = _cputime_epoch;
+        cputime_prev += event._cpu_time;
     } else {
         resetBuffer(OS::threadId());
     }
@@ -721,6 +729,8 @@ Error PerfEvents::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : _event_type->default_interval;
 
+    _cputime_epoch++;
+
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
@@ -736,6 +746,7 @@ Error PerfEvents::start(Arguments& args) {
         _events = (PerfEvent*)calloc(max_events, sizeof(PerfEvent));
         _max_events = max_events;
     }
+
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 

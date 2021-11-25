@@ -32,7 +32,7 @@ const int THREADS_PER_TICK = 8;
 // Smaller intervals are practically unusable due to large overhead.
 const long MIN_INTERVAL = 100000;
 
-
+volatile u64 WallClock::_cputime_epoch = 0;
 long WallClock::_interval;
 bool WallClock::_sample_idle_threads;
 
@@ -58,9 +58,16 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    static __thread u64 cputime_epoch;
+    static __thread u64 cputime_prev;
+
     ExecutionEvent event;
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    event._cpu_time = _cputime_epoch == cputime_epoch ? OS::cputime() - cputime_prev : 0;
     Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+
+    cputime_epoch = _cputime_epoch;
+    cputime_prev += event._cpu_time;
 }
 
 long WallClock::adjustInterval(long interval, int thread_count) {
@@ -79,6 +86,7 @@ Error WallClock::start(Arguments& args) {
 
     // Increase default interval for wall clock mode due to larger number of sampled threads
     _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
+    _cputime_epoch++;
 
     OS::installSignalHandler(SIGVTALRM, signalHandler);
 

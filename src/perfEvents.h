@@ -18,6 +18,7 @@
 #define _PERFEVENTS_H
 
 #include <signal.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -29,6 +30,7 @@ class PerfEvents : public Engine {
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
+    static volatile u64 _cputime_epoch;
     static long _interval;
     static Ring _ring;
     static CStack _cstack;

@@ -62,6 +62,7 @@ class OS {
     static const size_t page_size;
     static const size_t page_mask;
 
+    static u64 cputime();
     static u64 nanotime();
     static u64 micros();
     static u64 processStartTime();
