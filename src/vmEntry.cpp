@@ -60,6 +60,15 @@ bool VM::init(JavaVM* vm, bool attach) {
         return false;
     }
 
+#ifdef __APPLE__
+    Dl_info dl_info;
+    if (dladdr((const void*)wakeupHandler, &dl_info) && dl_info.dli_fname != NULL) {
+        // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
+        // On Linux, we use 'nodelete' linker option.
+        dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
+    }
+#endif
+
     char* prop;
     if (_jvmti->GetSystemProperty("java.vm.name", &prop) == 0) {
         bool is_hotspot = strstr(prop, "OpenJDK") != NULL ||
@@ -328,4 +337,12 @@ JNI_OnLoad(JavaVM* vm, void* reserved) {
 
     JavaAPI::registerNatives(VM::jvmti(), VM::jni());
     return JNI_VERSION_1_6;
+}
+
+extern "C" JNIEXPORT void JNICALL
+JNI_OnUnload(JavaVM* vm, void* reserved) {
+    Profiler* profiler = Profiler::instance();
+    if (profiler != NULL) {
+        profiler->stop();
+    }
 }

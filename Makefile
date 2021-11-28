@@ -43,6 +43,7 @@ ifeq ($(OS),Darwin)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
   endif
 else
+  CXXFLAGS += -Wl,-z,nodelete
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   FDTRANSFER_BIN=build/fdtransfer
