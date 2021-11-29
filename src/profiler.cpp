@@ -676,18 +676,20 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
 
     int first_java_frame = num_frames;
-    if (event_type <= BCI_LOCK) {
+    if (event_type == 0) {
+        // Async events
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
+        // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
+        // but not directly, since the thread is in_vm rather than in_native
+        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
+    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && !VM::isOpenJ9()) {
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+    } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
         int start_depth = event_type == BCI_INSTRUMENT ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
-    } else if (event_type == 0 || VMStructs::_get_stack_trace == NULL) {
-        // Async events
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
-    } else {
-        // Events like object allocation happen at known places where it is safe to call JVM TI,
-        // but not directly, since the thread is in_vm rather than in_native
-        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     }
 
     if (num_frames == 0) {
