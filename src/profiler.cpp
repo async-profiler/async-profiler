@@ -227,7 +227,7 @@ const void* Profiler::resolveSymbol(const char* name) {
 
 // For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name 
 const char* Profiler::getLibraryName(const char* native_symbol) {
-    short lib_index = *(short*)(native_symbol - LIB_INDEX_OFFSET);
+    short lib_index = NativeFunc::libIndex(native_symbol);
     if (lib_index >= 0 && lib_index < _native_lib_count) {
         const char* s = _native_libs[lib_index]->name();
         if (s != NULL) {
@@ -270,24 +270,6 @@ bool Profiler::inJavaCode(void* ucontext) {
     return CodeHeap::contains(pc);
 }
 
-static bool is_prefix(const char* str, const char* prefix) {
-    return strncmp(str, prefix, strlen(prefix)) == 0;
-}
-
-static bool is_cpp_interpreter_method(const char* mn) {
-    if (mn == NULL) return false;
-
-    // These are methods from OpenJDK C++ Interpreter:
-    //   BytecodeInterpreter::run
-    //   ZeroIntepreter::main_loop
-    //   ZeroIntepreter::*_entry
-    //
-    // It is fine to over-match ZeroInterpreter a little to do
-    // fewer tests on this relatively hot path.
-    return is_prefix(mn, "_ZN15ZeroInterpreter") ||
-           is_prefix(mn, "_ZN19BytecodeInterpreter3run");
-}
-
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
     int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
@@ -297,7 +279,7 @@ int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* fr
 
     for (int i = 0; i < native_frames; i++) {
         const char* current_method_name = findNativeMethod(native_callchain[i]);
-        if (is_cpp_interpreter_method(current_method_name)) {
+        if (current_method_name != NULL && NativeFunc::isMarked(current_method_name)) {
             // This is C++ interpreter frame, this and later frames should be reported
             // as Java frames returned by AGCT. Terminate the scan here.
             return depth;

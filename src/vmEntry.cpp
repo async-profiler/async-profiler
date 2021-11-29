@@ -37,6 +37,7 @@ static Arguments _agent_args;
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
+bool VM::_zero_vm = false;
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
@@ -49,6 +50,11 @@ volatile int VM::_in_redefine_classes = 0;
 
 static void wakeupHandler(int signo) {
     // Dummy handler for interrupting syscalls
+}
+
+static bool isZeroInterpreterMethod(const char* blob_name) {
+    return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
+        || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
 }
 
 
@@ -75,6 +81,7 @@ bool VM::init(JavaVM* vm, bool attach) {
                           strstr(prop, "HotSpot") != NULL ||
                           strstr(prop, "GraalVM") != NULL ||
                           strstr(prop, "Dynamic Code Evolution") != NULL;
+        _zero_vm = strstr(prop, "Zero") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
 
         if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
@@ -163,6 +170,9 @@ void VM::ready() {
     if (libjvm != NULL) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
         VMStructs::init(libjvm);
+        if (_zero_vm) {
+            libjvm->mark(isZeroInterpreterMethod);
+        }
     }
 
     profiler->setupTrapHandler();
