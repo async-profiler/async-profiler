@@ -98,6 +98,7 @@ class VM {
     static jvmtiEnv* _jvmti;
 
     static int _hotspot_version;
+    static bool _zero_vm;
 
     static JVM_GetManagement _getManagement;
     static int _instrumentableObjectAlloc;

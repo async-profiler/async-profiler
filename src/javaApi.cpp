@@ -71,6 +71,10 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         std::ostringstream out;
         error = Profiler::instance()->runInternal(args, out);
         if (!error) {
+            if (out.tellp() >= 0x3fffffff) {
+                JavaAPI::throwNew(env, "java/lang/IllegalStateException", "Output exceeds string size limit");
+                return NULL;
+            }
             return env->NewStringUTF(out.str().c_str());
         }
     } else {

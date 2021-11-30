@@ -20,6 +20,18 @@
 #include "dwarf.h"
 
 
+char* NativeFunc::create(const char* name, short lib_index) {
+    NativeFunc* f = (NativeFunc*)malloc(sizeof(NativeFunc) + 1 + strlen(name));
+    f->_lib_index = lib_index;
+    f->_mark = 0;
+    return strcpy(f->_name, name);
+}
+
+void NativeFunc::destroy(char* name) {
+    free(from(name));
+}
+
+
 void CodeCache::expand() {
     CodeBlob* old_blobs = _blobs;
     CodeBlob* new_blobs = new CodeBlob[_capacity * 2];
@@ -81,7 +93,7 @@ jmethodID CodeCache::find(const void* address) {
 
 
 NativeCodeCache::NativeCodeCache(const char* name, short lib_index, const void* min_address, const void* max_address) {
-    _name = encodeLibrarySymbol(name, -1);
+    _name = NativeFunc::create(name, -1);
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
@@ -93,20 +105,14 @@ NativeCodeCache::NativeCodeCache(const char* name, short lib_index, const void* 
 
 NativeCodeCache::~NativeCodeCache() {
     for (int i = 0; i < _count; i++) {
-        free((char*)_blobs[i]._method - LIB_INDEX_OFFSET);
+        NativeFunc::destroy((char*)_blobs[i]._method);
     }
-    free(_name - LIB_INDEX_OFFSET);
+    NativeFunc::destroy(_name);
     free(_dwarf_table);
 }
 
-char* NativeCodeCache::encodeLibrarySymbol(const char* name, short lib_index) {
-    void* s = malloc(strlen(name) + 1 + LIB_INDEX_OFFSET);
-    *(short*)s = lib_index;
-    return strcpy((char*)s + LIB_INDEX_OFFSET, name);
-}
-
 void NativeCodeCache::add(const void* start, int length, const char* name, bool update_bounds) {
-    char* name_copy = encodeLibrarySymbol(name, _lib_index);
+    char* name_copy = NativeFunc::create(name, _lib_index);
     // Replace non-printable characters
     for (char* s = name_copy; *s != 0; s++) {
         if (*s < ' ') *s = '?';
@@ -201,4 +207,13 @@ FrameDesc* NativeCodeCache::findFrameDesc(const void* pc) {
     }
 
     return low > 0 ? &_dwarf_table[low - 1] : NULL;
+}
+
+void NativeCodeCache::mark(NamePredicate predicate) {
+    for (int i = 0; i < _count; i++) {
+        const char* blob_name = (const char*)_blobs[i]._method;
+        if (blob_name != NULL && predicate(blob_name)) {
+            NativeFunc::mark(blob_name);
+        }
+    }
 }

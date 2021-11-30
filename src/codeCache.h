@@ -23,8 +23,38 @@
 #define NO_MIN_ADDRESS  ((const void*)-1)
 #define NO_MAX_ADDRESS  ((const void*)0)
 
+typedef bool (*NamePredicate)(const char* name);
+
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
-const int LIB_INDEX_OFFSET = 2;
+
+
+class NativeFunc {
+  private:
+    short _lib_index;
+    char _mark;
+    char _reserved;
+    char _name[0];
+
+    static NativeFunc* from(const char* name) {
+        return (NativeFunc*)(name - sizeof(NativeFunc));
+    }
+
+  public:
+    static char* create(const char* name, short lib_index);
+    static void destroy(char* name);
+
+    static short libIndex(const char* name) {
+        return from(name)->_lib_index;
+    }
+
+    static bool isMarked(const char* name) {
+        return from(name)->_mark != 0;
+    }
+
+    static void mark(const char* name) {
+        from(name)->_mark = 1;
+    }
+};
 
 
 class FrameDesc;
@@ -137,6 +167,7 @@ class NativeCodeCache : public CodeCache {
 
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void sort();
+
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
@@ -145,6 +176,8 @@ class NativeCodeCache : public CodeCache {
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+
+    void mark(NamePredicate predicate);
 };
 
 #endif // _CODECACHE_H
