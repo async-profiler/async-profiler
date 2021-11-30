@@ -67,6 +67,13 @@ static bool isZeroInterpreterMethod(const char* blob_name) {
         || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
 }
 
+static bool isOpenJ9InterpreterMethod(const char* blob_name) {
+    return strncmp(blob_name, "_ZN32VM_BytecodeInterpreter", 27) == 0
+        || strncmp(blob_name, "_ZN26VM_BytecodeInterpreter", 27) == 0
+        || strncmp(blob_name, "bytecodeLoop", 12) == 0
+        || strcmp(blob_name, "cInterpreter") == 0;
+}
+
 
 bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti != NULL) return true;
@@ -193,6 +200,9 @@ void VM::ready() {
         VMStructs::init(libjvm);
         if (_zero_vm) {
             libjvm->mark(isZeroInterpreterMethod);
+        } else if (isOpenJ9()) {
+            // FIXME: wrong libjvm
+            libjvm->mark(isOpenJ9InterpreterMethod);
         }
     }
 
