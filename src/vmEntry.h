@@ -95,6 +95,7 @@ class VM {
     static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
     static volatile int _in_redefine_classes;
     static int _hotspot_version;
+    static bool _zero_vm;
 
     static void ready();
     static void* getLibraryHandle(const char* name);
