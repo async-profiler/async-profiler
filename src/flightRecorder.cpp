@@ -58,6 +58,7 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 
 
 static SpinLock _rec_lock(1);
+static volatile bool _timer_is_running;
 
 static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
@@ -391,7 +392,6 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    volatile bool _timer_is_running;
     pthread_t _timer_thread;
     char* _master_recording_file;
     off_t _chunk_start;
@@ -450,6 +450,8 @@ class Recording {
         return loadAcquire(_bytes_written) >= _chunk_size || OS::micros() - _start_time >= _chunk_time;
     }
 
+    // Note: this loop runs asynchronously with the recording termination.
+    // Must not access Recording fields without lock guard.
     void timerLoop() {
         u64 current_time = OS::nanotime();
 
