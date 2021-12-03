@@ -1006,8 +1006,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    updateSymbols(args._ring != RING_USER);
-
     _safe_mode = args._safe_mode;
     if (VM::hotspot_version() < 8) {
         // Cannot use JVM TI stack walker during GC on non-HotSpot JVMs or with PermGen
@@ -1024,6 +1022,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
     }
+
+    // Kernel symbols are useful only for perf_events without --all-user
+    updateSymbols(_engine == &perf_events && args._ring != RING_USER);
 
     error = installTraps(args._begin, args._end);
     if (error) {
