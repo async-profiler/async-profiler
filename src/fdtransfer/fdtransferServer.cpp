@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
@@ -108,11 +109,16 @@ bool FdTransferServer::serveRequests(int peer_pid) {
     // Close the server side, don't need it anymore.
     FdTransferServer::closeServer();
 
+    void *perf_mmap_ringbuf[1024] = {};
+    size_t ringbuf_index = 0;
+    const size_t perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
+
     while (1) {
         unsigned char request_buf[1024];
         struct fd_request *req = (struct fd_request *)request_buf;
 
         ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
+
         if (ret == 0) {
             // EOF means done
             return true;
@@ -135,6 +141,25 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             } else {
                 fprintf(stderr, "Target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, peer_pid);
                 error = ESRCH;
+            }
+
+            // Map the perf buffer here (mapping perf fds may require privileges, and fdtransfer has them while the target application does not
+            // necessarily; if pages are already mapped, the same physical pages will be used when the profiler agent maps them again, requiring
+            // no privileges this time)
+            if (error == 0) {
+                // Settings match the mmap() done in PerfEvents::createForThread().
+                void *map_result = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
+                // Ignore errors - if this fails, let it fail again in the profiler again & produce a proper error for the user.
+
+                // Free next entry in the ring buffer, if it was previously allocated.
+                if (perf_mmap_ringbuf[ringbuf_index] != NULL && perf_mmap_ringbuf[ringbuf_index] != MAP_FAILED) {
+                    (void)munmap(perf_mmap_ringbuf[ringbuf_index], perf_mmap_size);
+                }
+                // Store it in the ring buffer so we can free it later.
+                perf_mmap_ringbuf[ringbuf_index] = map_result;
+
+                ringbuf_index++;
+                ringbuf_index = ringbuf_index % ARRAY_SIZE(perf_mmap_ringbuf);
             }
 
             struct perf_fd_response resp;

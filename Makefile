@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.5
+PROFILER_VERSION=2.5.1
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -43,6 +43,7 @@ ifeq ($(OS),Darwin)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
   endif
 else
+  CXXFLAGS += -Wl,-z,nodelete
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   FDTRANSFER_BIN=build/fdtransfer

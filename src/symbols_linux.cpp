@@ -378,7 +378,6 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 
     fclose(f);
-    close(fd);
 }
 
 void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {

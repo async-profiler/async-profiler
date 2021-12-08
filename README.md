@@ -18,13 +18,13 @@ to learn about all features.
 
 ## Download
 
-Current release (2.5):
+Current release (2.5.1):
 
- - Linux x64 (glibc): [async-profiler-2.5-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.5-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.5-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.5-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.5.1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5.1/async-profiler-2.5.1-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.5.1-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5.1/async-profiler-2.5.1-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.5.1-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5.1/async-profiler-2.5.1-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.5.1-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5.1/async-profiler-2.5.1-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5.1/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
@@ -150,6 +150,17 @@ where `getProperty` method is called from.
 
 Only non-native Java methods are supported. To profile a native method,
 use hardware breakpoint event instead, e.g. `-e Java_java_lang_Throwable_fillInStackTrace`
+
+**Be aware** that if you attach async-profiler at runtime, the first instrumentation
+of a non-native Java method may cause the [deoptimization](https://github.com/openjdk/jdk/blob/bf2e9ee9d321ed289466b2410f12ad10504d01a2/src/hotspot/share/prims/jvmtiRedefineClasses.cpp#L4092-L4096)
+of all compiled methods. The subsequent instrumentation flushes only the _dependent code_.
+
+The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
+
+Here are some useful native methods that you may want to profile:
+* ```G1CollectedHeap::humongous_obj_allocate``` - trace the _humongous allocation_ of the G1 GC,
+* ```JVM_StartThread``` - trace the new thread creation,
+* ```Java_java_lang_ClassLoader_defineClass1``` - trace class loading.
 
 ## Building
 
