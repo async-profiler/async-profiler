@@ -31,9 +31,8 @@ class Event {
 class ExecutionEvent : public Event {
   public:
     ThreadState _thread_state;
-    u64 _cpu_time;
 
-    ExecutionEvent() : _thread_state(THREAD_RUNNING), _cpu_time(0) {
+    ExecutionEvent() : _thread_state(THREAD_RUNNING) {
     }
 };
 

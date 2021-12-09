@@ -20,21 +20,14 @@
 #include "profiler.h"
 
 
-volatile u64 ITimer::_cputime_epoch = 0;
 long ITimer::_interval;
 
-void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    static __thread u64 cputime_epoch;
-    static __thread u64 cputime_prev;
 
+void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     ExecutionEvent event;
-    event._cpu_time = _cputime_epoch == cputime_epoch ? OS::cputime() - cputime_prev : 0;
     Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
-
-    cputime_epoch = _cputime_epoch;
-    cputime_prev += event._cpu_time;
 }
 
 Error ITimer::check(Arguments& args) {
@@ -56,7 +49,6 @@ Error ITimer::start(Arguments& args) {
         return Error("interval must be positive");
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
-    _cputime_epoch++;
 
     OS::installSignalHandler(SIGPROF, signalHandler);
 
