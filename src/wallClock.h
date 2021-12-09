@@ -26,7 +26,6 @@
 
 class WallClock : public Engine {
   private:
-    static volatile u64 _cputime_epoch;
     static long _interval;
     static bool _sample_idle_threads;
 

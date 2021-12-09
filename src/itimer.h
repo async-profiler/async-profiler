@@ -18,13 +18,11 @@
 #define _ITIMER_H
 
 #include <signal.h>
-#include "arch.h"
 #include "engine.h"
 
 
 class ITimer : public Engine {
   private:
-    static volatile u64 _cputime_epoch;
     static long _interval;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);

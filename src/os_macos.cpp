@@ -117,12 +117,11 @@ const size_t OS::page_mask = OS::page_size - 1;
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
-u64 OS::cputime() {
-    return clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
-}
-
 u64 OS::nanotime() {
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
+    if (timebase.denom == 0) {
+        mach_timebase_info(&timebase);
+    }
+    return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
 }
 
 u64 OS::micros() {
