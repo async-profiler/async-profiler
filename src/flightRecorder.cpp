@@ -586,11 +586,11 @@ class Recording {
         ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
         (void)result;
 
-        // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
-        u64 tsc_frequency = TSC::frequency();
-        if (tsc_frequency > 1000000000) {
-            tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
-        }
+        // // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
+        // u64 tsc_frequency = TSC::frequency();
+        // if (tsc_frequency > 1000000000) {
+        //     tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
+        // }
 
         // Patch chunk header
         _buf->put64(chunk_end - _chunk_start);
@@ -599,7 +599,7 @@ class Recording {
         _buf->put64(_start_time * 1000);
         _buf->put64(_stop_ticks - _start_ticks);
         _buf->put64(_start_ticks);
-        _buf->put64(tsc_frequency);
+        // _buf->put64(tsc_frequency);
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
 
