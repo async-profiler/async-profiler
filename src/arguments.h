@@ -75,7 +75,8 @@ enum Output {
     OUTPUT_COLLAPSED,
     OUTPUT_FLAMEGRAPH,
     OUTPUT_TREE,
-    OUTPUT_JFR
+    OUTPUT_JFR,
+    OUTPUT_IJFR
 };
 
 enum JfrOption {
@@ -83,6 +84,7 @@ enum JfrOption {
     NO_SYSTEM_PROPS = 0x2,
     NO_NATIVE_LIBS  = 0x4,
     NO_CPU_LOAD     = 0x8,
+    INCREMENTAL     = 0x10,
 
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD
 };

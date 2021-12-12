@@ -51,6 +51,7 @@ public class JfrReader implements Closeable {
     public long endNanos = Long.MIN_VALUE;
     public long startTicks = Long.MAX_VALUE;
     public long ticksPerSec;
+    public boolean incremental;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
@@ -73,6 +74,10 @@ public class JfrReader implements Closeable {
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
+
+        if (fileName.endsWith(".ijfr")) {
+            incremental = true;
+        }
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
@@ -194,8 +199,10 @@ public class JfrReader implements Closeable {
         startTicks = Math.min(startTicks, buf.getLong(pos + 48));
         ticksPerSec = buf.getLong(pos + 56);
 
-        types.clear();
-        typesByName.clear();
+        if (!incremental) {
+            types.clear();
+            typesByName.clear();
+        }
 
         long chunkStart = filePosition + pos;
         readMeta(chunkStart + metaOffset);

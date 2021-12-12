@@ -328,6 +328,10 @@ Error Arguments::parse(const char* args) {
         if (_output == OUTPUT_SVG) {
             return Error("SVG format is obsolete, use .html for FlameGraph");
         }
+        if (_output == OUTPUT_IJFR) {
+            _output = OUTPUT_JFR;
+            _jfr_options |= INCREMENTAL;
+        }
         _dump_traces = 100;
         _dump_flat = 200;
     }
@@ -393,6 +397,8 @@ Output Arguments::detectOutputFormat(const char* file) {
             return OUTPUT_FLAMEGRAPH;
         } else if (strcmp(ext, ".jfr") == 0) {
             return OUTPUT_JFR;
+        } else if (strcmp(ext, ".ijfr") == 0) {
+            return OUTPUT_IJFR;
         } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
             return OUTPUT_COLLAPSED;
         } else if (strcmp(ext, ".svg") == 0) {

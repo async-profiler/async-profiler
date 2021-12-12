@@ -65,7 +65,7 @@ class CallTraceStorage {
     ~CallTraceStorage();
 
     void clear();
-    void collectTraces(std::map<u32, CallTrace*>& map);
+    void collectTraces(std::map<u32, CallTrace*>& map, bool incremental);
     void collectSamples(std::vector<CallTraceSample*>& samples);
     void collectSamples(std::map<u64, CallTraceSample>& map);
 

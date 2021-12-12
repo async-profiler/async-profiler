@@ -22,6 +22,7 @@
 static const u32 INITIAL_CAPACITY = 65536;
 static const u32 CALL_TRACE_CHUNK = 8 * 1024 * 1024;
 static const u32 OVERFLOW_TRACE_ID = 0x7fffffff;
+static const u64 INCREMENTAL_MARKER = 0x8000000000000000ULL;
 
 
 class LongHashTable {
@@ -108,18 +109,22 @@ void CallTraceStorage::clear() {
     _overflow = 0;
 }
 
-void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
+void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map, bool incremental) {
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
         u32 capacity = table->capacity();
 
         for (u32 slot = 0; slot < capacity; slot++) {
-            if (keys[slot] != 0 && loadAcquire(values[slot].samples) != 0) {
-                // Reset samples to avoid duplication of call traces between JFR chunks
-                values[slot].samples = 0;
-                map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
+            u64 samples = loadAcquire(values[slot].samples);
+            if (keys[slot] == 0 || samples == 0) {
+                continue;
             }
+            if (incremental && (samples & INCREMENTAL_MARKER)) {
+                continue;
+            }
+            values[slot].samples = incremental ? INCREMENTAL_MARKER : 0;
+            map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
         }
     }
 

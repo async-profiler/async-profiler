@@ -134,16 +134,53 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
     }
 };
 
+class LookupDict {
+private:
+    Dictionary* dictionary;
+    std::vector<u32> first_time;
+    bool incremental;
+public:
+    LookupDict(Dictionary* dictionary, bool incremental): dictionary(dictionary), incremental(incremental){}
+
+    int lookup(const char* key) {
+        return lookup(key, strlen(key));
+    }
+
+    int lookup(const char* key, int key_length) {
+        u32 result = dictionary->lookup(key, key_length, true);
+        if (result & 0x80000000) {
+            result &= 0x7fffffff;
+            first_time.push_back(result);
+        }
+        return result;
+    }
+
+    void collect(std::map<u32, const char*>& map) {
+        if (incremental) {
+            std::map<u32, const char*> tmp;
+            dictionary->collect(tmp);
+            for (std::vector<u32>::const_iterator it = first_time.begin(); it != first_time.end(); ++it) {
+                u32 n = *it;
+                map[n] = tmp[n];
+            }
+        } else {
+            dictionary->collect(map);
+        }
+    }
+};
+
 class Lookup {
   public:
     MethodMap* _method_map;
-    Dictionary* _classes;
-    Dictionary _packages;
-    Dictionary _symbols;
+    std::vector<u32> first_time_methods;
+
+    LookupDict _classes;
+    LookupDict _packages;
+    LookupDict _symbols;
 
   private:
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        mi->_class = _classes->lookup("");
+        mi->_class = _classes.lookup("");
         mi->_modifiers = 0x100;
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
@@ -185,11 +222,11 @@ class Lookup {
         if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
             jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
             jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
-            mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
+            mi->_class = _classes.lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
         } else {
-            mi->_class = _classes->lookup("");
+            mi->_class = _classes.lookup("");
             mi->_name = _symbols.lookup("jvmtiError");
             mi->_sig = _symbols.lookup("()L;");
         }
@@ -211,8 +248,8 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) :
-        _method_map(method_map), _classes(classes), _packages(), _symbols() {
+    Lookup(MethodMap* method_map, Dictionary* classes, Dictionary* packages, Dictionary* symbols, bool incremental) :
+        _method_map(method_map), _classes(classes, incremental), _packages(packages, incremental), _symbols(symbols, incremental) {
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -222,6 +259,7 @@ class Lookup {
         bool first_time = mi->_key == 0;
         if (first_time) {
             mi->_key = _method_map->size();
+            first_time_methods.push_back(mi->_key);
         }
 
         if (!mi->_mark) {
@@ -396,7 +434,10 @@ class Recording {
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
+
     MethodMap _method_map;
+    Dictionary _packages;
+    Dictionary _symbols;
 
     u64 _start_time;
     u64 _start_ticks;
@@ -415,6 +456,8 @@ class Recording {
     bool _cpu_monitor_enabled;
     Buffer _cpu_monitor_buf;
     CpuTimes _last_times;
+
+    bool _incremental_format;
 
     void cpuMonitorCycle() {
         if (!_cpu_monitor_enabled) return;
@@ -515,6 +558,8 @@ class Recording {
         _base_id = 0;
         _bytes_written = 0;
 
+        _incremental_format = args.hasOption(INCREMENTAL);
+
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
 
@@ -611,7 +656,9 @@ class Recording {
         _chunk_start = finishChunk();
         _start_time = _stop_time;
         _start_ticks = _stop_ticks;
-        _base_id += 0x1000000;
+        if (!_incremental_format) {
+            _base_id += 0x1000000;
+        }
         _bytes_written = 0;
 
         writeHeader(_buf);
@@ -943,7 +990,16 @@ class Recording {
 
         buf->putVar32(9);
 
-        Lookup lookup(&_method_map, Profiler::instance()->classMap());
+        Dictionary tmp_packages;
+        Dictionary tmp_symbols;
+        Lookup lookup(
+            &_method_map,
+            Profiler::instance()->classMap(),
+             _incremental_format ? &_packages : &tmp_packages,
+             _incremental_format ? &_symbols : &tmp_symbols,
+             _incremental_format
+        );
+
         writeFrameTypes(buf);
         writeThreadStates(buf);
         writeThreads(buf);
@@ -1013,7 +1069,7 @@ class Recording {
 
     void writeStackTraces(Buffer* buf, Lookup* lookup) {
         std::map<u32, CallTrace*> traces;
-        Profiler::instance()->_call_trace_storage.collectTraces(traces);
+        Profiler::instance()->_call_trace_storage.collectTraces(traces, _incremental_format);
 
         buf->putVar32(T_STACK_TRACE);
         buf->putVar32(traces.size());
@@ -1069,7 +1125,7 @@ class Recording {
 
     void writeClasses(Buffer* buf, Lookup* lookup) {
         std::map<u32, const char*> classes;
-        lookup->_classes->collect(classes);
+        lookup->_classes.collect(classes);
 
         buf->putVar32(T_CLASS);
         buf->putVar32(classes.size());

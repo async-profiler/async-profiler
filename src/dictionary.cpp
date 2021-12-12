@@ -76,6 +76,10 @@ unsigned int Dictionary::lookup(const char* key) {
 }
 
 unsigned int Dictionary::lookup(const char* key, size_t length) {
+    return lookup(key, length, false);
+}
+
+unsigned int Dictionary::lookup(const char* key, size_t length, bool mark_new) {
     DictTable* table = _table;
     unsigned int h = hash(key, length);
 
@@ -85,7 +89,8 @@ unsigned int Dictionary::lookup(const char* key, size_t length) {
             if (row->keys[c] == NULL) {
                 char* new_key = allocateKey(key, length);
                 if (__sync_bool_compare_and_swap(&row->keys[c], NULL, new_key)) {
-                    return table->index(h % ROWS, c);
+                    unsigned int result = table->index(h % ROWS, c);
+                    return mark_new ? (result | 0x80000000) : result;
                 }
                 free(new_key);
             }
