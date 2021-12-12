@@ -35,6 +35,7 @@ struct CallTraceSample {
     CallTrace* trace;
     u64 samples;
     u64 counter;
+    bool incremental_marker;
 
     CallTraceSample& operator+=(const CallTraceSample& s) {
         trace = s.trace;
