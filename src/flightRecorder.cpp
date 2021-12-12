@@ -597,7 +597,7 @@ class Recording {
         _buf->put64(cpool_offset - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000);
-        _buf->put64(_stop_ticks - _start_ticks);
+        _buf->put64((_stop_time - _start_time) * 1000);
         _buf->put64(_start_ticks);
         _buf->put64(tsc_frequency);
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
