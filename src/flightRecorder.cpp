@@ -508,7 +508,7 @@ class Recording {
 
   public:
     Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
-        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args._file);
+        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args.file());
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
@@ -602,6 +602,8 @@ class Recording {
         _buf->put64(tsc_frequency);
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
+
+        OS::freePageCache(_fd, _chunk_start);
 
         _buf->reset();
         return chunk_end;
@@ -1203,7 +1205,7 @@ char* Recording::_java_command = NULL;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
-    const char* filename = args._file;
+    const char* filename = args.file();
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
@@ -1278,7 +1280,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
         }
     }
 
-    jobject jfilename = env->NewStringUTF(args._file);
+    jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc > 0 ? 2 : 0) |

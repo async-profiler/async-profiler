@@ -78,7 +78,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
             return env->NewStringUTF(out.str().c_str());
         }
     } else {
-        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
             JavaAPI::throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;

@@ -16,6 +16,7 @@
 
 #ifdef __APPLE__
 
+#include <dispatch/dispatch.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -252,6 +253,24 @@ void OS::safeFree(void* addr, size_t size) {
     munmap(addr, size);
 }
 
+Timer* OS::startTimer(u64 seconds, TimerCallback callback, void* arg) {
+    dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
+    dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+    if (source != NULL) {
+        dispatch_source_set_timer(source, dispatch_walltime(NULL, seconds * 1000000000), DISPATCH_TIME_FOREVER, 0);
+        dispatch_source_set_event_handler_f(source, callback);
+        dispatch_set_context(source, arg);
+        dispatch_resume(source);
+    }
+    return (Timer*)source;
+}
+
+void OS::stopTimer(Timer* timer) {
+    dispatch_source_t source = (dispatch_source_t)timer;
+    dispatch_source_cancel(source);
+    dispatch_release(source);
+}
+
 bool OS::getCpuDescription(char* buf, size_t size) {
     return sysctlbyname("machdep.cpu.brand_string", buf, &size, NULL, 0) == 0;
 }
@@ -308,6 +327,10 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
     }
 
     munmap(buf, offset);
+}
+
+void OS::freePageCache(int fd, off_t start_offset) {
+    // Not supported on macOS
 }
 
 #endif // __APPLE__

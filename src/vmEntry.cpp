@@ -32,7 +32,7 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
-static Arguments _agent_args;
+static Arguments _agent_args(true);
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
@@ -232,6 +232,12 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 }
 
+void VM::restartProfiler(void* timer_arg) {
+    if (attachThread("Async-profiler Loop") != NULL) {
+        Profiler::instance()->restart(_agent_args);
+    }
+}
+
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
     loadAllMethodIDs(jvmti, jni);
@@ -312,7 +318,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    Arguments args;
+    Arguments args(true);
     Error error = args.parse(options);
     Log::open(args._log);
     if (error) {
