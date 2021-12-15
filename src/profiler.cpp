@@ -1063,6 +1063,10 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
 
+    if (args._timeout > 0) {
+        _stop_timer = OS::startTimer(args._timeout, VM::restartProfiler, NULL);
+    }
+
     _state = RUNNING;
     _start_time = time(NULL);
     return Error::OK;
@@ -1106,6 +1110,11 @@ Error Profiler::stop() {
     lockAll();
     _jfr.stop();
     unlockAll();
+
+    if (_stop_timer != NULL) {
+        OS::stopTimer(_stop_timer);
+        _stop_timer = NULL;
+    }
 
     FdTransferClient::closePeer();
     _state = IDLE;
@@ -1454,7 +1463,7 @@ Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
         return runInternal(args, std::cout);
     } else {
-        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
             return Error("Could not open output file");
         }
@@ -1462,6 +1471,33 @@ Error Profiler::run(Arguments& args) {
         out.close();
         return error;
     }
+}
+
+Error Profiler::restart(Arguments& args) {
+    MutexLocker ml(_state_lock);
+
+    Error error = stop();
+    if (error) {
+        return error;
+    }
+
+    if (args._file != NULL && args._output != OUTPUT_NONE && args._output != OUTPUT_JFR) {
+        std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
+        if (!out.is_open()) {
+            return Error("Could not open output file");
+        }
+        error = dump(out, args);
+        out.close();
+        if (error) {
+            return error;
+        }
+    }
+
+    if (args._loop) {
+        return start(args, true);
+    }
+
+    return Error::OK;
 }
 
 void Profiler::shutdown(Arguments& args) {

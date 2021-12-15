@@ -73,6 +73,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     total            - count the total value (time, bytes, etc.) instead of samples
 //     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
 //     chunktime=N      - duration of JFR chunk in seconds (default: 1 hour)
+//     timeout=N        - automatically stop profiler after N seconds
+//     loop=N           - run profiler in a loop of N seconds (continuous profiling)
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
@@ -112,11 +114,11 @@ Error Arguments::parse(const char* args) {
     if (_buf == NULL) {
         return Error("Not enough memory to parse arguments");
     }
-    strcpy(_buf, args);
+    char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
     const char* msg = NULL;    
 
-    for (char* arg = strtok(_buf, ","); arg != NULL; arg = strtok(NULL, ",")) {
+    for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
         if (value != NULL) *value++ = 0;
 
@@ -185,12 +187,12 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
                     msg = "Invalid chunksize";
                 }
-            
+
             CASE("chunktime")
                 if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
                     msg = "Invalid chunktime";
                 }
-            
+
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
@@ -203,6 +205,17 @@ Error Arguments::parse(const char* args) {
                     msg = "Duplicate event argument";
                 } else {
                     _event = value;
+                }
+
+            CASE("timeout")
+                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                    msg = "Invalid timeout";
+                }
+
+            CASE("loop")
+                _loop = true;
+                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                    msg = "Invalid loop duration";
                 }
 
             CASE("alloc")
@@ -319,10 +332,6 @@ Error Arguments::parse(const char* args) {
         _event = EVENT_CPU;
     }
 
-    if (_file != NULL && strchr(_file, '%') != NULL) {
-        _file = expandFilePattern(_buf + len + 1, EXTRA_BUF_SIZE - 1, _file);
-    }
-
     if (_file != NULL && _output == OUTPUT_NONE) {
         _output = detectOutputFormat(_file);
         if (_output == OUTPUT_SVG) {
@@ -337,6 +346,13 @@ Error Arguments::parse(const char* args) {
     }
 
     return Error::OK;
+}
+
+const char* Arguments::file() {
+    if (_file != NULL && strchr(_file, '%') != NULL) {
+        return expandFilePattern(_buf, EXTRA_BUF_SIZE - 1, _file);
+    }
+    return _file;
 }
 
 // The linked list of string offsets is embedded right into _buf array
@@ -377,6 +393,19 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
                                 t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
                                 t.tm_hour, t.tm_min, t.tm_sec);
                 continue;
+            } else if (c == '{') {
+                char env_key[128];
+                const char* p = strchr(pattern, '}');
+                if (p != NULL && p - pattern < sizeof(env_key)) {
+                    memcpy(env_key, pattern, p - pattern);
+                    env_key[p - pattern] = 0;
+                    const char* env_value = getenv(env_key);
+                    if (env_value != NULL) {
+                        ptr += snprintf(ptr, end - ptr, "%s", env_value);
+                        pattern = p + 1;
+                        continue;
+                    }
+                }
             }
         }
         *ptr++ = c;

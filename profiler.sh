@@ -33,6 +33,7 @@ usage() {
     echo "  --minwidth pct    skip frames smaller than pct%"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
+    echo "  --loop duration   run profiler in a loop"
     echo "  --alloc bytes     allocation profiling interval in bytes"
     echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
@@ -220,6 +221,13 @@ while [ $# -gt 0 ]; do
             FORMAT="$FORMAT,${1#--}"
             ;;
         --alloc|--lock|--chunksize|--chunktime)
+            PARAMS="$PARAMS,${1#--}=$2"
+            shift
+            ;;
+        --timeout|--loop)
+            if [ "$ACTION" == "collect" ]; then
+                ACTION="start"
+            fi
             PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;

@@ -87,6 +87,7 @@ class Profiler {
     Engine* _engine;
     int _event_mask;
     time_t _start_time;
+    Timer* _stop_timer;
 
     u64 _total_samples;
     u64 _failures[ASGCT_FAILURE_TYPES];
@@ -173,6 +174,7 @@ class Profiler {
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
+        _stop_timer(NULL),
         _max_stack_depth(0),
         _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
@@ -200,6 +202,7 @@ class Profiler {
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, std::ostream& out);
+    Error restart(Arguments& args);
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
