@@ -224,7 +224,7 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,${1#--}=$2"
             shift
             ;;
-        --loop)
+        --timeout|--loop)
             if [ "$ACTION" == "collect" ]; then
                 ACTION="start"
             fi

@@ -132,7 +132,7 @@ class Arguments {
     Counter _counter;
     Ring _ring;
     const char* _event;
-    long _duration;
+    long _timeout;
     long _interval;
     long _alloc;
     long _lock;
@@ -172,7 +172,7 @@ class Arguments {
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
         _event(NULL),
-        _duration(0),
+        _timeout(0),
         _interval(0),
         _alloc(0),
         _lock(0),

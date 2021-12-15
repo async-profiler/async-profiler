@@ -1063,8 +1063,8 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
 
-    if (args._duration > 0) {
-        _stop_timer = OS::startTimer(args._duration, VM::restartProfiler, NULL);
+    if (args._timeout > 0) {
+        _stop_timer = OS::startTimer(args._timeout, VM::restartProfiler, NULL);
     }
 
     _state = RUNNING;

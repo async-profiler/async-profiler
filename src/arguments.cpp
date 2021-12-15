@@ -73,7 +73,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     total            - count the total value (time, bytes, etc.) instead of samples
 //     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
 //     chunktime=N      - duration of JFR chunk in seconds (default: 1 hour)
-//     duration=N       - automatically stop profiler after N seconds
+//     timeout=N        - automatically stop profiler after N seconds
 //     loop=N           - run profiler in a loop of N seconds (continuous profiling)
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
@@ -207,14 +207,14 @@ Error Arguments::parse(const char* args) {
                     _event = value;
                 }
 
-            CASE("duration")
-                if (value == NULL || (_duration = parseUnits(value, SECONDS)) < 0 || !_persistent) {
-                    msg = "Invalid duration";
+            CASE("timeout")
+                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                    msg = "Invalid timeout";
                 }
 
             CASE("loop")
                 _loop = true;
-                if (value == NULL || (_duration = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
                     msg = "Invalid loop duration";
                 }
 
