@@ -114,7 +114,7 @@ jobs:
             git tag "DD-${RELEASE_VERSION}"
             git push --tags
           else
-            echo "Snapshot version are not tagged. Skipping."
+            echo "Snapshot versions are not tagged. Skipping."
           fi
       - name: Store version
         run: |
