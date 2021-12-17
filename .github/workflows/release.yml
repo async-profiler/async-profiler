@@ -142,7 +142,7 @@ jobs:
             target/versions
 
   publish-release:
-    needs: build-maven
+    needs: prepare-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
