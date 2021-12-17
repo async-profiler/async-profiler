@@ -110,6 +110,7 @@ jobs:
         run: mvn --batch-mode --update-snapshots package
       - name: Tag version
         run: |
+          BRANCH=$(git branch --show-current | tr '/' '_')
           if [ "${RELEASE_VERSION}" != "snapshot" ] && [ "${BRANCH}" == "main" ]; then
             git tag "DD-${RELEASE_VERSION}"
             git push --tags
@@ -120,11 +121,12 @@ jobs:
         run: |
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
           BRANCH=$(git branch --show-current | tr '/' '_')
+          # if the release version is not defined or we are operating on custom branch the version should be SNAPSHOT
+          if [ -z "${RELEASE_VERSION}" ] || [ "${BRANCH} != "main" ]; then
+            RELEASE_VERSION="snapshot"
+          fi
           if [ "${BRANCH}" == "main" ]; then
             BRANCH="DD"
-          fi
-          if [ -z "${RELEASE_VERSION}" ]; then
-            RELEASE_VERSION="snapshot"
           fi
           echo "VERSION=${BASE_VERSION}" > target/versions
           echo "POM_VERSION=${BASE_VERSION}-${BRANCH^^}-${RELEASE_VERSION^^}" >> target/versions
