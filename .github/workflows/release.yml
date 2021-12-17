@@ -112,7 +112,7 @@ jobs:
         run: |
           BRANCH=$(git branch --show-current | tr '/' '_')
           if [ "${RELEASE_VERSION}" != "snapshot" ] && [ "${BRANCH}" == "main" ]; then
-            git tag "DD-${RELEASE_VERSION}"
+            git tag -f "DD-${RELEASE_VERSION}"
             git push --tags
           else
             echo "Snapshot versions are not tagged. Skipping."
@@ -122,7 +122,7 @@ jobs:
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
           BRANCH=$(git branch --show-current | tr '/' '_')
           # if the release version is not defined or we are operating on custom branch the version should be SNAPSHOT
-          if [ -z "${RELEASE_VERSION}" ] || [ "${BRANCH} != "main" ]; then
+          if [ -z "${RELEASE_VERSION}" ] || [ "${BRANCH}"" != "main" ]; then
             RELEASE_VERSION="snapshot"
           fi
           if [ "${BRANCH}" == "main" ]; then
