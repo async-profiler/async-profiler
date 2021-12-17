@@ -111,9 +111,13 @@ jobs:
       - name: Tag version
         run: |
           BRANCH=$(git branch --show-current | tr '/' '_')
+          # if the release version is not defined or we are operating on custom branch the version should be SNAPSHOT
+          if [ -z "${RELEASE_VERSION}" ] || [ "${BRANCH}"" != "main" ]; then
+            RELEASE_VERSION="snapshot"
+          fi
           if [ "${RELEASE_VERSION}" != "snapshot" ] && [ "${BRANCH}" == "main" ]; then
             git tag -f "DD-${RELEASE_VERSION}"
-            git push --tags
+            git push -f --tags
           else
             echo "Snapshot versions are not tagged. Skipping."
           fi
