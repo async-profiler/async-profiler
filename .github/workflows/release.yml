@@ -69,7 +69,7 @@ jobs:
          name: libasyncProfiler-${{matrix.build}}.so
          path: build/libasyncProfiler.so
 
-  build-maven:
+  prepare-release:
     needs: build-native
     runs-on: ubuntu-latest
     env:
@@ -141,7 +141,7 @@ jobs:
             target/*.jar
             target/versions
 
-  publish-maven:
+  publish-release:
     needs: build-maven
     runs-on: ubuntu-latest
     steps:
