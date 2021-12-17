@@ -399,7 +399,9 @@ class Recording {
     MethodMap _method_map;
 
     u64 _start_time;
+    u64 _recording_start_time;
     u64 _start_ticks;
+    u64 _recording_start_ticks;
     u64 _stop_time;
     u64 _stop_ticks;
 
@@ -512,6 +514,8 @@ class Recording {
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
+        _recording_start_time = _start_time;
+        _recording_start_ticks = _start_ticks;
         _base_id = 0;
         _bytes_written = 0;
 
@@ -524,7 +528,6 @@ class Recording {
 
         writeHeader(_buf);
         writeMetadata(_buf);
-        writeRecordingInfo(_buf);
         writeSettings(_buf, args);
         if (!args.hasOption(NO_SYSTEM_INFO)) {
             writeOsCpuInfo(_buf);
@@ -553,7 +556,7 @@ class Recording {
     ~Recording() {
         stopTimer();
 
-        off_t chunk_end = finishChunk();
+        off_t chunk_end = finishChunk(true);
 
         if (_master_recording_file != NULL) {
             appendRecording(_master_recording_file, chunk_end);
@@ -564,16 +567,24 @@ class Recording {
     }
 
     off_t finishChunk() {
+        return finishChunk(false);
+    }
+
+    off_t finishChunk(bool end_recording) {
         flush(&_cpu_monitor_buf);
 
         writeNativeLibraries(_buf);
 
+        _stop_time = OS::micros();
+        _stop_ticks = TSC::ticks();
+        
+        if (end_recording) {
+            writeRecordingInfo(_buf);
+        }
+
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             flush(&_buf[i]);
         }
-
-        _stop_time = OS::micros();
-        _stop_ticks = TSC::ticks();
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
         writeCpool(_buf);
@@ -587,7 +598,7 @@ class Recording {
         (void)result;
 
         // // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
-        // u64 tsc_frequency = TSC::frequency();
+        u64 tsc_frequency = TSC::frequency();
         // if (tsc_frequency > 1000000000) {
         //     tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
         // }
@@ -599,7 +610,7 @@ class Recording {
         _buf->put64(_start_time * 1000);
         _buf->put64(_stop_ticks - _start_ticks);
         _buf->put64(_start_ticks);
-        // _buf->put64(tsc_frequency);
+        _buf->put64(tsc_frequency);
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
 
@@ -616,7 +627,6 @@ class Recording {
 
         writeHeader(_buf);
         writeMetadata(_buf);
-        writeRecordingInfo(_buf);
         flush(_buf);
     }
 
@@ -749,16 +759,16 @@ class Recording {
     void writeRecordingInfo(Buffer* buf) {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
-        buf->putVar64(_start_ticks);
-        buf->putVar32(0);
+        buf->putVar64(_recording_start_ticks);
+        buf->putVar32(_stop_ticks - _recording_start_ticks);
         buf->putVar32(_tid);
         buf->putVar32(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
         buf->putVar64(MAX_JLONG);
         buf->putVar32(0);
-        buf->putVar64(_start_time / 1000);
-        buf->putVar64(MAX_JLONG);
+        buf->putVar64(_recording_start_time / 1000);
+        buf->putVar64((_stop_time - _recording_start_time) / 1000);
         buf->put8(start, buf->offset() - start);
     }
 
