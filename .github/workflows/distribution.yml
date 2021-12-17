@@ -73,7 +73,7 @@ jobs:
     needs: build-native
     runs-on: ubuntu-latest
     env:
-      DEPLOYMENT_TYPE: ${{inputs.deployment}}
+      DEPLOYMENT_TYPE: ${{github.event.inputs.deployment}}
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
