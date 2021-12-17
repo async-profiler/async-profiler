@@ -123,7 +123,7 @@ jobs:
           if [ "${BRANCH}" == "main" ]; then
             BRANCH="DD"
           fi
-          if [ -z "${RELEASE_VERSION:}" ]; then
+          if [ -z "${RELEASE_VERSION}" ]; then
             RELEASE_VERSION="snapshot"
           fi
           echo "VERSION=${BASE_VERSION}" > target/versions
