@@ -63,11 +63,11 @@ const char* PerfEvents::getEventName(int event_id) {
     return NULL;
 }
 
-int PerfEvents::createForThread(int tid) {
+int PerfEvents::registerThread(int tid) {
     return -1;
 }
 
-void PerfEvents::destroyForThread(int tid) {
+void PerfEvents::unregisterThread(int tid) {
 }
 
 #endif // __APPLE__

@@ -119,9 +119,7 @@ void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     _thread_filter.remove(tid);
     updateThreadName(jvmti, jni, thread);
 
-    if (_engine == &perf_events) {
-        PerfEvents::createForThread(tid);
-    }
+    _engine->registerThread(tid);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -129,9 +127,7 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     _thread_filter.remove(tid);
     updateThreadName(jvmti, jni, thread);
 
-    if (_engine == &perf_events) {
-        PerfEvents::destroyForThread(tid);
-    }
+    _engine->unregisterThread(tid);
 }
 
 const char* Profiler::asgctError(int code) {

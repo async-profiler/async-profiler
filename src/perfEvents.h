@@ -42,6 +42,9 @@ class PerfEvents : public Engine {
 
     int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
+    virtual int registerThread(int tid);
+    virtual void unregisterThread(int tid);
+
     const char* title();
     const char* units();
 
@@ -49,9 +52,6 @@ class PerfEvents : public Engine {
 
     static bool supported();
     static const char* getEventName(int event_id);
-
-    static int createForThread(int tid);
-    static void destroyForThread(int tid);
 };
 
 #endif // _PERFEVENTS_H

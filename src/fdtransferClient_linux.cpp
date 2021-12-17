@@ -75,7 +75,7 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
         // Update errno for our caller.
         errno = resp.header.error;
     } else {
-        // Update the TID of createForThread, in case the multiple threads' requests got mixed up and we're
+        // Update the TID of registerThread, in case the multiple threads' requests got mixed up and we're
         // now handling the response destined to another. It's alright - the other thread(s) will finish the
         // handling of our TID perf fd.
         *tid = resp.tid;

@@ -147,7 +147,7 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             // necessarily; if pages are already mapped, the same physical pages will be used when the profiler agent maps them again, requiring
             // no privileges this time)
             if (error == 0) {
-                // Settings match the mmap() done in PerfEvents::createForThread().
+                // Settings match the mmap() done in PerfEvents::registerThread().
                 void *map_result = mmap(NULL, perf_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, perf_fd, 0);
                 // Ignore errors - if this fails, let it fail again in the profiler again & produce a proper error for the user.
 
