@@ -1,4 +1,4 @@
-name: Distribution
+name: Release
 
 on:
   workflow_dispatch:
@@ -7,8 +7,8 @@ on:
         description: 'Log level'
         required: true
         default: 'warning'
-      deployment:
-        description: Deployment type (snapshot, release)
+      version:
+        description: Release version ('snapshot', <version number>)
         default: 'snapshot'
         required: true
   push:
@@ -73,7 +73,7 @@ jobs:
     needs: build-native
     runs-on: ubuntu-latest
     env:
-      DEPLOYMENT_TYPE: ${{github.event.inputs.deployment}}
+      RELEASE_VERSION: ${{github.event.inputs.version}}
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
@@ -108,6 +108,14 @@ jobs:
           path: src/main/resources/native-libs/linux-ppc64le
       - name: Build with Maven
         run: mvn --batch-mode --update-snapshots package
+      - name: Tag version
+        run: |
+          if [ "${RELEASE_VERSION}" != "snapshot" ] && [ "${BRANCH}" == "main" ]; then
+            git tag "DD-${RELEASE_VERSION}"
+            git push --tags
+          else
+            echo "Snapshot version are not tagged. Skipping."
+          fi
       - name: Store version
         run: |
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
@@ -115,11 +123,11 @@ jobs:
           if [ "${BRANCH}" == "main" ]; then
             BRANCH="DD"
           fi
-          if [ -z "${DEPLOYMENT_TYPE}" ]; then
-            DEPLOYMENT_TYPE="snapshot"
+          if [ -z "${RELEASE_VERSION:}" ]; then
+            RELEASE_VERSION="snapshot"
           fi
           echo "VERSION=${BASE_VERSION}" > target/versions
-          echo "POM_VERSION=${BASE_VERSION}-${BRANCH^^}-${DEPLOYMENT_TYPE^^}" >> target/versions
+          echo "POM_VERSION=${BASE_VERSION}-${BRANCH^^}-${RELEASE_VERSION^^}" >> target/versions
       - uses: actions/upload-artifact@v2
         with:
           name: async-profiler-archive.zip
