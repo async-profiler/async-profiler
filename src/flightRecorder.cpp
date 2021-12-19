@@ -20,7 +20,6 @@
 #include <cxxabi.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +57,6 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 
 
 static SpinLock _rec_lock(1);
-static volatile bool _timer_is_running;
 
 static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
@@ -392,7 +390,6 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    pthread_t _timer_thread;
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
@@ -415,92 +412,6 @@ class Recording {
     bool _cpu_monitor_enabled;
     Buffer _cpu_monitor_buf;
     CpuTimes _last_times;
-
-    void cpuMonitorCycle() {
-        if (!_cpu_monitor_enabled) return;
-
-        CpuTimes times;
-        times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
-        times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
-
-        float proc_user = 0, proc_system = 0, machine_total = 0;
-
-        if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
-            float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
-            proc_user = ratio((times.proc.user - _last_times.proc.user) / delta);
-            proc_system = ratio((times.proc.system - _last_times.proc.system) / delta);
-        }
-
-        if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
-            float delta = times.total.real - _last_times.total.real;
-            machine_total = ratio(((times.total.user + times.total.system) -
-                                   (_last_times.total.user + _last_times.total.system)) / delta);
-            if (machine_total < proc_user + proc_system) {
-                machine_total = ratio(proc_user + proc_system);
-            }
-        }
-
-        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
-
-        _last_times = times;
-    }
-
-    bool needSwitchChunk() {
-        return loadAcquire(_bytes_written) >= _chunk_size || OS::micros() - _start_time >= _chunk_time;
-    }
-
-    // Note: this loop runs asynchronously with the recording termination.
-    // Must not access Recording fields without lock guard.
-    void timerLoop() {
-        u64 current_time = OS::nanotime();
-
-        while (_timer_is_running) {
-            u64 sleep_until = current_time + 1000000000;
-            while ((current_time = OS::nanotime()) < sleep_until) {
-                OS::sleep(sleep_until - current_time);
-                if (!_timer_is_running) return;
-            }
-
-            bool need_switch_chunk = false;
-
-            if (_rec_lock.tryLockShared()) {
-                cpuMonitorCycle();
-                need_switch_chunk = needSwitchChunk();
-                _rec_lock.unlockShared();
-            }
-
-            if (need_switch_chunk) {
-                // Switch JFR chunk under the profiling state lock
-                Profiler::instance()->flushJfr();
-            }
-        }
-    }
-
-    static void* threadEntry(void* rec) {
-        VM::attachThread("Async-profiler Timer");
-        ((Recording*)rec)->timerLoop();
-        VM::detachThread();
-        return NULL;
-    }
-
-    void startTimer() {
-        _timer_is_running = true;
-        if (pthread_create(&_timer_thread, NULL, threadEntry, this) != 0) {
-            Log::warn("Unable to create JFR timer thread");
-            _timer_is_running = false;
-        }
-    }
-
-    void stopTimer() {
-        if (_timer_is_running) {
-            _timer_is_running = false;
-            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
-            // Do not wait until timer thread finishes, otherwise we can deadlock.
-            // timerLoop() is harmless; it's OK to finish it asynchronously.
-            pthread_detach(_timer_thread);
-        }
-    }
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -546,13 +457,9 @@ class Recording {
             _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
             _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
         }
-
-        startTimer();
     }
 
     ~Recording() {
-        stopTimer();
-
         off_t chunk_end = finishChunk();
 
         if (_master_recording_file != NULL) {
@@ -620,6 +527,40 @@ class Recording {
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
         flush(_buf);
+    }
+
+    bool needSwitchChunk(u64 wall_time) {
+        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _start_time >= _chunk_time;
+    }
+
+    void cpuMonitorCycle() {
+        if (!_cpu_monitor_enabled) return;
+
+        CpuTimes times;
+        times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
+        times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
+
+        float proc_user = 0, proc_system = 0, machine_total = 0;
+
+        if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
+            float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
+            proc_user = ratio((times.proc.user - _last_times.proc.user) / delta);
+            proc_system = ratio((times.proc.system - _last_times.proc.system) / delta);
+        }
+
+        if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
+            float delta = times.total.real - _last_times.total.real;
+            machine_total = ratio(((times.total.user + times.total.system) -
+                                   (_last_times.total.user + _last_times.total.system)) / delta);
+            if (machine_total < proc_user + proc_system) {
+                machine_total = ratio(proc_user + proc_system);
+            }
+        }
+
+        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
+        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
+
+        _last_times = times;
     }
 
     bool hasMasterRecording() const {
@@ -1262,6 +1203,19 @@ void FlightRecorder::flush() {
         _rec->switchChunk();
         _rec_lock.unlock();
     }
+}
+
+bool FlightRecorder::timerTick(u64 wall_time) {
+    if (!_rec_lock.tryLockShared()) {
+        // No active recording
+        return false;
+    }
+
+    _rec->cpuMonitorCycle();
+    bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
+
+    _rec_lock.unlockShared();
+    return need_switch_chunk;
 }
 
 Error FlightRecorder::startMasterRecording(Arguments& args) {

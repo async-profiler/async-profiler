@@ -73,8 +73,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     total            - count the total value (time, bytes, etc.) instead of samples
 //     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
 //     chunktime=N      - duration of JFR chunk in seconds (default: 1 hour)
-//     timeout=N        - automatically stop profiler after N seconds
-//     loop=N           - run profiler in a loop of N seconds (continuous profiling)
+//     timeout=TIME     - automatically stop profiler at TIME (absolute or relative)
+//     loop=TIME        - run profiler in a loop (continuous profiling)
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
@@ -208,13 +208,13 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("timeout")
-                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
                     msg = "Invalid timeout";
                 }
 
             CASE("loop")
                 _loop = true;
-                if (value == NULL || (_timeout = parseUnits(value, SECONDS)) < 0 || !_persistent) {
+                if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
                     msg = "Invalid loop duration";
                 }
 
@@ -450,6 +450,18 @@ long Arguments::parseUnits(const char* str, const Multiplier* multipliers) {
     }
 
     return -1;
+}
+
+int Arguments::parseTimeout(const char* str) {
+    const char* p = strchr(str, ':');
+    if (p == NULL) {
+        return parseUnits(str, SECONDS);
+    }
+
+    int hh = str[0] >= '0' && str[0] <= '2' ? atoi(str) : 0xff;
+    int mm = p[1] >= '0' && p[1] <= '5' ? atoi(p + 1) : 0xff;
+    int ss = (p = strchr(p + 1, ':')) != NULL && p[1] >= '0' && p[1] <= '5' ? atoi(p + 1) : 0xff;
+    return 0xff000000 | hh << 16 | mm << 8 | ss;
 }
 
 Arguments::~Arguments() {

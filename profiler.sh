@@ -33,7 +33,7 @@ usage() {
     echo "  --minwidth pct    skip frames smaller than pct%"
     echo "  --reverse         generate stack-reversed FlameGraph / Call tree"
     echo ""
-    echo "  --loop duration   run profiler in a loop"
+    echo "  --loop time       run profiler in a loop"
     echo "  --alloc bytes     allocation profiling interval in bytes"
     echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
