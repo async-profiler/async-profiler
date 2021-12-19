@@ -975,12 +975,14 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    _call_trace_storage.incrementalMode = args.hasOption(INCREMENTAL);
+
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
         memset(_failures, 0, sizeof(_failures));
 
-        // Reset dicrionaries and bitmaps
+        // Reset dictionaries and bitmaps
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
@@ -1386,12 +1388,19 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
                 if (error) {
                     return error;
                 }
-                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
+                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified.\n";
+                break;
+            }
+            if (_call_trace_storage.incrementalMode) {
+                out << "Profiling stopped after " << uptime() << " seconds. Dump for incremental mode is unsupported.\n";
                 break;
             }
             // Fall through
         }
         case ACTION_DUMP: {
+            if (_call_trace_storage.incrementalMode) {
+                return Error("Dump for incremental mode is unsupported");
+            }
             Error error = dump(out, args);
             if (error) {
                 return error;

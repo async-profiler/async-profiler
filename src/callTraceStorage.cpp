@@ -88,9 +88,11 @@ class LongHashTable {
 
 CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, (jmethodID)"storage_overflow"}};
 
-CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
+CallTraceStorage::CallTraceStorage() : _allocator_stash1(CALL_TRACE_CHUNK), _allocator_stash2(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
     _overflow = 0;
+    _allocator = &_allocator_stash1;
+    _allocator_reserve = &_allocator_stash2;
 }
 
 CallTraceStorage::~CallTraceStorage() {
@@ -104,38 +106,57 @@ void CallTraceStorage::clear() {
         _current_table = _current_table->destroy();
     }
     _current_table->clear();
-    _allocator.clear();
+    _allocator->clear();
     _overflow = 0;
 }
 
-void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map, bool incremental) {
+void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
+
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
         u32 capacity = table->capacity();
 
         for (u32 slot = 0; slot < capacity; slot++) {
-            if (keys[slot] == 0) {
-                continue;
-            }
-            CallTraceSample& callSample = values[slot];
-            if (callSample.incremental_marker) {
-                continue;
-            }
-            u64 samples = loadAcquire(callSample.samples);
-            if (samples == 0) {
-                continue;
-            }
-            if (incremental) {
-                values[slot].incremental_marker = true;
-            } else {
+            if (keys[slot] != 0 && loadAcquire(values[slot].samples) != 0) {
                 // Reset samples to avoid duplication of call traces between JFR chunks
                 values[slot].samples = 0;
+                map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
             }
-            map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
         }
     }
 
+    if (_overflow > 0) {
+        map[OVERFLOW_TRACE_ID] = &_overflow_trace;
+    }
+}
+
+void CallTraceStorage::collectTracesIncremental(std::map<u32, CallTrace*>& map) {
+    __atomic_exchange(&_allocator, &_allocator_reserve, &_allocator_reserve, __ATOMIC_RELEASE);
+    while (loadAcquire(_allocator_reserve->allocating_now)) {
+        spinPause();
+    }
+
+    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
+        u64* keys = table->keys();
+        CallTraceSample* values = table->values();
+        u32 capacity = table->capacity();
+
+        for (u32 slot = 0; slot < capacity; slot++) {
+            if (keys[slot] == 0 || loadAcquire(values[slot].samples) == 0) {
+                continue;
+            }
+            CallTraceSample& callSample = values[slot];
+            CallTrace* trace = callSample.trace;
+            if (trace == NULL) {
+                continue;
+            }
+            map[capacity - (INITIAL_CAPACITY - 1) + slot] = trace;
+            callSample.trace = NULL;
+        }
+    }
+
+    _allocator_reserve->clear();
     if (_overflow > 0) {
         map[OVERFLOW_TRACE_ID] = &_overflow_trace;
     }
@@ -203,15 +224,27 @@ u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames) {
 
 CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* frames) {
     const size_t header_size = sizeof(CallTrace) - sizeof(ASGCT_CallFrame);
-    CallTrace* buf = (CallTrace*)_allocator.alloc(header_size + num_frames * sizeof(ASGCT_CallFrame));
-    if (buf != NULL) {
-        buf->num_frames = num_frames;
-        // Do not use memcpy inside signal handler
-        for (int i = 0; i < num_frames; i++) {
-            buf->frames[i] = frames[i];
+
+    while (true) {
+        LinearAllocatorWrapper* allocator = _allocator;
+        atomicInc(allocator->allocating_now, 1);
+        if (allocator != _allocator) {
+            // allocator changed before atomicInc succeed
+            atomicInc(allocator->allocating_now, -1);
+            continue;
         }
+
+        CallTrace* buf = (CallTrace*)allocator->alloc(header_size + num_frames * sizeof(ASGCT_CallFrame));
+        if (buf != NULL) {
+            buf->num_frames = num_frames;
+            // Do not use memcpy inside signal handler
+            for (int i = 0; i < num_frames; i++) {
+                buf->frames[i] = frames[i];
+            }
+        }
+        atomicInc(allocator->allocating_now, -1);
+        return buf;
     }
-    return buf;
 }
 
 CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
@@ -257,7 +290,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             }
 
             // Migrate from a previous table to save space
-            CallTrace* trace = table->prev() == NULL ? NULL : findCallTrace(table->prev(), hash);
+            CallTrace* trace = incrementalMode || table->prev() == NULL ? NULL : findCallTrace(table->prev(), hash);
             if (trace == NULL) {
                 trace = storeCallTrace(num_frames, frames);
             }

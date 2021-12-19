@@ -35,7 +35,6 @@ struct CallTraceSample {
     CallTrace* trace;
     u64 samples;
     u64 counter;
-    bool incremental_marker;
 
     CallTraceSample& operator+=(const CallTraceSample& s) {
         trace = s.trace;
@@ -49,11 +48,22 @@ struct CallTraceSample {
     }
 };
 
+class LinearAllocatorWrapper: public LinearAllocator {
+public:
+    u32 allocating_now;
+    LinearAllocatorWrapper(size_t chunk_size): LinearAllocator(chunk_size){};
+};
+
 class CallTraceStorage {
   private:
     static CallTrace _overflow_trace;
 
-    LinearAllocator _allocator;
+    LinearAllocatorWrapper _allocator_stash1;
+    LinearAllocatorWrapper _allocator_stash2;
+
+    LinearAllocatorWrapper* _allocator;
+    LinearAllocatorWrapper* _allocator_reserve;
+
     LongHashTable* _current_table;
     u64 _overflow;
 
@@ -62,11 +72,14 @@ class CallTraceStorage {
     CallTrace* findCallTrace(LongHashTable* table, u64 hash);
 
   public:
+    bool incrementalMode;
+
     CallTraceStorage();
     ~CallTraceStorage();
 
     void clear();
-    void collectTraces(std::map<u32, CallTrace*>& map, bool incremental);
+    void collectTraces(std::map<u32, CallTrace*>& map);
+    void collectTracesIncremental(std::map<u32, CallTrace*>& map);
     void collectSamples(std::vector<CallTraceSample*>& samples);
     void collectSamples(std::map<u64, CallTraceSample>& map);
 
