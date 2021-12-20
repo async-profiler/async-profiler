@@ -37,10 +37,6 @@ enum ThreadState {
 };
 
 
-class Timer {
-};
-
-
 class ThreadList {
   public:
     virtual ~ThreadList() {}
@@ -90,9 +86,6 @@ class OS {
 
     static void* safeAlloc(size_t size);
     static void safeFree(void* addr, size_t size);
-
-    static Timer* startTimer(u64 seconds, TimerCallback callback, void* arg);
-    static void stopTimer(Timer* timer);
 
     static bool getCpuDescription(char* buf, size_t size);
     static u64 getProcessCpuTime(u64* utime, u64* stime);

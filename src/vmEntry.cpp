@@ -232,10 +232,8 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 }
 
-void VM::restartProfiler(void* timer_arg) {
-    if (attachThread("Async-profiler Loop") != NULL) {
-        Profiler::instance()->restart(_agent_args);
-    }
+void VM::restartProfiler() {
+    Profiler::instance()->restart(_agent_args);
 }
 
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {

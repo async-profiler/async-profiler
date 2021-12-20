@@ -126,13 +126,14 @@ class Arguments {
     static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
     static long parseUnits(const char* str, const Multiplier* multipliers);
+    static int parseTimeout(const char* str);
 
   public:
     Action _action;
     Counter _counter;
     Ring _ring;
     const char* _event;
-    long _timeout;
+    int _timeout;
     long _interval;
     long _alloc;
     long _lock;

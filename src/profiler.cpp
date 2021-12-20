@@ -1063,12 +1063,13 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Thread events might be already enabled by PerfEvents::start
     switchThreadEvents(JVMTI_ENABLE);
 
-    if (args._timeout > 0) {
-        _stop_timer = OS::startTimer(args._timeout, VM::restartProfiler, NULL);
-    }
-
     _state = RUNNING;
     _start_time = time(NULL);
+
+    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
+        startTimer(args._timeout);
+    }
+
     return Error::OK;
 
 error3:
@@ -1106,15 +1107,13 @@ Error Profiler::stop() {
     updateJavaThreadNames();
     updateNativeThreadNames();
 
+    // Make sure no periodic events sent after JFR stops
+    stopTimer();
+
     // Acquire all spinlocks to avoid race with remaining signals
     lockAll();
     _jfr.stop();
     unlockAll();
-
-    if (_stop_timer != NULL) {
-        OS::stopTimer(_stop_timer);
-        _stop_timer = NULL;
-    }
 
     FdTransferClient::closePeer();
     _state = IDLE;
@@ -1376,6 +1375,90 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             out << buf;
         }
     }
+}
+
+time_t Profiler::addTimeout(time_t start, int timeout) {
+    if (timeout == 0) {
+        return (time_t)0x7fffffff;
+    } else if (timeout > 0) {
+        return start + timeout;
+    }
+
+    struct tm t;
+    localtime_r(&start, &t);
+
+    int hh = (timeout >> 16) & 0xff;
+    if (hh < 24) {
+        t.tm_hour = hh;
+    }
+    int mm = (timeout >> 8) & 0xff;
+    if (mm < 60) {
+        t.tm_min = mm;
+    }
+    int ss = timeout & 0xff;
+    if (ss < 60) {
+        t.tm_sec = ss;
+    }
+
+    time_t result = mktime(&t);
+    if (result <= start) {
+        result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
+    }
+    return result;
+}
+
+void Profiler::startTimer(int timeout) {
+    _timer_is_running = true;
+    if (pthread_create(&_timer_thread, NULL, timerThreadEntry, (void*)(intptr_t)timeout) != 0) {
+        Log::warn("Unable to create Profiler timer thread");
+        _timer_is_running = false;
+    }
+}
+
+void Profiler::stopTimer() {
+    if (_timer_is_running) {
+        _timer_is_running = false;
+        if (pthread_self() == _timer_thread) {
+            pthread_detach(_timer_thread);
+        } else {
+            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
+            pthread_join(_timer_thread, NULL);
+        }
+    }
+}
+
+void Profiler::timerLoop(int timeout) {
+    u64 stop_micros = addTimeout(_start_time, timeout) * 1000000ULL;
+    u64 current_time = OS::nanotime();
+    u64 sleep_until = current_time + (_jfr.active() || timeout <= 0 ? 1000000000 : timeout * 1000000000ULL);
+
+    while (_timer_is_running) {
+        while ((current_time = OS::nanotime()) < sleep_until) {
+            OS::sleep(sleep_until - current_time);
+            if (!_timer_is_running) return;
+        }
+
+        u64 wall_time = OS::micros();
+        if (wall_time >= stop_micros) {
+            VM::restartProfiler();
+            return;
+        }
+
+        bool need_switch_chunk = _jfr.timerTick(wall_time);
+        if (need_switch_chunk) {
+            // Flush under profiler state lock
+            flushJfr();
+        }
+
+        sleep_until = current_time + 1000000000;
+    }
+}
+
+void* Profiler::timerThreadEntry(void* arg) {
+    VM::attachThread("Async-profiler Timer");
+    instance()->timerLoop((int)(intptr_t)arg);
+    VM::detachThread();
+    return NULL;
 }
 
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {

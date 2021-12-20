@@ -270,30 +270,6 @@ void OS::safeFree(void* addr, size_t size) {
     syscall(__NR_munmap, addr, size);
 }
 
-Timer* OS::startTimer(u64 seconds, TimerCallback callback, void* arg) {
-    struct sigevent sev;
-    sev.sigev_notify = SIGEV_THREAD;
-    sev.sigev_value.sival_ptr = arg;
-    sev.sigev_notify_function = (void (*)(union sigval)) callback;
-    sev.sigev_notify_attributes = NULL;
-
-    timer_t timer;
-    if (timer_create(CLOCK_REALTIME, &sev, &timer) != 0) {
-        return NULL;
-    }
-
-    struct itimerspec spec = {{0, 0}};
-    spec.it_value.tv_sec = seconds;
-    spec.it_value.tv_nsec = 0;
-    timer_settime(timer, 0, &spec, NULL);
-
-    return (Timer*)timer;
-}
-
-void OS::stopTimer(Timer* timer) {
-    timer_delete((timer_t)timer);
-}
-
 bool OS::getCpuDescription(char* buf, size_t size) {
     int fd = open("/proc/cpuinfo", O_RDONLY);
     if (fd == -1) {

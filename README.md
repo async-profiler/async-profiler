@@ -421,8 +421,9 @@ The following is a complete list of the command-line options accepted by
   `%{ENV}` - to the value of the given environment variable.  
   Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 
-* `--loop DURATION` - run profiler in a loop (continuous profiling).
-  The argument is a loop duration in `s`econds, `m`inutes, `h`ours, or `d`ays.
+* `--loop TIME` - run profiler in a loop (continuous profiling).
+  The argument is either a clock time (`hh:mm:ss`) or
+  a loop duration in `s`econds, `m`inutes, `h`ours, or `d`ays.
   Make sure the filename includes a timestamp pattern, or the output
   will be overwritten on each iteration.  
   Example: `./profiler.sh --loop 1h -f /var/log/profile-%t.jfr 8983`
