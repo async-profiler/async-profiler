@@ -26,8 +26,6 @@ jobs:
           distribution: 'adopt'
       - name: Capture version
         run: |
-          set -e
-          mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
           PREFIX="DD"
           RELEASE_VERSION="snapshot"
@@ -41,7 +39,8 @@ jobs:
               PREFIX="$RELEASE_VERSION"
             fi
           fi
-          
+          mkdir -p target
+
           echo "VERSION=${BASE_VERSION}" > target/versions
           echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
       - uses: actions/upload-artifact@v2
