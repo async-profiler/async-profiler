@@ -14,6 +14,7 @@ on:
 
 jobs:
   setup-env:
+    name: Setup Build Environment
     runs-on: ubuntu-latest
     env:
       RELEASE_REF: ${{github.ref_name}}
@@ -111,6 +112,7 @@ jobs:
          path: build/libasyncProfiler.so
 
   prepare-release:
+    name: Prepare Release
     needs: build-native
     runs-on: ubuntu-latest
     steps:
@@ -154,6 +156,7 @@ jobs:
             target/*.jar
 
   publish-release:
+    name: Publish Release
     needs: prepare-release
     runs-on: ubuntu-latest
     steps:
@@ -171,7 +174,7 @@ jobs:
           path: target/
       - name: Publish maven artifacts
         run: |
-          ls -la
+          ls -la target
           source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=taret/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
