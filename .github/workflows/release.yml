@@ -30,7 +30,7 @@ jobs:
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
           PREFIX="DD"
           RELEASE_VERSION="snapshot"
-          if [ "${RELEASE_REF}" == "DD-"* ]; then
+          if [[ "${RELEASE_REF}" == "DD-"* ]]; then
             # triggered by release tag
             RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
           else
