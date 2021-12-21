@@ -32,7 +32,7 @@ jobs:
           RELEASE_VERSION="snapshot"
           if [[ "${RELEASE_REF}" == "DD-"* ]]; then
             # triggered by release tag
-            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
+            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#DD-##g")
           else
             # other triggers
             if [ "${RELEASE_REF}" != "main" ]; then
