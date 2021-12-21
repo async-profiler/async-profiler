@@ -171,6 +171,7 @@ jobs:
           path: target/
       - name: Publish maven artifacts
         run: |
+          ls -la
           source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=taret/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
