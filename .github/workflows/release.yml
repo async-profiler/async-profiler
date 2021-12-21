@@ -35,9 +35,8 @@ jobs:
             RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
           else
             # other triggers
-            RELEASE_VERSION="${RELEASE_REF}"
-            if [ "${RELEASE_VERSION}" != "main" ]; then
-              PREFIX="$RELEASE_VERSION"
+            if [ "${RELEASE_REF}" != "main" ]; then
+              PREFIX="$RELEASE_REF"
             fi
           fi
           mkdir -p target
