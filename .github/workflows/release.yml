@@ -27,6 +27,7 @@ jobs:
       - name: Capture version
         run: |
           set -e
+          mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
           PREFIX="DD"
           RELEASE_VERSION="snapshot"
