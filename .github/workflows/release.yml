@@ -183,7 +183,7 @@ jobs:
           ls -la target
           source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=taret/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=target/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           rm -rf tmp
