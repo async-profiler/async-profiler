@@ -37,8 +37,6 @@ jobs:
           
           echo "VERSION=${BASE_VERSION}" > target/versions
           echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
-          
-          echo "Version: ${VERSION}, pom: ${POM_VERSION} "
       - uses: actions/upload-artifact@v2
         with:
           name: build-env.zip
