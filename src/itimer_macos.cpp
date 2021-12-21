@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#ifdef __APPLE__
+
 #include <sys/time.h>
 #include "itimer.h"
 #include "os.h"
@@ -67,3 +69,12 @@ void ITimer::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
 }
+
+int ITimer::registerThread(int tid) {
+    return -1;
+}
+
+void ITimer::unregisterThread(int tid) {
+}
+
+#endif // __APPLE__
