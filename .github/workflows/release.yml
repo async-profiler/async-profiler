@@ -109,16 +109,19 @@ jobs:
       - name: Store version
         run: |
           BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
-          RELEASE_VERSION="snapshot"
-          if [ "${RELEASE_TAG}" == "refs/tags/DD-"* ]; then
-            RELEASE_VERSION=$(echo $RELEASE_TAG | sed "s#refs/tags/DD-##g")
-          elif [ "${RELEASE_TAG}" == "refs/branches/"* ]; then
-            RELEASE_VERSION=$(echo $RELEASE_TAG | sed "s#refs/branches/##g")
-          fi
           PREFIX="DD"
-          if [ "$BRANCH" != "main" ]; then
-            PREFIX="$BRANCH"
+          RELEASE_VERSION="snapshot"
+          if [ "${RELEASE_REF}" == "refs/tags/DD-"* ]; then
+            # triggered by tag
+            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
+          elif [ "${RELEASE_REF}" == "refs/branches/"* ]; then
+            # triggered for a branch
+            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/branches/##g")
+            if [ "$RELEASE_VERSION" != "main" ]; then
+              PREFIX="$RELEAS_VERSION"
+            fi
           fi
+          
           echo "VERSION=${BASE_VERSION}" > target/versions
           echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
       - uses: actions/upload-artifact@v2
