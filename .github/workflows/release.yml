@@ -13,7 +13,38 @@ on:
       - 'DD-*'
 
 jobs:
+  setup-env:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_REF: ${{github.ref_name}}
+    steps:
+      - name: Capture version
+        run: |
+          BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
+              PREFIX="DD"
+              RELEASE_VERSION="snapshot"
+              if [ "${RELEASE_REF}" == "refs/tags/DD-"* ]; then
+                # triggered by tag
+                RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
+              elif [ "${RELEASE_REF}" == "refs/branches/"* ]; then
+                # triggered for a branch
+                RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/branches/##g")
+                if [ "$RELEASE_VERSION" != "main" ]; then
+                  PREFIX="$RELEASE_VERSION"
+                fi
+              fi
+              
+              echo "VERSION=${BASE_VERSION}" > target/versions
+              echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
+              
+              echo "Version: ${VERSION}, pom: ${POM_VERSION} "
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-env.zip
+          path: |
+            target/versions
   build-native:
+    needs: setup-env
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -47,13 +78,20 @@ jobs:
       TARGET_OS: ${{matrix.build}}
     steps:
      - uses: actions/checkout@v1
+     - name: Restore build environment
+       uses: actions/download-artifact@master
+       with:
+         name: build-env.zip
+         path: target/
      - name: Set up JDK 11
        uses: actions/setup-java@v2
        with:
          java-version: '11'
          distribution: 'adopt'
      - name: Build binaries
-       run: make all
+       run: |
+         source target/versions
+         make PROFILER_VERSION=${POM_VERSION} all
      - name: Run tests
        run: |
          if [ "${TARGET_OS}" != "macos-x64" ]; then
@@ -70,8 +108,6 @@ jobs:
   prepare-release:
     needs: build-native
     runs-on: ubuntu-latest
-    env:
-      RELEASE_REF: ${{github.ref_name}}
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 11
@@ -106,30 +142,11 @@ jobs:
           path: src/main/resources/native-libs/linux-ppc64le
       - name: Build with Maven
         run: mvn --batch-mode --update-snapshots package
-      - name: Store version
-        run: |
-          BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
-          PREFIX="DD"
-          RELEASE_VERSION="snapshot"
-          if [ "${RELEASE_REF}" == "refs/tags/DD-"* ]; then
-            # triggered by tag
-            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/tags/DD-##g")
-          elif [ "${RELEASE_REF}" == "refs/branches/"* ]; then
-            # triggered for a branch
-            RELEASE_VERSION=$(echo $RELEASE_REF | sed "s#refs/branches/##g")
-            if [ "$RELEASE_VERSION" != "main" ]; then
-              PREFIX="$RELEASE_VERSION"
-            fi
-          fi
-          
-          echo "VERSION=${BASE_VERSION}" > target/versions
-          echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
       - uses: actions/upload-artifact@v2
         with:
           name: async-profiler-archive.zip
           path: |
             target/*.jar
-            target/versions
 
   publish-release:
     needs: prepare-release
@@ -146,15 +163,14 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@master
         with:
-          name: async-profiler-archive.zip
-          path: tmp/
+          path: target/
       - name: Publish maven artifacts
         run: |
-          source tmp/versions
+          source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=tmp/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=tmp/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=tmp/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=taret/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
           rm -rf tmp
           git config user.email "none@datadoghq.com"
           git config user.name "GH Action"
