@@ -112,7 +112,7 @@ jobs:
           RELEASE_VERSION="snapshot"
           if [ "${RELEASE_TAG}" == "refs/tags/DD-"* ]; then
             RELEASE_VERSION=$(echo $RELEASE_TAG | sed "s#refs/tags/DD-##g")
-          else if [ "${RELEASE_TAG}" == "refs/branches/"* ]; then
+          elif [ "${RELEASE_TAG}" == "refs/branches/"* ]; then
             RELEASE_VERSION=$(echo $RELEASE_TAG | sed "s#refs/branches/##g")
           fi
           PREFIX="DD"
