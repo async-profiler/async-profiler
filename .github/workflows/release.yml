@@ -168,9 +168,15 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-      - name: Download artifacts
+      - name: Download build env
         uses: actions/download-artifact@master
         with:
+          name: build-env.zip
+          path: target/
+      - name: Download binaries
+        uses: actions/download-artifact@master
+        with:
+          name: async-profiler-archive.zip
           path: target/
       - name: Publish maven artifacts
         run: |
