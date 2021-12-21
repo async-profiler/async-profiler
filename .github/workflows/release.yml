@@ -18,6 +18,12 @@ jobs:
     env:
       RELEASE_REF: ${{github.ref_name}}
     steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
       - name: Capture version
         run: |
           set -e
