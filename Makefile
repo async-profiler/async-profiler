@@ -1,4 +1,4 @@
-ifeq($(PROFILER_VERSION),)
+ifeq ($(PROFILER_VERSION),)
   export PROFILER_VERSION=2.5.1
 endif
 
