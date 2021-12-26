@@ -13,6 +13,7 @@ CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
+MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
@@ -115,7 +116,11 @@ build:
 	mkdir -p build
 
 build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
+ifeq ($(MERGE),true)
+	cd src && cat *.cpp | $(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o ../$@ $(LIBS) -xc++ -
+else
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+endif
 
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
