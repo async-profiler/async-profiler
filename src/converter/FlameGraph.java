@@ -33,6 +33,9 @@ public class FlameGraph {
     public int skip;
     public String input;
     public String output;
+    public long t1 = Long.MIN_VALUE;
+    public long t2 = Long.MAX_VALUE;
+
 
     private final Frame root = new Frame();
     private int depth;
@@ -55,6 +58,10 @@ public class FlameGraph {
                 minwidth = Double.parseDouble(args[++i]);
             } else if (arg.equals("--skip")) {
                 skip = Integer.parseInt(args[++i]);
+            } else if (arg.equals("--t1")) {
+                t1 = Long.parseLong(args[++i]);
+            } else if (arg.equals("--t2")) {
+                t2 = Long.parseLong(args[++i]);
             }
         }
     }

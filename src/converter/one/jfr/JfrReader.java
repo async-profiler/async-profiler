@@ -83,6 +83,10 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public void rewind() throws IOException {
+        seek(0);
+    }
+
     @Override
     public void close() throws IOException {
         ch.close();

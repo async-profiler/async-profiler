@@ -46,10 +46,28 @@ public class jfr2flame {
 
     public void convert(final FlameGraph fg, final boolean threads, final boolean total,
                         final boolean lines, final boolean bci,
-                        final Class<? extends Event> eventClass) throws IOException {
+                        final Class<? extends Event> eventClass,
+                        long t1, long t2) throws IOException {
+
+        if (t1 > Long.MIN_VALUE || t2 < Long.MAX_VALUE) {
+            long tMin = Long.MAX_VALUE;
+            for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+                if(event.time < tMin) tMin = event.time;
+            }
+            System.out.println(tMin);
+            long ticksPerMSec = jfr.ticksPerSec / 1000l;
+            if (t1 > Long.MIN_VALUE)
+                t1 = tMin + t1 * ticksPerMSec;
+            if (t2 < Long.MAX_VALUE)
+                t2 = tMin + t2 * ticksPerMSec;
+            jfr.rewind();
+        }
+
         EventAggregator agg = new EventAggregator(threads, total);
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
-            agg.collect(event);
+            if(event.time >= t1 && event.time <= t2) {
+                agg.collect(event);
+            }
         }
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
@@ -189,6 +207,8 @@ public class jfr2flame {
             System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
             System.out.println("  --lines    Show line numbers");
             System.out.println("  --bci      Show bytecode indices");
+            System.out.println("  --t1 t1    Start time in ms from beginning of recording");
+            System.out.println("  --t2 t2    End time in ms from beginning of recording");
             System.exit(1);
         }
 
@@ -208,7 +228,7 @@ public class jfr2flame {
         }
 
         try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, eventClass);
+            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, eventClass, fg.t1, fg.t2);
         }
 
         fg.dump();
