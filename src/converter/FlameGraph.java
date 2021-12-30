@@ -27,47 +27,19 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class FlameGraph {
-    public String title = "Flame Graph";
-    public boolean reverse;
-    public double minwidth;
-    public int skip;
-    public String input;
-    public String output;
-    public long t1 = Long.MIN_VALUE;
-    public long t2 = Long.MAX_VALUE;
-
 
     private final Frame root = new Frame();
     private int depth;
     private long mintotal;
 
-    public FlameGraph(String... args) {
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if (!arg.startsWith("--") && !arg.isEmpty()) {
-                if (input == null) {
-                    input = arg;
-                } else {
-                    output = arg;
-                }
-            } else if (arg.equals("--title")) {
-                title = args[++i];
-            } else if (arg.equals("--reverse")) {
-                reverse = true;
-            } else if (arg.equals("--minwidth")) {
-                minwidth = Double.parseDouble(args[++i]);
-            } else if (arg.equals("--skip")) {
-                skip = Integer.parseInt(args[++i]);
-            } else if (arg.equals("--t1")) {
-                t1 = Long.parseLong(args[++i]);
-            } else if (arg.equals("--t2")) {
-                t2 = Long.parseLong(args[++i]);
-            }
-        }
+    private ConverterArgs args;
+
+    public FlameGraph(ConverterArgs args) {
+        this.args = args;
     }
 
     public void parse() throws IOException {
-        parse(new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8));
+        parse(new InputStreamReader(new FileInputStream(args.input), StandardCharsets.UTF_8));
     }
 
     public void parse(Reader in) throws IOException {
@@ -84,8 +56,9 @@ public class FlameGraph {
     }
 
     public void addSample(String[] trace, long ticks) {
+        int skip = args.skip;
         Frame frame = root;
-        if (reverse) {
+        if (args.reverse) {
             for (int i = trace.length; --i >= skip; ) {
                 frame.total += ticks;
                 frame = frame.child(trace[i]);
@@ -103,10 +76,10 @@ public class FlameGraph {
     }
 
     public void dump() throws IOException {
-        if (output == null) {
+        if (args.output == null) {
             dump(System.out);
         } else {
-            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(output), 32768);
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(args.output), 32768);
                  PrintStream out = new PrintStream(bos, false, "UTF-8")) {
                 dump(out);
             }
@@ -115,12 +88,12 @@ public class FlameGraph {
 
     public void dump(PrintStream out) {
         out.print(applyReplacements(HEADER,
-                "{title}", title,
+                "{title}", args.title,
                 "{height}", Math.min((depth + 1) * 16, 32767),
                 "{depth}", depth + 1,
-                "{reverse}", reverse));
+                "{reverse}", args.reverse));
 
-        mintotal = (long) (root.total * minwidth / 100);
+        mintotal = (long) (root.total * args.minwidth / 100);
         printFrame(out, "all", root, 0, 0);
 
         out.print(FOOTER);
@@ -195,8 +168,8 @@ public class FlameGraph {
     }
 
     public static void main(String[] args) throws IOException {
-        FlameGraph fg = new FlameGraph(args);
-        if (fg.input == null) {
+        ConverterArgs cargs = new ConverterArgs(args);
+        if (cargs.input == null) {
             System.out.println("Usage: java " + FlameGraph.class.getName() + " [options] input.collapsed [output.html]");
             System.out.println();
             System.out.println("Options:");
@@ -206,7 +179,7 @@ public class FlameGraph {
             System.out.println("  --skip FRAMES");
             System.exit(1);
         }
-
+        FlameGraph fg = new FlameGraph(cargs);
         fg.parse();
         fg.dump();
     }

@@ -25,10 +25,14 @@ import one.jfr.event.Event;
 import one.jfr.event.EventAggregator;
 import one.jfr.event.ExecutionSample;
 
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.stream.Collectors;
 
 /**
  * Converts .jfr output produced by async-profiler to HTML Flame Graph.
@@ -44,7 +48,8 @@ public class jfr2flame {
         this.jfr = jfr;
     }
 
-    public void convert(final FlameGraph fg, final boolean threads, final boolean total,
+    public void convert(final PrintStream out,
+                        final FlameGraph fg, final boolean threads, final boolean total,
                         final boolean lines, final boolean bci,
                         final Class<? extends Event> eventClass,
                         long t1, long t2) throws IOException {
@@ -54,7 +59,6 @@ public class jfr2flame {
             for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
                 if(event.time < tMin) tMin = event.time;
             }
-            System.out.println(tMin);
             long ticksPerMSec = jfr.ticksPerSec / 1000l;
             if (t1 > Long.MIN_VALUE)
                 t1 = tMin + t1 * ticksPerMSec;
@@ -101,10 +105,18 @@ public class jfr2flame {
                         }
                         trace[--idx] = methodName + FRAME_SUFFIX[types[i]];
                     }
-                    fg.addSample(trace, scale ? (long) (value * ticksToNanos) : value);
+                    if(fg != null)
+                        fg.addSample(trace, scale ? (long) (value * ticksToNanos) : value);
+                    else {
+                        String tline = Arrays.stream(trace).collect(Collectors.joining(";"));
+                        out.printf("%s %d\n", tline, scale ? (long) (value * ticksToNanos) : value);
+                    }
                 }
             }
         });
+
+        if(fg != null)
+            fg.dump(out);
     }
 
     private String getThreadFrame(int tid) {
@@ -196,19 +208,20 @@ public class jfr2flame {
     }
 
     public static void main(String[] args) throws Exception {
-        FlameGraph fg = new FlameGraph(args);
-        if (fg.input == null) {
+        ConverterArgs cargs = new ConverterArgs(args);
+        if (cargs.input == null) {
             System.out.println("Usage: java " + jfr2flame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
             System.out.println("options include all supported FlameGraph options, plus the following:");
-            System.out.println("  --alloc    Allocation Flame Graph");
-            System.out.println("  --lock     Lock contention Flame Graph");
-            System.out.println("  --threads  Split profile by threads");
-            System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
-            System.out.println("  --lines    Show line numbers");
-            System.out.println("  --bci      Show bytecode indices");
-            System.out.println("  --t1 t1    Start time in ms from beginning of recording");
-            System.out.println("  --t2 t2    End time in ms from beginning of recording");
+            System.out.println("  --alloc     Allocation Flame Graph");
+            System.out.println("  --lock      Lock contention Flame Graph");
+            System.out.println("  --threads   Split profile by threads");
+            System.out.println("  --total     Accumulate the total value (time, bytes, etc.)");
+            System.out.println("  --lines     Show line numbers");
+            System.out.println("  --bci       Show bytecode indices");
+            System.out.println("  --t1 t1     Start time in ms from beginning of recording");
+            System.out.println("  --t2 t2     End time in ms from beginning of recording");
+            System.out.println("  --collapsed Output collapsed stacks instead of html");
             System.exit(1);
         }
 
@@ -227,10 +240,12 @@ public class jfr2flame {
             eventClass = ExecutionSample.class;
         }
 
-        try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, eventClass, fg.t1, fg.t2);
-        }
+        FlameGraph fg = cargs.collapsed ? null : new FlameGraph(cargs);
 
-        fg.dump();
+        try (JfrReader jfr = new JfrReader(cargs.input);
+             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(cargs.output), 32768);
+             PrintStream out = new PrintStream(bos, false, "UTF-8")) {
+            new jfr2flame(jfr).convert(out, fg, threads, total, lines, bci, eventClass, cargs.t1, cargs.t2);
+        }
     }
 }

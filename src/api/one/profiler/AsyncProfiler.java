@@ -30,6 +30,11 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private AsyncProfiler() {
     }
 
+    // Assume it was loaded with -agentpath
+    public static AsyncProfiler getPreloadedInstance() {
+        instance = new AsyncProfiler();
+        return instance;
+    }
     public static AsyncProfiler getInstance() {
         return getInstance(null);
     }
