@@ -97,6 +97,9 @@ fdtransfer() {
 }
 
 jattach() {
+    if [ -n "$VERBOSE" ]; then
+      echo Executing: "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG"
+    fi
     set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
     RET=$?
@@ -139,6 +142,7 @@ OUTPUT=""
 FORMAT=""
 PARAMS=""
 PID=""
+VERBOSE=""
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -260,6 +264,9 @@ while [ $# -gt 0 ]; do
         --safe-mode)
             PARAMS="$PARAMS,safemode=$2"
             shift
+            ;;
+        --verbose)
+            VERBOSE=1
             ;;
         [0-9]*)
             PID="$1"

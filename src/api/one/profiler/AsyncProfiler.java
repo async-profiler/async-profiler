@@ -30,11 +30,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private AsyncProfiler() {
     }
 
-    // Assume it was loaded with -agentpath
-    public static AsyncProfiler getPreloadedInstance() {
-        instance = new AsyncProfiler();
-        return instance;
-    }
     public static AsyncProfiler getInstance() {
         return getInstance(null);
     }
@@ -44,13 +39,19 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             return instance;
         }
 
-        if (libPath == null) {
-            System.loadLibrary("asyncProfiler");
-        } else {
-            System.load(libPath);
+        AsyncProfiler ap = new AsyncProfiler();
+
+        try {
+            ap.getVersion();
+        } catch (UnsatisfiedLinkError e) {
+            if (libPath == null) {
+                System.loadLibrary("asyncProfiler");
+            } else {
+                System.load(libPath);
+            }
         }
 
-        instance = new AsyncProfiler();
+        instance = ap;
         return instance;
     }
 
