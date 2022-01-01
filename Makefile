@@ -44,7 +44,7 @@ ifeq ($(OS),Darwin)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
   endif
 else
-  CXXFLAGS += -Wl,-z,nodelete
+  CXXFLAGS += -Wl,-z,defs -Wl,-z,nodelete
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   FDTRANSFER_BIN=build/fdtransfer
@@ -92,7 +92,7 @@ all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
-	tar cvzf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
+	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
@@ -117,7 +117,8 @@ build:
 
 build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 ifeq ($(MERGE),true)
-	cd src && cat *.cpp | $(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o ../$@ $(LIBS) -xc++ -
+	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
@@ -131,13 +132,13 @@ build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c s
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
 	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
-	$(JAR) cvf $@ -C build/api .
+	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
 	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cvfm $@ src/converter/MANIFEST.MF -C build/converter .
+	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
 
 %.class.h: %.class
