@@ -28,7 +28,7 @@
 
 class MachOParser {
   private:
-    NativeCodeCache* _cc;
+    CodeCache* _cc;
     const mach_header* _image_base;
 
     static const char* add(const void* base, uint64_t offset) {
@@ -51,7 +51,7 @@ class MachOParser {
     }
 
   public:
-    MachOParser(NativeCodeCache* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
+    MachOParser(CodeCache* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
     }
 
     bool parse() {
@@ -98,10 +98,10 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
@@ -119,7 +119,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
             continue;
         }
 
-        NativeCodeCache* cc = new NativeCodeCache(path, count);
+        CodeCache* cc = new CodeCache(path, count);
         MachOParser parser(cc, image_base);
         if (!parser.parse()) {
             Log::warn("Could not parse symbols from %s", path);
