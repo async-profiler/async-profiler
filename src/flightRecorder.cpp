@@ -859,7 +859,7 @@ class Recording {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
-        NativeCodeCache** native_libs = profiler->_native_libs;
+        CodeCache** native_libs = profiler->_native_libs;
         int native_lib_count = profiler->_native_lib_count;
 
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
