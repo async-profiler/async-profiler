@@ -83,7 +83,11 @@ public class jfr2flame {
                         }
                         trace[--idx] = methodName + FRAME_SUFFIX[types[i]];
                     }
-                    fg.addSample(trace, scale ? (long) (value * ticksToNanos) : value);
+                    boolean isOnCPU = false;
+                    if (event instanceof ExecutionSample) {
+                        isOnCPU = ((ExecutionSample) event).threadState == 1;
+                    }
+                    fg.addSample(trace, isOnCPU, scale ? (long) (value * ticksToNanos) : value);
                 }
             }
         });
@@ -189,6 +193,7 @@ public class jfr2flame {
             System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
             System.out.println("  --lines    Show line numbers");
             System.out.println("  --bci      Show bytecode indices");
+            System.out.println("  --hotcold  Hot/Cold Flame Graph");
             System.exit(1);
         }
 
