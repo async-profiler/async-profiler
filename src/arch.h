@@ -48,6 +48,7 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = 2;
+const int LOAD_INSN_SIZE = sizeof(void*) == 4 ? 2 : 3;  // mov rax, [reg]
 const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 16;
 const int PLT_ENTRY_SIZE = 16;
@@ -66,6 +67,7 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int LOAD_INSN_SIZE = sizeof(instruction_t);  // ldr r0, [reg]
 const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 20;
 const int PLT_ENTRY_SIZE = 12;
@@ -83,6 +85,7 @@ const int BREAKPOINT_OFFSET = 0;
 
 const bool CAN_MOVE_SP = true;
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int LOAD_INSN_SIZE = sizeof(instruction_t);  // ldr x0, [reg]
 const int FRAME_PC_SLOT = 1;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
@@ -106,6 +109,7 @@ const int BREAKPOINT_OFFSET = 8;
 const bool CAN_MOVE_SP = false;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
+const int LOAD_INSN_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 2;
 const int PLT_HEADER_SIZE = 24;
 const int PLT_ENTRY_SIZE = 24;

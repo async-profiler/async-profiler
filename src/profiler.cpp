@@ -45,6 +45,9 @@
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
 
+static void (*orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+static void (*orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+
 static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
@@ -764,36 +767,32 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         _end_trap.uninstall();
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
-    } else if (_orig_trapHandler != NULL) {
-        _orig_trapHandler(signo, siginfo, ucontext);
+    } else if (orig_trapHandler != NULL) {
+        orig_trapHandler(signo, siginfo, ucontext);
     }
 }
 
 void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
-    if (SafeAccess::checkProtection(frame.pc())) {
-        // TODO: retval
+    if (SafeAccess::isFaultInstruction(frame.pc())) {
+        // Skip the fault instruction, as if it successfully loaded NULL
+        frame.pc() += LOAD_INSN_SIZE;
+        frame.retval() = 0;
         return;
     }
-    if (WX_MEMORY && Trap::checkProtection(frame.pc())) {
+    if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
         return;
     }
 
-    _instance->_orig_segvHandler(signo, siginfo, ucontext);
+    orig_segvHandler(signo, siginfo, ucontext);
 }
 
 void Profiler::setupSignalHandlers() {
-    _orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
-    if (_orig_trapHandler == (void*)SIG_DFL || _orig_trapHandler == (void*)SIG_IGN) {
-        _orig_trapHandler = NULL;
+    orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
+    if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
+        orig_trapHandler = NULL;
     }
-
-    // TODO: SIGBUS
-    struct sigaction sa;
-    sigaction(SIGSEGV, NULL, &sa);
-    _orig_segvHandler = sa.sa_sigaction;
-    sa.sa_sigaction = segvHandler;
-    sigaction(SIGSEGV, &sa, NULL);
+    orig_segvHandler = OS::replaceCrashHandler(segvHandler);
 }
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {

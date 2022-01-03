@@ -22,9 +22,14 @@
 
 class SafeAccess {
   public:
-    static uintptr_t load(uintptr_t ptr);
+    __attribute__((noinline,aligned(16)))
+    static uintptr_t load(uintptr_t ptr) {
+        return *(uintptr_t*)ptr;
+    }
 
-    static bool checkProtection(uintptr_t& pc);
+    static bool isFaultInstruction(uintptr_t pc) {
+        return pc - (uintptr_t)load < 16;
+    }
 };
 
 #endif // _SAFEACCESS_H

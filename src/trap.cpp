@@ -22,7 +22,7 @@
 uintptr_t Trap::_page_start[TRAP_COUNT] = {0};
 
 
-bool Trap::checkProtection(uintptr_t pc) {
+bool Trap::isFaultInstruction(uintptr_t pc) {
     for (int i = 0; i < TRAP_COUNT; i++) {
         if (pc - _page_start[i] < OS::page_size) {
             return true;

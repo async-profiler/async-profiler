@@ -61,7 +61,7 @@ class Trap {
         return _entry == 0 || patch(_saved_insn);
     }
 
-    static bool checkProtection(uintptr_t pc);
+    static bool isFaultInstruction(uintptr_t pc);
 };
 
 #endif // _TRAP_H

@@ -179,7 +179,7 @@ void VM::ready() {
         VMStructs::ready();
     }
 
-    Profiler::instance()->setupSignalHandlers();
+    Profiler::setupSignalHandlers();
 
     _libjava = getLibraryHandle("libjava.so");
 

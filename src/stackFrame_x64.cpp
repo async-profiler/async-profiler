@@ -40,8 +40,8 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)REG(RBP, rbp);
 }
 
-uintptr_t StackFrame::retval() {
-    return (uintptr_t)REG(RAX, rax);
+uintptr_t& StackFrame::retval() {
+    return (uintptr_t&)REG(RAX, rax);
 }
 
 uintptr_t StackFrame::arg0() {
