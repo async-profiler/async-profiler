@@ -23,8 +23,8 @@
 class SafeAccess {
   public:
     __attribute__((noinline,aligned(16)))
-    static uintptr_t load(uintptr_t ptr) {
-        return *(uintptr_t*)ptr;
+    static void* load(void** ptr) {
+        return *ptr;
     }
 
     static bool isFaultInstruction(uintptr_t pc) {

@@ -49,7 +49,6 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
     }
 
     int depth = 0;
-    const void* const valid_pc = (const void* const)0x1000;
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth && !CodeHeap::contains(pc)) {
@@ -65,8 +64,8 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
             break;
         }
 
-        pc = stripPointer((const void*)SafeAccess::load(fp + FRAME_PC_SLOT));
-        if (pc < valid_pc) {
+        pc = stripPointer(SafeAccess::load((void**)fp + FRAME_PC_SLOT));
+        if (pc < (const void*)0x1000 || pc > (const void*)-0x1000) {
             break;
         }
 
