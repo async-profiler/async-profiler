@@ -45,6 +45,9 @@ ifeq ($(OS),Darwin)
   endif
 else
   CXXFLAGS += -Wl,-z,defs -Wl,-z,nodelete
+  ifeq ($(MERGE),true)
+    CXXFLAGS += -fwhole-program
+  endif
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
   FDTRANSFER_BIN=build/fdtransfer

@@ -20,9 +20,10 @@
 #include <jvmti.h>
 
 
-#if __GNUC__ == 4
-#  undef JNIEXPORT
-#  define JNIEXPORT __attribute__((visibility("default")))
+#ifdef __clang__
+#  define DLLEXPORT __attribute__((visibility("default")))
+#else
+#  define DLLEXPORT __attribute__((externally_visible))
 #endif
 
 

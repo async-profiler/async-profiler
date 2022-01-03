@@ -25,7 +25,7 @@
 #include "vmStructs.h"
 
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
     const char* event_str = env->GetStringUTFChars(event, NULL);
@@ -46,7 +46,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
     }
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     Error error = Profiler::instance()->stop();
 
@@ -55,7 +55,7 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     }
 }
 
-extern "C" JNIEXPORT jstring JNICALL
+extern "C" DLLEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring command) {
     Arguments args;
     const char* command_str = env->GetStringUTFChars(command, NULL);
@@ -94,12 +94,12 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     return NULL;
 }
 
-extern "C" JNIEXPORT jlong JNICALL
+extern "C" DLLEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
     return (jlong)Profiler::instance()->total_samples();
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthread thread, jboolean enable) {
     int thread_id;
     if (thread == NULL) {
