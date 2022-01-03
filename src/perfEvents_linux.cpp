@@ -503,10 +503,19 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 
+static int __intsort(const void *a, const void *b) {
+    return *(const int*)a > *(const int*)b;
+}
+
 int PerfEvents::registerThread(int tid) {
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;
+    }
+
+    if (__atomic_load_n(&_events[tid]._fd, __ATOMIC_ACQUIRE) != 0) {
+        Log::debug("Thread %d is already registered for perf_event_open", tid);
+        return 0;
     }
 
     PerfEventType* event_type = _event_type;
@@ -535,10 +544,12 @@ int PerfEvents::registerThread(int tid) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
+    attr.exclude_callchain_user = 1;
 
-    if (_ring == RING_USER) {
+    if (!(_ring & RING_KERNEL)) {
         attr.exclude_kernel = 1;
-    } else if (_ring == RING_KERNEL) {
+    }
+    if (!(_ring & RING_USER)) {
         attr.exclude_user = 1;
     }
 
@@ -547,7 +558,6 @@ int PerfEvents::registerThread(int tid) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
-        attr.exclude_callchain_user = 1;
     }
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
@@ -569,13 +579,16 @@ int PerfEvents::registerThread(int tid) {
     if (!__sync_bool_compare_and_swap(&_events[tid]._fd, 0, fd)) {
         // Lost race. The event is created either from start() or from onThreadStart()
         close(fd);
-        return -1;
+        return 0;
     }
 
-    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (page == MAP_FAILED) {
-        Log::warn("perf_event mmap failed: %s", strerror(errno));
-        page = NULL;
+    void* page = NULL;
+    if ((_ring & RING_KERNEL)) {
+        page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (page == MAP_FAILED) {
+            Log::info("perf_event mmap failed: %s", strerror(errno));
+            page = NULL;
+        }
     }
 
     _events[tid].reset();
@@ -681,13 +694,14 @@ Error PerfEvents::check(Arguments& args) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
 
-    if (args._ring == RING_USER) {
+    if (!(_ring & RING_KERNEL)) {
         attr.exclude_kernel = 1;
-    } else if (args._ring == RING_KERNEL) {
-        attr.exclude_user = 1;
     } else if (!Symbols::haveKernelSymbols()) {
         Profiler::instance()->updateSymbols(true);
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
+    }
+    if (!(_ring & RING_USER)) {
+        attr.exclude_user = 1;
     }
 
 #ifdef PERF_ATTR_SIZE_VER5
@@ -722,8 +736,8 @@ Error PerfEvents::start(Arguments& args) {
     _interval = args._interval ? args._interval : _event_type->default_interval;
 
     _ring = args._ring;
-    if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
-        Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
+    if ((_ring & RING_KERNEL) && !Symbols::haveKernelSymbols()) {
+        Log::info("Kernel symbols are unavailable due to restrictions. Try\n"
                   "  sysctl kernel.kptr_restrict=0\n"
                   "  sysctl kernel.perf_event_paranoid=1");
         _ring = RING_USER;
@@ -743,17 +757,43 @@ Error PerfEvents::start(Arguments& args) {
     Profiler::instance()->switchThreadEvents(JVMTI_ENABLE);
 
     // Create perf_events for all existing threads
-    int err;
-    bool created = false;
+    int threads_sz = 0, threads_cap;
+    int *threads = (int*)malloc((threads_cap = 1024)  * sizeof(int));
     ThreadList* thread_list = OS::listThreads();
+    // get a fixed list of all the threads
     for (int tid; (tid = thread_list->next()) != -1; ) {
-        if ((err = registerThread(tid)) == 0) {
-            created = true;
+        if (threads_sz == threads_cap) {
+            threads = (int*)realloc(threads, (threads_cap += 1024)  * sizeof(int));
         }
+        threads[threads_sz++] = tid;
     }
     delete thread_list;
 
-    if (!created) {
+    qsort(threads, threads_sz, sizeof(int), __intsort);
+
+    int err = 0;
+    int threads_idx = 0;
+    for (int tid = 0; tid < _max_events; tid++) {
+        // if we didn't go over all existing threads and the tid matches an existing thread
+        if (threads_idx < threads_sz && tid == threads[threads_idx]) {
+            // create the timer
+            if ((err = registerThread(tid)) != 0) {
+                // if we fail, stop creating more perf_events
+                break;
+            }
+            // finally, increase threads_idx
+            threads_idx += 1;
+        }
+        // if the tid doesn't matches an existing thread
+        else {
+            // destroy the timer
+            unregisterThread(tid);
+        }
+    }
+
+    free(threads);
+
+    if (err != 0) {
         Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
@@ -761,16 +801,23 @@ Error PerfEvents::start(Arguments& args) {
             return Error("Perf events unavailable");
         }
     }
+
+    if (threads_idx != threads_sz) {
+        Log::error("perfEvents: we didn't go over all events, threads_idx = %d, threads_sz = %d", threads_idx, threads_sz);
+    }
+
     return Error::OK;
 }
 
 void PerfEvents::stop() {
-    for (int i = 0; i < _max_events; i++) {
-        unregisterThread(i);
-    }
+    // As we don't have snapshot feature, it's wasteful to unregister all the threads
+    // to re-register them right after when doing a stop+start to capture the data.
+    // Instead, since we know we are continuously profiling and we know the interval
+    // doesn't change, simply don't unregister threads on stop, and check whether the
+    // thread has been registered already on start.
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+int PerfEvents::getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -862,7 +909,11 @@ bool PerfEvents::supported() {
     // The official way of knowing if perf_event_open() support is enabled
     // is checking for the existence of the file /proc/sys/kernel/perf_event_paranoid
     struct stat statbuf;
-    return stat("/proc/sys/kernel/perf_event_paranoid", &statbuf) == 0;
+    if (stat("/proc/sys/kernel/perf_event_paranoid", &statbuf) != 0) {
+        Log::debug("perfEvents is not supported, /proc/sys/kernel/perf_event_paranoid doesn't exist");
+        return false;
+    }
+    return true;
 }
 
 const char* PerfEvents::getEventName(int event_id) {

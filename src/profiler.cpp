@@ -262,7 +262,9 @@ bool Profiler::inJavaCode(void* ucontext) {
 
 int Profiler::getNativeTrace(Engine* engine, void* ucontext, ASGCT_CallFrame* frames, int tid) {
     const void* native_callchain[MAX_NATIVE_FRAMES];
-    int native_frames = engine->getNativeTrace(ucontext, tid, native_callchain, MAX_NATIVE_FRAMES);
+    int native_frames = 0;
+    native_frames += engine->getKernelTrace(ucontext, tid, native_callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+    native_frames += engine->getNativeTrace(ucontext, tid, native_callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
 
     int depth = 0;
     jmethodID prev_method = NULL;
@@ -1057,7 +1059,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
-    updateSymbols(_engine == &perf_events && args._ring != RING_USER);
+    updateSymbols(_engine == &perf_events && (args._ring & RING_KERNEL));
 
     error = installTraps(args._begin, args._end);
     if (error) {

@@ -40,7 +40,7 @@ class PerfEvents : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
+    int getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     virtual int registerThread(int tid);
     virtual void unregisterThread(int tid);

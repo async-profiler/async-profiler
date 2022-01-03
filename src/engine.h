@@ -38,6 +38,7 @@ class Engine {
     virtual void stop();
 
     virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
+    virtual int getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     virtual int registerThread(int tid) { return -1; }
     virtual void unregisterThread(int tid) {}

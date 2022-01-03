@@ -36,13 +36,13 @@ jobs:
           else
             # other triggers
             if [ "${RELEASE_REF}" != "main" ]; then
-              PREFIX="$RELEASE_REF"
+              PREFIX=$(echo $RELEASE_REF | sed "s#\\/#-#g")
             fi
           fi
           mkdir -p target
 
-          echo "VERSION=${BASE_VERSION}" > target/versions
-          echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" >> target/versions
+          echo "VERSION=${BASE_VERSION}" | tee target/versions
+          echo "POM_VERSION=${BASE_VERSION}-${PREFIX^^}-${RELEASE_VERSION^^}" | tee -a target/versions
       - uses: actions/upload-artifact@v2
         with:
           name: build-env.zip

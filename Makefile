@@ -152,5 +152,8 @@ test: all
 	test/sleep-test.sh
 	echo "All tests passed"
 
+test-%: all
+	test/$*-test.sh
+
 clean:
 	$(RM) -r build

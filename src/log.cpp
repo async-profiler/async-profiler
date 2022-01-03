@@ -76,7 +76,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
         Profiler::instance()->writeLog(level, buf, len);
     }
 
-    fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
+    fprintf(_file, "[async-profiler][%s] %s\n", LEVEL_NAME[level], buf);
     fflush(_file);
 }
 

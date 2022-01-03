@@ -75,3 +75,7 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
 
     return depth;
 }
+
+int Engine::getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+    return 0;
+}
