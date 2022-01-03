@@ -288,7 +288,7 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 }
 
 
-extern "C" JNIEXPORT jint JNICALL
+extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
     Log::open(_agent_args._log);
@@ -305,7 +305,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     return 0;
 }
 
-extern "C" JNIEXPORT jint JNICALL
+extern "C" DLLEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args(true);
     Error error = args.parse(options);
@@ -334,7 +334,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     return 0;
 }
 
-extern "C" JNIEXPORT jint JNICALL
+extern "C" DLLEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
     if (!VM::init(vm, true)) {
         return 0;
@@ -344,7 +344,7 @@ JNI_OnLoad(JavaVM* vm, void* reserved) {
     return JNI_VERSION_1_6;
 }
 
-extern "C" JNIEXPORT void JNICALL
+extern "C" DLLEXPORT void JNICALL
 JNI_OnUnload(JavaVM* vm, void* reserved) {
     Profiler* profiler = Profiler::instance();
     if (profiler != NULL) {
