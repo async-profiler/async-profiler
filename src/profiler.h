@@ -117,6 +117,7 @@ class Profiler {
     void switchNativeMethodTraps(bool enable);
 
     void (*_orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+    void (*_orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
     Error installTraps(const char* begin, const char* end);
     void uninstallTraps();
 
@@ -216,7 +217,8 @@ class Profiler {
     const char* findNativeMethod(const void* address);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    void setupTrapHandler();
+    static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    void setupSignalHandlers();
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,

@@ -17,24 +17,18 @@
 #include <sys/mman.h>
 #include "trap.h"
 #include "os.h"
-#include "stackFrame.h"
 
 
 uintptr_t Trap::_page_start[TRAP_COUNT] = {0};
-struct sigaction Trap::_jvm_handler = {NULL};
 
 
-void Trap::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    // Ignore access violations on our traps
-    uintptr_t pc = StackFrame(ucontext).pc();
+bool Trap::checkProtection(uintptr_t pc) {
     for (int i = 0; i < TRAP_COUNT; i++) {
         if (pc - _page_start[i] < OS::page_size) {
-            return;
+            return true;
         }
     }
-
-    // Otherwise, delegate to the JVM signal handler
-    _jvm_handler.sa_sigaction(signo, siginfo, ucontext);
+    return false;
 }
 
 void Trap::assign(const void* address, uintptr_t offset) {
@@ -51,14 +45,6 @@ void Trap::assign(const void* address, uintptr_t offset) {
 
     _saved_insn = *(instruction_t*)_entry;
     _page_start[_id] = _entry & -OS::page_size;
-
-    if (WX_MEMORY && _jvm_handler.sa_sigaction == NULL) {
-        // While we are patching the code in RW mode, another thread may attempt to execute it
-        sigaction(SIGBUS, NULL, &_jvm_handler);
-        struct sigaction sa = _jvm_handler;
-        sa.sa_sigaction = signalHandler;
-        sigaction(SIGBUS, &sa, NULL);
-    }
 }
 
 // Two allocation traps are always enabled/disabled together.

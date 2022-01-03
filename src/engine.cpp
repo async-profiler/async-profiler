@@ -15,6 +15,7 @@
  */
 
 #include "engine.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
 
@@ -69,8 +70,8 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
         }
 
         prev_fp = fp;
-        pc = stripPointer(((const void**)fp)[FRAME_PC_SLOT]);
-        fp = ((uintptr_t*)fp)[0];
+        pc = stripPointer((const void*)SafeAccess::load(fp + FRAME_PC_SLOT));
+        fp = SafeAccess::load(fp);
     }
 
     return depth;

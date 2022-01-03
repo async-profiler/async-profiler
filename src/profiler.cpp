@@ -35,6 +35,7 @@
 #include "fdtransferClient.h"
 #include "frameName.h"
 #include "os.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "symbols.h"
 #include "vmStructs.h"
@@ -768,11 +769,31 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 }
 
-void Profiler::setupTrapHandler() {
+void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    StackFrame frame(ucontext);
+    if (SafeAccess::checkProtection(frame.pc())) {
+        // TODO: retval
+        return;
+    }
+    if (WX_MEMORY && Trap::checkProtection(frame.pc())) {
+        return;
+    }
+
+    _instance->_orig_segvHandler(signo, siginfo, ucontext);
+}
+
+void Profiler::setupSignalHandlers() {
     _orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
     if (_orig_trapHandler == (void*)SIG_DFL || _orig_trapHandler == (void*)SIG_IGN) {
         _orig_trapHandler = NULL;
     }
+
+    // TODO: SIGBUS
+    struct sigaction sa;
+    sigaction(SIGSEGV, NULL, &sa);
+    _orig_segvHandler = sa.sa_sigaction;
+    sa.sa_sigaction = segvHandler;
+    sigaction(SIGSEGV, &sa, NULL);
 }
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
