@@ -61,6 +61,7 @@ static SpinLock _rec_lock(1);
 static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
+static jmethodID _box_method;
 
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "lbr"};
@@ -749,6 +750,7 @@ class Recording {
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(_tid);
+        buf->putVar32(0);
         buf->putVar32(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
@@ -1228,11 +1230,33 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
                 || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
+                || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL
                 || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
             env->ExceptionDescribe();
             return Error("Failed to initialize JfrSync class");
         }
     }
+
+    jclass options_class = env->FindClass("jdk/jfr/internal/Options");
+    if (options_class != NULL) {
+        if (args._chunk_size > 0) {
+            jmethodID method = env->GetStaticMethodID(options_class, "setMaxChunkSize", "(J)V");
+            if (method != NULL) {
+                env->CallStaticVoidMethod(options_class, method, args._chunk_size < 1024 * 1024 ? 1024 * 1024 : args._chunk_size);
+            }
+        }
+
+        if (args._jstackdepth > 0) {
+            jmethodID method = env->GetStaticMethodID(options_class, "setStackDepth", "(Ljava/lang/Integer;)V");
+            if (method != NULL) {
+                jobject value = env->CallStaticObjectMethod(_jfr_sync_class, _box_method, args._jstackdepth);
+                if (value != NULL) {
+                    env->CallStaticVoidMethod(options_class, method, value);
+                }
+            }
+        }
+    }
+    env->ExceptionClear();
 
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);

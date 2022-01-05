@@ -180,6 +180,7 @@ public class JfrReader implements Closeable {
         long time = getVarlong();
         long duration = getVarlong();
         int tid = getVarint();
+        int stackTrace = getVarint();
         long id = getVarlong();
         String name = getString();
         String value = getString();
