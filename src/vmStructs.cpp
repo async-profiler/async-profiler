@@ -362,7 +362,21 @@ void VMStructs::initLogging(JNIEnv* env) {
     if (VM::hotspot_version() >= 15) {
         VMManagement* management = VM::management();
         if (management != NULL) {
-            management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log what=jni+resolve=error"));
+            jstring log_config = management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log list"));
+            if (log_config != NULL) {
+                char cmd[128] = "VM.log what=jni+resolve=error decorators=";
+                const char* s = env->GetStringUTFChars(log_config, NULL);
+                if (s != NULL) {
+                    const char* p = strstr(s, "#0: ");
+                    const char* q;
+                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL &&
+                        (q = strchr(p + 1, '\n')) != NULL && q - p < sizeof(cmd) - 41) {
+                        memcpy(cmd + 41, p + 1, q - p - 1);
+                    }
+                    env->ReleaseStringUTFChars(log_config, s);
+                }
+                management->ExecuteDiagnosticCommand(env, env->NewStringUTF(cmd));
+            }
         }
     }
 }
