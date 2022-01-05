@@ -28,9 +28,6 @@ class ITimer : public Engine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
-    virtual int registerThread(int tid);
-    virtual void unregisterThread(int tid);
-
     const char* title() {
         return "CPU profile";
     }
