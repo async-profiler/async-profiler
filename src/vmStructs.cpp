@@ -283,6 +283,12 @@ void VMStructs::resolveOffsets() {
             && _constmethod_idnum_offset >= 0
             && _pool_holder_offset >= 0;
 
+    _has_class_loader_data = _class_loader_data_offset >= 0
+        && _class_loader_data_next_offset == sizeof(uintptr_t) * 8 + 8
+        && _methods_offset >= 0
+        && _klass != NULL
+        && _lock_func != NULL && _unlock_func != NULL;
+
     if (_code_heap_addr != NULL && _code_heap_low_addr != NULL && _code_heap_high_addr != NULL) {
         char* code_heaps = *_code_heap_addr;
         unsigned int code_heap_count = *(unsigned int*)code_heaps;
@@ -311,13 +317,9 @@ void VMStructs::resolveOffsets() {
 void VMStructs::initJvmFunctions() {
     _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
 
-    if (VM::hotspot_version() == 8 && _class_loader_data_offset >= 0 &&
-        _class_loader_data_next_offset == sizeof(uintptr_t) * 8 + 8 &&
-        _methods_offset >= 0 && _klass != NULL)
-    {
+    if (VM::hotspot_version() == 8) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
         _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
-        _has_class_loader_data = _lock_func != NULL && _unlock_func != NULL;
     }
 }
 
