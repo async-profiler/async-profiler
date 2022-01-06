@@ -110,7 +110,7 @@ Error Arguments::parse(const char* args) {
 
     size_t len = strlen(args);
     free(_buf);
-    _buf = (char*)malloc(len + EXTRA_BUF_SIZE);
+    _buf = (char*)malloc(len + EXTRA_BUF_SIZE + 1);
     if (_buf == NULL) {
         return Error("Not enough memory to parse arguments");
     }
