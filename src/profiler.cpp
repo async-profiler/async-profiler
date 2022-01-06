@@ -774,12 +774,15 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
-    if (SafeAccess::isFaultInstruction(frame.pc())) {
+
+    uintptr_t length = SafeAccess::skipFaultInstruction(frame.pc());
+    if (length > 0) {
         // Skip the fault instruction, as if it successfully loaded NULL
-        frame.pc() += LOAD_INSN_SIZE;
+        frame.pc() += length;
         frame.retval() = 0;
         return;
     }
+
     if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
         return;
     }
@@ -792,7 +795,10 @@ void Profiler::setupSignalHandlers() {
     if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
         orig_trapHandler = NULL;
     }
-    orig_segvHandler = OS::replaceCrashHandler(segvHandler);
+    if (VM::hotspot_version() > 0) {
+        // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
+        orig_segvHandler = OS::replaceCrashHandler(segvHandler);
+    }
 }
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
