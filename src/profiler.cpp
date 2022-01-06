@@ -35,6 +35,7 @@
 #include "fdtransferClient.h"
 #include "frameName.h"
 #include "os.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "symbols.h"
 #include "vmStructs.h"
@@ -43,6 +44,9 @@
 // The instance is not deleted on purpose, since profiler structures
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
+
+static void (*orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+static void (*orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
 
 static Engine noop_engine;
 static PerfEvents perf_events;
@@ -763,15 +767,37 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         _end_trap.uninstall();
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
-    } else if (_orig_trapHandler != NULL) {
-        _orig_trapHandler(signo, siginfo, ucontext);
+    } else if (orig_trapHandler != NULL) {
+        orig_trapHandler(signo, siginfo, ucontext);
     }
 }
 
-void Profiler::setupTrapHandler() {
-    _orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
-    if (_orig_trapHandler == (void*)SIG_DFL || _orig_trapHandler == (void*)SIG_IGN) {
-        _orig_trapHandler = NULL;
+void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    StackFrame frame(ucontext);
+
+    uintptr_t length = SafeAccess::skipFaultInstruction(frame.pc());
+    if (length > 0) {
+        // Skip the fault instruction, as if it successfully loaded NULL
+        frame.pc() += length;
+        frame.retval() = 0;
+        return;
+    }
+
+    if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
+        return;
+    }
+
+    orig_segvHandler(signo, siginfo, ucontext);
+}
+
+void Profiler::setupSignalHandlers() {
+    orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
+    if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
+        orig_trapHandler = NULL;
+    }
+    if (VM::hotspot_version() > 0) {
+        // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
+        orig_segvHandler = OS::replaceCrashHandler(segvHandler);
     }
 }
 

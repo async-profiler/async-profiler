@@ -32,8 +32,8 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EBP];
 }
 
-uintptr_t StackFrame::retval() {
-    return (uintptr_t)_ucontext->uc_mcontext.gregs[REG_EAX];
+uintptr_t& StackFrame::retval() {
+    return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EAX];
 }
 
 uintptr_t StackFrame::arg0() {

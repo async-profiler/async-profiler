@@ -252,6 +252,15 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     return oldsa.sa_sigaction;
 }
 
+SigAction OS::replaceCrashHandler(SigAction action) {
+    struct sigaction sa;
+    sigaction(SIGSEGV, NULL, &sa);
+    SigAction old_action = sa.sa_sigaction;
+    sa.sa_sigaction = action;
+    sigaction(SIGSEGV, &sa, NULL);
+    return old_action;
+}
+
 bool OS::sendSignalToThread(int thread_id, int signo) {
     return syscall(__NR_tgkill, processId(), thread_id, signo) == 0;
 }
