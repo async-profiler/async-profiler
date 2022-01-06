@@ -21,9 +21,16 @@
 #include "arch.h"
 
 
+#ifdef __clang__
+#  define NOINLINE __attribute__((noinline))
+#else
+#  define NOINLINE __attribute__((noinline,noclone))
+#endif
+
+
 class SafeAccess {
   public:
-    __attribute__((noinline,noclone,aligned(16)))
+    NOINLINE __attribute__((aligned(16)))
     static void* load(void** ptr) {
         return *ptr;
     }
