@@ -92,7 +92,7 @@ struct CpuTimes {
 
 class MethodInfo {
   public:
-    MethodInfo() : _mark(false), _key(0) {
+    MethodInfo() : _mark(false), _key(0), _modifiers(0) {
     }
 
     bool _mark;
@@ -115,6 +115,11 @@ class MethodInfo {
             i++;
         }
         return _line_number_table[i - 1].line_number;
+    }
+
+    bool isHidden() {
+        // 0x1400 = ACC_SYNTHETIC(0x1000) | ACC_BRIDGE(0x0040)
+        return _modifiers == 0 || (_modifiers & 0x1040);
     }
 };
 
@@ -182,12 +187,26 @@ class Lookup {
         char* method_name = NULL;
         char* method_sig = NULL;
 
+        jint class_modifiers = 0;
         if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
             jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
             jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
+
+            if (first_time) {
+                if (jvmti->GetClassModifiers(method_class, &class_modifiers) == 0 && jvmti->GetMethodModifiers(method, &mi->_modifiers) == 0) {
+                    // class constants are written without the modifiers info
+                    // in order to be able to identify 'hidden' frames the "SYNTHETIC" and "BRIDGE" modifiers will be propagated to methods
+                    if (class_modifiers & 0x1000) {
+                        mi->_modifiers |= 0x1000;
+                    }
+                    if (class_modifiers & 0x0040) {
+                        mi->_modifiers |= 0x0040;
+                    }
+                }
+            }
         } else {
             mi->_class = _classes->lookup("");
             mi->_name = _symbols.lookup("jvmtiError");
@@ -197,10 +216,6 @@ class Lookup {
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
-
-        if (first_time && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
-            mi->_modifiers = 0;
-        }
 
         if (first_time && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
             mi->_line_number_table_size = 0;
@@ -1076,7 +1091,7 @@ class Recording {
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
                 buf->putVar32(mi._modifiers);
-                buf->putVar32(0);  // hidden
+                buf->putVar32(mi.isHidden());
                 flushIfNeeded(buf);
             }
         }

@@ -145,6 +145,7 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 
 test: all
 	test/smoke-test.sh
+	test/smoke-jfr-test.sh
 	test/thread-smoke-test.sh
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
