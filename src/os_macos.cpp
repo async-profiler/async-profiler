@@ -218,6 +218,15 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     return oldsa.sa_sigaction;
 }
 
+SigAction OS::replaceCrashHandler(SigAction action) {
+    struct sigaction sa;
+    sigaction(SIGBUS, NULL, &sa);
+    SigAction old_action = sa.sa_sigaction;
+    sa.sa_sigaction = action;
+    sigaction(SIGBUS, &sa, NULL);
+    return old_action;
+}
+
 bool OS::sendSignalToThread(int thread_id, int signo) {
 #ifdef __aarch64__
     register long x0 asm("x0") = thread_id;

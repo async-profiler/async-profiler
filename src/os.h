@@ -82,6 +82,7 @@ class OS {
     static bool isJavaLibraryVisible();
 
     static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
+    static SigAction replaceCrashHandler(SigAction action);
     static bool sendSignalToThread(int thread_id, int signo);
 
     static void* safeAlloc(size_t size);
