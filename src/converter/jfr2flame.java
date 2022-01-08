@@ -36,6 +36,7 @@ import java.util.HashSet;
 public class jfr2flame {
 
     private static final String[] FRAME_SUFFIX = {"_[j]", "_[j]", "_[i]", "", "", "_[k]"};
+    private static final byte JAVA_FRAME_TYPES = 3;
 
     private final JfrReader jfr;
     private final Dictionary<String> methodNames = new Dictionary<>();
@@ -74,7 +75,7 @@ public class jfr2flame {
                         trace[--idx] = classFrame;
                     }
                     for (int i = 0; i < methods.length; i++) {
-                        String methodName = getMethodName(methods[i]);
+                        String methodName = getMethodName(methods[i], types[i]);
                         int location;
                         if (lines && (location = locations[i] >>> 16) != 0) {
                             methodName += ":" + location;
@@ -150,7 +151,7 @@ public class jfr2flame {
         }
     }
 
-    private String getMethodName(long methodId) {
+    private String getMethodName(long methodId, byte methodType) {
         String result = methodNames.get(methodId);
         if (result != null) {
             return result;
@@ -164,7 +165,7 @@ public class jfr2flame {
             byte[] className = jfr.symbols.get(cls.name);
             byte[] methodName = jfr.symbols.get(method.name);
 
-            if (className == null || className.length == 0) {
+            if (methodType >= JAVA_FRAME_TYPES || className == null || className.length == 0) {
                 result = new String(methodName, StandardCharsets.UTF_8);
             } else {
                 String classStr = new String(className, StandardCharsets.UTF_8);
