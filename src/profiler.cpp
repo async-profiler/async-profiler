@@ -65,7 +65,7 @@ enum StackRecovery {
     POP_FRAME    = 0x4,
     SCAN_STACK   = 0x8,
     LAST_JAVA_PC = 0x10,
-    GC_TRACES    = 0x20,  // not used anymore
+    GC_TRACES    = 0x20,
     JAVA_STATE   = 0x40,
     MAX_RECOVERY = 0x7f
 };
@@ -450,6 +450,11 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 sp = saved_sp;
                 pc = saved_pc;
             }
+        }
+    } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
+        if (vm_thread->lastJavaSP() == 0) {
+            // Do not add 'GC_active' for threads with no Java frames, e.g. Compiler threads
+            return 0;
         }
     }
 
@@ -980,7 +985,7 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _safe_mode = args._safe_mode;
     if (VM::hotspot_version() < 8) {
-        _safe_mode |= LAST_JAVA_PC;
+        _safe_mode |= GC_TRACES | LAST_JAVA_PC;
     }
 
     _add_thread_frame = args._threads && args._output != OUTPUT_JFR;

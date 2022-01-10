@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.6] - 2022-01-09
+
+### Features
+ - Continuous profiling; `loop` and `timeout` options
+
+### Improvements
+ - Reliability improvements: avoid certain crashes and deadlocks
+ - Smaller and faster agent library
+ - Minor `jfr` and `jfrsync` enhancements (see the commit log)
+
 ## [2.5.1] - 2021-12-05
 
 ### Bug fixes
