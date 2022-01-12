@@ -52,4 +52,10 @@ while [ $(basename $BASEDIR) != "async-profiler" ]; do
   BASEDIR=$(pwd)
 done
 cd $PWD
-${JAVA_HOME}/bin/java -agentpath:${BASEDIR}/build/libasyncProfiler.so=start,${PROFILER_ARGS} -jar .resources/renaissance.jar "${BENCHMARK_ARGS[@]}"
+
+AGENT_PATH=${BASEDIR}/build/libasyncProfiler.so
+if [ ! -f "$AGENT_PATH" ]; then
+  # we are running in CI - the library will be in a different place
+  AGENT_PATH=${BASEDIR}/src/main/resources/native-libs/linux-x64/libasyncProfiler.so
+fi
+${JAVA_HOME}/bin/java -agentpath:${AGENT_PATH}=start,${PROFILER_ARGS} -jar .resources/renaissance.jar "${BENCHMARK_ARGS[@]}"
