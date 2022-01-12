@@ -38,6 +38,7 @@ enum FrameTypeId {
 
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
+    BCI_SMALLEST_USED_BY_VM = -9,   // small negative BCIs are used by the VM (-6 is the smallest currently)
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)
     BCI_ALLOC               = -11,  // name of the allocated class
     BCI_ALLOC_OUTSIDE_TLAB  = -12,  // name of the class allocated outside TLAB
@@ -46,6 +47,10 @@ enum ASGCT_CallFrameType {
     BCI_THREAD_ID           = -15,  // method_id designates a thread
     BCI_ERROR               = -16,  // method_id is an error string
     BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
+    BCI_OFFSET_COMP         = 0x100000, // offset added to bci for compiled java method
+    BCI_OFFSET_INTERP       = 0x200000, // offset added to bci for interpreted java method
+    BCI_OFFSET_INLINED      = 0x300000, // offset added to bci for inlined java method
+    BCI_OFFSET_MASK         = 0x300000
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

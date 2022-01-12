@@ -57,6 +57,8 @@ class Engine {
     virtual Error start(Arguments& args);
     virtual void stop();
 
+    virtual int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth, const void** first_java_pc);
+
     void enableEvents(bool enabled) {
         _enabled = enabled;
     }

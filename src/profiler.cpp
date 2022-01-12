@@ -111,6 +111,10 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     _stubs_lock.lock();
     _runtime_stubs.add(address, length, name, true);
     _stubs_lock.unlock();
+    if(strcmp(name, "Interpreter") == 0) {
+      _interp_start = (void*) address;
+      _interp_end = (void*) ((char*) address + length);
+    }
 
     CodeHeap::updateBounds(address, (const char*)address + length);
 }
@@ -287,17 +291,17 @@ bool Profiler::isAddressInCode(const void* pc) {
     }
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, const void** first_java_pc) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
     if (_cstack == CSTACK_NO || (event_type != 0 && _cstack == CSTACK_DEFAULT)) {
         return 0;
     }
-
+  
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == 0 && _engine == &perf_events) {
-        native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES);
+        native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES, first_java_pc);
         if (_cstack == CSTACK_DWARF) {
             native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
         }
@@ -601,23 +605,65 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
+    const void* first_java_pc = 0;
 
     int num_frames = 0;
     if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
 
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
+    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &first_java_pc);
 
+    int java_frames;
     int first_java_frame = num_frames;
     if (event_type == 0) {
         // Async events
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        num_frames += java_frames;
+
+        if  (first_java_pc >= _interp_start && first_java_pc < _interp_end) {
+            if (frames[first_java_frame].bci >= BCI_SMALLEST_USED_BY_VM) {
+                frames[first_java_frame].bci ^= BCI_OFFSET_INTERP;
+            }
+        } else {
+            NMethod* nmethod = NULL;
+            jmethodID blobID = 0;
+            if (first_java_pc != NULL) {
+                nmethod = CodeHeap::findNMethod(first_java_pc);
+            }
+            if (nmethod != NULL) {
+                VMMethod* a = nmethod->method();
+                if (a != NULL) {
+                    ConstMethod* b = a->constMethod();
+                    if (b != NULL) {
+                        blobID = b->id();
+                    }
+                }
+            }
+            if (blobID != NULL) {
+                // search for the first java frame that matches the physical pc (i.e. that is not inlined)
+                // however, don't go beyond any error/special frame
+                int i;
+                for (i = 0;  i < java_frames &&
+                             blobID != frames[first_java_frame + i].method_id &&
+                             frames[first_java_frame + i].bci >= BCI_SMALLEST_USED_BY_VM; i++) ;
+                // if found, mark the compiled frame and potential inlined frames on top of it
+                if (i < java_frames && blobID == frames[first_java_frame + i].method_id ) {
+                    if (frames[first_java_frame + i].bci > BCI_SMALLEST_USED_BY_VM) {
+                        frames[first_java_frame + i].bci ^= BCI_OFFSET_COMP;
+                    }
+                    for (int j = 0;  j < i; j++) {
+                        frames[first_java_frame + j].bci ^= BCI_OFFSET_INLINED;
+                    }
+                }
+            }
+        }
     } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
-        // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
+        // Events like object allocation happen at known places where it is safe to call JVM TI,
         // but not directly, since the thread is in_vm rather than in_native
         num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && !VM::isOpenJ9()) {
+        // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
@@ -1299,7 +1345,60 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             CallTrace* trace = it->trace;
             for (int j = 0; j < trace->num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
-                snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
+                jint bci = trace->frames[j].bci;
+                char frame_type;
+                int type = bci & BCI_OFFSET_MASK;
+                if (bci < 0) {
+                    type = type ^ BCI_OFFSET_MASK;
+                    bci |= BCI_OFFSET_MASK;
+                } else {
+                    bci &= ~BCI_OFFSET_MASK;
+                }
+                if (bci < BCI_SMALLEST_USED_BY_VM) {
+                    switch (bci) {
+                        case BCI_NATIVE_FRAME:
+                          frame_type = 'n';
+                          break;
+                        case BCI_ALLOC:
+                          frame_type = 'a';
+                          break;
+                        case BCI_ALLOC_OUTSIDE_TLAB:
+                          frame_type = 'o';
+                          break;
+                        case BCI_LOCK:
+                          frame_type = 'l';
+                          break;
+                        case BCI_PARK:
+                          frame_type = 'p';
+                          break;
+                        case BCI_THREAD_ID:
+                          frame_type = 't';
+                          break;
+                        case BCI_ERROR:
+                          frame_type = 'e';
+                          break;
+                        case BCI_INSTRUMENT:
+                          frame_type = 's';
+                          break;
+                        default:
+                          frame_type = 'X';
+                    }
+                } else {
+                    switch (type) {
+                        case BCI_OFFSET_COMP:
+                          frame_type = 'C';
+                          break;
+                        case BCI_OFFSET_INTERP:
+                          frame_type = 'I';
+                          break;
+                        case BCI_OFFSET_INLINED:
+                          frame_type = 'i';
+                          break;
+                        default:
+                          frame_type = ' ';
+                    }
+                }
+                snprintf(buf, sizeof(buf) - 1, "  [%2d] %c %5d %s\n", j, frame_type, bci, frame_name);
                 out << buf;
             }
             out << "\n";

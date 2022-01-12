@@ -106,6 +106,22 @@ class Profiler {
     static void* dlopen_hook(const char* filename, int flags);
     void switchLibraryTrap(bool enable);
 
+    // Support for intercepting NativeLibrary.load() / NativeLibraries.load()
+    JNINativeMethod _load_method;
+    void* _original_NativeLibrary_load;
+    void* _trapped_NativeLibrary_load;
+    static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
+    static jboolean JNICALL NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni);
+    void bindNativeLibraryLoad(JNIEnv* env, bool enable);
+
+    void* _interp_start;
+    void* _interp_end;
+
+    // Support for intercepting Thread.setNativeName()
+    void* _original_Thread_setNativeName;
+    static void JNICALL ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstring name);
+    void bindThreadSetNativeName(JNIEnv* env, bool enable);
+
     Error installTraps(const char* begin, const char* end);
     void uninstallTraps();
 
@@ -119,7 +135,7 @@ class Profiler {
     u32 getLockIndex(int tid);
     bool inJavaCode(void* ucontext);
     bool isAddressInCode(const void* pc);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, const void** first_java_pc);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
@@ -168,6 +184,9 @@ class Profiler {
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
+        _original_NativeLibrary_load(NULL),
+        _interp_start(NULL),
+        _interp_end(NULL),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {

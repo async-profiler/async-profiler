@@ -853,7 +853,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
+int PerfEvents::walk(int tid, const void** callchain, int max_depth, const void** first_java_pc) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -868,6 +868,7 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
         rmb();
 
         RingBuffer ring(page);
+        const void* iptr = NULL;
 
         while (tail < head) {
             struct perf_event_header* hdr = ring.seek(tail);
@@ -876,9 +877,10 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                 while (nr-- > 0) {
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
-                        const void* iptr = (const void*)ip;
+                        iptr = (const void*)ip;
                         if (CodeHeap::contains(iptr) || depth >= max_depth) {
                             // Stop at the first Java frame
+                            callchain[depth] = iptr;
                             goto stack_complete;
                         }
                         callchain[depth++] = iptr;
@@ -891,6 +893,7 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                     // Last userspace PC is stored right after branch stack
                     const void* pc = (const void*)ring.peek(bnr * 3 + 2);
                     if (CodeHeap::contains(pc) || depth >= max_depth) {
+                        iptr = pc;
                         goto stack_complete;
                     }
                     callchain[depth++] = pc;
@@ -901,11 +904,13 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                         ring.next();
 
                         if (CodeHeap::contains(to) || depth >= max_depth) {
+                            iptr = to;
                             goto stack_complete;
                         }
                         callchain[depth++] = to;
 
                         if (CodeHeap::contains(from) || depth >= max_depth) {
+                            iptr = from;
                             goto stack_complete;
                         }
                         callchain[depth++] = from;
@@ -918,6 +923,9 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
         }
 
 stack_complete:
+        if (CodeHeap::contains(iptr)) {
+            *first_java_pc = iptr;
+        }
         page->data_tail = head;
     }
 
