@@ -38,8 +38,9 @@ class FlightRecorder {
     Error start(Arguments& args, bool reset);
     void stop();
     void flush();
+    bool timerTick(u64 wall_time);
 
-    bool active() {
+    bool active() const {
         return _rec != NULL;
     }
 

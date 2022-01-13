@@ -101,4 +101,9 @@ class JfrSync implements FlightRecorderListener {
     }
 
     private static native void stopProfiler();
+
+    // JNI helper
+    static Integer box(int n) {
+        return n;
+    }
 }

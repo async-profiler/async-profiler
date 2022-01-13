@@ -100,7 +100,7 @@ Error AllocTracer::check(Arguments& args) {
         return Error::OK;
     }
 
-    NativeCodeCache* libjvm = VMStructs::libjvm();
+    CodeCache* libjvm = VMStructs::libjvm();
     const void* ne;
     const void* oe;
 

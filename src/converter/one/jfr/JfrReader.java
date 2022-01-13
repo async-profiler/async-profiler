@@ -61,6 +61,7 @@ public class JfrReader implements Closeable {
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
     public final Map<Integer, String> frameTypes = new HashMap<>();
     public final Map<Integer, String> threadStates = new HashMap<>();
+    public final Map<String, String> settings = new HashMap<>();
 
     private int executionSample;
     private int nativeMethodSample;
@@ -69,6 +70,7 @@ public class JfrReader implements Closeable {
     private int allocationSample;
     private int monitorEnter;
     private int threadPark;
+    private int activeSetting;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -131,6 +133,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == activeSetting) {
+                readActiveSetting();
             }
 
             if ((pos += size) <= buf.limit()) {
@@ -170,6 +174,17 @@ public class JfrReader implements Closeable {
         long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
+    }
+
+    private void readActiveSetting() {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        int stackTrace = getVarint();
+        long id = getVarlong();
+        String name = getString();
+        String value = getString();
+        settings.put(name, value);
     }
 
     private boolean readChunk(int pos) throws IOException {
@@ -425,6 +440,7 @@ public class JfrReader implements Closeable {
         allocationSample = getTypeId("jdk.ObjectAllocationSample");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
+        activeSetting = getTypeId("jdk.ActiveSetting");
     }
 
     private int getTypeId(String typeName) {
