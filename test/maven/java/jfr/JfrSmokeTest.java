@@ -44,9 +44,7 @@ public class JfrSmokeTest {
             while (!whereami.getName().equals("async-profiler")) {
                 whereami = whereami.getParentFile();
             }
-            Path launcherPath = Paths.get(whereami.toURI()).resolve("test/run_renaissance.sh");
-            Files.setPosixFilePermissions(launcherPath, PosixFilePermissions.fromString("r-xr-xr-x"));
-            File launcher = launcherPath.toFile();
+            File launcher = Paths.get(whereami.toURI()).resolve("test/run_renaissance.sh").toFile();
             ProcessBuilder pb = new ProcessBuilder(
                     launcher.getAbsolutePath(),
                     "-pa", "event=cpu,file=" + tempDir.toString() + "/profile.jfr",
@@ -57,7 +55,7 @@ public class JfrSmokeTest {
             redirectToLog(process, "akka-uct");
             int rslt = process.waitFor();
             Duration cpuTimeBoundary = Duration.between(startTs, Instant.now()).multipliedBy(Runtime.getRuntime().availableProcessors());
-
+            assertEquals(0, rslt);
             assertJfrs(tempDir, cpuTimeBoundary);
         } finally {
             Files.walkFileTree(tempDir, new FileVisitor<Path>() {
