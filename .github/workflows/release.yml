@@ -112,7 +112,7 @@ jobs:
        uses: actions/upload-artifact@master
        if: always()
        with:
-         name: tests-output.zip
+         name: tests-output-${TARGET_OS}
          path: |
            /tmp/java-*.trace
            /target/surefire-reports
