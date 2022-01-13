@@ -112,10 +112,10 @@ jobs:
        uses: actions/upload-artifact@master
        if: always()
        with:
-         name: tests-output-${TARGET_OS}
+         name: tests-output-${{ matrix.build }}
          path: |
            /tmp/java-*.trace
-           /target/surefire-reports
+           ./target/surefire-reports
 
   prepare-release:
     name: Prepare Release
