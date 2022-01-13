@@ -99,7 +99,10 @@ jobs:
          make PROFILER_VERSION=${POM_VERSION} all
      - name: Run tests
        run: |
-         make test
+         if [ "${TARGET_OS}" != "macos-x64" ]; then
+           sudo sysctl kernel.perf_event_paranoid=1
+           make test
+         fi
 
      - uses: actions/upload-artifact@master
        with:
