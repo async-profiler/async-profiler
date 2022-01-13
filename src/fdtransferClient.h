@@ -39,6 +39,7 @@ class FdTransferClient {
 
     static int requestPerfFd(int *tid, struct perf_event_attr *attr);
     static int requestKallsymsFd();
+    static int requestBpfMapFd(struct bpfmap_params* params);
 };
 
 #else

@@ -30,6 +30,7 @@
 #include "wallClock.h"
 #include "instrument.h"
 #include "itimer.h"
+#include "bpfClient.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
 #include "fdtransferClient.h"
@@ -54,6 +55,7 @@ static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static WallClock wall_clock;
 static ITimer itimer;
+static BpfClient bpf_client;
 static Instrument instrument;
 
 
@@ -888,6 +890,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
+    } else if (strcmp(event_name, EVENT_BPF) == 0) {
+        return &bpf_client;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
         return &wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
@@ -1000,7 +1004,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
-    updateSymbols(_engine == &perf_events && args._ring != RING_USER);
+    updateSymbols((_engine == &perf_events || _engine == &bpf_client) && args._ring != RING_USER);
 
     error = installTraps(args._begin, args._end);
     if (error) {

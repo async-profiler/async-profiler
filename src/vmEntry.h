@@ -94,6 +94,7 @@ class VM {
     static int _hotspot_version;
 
     static void ready();
+    static void applyPatch(char* func, const char* patch, const char* end_patch);
     static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);

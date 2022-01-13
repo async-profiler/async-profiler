@@ -258,6 +258,26 @@ Error Arguments::parse(const char* args) {
                 _fdtransfer = true;
                 _fdtransfer_path = value;
 
+            CASE("cloud")
+                // Meta option for continuous eBPF-assisted cloud profiling
+                if (_action == ACTION_NONE) {
+                    _action = ACTION_START;
+                }
+                if (_event == NULL) {
+                    _event = EVENT_BPF;
+                }
+                if (_fdtransfer_path == NULL) {
+                    _fdtransfer = true;
+                    _fdtransfer_path = "/one/profile/profile.sock";
+                }
+                if (_file == NULL) {
+                    _file = "/one/logs/%{cloud_image}-%t.jfr";
+                }
+                if (_timeout == 0) {
+                    _loop = true;
+                    _timeout = 24 * 3600;  // 24 hours
+                }
+
             // Filters
             CASE("filter")
                 _filter = value == NULL ? "" : value;

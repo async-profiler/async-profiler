@@ -17,6 +17,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "vmEntry.h"
 #include "arguments.h"
 #include "javaApi.h"
@@ -52,6 +53,13 @@ static void wakeupHandler(int signo) {
 static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
         || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
+}
+
+static void* resolveMethodId(void** mid) {
+    return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
+}
+
+static void resolveMethodIdEnd() {
 }
 
 
@@ -108,6 +116,13 @@ bool VM::init(JavaVM* vm, bool attach) {
         VMStructs::init(libjvm);
         if (is_zero_vm) {
             libjvm->mark(isZeroInterpreterMethod);
+        }
+        if (hotspot_version() == 8) {
+            // Workaround for JDK-8185348
+            char* func = (char*)libjvm->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
+            if (func != NULL) {
+                applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
+            }
         }
     }
 
@@ -189,6 +204,18 @@ void VM::ready() {
     _orig_RetransformClasses = functions->RetransformClasses;
     functions->RedefineClasses = RedefineClassesHook;
     functions->RetransformClasses = RetransformClassesHook;
+}
+
+void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
+    size_t size = end_patch - patch;
+    uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
+    uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
+
+    if (mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
+        memcpy(func, patch, size);
+        __builtin___clear_cache(func, func + size);
+        mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
+    }
 }
 
 void* VM::getLibraryHandle(const char* name) {

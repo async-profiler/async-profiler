@@ -31,6 +31,7 @@
 enum request_type {
     PERF_FD,
     KALLSYMS_FD,
+    BPFMAP_FD,
 };
 
 struct fd_request {
@@ -54,6 +55,18 @@ struct fd_response {
 struct perf_fd_response {
     struct fd_response header;
     int tid;
+};
+
+struct bpfmap_params {
+    unsigned long interval;
+    unsigned int num_entries;
+    unsigned int entry_size;
+    unsigned int salt;
+};
+
+struct bpfmap_fd_response {
+    struct fd_response header;
+    struct bpfmap_params params;
 };
 
 
