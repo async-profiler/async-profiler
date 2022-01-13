@@ -108,15 +108,14 @@ jobs:
        with:
          name: libasyncProfiler-${{matrix.build}}.so
          path: build/libasyncProfiler.so
-     - uses: actions/upload-artifact@master
-       with:
-         name: test-traces.zip
-         path: /tmp/java-*.trace
-     - name: Publish Unit Test Results
-       uses: EnricoMi/publish-unit-test-result-action@v1
+     - name: Publish test logs
+       uses: actions/upload-artifact@master
        if: always()
        with:
-         files: target/surefire-reports/**/*
+         name: tests-output.zip
+         path: |
+           /tmp/java-*.trace
+           trget/surefire-reports
 
   prepare-release:
     name: Prepare Release
