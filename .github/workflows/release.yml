@@ -154,7 +154,11 @@ jobs:
           name: libasyncProfiler-linux-ppc64le.so
           path: src/main/resources/native-libs/linux-ppc64le
       - name: Build with Maven
-        run: mvn --batch-mode --update-snapshots package
+        run: |
+          if [ "${TARGET_OS}" != "macos-x64" ]; then
+           sudo sysctl kernel.perf_event_paranoid=1
+          fi
+          mvn --batch-mode --update-snapshots package
       - uses: actions/upload-artifact@v2
         with:
           name: async-profiler-archive.zip
