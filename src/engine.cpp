@@ -15,6 +15,7 @@
  */
 
 #include "engine.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
 
@@ -48,14 +49,9 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
     }
 
     int depth = 0;
-    const void* const valid_pc = (const void* const)0x1000;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= valid_pc) {
-        if (CodeHeap::contains(pc)) {
-            break;
-        }
-
+    while (depth < max_depth && !CodeHeap::contains(pc)) {
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
@@ -68,9 +64,13 @@ int Engine::getNativeTrace(void* ucontext, int tid, const void** callchain, int 
             break;
         }
 
+        pc = stripPointer(SafeAccess::load((void**)fp + FRAME_PC_SLOT));
+        if (pc < (const void*)0x1000 || pc > (const void*)-0x1000) {
+            break;
+        }
+
         prev_fp = fp;
-        pc = stripPointer(((const void**)fp)[FRAME_PC_SLOT]);
-        fp = ((uintptr_t*)fp)[0];
+        fp = *(uintptr_t*)fp;
     }
 
     return depth;

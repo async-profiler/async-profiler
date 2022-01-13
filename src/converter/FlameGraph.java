@@ -107,13 +107,15 @@ public class FlameGraph {
     }
 
     public void dump(PrintStream out) {
+        mintotal = (long) (root.total * minwidth / 100);
+        int depth = mintotal > 1 ? root.depth(mintotal) : this.depth + 1;
+
         out.print(applyReplacements(HEADER,
                 "{title}", title,
-                "{height}", Math.min((depth + 1) * 16, 32767),
-                "{depth}", depth + 1,
+                "{height}", Math.min(depth * 16, 32767),
+                "{depth}", depth,
                 "{reverse}", reverse));
 
-        mintotal = (long) (root.total * minwidth / 100);
         printFrame(out, "all", root, 0, 0);
 
         out.print(FOOTER);
@@ -214,6 +216,18 @@ public class FlameGraph {
                 put(title, child = new Frame());
             }
             return child;
+        }
+
+        int depth(long cutoff) {
+            int depth = 0;
+            if (size() > 0) {
+                for (Frame child : values()) {
+                    if (child.total >= cutoff) {
+                        depth = Math.max(depth, child.depth(cutoff));
+                    }
+                }
+            }
+            return depth + 1;
         }
     }
 

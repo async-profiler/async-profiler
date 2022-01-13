@@ -17,7 +17,6 @@
 #ifndef _TRAP_H
 #define _TRAP_H
 
-#include <signal.h>
 #include <stdint.h>
 #include "arch.h"
 
@@ -37,9 +36,6 @@ class Trap {
     bool patch(instruction_t insn);
 
     static uintptr_t _page_start[TRAP_COUNT];
-    static struct sigaction _jvm_handler;
-
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
     Trap(int id) : _id(id), _unprotect(true), _protect(WX_MEMORY), _entry(0), _breakpoint_insn(BREAKPOINT) {
@@ -64,6 +60,8 @@ class Trap {
     bool uninstall() {
         return _entry == 0 || patch(_saved_insn);
     }
+
+    static bool isFaultInstruction(uintptr_t pc);
 };
 
 #endif // _TRAP_H

@@ -20,7 +20,6 @@
 #include <cxxabi.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,11 +57,11 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 
 
 static SpinLock _rec_lock(1);
-static volatile bool _timer_is_running;
 
 static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
+static jmethodID _box_method;
 
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "lbr"};
@@ -148,7 +147,15 @@ class Lookup {
 
   private:
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        mi->_class = _classes->lookup("");
+        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
+        if (lib_name == NULL) {
+            mi->_class = _classes->lookup("");
+        } else if (lib_name[0] == '[' && lib_name[1] != 0) {
+            mi->_class = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
+        } else {
+            mi->_class = _classes->lookup(lib_name);
+        }
+
         mi->_modifiers = 0x100;
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
@@ -407,7 +414,6 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    pthread_t _timer_thread;
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
@@ -433,99 +439,13 @@ class Recording {
     Buffer _cpu_monitor_buf;
     CpuTimes _last_times;
 
-    void cpuMonitorCycle() {
-        if (!_cpu_monitor_enabled) return;
-
-        CpuTimes times;
-        times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
-        times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
-
-        float proc_user = 0, proc_system = 0, machine_total = 0;
-
-        if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
-            float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
-            proc_user = ratio((times.proc.user - _last_times.proc.user) / delta);
-            proc_system = ratio((times.proc.system - _last_times.proc.system) / delta);
-        }
-
-        if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
-            float delta = times.total.real - _last_times.total.real;
-            machine_total = ratio(((times.total.user + times.total.system) -
-                                   (_last_times.total.user + _last_times.total.system)) / delta);
-            if (machine_total < proc_user + proc_system) {
-                machine_total = ratio(proc_user + proc_system);
-            }
-        }
-
-        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
-
-        _last_times = times;
-    }
-
-    bool needSwitchChunk() {
-        return loadAcquire(_bytes_written) >= _chunk_size || OS::micros() - _start_time >= _chunk_time;
-    }
-
-    // Note: this loop runs asynchronously with the recording termination.
-    // Must not access Recording fields without lock guard.
-    void timerLoop() {
-        u64 current_time = OS::nanotime();
-
-        while (_timer_is_running) {
-            u64 sleep_until = current_time + 1000000000;
-            while ((current_time = OS::nanotime()) < sleep_until) {
-                OS::sleep(sleep_until - current_time);
-                if (!_timer_is_running) return;
-            }
-
-            bool need_switch_chunk = false;
-
-            if (_rec_lock.tryLockShared()) {
-                cpuMonitorCycle();
-                need_switch_chunk = needSwitchChunk();
-                _rec_lock.unlockShared();
-            }
-
-            if (need_switch_chunk) {
-                // Switch JFR chunk under the profiling state lock
-                Profiler::instance()->flushJfr();
-            }
-        }
-    }
-
-    static void* threadEntry(void* rec) {
-        VM::attachThread("Async-profiler Timer");
-        ((Recording*)rec)->timerLoop();
-        VM::detachThread();
-        return NULL;
-    }
-
-    void startTimer() {
-        _timer_is_running = true;
-        if (pthread_create(&_timer_thread, NULL, threadEntry, this) != 0) {
-            Log::warn("Unable to create JFR timer thread");
-            _timer_is_running = false;
-        }
-    }
-
-    void stopTimer() {
-        if (_timer_is_running) {
-            _timer_is_running = false;
-            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
-            // Do not wait until timer thread finishes, otherwise we can deadlock.
-            // timerLoop() is harmless; it's OK to finish it asynchronously.
-            pthread_detach(_timer_thread);
-        }
-    }
-
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
     }
 
   public:
     Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
-        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args._file);
+        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args.file());
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
@@ -564,13 +484,9 @@ class Recording {
             _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
             _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
         }
-
-        startTimer();
     }
 
     ~Recording() {
-        stopTimer();
-
         off_t chunk_end = finishChunk(true);
 
         if (_master_recording_file != NULL) {
@@ -592,7 +508,7 @@ class Recording {
 
         _stop_time = OS::micros();
         _stop_ticks = TSC::ticks();
-        
+
         if (end_recording) {
             writeRecordingInfo(_buf);
         }
@@ -623,11 +539,13 @@ class Recording {
         _buf->put64(cpool_offset - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000);
-        _buf->put64(_stop_ticks - _start_ticks);
+        _buf->put64((_stop_time - _start_time) * 1000);
         _buf->put64(_start_ticks);
         _buf->put64(tsc_frequency);
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
+
+        OS::freePageCache(_fd, _chunk_start);
 
         _buf->reset();
         return chunk_end;
@@ -643,6 +561,40 @@ class Recording {
         writeHeader(_buf);
         writeMetadata(_buf);
         flush(_buf);
+    }
+
+    bool needSwitchChunk(u64 wall_time) {
+        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _start_time >= _chunk_time;
+    }
+
+    void cpuMonitorCycle() {
+        if (!_cpu_monitor_enabled) return;
+
+        CpuTimes times;
+        times.proc.real = OS::getProcessCpuTime(&times.proc.user, &times.proc.system);
+        times.total.real = OS::getTotalCpuTime(&times.total.user, &times.total.system);
+
+        float proc_user = 0, proc_system = 0, machine_total = 0;
+
+        if (times.proc.real != (u64)-1 && times.proc.real > _last_times.proc.real) {
+            float delta = (times.proc.real - _last_times.proc.real) * _available_processors;
+            proc_user = ratio((times.proc.user - _last_times.proc.user) / delta);
+            proc_system = ratio((times.proc.system - _last_times.proc.system) / delta);
+        }
+
+        if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
+            float delta = times.total.real - _last_times.total.real;
+            machine_total = ratio(((times.total.user + times.total.system) -
+                                   (_last_times.total.user + _last_times.total.system)) / delta);
+            if (machine_total < proc_user + proc_system) {
+                machine_total = ratio(proc_user + proc_system);
+            }
+        }
+
+        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
+        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
+
+        _last_times = times;
     }
 
     bool hasMasterRecording() const {
@@ -836,6 +788,7 @@ class Recording {
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(_tid);
+        buf->putVar32(0);
         buf->putVar32(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
@@ -946,7 +899,7 @@ class Recording {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
-        NativeCodeCache** native_libs = profiler->_native_libs;
+        CodeCache** native_libs = profiler->_native_libs;
         int native_lib_count = profiler->_native_lib_count;
 
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
@@ -1245,7 +1198,7 @@ char* Recording::_java_command = NULL;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
-    const char* filename = args._file;
+    const char* filename = args.file();
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
@@ -1304,6 +1257,19 @@ void FlightRecorder::flush() {
     }
 }
 
+bool FlightRecorder::timerTick(u64 wall_time) {
+    if (!_rec_lock.tryLockShared()) {
+        // No active recording
+        return false;
+    }
+
+    _rec->cpuMonitorCycle();
+    bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
+
+    _rec_lock.unlockShared();
+    return need_switch_chunk;
+}
+
 Error FlightRecorder::startMasterRecording(Arguments& args) {
     JNIEnv* env = VM::jni();
 
@@ -1314,13 +1280,35 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
                 || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
+                || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL
                 || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
             env->ExceptionDescribe();
             return Error("Failed to initialize JfrSync class");
         }
     }
 
-    jobject jfilename = env->NewStringUTF(args._file);
+    jclass options_class = env->FindClass("jdk/jfr/internal/Options");
+    if (options_class != NULL) {
+        if (args._chunk_size > 0) {
+            jmethodID method = env->GetStaticMethodID(options_class, "setMaxChunkSize", "(J)V");
+            if (method != NULL) {
+                env->CallStaticVoidMethod(options_class, method, args._chunk_size < 1024 * 1024 ? 1024 * 1024 : args._chunk_size);
+            }
+        }
+
+        if (args._jstackdepth > 0) {
+            jmethodID method = env->GetStaticMethodID(options_class, "setStackDepth", "(Ljava/lang/Integer;)V");
+            if (method != NULL) {
+                jobject value = env->CallStaticObjectMethod(_jfr_sync_class, _box_method, args._jstackdepth);
+                if (value != NULL) {
+                    env->CallStaticVoidMethod(options_class, method, value);
+                }
+            }
+        }
+    }
+    env->ExceptionClear();
+
+    jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? EM_CPU : 0) |
                      (args._alloc > 0 ? EM_ALLOC : 0) |
