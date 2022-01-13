@@ -101,8 +101,8 @@ jobs:
        run: |
          if [ "${TARGET_OS}" != "macos-x64" ]; then
            sudo sysctl kernel.perf_event_paranoid=1
-           make test
          fi
+         make test
 
      - uses: actions/upload-artifact@master
        with:
@@ -115,7 +115,7 @@ jobs:
          name: tests-output.zip
          path: |
            /tmp/java-*.trace
-           trget/surefire-reports
+           /target/surefire-reports
 
   prepare-release:
     name: Prepare Release
