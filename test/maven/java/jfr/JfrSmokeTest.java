@@ -37,7 +37,6 @@ public class JfrSmokeTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(JfrSmokeTest.class);
 
     @Test
-    @Disabled
     public void test() throws Exception {
         Path tempDir = Files.createTempDirectory("jfr_test-");
         try {
