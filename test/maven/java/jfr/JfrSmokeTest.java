@@ -110,8 +110,9 @@ public class JfrSmokeTest {
         assertTrue(cpuSamples.hasItems());
         long collectedSamples = cpuSamples.stream().flatMap(iterable -> iterable.stream()).count();
         long estimatedCpuTimeRateMs = cpuTimeBoundary.toMillis() / collectedSamples;
+        // make sure that the sampling interval is not shorter than requested
         // the reported cores may include HT cores - they don't contribute to available CPU time linearly so we also try to normalize to HW cores
-        assertTrue(Math.abs(estimatedCpuTimeRateMs - 10) <= 5 || Math.abs((estimatedCpuTimeRateMs / 2) - 10) <= 5, "Expected: 10ms, observed: " + estimatedCpuTimeRateMs + "ms");
+        assertTrue(estimatedCpuTimeRateMs - 10 >= 0 || (estimatedCpuTimeRateMs / 2) - 10 >= 0, "Expected: >10ms, observed: " + estimatedCpuTimeRateMs + "ms");
     }
 
     private static void assertHiddenLambdaFrames(IItemCollection cpuSamples) {
