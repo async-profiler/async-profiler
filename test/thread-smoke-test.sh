@@ -15,7 +15,7 @@ fi
      ${JAVA_HOME}/bin/javac ThreadsTarget.java
   fi
 
-  FILENAME=/tmp/java.trace
+  FILENAME=/tmp/java-thread-smoke.trace
 
   ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,event=cpu,collapsed,threads,file=$FILENAME ThreadsTarget
 

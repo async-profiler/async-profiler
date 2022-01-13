@@ -17,7 +17,7 @@ fi
 
   ${JAVA_HOME}/bin/java AllocatingTarget &
 
-  FILENAME=/tmp/java.trace
+  FILENAME=/tmp/java-alloc-smoke.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize

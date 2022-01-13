@@ -17,7 +17,7 @@ fi
 
   ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so LoadLibraryTest &
 
-  FILENAME=/tmp/java.trace
+  FILENAME=/tmp/java-load-library.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize

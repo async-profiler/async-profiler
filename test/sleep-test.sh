@@ -15,9 +15,9 @@ fi
      ${JAVA_HOME}/bin/javac SleepTest.java
   fi
 
-  FILENAME=/tmp/java.trace
+  FILENAME=/tmp/java-sleep.trace
 
-  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,event=cpu,flat,file=$FILENAME SleepTest 1000
+  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,event=itimer,flat,file=$FILENAME SleepTest 1000
 
   # wait for normal termination
 

@@ -17,7 +17,7 @@ fi
 
   ${JAVA_HOME}/bin/java Target &
 
-  FILENAME=/tmp/java.trace
+  FILENAME=/tmp/java-smoke.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
