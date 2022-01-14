@@ -147,14 +147,16 @@ class Lookup {
 
   private:
     void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
-        if (lib_name == NULL) {
-            mi->_class = _classes->lookup("");
-        } else if (lib_name[0] == '[' && lib_name[1] != 0) {
-            mi->_class = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
-        } else {
-            mi->_class = _classes->lookup(lib_name);
-        }
+        mi->_class = _classes->lookup("");
+        // TODO return the library name once we figured out how to cooperate with the backend
+//        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
+//        if (lib_name == NULL) {
+//            mi->_class = _classes->lookup("");
+//        } else if (lib_name[0] == '[' && lib_name[1] != 0) {
+//            mi->_class = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
+//        } else {
+//            mi->_class = _classes->lookup(lib_name);
+//        }
 
         mi->_modifiers = 0x100;
         mi->_line_number_table_size = 0;
