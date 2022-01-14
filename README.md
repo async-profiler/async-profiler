@@ -407,8 +407,8 @@ The following is a complete list of the command-line options accepted by
   a star `*` that denotes any (possibly empty) sequence of characters.  
   Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
 
-* `--title TITLE`, `--minwidth PERCENT`, `--reverse` - FlameGraph parameters.  
-  Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
+* `--title TITLE`, `--minwidth PERCENT`, `--reverse`, `--highlightstacks PATTERN` - FlameGraph parameters.  
+  Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --highlightstacks 'com/example' --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  
   `%p` in the file name is expanded to the PID of the target JVM;  

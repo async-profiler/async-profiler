@@ -25,12 +25,14 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 public class FlameGraph {
     public String title = "Flame Graph";
     public boolean reverse;
     public double minwidth;
     public int skip;
+    public Pattern highlightStacksPattern;
     public String input;
     public String output;
 
@@ -55,6 +57,8 @@ public class FlameGraph {
                 minwidth = Double.parseDouble(args[++i]);
             } else if (arg.equals("--skip")) {
                 skip = Integer.parseInt(args[++i]);
+            } else if (arg.equals("--highlightstacks")) {
+                highlightStacksPattern = Pattern.compile(".*" + args[++i] + ".*");
             }
         }
     }
@@ -173,7 +177,9 @@ public class FlameGraph {
     }
 
     private int frameType(String title) {
-        if (title.endsWith("_[j]")) {
+        if (highlightStacksPattern.matcher(title).matches()) {
+            return 5;
+        } else if (title.endsWith("_[j]")) {
             return 0;
         } else if (title.endsWith("_[i]")) {
             return 1;
@@ -287,6 +293,7 @@ public class FlameGraph {
             "\t\t[0xe17d00, 30, 30,  0],\n" +
             "\t\t[0xc8c83c, 30, 30, 10],\n" +
             "\t\t[0xe15a5a, 30, 40, 40],\n" +
+            "\t\t[0x9f8bd9, 30, 30, 30],\n" +
             "\t];\n" +
             "\n" +
             "\tfunction getColor(p) {\n" +
