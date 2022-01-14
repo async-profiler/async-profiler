@@ -39,6 +39,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
         args._event = event_str;
         args._interval = interval;
     }
+    Log::open(args._log, args._loglevel);
 
     Error error = Profiler::instance()->start(args, reset);
     env->ReleaseStringUTFChars(event, event_str);
@@ -68,6 +69,8 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         JavaAPI::throwNew(env, "java/lang/IllegalArgumentException", error.message());
         return NULL;
     }
+
+    Log::open(args._log, args._loglevel);
 
     if (!args.hasOutputFile()) {
         std::ostringstream out;
