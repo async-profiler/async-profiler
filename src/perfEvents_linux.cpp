@@ -671,6 +671,13 @@ const char* PerfEvents::units() {
 }
 
 Error PerfEvents::check(Arguments& args) {
+    // The official way of knowing if perf_event_open() support is enabled
+    // is checking for the existence of the file /proc/sys/kernel/perf_event_paranoid
+    struct stat statbuf;
+    if (stat("/proc/sys/kernel/perf_event_paranoid", &statbuf) != 0) {
+        return Error("/proc/sys/kernel/perf_event_paranoid doesn't exist");
+    }
+
     PerfEventType* event_type = PerfEventType::forName(args._event);
     if (event_type == NULL) {
         return Error("Unsupported event type");
@@ -903,17 +910,6 @@ void PerfEvents::resetBuffer(int tid) {
     }
 
     event->unlock();
-}
-
-bool PerfEvents::supported() {
-    // The official way of knowing if perf_event_open() support is enabled
-    // is checking for the existence of the file /proc/sys/kernel/perf_event_paranoid
-    struct stat statbuf;
-    if (stat("/proc/sys/kernel/perf_event_paranoid", &statbuf) != 0) {
-        Log::debug("perfEvents is not supported, /proc/sys/kernel/perf_event_paranoid doesn't exist");
-        return false;
-    }
-    return true;
 }
 
 const char* PerfEvents::getEventName(int event_id) {

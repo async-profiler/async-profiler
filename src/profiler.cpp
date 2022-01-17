@@ -915,16 +915,16 @@ bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
     return checkInclude;
 }
 
-Engine* Profiler::selectEngine(const char* event_name) {
-    if (event_name == NULL) {
+Engine* Profiler::selectEngine(Arguments& args) {
+    if (args._event == NULL) {
         return &noop_engine;
-    } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
-    } else if (strcmp(event_name, EVENT_WALL) == 0) {
+    } else if (strcmp(args._event, EVENT_CPU) == 0) {
+        return !perf_events.check(args) ? (Engine*)&perf_events : (Engine*)&wall_clock;
+    } else if (strcmp(args._event, EVENT_WALL) == 0) {
         return &wall_clock;
-    } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
+    } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
         return &itimer;
-    } else if (strchr(event_name, '.') != NULL && strchr(event_name, ':') == NULL) {
+    } else if (strchr(args._event, '.') != NULL && strchr(args._event, ':') == NULL) {
         return &instrument;
     } else {
         return &perf_events;
@@ -1028,7 +1028,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
-    _engine = selectEngine(args._event);
+    _engine = selectEngine(args);
     _cstack = args._cstack;
     if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
@@ -1150,7 +1150,7 @@ Error Profiler::check(Arguments& args) {
     Error error = checkJvmCapabilities();
 
     if (!error && args._event != NULL) {
-        _engine = selectEngine(args._event);
+        _engine = selectEngine(args);
         error = _engine->check(args);
     }
     if (!error && args._alloc > 0) {
@@ -1543,7 +1543,7 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "Java method calls:\n";
             out << "  ClassName.methodName\n";
 
-            if (PerfEvents::supported()) {
+            if (perf_events.check(args)) {
                 out << "Perf events:\n";
                 // The first perf event is "cpu" which is already printed
                 for (int event_id = 1; ; event_id++) {

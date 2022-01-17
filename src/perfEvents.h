@@ -50,7 +50,6 @@ class PerfEvents : public Engine {
 
     static void resetBuffer(int tid);
 
-    static bool supported();
     static const char* getEventName(int event_id);
 };
 

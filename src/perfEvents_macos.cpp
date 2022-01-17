@@ -55,10 +55,6 @@ int PerfEvents::getKernelTrace(void* ucontext, int tid, const void** callchain, 
 void PerfEvents::resetBuffer(int tid) {
 }
 
-bool PerfEvents::supported() {
-    return false;
-}
-
 const char* PerfEvents::getEventName(int event_id) {
     return NULL;
 }
