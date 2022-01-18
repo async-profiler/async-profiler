@@ -229,6 +229,10 @@ class VMThread : VMStructs {
   public:
     static VMThread* current();
 
+    static int key() {
+        return _tls_index;
+    }
+
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }

@@ -36,6 +36,8 @@ CodeCache::CodeCache(const char* name, short lib_index, const void* min_address,
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
+    _got_start = NULL;
+    _got_end = NULL;
 
     _capacity = INITIAL_CODE_CACHE_CAPACITY;
     _count = 0;
@@ -157,6 +159,15 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
         const char* blob_name = _blobs[i]._name;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
             return _blobs[i]._start;
+        }
+    }
+    return NULL;
+}
+
+const void** CodeCache::findGOTEntry(const void* address) {
+    for (const void** entry = _got_start; entry < _got_end; entry++) {
+        if (*entry == address) {
+            return entry;
         }
     }
     return NULL;

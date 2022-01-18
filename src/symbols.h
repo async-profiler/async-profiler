@@ -32,6 +32,8 @@ class Symbols {
     static void parseKernelSymbols(CodeCache* cc);
     static void parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols);
 
+    static void makePatchable(CodeCache* cc);
+
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;
     }
