@@ -70,6 +70,25 @@ enum ASGCT_Failure {
     ASGCT_FAILURE_TYPES         = 12
 };
 
+// Frame types used for output (output generators use these directly)
+enum StoredFrameType {
+    FRAME_TYPE_NATIVE           = 'n',
+    FRAME_TYPE_ALLOC            = 'a',
+    FRAME_TYPE_OUTSIDE_TLAB     = 'o',
+    FRAME_TYPE_LOCK             = 'l',
+    FRAME_TYPE_PARK             = 'p',
+    FRAME_TYPE_THREAD           = 't',
+    FRAME_TYPE_ERROR            = 'e',
+    FRAME_TYPE_INSTRUMENT       = 's',
+    FRAME_TYPE_INTERNALERR      = 'X',
+    FRAME_TYPE_COMPILED_JAVA    = 'J',
+    FRAME_TYPE_INTERPRETED_JAVA = 'I',
+    FRAME_TYPE_INLINED_JAVA     = 'i',
+    FRAME_TYPE_UNKNOWN_JAVA     = 'j',
+    FRAME_TYPE_CPP              = 'p',
+    FRAME_TYPE_BOTTOM           = 'b',
+};
+
 typedef struct {
     jint bci;
     jmethodID method_id;

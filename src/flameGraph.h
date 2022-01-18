@@ -22,6 +22,7 @@
 #include <iostream>
 #include "arch.h"
 #include "arguments.h"
+#include "vmEntry.h"
 
 
 class Trie {
@@ -29,18 +30,31 @@ class Trie {
     std::map<std::string, Trie> _children;
     u64 _total;
     u64 _self;
+    u64 _interp;
+    u64 _inlined;
+    u64 _compiled;
 
-    Trie() : _children(), _total(0), _self(0) {
+    Trie() : _children(), _total(0), _self(0), _interp(0), _inlined(0), _compiled(0) {
     }
     
-    Trie* addChild(const std::string& key, u64 value) {
+    Trie* addChild(const std::string& key, u64 value, char type) {
         _total += value;
+        switch(type) {
+        case FRAME_TYPE_INTERPRETED_JAVA: _interp += value; break;
+        case FRAME_TYPE_INLINED_JAVA: _inlined += value; break;
+        case FRAME_TYPE_COMPILED_JAVA: _compiled += value; break;
+        }
         return &_children[key];
     }
 
-    void addLeaf(u64 value) {
+    void addLeaf(u64 value, char type) {
         _total += value;
         _self += value;
+        switch(type) {
+            case FRAME_TYPE_INTERPRETED_JAVA: _interp += value; return;
+            case FRAME_TYPE_INLINED_JAVA: _inlined += value; return;
+            case FRAME_TYPE_COMPILED_JAVA: _compiled += value; return;
+        }
     }
 
     int depth(u64 cutoff) const {
@@ -57,7 +71,6 @@ class Trie {
     }
 };
 
-
 class FlameGraph {
   private:
     Trie _root;
@@ -71,7 +84,7 @@ class FlameGraph {
 
     void printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x);
     void printTreeFrame(std::ostream& out, const Trie& f, int level);
-    int frameType(std::string& name);
+    int frameType(std::string& name, u64 total, u64 interp, u64 inlined, u64 compiled);
 
   public:
     FlameGraph(const char* title, Counter counter, double minwidth, bool reverse) :

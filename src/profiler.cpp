@@ -1265,32 +1265,89 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         int num_frames = trace->num_frames;
 
         Trie* f = flamegraph.root();
+        char type = 0;
         if (args._reverse) {
             // Thread frames always come first
             if (_add_sched_frame) {
                 const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(trace->frames[num_frames].bci);
+                f = f->addChild(frame_name, samples, type);
+                type = next_type;
             }
             if (_add_thread_frame) {
                 const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(trace->frames[num_frames].bci);
+                f = f->addChild(frame_name, samples, type);
+                type = next_type;
             }
 
             for (int j = 0; j < num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(trace->frames[j].bci);
+                f = f->addChild(frame_name, samples, type);
+                type = next_type;
             }
         } else {
             for (int j = num_frames - 1; j >= 0; j--) {
                 const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, samples);
+                char next_type = getFrameType(trace->frames[j].bci);
+                f = f->addChild(frame_name, samples, type);
+                type = next_type;
             }
         }
-        f->addLeaf(samples);
+        f->addLeaf(samples, type);
     }
 
     flamegraph.dump(out, tree);
 }
+
+
+char Profiler::getFrameType(jint bci) {
+    char frame_type;
+    int type = bci & BCI_OFFSET_MASK;
+    if (bci < 0) {
+        type = type ^ BCI_OFFSET_MASK;
+        bci |= BCI_OFFSET_MASK;
+    } else {
+        bci &= ~BCI_OFFSET_MASK;
+    }
+    if (bci < BCI_SMALLEST_USED_BY_VM) {
+        switch (bci) {
+        case BCI_NATIVE_FRAME:
+            return FRAME_TYPE_NATIVE;
+        case BCI_ALLOC:
+            return FRAME_TYPE_ALLOC;
+        case BCI_ALLOC_OUTSIDE_TLAB:
+            return FRAME_TYPE_OUTSIDE_TLAB;
+            break;
+        case BCI_LOCK:
+            return FRAME_TYPE_LOCK;
+            break;
+        case BCI_PARK:
+            return FRAME_TYPE_PARK;
+        case BCI_THREAD_ID:
+            return FRAME_TYPE_THREAD;
+        case BCI_ERROR:
+            return FRAME_TYPE_ERROR;
+        case BCI_INSTRUMENT:
+            return FRAME_TYPE_INSTRUMENT;
+        default:
+            return FRAME_TYPE_INTERNALERR;
+        }
+    } else {
+        switch (type) {
+        case BCI_OFFSET_COMP:
+            return FRAME_TYPE_COMPILED_JAVA;
+        case BCI_OFFSET_INTERP:
+            return FRAME_TYPE_INTERPRETED_JAVA;
+        case BCI_OFFSET_INLINED:
+            return FRAME_TYPE_INLINED_JAVA;
+        default:
+            return FRAME_TYPE_UNKNOWN_JAVA;
+        }
+    }
+}
+
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
     FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
@@ -1346,58 +1403,8 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             for (int j = 0; j < trace->num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
                 jint bci = trace->frames[j].bci;
-                char frame_type;
-                int type = bci & BCI_OFFSET_MASK;
-                if (bci < 0) {
-                    type = type ^ BCI_OFFSET_MASK;
-                    bci |= BCI_OFFSET_MASK;
-                } else {
-                    bci &= ~BCI_OFFSET_MASK;
-                }
-                if (bci < BCI_SMALLEST_USED_BY_VM) {
-                    switch (bci) {
-                        case BCI_NATIVE_FRAME:
-                          frame_type = 'n';
-                          break;
-                        case BCI_ALLOC:
-                          frame_type = 'a';
-                          break;
-                        case BCI_ALLOC_OUTSIDE_TLAB:
-                          frame_type = 'o';
-                          break;
-                        case BCI_LOCK:
-                          frame_type = 'l';
-                          break;
-                        case BCI_PARK:
-                          frame_type = 'p';
-                          break;
-                        case BCI_THREAD_ID:
-                          frame_type = 't';
-                          break;
-                        case BCI_ERROR:
-                          frame_type = 'e';
-                          break;
-                        case BCI_INSTRUMENT:
-                          frame_type = 's';
-                          break;
-                        default:
-                          frame_type = 'X';
-                    }
-                } else {
-                    switch (type) {
-                        case BCI_OFFSET_COMP:
-                          frame_type = 'C';
-                          break;
-                        case BCI_OFFSET_INTERP:
-                          frame_type = 'I';
-                          break;
-                        case BCI_OFFSET_INLINED:
-                          frame_type = 'i';
-                          break;
-                        default:
-                          frame_type = ' ';
-                    }
-                }
+                char frame_type = getFrameType(bci);
+                bci = bci < 0 ? bci | BCI_OFFSET_MASK : bci & ~BCI_OFFSET_MASK;
                 snprintf(buf, sizeof(buf) - 1, "  [%2d] %c %5d %s\n", j, frame_type, bci, frame_name);
                 out << buf;
             }
