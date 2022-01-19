@@ -85,6 +85,8 @@ class CodeCache {
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
+    const void** _got_start;
+    const void** _got_end;
 
     int _capacity;
     int _count;
@@ -116,6 +118,19 @@ class CodeCache {
         return address >= _min_address && address < _max_address;
     }
 
+    const void** gotStart() const {
+        return _got_start;
+    }
+
+    const void** gotEnd() const {
+        return _got_end;
+    }
+
+    void setGlobalOffsetTable(const void* start, unsigned int size) {
+        _got_start = (const void**) start;
+        _got_end = (const void**) ((const char*)start + size);
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
@@ -126,6 +141,7 @@ class CodeCache {
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
+    const void** findGOTEntry(const void* address);
 };
 
 #endif // _CODECACHE_H
