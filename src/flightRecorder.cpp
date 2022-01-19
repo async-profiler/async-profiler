@@ -66,7 +66,6 @@ static jmethodID _box_method;
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr"};
 
-
 struct CpuTime {
     u64 real;
     u64 user;
@@ -77,6 +76,36 @@ struct CpuTimes {
     CpuTime proc;
     CpuTime total;
 };
+
+FrameTypeId getFrameTypeId(jint bci) {
+    char frame_type;
+    int type = bci & BCI_OFFSET_MASK;
+    if (bci < 0) {
+        type = type ^ BCI_OFFSET_MASK;
+        bci |= BCI_OFFSET_MASK;
+    } else {
+        bci &= ~BCI_OFFSET_MASK;
+    }
+    if (bci < BCI_SMALLEST_USED_BY_VM) {
+        switch (bci) {
+        case BCI_NATIVE_FRAME:
+            return FRAME_NATIVE;
+        default:
+            return FRAME_UNKNOWN;
+        }
+    } else {
+        switch (type) {
+        case BCI_OFFSET_COMP:
+            return FRAME_JIT_COMPILED;
+        case BCI_OFFSET_INTERP:
+            return FRAME_INTERPRETED;
+        case BCI_OFFSET_INLINED:
+            return FRAME_INLINED;
+        default:
+            return FRAME_UNKNOWN;
+        }
+    }
+}
 
 
 class MethodInfo {
@@ -171,7 +200,7 @@ class Lookup {
         }
     }
 
-    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
+    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method, FrameTypeId type, bool first_time) {
         jvmtiEnv* jvmti = VM::jvmti();
 
         jclass method_class;
@@ -204,7 +233,7 @@ class Lookup {
             mi->_line_number_table = NULL;
         }
 
-        mi->_type = FRAME_INTERPRETED;
+        mi->_type = type;
     }
 
   public:
@@ -228,7 +257,7 @@ class Lookup {
             } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
                 fillNativeMethodInfo(mi, (const char*)method);
             } else {
-                fillJavaMethodInfo(mi, method, first_time);
+                fillJavaMethodInfo(mi, method, getFrameTypeId(frame.bci), first_time);
             }
         }
 

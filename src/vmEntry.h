@@ -34,6 +34,7 @@ enum FrameTypeId {
     FRAME_NATIVE       = 3,
     FRAME_CPP          = 4,
     FRAME_KERNEL       = 5,
+    FRAME_UNKNOWN      = 6,
 };
 
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
