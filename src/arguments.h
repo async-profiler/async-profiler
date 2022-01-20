@@ -65,6 +65,7 @@ enum CStack {
     CSTACK_DEFAULT,
     CSTACK_NO,
     CSTACK_FP,
+    CSTACK_DWARF,
     CSTACK_LBR
 };
 

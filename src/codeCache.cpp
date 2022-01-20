@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "codeCache.h"
+#include "dwarf.h"
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
@@ -36,8 +37,12 @@ CodeCache::CodeCache(const char* name, short lib_index, const void* min_address,
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
+
     _got_start = NULL;
     _got_end = NULL;
+
+    _dwarf_table = NULL;
+    _dwarf_table_length = 0;
 
     _capacity = INITIAL_CODE_CACHE_CAPACITY;
     _count = 0;
@@ -50,6 +55,7 @@ CodeCache::~CodeCache() {
     }
     NativeFunc::destroy(_name);
     delete[] _blobs;
+    free(_dwarf_table);
 }
 
 void CodeCache::expand() {
@@ -164,11 +170,40 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
-const void** CodeCache::findGOTEntry(const void* address) {
+void CodeCache::setGlobalOffsetTable(const void* start, unsigned int size) {
+    _got_start = (const void**) start;
+    _got_end = (const void**) ((const char*)start + size);
+}
+
+const void** CodeCache::findGlobalOffsetEntry(const void* address) {
     for (const void** entry = _got_start; entry < _got_end; entry++) {
         if (*entry == address) {
             return entry;
         }
     }
     return NULL;
+}
+
+void CodeCache::setDwarfTable(FrameDesc* table, int length) {
+    _dwarf_table = table;
+    _dwarf_table_length = length;
+}
+
+FrameDesc* CodeCache::findFrameDesc(const void* pc) {
+    u32 target_loc = (const char*)pc - (const char*)_min_address;
+    int low = 0;
+    int high = _dwarf_table_length - 1;
+
+    while (low <= high) {
+        int mid = (unsigned int)(low + high) >> 1;
+        if (_dwarf_table[mid].loc < target_loc) {
+            low = mid + 1;
+        } else if (_dwarf_table[mid].loc > target_loc) {
+            high = mid - 1;
+        } else {
+            return &_dwarf_table[mid];
+        }
+    }
+
+    return low > 0 ? &_dwarf_table[low - 1] : NULL;
 }
