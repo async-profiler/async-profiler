@@ -785,8 +785,13 @@ Error PerfEvents::start(Arguments& args) {
         if (threads_idx < threads_sz && tid == threads[threads_idx]) {
             // create the timer
             if ((err = registerThread(tid)) != 0) {
-                // if we fail, stop creating more perf_events
-                break;
+                if (err == ESRCH) {
+                    // ignore because the thread doesn't exist anymore
+                    err = 0;
+                } else {
+                    // if we fail, stop creating more perf_events
+                    break;
+                }
             }
             // finally, increase threads_idx
             threads_idx += 1;
