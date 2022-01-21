@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,32 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef _ENGINE_H
-#define _ENGINE_H
-
-#include "arguments.h"
+#ifndef _STACKWALKER_H
+#define _STACKWALKER_H
 
 
-class Engine {
-  protected:
-    static volatile bool _enabled;
-
+class StackWalker {
   public:
-    virtual const char* title() {
-        return "Flame Graph";
-    }
-
-    virtual const char* units() {
-        return "total";
-    }
-
-    virtual Error check(Arguments& args);
-    virtual Error start(Arguments& args);
-    virtual void stop();
-
-    void enableEvents(bool enabled) {
-        _enabled = enabled;
-    }
+    static int walkFP(void* ucontext, const void** callchain, int max_depth);
+    static int walkDwarf(void* ucontext, const void** callchain, int max_depth);
 };
 
-#endif // _ENGINE_H
+#endif // _STACKWALKER_H

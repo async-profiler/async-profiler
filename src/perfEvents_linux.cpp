@@ -572,6 +572,10 @@ int PerfEvents::createForThread(int tid) {
         attr.exclude_user = 1;
     }
 
+    if (_cstack == CSTACK_DWARF) {
+        attr.exclude_callchain_user = 1;
+    }
+
 #ifdef PERF_ATTR_SIZE_VER5
     if (_cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
@@ -690,7 +694,7 @@ Error PerfEvents::check(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
-    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGlobalOffsetEntry((const void*)&pthread_setspecific)) == NULL) {
         return Error("Could not set pthread hook");
     }
 
@@ -719,6 +723,10 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
+    if (_cstack == CSTACK_DWARF) {
+        attr.exclude_callchain_user = 1;
+    }
+
 #ifdef PERF_ATTR_SIZE_VER5
     if (args._cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
@@ -745,7 +753,7 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Only arguments 1-4 can be counted");
     }
 
-    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGOTEntry((const void*)&pthread_setspecific)) == NULL) {
+    if (_pthread_entry == NULL && (_pthread_entry = VMStructs::libjvm()->findGlobalOffsetEntry((const void*)&pthread_setspecific)) == NULL) {
         return Error("Could not set pthread hook");
     }
 
@@ -804,7 +812,7 @@ void PerfEvents::stop() {
     }
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed

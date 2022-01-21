@@ -433,8 +433,9 @@ The following is a complete list of the command-line options accepted by
 
 * `--sched` - group threads by Linux-specific scheduling policy: BATCH/IDLE/OTHER.
 
-* `--cstack MODE` - how to traverse native frames (C stack). Possible modes are
-  `fp` (Frame Pointer), `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
+* `--cstack MODE` - how to walk native frames (C stack). Possible modes are
+  `fp` (Frame Pointer), `dwarf` (DWARF unwind info),
+  `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
   and `no` (do not collect C stack).
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
