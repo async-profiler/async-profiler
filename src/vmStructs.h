@@ -48,6 +48,7 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
+    static int _frame_complete_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
     static int _constmethod_offset;
@@ -283,6 +284,14 @@ class NMethod : VMStructs {
   public:
     int frameSize() {
         return *(int*) at(_frame_size_offset);
+    }
+
+    int frameCompleteOffset() {
+        return *(int*) at(_frame_complete_offset);
+    }
+
+    void setFrameCompleteOffset(int offset) {
+        *(int*) at(_frame_complete_offset) = offset;
     }
 
     const char* name() {

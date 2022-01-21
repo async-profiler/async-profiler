@@ -128,7 +128,6 @@ const char* Profiler::asgctError(int code) {
     switch (code) {
         case ticks_no_Java_frame:
         case ticks_unknown_not_Java:
-        case ticks_not_walkable_not_Java:
             // Not in Java context at all; this is not an error
             return NULL;
         case ticks_thread_exit:
@@ -140,6 +139,8 @@ const char* Profiler::asgctError(int code) {
             return "unknown_Java";
         case ticks_not_walkable_Java:
             return "not_walkable_Java";
+        case ticks_not_walkable_not_Java:
+            return "not_walkable_not_Java";
         case ticks_deopt:
             return "deoptimization";
         case ticks_safepoint:
@@ -429,23 +430,20 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         if (sp != 0 && pc == 0) {
             // We have the last Java frame anchor, but it is not marked as walkable.
             // Make it walkable here
-            uintptr_t saved_sp = sp;
-            pc = ((uintptr_t*)saved_sp)[-1];
+            pc = ((uintptr_t*)sp)[-1];
 
             NMethod* m = CodeHeap::findNMethod((const void*)pc);
             if (m != NULL) {
                 // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
-                // In this case we manually replace last Java frame to the previous frame
-                if (!m->isNMethod() && m->frameSize() > 0 && m->frameSize() < 256) {
-                    sp = saved_sp + m->frameSize() * sizeof(uintptr_t);
-                    pc = ((uintptr_t*)sp)[-1];
+                // In this case we patch _frame_complete_offset manually
+                if (!m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
+                    m->setFrameCompleteOffset(0);
                 }
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             } else if (findNativeLibrary((const void*)pc) != NULL) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
 
-            sp = saved_sp;
             pc = 0;
         }
     } else if (trace.num_frames == ticks_not_walkable_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
@@ -455,16 +453,9 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Similar to the above: last Java frame is set,
             // but points to a Runtime Stub with an invalid _frame_complete_offset
             NMethod* m = CodeHeap::findNMethod((const void*)pc);
-            if (m != NULL && !m->isNMethod() && m->frameSize() > 0 && m->frameSize() < 256) {
-                uintptr_t saved_sp = sp;
-                uintptr_t saved_pc = pc;
-
-                sp = saved_sp + m->frameSize() * sizeof(uintptr_t);
-                pc = ((uintptr_t*)sp)[-1];
+            if (m != NULL && !m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
+                m->setFrameCompleteOffset(0);
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-
-                sp = saved_sp;
-                pc = saved_pc;
             }
         }
     } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
