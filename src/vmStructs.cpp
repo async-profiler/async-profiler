@@ -43,6 +43,7 @@ int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_frame_size_offset = -1;
+int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
 int VMStructs::_constmethod_offset = -1;
@@ -194,6 +195,8 @@ void VMStructs::initOffsets() {
         } else if (strcmp(type, "CodeBlob") == 0) {
             if (strcmp(field, "_frame_size") == 0) {
                 _frame_size_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_frame_complete_offset") == 0) {
+                _frame_complete_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_name") == 0) {
                 _nmethod_name_offset = *(int*)(entry + offset_offset);
             }
