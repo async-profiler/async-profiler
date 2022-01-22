@@ -19,14 +19,16 @@
 
 #include <jvmti.h>
 #include <stdint.h>
+#include <string.h>
 #include "codeCache.h"
 
 
 class VMStructs {
   protected:
-    static NativeCodeCache* _libjvm;
+    static CodeCache* _libjvm;
 
     static bool _has_class_names;
+    static bool _has_method_structs;
     static bool _has_class_loader_data;
     static bool _has_native_thread_id;
     static bool _has_perm_gen;
@@ -38,6 +40,7 @@ class VMStructs {
     static int _class_loader_data_offset;
     static int _class_loader_data_next_offset;
     static int _methods_offset;
+    static int _jmethod_ids_offset;
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
     static int _thread_state_offset;
@@ -45,10 +48,33 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
-    static int _is_gc_active_offset;
-    static char* _collected_heap_addr;
+    static int _frame_complete_offset;
+    static int _nmethod_name_offset;
+    static int _nmethod_method_offset;
+    static int _constmethod_offset;
+    static int _constmethod_constants_offset;
+    static int _constmethod_idnum_offset;
+    static int _pool_holder_offset;
+    static int _array_data_offset;
+    static int _code_heap_memory_offset;
+    static int _code_heap_segmap_offset;
+    static int _code_heap_segment_shift;
+    static int _vs_low_bound_offset;
+    static int _vs_high_bound_offset;
+    static int _vs_low_offset;
+    static int _vs_high_offset;
+    static int _flag_name_offset;
+    static int _flag_addr_offset;
+    static const char* _flags_addr;
+    static int _flag_count;
+    static int _flag_size;
+    static char* _code_heap[3];
     static const void* _code_heap_low;
     static const void* _code_heap_high;
+    static char** _code_heap_addr;
+    static const void** _code_heap_low_addr;
+    static const void** _code_heap_high_addr;
+    static int* _klass_offset_addr;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -56,18 +82,13 @@ class VMStructs {
     static int _tls_index;
     static intptr_t _env_offset;
 
-    typedef void* (*FindBlobFunc)(const void*);
-    static FindBlobFunc _find_blob;
-
     typedef void (*LockFunc)(void*);
     static LockFunc _lock_func;
     static LockFunc _unlock_func;
 
-    static char* _method_flushing;
-    static int* _sweep_started;
-
     static uintptr_t readSymbol(const char* symbol_name);
     static void initOffsets();
+    static void resolveOffsets();
     static void initJvmFunctions();
     static void initTLS(void* vm_thread);
     static void initThreadBridge(JNIEnv* env);
@@ -78,14 +99,19 @@ class VMStructs {
     }
 
   public:
-    static void init(NativeCodeCache* libjvm);
+    static void init(CodeCache* libjvm);
+    static void ready();
 
-    static NativeCodeCache* libjvm() {
+    static CodeCache* libjvm() {
         return _libjvm;
     }
 
     static bool hasClassNames() {
         return _has_class_names;
+    }
+
+    static bool hasMethodStructs() {
+        return _has_method_structs;
     }
 
     static bool hasClassLoaderData() {
@@ -195,6 +221,10 @@ class VMKlass : VMStructs {
         int* methods = *(int**) at(_methods_offset);
         return methods == NULL ? 0 : *methods & 0xffff;
     }
+
+    jmethodID* jmethodIDs() {
+        return __atomic_load_n((jmethodID**) at(_jmethod_ids_offset), __ATOMIC_ACQUIRE);
+    }
 };
 
 class VMThread : VMStructs {
@@ -237,44 +267,93 @@ class VMThread : VMStructs {
     }
 };
 
-class RuntimeStub : VMStructs {
+class ConstMethod : VMStructs {
   public:
-    static RuntimeStub* findBlob(const void* pc) {
-        return _find_blob != NULL ? (RuntimeStub*)_find_blob(pc) : NULL;
-    }
+    jmethodID id();
+};
 
+class VMMethod : VMStructs {
+  public:
+    ConstMethod* constMethod() {
+        return *(ConstMethod**) at(_constmethod_offset);
+    }
+};
+
+class NMethod : VMStructs {
+  public:
     int frameSize() {
         return *(int*) at(_frame_size_offset);
+    }
+
+    int frameCompleteOffset() {
+        return *(int*) at(_frame_complete_offset);
+    }
+
+    void setFrameCompleteOffset(int offset) {
+        *(int*) at(_frame_complete_offset) = offset;
+    }
+
+    const char* name() {
+        return *(const char**) at(_nmethod_name_offset);
+    }
+
+    bool isNMethod() {
+        const char* n = name();
+        return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+    }
+
+    VMMethod* method() {
+        return *(VMMethod**) at(_nmethod_method_offset);
     }
 };
 
 class CodeHeap : VMStructs {
+  private:
+    static bool contains(char* heap, const void* pc) {
+        return heap != NULL &&
+               pc >= *(const void**)(heap + _code_heap_memory_offset + _vs_low_offset) &&
+               pc <  *(const void**)(heap + _code_heap_memory_offset + _vs_high_offset);
+    }
+
+    static NMethod* findNMethod(char* heap, const void* pc);
+
   public:
+    static bool available() {
+        return _code_heap_addr != NULL;
+    }
+
     static bool contains(const void* pc) {
         return _code_heap_low <= pc && pc < _code_heap_high;
     }
 
     static void updateBounds(const void* start, const void* end) {
-        if (start < _code_heap_low) _code_heap_low = start;
-        if (end > _code_heap_high) _code_heap_high = end;
+        for (const void* low = _code_heap_low;
+             start < low && !__sync_bool_compare_and_swap(&_code_heap_low, low, start);
+             low = _code_heap_low);
+        for (const void* high = _code_heap_high;
+             end > high && !__sync_bool_compare_and_swap(&_code_heap_high, high, end);
+             high = _code_heap_high);
+    }
+
+    static NMethod* findNMethod(const void* pc) {
+        if (contains(_code_heap[0], pc)) return findNMethod(_code_heap[0], pc);
+        if (contains(_code_heap[1], pc)) return findNMethod(_code_heap[1], pc);
+        if (contains(_code_heap[2], pc)) return findNMethod(_code_heap[2], pc);
+        return NULL;
     }
 };
 
-class CollectedHeap : VMStructs {
+class JVMFlag : VMStructs {
   public:
-    static bool isGCActive() {
-        return _collected_heap_addr != NULL && _is_gc_active_offset >= 0 &&
-               _collected_heap_addr[_is_gc_active_offset] != 0;
+    static void* find(const char* name);
+
+    const char* name() {
+        return *(const char**) at(_flag_name_offset);
     }
-};
 
-class DisableSweeper : VMStructs {
-  private:
-    bool _enabled;
-
-  public:
-    DisableSweeper();
-    ~DisableSweeper();
+    void* addr() {
+        return *(void**) at(_flag_addr_offset);
+    }
 };
 
 #endif // _VMSTRUCTS_H

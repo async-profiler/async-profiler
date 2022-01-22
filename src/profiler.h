@@ -46,14 +46,6 @@ const int MAX_NATIVE_LIBS   = 2048;
 const int CONCURRENCY_LEVEL = 16;
 
 
-enum AddressType {
-    ADDR_UNKNOWN,
-    ADDR_JIT,
-    ADDR_STUB,
-    ADDR_NATIVE
-};
-
-
 union CallTraceBuffer {
     ASGCT_CallFrame _asgct_frames[1];
     jvmtiFrameInfo _jvmti_frames[1];
@@ -86,7 +78,10 @@ class Profiler {
     FlightRecorder _jfr;
     Engine* _engine;
     int _event_mask;
+
     time_t _start_time;
+    volatile bool _timer_is_running;
+    pthread_t _timer_thread;
 
     u64 _total_samples;
     u64 _failures[ASGCT_FAILURE_TYPES];
@@ -101,11 +96,9 @@ class Profiler {
     bool _update_thread_names;
     volatile bool _thread_events_state;
 
-    SpinLock _jit_lock;
     SpinLock _stubs_lock;
-    CodeCache _java_methods;
-    NativeCodeCache _runtime_stubs;
-    NativeCodeCache* _native_libs[MAX_NATIVE_LIBS];
+    CodeCache _runtime_stubs;
+    CodeCache* _native_libs[MAX_NATIVE_LIBS];
     volatile int _native_lib_count;
 
     // dlopen() hook support
@@ -113,12 +106,10 @@ class Profiler {
     static void* dlopen_hook(const char* filename, int flags);
     void switchLibraryTrap(bool enable);
 
-    void (*_orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
     Error installTraps(const char* begin, const char* end);
     void uninstallTraps();
 
     void addJavaMethod(const void* address, int length, jmethodID method);
-    void removeJavaMethod(const void* address, jmethodID method);
     void addRuntimeStub(const void* address, int length, const char* name);
 
     void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -127,14 +118,14 @@ class Profiler {
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
     bool inJavaCode(void* ucontext);
+    bool isAddressInCode(const void* pc);
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames);
     int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id);
-    bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame);
-    AddressType getAddressType(instruction_t* pc);
+    bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_entry_frame);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void updateJavaThreadNames();
@@ -145,6 +136,12 @@ class Profiler {
     Engine* allocEngine();
     Engine* activeEngine();
     Error checkJvmCapabilities();
+
+    time_t addTimeout(time_t start, int timeout);
+    void startTimer(int timeout);
+    void stopTimer();
+    void timerLoop(int timeout);
+    static void* timerThreadEntry(void* arg);
 
     void lockAll();
     void unlockAll();
@@ -164,12 +161,11 @@ class Profiler {
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
+        _timer_is_running(false),
         _max_stack_depth(0),
         _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
-        _jit_lock(),
         _stubs_lock(),
-        _java_methods(),
         _runtime_stubs("[stubs]"),
         _native_lib_count(0),
         _dlopen_entry(NULL) {
@@ -191,6 +187,7 @@ class Profiler {
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, std::ostream& out);
+    Error restart(Arguments& args);
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
@@ -207,13 +204,12 @@ class Profiler {
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
-    NativeCodeCache* findNativeLibraryBySymbol(const char* name);
-    NativeCodeCache* findNativeLibrary(const void* address);
+    CodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);
-    void resetJavaMethods();
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    void setupTrapHandler();
+    static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void setupSignalHandlers();
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,
@@ -221,11 +217,6 @@ class Profiler {
                                            jint map_length, const jvmtiAddrLocationMap* map,
                                            const void* compile_info) {
         instance()->addJavaMethod(code_addr, code_size, method);
-    }
-
-    static void JNICALL CompiledMethodUnload(jvmtiEnv* jvmti, jmethodID method,
-                                             const void* code_addr) {
-        instance()->removeJavaMethod(code_addr, method);
     }
 
     static void JNICALL DynamicCodeGenerated(jvmtiEnv* jvmti, const char* name,

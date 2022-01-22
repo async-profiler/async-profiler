@@ -21,7 +21,7 @@
 #include "vmStructs.h"
 
 
-const void* const MIN_VALID_PC = (const void* const)0x1000;
+const intptr_t MIN_VALID_PC = 0x1000;
 const intptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 
@@ -44,11 +44,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     int depth = 0;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= MIN_VALID_PC) {
-        if (CodeHeap::contains(pc)) {
-            break;
-        }
-
+    while (depth < max_depth && !CodeHeap::contains(pc)) {
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
@@ -61,9 +57,13 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
             break;
         }
 
+        pc = stripPointer(SafeAccess::load((void**)fp + FRAME_PC_SLOT));
+        if (pc < (const void*)MIN_VALID_PC || pc > (const void*)-MIN_VALID_PC) {
+            break;
+        }
+
         prev_fp = fp;
-        pc = stripPointer(((const void**)fp)[FRAME_PC_SLOT]);
-        fp = ((uintptr_t*)fp)[0];
+        fp = *(uintptr_t*)fp;
     }
 
     return depth;
@@ -91,16 +91,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     Profiler* profiler = Profiler::instance();
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && pc >= MIN_VALID_PC) {
-        if (CodeHeap::contains(pc)) {
-            break;
-        }
-
+    while (depth < max_depth && !CodeHeap::contains(pc)) {
         callchain[depth++] = pc;
         prev_sp = sp;
 
         FrameDesc* f;
-        NativeCodeCache* cc = profiler->findNativeLibrary(pc);
+        CodeCache* cc = profiler->findNativeLibrary(pc);
         if (cc == NULL || (f = cc->findFrameDesc(pc)) == NULL) {
             f = &FrameDesc::default_frame;
         }
@@ -131,9 +127,9 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
-                fp = *(uintptr_t*)(sp + f->fp_off);
+                fp = (uintptr_t)SafeAccess::load((void**)(sp + f->fp_off));
             }
-            pc = stripPointer(((const void**)sp)[-1]);
+            pc = stripPointer(SafeAccess::load((void**)sp - 1));
         }
     }
 

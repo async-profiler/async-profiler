@@ -32,8 +32,8 @@ uintptr_t& StackFrame::fp() {
     return (uintptr_t&)_ucontext->uc_mcontext.arm_fp;
 }
 
-uintptr_t StackFrame::retval() {
-    return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
+uintptr_t& StackFrame::retval() {
+    return (uintptr_t&)_ucontext->uc_mcontext.arm_r0;
 }
 
 uintptr_t StackFrame::arg0() {

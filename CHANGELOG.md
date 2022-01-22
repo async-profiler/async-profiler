@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.6] - 2022-01-09
+
+### Features
+ - Continuous profiling; `loop` and `timeout` options
+
+### Improvements
+ - Reliability improvements: avoid certain crashes and deadlocks
+ - Smaller and faster agent library
+ - Minor `jfr` and `jfrsync` enhancements (see the commit log)
+
+## [2.5.1] - 2021-12-05
+
+### Bug fixes
+ - Prevent early unloading of libasyncProfiler.so
+ - Read kernel symbols only for perf_events
+ - Escape backslashes in flame graphs
+ - Avoid duplicate categories in `jfrsync` mode
+ - Fixed stack overflow in RedefineClasses
+ - Fixed deadlock when flushing JFR
+
+### Improvements
+ - Support OpenJDK C++ Interpreter (aka Zero)
+ - Allow reading incomplete JFR recordings
+
 ## [2.5] - 2021-10-01
 
 ### Features

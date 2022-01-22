@@ -252,6 +252,15 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     return oldsa.sa_sigaction;
 }
 
+SigAction OS::replaceCrashHandler(SigAction action) {
+    struct sigaction sa;
+    sigaction(SIGSEGV, NULL, &sa);
+    SigAction old_action = sa.sa_sigaction;
+    sa.sa_sigaction = action;
+    sigaction(SIGSEGV, &sa, NULL);
+    return old_action;
+}
+
 bool OS::sendSignalToThread(int thread_id, int signo) {
     return syscall(__NR_tgkill, processId(), thread_id, signo) == 0;
 }
@@ -330,6 +339,10 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
         }
         size -= (size_t)bytes;
     }
+}
+
+void OS::freePageCache(int fd, off_t start_offset) {
+    posix_fadvise(fd, start_offset & ~page_mask, 0, POSIX_FADV_DONTNEED);
 }
 
 #endif // __linux__

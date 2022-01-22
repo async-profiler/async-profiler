@@ -236,6 +236,7 @@ class BytecodeRewriter {
     void rewriteCode();
     void rewriteBytecodeTable(int data_len);
     void rewriteStackMapTable();
+    void rewriteVerificationTypeInfo();
     void rewriteAttributes(Scope scope);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
@@ -296,7 +297,7 @@ void BytecodeRewriter::rewriteCode() {
     put32(code_length + EXTRA_BYTECODES);
 
     // invokestatic "one/profiler/Instrument.recordSample()V"
-    // nop after invoke helps to prepend StackMapTable without rewriting
+    // nop ensures that tableswitch/lookupswitch needs no realignment
     put8(0xb8);
     put16(_cpool_len);
     put8(0);
@@ -347,7 +348,53 @@ void BytecodeRewriter::rewriteStackMapTable() {
 
     // Prepend same_frame
     put8(EXTRA_BYTECODES - 1);
-    put(get(attribute_length - 2), attribute_length - 2);
+
+    for (int i = 0; i < number_of_entries; i++) {
+        u8 frame_type = get8();
+        put8(frame_type);
+
+        if (frame_type <= 63) {
+            // same_frame
+        } else if (frame_type <= 127) {
+            // same_locals_1_stack_item_frame
+            rewriteVerificationTypeInfo();
+        } else if (frame_type == 247) {
+            // same_locals_1_stack_item_frame_extended
+            put16(get16());
+            rewriteVerificationTypeInfo();
+        } else if (frame_type <= 251) {
+            // chop_frame or same_frame_extended
+            put16(get16());
+        } else if (frame_type <= 254) {
+            // append_frame
+            put16(get16());
+            for (int j = 0; j < frame_type - 251; j++) {
+                rewriteVerificationTypeInfo();
+            }
+        } else {
+            // full_frame
+            put16(get16());
+            u16 number_of_locals = get16();
+            put16(number_of_locals);
+            for (int j = 0; j < number_of_locals; j++) {
+                rewriteVerificationTypeInfo();
+            }
+            u16 number_of_stack_items = get16();
+            put16(number_of_stack_items);
+            for (int j = 0; j < number_of_stack_items; j++) {
+                rewriteVerificationTypeInfo();
+            }
+        }
+    }
+}
+
+void BytecodeRewriter::rewriteVerificationTypeInfo() {
+    u8 tag = get8();
+    put8(tag);
+    if (tag >= 7) {
+        // Adjust ITEM_Uninitialized offset
+        put16(tag == 8 ? EXTRA_BYTECODES + get16() : get16());
+    }
 }
 
 void BytecodeRewriter::rewriteAttributes(Scope scope) {

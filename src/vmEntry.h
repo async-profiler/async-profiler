@@ -20,9 +20,10 @@
 #include <jvmti.h>
 
 
-#if __GNUC__ == 4
-#  undef JNIEXPORT
-#  define JNIEXPORT __attribute__((visibility("default")))
+#ifdef __clang__
+#  define DLLEXPORT __attribute__((visibility("default")))
+#else
+#  define DLLEXPORT __attribute__((externally_visible))
 #endif
 
 
@@ -85,9 +86,7 @@ typedef void* (*J9ThreadSelf)();
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
-    void* unused2[35];
-    jvmtiError (JNICALL *GenerateEvents)(jvmtiEnv*, jvmtiEvent);
-    void* unused3[28];
+    void* unused2[64];
     jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
 
@@ -98,15 +97,12 @@ class VM {
     static jvmtiEnv* _jvmti;
 
     static int _hotspot_version;
-    static bool _zero_vm;
 
     static JVM_GetManagement _getManagement;
     static int _instrumentableObjectAlloc;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
-    static jvmtiError (JNICALL *_orig_GenerateEvents)(jvmtiEnv* jvmti, jvmtiEvent event_type);
-    static volatile int _in_redefine_classes;
 
     static void ready();
     static void checkJvmtiExtensions();
@@ -125,6 +121,8 @@ class VM {
     static J9ThreadSelf _j9thread_self;
 
     static bool init(JavaVM* vm, bool attach);
+
+    static void restartProfiler();
 
     static jvmtiEnv* jvmti() {
         return _jvmti;
@@ -180,10 +178,6 @@ class VM {
         return _getOSThreadID != NULL;
     }
 
-    static bool inRedefineClasses() {
-        return _in_redefine_classes > 0;
-    }
-
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     static void JNICALL VMDeath(jvmtiEnv* jvmti, JNIEnv* jni);
 
@@ -197,7 +191,6 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
-    static jvmtiError JNICALL GenerateEventsHook(jvmtiEnv* jvmti, jvmtiEvent event_type);
 };
 
 #endif // _VMENTRY_H

@@ -29,8 +29,10 @@ class Symbols {
     static bool _have_kernel_symbols;
 
   public:
-    static void parseKernelSymbols(NativeCodeCache* cc);
-    static void parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols);
+    static void parseKernelSymbols(CodeCache* cc);
+    static void parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols);
+
+    static void makePatchable(CodeCache* cc);
 
     static void makePatchable(NativeCodeCache* cc);
 

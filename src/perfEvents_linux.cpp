@@ -151,7 +151,7 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
 }
 
 
-static J9StackTraces _j9_stack_traces; 
+static J9StackTraces _j9_stack_traces;
 
 static const void** _pthread_entry = NULL;
 
@@ -180,7 +180,7 @@ static const void** lookupThreadEntry() {
         ? Profiler::instance()->findNativeLibrary((const void*)VM::_j9thread_self)
         : VMStructs::libjvm();
 
-    return lib->findGOTEntry((const void*)&pthread_setspecific);
+    return lib->findGlobalOffsetEntry((const void*)&pthread_setspecific);
 }
 
 

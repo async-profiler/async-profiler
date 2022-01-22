@@ -38,6 +38,7 @@ import java.util.List;
 public class jfr2nflx {
 
     private static final String[] FRAME_TYPE = {"jit", "jit", "inlined", "user", "user", "kernel"};
+    private static final byte JAVA_FRAME_TYPES = 3;
     private static final byte[] NO_STACK = "[no_stack]".getBytes();
     private static final byte[] UNKNOWN = "[unknown]".getBytes();
 
@@ -99,13 +100,13 @@ public class jfr2nflx {
         byte[] types = stackTrace.types;
         int top = methods.length - 1;
 
-        node.field(1, top >= 0 ? getMethodName(methods[top]) : NO_STACK);
+        node.field(1, top >= 0 ? getMethodName(methods[top], types[top]) : NO_STACK);
         node.field(2, 1);
         node.field(4, top >= 0 ? FRAME_TYPE[types[top]] : "user");
 
         for (Proto frame = new Proto(100); --top >= 0; frame.reset()) {
             node.field(10, frame
-                    .field(1, getMethodName(methods[top]))
+                    .field(1, getMethodName(methods[top], types[top]))
                     .field(2, FRAME_TYPE[types[top]]));
         }
 
@@ -139,7 +140,7 @@ public class jfr2nflx {
         return proto;
     }
 
-    private byte[] getMethodName(long methodId) {
+    private byte[] getMethodName(long methodId, byte methodType) {
         MethodRef method = jfr.methods.get(methodId);
         if (method == null) {
             return UNKNOWN;
@@ -149,7 +150,7 @@ public class jfr2nflx {
         byte[] className = jfr.symbols.get(cls.name);
         byte[] methodName = jfr.symbols.get(method.name);
 
-        if (className == null || className.length == 0) {
+        if (methodType >= JAVA_FRAME_TYPES || className == null || className.length == 0) {
             return methodName;
         } else {
             byte[] fullName = Arrays.copyOf(className, className.length + 1 + methodName.length);

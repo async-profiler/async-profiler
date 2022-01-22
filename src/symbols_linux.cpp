@@ -106,13 +106,13 @@ typedef Elf32_Rel  ElfRelocation;
 
 class ElfParser {
   private:
-    NativeCodeCache* _cc;
+    CodeCache* _cc;
     const char* _base;
     const char* _file_name;
     ElfHeader* _header;
     const char* _sections;
 
-    ElfParser(NativeCodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
+    ElfParser(CodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
         _cc = cc;
         _base = base;
         _file_name = file_name;
@@ -144,8 +144,8 @@ class ElfParser {
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
 
   public:
-    static bool parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(NativeCodeCache* cc, const char* base);
+    static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
+    static void parseMem(CodeCache* cc, const char* base);
 };
 
 
@@ -164,7 +164,7 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
     return NULL;
 }
 
-bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* file_name, bool use_debug) {
+bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
         return false;
@@ -184,7 +184,7 @@ bool ElfParser::parseFile(NativeCodeCache* cc, const char* base, const char* fil
     return true;
 }
 
-void ElfParser::parseMem(NativeCodeCache* cc, const char* base) {
+void ElfParser::parseMem(CodeCache* cc, const char* base) {
     ElfParser elf(cc, base, base);
     elf.loadSymbols(false);
 }
@@ -356,7 +356,7 @@ Mutex Symbols::_parse_lock;
 std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
 
-void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
+void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestKallsymsFd();
@@ -393,14 +393,13 @@ void Symbols::parseKernelSymbols(NativeCodeCache* cc) {
     }
 
     fclose(f);
-    close(fd);
 }
 
-void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int size, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
     if (kernel_symbols && !haveKernelSymbols()) {
-        NativeCodeCache* cc = new NativeCodeCache("[kernel]");
+        CodeCache* cc = new CodeCache("[kernel]");
         parseKernelSymbols(cc);
 
         if (haveKernelSymbols()) {
@@ -431,7 +430,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
                 continue;  // the library was already parsed
             }
 
-            NativeCodeCache* cc = new NativeCodeCache(map.file(), count, image_base, map.end());
+            CodeCache* cc = new CodeCache(map.file(), count, image_base, map.end());
 
             if (map.inode() != 0) {
                 ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
@@ -449,7 +448,7 @@ void Symbols::parseLibraries(NativeCodeCache** array, volatile int& count, int s
     fclose(f);
 }
 
-void Symbols::makePatchable(NativeCodeCache* cc) {
+void Symbols::makePatchable(CodeCache* cc) {
     uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
     uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
     mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);

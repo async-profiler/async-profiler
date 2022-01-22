@@ -119,6 +119,7 @@ class Arguments {
   private:
     char* _buf;
     bool _shared;
+    bool _persistent;
 
     void appendToEmbeddedList(int& list, char* value);
 
@@ -126,12 +127,14 @@ class Arguments {
     static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
     static long parseUnits(const char* str, const Multiplier* multipliers);
+    static int parseTimeout(const char* str);
 
   public:
     Action _action;
     Counter _counter;
     Ring _ring;
     const char* _event;
+    int _timeout;
     long _interval;
     long _alloc;
     long _lock;
@@ -142,6 +145,7 @@ class Arguments {
     const char* _filter;
     int _include;
     int _exclude;
+    bool _loop;
     bool _threads;
     bool _sched;
     bool _fdtransfer;
@@ -162,13 +166,15 @@ class Arguments {
     double _minwidth;
     bool _reverse;
 
-    Arguments() :
+    Arguments(bool persistent = false) :
         _buf(NULL),
         _shared(false),
+        _persistent(persistent),
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
         _event(NULL),
+        _timeout(0),
         _interval(0),
         _alloc(0),
         _lock(0),
@@ -179,6 +185,7 @@ class Arguments {
         _filter(NULL),
         _include(0),
         _exclude(0),
+        _loop(false),
         _threads(false),
         _sched(false),
         _fdtransfer(false),
@@ -204,6 +211,8 @@ class Arguments {
     void save(Arguments& other);
 
     Error parse(const char* args);
+
+    const char* file();
 
     bool hasOutputFile() const {
         return _file != NULL &&

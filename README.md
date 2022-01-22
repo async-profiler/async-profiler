@@ -18,13 +18,13 @@ to learn about all features.
 
 ## Download
 
-Current release (2.5):
+Current release (2.6):
 
- - Linux x64 (glibc): [async-profiler-2.5-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.5-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.5-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.5-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/async-profiler-2.5-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.5/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.6-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.6-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.6-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
@@ -250,7 +250,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.5/src/arguments.cpp#L50).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.6/src/arguments.cpp#L50).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
@@ -412,8 +412,16 @@ The following is a complete list of the command-line options accepted by
 
 * `-f FILENAME` - the file name to dump the profile information to.  
   `%p` in the file name is expanded to the PID of the target JVM;  
-  `%t` - to the timestamp at the time of command invocation.  
+  `%t` - to the timestamp;  
+  `%{ENV}` - to the value of the given environment variable.  
   Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
+
+* `--loop TIME` - run profiler in a loop (continuous profiling).
+  The argument is either a clock time (`hh:mm:ss`) or
+  a loop duration in `s`econds, `m`inutes, `h`ours, or `d`ays.
+  Make sure the filename includes a timestamp pattern, or the output
+  will be overwritten on each iteration.  
+  Example: `./profiler.sh --loop 1h -f /var/log/profile-%t.jfr 8983`
 
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
   is restricted by `perf_event_paranoid` settings.  

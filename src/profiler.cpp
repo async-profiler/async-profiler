@@ -39,6 +39,7 @@
 #include "fdtransferClient.h"
 #include "frameName.h"
 #include "os.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
@@ -48,6 +49,9 @@
 // The instance is not deleted on purpose, since profiler structures
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
+
+static void (*orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+static void (*orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
 
 static Engine noop_engine;
 static PerfEvents perf_events;
@@ -100,23 +104,7 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
-    _jit_lock.lock();
-    _java_methods.add(address, length, method, true);
-    _jit_lock.unlock();
-
     CodeHeap::updateBounds(address, (const char*)address + length);
-}
-
-void Profiler::removeJavaMethod(const void* address, jmethodID method) {
-    _jit_lock.lock();
-    _java_methods.remove(address, method);
-    _jit_lock.unlock();
-}
-
-void Profiler::resetJavaMethods() {
-    _jit_lock.lock();
-    _java_methods.reset();
-    _jit_lock.unlock();
 }
 
 void Profiler::addRuntimeStub(const void* address, int length, const char* name) {
@@ -145,7 +133,6 @@ const char* Profiler::asgctError(int code) {
     switch (code) {
         case ticks_no_Java_frame:
         case ticks_unknown_not_Java:
-        case ticks_not_walkable_not_Java:
             // Not in Java context at all; this is not an error
             return NULL;
         case ticks_thread_exit:
@@ -157,6 +144,8 @@ const char* Profiler::asgctError(int code) {
             return "unknown_Java";
         case ticks_not_walkable_Java:
             return "not_walkable_Java";
+        case ticks_not_walkable_not_Java:
+            return "not_walkable_not_Java";
         case ticks_deopt:
             return "deoptimization";
         case ticks_safepoint:
@@ -226,7 +215,7 @@ const void* Profiler::resolveSymbol(const char* name) {
     return NULL;
 }
 
-// For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name 
+// For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name
 const char* Profiler::getLibraryName(const char* native_symbol) {
     short lib_index = NativeFunc::libIndex(native_symbol);
     if (lib_index >= 0 && lib_index < _native_lib_count) {
@@ -239,16 +228,7 @@ const char* Profiler::getLibraryName(const char* native_symbol) {
     return NULL;
 }
 
-NativeCodeCache* Profiler::findNativeLibraryBySymbol(const char* name) {
-    for (int i = 0; i < _native_lib_count; i++) {
-        if (_native_libs[i]->findSymbol(name) != NULL) {
-            return _native_libs[i];
-        }
-    }
-    return NULL;
-}
-
-NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
+CodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
@@ -259,7 +239,7 @@ NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
 }
 
 const char* Profiler::findNativeMethod(const void* address) {
-    NativeCodeCache* lib = findNativeLibrary(address);
+    CodeCache* lib = findNativeLibrary(address);
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
@@ -273,11 +253,19 @@ bool Profiler::inJavaCode(void* ucontext) {
     const void* pc = (const void*)StackFrame(ucontext).pc();
     if (_runtime_stubs.contains(pc)) {
         _stubs_lock.lockShared();
-        jmethodID method = _runtime_stubs.find(pc);
+        const char* stub = _runtime_stubs.find(pc);
         _stubs_lock.unlockShared();
-        return method == NULL || strcmp((const char*)method, "call_stub") != 0;
+        return stub == NULL || strcmp(stub, "call_stub") != 0;
     }
     return CodeHeap::contains(pc);
+}
+
+bool Profiler::isAddressInCode(const void* pc) {
+    if (CodeHeap::contains(pc)) {
+        return CodeHeap::findNMethod(pc) != NULL;
+    } else {
+        return findNativeLibrary(pc) != NULL;
+    }
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
@@ -388,14 +376,9 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
         // Guess top method by PC and insert it manually into the call trace
         bool is_entry_frame = false;
-        if (fillTopFrame((const void*)pc, trace.frames)) {
-            bool is_native_frame = trace.frames->bci == BCI_NATIVE_FRAME;
-            is_entry_frame = is_native_frame && strcmp((const char*)trace.frames->method_id, "call_stub") == 0;
-
-            if (!is_native_frame || _cstack != CSTACK_NO) {
-                trace.frames++;
-                max_depth--;
-            }
+        if (fillTopFrame((const void*)pc, trace.frames, &is_entry_frame)) {
+            trace.frames++;
+            max_depth--;
         }
 
         // Attempt further manipulations with top frame, only if SP points to the current stack
@@ -403,7 +386,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // Retry with the fixed context, but only if PC looks reasonable,
             // otherwise AsyncGetCallTrace may crash
             if (!(_safe_mode & POP_FRAME) && top_frame.pop(is_entry_frame)) {
-                if (getAddressType((instruction_t*)top_frame.pc()) != ADDR_UNKNOWN) {
+                if (isAddressInCode((const void*)top_frame.pc())) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
                 top_frame.restore(pc, sp, fp);
@@ -418,7 +401,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             if (!(_safe_mode & SCAN_STACK)) {
                 for (int slot = 0; slot < StackFrame::callerLookupSlots(); slot++) {
                     instruction_t* caller_pc = (instruction_t*)top_frame.stackAt(slot) - 1;
-                    if (getAddressType(caller_pc) != ADDR_UNKNOWN) {
+                    if (isAddressInCode(caller_pc)) {
                         top_frame.pc() = (uintptr_t)caller_pc;
                         top_frame.sp() = sp + (slot + 1) * sizeof(uintptr_t);
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
@@ -454,49 +437,38 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         if (sp != 0 && pc == 0) {
             // We have the last Java frame anchor, but it is not marked as walkable.
             // Make it walkable here
-            uintptr_t saved_sp = sp;
-            pc = ((uintptr_t*)saved_sp)[-1];
+            pc = ((uintptr_t*)sp)[-1];
 
-            AddressType addr_type = getAddressType((instruction_t*)pc);
-            if (addr_type != ADDR_UNKNOWN) {
+            NMethod* m = CodeHeap::findNMethod((const void*)pc);
+            if (m != NULL) {
                 // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
-                // In this case we manually replace last Java frame to the previous frame
-                if (addr_type == ADDR_STUB) {
-                    RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
-                    if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
-                        sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
-                        pc = ((uintptr_t*)sp)[-1];
-                    }
+                // In this case we patch _frame_complete_offset manually
+                if (!m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
+                    m->setFrameCompleteOffset(0);
                 }
+                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            } else if (findNativeLibrary((const void*)pc) != NULL) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
 
-            sp = saved_sp;
             pc = 0;
         }
     } else if (trace.num_frames == ticks_not_walkable_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
         uintptr_t& sp = vm_thread->lastJavaSP();
         uintptr_t& pc = vm_thread->lastJavaPC();
-        if (sp != 0 && pc != 0 && getAddressType((instruction_t*)pc) == ADDR_STUB) {
+        if (sp != 0 && pc != 0) {
             // Similar to the above: last Java frame is set,
             // but points to a Runtime Stub with an invalid _frame_complete_offset
-            RuntimeStub* stub = RuntimeStub::findBlob((instruction_t*)pc);
-            if (stub != NULL && stub->frameSize() > 0 && stub->frameSize() < 256) {
-                uintptr_t saved_sp = sp;
-                uintptr_t saved_pc = pc;
-
-                sp = saved_sp + stub->frameSize() * sizeof(uintptr_t);
-                pc = ((uintptr_t*)sp)[-1];
+            NMethod* m = CodeHeap::findNMethod((const void*)pc);
+            if (m != NULL && !m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
+                m->setFrameCompleteOffset(0);
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-
-                sp = saved_sp;
-                pc = saved_pc;
             }
         }
     } else if (trace.num_frames == ticks_GC_active && !(_safe_mode & GC_TRACES)) {
-        if (VMStructs::_get_stack_trace != NULL && CollectedHeap::isGCActive() && !VM::inRedefineClasses()) {
-            // While GC is running Java threads are known to be at safepoint
-            return getJavaTraceInternal((jvmtiFrameInfo*)frames, frames, max_depth);
+        if (vm_thread->lastJavaSP() == 0) {
+            // Do not add 'GC_active' for threads with no Java frames, e.g. Compiler threads
+            return 0;
         }
     }
 
@@ -559,69 +531,34 @@ inline int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, ui
     return 1;
 }
 
-bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame) {
-    jmethodID method = NULL;
-
-    // Check if PC belongs to a JIT compiled method
-    _jit_lock.lockShared();
-    if (_java_methods.contains(pc) && (method = _java_methods.find(pc)) != NULL) {
-        frame->bci = 0;
-        frame->method_id = method;
-    }
-    _jit_lock.unlockShared();
-
-    if (method != NULL) {
-        return true;
-    }
-
-    // Check if PC belongs to a VM runtime stub
+bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_entry_frame) {
+    const char* stub = NULL;
     _stubs_lock.lockShared();
-    if (_runtime_stubs.contains(pc) && (method = _runtime_stubs.find(pc)) != NULL) {
-        frame->bci = BCI_NATIVE_FRAME;
-        frame->method_id = method;
+    if (_runtime_stubs.contains(pc)) {
+        stub = _runtime_stubs.find(pc);
     }
     _stubs_lock.unlockShared();
 
-    return method != NULL;
-}
-
-AddressType Profiler::getAddressType(instruction_t* pc) {
-    bool in_generated_code = false;
-
-    // 1. Check if PC lies within JVM's compiled code cache
-    if (_java_methods.contains(pc)) {
-        _jit_lock.lockShared();
-        jmethodID method = _java_methods.find(pc);
-        _jit_lock.unlockShared();
-        if (method != NULL) {
-            return ADDR_JIT;
+    if (stub != NULL) {
+        *is_entry_frame = strcmp(stub, "call_stub") == 0;
+        if (_cstack != CSTACK_NO) {
+            frame->bci = BCI_NATIVE_FRAME;
+            frame->method_id = (jmethodID)stub;
+            return true;
         }
-        in_generated_code = true;
-    }
-
-    // 2. The same for VM runtime stubs
-    if (_runtime_stubs.contains(pc)) {
-        _stubs_lock.lockShared();
-        jmethodID method = _runtime_stubs.find(pc);
-        _stubs_lock.unlockShared();
-        if (method != NULL) {
-            return ADDR_STUB;
-        }
-        in_generated_code = true;
-    }
-
-    // 3. Check if PC belongs to executable code of shared libraries
-    if (!in_generated_code) {
-        const int native_lib_count = _native_lib_count;
-        for (int i = 0; i < native_lib_count; i++) {
-            if (_native_libs[i]->contains(pc)) {
-                return ADDR_NATIVE;
+    } else if (VMStructs::hasMethodStructs()) {
+        NMethod* nmethod = CodeHeap::findNMethod(pc);
+        if (nmethod != NULL && nmethod->isNMethod()) {
+            jmethodID method_id = nmethod->method()->constMethod()->id();
+            if (method_id != NULL) {
+                frame->bci = 0;
+                frame->method_id = method_id;
+                return true;
             }
         }
     }
 
-    // This can be some other dynamically generated code, but we don't know it. Better stay safe.
-    return ADDR_UNKNOWN;
+    return false;
 }
 
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
@@ -780,15 +717,37 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         _end_trap.uninstall();
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
-    } else if (_orig_trapHandler != NULL) {
-        _orig_trapHandler(signo, siginfo, ucontext);
+    } else if (orig_trapHandler != NULL) {
+        orig_trapHandler(signo, siginfo, ucontext);
     }
 }
 
-void Profiler::setupTrapHandler() {
-    _orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
-    if (_orig_trapHandler == (void*)SIG_DFL || _orig_trapHandler == (void*)SIG_IGN) {
-        _orig_trapHandler = NULL;
+void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    StackFrame frame(ucontext);
+
+    uintptr_t length = SafeAccess::skipFaultInstruction(frame.pc());
+    if (length > 0) {
+        // Skip the fault instruction, as if it successfully loaded NULL
+        frame.pc() += length;
+        frame.retval() = 0;
+        return;
+    }
+
+    if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
+        return;
+    }
+
+    orig_segvHandler(signo, siginfo, ucontext);
+}
+
+void Profiler::setupSignalHandlers() {
+    orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
+    if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
+        orig_trapHandler = NULL;
+    }
+    if (VM::hotspot_version() > 0) {
+        // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
+        orig_segvHandler = OS::replaceCrashHandler(segvHandler);
     }
 }
 
@@ -901,7 +860,7 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    NativeCodeCache* libjvm = VMStructs::libjvm();
+    CodeCache* libjvm = VMStructs::libjvm();
     if (libjvm == NULL) {
         return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
     }
@@ -915,13 +874,13 @@ Error Profiler::checkJvmCapabilities() {
     }
 
     if (_dlopen_entry == NULL) {
-        if ((_dlopen_entry = libjvm->findGOTEntry((const void*)dlopen)) == NULL) {
+        if ((_dlopen_entry = libjvm->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
         Symbols::makePatchable(libjvm);
     }
 
-    if (!VMStructs::hasDebugSymbols() && VM::hotspot_version() > 0) {
+    if (!VMStructs::hasDebugSymbols()) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 
@@ -985,11 +944,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    updateSymbols(args._ring != RING_USER);
-
     _safe_mode = args._safe_mode;
     if (VM::hotspot_version() < 8) {
-        // Cannot use JVM TI stack walker during GC on non-HotSpot JVMs or with PermGen
         _safe_mode |= GC_TRACES | LAST_JAVA_PC;
     }
 
@@ -1005,6 +961,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
     }
+
+    // Kernel symbols are useful only for perf_events without --all-user
+    updateSymbols(_engine == &perf_events && args._ring != RING_USER);
 
     error = installTraps(args._begin, args._end);
     if (error) {
@@ -1044,6 +1003,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _state = RUNNING;
     _start_time = time(NULL);
+
+    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
+        startTimer(args._timeout);
+    }
+
     return Error::OK;
 
 error3:
@@ -1080,6 +1044,9 @@ Error Profiler::stop() {
     switchThreadEvents(JVMTI_DISABLE);
     updateJavaThreadNames();
     updateNativeThreadNames();
+
+    // Make sure no periodic events sent after JFR stops
+    stopTimer();
 
     // Acquire all spinlocks to avoid race with remaining signals
     lockAll();
@@ -1348,6 +1315,90 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
     }
 }
 
+time_t Profiler::addTimeout(time_t start, int timeout) {
+    if (timeout == 0) {
+        return (time_t)0x7fffffff;
+    } else if (timeout > 0) {
+        return start + timeout;
+    }
+
+    struct tm t;
+    localtime_r(&start, &t);
+
+    int hh = (timeout >> 16) & 0xff;
+    if (hh < 24) {
+        t.tm_hour = hh;
+    }
+    int mm = (timeout >> 8) & 0xff;
+    if (mm < 60) {
+        t.tm_min = mm;
+    }
+    int ss = timeout & 0xff;
+    if (ss < 60) {
+        t.tm_sec = ss;
+    }
+
+    time_t result = mktime(&t);
+    if (result <= start) {
+        result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
+    }
+    return result;
+}
+
+void Profiler::startTimer(int timeout) {
+    _timer_is_running = true;
+    if (pthread_create(&_timer_thread, NULL, timerThreadEntry, (void*)(intptr_t)timeout) != 0) {
+        Log::warn("Unable to create Profiler timer thread");
+        _timer_is_running = false;
+    }
+}
+
+void Profiler::stopTimer() {
+    if (_timer_is_running) {
+        _timer_is_running = false;
+        if (pthread_self() == _timer_thread) {
+            pthread_detach(_timer_thread);
+        } else {
+            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
+            pthread_join(_timer_thread, NULL);
+        }
+    }
+}
+
+void Profiler::timerLoop(int timeout) {
+    u64 stop_micros = addTimeout(_start_time, timeout) * 1000000ULL;
+    u64 current_time = OS::nanotime();
+    u64 sleep_until = current_time + (_jfr.active() || timeout <= 0 ? 1000000000 : timeout * 1000000000ULL);
+
+    while (_timer_is_running) {
+        while ((current_time = OS::nanotime()) < sleep_until) {
+            OS::sleep(sleep_until - current_time);
+            if (!_timer_is_running) return;
+        }
+
+        u64 wall_time = OS::micros();
+        if (wall_time >= stop_micros) {
+            VM::restartProfiler();
+            return;
+        }
+
+        bool need_switch_chunk = _jfr.timerTick(wall_time);
+        if (need_switch_chunk) {
+            // Flush under profiler state lock
+            flushJfr();
+        }
+
+        sleep_until = current_time + 1000000000;
+    }
+}
+
+void* Profiler::timerThreadEntry(void* arg) {
+    VM::attachThread("Async-profiler Timer");
+    instance()->timerLoop((int)(intptr_t)arg);
+    VM::detachThread();
+    return NULL;
+}
+
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {
     switch (args._action) {
         case ACTION_START:
@@ -1433,7 +1484,7 @@ Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
         return runInternal(args, std::cout);
     } else {
-        std::ofstream out(args._file, std::ios::out | std::ios::trunc);
+        std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
             return Error("Could not open output file");
         }
@@ -1441,6 +1492,33 @@ Error Profiler::run(Arguments& args) {
         out.close();
         return error;
     }
+}
+
+Error Profiler::restart(Arguments& args) {
+    MutexLocker ml(_state_lock);
+
+    Error error = stop();
+    if (error) {
+        return error;
+    }
+
+    if (args._file != NULL && args._output != OUTPUT_NONE && args._output != OUTPUT_JFR) {
+        std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
+        if (!out.is_open()) {
+            return Error("Could not open output file");
+        }
+        error = dump(out, args);
+        out.close();
+        if (error) {
+            return error;
+        }
+    }
+
+    if (args._loop) {
+        return start(args, true);
+    }
+
+    return Error::OK;
 }
 
 void Profiler::shutdown(Arguments& args) {
