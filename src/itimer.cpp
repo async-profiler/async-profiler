@@ -22,8 +22,6 @@
 #include "stackWalker.h"
 
 
-static J9StackTraces _j9_stack_traces;
-
 long ITimer::_interval;
 
 
@@ -40,7 +38,7 @@ void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     J9StackTraceNotification notif;
     // TODO: FP vs. DWARF
     notif.num_frames = StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
-    _j9_stack_traces.checkpoint(_interval, &notif);
+    J9StackTraces::checkpoint(_interval, &notif);
 }
 
 Error ITimer::check(Arguments& args) {
@@ -65,7 +63,7 @@ Error ITimer::start(Arguments& args) {
 
     if (VM::isOpenJ9()) {
         OS::installSignalHandler(SIGPROF, signalHandlerJ9);
-        Error error = _j9_stack_traces.start(args);
+        Error error = J9StackTraces::start(args);
         if (error) {
             return error;
         }
@@ -88,5 +86,5 @@ void ITimer::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
 
-    _j9_stack_traces.stop();
+    J9StackTraces::stop();
 }

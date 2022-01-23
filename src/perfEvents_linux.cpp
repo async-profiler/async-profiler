@@ -151,8 +151,6 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
 }
 
 
-static J9StackTraces _j9_stack_traces;
-
 static const void** _pthread_entry = NULL;
 
 // Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
@@ -176,7 +174,7 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static const void** lookupThreadEntry() {
-    NativeCodeCache* lib = VM::_j9thread_self != NULL
+    CodeCache* lib = VM::_j9thread_self != NULL
         ? Profiler::instance()->findNativeLibrary((const void*)VM::_j9thread_self)
         : VMStructs::libjvm();
 
@@ -699,7 +697,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         if (_cstack == CSTACK_DWARF) {
             notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
         }
-        _j9_stack_traces.checkpoint(counter, &notif);
+        J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
     }
@@ -816,7 +814,7 @@ Error PerfEvents::start(Arguments& args) {
 
     if (VM::isOpenJ9()) {
         OS::installSignalHandler(SIGPROF, signalHandlerJ9);
-        Error error = _j9_stack_traces.start(args);
+        Error error = J9StackTraces::start(args);
         if (error) {
             return error;
         }
@@ -840,7 +838,7 @@ Error PerfEvents::start(Arguments& args) {
 
     if (!created) {
         __atomic_store_n(_pthread_entry, (void*)pthread_setspecific, __ATOMIC_RELEASE);
-        _j9_stack_traces.stop();
+        J9StackTraces::stop();
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {
@@ -855,7 +853,7 @@ void PerfEvents::stop() {
     for (int i = 0; i < _max_events; i++) {
         destroyForThread(i);
     }
-    _j9_stack_traces.stop();
+    J9StackTraces::stop();
 }
 
 int PerfEvents::walk(int tid, const void** callchain, int max_depth) {

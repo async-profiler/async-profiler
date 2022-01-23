@@ -39,25 +39,22 @@ struct J9StackTraceNotification {
 
 class J9StackTraces {
   private:
-    pthread_t _thread;
-    int _max_stack_depth;
-    int _pipe[2];
+    static pthread_t _thread;
+    static int _max_stack_depth;
+    static int _pipe[2];
 
-    void timerLoop();
-
-    static void* threadEntry(void* instance) {
-        ((J9StackTraces*)instance)->timerLoop();
+    static void* timerThreadEntry(void* arg) {
+        timerLoop();
         return NULL;
     }
 
+    static void timerLoop();
+
   public:
-    J9StackTraces() : _thread(0) {
-    }
+    static Error start(Arguments& args);
+    static void stop();
 
-    Error start(Arguments& args);
-    void stop();
-
-    void checkpoint(u64 counter, J9StackTraceNotification* notif);
+    static void checkpoint(u64 counter, J9StackTraceNotification* notif);
 };
 
 #endif // _J9STACKTRACES_H

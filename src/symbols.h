@@ -34,8 +34,6 @@ class Symbols {
 
     static void makePatchable(CodeCache* cc);
 
-    static void makePatchable(NativeCodeCache* cc);
-
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;
     }

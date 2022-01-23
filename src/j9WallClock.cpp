@@ -16,29 +16,8 @@
 
 #include <stdlib.h>
 #include "j9WallClock.h"
+#include "j9Structs.h"
 #include "profiler.h"
-
-
-// TODO: Merge with J9WallClock
-struct jvmtiFrameInfoExtended {
-    jmethodID method;
-    jlocation location;
-    jlocation machinepc;
-    jint type;
-    void* native_frame_address;
-};
-
-struct jvmtiStackInfoExtended {
-    jthread thread;
-    jint state;
-    jvmtiFrameInfoExtended* frame_buffer;
-    jint frame_count;
-};
-
-enum {
-    SHOW_COMPILED_FRAMES = 4,
-    SHOW_INLINED_FRAMES = 8
-};
 
 
 long J9WallClock::_interval;

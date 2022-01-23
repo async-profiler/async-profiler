@@ -124,6 +124,8 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
+    _j9thread_self = isOpenJ9() ? (J9ThreadSelf)profiler->resolveSymbol("j9thread_self") : NULL;
+
     CodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
     if (libjvm != NULL) {
         VMStructs::init(libjvm);
@@ -208,8 +210,6 @@ void VM::ready() {
     Profiler::setupSignalHandlers();
 
     _libjava = getLibraryHandle("libjava.so");
-    // FIXME: where it is used?
-    _j9thread_self = isOpenJ9() ? (J9ThreadSelf)profiler->resolveSymbol("j9thread_self") : NULL;
 
     // Make sure we reload method IDs upon class retransformation
     JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;

@@ -21,29 +21,9 @@
 #include <unistd.h>
 #include <map>
 #include "j9StackTraces.h"
+#include "j9Structs.h"
 #include "profiler.h"
 #include "perfEvents.h"
-
-
-struct jvmtiFrameInfoExtended {
-    jmethodID method;
-    jlocation location;
-    jlocation machinepc;
-    jint type;
-    void* native_frame_address;
-};
-
-struct jvmtiStackInfoExtended {
-    jthread thread;
-    jint state;
-    jvmtiFrameInfoExtended* frame_buffer;
-    jint frame_count;
-};
-
-enum {
-    SHOW_COMPILED_FRAMES = 4,
-    SHOW_INLINED_FRAMES = 8
-};
 
 
 enum {
@@ -73,6 +53,10 @@ class J9VMThread {
 };
 
 
+pthread_t J9StackTraces::_thread = 0;
+int J9StackTraces::_max_stack_depth;
+int J9StackTraces::_pipe[2];
+
 static JNIEnv* _self_env = NULL;
 
 
@@ -84,7 +68,7 @@ Error J9StackTraces::start(Arguments& args) {
     }
     fcntl(_pipe[1], F_SETFL, O_NONBLOCK);
 
-    if (pthread_create(&_thread, NULL, threadEntry, this) != 0) {
+    if (pthread_create(&_thread, NULL, timerThreadEntry, NULL) != 0) {
         close(_pipe[0]);
         close(_pipe[1]);
         return Error("Unable to create sampler thread");
