@@ -18,6 +18,7 @@
 #include <vector>
 #include <stdio.h>
 #include "flameGraph.h"
+#include "vmEntry.h"
 
 
 // Browsers refuse to draw on canvas larger than 32767 px
@@ -78,9 +79,9 @@ static const char FLAMEGRAPH_HEADER[] =
     "\t\t[0xa6e1a6, 20, 20, 20],\n"
     "\t\t[0x50e150, 30, 30, 30],\n"
     "\t\t[0x50cccc, 30, 30, 30],\n"
-    "\t\t[0xe17d00, 30, 30,  0],\n"
-    "\t\t[0xc8c83c, 30, 30, 10],\n"
     "\t\t[0xe15a5a, 30, 40, 40],\n"
+    "\t\t[0xc8c83c, 30, 30, 10],\n"
+    "\t\t[0xe17d00, 30, 30,  0],\n"
     "\t];\n"
     "\n"
     "\tfunction getColor(p) {\n"
@@ -555,28 +556,23 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
     }
 }
 
+// TODO: Reuse frame type embedded in ASGCT_CallFrame
 int FlameGraph::frameType(std::string& name) {
     if (StringUtils::endsWith(name, "_[j]", 4)) {
-        // Java compiled frame
         name = name.substr(0, name.length() - 4);
-        return 1;
+        return FRAME_JIT_COMPILED;
     } else if (StringUtils::endsWith(name, "_[i]", 4)) {
-        // Java inlined frame
         name = name.substr(0, name.length() - 4);
-        return 2;
+        return FRAME_INLINED;
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
-        // Kernel function
         name = name.substr(0, name.length() - 4);
-        return 3;
+        return FRAME_KERNEL;
     } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
-        // C++ function or Objective C method
-        return 4;
+        return FRAME_CPP;
     } else if (((int)name.find('/') > 0 && name[0] != '[')
             || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
-        // Java regular method
-        return 0;
+        return FRAME_INTERPRETED;
     } else {
-        // Other native code
-        return 5;
+        return FRAME_NATIVE;
     }
 }

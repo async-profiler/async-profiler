@@ -38,21 +38,8 @@ void ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
 }
 
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
-    if (_interval > 1) {
-        // Do not record allocation unless allocated at least _interval bytes
-        while (true) {
-            u64 prev = _allocated_bytes;
-            u64 next = prev + size;
-            if (next < _interval) {
-                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next)) {
-                    return;
-                }
-            } else {
-                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next % _interval)) {
-                    break;
-                }
-            }
-        }
+    if (!updateCounter(_allocated_bytes, size, _interval)) {
+        return;
     }
 
     AllocEvent event;

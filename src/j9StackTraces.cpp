@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <map>
 #include "j9StackTraces.h"
-#include "j9Structs.h"
+#include "j9Interface.h"
 #include "profiler.h"
 #include "perfEvents.h"
 

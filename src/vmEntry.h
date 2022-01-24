@@ -27,6 +27,15 @@
 #endif
 
 
+enum FrameTypeId {
+    FRAME_INTERPRETED  = 0,
+    FRAME_JIT_COMPILED = 1,
+    FRAME_INLINED      = 2,
+    FRAME_NATIVE       = 3,
+    FRAME_CPP          = 4,
+    FRAME_KERNEL       = 5,
+};
+
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)

@@ -16,7 +16,7 @@
 
 #include <stdlib.h>
 #include "j9WallClock.h"
-#include "j9Structs.h"
+#include "j9Interface.h"
 #include "profiler.h"
 
 
