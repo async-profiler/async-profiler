@@ -3,9 +3,10 @@
 trigger_internal_build:
   variables:
     DOWNSTREAM_BRANCH: "main"
-    DDPROF_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}
-    DDPROF_COMMIT_SHA: ${CI_COMMIT_SHA}
-    DDPROF_SHORT_COMMIT_SHA: ${CI_COMMIT_SHORT_SHA}
+    AP_DEFAULT_BRANCH: ${CI_DEFAULT_BRANCH}
+    AP_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}
+    AP_COMMIT_SHA: ${CI_COMMIT_SHA}
+    AP_SHORT_COMMIT_SHA: ${CI_COMMIT_SHORT_SHA}
   trigger:
     project: DataDog/async-profiler-build
     strategy: depend
