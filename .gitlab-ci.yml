@@ -1,0 +1,12 @@
+
+# Triggers a build within the Datadog infrastructure in the ddprof-build repository
+trigger_internal_build:
+  variables:
+    DOWNSTREAM_BRANCH: "main"
+    DDPROF_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}
+    DDPROF_COMMIT_SHA: ${CI_COMMIT_SHA}
+    DDPROF_SHORT_COMMIT_SHA: ${CI_COMMIT_SHORT_SHA}
+  trigger:
+    project: DataDog/async-profiler-build
+    strategy: depend
+    branch: $DOWNSTREAM_BRANCH
