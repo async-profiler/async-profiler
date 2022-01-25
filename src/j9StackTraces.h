@@ -43,7 +43,7 @@ class J9StackTraces {
     static int _max_stack_depth;
     static int _pipe[2];
 
-    static void* timerThreadEntry(void* arg) {
+    static void* threadEntry(void* unused) {
         timerLoop();
         return NULL;
     }

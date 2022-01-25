@@ -29,12 +29,12 @@ class J9WallClock : public Engine {
     volatile bool _running;
     pthread_t _thread;
 
-    void timerLoop();
-
     static void* threadEntry(void* wall_clock) {
         ((J9WallClock*)wall_clock)->timerLoop();
         return NULL;
     }
+
+    void timerLoop();
 
   public:
     const char* title() {

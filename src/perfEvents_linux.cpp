@@ -693,7 +693,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
-        notif.num_frames = walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
         if (_cstack == CSTACK_DWARF) {
             notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
         }

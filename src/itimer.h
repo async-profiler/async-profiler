@@ -24,6 +24,7 @@
 class ITimer : public Engine {
   private:
     static long _interval;
+    static CStack _cstack;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);

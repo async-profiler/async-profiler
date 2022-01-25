@@ -68,7 +68,7 @@ Error J9StackTraces::start(Arguments& args) {
     }
     fcntl(_pipe[1], F_SETFL, O_NONBLOCK);
 
-    if (pthread_create(&_thread, NULL, timerThreadEntry, NULL) != 0) {
+    if (pthread_create(&_thread, NULL, threadEntry, NULL) != 0) {
         close(_pipe[0]);
         close(_pipe[1]);
         return Error("Unable to create sampler thread");

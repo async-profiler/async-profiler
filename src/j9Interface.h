@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef _J9STRUCTS_H
-#define _J9STRUCTS_H
+#ifndef _J9INTERFACE_H
+#define _J9INTERFACE_H
 
 #include <jvmti.h>
 
@@ -40,4 +40,4 @@ enum {
     SHOW_INLINED_FRAMES = 8
 };
 
-#endif // _J9STRUCTS_H
+#endif // _J9INTERFACE_H

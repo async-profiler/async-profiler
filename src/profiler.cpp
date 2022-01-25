@@ -631,7 +631,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy(tid));
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(tid));
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
