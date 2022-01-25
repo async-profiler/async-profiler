@@ -131,6 +131,10 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             }
             pc = stripPointer(SafeAccess::load((void**)sp - 1));
         }
+
+        if (pc < (const void*)MIN_VALID_PC || pc > (const void*)-MIN_VALID_PC) {
+            break;
+        }
     }
 
     return depth;
