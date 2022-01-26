@@ -5,6 +5,9 @@ trigger_internal_build:
     - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
       when: manual
       allow_failure: true
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: always
+      allow_failure: false
   variables:
     DOWNSTREAM_BRANCH: "main"
     AP_DEFAULT_BRANCH: ${CI_DEFAULT_BRANCH}
