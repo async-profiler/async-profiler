@@ -2,10 +2,10 @@
 # Triggers a build within the Datadog infrastructure in the ddprof-build repository
 trigger_internal_build:
   rules:
-    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH != "main"'
       when: manual
       allow_failure: true
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_COMMIT_BRANCH == "main"'
       when: always
       allow_failure: false
   variables:
