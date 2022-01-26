@@ -10,7 +10,7 @@ trigger_internal_build:
       allow_failure: false
   variables:
     DOWNSTREAM_BRANCH: "main"
-    AP_DEFAULT_BRANCH: ${CI_DEFAULT_BRANCH}
+    AP_DEFAULT_BRANCH: "main"
     AP_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}
     AP_COMMIT_SHA: ${CI_COMMIT_SHA}
     AP_SHORT_COMMIT_SHA: ${CI_COMMIT_SHORT_SHA}
