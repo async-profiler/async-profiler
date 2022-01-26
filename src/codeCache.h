@@ -87,6 +87,7 @@ class CodeCache {
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
+    const char* _text_base;
 
     const void** _got_start;
     const void** _got_end;
@@ -122,6 +123,14 @@ class CodeCache {
 
     bool contains(const void* address) const {
         return address >= _min_address && address < _max_address;
+    }
+
+    const char* textBase() const {
+        return _text_base;
+    }
+
+    void setTextBase(const char* text_base) {
+        _text_base = text_base;
     }
 
     const void** gotStart() const {
