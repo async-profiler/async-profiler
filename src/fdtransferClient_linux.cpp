@@ -102,8 +102,9 @@ int FdTransferClient::requestKallsymsFd() {
 }
 
 int FdTransferClient::requestBpfMapFd(struct bpfmap_params* params) {
-    struct perf_fd_request request;
+    struct bpfmap_fd_request request;
     request.header.type = BPFMAP_FD;
+    request.version = 1;
 
     if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));

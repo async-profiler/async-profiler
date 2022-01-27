@@ -24,8 +24,12 @@
 
 
 struct BpfStackTrace {
+    u32 pid;
     u32 tid;
-    u32 len;
+    u64 counter;
+    u16 event_type;
+    u16 sched_policy;
+    u32 depth;
     u64 ip[0];
 };
 
@@ -109,7 +113,7 @@ int BpfClient::getNativeTrace(void* ucontext, int tid, const void** callchain, i
     }
 
     int depth = 0;
-    max_depth = trace->len < max_depth ? trace->len : max_depth;
+    max_depth = trace->depth < max_depth ? trace->depth : max_depth;
 
     while (depth < max_depth) {
         const void* ip = (const void*)trace->ip[depth];

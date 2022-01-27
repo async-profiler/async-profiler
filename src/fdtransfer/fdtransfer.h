@@ -45,6 +45,11 @@ struct perf_fd_request {
     struct perf_event_attr attr;
 };
 
+struct bpfmap_fd_request {
+    struct fd_request header;
+    int version;
+};
+
 struct fd_response {
     // of type "enum request_type"
     unsigned int type;
