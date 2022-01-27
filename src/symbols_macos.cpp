@@ -83,6 +83,7 @@ class MachOParser {
                 if ((sc->initprot & 4) != 0) {
                     if (text_base == UNDEFINED || strcmp(sc->segname, "__TEXT") == 0) {
                         text_base = (const char*)_image_base - sc->vmaddr;
+                        _cc->setTextBase(text_base);
                         _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
                     }
                 } else if ((sc->initprot & 7) == 1) {

@@ -37,6 +37,7 @@ CodeCache::CodeCache(const char* name, short lib_index, const void* min_address,
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
+    _text_base = NULL;
 
     _got_start = NULL;
     _got_end = NULL;
@@ -190,7 +191,7 @@ void CodeCache::setDwarfTable(FrameDesc* table, int length) {
 }
 
 FrameDesc* CodeCache::findFrameDesc(const void* pc) {
-    u32 target_loc = (const char*)pc - (const char*)_min_address;
+    u32 target_loc = (const char*)pc - _text_base;
     int low = 0;
     int high = _dwarf_table_length - 1;
 

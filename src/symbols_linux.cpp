@@ -216,6 +216,8 @@ void ElfParser::loadSymbols(bool use_debug) {
 
 loaded:
     if (use_debug) {
+        _cc->setTextBase(_base);
+
         // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
         ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
