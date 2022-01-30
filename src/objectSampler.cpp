@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include "objectSampler.h"
+#include "j9Ext.h"
 #include "profiler.h"
 
 
@@ -61,7 +62,7 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass obj
 }
 
 Error ObjectSampler::check(Arguments& args) {
-    if (VM::instrumentableObjectAlloc() < 0) {
+    if (J9Ext::InstrumentableObjectAlloc_id < 0) {
         return Error("InstrumentableObjectAlloc is not supported on this JVM");
     }
     return Error::OK;
@@ -77,7 +78,7 @@ Error ObjectSampler::start(Arguments& args) {
     _allocated_bytes = 0;
 
     jvmtiEnv* jvmti = VM::jvmti();
-    if (jvmti->SetExtensionEventCallback(VM::instrumentableObjectAlloc(), (jvmtiExtensionEvent)JavaObjectAlloc) != 0) {
+    if (jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)JavaObjectAlloc) != 0) {
         return Error("Could not enable InstrumentableObjectAlloc callback");
     }
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
@@ -88,5 +89,5 @@ Error ObjectSampler::start(Arguments& args) {
 void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
-    jvmti->SetExtensionEventCallback(VM::instrumentableObjectAlloc(), NULL);
+    jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, NULL);
 }

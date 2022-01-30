@@ -19,6 +19,7 @@
 #include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
+#include "j9Ext.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
@@ -39,20 +40,15 @@ JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
 int VM::_hotspot_version = 0;
-void* VM::_libjvm;
-void* VM::_libjava;
-
-AsyncGetCallTrace VM::_asyncGetCallTrace;
-JVM_GetManagement VM::_getManagement;
-J9ThreadSelf VM::_j9thread_self;
-GetOSThreadID VM::_getOSThreadID = NULL;
-GetJ9vmThread VM::_getJ9vmThread = NULL;
-GetStackTraceExtended VM::_getStackTraceExtended = NULL;
-GetAllStackTracesExtended VM::_getAllStackTracesExtended = NULL;
-int VM::_instrumentableObjectAlloc = -1;
+bool VM::_openj9 = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+
+void* VM::_libjvm;
+void* VM::_libjava;
+AsyncGetCallTrace VM::_asyncGetCallTrace;
+JVM_GetManagement VM::_getManagement;
 
 
 static void wakeupHandler(int signo) {
@@ -114,27 +110,27 @@ bool VM::init(JavaVM* vm, bool attach) {
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
-    if (hotspot_version() == 0) {
-        checkJvmtiExtensions();
-    }
-
     _libjvm = getLibraryHandle("libjvm.so");
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
     _getManagement = (JVM_GetManagement)dlsym(_libjvm, "JVM_GetManagement");
 
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
-    _j9thread_self = isOpenJ9() ? (J9ThreadSelf)profiler->resolveSymbol("j9thread_self") : NULL;
 
-    CodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
-    if (libjvm != NULL) {
-        VMStructs::init(libjvm);
-        if (is_zero_vm) {
-            libjvm->mark(isZeroInterpreterMethod);
-        } else if (isOpenJ9()) {
-            // FIXME: wrong libjvm
-            libjvm->mark(isOpenJ9InterpreterMethod);
-        }
+    _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
+
+    CodeCache* lib = isOpenJ9()
+        ? profiler->findJvmLibrary("libj9vm")
+        : profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
+    if (lib == NULL) {
+        return false;  // TODO: verify
+    }
+
+    VMStructs::init(lib);
+    if (is_zero_vm) {
+        lib->mark(isZeroInterpreterMethod);
+    } else if (isOpenJ9()) {
+        lib->mark(isOpenJ9InterpreterMethod);
     }
 
     if (attach) {
@@ -217,40 +213,6 @@ void VM::ready() {
     _orig_RetransformClasses = functions->RetransformClasses;
     functions->RedefineClasses = RedefineClassesHook;
     functions->RetransformClasses = RetransformClassesHook;
-}
-
-// Look for OpenJ9-specific JVM TI extension
-void VM::checkJvmtiExtensions() {
-    jint ext_count;
-    jvmtiExtensionFunctionInfo* ext_functions;
-    if (_jvmti->GetExtensionFunctions(&ext_count, &ext_functions) == 0) {
-        for (int i = 0; i < ext_count; i++) {
-            if (strcmp(ext_functions[i].id, "com.ibm.GetOSThreadID") == 0) {
-                _getOSThreadID = (GetOSThreadID)ext_functions[i].func;
-            } else if (strcmp(ext_functions[i].id, "com.ibm.GetJ9vmThread") == 0) {
-                _getJ9vmThread = (GetJ9vmThread)ext_functions[i].func;
-            } else if (strcmp(ext_functions[i].id, "com.ibm.GetStackTraceExtended") == 0) {
-                _getStackTraceExtended = (GetStackTraceExtended)ext_functions[i].func;
-            } else if (strcmp(ext_functions[i].id, "com.ibm.GetAllStackTracesExtended") == 0) {
-                _getAllStackTracesExtended = (GetAllStackTracesExtended)ext_functions[i].func;
-            }
-        }
-       _jvmti->Deallocate((unsigned char*)ext_functions);
-    }
-
-    jvmtiExtensionEventInfo* ext_events;
-    if (_jvmti->GetExtensionEvents(&ext_count, &ext_events) == 0) {
-        for (int i = 0; i < ext_count; i++) {
-            if (strcmp(ext_events[i].id, "com.ibm.InstrumentableObjectAlloc") == 0) {
-                _instrumentableObjectAlloc = ext_events[i].extension_event_index;
-                // If we don't set a callback now, we won't be able to enable it later in runtime
-                _jvmti->SetExtensionEventCallback(_instrumentableObjectAlloc, (jvmtiExtensionEvent)ObjectSampler::JavaObjectAlloc);
-                _jvmti->SetExtensionEventCallback(_instrumentableObjectAlloc, NULL);
-                break;
-            }
-        }
-       _jvmti->Deallocate((unsigned char*)ext_events);
-    }
 }
 
 void* VM::getLibraryHandle(const char* name) {

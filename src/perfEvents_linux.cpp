@@ -174,11 +174,8 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static const void** lookupThreadEntry() {
-    CodeCache* lib = VM::_j9thread_self != NULL
-        ? Profiler::instance()->findNativeLibrary((const void*)VM::_j9thread_self)
-        : VMStructs::libjvm();
-
-    return lib->findGlobalOffsetEntry((const void*)&pthread_setspecific);
+    CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
+    return lib != NULL ? lib->findGlobalOffsetEntry((const void*)&pthread_setspecific) : NULL;
 }
 
 

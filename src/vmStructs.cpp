@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include "vmStructs.h"
 #include "vmEntry.h"
+#include "j9Ext.h"
 
 
 CodeCache* VMStructs::_libjvm = NULL;
@@ -347,7 +348,7 @@ void VMStructs::initThreadBridge(JNIEnv* env) {
         // No such field - probably not a HotSpot JVM
         env->ExceptionClear();
 
-        void* j9thread = VM::j9thread_self();
+        void* j9thread = J9Ext::j9thread_self();
         if (j9thread != NULL) {
             initTLS(j9thread);
         }
@@ -394,11 +395,9 @@ VMThread* VMThread::current() {
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
     if (_has_native_thread_id) {
         VMThread* vm_thread = fromJavaThread(jni, thread);
-        if (vm_thread != NULL) {
-            return vm_thread->osThreadId();
-        }
+        return vm_thread != NULL ? vm_thread->osThreadId() : -1;
     }
-    return VM::getOSThreadID(thread);
+    return J9Ext::GetOSThreadID(thread);
 }
 
 jmethodID ConstMethod::id() {

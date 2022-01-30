@@ -85,13 +85,6 @@ typedef struct {
 
 typedef VMManagement* (*JVM_GetManagement)(jint);
 
-typedef jvmtiError (*GetOSThreadID)(jvmtiEnv*, jthread, jlong*);
-typedef jvmtiError (*GetJ9vmThread)(jvmtiEnv*, jthread, JNIEnv**);
-typedef jvmtiError (*GetStackTraceExtended)(jvmtiEnv*, jint, jthread, jint, jint, void*, jint*);
-typedef jvmtiError (*GetAllStackTracesExtended)(jvmtiEnv*, jint, jint, void**, jint*);
-
-typedef void* (*J9ThreadSelf)();
-
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -106,15 +99,12 @@ class VM {
     static jvmtiEnv* _jvmti;
 
     static int _hotspot_version;
-
-    static JVM_GetManagement _getManagement;
-    static int _instrumentableObjectAlloc;
+    static bool _openj9;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
     static void ready();
-    static void checkJvmtiExtensions();
     static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
@@ -123,11 +113,7 @@ class VM {
     static void* _libjvm;
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
-    static GetJ9vmThread _getJ9vmThread;
-    static GetOSThreadID _getOSThreadID;
-    static GetStackTraceExtended _getStackTraceExtended;
-    static GetAllStackTracesExtended _getAllStackTracesExtended;
-    static J9ThreadSelf _j9thread_self;
+    static JVM_GetManagement _getManagement;
 
     static bool init(JavaVM* vm, bool attach);
 
@@ -156,35 +142,12 @@ class VM {
         return _getManagement != NULL ? _getManagement(0x20030000) : NULL;
     }
 
-    static void* j9thread_self() {
-        return _j9thread_self != NULL ? _j9thread_self() : NULL;
-    }
-
-    static JNIEnv* getJ9vmThread(jthread thread) {
-        JNIEnv* vm_thread;
-        return _getJ9vmThread(_jvmti, thread, &vm_thread) == 0 ? vm_thread : NULL;
-    }
-
-    static int getOSThreadID(jthread thread) {
-        if (_getOSThreadID != NULL) {
-            jlong thread_id;
-            if (_getOSThreadID(_jvmti, thread, &thread_id) == 0) {
-                return (int)thread_id;
-            }
-        }
-        return -1;
-    }
-
-    static int instrumentableObjectAlloc() {
-        return _instrumentableObjectAlloc;
-    }
-
     static int hotspot_version() {
         return _hotspot_version;
     }
 
     static bool isOpenJ9() {
-        return _getOSThreadID != NULL;
+        return _openj9;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

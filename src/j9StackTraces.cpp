@@ -21,7 +21,7 @@
 #include <unistd.h>
 #include <map>
 #include "j9StackTraces.h"
-#include "j9Interface.h"
+#include "j9Ext.h"
 #include "profiler.h"
 #include "perfEvents.h"
 
@@ -115,8 +115,7 @@ void J9StackTraces::timerLoop() {
 
             jthread thread = known_threads[notif->env];
             jint num_jvmti_frames;
-            if (thread == NULL || VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
-                                                             0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
+            if (thread == NULL || J9Ext::GetStackTraceExtended(thread, 0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
                 jni->PopLocalFrame(NULL);
                 jni->PushLocalFrame(64);
 
@@ -125,14 +124,13 @@ void J9StackTraces::timerLoop() {
                 if (jvmti->GetAllThreads(&thread_count, &threads) == 0) {
                     known_threads.clear();
                     for (jint i = 0; i < thread_count; i++) {
-                        known_threads[VM::getJ9vmThread(threads[i])] = threads[i];
+                        known_threads[J9Ext::GetJ9vmThread(threads[i])] = threads[i];
                     }
                     jvmti->Deallocate((unsigned char*)threads);
                 }
 
                 if ((thread = known_threads[notif->env]) == NULL ||
-                    VM::_getStackTraceExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES, thread,
-                                               0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
+                    J9Ext::GetStackTraceExtended(thread, 0, _max_stack_depth, jvmti_frames, &num_jvmti_frames) != 0) {
                     continue;
                 }
             }
@@ -145,7 +143,7 @@ void J9StackTraces::timerLoop() {
                 num_frames++;
             }
 
-            int tid = VM::getOSThreadID(thread);
+            int tid = J9Ext::GetOSThreadID(thread);
             Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames);
 
             ptr += notif->size();

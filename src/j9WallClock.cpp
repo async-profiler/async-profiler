@@ -16,7 +16,7 @@
 
 #include <stdlib.h>
 #include "j9WallClock.h"
-#include "j9Interface.h"
+#include "j9Ext.h"
 #include "profiler.h"
 
 
@@ -58,8 +58,7 @@ void J9WallClock::timerLoop() {
 
         jvmtiStackInfoExtended* stack_infos;
         jint thread_count;
-        if (VM::_getAllStackTracesExtended(jvmti, SHOW_COMPILED_FRAMES | SHOW_INLINED_FRAMES,
-                                           _max_stack_depth, (void**)&stack_infos, &thread_count) == 0) {
+        if (J9Ext::GetAllStackTracesExtended(_max_stack_depth, (void**)&stack_infos, &thread_count) == 0) {
             for (int i = 0; i < thread_count; i++) {
                 jvmtiStackInfoExtended* si = &stack_infos[i];
                 for (int j = 0; j < si->frame_count; j++) {
@@ -67,7 +66,7 @@ void J9WallClock::timerLoop() {
                     frames[j].method_id = fi->method;
                     frames[j].bci = (fi->type << 24) | fi->location;
                 }
-                int tid = VM::getOSThreadID(si->thread);
+                int tid = J9Ext::GetOSThreadID(si->thread);
                 Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames);
             }
             jvmti->Deallocate((unsigned char*)stack_infos);

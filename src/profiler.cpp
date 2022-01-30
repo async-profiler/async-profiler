@@ -228,6 +228,25 @@ const char* Profiler::getLibraryName(const char* native_symbol) {
     return NULL;
 }
 
+CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
+    if (!VM::isOpenJ9()) {
+        return VMStructs::libjvm();
+    }
+
+    const size_t lib_name_len = strlen(lib_name);
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
+        const char* s = _native_libs[i]->name();
+        if (s != NULL) {
+            const char* p = strrchr(s, '/');
+            if (p != NULL && strncmp(p + 1, lib_name, lib_name_len) == 0) {
+                return _native_libs[i];
+            }
+        }
+    }
+    return NULL;
+}
+
 CodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -860,11 +879,6 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    CodeCache* libjvm = VMStructs::libjvm();
-    if (libjvm == NULL) {
-        return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
-    }
-
     if (!VMStructs::hasJavaThreadId()) {
         return Error("Could not find Thread ID field. Unsupported JVM?");
     }
@@ -874,10 +888,11 @@ Error Profiler::checkJvmCapabilities() {
     }
 
     if (_dlopen_entry == NULL) {
-        if ((_dlopen_entry = libjvm->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
+        CodeCache* lib = findJvmLibrary("libj9prt");
+        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
-        Symbols::makePatchable(libjvm);
+        Symbols::makePatchable(lib);
     }
 
     if (!VMStructs::hasDebugSymbols()) {
