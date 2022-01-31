@@ -216,9 +216,9 @@ jobs:
           source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
           if [[ ! ${POM_VERSION} =~ .*-SNAPSHOT$ ]]; then
-            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=target/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            mvn install:install-file -DgroupId=com.datadoghq -DartifactId=ap-tools -Dversion=${POM_VERSION} -Dfile=target/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            mvn install:install-file -DgroupId=com.datadoghq -DartifactId=ap-tools -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            mvn install:install-file -DgroupId=com.datadoghq -DartifactId=ap-tools -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
             rm -rf tmp
             git config user.email "release+action@datadoghq.com"
             git config user.name "GH Release Action"
