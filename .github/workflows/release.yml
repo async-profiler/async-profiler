@@ -186,7 +186,7 @@ jobs:
     name: Publish Release
     needs: prepare-release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref.name == 'main'
     steps:
       - name: Import GPG key
         id: import_gpg
