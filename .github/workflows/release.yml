@@ -186,7 +186,6 @@ jobs:
     name: Publish Release
     needs: prepare-release
     runs-on: ubuntu-latest
-    if: github.ref.name == 'main'
     steps:
       - name: Import GPG key
         id: import_gpg
@@ -216,12 +215,16 @@ jobs:
         run: |
           source target/versions
           echo "Version: ${VERSION}, pom: ${POM_VERSION} "
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=target/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-          mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
-          rm -rf tmp
-          git config user.email "release+action@datadoghq.com"
-          git config user.name "GH Release Action"
-          git add .
-          git commit -S -m 'Update m2 repository'
-          git push
+          if [[ ! ${POM_VERSION} =~ .*-SNAPSHOT$ ]]; then
+            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dfile=target/async-profiler-${VERSION}.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=sources -Dfile=target/async-profiler-${VERSION}-sources.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            mvn install:install-file -DgroupId=tools.profiler -DartifactId=async-profiler -Dversion=${POM_VERSION} -Dclassifier=javadoc -Dfile=target/async-profiler-${VERSION}-javadoc.jar -Dpackaging=jar -DlocalRepositoryPath=. -DcreateChecksum=true -DgeneratePom=true
+            rm -rf tmp
+            git config user.email "release+action@datadoghq.com"
+            git config user.name "GH Release Action"
+            git add .
+            git commit -S -m 'Update m2 repository'
+            git push
+          else
+            echo "Snapshot versions are not published"
+          fi
