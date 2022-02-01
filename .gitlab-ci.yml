@@ -1,4 +1,8 @@
 
+debug_env:
+  when: always
+  script:
+    - echo "CI_COMMIT_TAG=${CI_COMMIT_TAG}"
 # Triggers a build within the Datadog infrastructure in the ddprof-build repository
 trigger_internal_build:
   rules:
