@@ -70,9 +70,12 @@ void LockTracer::initialize() {
 
     // Try JDK 9+ package first, then fallback to JDK 8 package
     jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
-    if (unsafe == NULL && (unsafe = env->FindClass("sun/misc/Unsafe")) == NULL) {
+    if (unsafe == NULL) {
         env->ExceptionClear();
-        return;
+        if ((unsafe = env->FindClass("sun/misc/Unsafe")) == NULL) {
+            env->ExceptionClear();
+            return;
+        }
     }
 
     _UnsafeClass = (jclass)env->NewGlobalRef(unsafe);
@@ -88,6 +91,11 @@ void LockTracer::initialize() {
 
         jni_functions->RegisterNatives = _orig_RegisterNatives;
         jvmti->SetJNIFunctionTable(jni_functions);
+    }
+
+    if (_orig_Unsafe_park == NULL) {
+        // For OpenJ9
+        _orig_Unsafe_park = (UnsafeParkFunc)Profiler::instance()->resolveSymbol("Java_sun_misc_Unsafe_park");
     }
 
     _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));

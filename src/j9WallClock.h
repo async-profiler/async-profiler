@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,39 @@
  * limitations under the License.
  */
 
-#ifndef _ITIMER_H
-#define _ITIMER_H
+#ifndef _J9WALLCLOCK_H
+#define _J9WALLCLOCK_H
 
-#include <signal.h>
+#include <pthread.h>
 #include "engine.h"
 
 
-class ITimer : public Engine {
+class J9WallClock : public Engine {
   private:
     static long _interval;
-    static CStack _cstack;
 
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
+    int _max_stack_depth;
+    volatile bool _running;
+    pthread_t _thread;
+
+    static void* threadEntry(void* wall_clock) {
+        ((J9WallClock*)wall_clock)->timerLoop();
+        return NULL;
+    }
+
+    void timerLoop();
 
   public:
     const char* title() {
-        return "CPU profile";
+        return "Wall clock profile";
     }
 
     const char* units() {
         return "ns";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 };
 
-#endif // _ITIMER_H
+#endif // _J9WALLCLOCK_H

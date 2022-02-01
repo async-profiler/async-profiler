@@ -65,11 +65,7 @@ enum {
 };
 
 
-const int DEFAULT_CFA_REG = DW_REG_FP;
-const int DEFAULT_CFA_OFF = 2 * DW_STACK_SLOT;
-const int DEFAULT_FP_OFF = -2 * DW_STACK_SLOT;
-
-FrameDesc FrameDesc::default_frame = {0, DEFAULT_CFA_REG | DEFAULT_CFA_OFF << 8, DEFAULT_FP_OFF};
+FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
 
 
 DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
@@ -83,7 +79,6 @@ DwarfParser::DwarfParser(const char* name, const char* image_base, const char* e
 
     _code_align = sizeof(instruction_t);
     _data_align = -(int)sizeof(void*);
-
 
     parse(eh_frame_hdr);
 }
@@ -140,7 +135,7 @@ void DwarfParser::parseFde() {
     u32 range_len = get32();
     _ptr += getLeb();
     parseInstructions(range_start, fde_start + fde_len);
-    addRecord(range_start + range_len, DEFAULT_CFA_REG, DEFAULT_CFA_OFF, DEFAULT_FP_OFF);
+    addRecord(range_start + range_len, DW_REG_SP, DW_STACK_SLOT, DW_SAME_FP);
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end) {

@@ -67,16 +67,6 @@ static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr"};
 
 
-enum FrameTypeId {
-    FRAME_INTERPRETED  = 0,
-    FRAME_JIT_COMPILED = 1,
-    FRAME_INLINED      = 2,
-    FRAME_NATIVE       = 3,
-    FRAME_CPP          = 4,
-    FRAME_KERNEL       = 5,
-};
-
-
 struct CpuTime {
     u64 real;
     u64 user;
@@ -594,7 +584,10 @@ class Recording {
     bool parseAgentProperties() {
         JNIEnv* env = VM::jni();
         jclass vm_support = env->FindClass("jdk/internal/vm/VMSupport");
-        if (vm_support == NULL) vm_support = env->FindClass("sun/misc/VMSupport");
+        if (vm_support == NULL) {
+            env->ExceptionClear();
+            vm_support = env->FindClass("sun/misc/VMSupport");
+        }
         if (vm_support != NULL) {
             jmethodID get_agent_props = env->GetStaticMethodID(vm_support, "getAgentProperties", "()Ljava/util/Properties;");
             jmethodID to_string = env->GetMethodID(env->FindClass("java/lang/Object"), "toString", "()Ljava/lang/String;");

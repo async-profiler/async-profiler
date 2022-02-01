@@ -174,18 +174,18 @@ public class FlameGraph {
 
     private int frameType(String title) {
         if (title.endsWith("_[j]")) {
-            return 0;
-        } else if (title.endsWith("_[i]")) {
             return 1;
-        } else if (title.endsWith("_[k]")) {
+        } else if (title.endsWith("_[i]")) {
             return 2;
+        } else if (title.endsWith("_[k]")) {
+            return 5;
         } else if (title.contains("::") || title.startsWith("-[") || title.startsWith("+[")) {
-            return 3;
+            return 4;
         } else if (title.indexOf('/') > 0 && title.charAt(0) != '['
                 || title.indexOf('.') > 0 && Character.isUpperCase(title.charAt(0))) {
             return 0;
         } else {
-            return 4;
+            return 3;
         }
     }
 
@@ -282,11 +282,12 @@ public class FlameGraph {
             "\tc.font = document.body.style.font;\n" +
             "\n" +
             "\tconst palette = [\n" +
+            "\t\t[0xa6e1a6, 20, 20, 20],\n" +
             "\t\t[0x50e150, 30, 30, 30],\n" +
-            "\t\t[0x50bebe, 30, 30, 30],\n" +
-            "\t\t[0xe17d00, 30, 30,  0],\n" +
-            "\t\t[0xc8c83c, 30, 30, 10],\n" +
+            "\t\t[0x50cccc, 30, 30, 30],\n" +
             "\t\t[0xe15a5a, 30, 40, 40],\n" +
+            "\t\t[0xc8c83c, 30, 30, 10],\n" +
+            "\t\t[0xe17d00, 30, 30,  0],\n" +
             "\t];\n" +
             "\n" +
             "\tfunction getColor(p) {\n" +
