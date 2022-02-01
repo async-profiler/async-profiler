@@ -11,7 +11,7 @@ trigger_internal_build:
     - if: '$CI_COMMIT_BRANCH != "main"'
       when: manual
       allow_failure: true
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_TAG =~ /^DD-[0-9]+$/'
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_REF_NAME =~ /.*DD-[0-9]+$/'
       when: always
       allow_failure: false
   variables:
@@ -20,6 +20,8 @@ trigger_internal_build:
     AP_COMMIT_BRANCH: ${CI_COMMIT_BRANCH}
     AP_COMMIT_SHA: ${CI_COMMIT_SHA}
     AP_SHORT_COMMIT_SHA: ${CI_COMMIT_SHORT_SHA}
+    AP_COMMIT_TAG: ${CI_COMMIT_TAG}
+    AP_COMMIT_REF_NAME: ${CI_COMMIT_REF_NAME}
   trigger:
     project: DataDog/async-profiler-build
     strategy: depend
