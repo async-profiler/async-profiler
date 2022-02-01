@@ -102,7 +102,7 @@ FrameTypeId getFrameTypeId(jint bci) {
         case BCI_OFFSET_INLINED:
             return FRAME_INLINED;
         default:
-            return FRAME_UNKNOWN;
+            return FRAME_JIT_COMPILED;
         }
     }
 }

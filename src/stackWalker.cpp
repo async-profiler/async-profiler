@@ -26,7 +26,7 @@ const intptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, const void** first_java_pc) {
     const void* pc;
     uintptr_t fp;
     uintptr_t prev_fp = (uintptr_t)&fp;
@@ -66,10 +66,13 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
         fp = *(uintptr_t*)fp;
     }
 
+    if (CodeHeap::contains(pc)) {
+        *first_java_pc = pc;
+    }
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, const void** first_java_pc) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -135,6 +138,9 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         if (pc < (const void*)MIN_VALID_PC || pc > (const void*)-MIN_VALID_PC) {
             break;
         }
+    }
+    if (CodeHeap::contains(pc)) {
+        *first_java_pc = pc;
     }
 
     return depth;

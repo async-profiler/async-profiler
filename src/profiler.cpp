@@ -303,12 +303,12 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
     if (event_type == 0 && _engine == &perf_events) {
         native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES, first_java_pc);
         if (_cstack == CSTACK_DWARF) {
-            native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+            native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames, first_java_pc);
         }
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, first_java_pc);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, first_java_pc);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
@@ -631,14 +631,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
             if (first_java_pc != NULL) {
                 nmethod = CodeHeap::findNMethod(first_java_pc);
             }
-            if (nmethod != NULL) {
-                VMMethod* a = nmethod->method();
-                if (a != NULL) {
-                    ConstMethod* b = a->constMethod();
-                    if (b != NULL) {
-                        blobID = b->id();
-                    }
-                }
+            if (nmethod != NULL && nmethod->isNMethod()) {
+                blobID = nmethod->method()->constMethod()->id();
             }
             if (blobID != NULL) {
                 // search for the first java frame that matches the physical pc (i.e. that is not inlined)
