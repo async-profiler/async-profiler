@@ -1,3 +1,15 @@
+variables:
+  DOCKER_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:18.09.6
+
+debug_env:
+  when: always
+  tags: [ "runner:docker", "size:large" ]
+  variables:
+    ARCH: amd64
+  image: ${DOCKER_IMAGE}
+  script:
+    - echo "CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME"
+
 # Triggers a build within the Datadog infrastructure in the ddprof-build repository
 trigger_internal_build:
   rules:
