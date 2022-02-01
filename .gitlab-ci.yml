@@ -1,6 +1,8 @@
 
+image: alpine
 debug_env:
   when: always
+  tags: [ "runner:docker" ]
   script:
     - echo "CI_COMMIT_TAG=${CI_COMMIT_TAG}"
 # Triggers a build within the Datadog infrastructure in the ddprof-build repository
