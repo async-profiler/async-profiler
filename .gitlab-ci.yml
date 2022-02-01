@@ -4,7 +4,7 @@ trigger_internal_build:
     - if: '$CI_COMMIT_BRANCH != "main"'
       when: manual
       allow_failure: true
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_REF_NAME =~ /.*DD-[0-9_]+$/'
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_REF_NAME =~ /^DD-[0-9_]+$/'
       when: always
       allow_failure: false
   variables:
