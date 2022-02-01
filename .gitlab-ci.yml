@@ -1,17 +1,10 @@
-
-image: alpine
-debug_env:
-  when: always
-  tags: [ "runner:docker" ]
-  script:
-    - echo "CI_COMMIT_TAG=${CI_COMMIT_TAG}"
 # Triggers a build within the Datadog infrastructure in the ddprof-build repository
 trigger_internal_build:
   rules:
     - if: '$CI_COMMIT_BRANCH != "main"'
       when: manual
       allow_failure: true
-    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_REF_NAME =~ /.*DD-[0-9]+$/'
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_REF_NAME =~ /.*DD-[0-9_]+$/'
       when: always
       allow_failure: false
   variables:
