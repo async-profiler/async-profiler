@@ -133,6 +133,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
+    Engine* allocEngine();
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
@@ -196,12 +197,14 @@ class Profiler {
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
+    CodeCache* findJvmLibrary(const char* lib_name);
     CodeCache* findNativeLibrary(const void* address);
     const char* findNativeMethod(const void* address);
 

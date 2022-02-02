@@ -26,7 +26,14 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 
 
+u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
+    return 0;
+}
+
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+}
+
+void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 const char* PerfEvents::title() {

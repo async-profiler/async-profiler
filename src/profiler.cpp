@@ -27,7 +27,10 @@
 #include "perfEvents.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
+#include "objectSampler.h"
 #include "wallClock.h"
+#include "j9StackTraces.h"
+#include "j9WallClock.h"
 #include "instrument.h"
 #include "itimer.h"
 #include "dwarf.h"
@@ -54,7 +57,9 @@ static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
+static ObjectSampler object_sampler;
 static WallClock wall_clock;
+static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
@@ -223,6 +228,25 @@ const char* Profiler::getLibraryName(const char* native_symbol) {
     return NULL;
 }
 
+CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
+    if (!VM::isOpenJ9()) {
+        return VMStructs::libjvm();
+    }
+
+    const size_t lib_name_len = strlen(lib_name);
+    const int native_lib_count = _native_lib_count;
+    for (int i = 0; i < native_lib_count; i++) {
+        const char* s = _native_libs[i]->name();
+        if (s != NULL) {
+            const char* p = strrchr(s, '/');
+            if (p != NULL && strncmp(p + 1, lib_name, lib_name_len) == 0) {
+                return _native_libs[i];
+            }
+        }
+    }
+    return NULL;
+}
+
 CodeCache* Profiler::findNativeLibrary(const void* address) {
     const int native_lib_count = _native_lib_count;
     for (int i = 0; i < native_lib_count; i++) {
@@ -313,6 +337,8 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+    // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
+    // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
     VMThread* vm_thread = VMThread::current();
     if (vm_thread == NULL) {
         return 0;
@@ -584,18 +610,20 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
 
     int first_java_frame = num_frames;
-    if (event_type <= BCI_LOCK) {
+    if (event_type == 0) {
+        // Async events
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
+        // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
+        // but not directly, since the thread is in_vm rather than in_native
+        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
+    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && !VM::isOpenJ9()) {
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+    } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
         int start_depth = event_type == BCI_INSTRUMENT ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
-    } else if (event_type == 0 || VMStructs::_get_stack_trace == NULL) {
-        // Async events
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
-    } else {
-        // Events like object allocation happen at known places where it is safe to call JVM TI,
-        // but not directly, since the thread is in_vm rather than in_native
-        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
     }
 
     if (num_frames == 0) {
@@ -606,11 +634,39 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy());
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(0));
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
+
+    _locks[lock_index].unlock();
+}
+
+void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames) {
+    atomicInc(_total_samples);
+
+    if (_add_thread_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
+    }
+    if (_add_sched_frame) {
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(tid));
+    }
+
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        // Too many concurrent signals already
+        atomicInc(_failures[-ticks_skipped]);
+        return;
+    }
+
+    ExecutionEvent event;
+    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
 
     _locks[lock_index].unlock();
 }
@@ -721,20 +777,20 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 }
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    if (_update_thread_names && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         JitWriteProtection jit(true);  // workaround for JDK-8262896
-        VMThread* vm_thread = VMThread::fromJavaThread(jni, thread);
         jvmtiThreadInfo thread_info;
-        if (vm_thread != NULL && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
+        int native_thread_id = VMThread::nativeThreadId(jni, thread);
+        if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
             jlong java_thread_id = VMThread::javaThreadId(jni, thread);
-            setThreadInfo(vm_thread->osThreadId(), thread_info.name, java_thread_id);
+            setThreadInfo(native_thread_id, thread_info.name, java_thread_id);
             jvmti->Deallocate((unsigned char*)thread_info.name);
         }
     }
 }
 
 void Profiler::updateJavaThreadNames() {
-    if (_update_thread_names && VMThread::hasNativeId()) {
+    if (_update_thread_names) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -797,7 +853,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
-        return &wall_clock;
+        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
     } else if (strchr(event_name, '.') != NULL && strchr(event_name, ':') == NULL) {
@@ -807,10 +863,14 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
+Engine* Profiler::allocEngine() {
+    return VM::isOpenJ9() ? (Engine*)&object_sampler : (Engine*)&alloc_tracer;
+}
+
 Engine* Profiler::activeEngine() {
     switch (_event_mask) {
         case EM_ALLOC:
-            return &alloc_tracer;
+            return allocEngine();
         case EM_LOCK:
             return &lock_tracer;
         default:
@@ -819,20 +879,20 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    CodeCache* libjvm = VMStructs::libjvm();
-    if (libjvm == NULL) {
-        return Error("Could not find libjvm among loaded libraries. Unsupported JVM?");
+    if (!VMStructs::hasJavaThreadId()) {
+        return Error("Could not find Thread ID field. Unsupported JVM?");
     }
 
-    if (!VMStructs::hasThreadBridge()) {
+    if (VMThread::key() < 0) {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
     if (_dlopen_entry == NULL) {
-        if ((_dlopen_entry = libjvm->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
+        CodeCache* lib = findJvmLibrary("libj9prt");
+        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
-        Symbols::makePatchable(libjvm);
+        Symbols::makePatchable(lib);
     }
 
     if (!VMStructs::hasDebugSymbols()) {
@@ -942,7 +1002,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        error = alloc_tracer.start(args);
+        error = allocEngine()->start(args);
         if (error) {
             goto error2;
         }
@@ -966,7 +1026,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error3:
-    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
+    if (_event_mask & EM_ALLOC) allocEngine()->stop();
 
 error2:
     _engine->stop();
@@ -991,7 +1051,7 @@ Error Profiler::stop() {
     uninstallTraps();
 
     if (_event_mask & EM_LOCK) lock_tracer.stop();
-    if (_event_mask & EM_ALLOC) alloc_tracer.stop();
+    if (_event_mask & EM_ALLOC) allocEngine()->stop();
 
     _engine->stop();
 
@@ -1026,7 +1086,7 @@ Error Profiler::check(Arguments& args) {
         error = _engine->check(args);
     }
     if (!error && args._alloc > 0) {
-        error = alloc_tracer.check(args);
+        error = allocEngine()->check(args);
     }
     if (!error && args._lock > 0) {
         error = lock_tracer.check(args);
@@ -1144,7 +1204,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | (VM::isOpenJ9() ? 0 : STYLE_ANNOTATE), _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);

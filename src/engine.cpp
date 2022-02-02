@@ -17,7 +17,7 @@
 #include "engine.h"
 
 
-volatile bool Engine::_enabled;
+volatile bool Engine::_enabled = false;
 
 Error Engine::check(Arguments& args) {
     return Error::OK;
