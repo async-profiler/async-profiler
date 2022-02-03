@@ -25,7 +25,7 @@
 
 
 // Predefined value that denotes successful operation
-const Error Error::OK(NULL);
+const Error Error::OK("");
 
 // Extra buffer space for expanding file pattern
 const size_t EXTRA_BUF_SIZE = 512;
@@ -118,7 +118,7 @@ Error Arguments::parse(const char* args) {
     }
     char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
-    const char* msg = NULL;    
+    std::string msg = "";
 
     for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -326,13 +326,14 @@ Error Arguments::parse(const char* args) {
                 _reverse = true;
 
             DEFAULT()
-                msg = "Unknown argument";
+                msg = "Unknown argument: ";
+                msg.append(arg);
         }
     }
 
     // Return error only after parsing all arguments, when 'log' is already set
-    if (msg != NULL) {
-        return Error(msg);
+    if (!msg.empty()) {
+        return  Error(msg);
     }
 
     if (_event == NULL && _alloc == 0 && _lock == 0) {

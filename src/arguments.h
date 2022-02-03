@@ -18,7 +18,9 @@
 #define _ARGUMENTS_H
 
 #include <stddef.h>
-
+#include <cstring>
+#include <string>
+#include <utility>
 
 const long DEFAULT_INTERVAL = 10000000;  // 10 ms
 const int DEFAULT_JSTACKDEPTH = 2048;
@@ -97,20 +99,20 @@ struct Multiplier {
 
 class Error {
   private:
-    const char* _message;
+    std::string _message;
 
   public:
     static const Error OK;
 
-    explicit Error(const char* message) : _message(message) {
+    explicit Error(std::string  message) : _message(std::move(message)) {
     }
 
     const char* message() {
-        return _message;
+        return _message.c_str();
     }
 
     operator bool() {
-        return _message != NULL;
+        return !_message.empty();
     }
 };
 
