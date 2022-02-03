@@ -623,7 +623,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
 
         if  (first_java_pc >= _interp_start && first_java_pc < _interp_end) {
             if (frames[first_java_frame].bci >= BCI_SMALLEST_USED_BY_VM) {
-                frames[first_java_frame].bci ^= BCI_OFFSET_INTERP;
+                frames[first_java_frame].bci &= ~BCI_TYPE_MASK;
+                frames[first_java_frame].bci |= FRAME_INTERPRETED << 24;
             }
         } else {
             NMethod* nmethod = NULL;
@@ -644,10 +645,12 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
                 // if found, mark the compiled frame and potential inlined frames on top of it
                 if (i < java_frames && blobID == frames[first_java_frame + i].method_id ) {
                     if (frames[first_java_frame + i].bci > BCI_SMALLEST_USED_BY_VM) {
-                        frames[first_java_frame + i].bci ^= BCI_OFFSET_COMP;
+                        frames[first_java_frame + i].bci &= ~BCI_TYPE_MASK;
+                        frames[first_java_frame + i].bci |= FRAME_JIT_COMPILED << 24;
                     }
                     for (int j = 0;  j < i; j++) {
-                        frames[first_java_frame + j].bci ^= BCI_OFFSET_INLINED;
+                        frames[first_java_frame + j].bci &= ~BCI_TYPE_MASK;
+                        frames[first_java_frame + j].bci |= FRAME_INLINED << 24;
                     }
                 }
             }
@@ -1298,15 +1301,9 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 
 char Profiler::getFrameType(jint bci) {
     char frame_type;
-    int type = bci & BCI_OFFSET_MASK;
-    if (bci < 0) {
-        type = type ^ BCI_OFFSET_MASK;
-        bci |= BCI_OFFSET_MASK;
-    } else {
-        bci &= ~BCI_OFFSET_MASK;
-    }
-    if (bci < BCI_SMALLEST_USED_BY_VM) {
-        switch (bci) {
+    jint raw_bci = removeTypeInfoFromFrame(bci);
+    if (raw_bci < BCI_SMALLEST_USED_BY_VM) {
+        switch (raw_bci) {
         case BCI_NATIVE_FRAME:
             return FRAME_TYPE_NATIVE;
         case BCI_ALLOC:
@@ -1329,12 +1326,12 @@ char Profiler::getFrameType(jint bci) {
             return FRAME_TYPE_INTERNALERR;
         }
     } else {
-        switch (type) {
-        case BCI_OFFSET_COMP:
+        switch ((bci & BCI_TYPE_MASK) >> 24) {
+        case FRAME_JIT_COMPILED:
             return FRAME_TYPE_COMPILED_JAVA;
-        case BCI_OFFSET_INTERP:
+        case FRAME_INTERPRETED:
             return FRAME_TYPE_INTERPRETED_JAVA;
-        case BCI_OFFSET_INLINED:
+        case FRAME_INLINED:
             return FRAME_TYPE_INLINED_JAVA;
         default:
             return FRAME_TYPE_UNKNOWN_JAVA;
@@ -1398,7 +1395,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
                 const char* frame_name = fn.name(trace->frames[j]);
                 jint bci = trace->frames[j].bci;
                 char frame_type = getFrameType(bci);
-                bci = bci < 0 ? bci | BCI_OFFSET_MASK : bci & ~BCI_OFFSET_MASK;
+                bci = removeTypeInfoFromFrame(bci);
                 snprintf(buf, sizeof(buf) - 1, "  [%2d] %c %5d %s\n", j, frame_type, bci, frame_name);
                 out << buf;
             }

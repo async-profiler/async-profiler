@@ -28,7 +28,7 @@
 
 
 enum FrameTypeId {
-    FRAME_INTERPRETED  = 0,
+    FRAME_INTERPRETED  = 7,
     FRAME_JIT_COMPILED = 1,
     FRAME_INLINED      = 2,
     FRAME_NATIVE       = 3,
@@ -48,10 +48,7 @@ enum ASGCT_CallFrameType {
     BCI_THREAD_ID           = -15,  // method_id designates a thread
     BCI_ERROR               = -16,  // method_id is an error string
     BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
-    BCI_OFFSET_COMP         = 0x100000, // offset added to bci for compiled java method
-    BCI_OFFSET_INTERP       = 0x200000, // offset added to bci for interpreted java method
-    BCI_OFFSET_INLINED      = 0x300000, // offset added to bci for inlined java method
-    BCI_OFFSET_MASK         = 0x300000
+    BCI_TYPE_MASK           = 0x0f000000 // mask for encoding the frame type (right shift by 24 after masking)
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp
@@ -189,5 +186,7 @@ class VM {
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
 };
+
+jint removeTypeInfoFromFrame(jint bci);
 
 #endif // _VMENTRY_H

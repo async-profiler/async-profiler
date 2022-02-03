@@ -375,3 +375,10 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
         profiler->stop();
     }
 }
+
+jint removeTypeInfoFromFrame(jint bci) {
+    if (bci < 0) {
+        return bci | BCI_TYPE_MASK;
+    }
+    return bci & ~BCI_TYPE_MASK;
+}

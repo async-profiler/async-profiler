@@ -78,14 +78,6 @@ struct CpuTimes {
 };
 
 FrameTypeId getFrameTypeId(jint bci) {
-    char frame_type;
-    int type = bci & BCI_OFFSET_MASK;
-    if (bci < 0) {
-        type = type ^ BCI_OFFSET_MASK;
-        bci |= BCI_OFFSET_MASK;
-    } else {
-        bci &= ~BCI_OFFSET_MASK;
-    }
     if (bci < BCI_SMALLEST_USED_BY_VM) {
         switch (bci) {
         case BCI_NATIVE_FRAME:
@@ -94,13 +86,12 @@ FrameTypeId getFrameTypeId(jint bci) {
             return FRAME_UNKNOWN;
         }
     } else {
+        jint type = (bci & BCI_TYPE_MASK) >> 24;
         switch (type) {
-        case BCI_OFFSET_COMP:
-            return FRAME_JIT_COMPILED;
-        case BCI_OFFSET_INTERP:
-            return FRAME_INTERPRETED;
-        case BCI_OFFSET_INLINED:
-            return FRAME_INLINED;
+        case FRAME_JIT_COMPILED:
+        case FRAME_INLINED:
+        case FRAME_INTERPRETED:
+            return (FrameTypeId)type;
         default:
             return FRAME_JIT_COMPILED;
         }
@@ -121,7 +112,7 @@ class MethodInfo {
     jint _modifiers;
     jint _line_number_table_size;
     jvmtiLineNumberEntry* _line_number_table;
-    FrameTypeId _type;
+    int _type;
 
     jint getLineNumber(jint bci) {
         if (_line_number_table_size == 0) {
@@ -232,8 +223,14 @@ class Lookup {
             mi->_line_number_table_size = 0;
             mi->_line_number_table = NULL;
         }
-
-        mi->_type = type;
+        switch (type) {
+        case FRAME_JIT_COMPILED:
+            mi->_type = 0;
+        case FRAME_INTERPRETED:
+            mi->_type = 1;
+        default:
+            mi->_type = type;
+        }
     }
 
   public:
@@ -999,7 +996,7 @@ class Recording {
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
-                jint bci = trace->frames[i].bci;
+                jint bci = removeTypeInfoFromFrame(trace->frames[i].bci);
                 if (bci >= 0) {
                     buf->putVar32(mi->getLineNumber(bci));
                     buf->putVar32(bci);

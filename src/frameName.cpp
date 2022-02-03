@@ -143,7 +143,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
 }
 
 const char* FrameName::typeSuffix(int bci) {
-    switch (bci >> 24) {
+    switch ((bci & BCI_TYPE_MASK) >> 24) {
         case FRAME_JIT_COMPILED:
             return "_[j]";
         case FRAME_INLINED:
