@@ -118,7 +118,8 @@ Error Arguments::parse(const char* args) {
     }
     char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
-    const char* msg = NULL;    
+    const char* msg = NULL;
+    const char* unknownArgument = NULL;
 
     for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -188,23 +189,27 @@ Error Arguments::parse(const char* args) {
             CASE("chunksize")
                 if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
                     msg = "Invalid chunksize";
+                    unknownArgument = NULL;
                 }
 
             CASE("chunktime")
                 if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
                     msg = "Invalid chunktime";
+                    unknownArgument = NULL;
                 }
 
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
                     msg = "event must not be empty";
+                    unknownArgument = NULL;
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc <= 0) _alloc = 1;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock <= 0) _lock = 1;
                 } else if (_event != NULL) {
                     msg = "Duplicate event argument";
+                    unknownArgument = NULL;
                 } else {
                     _event = value;
                 }
@@ -212,34 +217,40 @@ Error Arguments::parse(const char* args) {
             CASE("timeout")
                 if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
                     msg = "Invalid timeout";
+                    unknownArgument = NULL;
                 }
 
             CASE("loop")
                 _loop = true;
                 if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
                     msg = "Invalid loop duration";
+                    unknownArgument = NULL;
                 }
 
             CASE("alloc")
                 _alloc = value == NULL ? 1 : parseUnits(value, BYTES);
                 if (_alloc < 0) {
                     msg = "alloc must be >= 0";
+                    unknownArgument = NULL;
                 }
 
             CASE("lock")
                 _lock = value == NULL ? 1 : parseUnits(value, NANOS);
                 if (_lock < 0) {
                     msg = "lock must be >= 0";
+                    unknownArgument = NULL;
                 }
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
                     msg = "Invalid interval";
+                    unknownArgument = NULL;
                 }
 
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
                     msg = "jstackdepth must be > 0";
+                    unknownArgument = NULL;
                 }
 
             CASE("safemode")
@@ -248,6 +259,7 @@ Error Arguments::parse(const char* args) {
             CASE("file")
                 if (value == NULL || value[0] == 0) {
                     msg = "file must not be empty";
+                    unknownArgument = NULL;
                 }
                 _file = value;
 
@@ -326,13 +338,14 @@ Error Arguments::parse(const char* args) {
                 _reverse = true;
 
             DEFAULT()
-                msg = "Unknown argument";
+                msg = "Unknown argument: ";
+                unknownArgument = arg;
         }
     }
 
     // Return error only after parsing all arguments, when 'log' is already set
     if (msg != NULL) {
-        return Error(msg);
+        return unknownArgument == NULL ? Error(msg) : Error(msg, unknownArgument);
     }
 
     if (_event == NULL && _alloc == 0 && _lock == 0) {
