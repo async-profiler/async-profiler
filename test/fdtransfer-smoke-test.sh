@@ -38,8 +38,8 @@ fi
     fi
   }
 
-  assert_string "Target.main;Target.method1 "
-  assert_string "Target.main;Target.method2 "
+  assert_string "Target.main;Target.method1_"
+  assert_string "Target.main;Target.method2_"
   assert_string "Target.main;Target.method3;java/io/File"
   assert_string "sys_getdents"
 )
