@@ -84,9 +84,9 @@ HASH=$(git rev-parse HEAD)
 BASE_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -E '^[0-9]+\..*')
 VERSION=""
 if [ "${BRANCH}" = "main" ]; then
-  VERSION=${BASE_VERSION}-DD-${ARCH}-${HASH}
+  VERSION=${BASE_VERSION}-DD-${HASH}
 else
-  VERSION=${BASE_VERSION}-DD-$(echo ${BRANCH} | tr '/' '_')-${ARCH}-${HASH}
+  VERSION=${BASE_VERSION}-DD-$(echo ${BRANCH} | tr '/' '_')-${HASH}
 fi
 echo "=== Building Async Profiler"
 echo "==    Version     : ${VERSION}"
