@@ -54,7 +54,7 @@ done
 
 case $ARCH in
   linux-x64)
-    IMAGE="prantlf/alpine-glibc"
+    IMAGE="debian:latest"
     ;;
   linux-x64-musl)
     IMAGE="alpine"
@@ -76,6 +76,8 @@ fi
 
 # create the native lib arch specific directory
 mkdir -p ${MAVEN_DIR}/resources/native-libs/${ARCH}
+# make sure the current arch artifact directory is empty
+rm -rf {MAVEN_DIR}/resources/native-libs/${ARCH}
 
 # figure out the active branch to properly set the async-profiler version
 pushd ${ASYNC_PROFILER_DIR} >> /dev/null
