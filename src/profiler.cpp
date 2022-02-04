@@ -1295,7 +1295,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         f->addLeaf(samples, type);
     }
 
-    flamegraph.dump(out, tree);
+    flamegraph.dump(out, tree, VM::isOpenJ9());
 }
 
 

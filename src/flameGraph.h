@@ -100,7 +100,7 @@ class FlameGraph {
         return &_root;
     }
 
-    void dump(std::ostream& out, bool tree);
+    void dump(std::ostream& out, bool tree, bool onOpenJ9);
 };
 
 #endif // _FLAMEGRAPH_H

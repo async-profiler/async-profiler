@@ -208,9 +208,15 @@ static const char FLAMEGRAPH_HEADER[] =
     "\t\t\t\thl.firstChild.textContent = f.title;\n"
     "\t\t\t\thl.style.display = 'block';\n"
     "\t\t\t\tif (f.type <= 2) {\n"
-    "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) +\n"
-    "\t\t\t\t\t\t\t'\%%,\\nInterpreted on top: ' + f.interpreted + ',\\nInlined on top: ' +\n"
-    "\t\t\t\t\t\t\tf.inlined + ',\\nCompiled on top: ' + f.compiled + ')';\n"
+    "\t\t\t\t\tif (window.onOpenJ9) {\n"
+    "\t\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) +\n"
+    "\t\t\t\t\t\t\t\t'\%%,\\nInterpreted: ' + f.interpreted + ',\\nInlined: ' +\n"
+    "\t\t\t\t\t\t\t\tf.inlined + ',\\nCompiled: ' + f.compiled + ')';\n"
+    "\t\t\t\t\t} else {\n"
+    "\t\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) +\n"
+    "\t\t\t\t\t\t\t\t'\%%,\\nInterpreted on top: ' + f.interpreted + ',\\nInlined on top: ' +\n"
+    "\t\t\t\t\t\t\t\tf.inlined + ',\\nCompiled on top: ' + f.compiled + ')';\n"
+    "\t\t\t\t\t}\n"
     "\t\t\t\t} else {\n"
     "\t\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '\%%)';\n"
     "\t\t\t\t}\n"
@@ -475,7 +481,7 @@ class Node {
 };
 
 
-void FlameGraph::dump(std::ostream& out, bool tree) {
+void FlameGraph::dump(std::ostream& out, bool tree, bool onOpenJ9) {
     _mintotal = _minwidth == 0 && tree ? _root._total / 1000 : (u64)(_root._total * _minwidth / 100);
     int depth = _root.depth(_mintotal);
 
@@ -495,6 +501,12 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
         snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title,
                  std::min(depth * 16, MAX_CANVAS_HEIGHT), _reverse ? "true" : "false", depth);
         out << buf;
+
+        if (onOpenJ9) {
+            out << "\twindow.onOpenJ9 = true;\n";
+        } else {
+            out << "\twindow.onOpenJ9 = false;\n";
+        }
 
         printFrame(out, "all", _root, 0, 0);
 
