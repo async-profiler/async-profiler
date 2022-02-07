@@ -86,7 +86,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
-//                        MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
+//                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
@@ -298,6 +298,8 @@ Error Arguments::parse(const char* args) {
                 if (value != NULL) {
                     if (value[0] == 'n') {
                         _cstack = CSTACK_NO;
+                    } else if (value[0] == 'd') {
+                        _cstack = CSTACK_DWARF;
                     } else if (value[0] == 'l') {
                         _cstack = CSTACK_LBR;
                     } else {

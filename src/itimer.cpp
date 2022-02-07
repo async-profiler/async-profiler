@@ -16,11 +16,14 @@
 
 #include <sys/time.h>
 #include "itimer.h"
+#include "j9StackTraces.h"
 #include "os.h"
 #include "profiler.h"
+#include "stackWalker.h"
 
 
 long ITimer::_interval;
+CStack ITimer::_cstack;
 
 
 void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -28,6 +31,16 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     ExecutionEvent event;
     Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+}
+
+void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
+    if (!_enabled) return;
+
+    J9StackTraceNotification notif;
+    notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
+        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES)
+        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
+    J9StackTraces::checkpoint(_interval, &notif);
 }
 
 Error ITimer::check(Arguments& args) {
@@ -49,8 +62,17 @@ Error ITimer::start(Arguments& args) {
         return Error("interval must be positive");
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
+    _cstack = args._cstack;
 
-    OS::installSignalHandler(SIGPROF, signalHandler);
+    if (VM::isOpenJ9()) {
+        OS::installSignalHandler(SIGPROF, signalHandlerJ9);
+        Error error = J9StackTraces::start(args);
+        if (error) {
+            return error;
+        }
+    } else {
+        OS::installSignalHandler(SIGPROF, signalHandler);
+    }
 
     time_t sec = _interval / 1000000000;
     suseconds_t usec = (_interval % 1000000000) / 1000;
@@ -66,4 +88,6 @@ Error ITimer::start(Arguments& args) {
 void ITimer::stop() {
     struct itimerval tv = {{0, 0}, {0, 0}};
     setitimer(ITIMER_PROF, &tv, NULL);
+
+    J9StackTraces::stop();
 }

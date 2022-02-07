@@ -79,12 +79,21 @@ class CodeBlob {
 };
 
 
+class FrameDesc;
+
 class CodeCache {
   protected:
     char* _name;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
+    const char* _text_base;
+
+    const void** _got_start;
+    const void** _got_end;
+
+    FrameDesc* _dwarf_table;
+    int _dwarf_table_length;
 
     int _capacity;
     int _count;
@@ -116,6 +125,22 @@ class CodeCache {
         return address >= _min_address && address < _max_address;
     }
 
+    const char* textBase() const {
+        return _text_base;
+    }
+
+    void setTextBase(const char* text_base) {
+        _text_base = text_base;
+    }
+
+    const void** gotStart() const {
+        return _got_start;
+    }
+
+    const void** gotEnd() const {
+        return _got_end;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
@@ -126,6 +151,12 @@ class CodeCache {
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
+
+    void setGlobalOffsetTable(const void* start, unsigned int size);
+    const void** findGlobalOffsetEntry(const void* address);
+
+    void setDwarfTable(FrameDesc* table, int length);
+    FrameDesc* findFrameDesc(const void* pc);
 };
 
 #endif // _CODECACHE_H

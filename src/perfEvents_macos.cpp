@@ -26,7 +26,14 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 
 
+u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
+    return 0;
+}
+
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+}
+
+void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 const char* PerfEvents::title() {
@@ -48,7 +55,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
     return 0;
 }
 

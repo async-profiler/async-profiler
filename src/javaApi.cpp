@@ -109,13 +109,7 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     int thread_id;
     if (thread == NULL) {
         thread_id = OS::threadId();
-    } else if (VMThread::hasNativeId()) {
-        VMThread* vmThread = VMThread::fromJavaThread(env, thread);
-        if (vmThread == NULL) {
-            return;
-        }
-        thread_id = vmThread->osThreadId();
-    } else {
+    } else if ((thread_id = VMThread::nativeThreadId(env, thread)) < 0) {
         return;
     }
 

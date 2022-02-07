@@ -19,6 +19,7 @@
 #include <string.h>
 #include "vmEntry.h"
 #include "arguments.h"
+#include "j9Ext.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
@@ -26,6 +27,7 @@
 #include "lockTracer.h"
 #include "memleakTracer.h"
 #include "log.h"
+#include "objectSampler.h"
 #include "vmStructs.h"
 
 
@@ -37,13 +39,17 @@ static Arguments _agent_args(true);
 
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
+
 int VM::_hotspot_version = 0;
+bool VM::_openj9 = false;
+
+jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+
 void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
-jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
-jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
 
 static void wakeupHandler(int signo) {
@@ -53,6 +59,13 @@ static void wakeupHandler(int signo) {
 static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
         || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
+}
+
+static bool isOpenJ9InterpreterMethod(const char* blob_name) {
+    return strncmp(blob_name, "_ZN32VM_BytecodeInterpreter", 27) == 0
+        || strncmp(blob_name, "_ZN26VM_BytecodeInterpreter", 27) == 0
+        || strncmp(blob_name, "bytecodeLoop", 12) == 0
+        || strcmp(blob_name, "cInterpreter") == 0;
 }
 
 
@@ -104,12 +117,21 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
-    CodeCache* libjvm = profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
-    if (libjvm != NULL) {
-        VMStructs::init(libjvm);
-        if (is_zero_vm) {
-            libjvm->mark(isZeroInterpreterMethod);
-        }
+
+    _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
+
+    CodeCache* lib = isOpenJ9()
+        ? profiler->findJvmLibrary("libj9vm")
+        : profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
+    if (lib == NULL) {
+        return false;  // TODO: verify
+    }
+
+    VMStructs::init(lib);
+    if (is_zero_vm) {
+        lib->mark(isZeroInterpreterMethod);
+    } else if (isOpenJ9()) {
+        lib->mark(isOpenJ9InterpreterMethod);
     }
 
     if (attach) {
@@ -119,7 +141,8 @@ bool VM::init(JavaVM* vm, bool attach) {
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
     capabilities.can_retransform_classes = 1;
-    capabilities.can_retransform_any_class = 1;
+    capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
+    capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -145,6 +168,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
+    callbacks.VMObjectAlloc = ObjectSampler::VMObjectAlloc;
     if (hotspot_version() >= 11) {
         callbacks.SampledObjectAlloc = MemLeakTracer::SampledObjectAlloc;
         callbacks.GarbageCollectionFinish = MemLeakTracer::GarbageCollectionFinish;

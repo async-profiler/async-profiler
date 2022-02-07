@@ -142,6 +142,17 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     }
 }
 
+const char* FrameName::typeSuffix(int bci) {
+    switch (bci >> 24) {
+        case FRAME_JIT_COMPILED:
+            return "_[j]";
+        case FRAME_INLINED:
+            return "_[i]";
+        default:
+            return _style & STYLE_ANNOTATE ? "_[j]" : "";
+    }
+}
+
 char* FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
@@ -160,7 +171,6 @@ char* FrameName::javaMethodName(jmethodID method) {
         strcat(result, ".");
         strcat(result, method_name);
         if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
-        if (_style & STYLE_ANNOTATE) strcat(result, "_[j]");
     } else {
         snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
         result = _buf;
@@ -263,14 +273,20 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         }
 
         default: {
+            const char* type_suffix = typeSuffix(frame.bci);
+
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {
+                if (type_suffix[0]) {
+                    snprintf(_buf, sizeof(_buf) - 1, "%s%s", it->second.c_str(), type_suffix);
+                    return _buf;
+                }
                 return it->second.c_str();
             }
 
-            const char* newName = javaMethodName(frame.method_id);
+            char* newName = javaMethodName(frame.method_id);
             _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
-            return newName;
+            return type_suffix[0] ? strcat(newName, type_suffix) : newName;
         }
     }
 }

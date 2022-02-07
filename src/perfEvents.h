@@ -18,6 +18,7 @@
 #define _PERFEVENTS_H
 
 #include <signal.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -33,14 +34,15 @@ class PerfEvents : public Engine {
     static Ring _ring;
     static CStack _cstack;
 
+    static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
-    int getKernelTrace(void* ucontext, int tid, const void** callchain, int max_depth);
 
     virtual int registerThread(int tid);
     virtual void unregisterThread(int tid);
@@ -48,6 +50,7 @@ class PerfEvents : public Engine {
     const char* title();
     const char* units();
 
+    static int walkKernel(int tid, const void** callchain, int max_depth);
     static void resetBuffer(int tid);
 
     static const char* getEventName(int event_id);
