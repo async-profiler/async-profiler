@@ -37,7 +37,8 @@ int MemLeakTracer::_interval;
 SpinLock MemLeakTracer::_table_lock;
 MemLeakTableEntry* MemLeakTracer::_table;
 volatile int MemLeakTracer::_table_size;
-int MemLeakTracer::_table_max_size;
+int MemLeakTracer::_table_cap;
+int MemLeakTracer::_table_max_cap;
 
 int MemLeakTracer::_max_stack_depth;
 
@@ -175,7 +176,7 @@ exit:
 
 Error MemLeakTracer::start(Arguments& args) {
     if (!_initialized) {
-        Error err = initialize();
+        Error err = initialize(args);
         if (err) { return err; }
     }
 
@@ -210,13 +211,14 @@ void MemLeakTracer::stop() {
 
 static int _min(int a, int b) { return a < b ? a : b; }
 
-Error MemLeakTracer::initialize() {
+Error MemLeakTracer::initialize(Arguments& args) {
     // jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 
     _table_size = 0;
-    _table_max_size = 2048; // with default 512k sampling interval, it's enough for 1G of heap
-    _table = (MemLeakTableEntry*)malloc(sizeof(MemLeakTableEntry) * _table_max_size);
+    _table_cap = 2048; // with default 512k sampling interval, it's enough for 1G of heap
+    _table_max_cap = args._memleak_cap;
+    _table = (MemLeakTableEntry*)malloc(sizeof(MemLeakTableEntry) * _table_cap);
 
     _max_stack_depth = Profiler::instance()->max_stack_depth();
 
@@ -295,14 +297,14 @@ retry:
     }
 
     // Increment _table_size in a thread-safe manner (CAS) and store the new value in idx
-    // It bails out if _table_size would overflow _table_max_size
+    // It bails out if _table_size would overflow _table_cap
     int idx;
     do {
         idx = _table_size;
-    } while (idx < _table_max_size &&
+    } while (idx < _table_cap &&
                 !__sync_bool_compare_and_swap(&_table_size, idx, idx + 1));
 
-    if (idx < _table_max_size) {
+    if (idx < _table_cap) {
         _table[idx].ref = ref;
         _table[idx].ref_size = size;
         _table[idx].age = 0;
@@ -315,8 +317,8 @@ retry:
 
     _table_lock.unlockShared();
 
-    if (idx == _table_max_size) {
-        if (!retried && _table_max_size < MEMLEAK_TABLE_MAX_SIZE) {
+    if (idx == _table_cap) {
+        if (!retried && _table_cap < _table_max_cap) {
             // guarantees we don't busy loop until memory exhaustion
             retried = true;
 
@@ -327,10 +329,10 @@ retry:
             _table_lock.lock();
 
             // Only increase the size of the table to 8k elements
-            int newsz = __min(_table_max_size * 2, MEMLEAK_TABLE_MAX_SIZE);
-            if (_table_max_size != newsz) {
-                _table = (MemLeakTableEntry*)realloc(_table, sizeof(MemLeakTableEntry) * (_table_max_size = newsz));
-                Log::warn("Increased size of Memory Leak table to %d entries", _table_max_size);
+            int newcap = __min(_table_cap * 2, _table_max_cap);
+            if (_table_cap != newcap) {
+                _table = (MemLeakTableEntry*)realloc(_table, sizeof(MemLeakTableEntry) * (_table_cap = newcap));
+                Log::warn("Increased size of Memory Leak table to %d entries", _table_cap);
             }
 
             _table_lock.unlock();

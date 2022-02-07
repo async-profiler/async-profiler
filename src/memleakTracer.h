@@ -23,8 +23,6 @@
 #include "engine.h"
 #include "spinLock.h"
 
-#define MEMLEAK_TABLE_MAX_SIZE 8192
-
 typedef struct MemLeakTableEntry {
     jweak ref;
     jint ref_size;
@@ -43,7 +41,8 @@ class MemLeakTracer : public Engine {
 
     static SpinLock _table_lock;
     static volatile int _table_size;
-    static int _table_max_size;
+    static int _table_cap;
+    static int _table_max_cap;
     static MemLeakTableEntry *_table;
 
     static int _max_stack_depth;
@@ -61,7 +60,7 @@ class MemLeakTracer : public Engine {
     static u32 _cleanup_round;
     static bool _cleanup_run;
 
-    static Error initialize();
+    static Error initialize(Arguments& args);
 
     static void cleanup_table(JNIEnv* env, jobjectArray *entries, jint *nentries);
 

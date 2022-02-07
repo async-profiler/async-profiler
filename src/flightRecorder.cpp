@@ -770,6 +770,7 @@ class Recording {
         writeBoolSetting(buf, T_HEAP_LIVE_OBJECT, "enabled", args._memleak > 0);
         if (args._memleak > 0) {
             writeIntSetting(buf, T_HEAP_LIVE_OBJECT, "memleak", args._memleak);
+            writeIntSetting(buf, T_HEAP_LIVE_OBJECT, "memleak_cap", args._memleak_cap);
         }
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());

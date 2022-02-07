@@ -22,6 +22,7 @@
 
 const long DEFAULT_INTERVAL = 10000000;  // 10 ms
 const int DEFAULT_JSTACKDEPTH = 2048;
+const int DEFAULT_MEMLEAK_CAP = 8192;
 
 const char* const EVENT_CPU    = "cpu";
 const char* const EVENT_ALLOC  = "alloc";
@@ -140,6 +141,7 @@ class Arguments {
     long _alloc;
     long _lock;
     long _memleak;
+    int _memleak_cap;
     int  _jstackdepth;
     int _safe_mode;
     const char* _file;
@@ -182,6 +184,7 @@ class Arguments {
         _alloc(0),
         _lock(0),
         _memleak(0),
+        _memleak_cap(DEFAULT_MEMLEAK_CAP),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _safe_mode(0),
         _file(NULL),

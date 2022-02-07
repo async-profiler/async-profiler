@@ -240,6 +240,15 @@ Error Arguments::parse(const char* args) {
                     msg = "memleak must be >= 0";
                 }
 
+            CASE("memleakcap")
+                if (value == NULL || value[0] == 0) {
+                    msg = "memleakcap must have a value";
+                }
+                _memleak_cap = parseUnits(value, UNIVERSAL);
+                if (_memleak_cap < 0) {
+                    msg = "memleakcap must be >= 0";
+                }
+
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
                     msg = "Invalid interval";
