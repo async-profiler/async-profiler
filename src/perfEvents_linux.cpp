@@ -916,6 +916,11 @@ void PerfEvents::stop() {
 }
 
 int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
+    if (!(_ring & RING_KERNEL)) {
+        // we are not capturing kernel stacktraces
+        return 0;
+    }
+
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed

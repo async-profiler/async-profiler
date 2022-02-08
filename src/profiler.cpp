@@ -295,7 +295,7 @@ bool Profiler::isAddressInCode(const void* pc) {
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
     const void* callchain[MAX_NATIVE_FRAMES];
-    int native_frames;
+    int native_frames = 0;
 
     if (_cstack == CSTACK_NO || (event_type != 0 && _cstack == CSTACK_DEFAULT)) {
         return 0;
@@ -305,9 +305,9 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
         native_frames += PerfEvents::walkKernel(tid, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
     }
     if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        native_frames += StackWalker::walkFP(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
