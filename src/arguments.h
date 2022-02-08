@@ -104,7 +104,7 @@ class Error {
   public:
     static const Error OK;
 
-    explicit Error(std::string  message) : _message(std::move(message)) {
+    explicit Error(std::string  message) : _message(message) {
     }
 
     const char* message() {
