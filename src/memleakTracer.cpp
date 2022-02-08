@@ -332,14 +332,14 @@ retry:
             int newcap = __min(_table_cap * 2, _table_max_cap);
             if (_table_cap != newcap) {
                 _table = (MemLeakTableEntry*)realloc(_table, sizeof(MemLeakTableEntry) * (_table_cap = newcap));
-                Log::warn("Increased size of Memory Leak table to %d entries", _table_cap);
+                Log::debug("Increased size of Memory Leak table to %d entries", _table_cap);
             }
 
             _table_lock.unlock();
 
             goto retry;
         } else {
-            Log::warn("Cannot add sampled object to Memory Leak table, it's overflowing");
+            Log::debug("Cannot add sampled object to Memory Leak table, it's overflowing");
         }
     }
 
@@ -352,7 +352,7 @@ void JNICALL MemLeakTracer::GarbageCollectionFinish(jvmtiEnv *jvmti_env) {
     }
 
     if (pthread_mutex_lock(&_cleanup_mutex) != 0) {
-        Log::warn("Unable to lock Memory Leak cleanup mutex in GarbageCollectionFinish");
+        Log::debug("Unable to lock Memory Leak cleanup mutex in GarbageCollectionFinish");
         return;
     }
     _cleanup_round += 1;
