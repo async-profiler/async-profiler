@@ -67,6 +67,16 @@ static bool isOpenJ9InterpreterMethod(const char* blob_name) {
         || strcmp(blob_name, "cInterpreter") == 0;
 }
 
+static bool isOpenJ9JitStub(const char* blob_name) {
+    if (strncmp(blob_name, "jit", 3) == 0) {
+        blob_name += 3;
+        return strcmp(blob_name, "NewObject") == 0
+            || strcmp(blob_name, "NewArray") == 0
+            || strcmp(blob_name, "ANewArray") == 0;
+    }
+    return false;
+}
+
 
 bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti != NULL) return true;
@@ -131,6 +141,10 @@ bool VM::init(JavaVM* vm, bool attach) {
         lib->mark(isZeroInterpreterMethod);
     } else if (isOpenJ9()) {
         lib->mark(isOpenJ9InterpreterMethod);
+        CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
+        if (libjit != NULL) {
+            libjit->mark(isOpenJ9JitStub);
+        }
     }
 
     if (attach) {

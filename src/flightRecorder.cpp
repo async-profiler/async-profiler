@@ -971,14 +971,16 @@ class Recording {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
                 jint bci = trace->frames[i].bci;
+                FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
                 if (bci >= 0) {
+                    bci &= 0xffffff;
                     buf->putVar32(mi->getLineNumber(bci));
                     buf->putVar32(bci);
                 } else {
                     buf->put8(0);
                     buf->put8(0);
                 }
-                buf->putVar32(mi->_type);
+                buf->put8(type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
