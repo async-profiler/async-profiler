@@ -820,9 +820,13 @@ Error PerfEvents::start(Arguments& args) {
 
     _ring = args._ring;
     if ((_ring & RING_KERNEL) && !Symbols::haveKernelSymbols()) {
-        Log::info("Kernel symbols are unavailable due to restrictions. Try\n"
-                  "  sysctl kernel.kptr_restrict=0\n"
-                  "  sysctl kernel.perf_event_paranoid=1");
+        static bool logged = false;
+        if (!logged) {
+            Log::info("Kernel symbols are unavailable due to restrictions. Try\n"
+                    "  sysctl kernel.kptr_restrict=0\n"
+                    "  sysctl kernel.perf_event_paranoid=1");
+            logged = true;
+        }
         _ring = RING_USER;
     }
     _cstack = args._cstack;
