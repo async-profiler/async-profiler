@@ -111,7 +111,6 @@ void CallTraceStorage::clear() {
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
-    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -128,11 +127,9 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
     if (_overflow > 0) {
         map[OVERFLOW_TRACE_ID] = &_overflow_trace;
     }
-    _lock.unlock();
 }
 
 void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
-    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -144,11 +141,9 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
             }
         }
     }
-    _lock.unlock();
 }
 
 void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
-    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -160,7 +155,6 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
             }
         }
     }
-    _lock.unlock();
 }
 
 // Adaptation of MurmurHash64A by Austin Appleby
@@ -228,7 +222,11 @@ CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
 }
 
 u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
-    // If we are concurrently collecting or clearing the table, skip the calltrace
+    // Currently, CallTraceStorage is a singleton used globally in Profiler and therefore
+    // start-stop operation requires data structures cleanup.
+    // This cleanup may and will race this method and the racing can cause all sorts of trouble.
+    // Unfortunately, this code running in a signal handler we can not just wait till the
+    // cleanup is finished and must drop samples instead.
     if (!_lock.tryLockShared()) {
         //FIXME: take proper snapshot of the data instead of dropping samples
         return 0;
