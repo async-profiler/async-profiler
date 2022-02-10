@@ -22,6 +22,7 @@
 #include "arch.h"
 #include "linearAllocator.h"
 #include "vmEntry.h"
+#include "spinLock.h"
 
 
 class LongHashTable;
@@ -55,6 +56,8 @@ class CallTraceStorage {
     LinearAllocator _allocator;
     LongHashTable* _current_table;
     u64 _overflow;
+
+    SpinLock _lock;
 
     u64 calcHash(int num_frames, ASGCT_CallFrame* frames);
     CallTrace* storeCallTrace(int num_frames, ASGCT_CallFrame* frames);

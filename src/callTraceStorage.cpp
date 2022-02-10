@@ -88,7 +88,7 @@ class LongHashTable {
 
 CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, (jmethodID)"storage_overflow"}};
 
-CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
+CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK), _lock(0) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
     _overflow = 0;
 }
@@ -100,15 +100,18 @@ CallTraceStorage::~CallTraceStorage() {
 }
 
 void CallTraceStorage::clear() {
+    _lock.lock();
     while (_current_table->prev() != NULL) {
         _current_table = _current_table->destroy();
     }
     _current_table->clear();
     _allocator.clear();
     _overflow = 0;
+    _lock.unlock();
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
+    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -122,13 +125,14 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
             }
         }
     }
-
     if (_overflow > 0) {
         map[OVERFLOW_TRACE_ID] = &_overflow_trace;
     }
+    _lock.unlock();
 }
 
 void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
+    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -140,9 +144,11 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
             }
         }
     }
+    _lock.unlock();
 }
 
 void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
+    _lock.lock();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -154,6 +160,7 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
             }
         }
     }
+    _lock.unlock();
 }
 
 // Adaptation of MurmurHash64A by Austin Appleby
@@ -221,6 +228,12 @@ CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
 }
 
 u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
+    // If we are concurrently collecting or clearing the table, skip the calltrace
+    if (!_lock.tryLockShared()) {
+        //FIXME: take proper snapshot of the data instead of dropping samples
+        return 0;
+    }
+
     u64 hash = calcHash(num_frames, frames);
 
     LongHashTable* table = _current_table;
@@ -255,6 +268,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
         if (++step >= capacity) {
             // Very unlikely case of a table overflow
             atomicInc(_overflow);
+            _lock.unlockShared();
             return OVERFLOW_TRACE_ID;
         }
         // Improved version of linear probing
@@ -265,5 +279,6 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
     atomicInc(s.samples);
     atomicInc(s.counter, counter);
 
+    _lock.unlockShared();
     return capacity - (INITIAL_CAPACITY - 1) + slot;
 }
