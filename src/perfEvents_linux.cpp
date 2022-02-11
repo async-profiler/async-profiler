@@ -572,15 +572,13 @@ int PerfEvents::createForThread(int tid) {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
     attr.wakeup_events = 1;
+    attr.exclude_callchain_user = 1;
 
-    if (_ring == RING_USER) {
+    if (!(_ring & RING_KERNEL)) {
         attr.exclude_kernel = 1;
-    } else if (_ring == RING_KERNEL) {
-        attr.exclude_user = 1;
     }
-
-    if (_cstack == CSTACK_DWARF) {
-        attr.exclude_callchain_user = 1;
+    if (!(_ring & RING_USER)) {
+        attr.exclude_user = 1;
     }
 
 #ifdef PERF_ATTR_SIZE_VER5
@@ -588,7 +586,6 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
-        attr.exclude_callchain_user = 1;
     }
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
@@ -607,10 +604,13 @@ int PerfEvents::createForThread(int tid) {
         return err;
     }
 
-    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (page == MAP_FAILED) {
-        Log::warn("perf_event mmap failed: %s", strerror(errno));
-        page = NULL;
+    void* page = NULL;
+    if ((_ring & RING_KERNEL)) {
+        page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        if (page == MAP_FAILED) {
+            Log::info("perf_event mmap failed: %s", strerror(errno));
+            page = NULL;
+        }
     }
 
     _events[tid].reset();
@@ -689,10 +689,12 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        J9StackTraceNotification notif;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        J9StackTraceNotification notif = { .num_frames = 0 };
+        notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
         if (_cstack == CSTACK_DWARF) {
             notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+        } else {
+            notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {
@@ -744,18 +746,17 @@ Error PerfEvents::check(Arguments& args) {
     attr.sample_period = event_type->default_interval;
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
+    attr.wakeup_events = 1;
+    attr.exclude_callchain_user = 1;
 
-    if (args._ring == RING_USER) {
+    if (!(_ring & RING_KERNEL)) {
         attr.exclude_kernel = 1;
-    } else if (args._ring == RING_KERNEL) {
-        attr.exclude_user = 1;
     } else if (!Symbols::haveKernelSymbols()) {
         Profiler::instance()->updateSymbols(true);
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
-
-    if (_cstack == CSTACK_DWARF) {
-        attr.exclude_callchain_user = 1;
+    if (!(_ring & RING_USER)) {
+        attr.exclude_user = 1;
     }
 
 #ifdef PERF_ATTR_SIZE_VER5
@@ -763,7 +764,6 @@ Error PerfEvents::check(Arguments& args) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
-        attr.exclude_callchain_user = 1;
     }
 #endif
 
@@ -794,7 +794,7 @@ Error PerfEvents::start(Arguments& args) {
     _interval = args._interval ? args._interval : _event_type->default_interval;
 
     _ring = args._ring;
-    if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
+    if ((_ring & RING_KERNEL) && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
                   "  sysctl kernel.kptr_restrict=0\n"
                   "  sysctl kernel.perf_event_paranoid=1");
@@ -853,7 +853,12 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
+int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
+    if (!(_ring & RING_KERNEL)) {
+        // we are not capturing kernel stacktraces
+        return 0;
+    }
+
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed

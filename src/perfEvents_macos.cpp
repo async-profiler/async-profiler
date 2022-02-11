@@ -55,7 +55,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
+int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
     return 0;
 }
 

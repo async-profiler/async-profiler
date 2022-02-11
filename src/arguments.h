@@ -48,9 +48,9 @@ enum Counter {
 };
 
 enum Ring {
-    RING_ANY,
-    RING_KERNEL,
-    RING_USER
+    RING_KERNEL = 1 << 1,
+    RING_USER   = 1 << 2,
+    RING_ANY    = RING_KERNEL | RING_USER,
 };
 
 enum Style {
