@@ -216,7 +216,7 @@ Error MemLeakTracer::initialize(Arguments& args) {
     JNIEnv* env = VM::jni();
 
     _table_size = 0;
-    _table_cap = 2048; // with default 512k sampling interval, it's enough for 1G of heap
+    _table_cap = __min(2048, args._memleak_cap); // with default 512k sampling interval, it's enough for 1G of heap
     _table_max_cap = args._memleak_cap;
     _table = (MemLeakTableEntry*)malloc(sizeof(MemLeakTableEntry) * _table_cap);
 
@@ -274,6 +274,11 @@ Error MemLeakTracer::initialize(Arguments& args) {
 
 void JNICALL MemLeakTracer::SampledObjectAlloc(jvmtiEnv *jvmti, JNIEnv* env,
         jthread thread, jobject object, jclass object_klass, jlong size) {
+    if (_table_max_cap == 0) {
+        // we are not to store any objects
+        return;
+    }
+
     jweak ref = env->NewWeakGlobalRef(object);
     if (ref == NULL) {
         return;
