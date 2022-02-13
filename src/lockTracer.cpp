@@ -93,11 +93,6 @@ void LockTracer::initialize() {
         jvmti->SetJNIFunctionTable(jni_functions);
     }
 
-    if (_orig_Unsafe_park == NULL) {
-        // For OpenJ9
-        _orig_Unsafe_park = (UnsafeParkFunc)Profiler::instance()->resolveSymbol("Java_sun_misc_Unsafe_park");
-    }
-
     _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));
     _getBlocker = env->GetStaticMethodID(_LockSupport, "getBlocker", "(Ljava/lang/Thread;)Ljava/lang/Object;");
 
