@@ -302,6 +302,11 @@ class NMethod : VMStructs {
         return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
     }
 
+    bool isInterpreter() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "Interpreter") == 0;
+    }
+
     VMMethod* method() {
         return *(VMMethod**) at(_nmethod_method_offset);
     }

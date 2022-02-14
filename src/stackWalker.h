@@ -20,8 +20,8 @@
 
 class StackWalker {
   public:
-    static int walkFP(void* ucontext, const void** callchain, int max_depth);
-    static int walkDwarf(void* ucontext, const void** callchain, int max_depth);
+    static int walkFP(void* ucontext, const void** callchain, int max_depth, const void** last_pc);
+    static int walkDwarf(void* ucontext, const void** callchain, int max_depth, const void** last_pc);
 };
 
 #endif // _STACKWALKER_H

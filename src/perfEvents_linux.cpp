@@ -690,9 +690,10 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES);
+        const void* last_pc;
+        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES, &last_pc);
         if (_cstack == CSTACK_DWARF) {
-            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &last_pc);
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {
@@ -854,7 +855,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
+int PerfEvents::walk(int tid, const void** callchain, int max_depth, const void** last_pc) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -880,6 +881,7 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                         const void* iptr = (const void*)ip;
                         if (CodeHeap::contains(iptr) || depth >= max_depth) {
                             // Stop at the first Java frame
+                            *last_pc = iptr;
                             goto stack_complete;
                         }
                         callchain[depth++] = iptr;
@@ -892,6 +894,7 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                     // Last userspace PC is stored right after branch stack
                     const void* pc = (const void*)ring.peek(bnr * 3 + 2);
                     if (CodeHeap::contains(pc) || depth >= max_depth) {
+                        *last_pc = pc;
                         goto stack_complete;
                     }
                     callchain[depth++] = pc;
@@ -902,11 +905,13 @@ int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
                         ring.next();
 
                         if (CodeHeap::contains(to) || depth >= max_depth) {
+                            *last_pc = to;
                             goto stack_complete;
                         }
                         callchain[depth++] = to;
 
                         if (CodeHeap::contains(from) || depth >= max_depth) {
+                            *last_pc = from;
                             goto stack_complete;
                         }
                         callchain[depth++] = from;
