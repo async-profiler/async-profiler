@@ -30,7 +30,7 @@ class VMStructs {
     static bool _has_class_names;
     static bool _has_method_structs;
     static bool _has_class_loader_data;
-    static bool _has_thread_bridge;
+    static bool _has_native_thread_id;
     static bool _has_perm_gen;
 
     static int _klass_name_offset;
@@ -90,6 +90,7 @@ class VMStructs {
     static void initOffsets();
     static void resolveOffsets();
     static void initJvmFunctions();
+    static void initTLS(void* vm_thread);
     static void initThreadBridge(JNIEnv* env);
     static void initLogging(JNIEnv* env);
 
@@ -117,8 +118,8 @@ class VMStructs {
         return _has_class_loader_data;
     }
 
-    static bool hasThreadBridge() {
-        return _has_thread_bridge;
+    static bool hasJavaThreadId() {
+        return _tid != NULL;
     }
 
     typedef jvmtiError (*GetStackTraceFunc)(void* self, void* thread,
@@ -230,6 +231,10 @@ class VMThread : VMStructs {
   public:
     static VMThread* current();
 
+    static int key() {
+        return _tls_index;
+    }
+
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
@@ -242,9 +247,7 @@ class VMThread : VMStructs {
         return env->GetLongField(thread, _tid);
     }
 
-    static bool hasNativeId() {
-        return _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
-    }
+    static int nativeThreadId(JNIEnv* jni, jthread thread);
 
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);

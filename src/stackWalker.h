@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,14 @@
  * limitations under the License.
  */
 
-#include "engine.h"
+#ifndef _STACKWALKER_H
+#define _STACKWALKER_H
 
 
-volatile bool Engine::_enabled = false;
+class StackWalker {
+  public:
+    static int walkFP(void* ucontext, const void** callchain, int max_depth);
+    static int walkDwarf(void* ucontext, const void** callchain, int max_depth);
+};
 
-Error Engine::check(Arguments& args) {
-    return Error::OK;
-}
-
-Error Engine::start(Arguments& args) {
-    return Error::OK;
-}
-
-void Engine::stop() {
-}
+#endif // _STACKWALKER_H

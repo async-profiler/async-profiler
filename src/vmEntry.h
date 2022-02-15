@@ -27,6 +27,15 @@
 #endif
 
 
+enum FrameTypeId {
+    FRAME_INTERPRETED  = 0,
+    FRAME_JIT_COMPILED = 1,
+    FRAME_INLINED      = 2,
+    FRAME_NATIVE       = 3,
+    FRAME_CPP          = 4,
+    FRAME_KERNEL       = 5,
+};
+
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)
@@ -88,10 +97,12 @@ class VM {
   private:
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
-    static JVM_GetManagement _getManagement;
+
+    static int _hotspot_version;
+    static bool _openj9;
+
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
-    static int _hotspot_version;
 
     static void ready();
     static void applyPatch(char* func, const char* patch, const char* end_patch);
@@ -103,6 +114,7 @@ class VM {
     static void* _libjvm;
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
+    static JVM_GetManagement _getManagement;
 
     static bool init(JavaVM* vm, bool attach);
 
@@ -133,6 +145,10 @@ class VM {
 
     static int hotspot_version() {
         return _hotspot_version;
+    }
+
+    static bool isOpenJ9() {
+        return _openj9;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

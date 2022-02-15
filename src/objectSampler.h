@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Andrei Pangin
+ * Copyright 2021 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,33 +14,39 @@
  * limitations under the License.
  */
 
-#ifndef _ITIMER_H
-#define _ITIMER_H
+#ifndef _OBJECTSAMPLER_H
+#define _OBJECTSAMPLER_H
 
-#include <signal.h>
+#include <jvmti.h>
+#include "arch.h"
 #include "engine.h"
 
 
-class ITimer : public Engine {
+class ObjectSampler : public Engine {
   private:
-    static long _interval;
-    static CStack _cstack;
+    static u64 _interval;
+    static volatile u64 _allocated_bytes;
 
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
+    static void recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size);
 
   public:
     const char* title() {
-        return "CPU profile";
+        return "Allocation profile";
     }
 
     const char* units() {
-        return "ns";
+        return "bytes";
     }
 
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    static void JNICALL JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
+                                        jobject object, jclass object_klass, jlong size);
+
+    static void JNICALL VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
+                                      jobject object, jclass object_klass, jlong size);
 };
 
-#endif // _ITIMER_H
+#endif // _OBJECTSAMPLER_H

@@ -174,7 +174,7 @@ int OS::threadId() {
     return (int)port;
 }
 
-const char* OS::schedPolicy() {
+const char* OS::schedPolicy(int thread_id) {
     // Not used on macOS
     return "SCHED_OTHER";
 }

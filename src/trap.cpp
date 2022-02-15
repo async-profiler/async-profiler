@@ -40,7 +40,7 @@ void Trap::assign(const void* address, uintptr_t offset) {
 
 #if defined(__arm__) || defined(__thumb__)
     _breakpoint_insn = (_entry & 1) ? BREAKPOINT_THUMB : BREAKPOINT;
-    _entry ^= 1;
+    _entry &= ~(uintptr_t)1;
 #endif
 
     _saved_insn = *(instruction_t*)_entry;

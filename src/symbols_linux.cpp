@@ -29,8 +29,10 @@
 #include <linux/limits.h>
 #include "symbols.h"
 #include "arch.h"
+#include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
+#include "os.h"
 
 
 class SymbolDesc {
@@ -152,7 +154,7 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
 
     for (int i = 0; i < _header->e_shnum; i++) {
         ElfSection* section = this->section(i);
-        if (section->sh_type == type && section->sh_name != 0) {
+        if ((type == 0 || section->sh_type == type) && section->sh_name != 0) {
             if (strcmp(strtab + section->sh_name, name) == 0) {
                 return section;
             }
@@ -213,8 +215,10 @@ void ElfParser::loadSymbols(bool use_debug) {
     }
 
 loaded:
-    // Synthesize names for PLT stubs
     if (use_debug) {
+        _cc->setTextBase(_base);
+
+        // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
         ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
         if (reltab == NULL) {
@@ -222,6 +226,21 @@ loaded:
         }
         if (plt != NULL && reltab != NULL) {
             addRelocationSymbols(reltab, _base + plt->sh_offset + PLT_HEADER_SIZE);
+        }
+
+        // Find the bounds of the Global Offset Table
+        ElfSection* got = findSection(SHT_PROGBITS, ".got.plt");
+        if (got != NULL
+            || (got = findSection(SHT_NOBITS, ".plt")) != NULL   /* ppc64le binaries */
+            || (got = findSection(SHT_PROGBITS, ".got")) != NULL /* RELRO technique */) {
+            _cc->setGlobalOffsetTable(_base + got->sh_addr, got->sh_size);
+        }
+
+        // Read DWARF unwind info
+        ElfSection* eh_frame_hdr = findSection(0, ".eh_frame_hdr");
+        if (eh_frame_hdr != NULL && DWARF_SUPPORTED) {
+            DwarfParser dwarf(_cc->name(), (const char*)_header, at(eh_frame_hdr));
+            _cc->setDwarfTable(dwarf.table(), dwarf.count());
         }
     }
 }
@@ -431,6 +450,12 @@ void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, b
 
     free(str);
     fclose(f);
+}
+
+void Symbols::makePatchable(CodeCache* cc) {
+    uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
+    uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
+    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
 }
 
 #endif // __linux__
