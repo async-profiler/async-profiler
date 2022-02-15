@@ -941,7 +941,7 @@ Error Profiler::checkJvmCapabilities() {
         Symbols::makePatchable(lib);
     }
 
-    if (!VMStructs::hasDebugSymbols()) {
+    if (!VMStructs::hasDebugSymbols() && !VM::isOpenJ9()) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 

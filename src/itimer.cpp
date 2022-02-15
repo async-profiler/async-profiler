@@ -65,6 +65,7 @@ Error ITimer::start(Arguments& args) {
     _cstack = args._cstack;
 
     if (VM::isOpenJ9()) {
+        if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;
         OS::installSignalHandler(SIGPROF, signalHandlerJ9);
         Error error = J9StackTraces::start(args);
         if (error) {

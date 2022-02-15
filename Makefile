@@ -1,5 +1,5 @@
 ifeq ($(PROFILER_VERSION),)
-  export PROFILER_VERSION=2.6
+  export PROFILER_VERSION=2.7
 endif
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
