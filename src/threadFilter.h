@@ -26,7 +26,7 @@ const u32 BITMAP_SIZE = 65536;
 // How many thread IDs one bitmap can hold
 const u32 BITMAP_CAPACITY = BITMAP_SIZE * 8;
 // Total number of bitmaps required to hold the entire range of thread IDs
-const u32 MAX_BITMAPS = (1 << 31) / BITMAP_CAPACITY;
+const u32 MAX_BITMAPS = (1U << 31) / BITMAP_CAPACITY;
 
 
 // ThreadFilter query operations must be lock-free and signal-safe;

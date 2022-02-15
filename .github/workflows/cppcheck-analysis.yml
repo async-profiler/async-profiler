@@ -1,0 +1,24 @@
+name: "Cppcheck"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install cppcheck
+      run: |
+        sudo apt-get -y update && sudo apt-get -y install cppcheck
+
+    - name: Run cppcheck
+      run: |
+       make cppcheck
