@@ -15,13 +15,14 @@ CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
 INCLUDES=-I$(JAVA_HOME)/include
 LIBS=-ldl -lpthread
-MERGE=true
+MERGE?=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
 JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
+OBJECTS := $(SOURCES:src/%.cpp=build/%.o)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
 JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
@@ -120,12 +121,15 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
 ifeq ($(MERGE),true)
-	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
+	for f in $(SOURCES); do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+$(OBJECTS): build/%.o: src/%.cpp $(HEADERS) $(JAVA_HEADERS)
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -c -o $@ $<
+build/$(LIB_PROFILER_SO): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $^ $(LIBS)
 endif
 
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
@@ -167,3 +171,13 @@ test-%: all
 
 clean:
 	$(RM) -r build
+
+#TODO: replace --suppress with --inline-suppr when Ubuntu 22.04 is available
+cppcheck:
+	cppcheck \
+		--error-exitcode=2 \
+		--suppress=memleak:src/codeCache.cpp:27 \
+		--suppress=memleakOnRealloc:src/dwarf.cpp:345 \
+		--suppress=memleakOnRealloc:src/memleakTracer.cpp:339 \
+		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
+		src/

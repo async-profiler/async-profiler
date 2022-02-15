@@ -182,16 +182,24 @@ void Profiler::mangle(const char* name, char* buf, size_t size) {
 
     const char* c;
     while ((c = strstr(name, "::")) != NULL && buf + (c - name) + 4 < buf_end) {
-        buf += snprintf(buf, buf_end - buf, "%d", (int)(c - name));
+        int n = snprintf(buf, buf_end - buf, "%d", (int)(c - name));
+        if (n < 0 || n >= buf_end - buf) {
+            if (n < 0) {
+                Log::debug("Error in snprintf.");
+            }
+            goto end;
+        }
+        buf += n;
         memcpy(buf, name, c - name);
         buf += c - name;
         name = c + 2;
     }
-
     if (buf < buf_end) {
         snprintf(buf, buf_end - buf, "%d%sE*", (int)strlen(name), name);
     }
-    buf_end[-1] = 0;
+
+end:
+    buf_end[-1] = '\0';
 }
 
 const void* Profiler::resolveSymbol(const char* name) {

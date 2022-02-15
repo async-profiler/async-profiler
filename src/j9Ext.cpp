@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <string.h>
 #include "j9Ext.h"
 #include "objectSampler.h"
 #include <string.h>

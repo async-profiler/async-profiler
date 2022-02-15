@@ -69,7 +69,7 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
         return -1;
     }
 
-    struct perf_fd_response resp;
+    struct perf_fd_response resp = {0};
     int fd = recvFd(request.header.type, &resp.header, sizeof(resp));
     if (fd == -1) {
         // Update errno for our caller.
@@ -92,7 +92,7 @@ int FdTransferClient::requestKallsymsFd() {
         return -1;
     }
 
-    struct fd_response resp;
+    struct fd_response resp = {0};
     int fd = recvFd(request.type, &resp, sizeof(resp));
     if (fd == -1) {
         errno = resp.error;

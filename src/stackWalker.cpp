@@ -15,6 +15,7 @@
  */
 
 #include "stackWalker.h"
+#include "safeAccess.h"
 #include "dwarf.h"
 #include "profiler.h"
 #include "safeAccess.h"
