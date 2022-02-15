@@ -18,13 +18,20 @@
 #include "log.h"
 #include "profiler.h"
 
-
-const char* const Log::LEVEL_NAME[] = {NULL, "TRACE", "DEBUG", "INFO", "WARN", "ERROR"};
+const char* const Log::LEVEL_NAME[] = {
+    "TRACE",
+    "DEBUG",
+    "INFO",
+    "WARN",
+    "ERROR",
+    "none",
+    NULL
+};
 
 FILE* Log::_file = stdout;
+LogLevel Log::_level = LOG_TRACE;
 
-
-void Log::open(const char* file_name) {
+void Log::open(const char* file_name, const char* level) {
     if (_file != stdout && _file != stderr) {
         fclose(_file);
     }
@@ -37,6 +44,17 @@ void Log::open(const char* file_name) {
         _file = stdout;
         warn("Could not open log file: %s", file_name);
     }
+
+    LogLevel l = LOG_TRACE;
+    if (level != NULL) {
+        for (int i = 0; LEVEL_NAME[i] != NULL; i++) {
+            if (strcasecmp(LEVEL_NAME[i], level) == 0) {
+                l = (LogLevel)i;
+                break;
+            }
+        }
+    }
+    __atomic_store_n(&_level, l, __ATOMIC_RELEASE);
 }
 
 void Log::close() {
@@ -58,8 +76,24 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
         Profiler::instance()->writeLog(level, buf, len);
     }
 
-    fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
-    fflush(_file);
+    if (level >= _level) {
+        fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
+        fflush(_file);
+    }
+}
+
+void Log::trace(const char* msg, ...) {
+    va_list args;
+    va_start(args, msg);
+    log(LOG_TRACE, msg, args);
+    va_end(args);
+}
+
+void Log::debug(const char* msg, ...) {
+    va_list args;
+    va_start(args, msg);
+    log(LOG_DEBUG, msg, args);
+    va_end(args);
 }
 
 void Log::info(const char* msg, ...) {
