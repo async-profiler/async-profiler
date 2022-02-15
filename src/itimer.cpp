@@ -36,10 +36,18 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
-    J9StackTraceNotification notif;
-    notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
-        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES)
-        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES);
+    J9StackTraceNotification notif = { .num_frames = 0 };
+    if (_cstack != CSTACK_NO) {
+        switch (_cstack) {
+        case CSTACK_DWARF:
+            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            break;
+        case CSTACK_FP:
+        case CSTACK_DEFAULT:
+            notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            break;
+        }
+    }
     J9StackTraces::checkpoint(_interval, &notif);
 }
 

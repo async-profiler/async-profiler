@@ -605,7 +605,7 @@ int PerfEvents::createForThread(int tid) {
     }
 
     void* page = NULL;
-    if ((_ring & RING_KERNEL)) {
+    if ((_ring & RING_KERNEL) || _cstack == CSTACK_LBR) {
         page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (page == MAP_FAILED) {
             Log::info("perf_event mmap failed: %s", strerror(errno));
@@ -690,11 +690,17 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif = { .num_frames = 0 };
-        notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
-        if (_cstack == CSTACK_DWARF) {
-            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
-        } else {
-            notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+        if (_cstack != CSTACK_NO) {
+            notif.num_frames += PerfEvents::walk(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            switch (_cstack) {
+            case CSTACK_DWARF:
+                notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+                break;
+            case CSTACK_FP:
+            case CSTACK_DEFAULT:
+                notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+                break;
+            }
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {
@@ -853,9 +859,9 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
-    if (!(_ring & RING_KERNEL)) {
-        // we are not capturing kernel stacktraces
+int PerfEvents::walk(int tid, const void** callchain, int max_depth) {
+    if (!(_ring & RING_KERNEL) && _cstack != CSTACK_LBR) {
+        // we are not capturing kernel stacktraces and we are not using LBR
         return 0;
     }
 
@@ -882,8 +888,7 @@ int PerfEvents::walkKernel(int tid, const void** callchain, int max_depth) {
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
-                        if (CodeHeap::contains(iptr) || depth >= max_depth) {
-                            // Stop at the first Java frame
+                        if (depth >= max_depth) {
                             goto stack_complete;
                         }
                         callchain[depth++] = iptr;

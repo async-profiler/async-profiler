@@ -296,12 +296,16 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
     }
 
     if (event_type == 0 && _engine == &perf_events) {
-        native_frames += PerfEvents::walkKernel(tid, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        native_frames += PerfEvents::walk(tid, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
     }
-    if (_cstack == CSTACK_DWARF) {
+    switch (_cstack) {
+    case CSTACK_DWARF:
         native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
-    } else {
+        break;
+    case CSTACK_FP:
+    case CSTACK_DEFAULT:
         native_frames += StackWalker::walkFP(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        break;
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
