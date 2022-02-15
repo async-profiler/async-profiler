@@ -153,12 +153,13 @@ bool VM::init(JavaVM* vm, bool attach) {
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub);
         }
-        if (hotspot_version() == 8) {
-            // Workaround for JDK-8185348
-            char* func = (char*)libjvm->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
-            if (func != NULL) {
-                applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
-            }
+    }
+
+    if (hotspot_version() == 8 && !WX_MEMORY) {
+        // Workaround for JDK-8185348
+        char* func = (char*)lib->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
+        if (func != NULL) {
+            applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
         }
     }
 
