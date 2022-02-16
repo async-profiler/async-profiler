@@ -590,6 +590,10 @@ int PerfEvents::registerThread(int tid) {
         attr.exclude_user = 1;
     }
 
+    if (_cstack == CSTACK_DWARF) {
+        attr.exclude_callchain_user = 1;
+    }
+
 #ifdef PERF_ATTR_SIZE_VER5
     if (_cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
@@ -783,6 +787,10 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_callchain_user = 1;
     }
 
+    if (_cstack == CSTACK_DWARF) {
+        attr.exclude_callchain_user = 1;
+    }
+
 #ifdef PERF_ATTR_SIZE_VER5
     if (args._cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
@@ -839,6 +847,7 @@ Error PerfEvents::start(Arguments& args) {
     }
 
     if (VM::isOpenJ9()) {
+        if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;
         OS::installSignalHandler(SIGPROF, signalHandlerJ9);
         Error error = J9StackTraces::start(args);
         if (error) {

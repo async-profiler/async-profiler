@@ -17,6 +17,7 @@
 #include <string.h>
 #include "j9Ext.h"
 #include "objectSampler.h"
+#include <string.h>
 
 
 jvmtiEnv* J9Ext::_jvmti;

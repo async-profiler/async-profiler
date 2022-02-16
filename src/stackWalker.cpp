@@ -18,6 +18,7 @@
 #include "safeAccess.h"
 #include "dwarf.h"
 #include "profiler.h"
+#include "safeAccess.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
 

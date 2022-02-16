@@ -230,7 +230,9 @@ loaded:
 
         // Find the bounds of the Global Offset Table
         ElfSection* got = findSection(SHT_PROGBITS, ".got.plt");
-        if (got != NULL || (got = findSection(SHT_PROGBITS, ".got")) != NULL) {
+        if (got != NULL
+            || (got = findSection(SHT_NOBITS, ".plt")) != NULL   /* ppc64le binaries */
+            || (got = findSection(SHT_PROGBITS, ".got")) != NULL /* RELRO technique */) {
             _cc->setGlobalOffsetTable(_base + got->sh_addr, got->sh_size);
         }
 

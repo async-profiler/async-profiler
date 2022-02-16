@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.7] - 2022-02-14
+
+### Features
+ - Experimental support for OpenJ9 VM
+ - DWARF stack unwinding
+
+### Improvements
+ - Better handling of VM threads (fixed missing JIT threads)
+ - More reliable recovery from `not_walkable` AGCT failures
+ - Do not accept unknown agent arguments
+
 ## [2.6] - 2022-01-09
 
 ### Features
