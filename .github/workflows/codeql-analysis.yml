@@ -12,13 +12,8 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches: [ main, master, maven2 ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ main ]
-  schedule:
-    - cron: '24 7 * * 3'
+  - push
+  - pull_request
 
 jobs:
   analyze:
