@@ -18,12 +18,14 @@
 #include "log.h"
 #include "profiler.h"
 
+
 const char* const Log::LEVEL_NAME[] = {
-#define LOG_LEVEL_STR(level) #level,
-LOG_LEVELS(LOG_LEVEL_STR)
-#undef LOG_LEVEL_STR
-    "none",
-    NULL
+    "TRACE",
+    "DEBUG",
+    "INFO",
+    "WARN",
+    "ERROR",
+    "NONE"
 };
 
 FILE* Log::_file = stdout;
@@ -43,14 +45,16 @@ void Log::open(const char* file_name, const char* level) {
         warn("Could not open log file: %s", file_name);
     }
 
+    LogLevel l = LOG_TRACE;
     if (level != NULL) {
-        for (int i = 0; LEVEL_NAME[i] != NULL; i++) {
+        for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
             if (strcasecmp(LEVEL_NAME[i], level) == 0) {
-                _level = (LogLevel)i;
+                l = (LogLevel)i;
                 break;
             }
         }
     }
+    __atomic_store_n(&_level, l, __ATOMIC_RELEASE);
 }
 
 void Log::close() {
@@ -61,6 +65,8 @@ void Log::close() {
 }
 
 void Log::log(LogLevel level, const char* msg, va_list args) {
+    // DD specific: we don't want to spam stdout/stderr nor JFR with
+    //  logs we don't want.
     if (level < _level) {
         return;
     }
@@ -76,15 +82,20 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
         Profiler::instance()->writeLog(level, buf, len);
     }
 
-    fprintf(_file, "[async-profiler][%s] %s\n", LEVEL_NAME[level], buf);
-    fflush(_file);
+    if (level >= _level) {
+        fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
+        fflush(_file);
+    }
+}
+
+void Log::trace(const char* msg, ...) {
+    va_list args;
+    va_start(args, msg);
+    log(LOG_TRACE, msg, args);
+    va_end(args);
 }
 
 void Log::debug(const char* msg, ...) {
-    if (LOG_DEBUG < _level) {
-        return;
-    }
-
     va_list args;
     va_start(args, msg);
     log(LOG_DEBUG, msg, args);
@@ -92,10 +103,6 @@ void Log::debug(const char* msg, ...) {
 }
 
 void Log::info(const char* msg, ...) {
-    if (LOG_INFO < _level) {
-        return;
-    }
-
     va_list args;
     va_start(args, msg);
     log(LOG_INFO, msg, args);
@@ -103,10 +110,6 @@ void Log::info(const char* msg, ...) {
 }
 
 void Log::warn(const char* msg, ...) {
-    if (LOG_WARN < _level) {
-        return;
-    }
-
     va_list args;
     va_start(args, msg);
     log(LOG_WARN, msg, args);
@@ -114,10 +117,6 @@ void Log::warn(const char* msg, ...) {
 }
 
 void Log::error(const char* msg, ...) {
-    if (LOG_ERROR < _level) {
-        return;
-    }
-
     va_list args;
     va_start(args, msg);
     log(LOG_ERROR, msg, args);

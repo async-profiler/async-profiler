@@ -34,9 +34,12 @@
     fn(ERROR)
 
 enum LogLevel {
-#define LOG_LEVEL_ENUM(level) LOG_##level,
-LOG_LEVELS(LOG_LEVEL_ENUM)
-#undef LOG_LEVEL_ENUM
+    LOG_TRACE,
+    LOG_DEBUG,
+    LOG_INFO,
+    LOG_WARN,
+    LOG_ERROR,
+    LOG_NONE
 };
 
 class Log {
@@ -47,11 +50,12 @@ class Log {
   public:
     static const char* const LEVEL_NAME[];
 
-    static void open(const char* file_name, const char *level);
+    static void open(const char* file_name, const char* level);
     static void close();
 
     static void log(LogLevel level, const char* msg, va_list args);
 
+    static void ATTR_FORMAT trace(const char* msg, ...);
     static void ATTR_FORMAT debug(const char* msg, ...);
     static void ATTR_FORMAT info(const char* msg, ...);
     static void ATTR_FORMAT warn(const char* msg, ...);

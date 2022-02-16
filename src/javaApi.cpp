@@ -39,7 +39,6 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
         args._event = event_str;
         args._interval = interval;
     }
-    Log::open(args._log, args._loglevel);
 
     Error error = Profiler::instance()->start(args, reset);
     env->ReleaseStringUTFChars(event, event_str);
