@@ -18,18 +18,19 @@
 #include "log.h"
 #include "profiler.h"
 
+
 const char* const Log::LEVEL_NAME[] = {
     "TRACE",
     "DEBUG",
     "INFO",
     "WARN",
     "ERROR",
-    "none",
-    NULL
+    "NONE"
 };
 
 FILE* Log::_file = stdout;
 LogLevel Log::_level = LOG_TRACE;
+
 
 void Log::open(const char* file_name, const char* level) {
     if (_file != stdout && _file != stderr) {
@@ -47,7 +48,7 @@ void Log::open(const char* file_name, const char* level) {
 
     LogLevel l = LOG_TRACE;
     if (level != NULL) {
-        for (int i = 0; LEVEL_NAME[i] != NULL; i++) {
+        for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
             if (strcasecmp(LEVEL_NAME[i], level) == 0) {
                 l = (LogLevel)i;
                 break;
