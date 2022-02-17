@@ -125,7 +125,7 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
 
 class Lookup {
   public:
-    MethodMap* _method_map;
+    MethodMap _method_map;
     Dictionary* _classes;
     Dictionary _packages;
     Dictionary _symbols;
@@ -171,7 +171,7 @@ class Lookup {
         }
     }
 
-    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
+    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method) {
         jvmtiEnv* jvmti = VM::jvmti();
 
         jclass method_class;
@@ -195,11 +195,11 @@ class Lookup {
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
 
-        if (first_time && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
+        if (jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
             mi->_modifiers = 0;
         }
 
-        if (first_time && jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
+        if (jvmti->GetLineNumberTable(method, &mi->_line_number_table_size, &mi->_line_number_table) != 0) {
             mi->_line_number_table_size = 0;
             mi->_line_number_table = NULL;
         }
@@ -208,27 +208,21 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) :
-        _method_map(method_map), _classes(classes), _packages(), _symbols() {
+    Lookup() : _method_map(), _classes(Profiler::instance()->classMap()), _packages(), _symbols() {
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
         jmethodID method = frame.method_id;
-        MethodInfo* mi = &(*_method_map)[method];
+        MethodInfo* mi = &_method_map[method];
 
-        bool first_time = mi->_key == 0;
-        if (first_time) {
-            mi->_key = _method_map->size();
-        }
-
-        if (!mi->_mark) {
-            mi->_mark = true;
+        if (mi->_key == 0) {
+            mi->_key = _method_map.size();
             if (method == NULL) {
                 fillNativeMethodInfo(mi, "unknown");
             } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
                 fillNativeMethodInfo(mi, (const char*)method);
             } else {
-                fillJavaMethodInfo(mi, method, first_time);
+                fillJavaMethodInfo(mi, method);
             }
         }
 
@@ -392,15 +386,15 @@ class Recording {
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
-    MethodMap _method_map;
+    Lookup _lookup;
 
     u64 _start_time;
     u64 _start_ticks;
     u64 _stop_time;
     u64 _stop_ticks;
 
-    u64 _base_id;
     u64 _bytes_written;
+    u64 _last_cpool_offset;
     u64 _chunk_size;
     u64 _chunk_time;
 
@@ -417,13 +411,13 @@ class Recording {
     }
 
   public:
-    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
+    Recording(int fd, Arguments& args) : _fd(fd), _thread_set() {
         _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args.file());
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
-        _base_id = 0;
         _bytes_written = 0;
+        _last_cpool_offset = 0;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -459,7 +453,7 @@ class Recording {
     }
 
     ~Recording() {
-        off_t chunk_end = finishChunk();
+        off_t chunk_end = checkpoint(true);
 
         if (_master_recording_file != NULL) {
             appendRecording(_master_recording_file, chunk_end);
@@ -469,7 +463,7 @@ class Recording {
         close(_fd);
     }
 
-    off_t finishChunk() {
+    off_t checkpoint(bool last) {
         flush(&_cpu_monitor_buf);
 
         writeNativeLibraries(_buf);
@@ -481,26 +475,26 @@ class Recording {
         _stop_time = OS::micros();
         _stop_ticks = TSC::ticks();
 
-        off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
-        writeCpool(_buf);
-        flush(_buf);
-
-        off_t chunk_end = lseek(_fd, 0, SEEK_CUR);
-
-        // Patch cpool size field
-        _buf->putVar32(0, chunk_end - cpool_offset);
-        ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_offset);
-        (void)result;
-
         // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
         u64 tsc_frequency = TSC::frequency();
         if (tsc_frequency > 1000000000) {
             tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
         }
 
+        off_t cpool_start = lseek(_fd, 0, SEEK_CUR);
+        writeCpool(_buf, _last_cpool_offset == 0 ? 0 : _last_cpool_offset - cpool_start);
+        flush(_buf);
+        off_t cpool_end = lseek(_fd, 0, SEEK_CUR);
+        _last_cpool_offset = cpool_start;
+
+        // Patch cpool size field
+        _buf->putVar32(0, cpool_end - cpool_start);
+        ssize_t result = pwrite(_fd, _buf->data(), 5, cpool_start);
+        (void)result;
+
         // Patch chunk header
-        _buf->put64(chunk_end - _chunk_start);
-        _buf->put64(cpool_offset - _chunk_start);
+        _buf->put64(last ? cpool_end - _chunk_start : 0);
+        _buf->put64(cpool_start - _chunk_start);
         _buf->put64(68);
         _buf->put64(_start_time * 1000);
         _buf->put64((_stop_time - _start_time) * 1000);
@@ -512,15 +506,15 @@ class Recording {
         OS::freePageCache(_fd, _chunk_start);
 
         _buf->reset();
-        return chunk_end;
+        return cpool_end;
     }
 
     void switchChunk() {
-        _chunk_start = finishChunk();
+        _chunk_start = checkpoint(true);
         _start_time = _stop_time;
         _start_ticks = _stop_ticks;
-        _base_id += 0x1000000;
         _bytes_written = 0;
+        _last_cpool_offset = 0;
 
         writeHeader(_buf);
         writeMetadata(_buf);
@@ -648,9 +642,9 @@ class Recording {
         buf->put("FLR\0", 4);            // magic
         buf->put16(2);                   // major
         buf->put16(0);                   // minor
-        buf->put64(1024 * 1024 * 1024);  // chunk size (initially large, for JMC to skip incomplete chunk)
+        buf->put64(0);                   // chunk size
         buf->put64(0);                   // cpool offset
-        buf->put64(0);                   // meta offset
+        buf->put64(68);                  // meta offset
         buf->put64(_start_time * 1000);  // start time, ns
         buf->put64(0);                   // duration, ns
         buf->put64(_start_ticks);        // start ticks
@@ -878,26 +872,30 @@ class Recording {
         _recorded_lib_count = native_lib_count;
     }
 
-    void writeCpool(Buffer* buf) {
+    void writeCpool(Buffer* buf, u64 delta) {
         buf->skip(5);  // size will be patched later
         buf->putVar32(T_CPOOL);
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
-        buf->putVar32(0);
+        buf->putVar64(delta);
         buf->putVar32(1);
 
-        buf->putVar32(9);
+        if (delta == 0) {
+            // First cpool
+            buf->putVar32(9);
+            writeFrameTypes(buf);
+            writeThreadStates(buf);
+            writeLogLevels(buf);
+        } else {
+            buf->putVar32(6);
+        }
 
-        Lookup lookup(&_method_map, Profiler::instance()->classMap());
-        writeFrameTypes(buf);
-        writeThreadStates(buf);
         writeThreads(buf);
-        writeStackTraces(buf, &lookup);
-        writeMethods(buf, &lookup);
-        writeClasses(buf, &lookup);
-        writePackages(buf, &lookup);
-        writeSymbols(buf, &lookup);
-        writeLogLevels(buf);
+        writeStackTraces(buf);
+        writeMethods(buf);
+        writeClasses(buf);
+        writePackages(buf);
+        writeSymbols(buf);
     }
 
     void writeFrameTypes(Buffer* buf) {
@@ -956,7 +954,7 @@ class Recording {
         }
     }
 
-    void writeStackTraces(Buffer* buf, Lookup* lookup) {
+    void writeStackTraces(Buffer* buf) {
         std::map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
@@ -968,7 +966,7 @@ class Recording {
             buf->putVar32(0);  // truncated
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
+                MethodInfo* mi = _lookup.resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
                 jint bci = trace->frames[i].bci;
                 FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
@@ -987,26 +985,24 @@ class Recording {
         }
     }
 
-    void writeMethods(Buffer* buf, Lookup* lookup) {
-        MethodMap* method_map = lookup->_method_map;
-
-        u32 marked_count = 0;
-        for (MethodMap::const_iterator it = method_map->begin(); it != method_map->end(); ++it) {
-            if (it->second._mark) {
-                marked_count++;
+    void writeMethods(Buffer* buf) {
+        u32 new_methods = 0;
+        for (MethodMap::const_iterator it = _lookup._method_map.begin(); it != _lookup._method_map.end(); ++it) {
+            if (!it->second._mark) {
+                new_methods++;
             }
         }
 
         buf->putVar32(T_METHOD);
-        buf->putVar32(marked_count);
-        for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
+        buf->putVar32(new_methods);
+        for (MethodMap::iterator it = _lookup._method_map.begin(); it != _lookup._method_map.end(); ++it) {
             MethodInfo& mi = it->second;
-            if (mi._mark) {
-                mi._mark = false;
+            if (!mi._mark) {
+                mi._mark = true;
                 buf->putVar32(mi._key);
                 buf->putVar32(mi._class);
-                buf->putVar64(mi._name | _base_id);
-                buf->putVar64(mi._sig | _base_id);
+                buf->putVar32(mi._name);
+                buf->putVar32(mi._sig);
                 buf->putVar32(mi._modifiers);
                 buf->putVar32(0);  // hidden
                 flushIfNeeded(buf);
@@ -1014,9 +1010,9 @@ class Recording {
         }
     }
 
-    void writeClasses(Buffer* buf, Lookup* lookup) {
+    void writeClasses(Buffer* buf) {
         std::map<u32, const char*> classes;
-        lookup->_classes->collect(classes);
+        _lookup._classes->collect(classes);
 
         buf->putVar32(T_CLASS);
         buf->putVar32(classes.size());
@@ -1024,34 +1020,34 @@ class Recording {
             const char* name = it->second;
             buf->putVar32(it->first);
             buf->putVar32(0);  // classLoader
-            buf->putVar64(lookup->getSymbol(name) | _base_id);
-            buf->putVar64(lookup->getPackage(name) | _base_id);
+            buf->putVar32(_lookup.getSymbol(name));
+            buf->putVar32(_lookup.getPackage(name));
             buf->putVar32(0);  // access flags
             flushIfNeeded(buf);
         }
     }
 
-    void writePackages(Buffer* buf, Lookup* lookup) {
+    void writePackages(Buffer* buf) {
         std::map<u32, const char*> packages;
-        lookup->_packages.collect(packages);
+        _lookup._packages.collect(packages);
 
         buf->putVar32(T_PACKAGE);
         buf->putVar32(packages.size());
         for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
-            buf->putVar64(it->first | _base_id);
-            buf->putVar64(lookup->getSymbol(it->second) | _base_id);
+            buf->putVar32(it->first);
+            buf->putVar32(_lookup.getSymbol(it->second));
             flushIfNeeded(buf);
         }
     }
 
-    void writeSymbols(Buffer* buf, Lookup* lookup) {
+    void writeSymbols(Buffer* buf) {
         std::map<u32, const char*> symbols;
-        lookup->_symbols.collect(symbols);
+        _lookup._symbols.collect(symbols);
 
         buf->putVar32(T_SYMBOL);
         buf->putVar32(symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
-            buf->putVar64(it->first | _base_id);
+            buf->putVar32(it->first);
             buf->putUtf8(it->second);
             flushIfNeeded(buf);
         }
@@ -1204,7 +1200,8 @@ void FlightRecorder::stop() {
 void FlightRecorder::flush() {
     if (_rec != NULL) {
         _rec_lock.lock();
-        _rec->switchChunk();
+        // FIXME _rec->switchChunk();
+        _rec->checkpoint(false);
         _rec_lock.unlock();
     }
 }
