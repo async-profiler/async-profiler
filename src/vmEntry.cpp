@@ -357,7 +357,7 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
-    Log::open(_agent_args._log);
+    Log::open(_agent_args._log, _agent_args._loglevel);
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;
@@ -375,7 +375,7 @@ extern "C" DLLEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args(true);
     Error error = args.parse(options);
-    Log::open(args._log);
+    Log::open(args._log, args._loglevel);
     if (error) {
         Log::error("%s", error.message());
         return ARGUMENTS_ERROR;

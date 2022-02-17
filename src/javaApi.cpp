@@ -67,6 +67,8 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         return NULL;
     }
 
+    Log::open(args._log, args._loglevel);
+
     if (!args.hasOutputFile()) {
         std::ostringstream out;
         error = Profiler::instance()->runInternal(args, out);

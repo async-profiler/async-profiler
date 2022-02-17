@@ -82,6 +82,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
+//     loglevel=LEVEL   - logging level: TRACE, DEBUG, INFO, WARN, ERROR, or NONE
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
@@ -253,6 +254,12 @@ Error Arguments::parse(const char* args) {
 
             CASE("log")
                 _log = value == NULL || value[0] == 0 ? NULL : value;
+
+            CASE("loglevel")
+                if (value == NULL || value[0] == 0) {
+                    msg = "loglevel must not be empty";
+                }
+                _loglevel = value;
 
             CASE("fdtransfer")
                 _fdtransfer = true;
