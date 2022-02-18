@@ -1110,7 +1110,12 @@ Error Profiler::flushJfr() {
 
     lockAll();
     _jfr.flush();
+    Chunk* chunk = _call_trace_storage.trimAllocator();
+    LongHashTable* table = _call_trace_storage.trimTable();
     unlockAll();
+
+    // Release memory out of the lock, as it can be a lengthy operation
+    _call_trace_storage.freeMemory(chunk, table);
 
     return Error::OK;
 }

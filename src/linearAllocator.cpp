@@ -41,6 +41,18 @@ void LinearAllocator::clear() {
     _tail->offs = sizeof(Chunk);
 }
 
+Chunk* LinearAllocator::trim() {
+    return __atomic_exchange_n(&_tail->prev, NULL, __ATOMIC_ACQ_REL);
+}
+
+void LinearAllocator::freeChain(Chunk* chunk) {
+    while (chunk != NULL) {
+        Chunk* current = chunk;
+        chunk = chunk->prev;
+        freeChunk(current);
+    }
+}
+
 void* LinearAllocator::alloc(size_t size) {
     Chunk* chunk = _tail;
 

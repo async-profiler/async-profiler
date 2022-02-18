@@ -503,7 +503,7 @@ class Recording {
         result = pwrite(_fd, _buf->data(), 56, _chunk_start + 8);
         (void)result;
 
-        OS::freePageCache(_fd, _chunk_start);
+        OS::freePageCache(_fd, 0, 0);
 
         _buf->reset();
         return cpool_end;

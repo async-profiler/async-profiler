@@ -55,6 +55,10 @@ class LongHashTable {
         return prev;
     }
 
+    LongHashTable* trim() {
+        return __atomic_exchange_n(&_prev, NULL, __ATOMIC_ACQ_REL);
+    }
+
     LongHashTable* prev() const {
         return _prev;
     }
@@ -108,6 +112,21 @@ void CallTraceStorage::clear() {
     _overflow = 0;
 }
 
+Chunk* CallTraceStorage::trimAllocator() {
+    return _allocator.trim();
+}
+
+LongHashTable* CallTraceStorage::trimTable() {
+    return _current_table->trim();
+}
+
+void CallTraceStorage::freeMemory(Chunk* chunk, LongHashTable* table) {
+    _allocator.freeChain(chunk);
+    while (table != NULL) {
+        table = table->destroy();
+    }
+}
+
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
@@ -115,10 +134,10 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
         u32 base = table->base();
 
         for (u32 slot = 0; slot < CAPACITY; slot++) {
-            if (keys[slot] != 0 && loadAcquire(values[slot].samples) != 0) {
-                // Reset samples to avoid duplication of call traces between JFR chunks
-                values[slot].samples = 0;
+            if (keys[slot] != 0 && loadAcquire(values[slot].counter) != 0 && values[slot].trace != NULL) {
                 map[base + slot] = values[slot].trace;
+                // Reset to make sure each trace is dumped only once
+                values[slot].trace = NULL;
             }
         }
     }
@@ -197,24 +216,6 @@ CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* fra
         }
     }
     return buf;
-}
-
-CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
-    u64* keys = table->keys();
-    u32 slot = hash & (CAPACITY - 1);
-    u32 step = 0;
-
-    while (keys[slot] != hash) {
-        if (keys[slot] == 0) {
-            return NULL;
-        }
-        if (++step >= CAPACITY) {
-            return NULL;
-        }
-        slot = (slot + step) & (CAPACITY - 1);
-    }
-
-    return table->values()[slot].trace;
 }
 
 u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
