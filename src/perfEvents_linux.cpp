@@ -533,6 +533,7 @@ PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
+bool PerfEvents::_use_mmap_page;
 
 int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
@@ -579,7 +580,7 @@ int PerfEvents::createForThread(int tid) {
         attr.exclude_user = 1;
     }
 
-    if (_cstack == CSTACK_DWARF) {
+    if (_cstack == CSTACK_FP || _cstack == CSTACK_DWARF) {
         attr.exclude_callchain_user = 1;
     }
 
@@ -607,7 +608,7 @@ int PerfEvents::createForThread(int tid) {
         return err;
     }
 
-    void* page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void* page = _use_mmap_page ? mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0) : NULL;
     if (page == MAP_FAILED) {
         Log::warn("perf_event mmap failed: %s", strerror(errno));
         page = NULL;
@@ -691,10 +692,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
         const void* last_pc;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), notif.addr, MAX_J9_NATIVE_FRAMES, &last_pc);
-        if (_cstack == CSTACK_DWARF) {
-            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &last_pc);
-        }
+        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &last_pc);
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -755,7 +753,7 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
-    if (_cstack == CSTACK_DWARF) {
+    if (_cstack == CSTACK_FP || _cstack == CSTACK_DWARF) {
         attr.exclude_callchain_user = 1;
     }
 
@@ -802,6 +800,7 @@ Error PerfEvents::start(Arguments& args) {
         _ring = RING_USER;
     }
     _cstack = args._cstack;
+    _use_mmap_page = _cstack != CSTACK_NO && (_ring != RING_USER || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR);
 
     int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
@@ -855,7 +854,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth, const void** last_pc) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -928,6 +927,13 @@ stack_complete:
     }
 
     event->unlock();
+
+    if (_cstack == CSTACK_FP) {
+        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth);
+    } else if (_cstack == CSTACK_DWARF) {
+        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth);
+    }
+
     return depth;
 }
 

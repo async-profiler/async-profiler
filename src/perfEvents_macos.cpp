@@ -24,7 +24,8 @@ PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
-
+CStack PerfEvents::_cstack;
+bool PerfEvents::_use_mmap_page;
 
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
     return 0;
@@ -55,7 +56,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::walk(int tid, const void** callchain, int max_depth, const void** last_pc) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     return 0;
 }
 

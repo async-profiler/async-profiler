@@ -297,10 +297,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == 0 && _engine == &perf_events) {
-        native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES, last_pc);
-        if (_cstack == CSTACK_DWARF) {
-            native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames, last_pc);
-        }
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else {
