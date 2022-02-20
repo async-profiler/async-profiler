@@ -929,9 +929,9 @@ stack_complete:
     event->unlock();
 
     if (_cstack == CSTACK_FP) {
-        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth);
+        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth, last_pc);
     } else if (_cstack == CSTACK_DWARF) {
-        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth);
+        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, last_pc);
     }
 
     return depth;
