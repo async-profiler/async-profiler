@@ -143,14 +143,13 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
 }
 
 const char* FrameName::typeSuffix(FrameTypeId type) {
-    switch (type) {
-        case FRAME_JIT_COMPILED:
-            return "_[j]";
-        case FRAME_INLINED:
-            return "_[i]";
-        default:
-            return _style & STYLE_ANNOTATE ? "_[j]" : NULL;
+    if (_style & STYLE_ANNOTATE) {
+        switch (type) {
+            case FRAME_JIT_COMPILED: return "_[j]";
+            case FRAME_INLINED:      return "_[i]";
+        }
     }
+    return NULL;
 }
 
 char* FrameName::javaMethodName(jmethodID method) {
