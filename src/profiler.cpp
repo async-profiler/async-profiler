@@ -722,8 +722,35 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     return result;
 }
 
+void** Profiler::prepareLibraryTrap() {
+    CodeCache* lib = findJvmLibrary("libj9prt");
+    if (lib == NULL) {
+        return NULL;
+    }
+
+    void** dlopen_entry = (void**)lib->findGlobalOffsetEntry((const void*)dlopen);
+
+#ifdef __x86_64__
+    if (dlopen_entry == NULL) {
+        // If dlopen is already hooked, try locating the entry by decoding the PLT instruction:
+        // jmp [rip + offset]
+        instruction_t* plt = (instruction_t*)lib->findSymbol("dlopen@plt");
+        if (plt != NULL && plt[0] == 0xff && plt[1] == 0x25) {
+            dlopen_entry = (void**)(plt + *(u32*)(plt + 2) + 6);
+        }
+    }
+#endif
+
+    if (dlopen_entry != NULL) {
+        Symbols::makePatchable(lib);
+        _orig_dlopen = *dlopen_entry;
+    }
+
+    return dlopen_entry;
+}
+
 void Profiler::switchLibraryTrap(bool enable) {
-    void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
+    void* impl = enable ? (void*)dlopen_hook : _orig_dlopen;
     __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
 }
 
@@ -924,12 +951,8 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not find VMThread bridge. Unsupported JVM?");
     }
 
-    if (_dlopen_entry == NULL) {
-        CodeCache* lib = findJvmLibrary("libj9prt");
-        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
-            return Error("Could not set dlopen hook. Unsupported JVM?");
-        }
-        Symbols::makePatchable(lib);
+    if (_dlopen_entry == NULL && (_dlopen_entry = prepareLibraryTrap()) == NULL) {
+        return Error("Could not set dlopen hook. Unsupported JVM?");
     }
 
     if (!VMStructs::hasDebugSymbols() && !VM::isOpenJ9()) {

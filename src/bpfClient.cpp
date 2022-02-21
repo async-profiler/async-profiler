@@ -23,6 +23,9 @@
 #include "vmStructs.h"
 
 
+// Use different profiling signal to allow running two profilers together
+const int BPF_SIGNAL = SIGSTKFLT;
+
 struct BpfStackTrace {
     u32 pid;
     u32 tid;
@@ -67,7 +70,7 @@ Error BpfClient::check(Arguments& args) {
 }
 
 Error BpfClient::start(Arguments& args) {
-    OS::installSignalHandler(SIGPROF, signalHandler);
+    OS::installSignalHandler(BPF_SIGNAL, signalHandler);
 
     struct bpfmap_params params;
     int fd = FdTransferClient::requestBpfMapFd(&params);
@@ -96,7 +99,7 @@ Error BpfClient::start(Arguments& args) {
 }
 
 void BpfClient::stop() {
-    OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
+    OS::installSignalHandler(BPF_SIGNAL, NULL, SIG_IGN);
 
     __atomic_store_n(&_bpf_map_available, 0, __ATOMIC_RELEASE);
     munmap(_bpf_map.addr, _bpf_map.size);
@@ -113,7 +116,7 @@ int BpfClient::getNativeTrace(void* ucontext, int tid, const void** callchain, i
     }
 
     int depth = 0;
-    max_depth = trace->depth < max_depth ? trace->depth : max_depth;
+    if (trace->depth < max_depth) max_depth = trace->depth;
 
     while (depth < max_depth) {
         const void* ip = (const void*)trace->ip[depth];
