@@ -287,7 +287,7 @@ bool Profiler::isAddressInCode(const void* pc) {
     }
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, const void** last_pc) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
@@ -297,11 +297,11 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == 0 && _engine == &perf_events) {
-        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
@@ -577,6 +577,35 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_ent
     return false;
 }
 
+void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
+    if (nmethod->isNMethod()) {
+        jmethodID current_method_id = nmethod->method()->constMethod()->id();
+        if (current_method_id == NULL) {
+            return;
+        }
+
+        // Mark current_method as COMPILED and frames above current_method as INLINED
+        for (int i = 0; i < num_frames; i++) {
+            if (frames[i].method_id == NULL || frames[i].bci <= BCI_NATIVE_FRAME) {
+                break;
+            }
+            if (frames[i].method_id == current_method_id) {
+                frames[i].bci = FrameType::encode(FRAME_JIT_COMPILED, frames[i].bci);
+                break;
+            }
+            frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
+        }
+    } else if (nmethod->isInterpreter()) {
+        // Mark the first Java frame as INTERPRETED
+        for (int i = 0; i < num_frames; i++) {
+            if (frames[i].bci > BCI_NATIVE_FRAME) {
+                frames[i].bci = FrameType::encode(FRAME_INTERPRETED, frames[i].bci);
+                break;
+            }
+        }
+    }
+}
+
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
@@ -604,12 +633,19 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
 
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
+    const void* last_pc = NULL;
+    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &last_pc);
 
-    int first_java_frame = num_frames;
     if (event_type == 0) {
         // Async events
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        if (java_frames > 0 && last_pc != NULL) {
+            NMethod* nmethod = CodeHeap::findNMethod((const void*)last_pc);
+            if (nmethod != NULL) {
+                fillFrameTypes(frames + num_frames, java_frames, nmethod);
+            }
+        }
+        num_frames += java_frames;
     } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
         // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
         // but not directly, since the thread is in_vm rather than in_native
@@ -1201,7 +1237,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style | (VM::isOpenJ9() ? 0 : STYLE_ANNOTATE), _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_ANNOTATE, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);

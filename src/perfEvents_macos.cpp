@@ -56,7 +56,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     return 0;
 }
 

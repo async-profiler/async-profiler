@@ -47,7 +47,7 @@ class PerfEvents : public Engine {
     const char* title();
     const char* units();
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth);
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
     static void resetBuffer(int tid);
 
     static bool supported();

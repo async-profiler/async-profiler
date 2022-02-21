@@ -35,7 +35,7 @@ import java.util.HashSet;
  */
 public class jfr2flame {
 
-    private static final String[] FRAME_SUFFIX = {"_[j]", "_[j]", "_[i]", "", "", "_[k]"};
+    private static final String[] FRAME_SUFFIX = {"", "_[j]", "_[i]", "", "", "_[k]"};
     private static final byte JAVA_FRAME_TYPES = 3;
 
     private final JfrReader jfr;
