@@ -375,7 +375,7 @@ The following is a complete list of the command-line options accepted by
 
 * `-g` - print method signatures.
 
-* `-a` - annotate Java method names by adding `_[j]` suffix.
+* `-a` - annotate JIT compiled methods with `_[j]` and inlined methods with `_[i]`.
 
 * `-l` - prepend library names to symbols, e.g. ``libjvm.so`JVM_DefineClassWithSource``.
 

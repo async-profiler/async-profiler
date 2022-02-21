@@ -94,7 +94,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     sig              - print method signatures
-//     ann              - annotate Java method names
+//     ann              - annotate Java methods
 //     lib              - prepend library names
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN

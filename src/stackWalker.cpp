@@ -27,7 +27,7 @@ const intptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     const void* pc;
     uintptr_t fp;
     uintptr_t prev_fp = (uintptr_t)&fp;
@@ -45,7 +45,12 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     int depth = 0;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && !CodeHeap::contains(pc)) {
+    while (depth < max_depth) {
+         if (CodeHeap::contains(pc)) {
+            *last_pc = pc;
+            break;
+         }
+
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
@@ -70,7 +75,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -92,7 +97,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     Profiler* profiler = Profiler::instance();
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && !CodeHeap::contains(pc)) {
+    while (depth < max_depth) {
+         if (CodeHeap::contains(pc)) {
+            *last_pc = pc;
+            break;
+         }
+
         callchain[depth++] = pc;
         prev_sp = sp;
 
