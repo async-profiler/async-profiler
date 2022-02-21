@@ -581,7 +581,6 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     if (nmethod->isNMethod()) {
         jmethodID current_method_id = nmethod->method()->constMethod()->id();
         if (current_method_id == NULL) {
-            frames[0].bci |= FRAME_JIT_COMPILED << 24;
             return;
         }
 
@@ -591,13 +590,19 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
                 break;
             }
             if (frames[i].method_id == current_method_id) {
-                frames[i].bci |= FRAME_JIT_COMPILED << 24;
+                frames[i].bci = FrameType::encode(FRAME_JIT_COMPILED, frames[i].bci);
                 break;
             }
-            frames[i].bci |= FRAME_INLINED << 24;
+            frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
         }
     } else if (nmethod->isInterpreter()) {
-        frames[0].bci |= FRAME_INTERPRETED << 24;
+        // Mark the first Java frame as INTERPRETED
+        for (int i = 0; i < num_frames; i++) {
+            if (frames[i].bci > BCI_NATIVE_FRAME) {
+                frames[i].bci = FrameType::encode(FRAME_INTERPRETED, frames[i].bci);
+                break;
+            }
+        }
     }
 }
 

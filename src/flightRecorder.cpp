@@ -970,17 +970,18 @@ class Recording {
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
-                jint bci = trace->frames[i].bci;
-                FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
-                if (bci >= 0) {
-                    bci &= 0xffffff;
+                if (mi->_type < FRAME_NATIVE) {
+                    jint bci = trace->frames[i].bci;
+                    FrameTypeId type = FrameType::decode(bci);
+                    bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
                     buf->putVar32(mi->getLineNumber(bci));
                     buf->putVar32(bci);
+                    buf->put8(type);
                 } else {
                     buf->put8(0);
                     buf->put8(0);
+                    buf->put8(mi->_type);
                 }
-                buf->put8(type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
