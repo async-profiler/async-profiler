@@ -282,7 +282,10 @@ Error Arguments::parse(const char* args) {
                 }
                 if (_timeout == 0) {
                     _loop = true;
-                    _timeout = 24 * 3600;  // 24 hours
+                    _timeout = 0xff0000ff;  // rotate at 00:00
+                }
+                if (_chunk_time == 0) {
+                    _chunk_time = 300;  // 5 min
                 }
 
             // Filters

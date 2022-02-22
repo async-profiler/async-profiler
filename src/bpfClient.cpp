@@ -61,7 +61,7 @@ void BpfClient::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     if (_interval <= 1 || __sync_add_and_fetch(&_counter, 1) % _interval == 0) {
         ExecutionEvent event;
-        Profiler::instance()->recordSample(ucontext, 1, 0, &event);
+        Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
     }
 }
 

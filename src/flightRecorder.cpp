@@ -416,6 +416,7 @@ class Recording {
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
+        _stop_time = _start_time;  // also the last checkpoint time
         _bytes_written = 0;
         _last_cpool_offset = 0;
 
@@ -523,7 +524,7 @@ class Recording {
     }
 
     bool needSwitchChunk(u64 wall_time) {
-        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _start_time >= _chunk_time;
+        return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _stop_time >= _chunk_time;
     }
 
     void cpuMonitorCycle() {
