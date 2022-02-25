@@ -70,9 +70,12 @@ void LockTracer::initialize() {
 
     // Try JDK 9+ package first, then fallback to JDK 8 package
     jclass unsafe = env->FindClass("jdk/internal/misc/Unsafe");
-    if (unsafe == NULL && (unsafe = env->FindClass("sun/misc/Unsafe")) == NULL) {
+    if (unsafe == NULL) {
         env->ExceptionClear();
-        return;
+        if ((unsafe = env->FindClass("sun/misc/Unsafe")) == NULL) {
+            env->ExceptionClear();
+            return;
+        }
     }
 
     _UnsafeClass = (jclass)env->NewGlobalRef(unsafe);

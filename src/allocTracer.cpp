@@ -65,21 +65,8 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
-    if (_interval > 1) {
-        // Do not record allocation unless allocated at least _interval bytes
-        while (true) {
-            u64 prev = _allocated_bytes;
-            u64 next = prev + total_size;
-            if (next < _interval) {
-                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next)) {
-                    return;
-                }
-            } else {
-                if (__sync_bool_compare_and_swap(&_allocated_bytes, prev, next % _interval)) {
-                    break;
-                }
-            }
-        }
+    if (!updateCounter(_allocated_bytes, total_size, _interval)) {
+        return;
     }
 
     AllocEvent event;

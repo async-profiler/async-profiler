@@ -22,7 +22,7 @@ usage() {
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
-    echo "  -a                annotate Java method names"
+    echo "  -a                annotate Java methods"
     echo "  -l                prepend library names"
     echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"
@@ -39,7 +39,7 @@ usage() {
     echo "  --total           accumulate the total value (time, bytes, etc.)"
     echo "  --all-user        only include user-mode events"
     echo "  --sched           group threads by scheduling policy"
-    echo "  --cstack mode     how to traverse C stack: fp|lbr|no"
+    echo "  --cstack mode     how to traverse C stack: fp|dwarf|lbr|no"
     echo "  --begin function  begin profiling when function is executed"
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
@@ -225,7 +225,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --timeout|--loop)
-            if [ "$ACTION" == "collect" ]; then
+            if [ "$ACTION" = "collect" ]; then
                 ACTION="start"
             fi
             PARAMS="$PARAMS,${1#--}=$2"

@@ -82,18 +82,19 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
+//     loglevel=LEVEL   - logging level: TRACE, DEBUG, INFO, WARN, ERROR, or NONE
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
-//                        MODE is 'fp' (Frame Pointer), 'lbr' (Last Branch Record) or 'no'
+//                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     sig              - print method signatures
-//     ann              - annotate Java method names
+//     ann              - annotate Java methods
 //     lib              - prepend library names
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
@@ -254,6 +255,12 @@ Error Arguments::parse(const char* args) {
             CASE("log")
                 _log = value == NULL || value[0] == 0 ? NULL : value;
 
+            CASE("loglevel")
+                if (value == NULL || value[0] == 0) {
+                    msg = "loglevel must not be empty";
+                }
+                _loglevel = value;
+
             CASE("fdtransfer")
                 _fdtransfer = true;
                 _fdtransfer_path = value;
@@ -284,6 +291,8 @@ Error Arguments::parse(const char* args) {
                 if (value != NULL) {
                     if (value[0] == 'n') {
                         _cstack = CSTACK_NO;
+                    } else if (value[0] == 'd') {
+                        _cstack = CSTACK_DWARF;
                     } else if (value[0] == 'l') {
                         _cstack = CSTACK_LBR;
                     } else {

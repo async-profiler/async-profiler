@@ -18,6 +18,7 @@
 #define _PERFEVENTS_H
 
 #include <signal.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -32,19 +33,21 @@ class PerfEvents : public Engine {
     static long _interval;
     static Ring _ring;
     static CStack _cstack;
+    static bool _use_mmap_page;
 
+    static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
   public:
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
-
     const char* title();
     const char* units();
 
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
     static void resetBuffer(int tid);
 
     static bool supported();

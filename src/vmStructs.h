@@ -30,7 +30,7 @@ class VMStructs {
     static bool _has_class_names;
     static bool _has_method_structs;
     static bool _has_class_loader_data;
-    static bool _has_thread_bridge;
+    static bool _has_native_thread_id;
     static bool _has_perm_gen;
 
     static int _klass_name_offset;
@@ -48,9 +48,11 @@ class VMStructs {
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
+    static int _frame_complete_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
-    static int _constmethod_offset;
+    static int _method_constmethod_offset;
+    static int _method_code_offset;
     static int _constmethod_constants_offset;
     static int _constmethod_idnum_offset;
     static int _pool_holder_offset;
@@ -89,6 +91,7 @@ class VMStructs {
     static void initOffsets();
     static void resolveOffsets();
     static void initJvmFunctions();
+    static void initTLS(void* vm_thread);
     static void initThreadBridge(JNIEnv* env);
     static void initLogging(JNIEnv* env);
 
@@ -116,8 +119,8 @@ class VMStructs {
         return _has_class_loader_data;
     }
 
-    static bool hasThreadBridge() {
-        return _has_thread_bridge;
+    static bool hasJavaThreadId() {
+        return _tid != NULL;
     }
 
     typedef jvmtiError (*GetStackTraceFunc)(void* self, void* thread,
@@ -229,6 +232,10 @@ class VMThread : VMStructs {
   public:
     static VMThread* current();
 
+    static int key() {
+        return _tls_index;
+    }
+
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
     }
@@ -241,9 +248,7 @@ class VMThread : VMStructs {
         return env->GetLongField(thread, _tid);
     }
 
-    static bool hasNativeId() {
-        return _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
-    }
+    static int nativeThreadId(JNIEnv* jni, jthread thread);
 
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);
@@ -270,8 +275,16 @@ class ConstMethod : VMStructs {
 
 class VMMethod : VMStructs {
   public:
+    static VMMethod* fromMethodID(jmethodID id) {
+        return *(VMMethod**)id;
+    }
+
     ConstMethod* constMethod() {
-        return *(ConstMethod**) at(_constmethod_offset);
+        return *(ConstMethod**) at(_method_constmethod_offset);
+    }
+
+    NMethod* code() {
+        return *(NMethod**) at(_method_code_offset);
     }
 };
 
@@ -281,6 +294,14 @@ class NMethod : VMStructs {
         return *(int*) at(_frame_size_offset);
     }
 
+    int frameCompleteOffset() {
+        return *(int*) at(_frame_complete_offset);
+    }
+
+    void setFrameCompleteOffset(int offset) {
+        *(int*) at(_frame_complete_offset) = offset;
+    }
+
     const char* name() {
         return *(const char**) at(_nmethod_name_offset);
     }
@@ -288,6 +309,11 @@ class NMethod : VMStructs {
     bool isNMethod() {
         const char* n = name();
         return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+    }
+
+    bool isInterpreter() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "Interpreter") == 0;
     }
 
     VMMethod* method() {

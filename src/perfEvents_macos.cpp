@@ -24,9 +24,17 @@ PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
 Ring PerfEvents::_ring;
+CStack PerfEvents::_cstack;
+bool PerfEvents::_use_mmap_page;
 
+u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
+    return 0;
+}
 
 void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+}
+
+void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
 }
 
 const char* PerfEvents::title() {
@@ -48,7 +56,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     return 0;
 }
 

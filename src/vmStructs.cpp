@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include "vmStructs.h"
 #include "vmEntry.h"
+#include "j9Ext.h"
 
 
 CodeCache* VMStructs::_libjvm = NULL;
@@ -25,7 +26,7 @@ CodeCache* VMStructs::_libjvm = NULL;
 bool VMStructs::_has_class_names = false;
 bool VMStructs::_has_method_structs = false;
 bool VMStructs::_has_class_loader_data = false;
-bool VMStructs::_has_thread_bridge = false;
+bool VMStructs::_has_native_thread_id = false;
 bool VMStructs::_has_perm_gen = false;
 
 int VMStructs::_klass_name_offset = -1;
@@ -43,9 +44,11 @@ int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_frame_size_offset = -1;
+int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
-int VMStructs::_constmethod_offset = -1;
+int VMStructs::_method_constmethod_offset = -1;
+int VMStructs::_method_code_offset = -1;
 int VMStructs::_constmethod_constants_offset = -1;
 int VMStructs::_constmethod_idnum_offset = -1;
 int VMStructs::_pool_holder_offset = -1;
@@ -105,7 +108,6 @@ void VMStructs::ready() {
     JNIEnv* env = VM::jni();
     initThreadBridge(env);
     initLogging(env);
-    env->ExceptionClear();
 }
 
 void VMStructs::initOffsets() {
@@ -145,7 +147,9 @@ void VMStructs::initOffsets() {
             }
         } else if (strcmp(type, "Method") == 0) {
             if (strcmp(field, "_constMethod") == 0) {
-                _constmethod_offset = *(int*)(entry + offset_offset);
+                _method_constmethod_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_code") == 0) {
+                _method_code_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "ConstMethod") == 0) {
             if (strcmp(field, "_constants") == 0) {
@@ -194,6 +198,8 @@ void VMStructs::initOffsets() {
         } else if (strcmp(type, "CodeBlob") == 0) {
             if (strcmp(field, "_frame_size") == 0) {
                 _frame_size_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_frame_complete_offset") == 0) {
+                _frame_complete_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_name") == 0) {
                 _nmethod_name_offset = *(int*)(entry + offset_offset);
             }
@@ -278,7 +284,8 @@ void VMStructs::resolveOffsets() {
 
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0
-            && _constmethod_offset >= 0
+            && _method_constmethod_offset >= 0
+            && _method_code_offset >= 0
             && _constmethod_constants_offset >= 0
             && _constmethod_idnum_offset >= 0
             && _pool_holder_offset >= 0;
@@ -323,40 +330,41 @@ void VMStructs::initJvmFunctions() {
     }
 }
 
-void VMStructs::initThreadBridge(JNIEnv* env) {
-    // Get eetop field - a bridge from Java Thread to VMThread
-    jthread thread;
-    if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
-        return;
-    }
-
-    jclass thread_class = env->GetObjectClass(thread);
-    _eetop = env->GetFieldID(thread_class, "eetop", "J");
-    _tid = env->GetFieldID(thread_class, "tid", "J");
-    if (_eetop == NULL || _tid == NULL) {
-        return;
-    }
-
-    VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
-    if (vm_thread == NULL) {
-        return;
-    }
-
-    // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
-    // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
+void VMStructs::initTLS(void* vm_thread) {
     for (int i = 0; i < 1024; i++) {
         if (pthread_getspecific((pthread_key_t)i) == vm_thread) {
             _tls_index = i;
             break;
         }
     }
+}
 
-    if (_tls_index < 0) {
+void VMStructs::initThreadBridge(JNIEnv* env) {
+    jthread thread;
+    if (VM::jvmti()->GetCurrentThread(&thread) != 0) {
         return;
     }
 
-    _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-    _has_thread_bridge = true;
+    // Get eetop field - a bridge from Java Thread to VMThread
+    jclass thread_class = env->GetObjectClass(thread);
+    if ((_tid = env->GetFieldID(thread_class, "tid", "J")) == NULL ||
+        (_eetop = env->GetFieldID(thread_class, "eetop", "J")) == NULL) {
+        // No such field - probably not a HotSpot JVM
+        env->ExceptionClear();
+
+        void* j9thread = J9Ext::j9thread_self();
+        if (j9thread != NULL) {
+            initTLS(j9thread);
+        }
+    } else {
+        // HotSpot
+        VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
+        if (vm_thread != NULL) {
+            _env_offset = (intptr_t)env - (intptr_t)vm_thread;
+            _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
+            initTLS(vm_thread);
+        }
+    }
 }
 
 void VMStructs::initLogging(JNIEnv* env) {
@@ -380,11 +388,20 @@ void VMStructs::initLogging(JNIEnv* env) {
                 management->ExecuteDiagnosticCommand(env, env->NewStringUTF(cmd));
             }
         }
+        env->ExceptionClear();
     }
 }
 
 VMThread* VMThread::current() {
     return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+}
+
+int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
+    if (_has_native_thread_id) {
+        VMThread* vm_thread = fromJavaThread(jni, thread);
+        return vm_thread != NULL ? vm_thread->osThreadId() : -1;
+    }
+    return J9Ext::GetOSThreadID(thread);
 }
 
 jmethodID ConstMethod::id() {

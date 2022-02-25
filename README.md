@@ -18,13 +18,13 @@ to learn about all features.
 
 ## Download
 
-Current release (2.6):
+Current release (2.7):
 
- - Linux x64 (glibc): [async-profiler-2.6-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.6-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.6-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.6-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/async-profiler-2.6-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.6/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.7-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.7/async-profiler-2.7-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.7-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.7/async-profiler-2.7-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.7-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.7/async-profiler-2.7-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.7-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.7/async-profiler-2.7-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.7/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
@@ -250,7 +250,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.6/src/arguments.cpp#L50).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.7/src/arguments.cpp#L52).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
@@ -375,7 +375,7 @@ The following is a complete list of the command-line options accepted by
 
 * `-g` - print method signatures.
 
-* `-a` - annotate Java method names by adding `_[j]` suffix.
+* `-a` - annotate JIT compiled methods with `_[j]` and inlined methods with `_[i]`.
 
 * `-l` - prepend library names to symbols, e.g. ``libjvm.so`JVM_DefineClassWithSource``.
 
@@ -428,8 +428,9 @@ The following is a complete list of the command-line options accepted by
 
 * `--sched` - group threads by Linux-specific scheduling policy: BATCH/IDLE/OTHER.
 
-* `--cstack MODE` - how to traverse native frames (C stack). Possible modes are
-  `fp` (Frame Pointer), `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
+* `--cstack MODE` - how to walk native frames (C stack). Possible modes are
+  `fp` (Frame Pointer), `dwarf` (DWARF unwind info),
+  `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
   and `no` (do not collect C stack).
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
