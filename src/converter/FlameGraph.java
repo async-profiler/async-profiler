@@ -32,7 +32,7 @@ public class FlameGraph {
     public boolean reverse;
     public double minwidth;
     public int skip;
-    public Pattern highlightStacksPattern;
+    public Pattern highlightStacksPattern = null;
     public String input;
     public String output;
 
@@ -177,7 +177,7 @@ public class FlameGraph {
     }
 
     private int frameType(String title) {
-        if (highlightStacksPattern.matcher(title).matches()) {
+        if (highlightStacksPattern != null && highlightStacksPattern.matcher(title).matches()) {
             return 5;
         } else if (title.endsWith("_[j]")) {
             return 0;
