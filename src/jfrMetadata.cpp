@@ -164,7 +164,6 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
-                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("id", T_LONG, "Event Id")
                 << field("name", T_STRING, "Setting Name")
                 << field("value", T_STRING, "Setting Value"))

@@ -784,7 +784,6 @@ class Recording {
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
         buf->putVar32(_tid);
-        buf->putVar32(0);
         buf->putVar32(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
