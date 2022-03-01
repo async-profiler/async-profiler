@@ -69,14 +69,14 @@ static MemLeakTracer memleak_tracer;
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
 enum StackRecovery {
-    MOVE_SP      = 0x1,
-    MOVE_SP2     = 0x2,
-    POP_FRAME    = 0x4,
-    SCAN_STACK   = 0x8,
-    LAST_JAVA_PC = 0x10,
-    GC_TRACES    = 0x20,
-    JAVA_STATE   = 0x40,
-    MAX_RECOVERY = 0x7f
+    MOVE_SP      = (1 << 0),
+    MOVE_SP2     = (1 << 1),
+    POP_FRAME    = (1 << 2),
+    SCAN_STACK   = (1 << 3),
+    MAX_RECOVERY = MOVE_SP|MOVE_SP2|POP_FRAME|SCAN_STACK, // all of the above
+    LAST_JAVA_PC = (1 << 4),
+    GC_TRACES    = (1 << 5),
+    JAVA_STATE   = (1 << 6)
 };
 
 struct MethodSample {
