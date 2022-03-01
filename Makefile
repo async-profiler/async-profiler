@@ -178,6 +178,6 @@ cppcheck:
 		--error-exitcode=2 \
 		--suppress=memleak:src/codeCache.cpp:27 \
 		--suppress=memleakOnRealloc:src/dwarf.cpp:345 \
-		--suppress=memleakOnRealloc:src/memleakTracer.cpp:339 \
+		--suppress=memleakOnRealloc:src/memleakTracer.cpp:340 \
 		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
 		src/

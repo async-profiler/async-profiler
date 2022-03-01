@@ -128,8 +128,9 @@ void MemLeakTracer::flush_table(JNIEnv *env) {
             event._class_id = name != NULL ? Profiler::instance()->classMap()->lookup(name) : 0;
             env->ReleaseStringUTFChars(name_str, name);
 
-            Profiler::instance()->recordSample(_table[i].frames, _table[i].frames_size, _table[i].tid,
-                                                _table[i].ref_size, BCI_MEMLEAK, &event);
+            Profiler::instance()->recordExternalSample(_table[i].ref_size, _table[i].tid,
+                                                       _table[i].frames, _table[i].frames_size, /*truncated=*/false,
+                                                       BCI_MEMLEAK, &event);
         }
 
         env->DeleteLocalRef(ref);

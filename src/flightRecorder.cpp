@@ -775,6 +775,7 @@ class Recording {
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->engine()->name());
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
@@ -998,7 +999,7 @@ class Recording {
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
-            buf->putVar32(0);  // truncated
+            buf->putVar32(trace->truncated ? 1 : 0);
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
@@ -1010,8 +1011,8 @@ class Recording {
                     buf->putVar32(mi->getLineNumber(bci));
                     buf->putVar32(bci);
                 } else {
-                    buf->put8(0);
-                    buf->put8(0);
+                    buf->putVar32(0);
+                    buf->putVar32(bci);
                 }
                 buf->put8(type);
                 flushIfNeeded(buf);

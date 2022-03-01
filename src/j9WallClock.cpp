@@ -67,7 +67,7 @@ void J9WallClock::timerLoop() {
                     frames[j].bci = (fi->type << 24) | fi->location;
                 }
                 int tid = J9Ext::GetOSThreadID(si->thread);
-                Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames);
+                Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames, /*truncated=*/false);
             }
             jvmti->Deallocate((unsigned char*)stack_infos);
         }

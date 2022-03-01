@@ -53,6 +53,10 @@ class Engine {
         return "total";
     }
 
+    virtual const char* name() {
+        return "Engine";
+    }
+
     virtual Error check(Arguments& args);
     virtual Error start(Arguments& args);
     virtual void stop();

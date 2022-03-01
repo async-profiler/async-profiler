@@ -38,6 +38,10 @@ class ITimer : public Engine {
         return "ns";
     }
 
+    const char* name() {
+        return "ITimer";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

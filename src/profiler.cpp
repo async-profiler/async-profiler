@@ -301,7 +301,7 @@ bool Profiler::isAddressInCode(const void* pc) {
     }
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, bool *truncated, int event_type, int tid) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames = 0;
 
@@ -313,9 +313,9 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
         native_frames += PerfEvents::walkKernel(tid, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
     }
     if (_cstack == CSTACK_DWARF) {
-        native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames, truncated);
     } else {
-        native_frames += StackWalker::walkFP(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
+        native_frames += StackWalker::walkFP(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames, truncated);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
@@ -591,7 +591,7 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_ent
     return false;
 }
 
-void Profiler::recordSample(jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, int tid, u64 counter, jint event_type, Event* event) {
+void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
     u32 lock_index = getLockIndex(tid);
@@ -625,7 +625,7 @@ void Profiler::recordSample(jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames,
         num_frames += makeEventFrame(frames + num_frames, BCI_NATIVE_FRAME, (uintptr_t)OS::schedPolicy(tid));
     }
 
-    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, truncated, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
 
     _locks[lock_index].unlock();
@@ -650,6 +650,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         return;
     }
 
+    bool truncated = false;
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
@@ -658,7 +659,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
 
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
+    num_frames += getNativeTrace(ucontext, frames + num_frames, &truncated, event_type, tid);
 
     int first_java_frame = num_frames;
     if (event_type == 0) {
@@ -688,13 +689,13 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(0));
     }
 
-    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, truncated, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
 
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -704,7 +705,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
         num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(tid));
     }
 
-    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, truncated, counter);
 
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&

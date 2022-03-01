@@ -54,6 +54,10 @@ class WallClock : public Engine {
         return "ns";
     }
 
+    const char* name() {
+        return "WallClock";
+    }
+
     Error start(Arguments& args);
     void stop();
 };

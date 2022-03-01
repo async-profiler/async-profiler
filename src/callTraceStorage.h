@@ -28,6 +28,7 @@
 class LongHashTable;
 
 struct CallTrace {
+    bool truncated;
     int num_frames;
     ASGCT_CallFrame frames[1];
 };
@@ -59,8 +60,8 @@ class CallTraceStorage {
 
     SpinLock _lock;
 
-    u64 calcHash(int num_frames, ASGCT_CallFrame* frames);
-    CallTrace* storeCallTrace(int num_frames, ASGCT_CallFrame* frames);
+    u64 calcHash(int num_frames, ASGCT_CallFrame* frames, bool truncated);
+    CallTrace* storeCallTrace(int num_frames, ASGCT_CallFrame* frames, bool truncated);
     CallTrace* findCallTrace(LongHashTable* table, u64 hash);
 
   public:
@@ -72,7 +73,7 @@ class CallTraceStorage {
     void collectSamples(std::vector<CallTraceSample*>& samples);
     void collectSamples(std::map<u64, CallTraceSample>& map);
 
-    u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    u32 put(int num_frames, ASGCT_CallFrame* frames, bool truncated, u64 counter);
 };
 
 #endif // _CALLTRACESTORAGE

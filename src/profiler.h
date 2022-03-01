@@ -127,7 +127,7 @@ class Profiler {
     u32 getLockIndex(int tid);
     bool inJavaCode(void* ucontext);
     bool isAddressInCode(const void* pc);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, bool *truncated, int event_type, int tid);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
@@ -190,6 +190,7 @@ class Profiler {
     u64 total_samples() { return _total_samples; }
     int max_stack_depth() { return _max_stack_depth; }
     time_t uptime()     { return time(NULL) - _start_time; }
+    Engine* engine()    { return _engine; }
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
@@ -206,8 +207,8 @@ class Profiler {
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
-    void recordSample(jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, int tid, u64 counter, jint event_type, Event* event);
-    void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames);
+    void recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event);
+    void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 

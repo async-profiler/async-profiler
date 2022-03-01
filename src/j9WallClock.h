@@ -45,6 +45,10 @@ class J9WallClock : public Engine {
         return "ns";
     }
 
+    const char* name() {
+        return "J9WallClock";
+    }
+
     Error start(Arguments& args);
     void stop();
 };

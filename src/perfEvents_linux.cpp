@@ -708,12 +708,12 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        J9StackTraceNotification notif = { .num_frames = 0 };
+        J9StackTraceNotification notif = { .num_frames = 0, .truncated = false };
         notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
         if (_cstack == CSTACK_DWARF) {
-            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &notif.truncated);
         } else {
-            notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames);
+            notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &notif.truncated);
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {

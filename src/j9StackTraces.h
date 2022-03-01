@@ -28,6 +28,7 @@ struct J9StackTraceNotification {
     void* env;
     u64 counter;
     int num_frames;
+    bool truncated;
     int reserved;
     const void* addr[MAX_J9_NATIVE_FRAMES];
 

@@ -28,7 +28,7 @@ const intptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, bool *truncated) {
     const void* pc;
     uintptr_t fp;
     uintptr_t prev_fp = (uintptr_t)&fp;
@@ -46,21 +46,29 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     int depth = 0;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && !CodeHeap::contains(pc)) {
+    while (!CodeHeap::contains(pc)) {
+        if (depth == max_depth) {
+            *truncated = true;
+            break;
+        }
+
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
         if (fp <= prev_fp || fp >= prev_fp + MAX_FRAME_SIZE || fp >= bottom) {
+            *truncated = fp != 0x0;
             break;
         }
 
         // Frame pointer must be word aligned
         if ((fp & (sizeof(uintptr_t) - 1)) != 0) {
+            *truncated = true;
             break;
         }
 
         pc = stripPointer(SafeAccess::load((void**)fp + FRAME_PC_SLOT));
         if (pc < (const void*)MIN_VALID_PC || pc > (const void*)-MIN_VALID_PC) {
+            *truncated = pc != NULL;
             break;
         }
 
@@ -71,7 +79,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth) {
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, bool *truncated) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -93,7 +101,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     Profiler* profiler = Profiler::instance();
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth && !CodeHeap::contains(pc)) {
+    while (!CodeHeap::contains(pc)) {
+        if (depth == max_depth) {
+            *truncated = true;
+            break;
+        }
+
         callchain[depth++] = pc;
         prev_sp = sp;
 
@@ -112,16 +125,19 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         } else if (cfa_reg == DW_REG_PLT) {
             sp += ((uintptr_t)pc & 15) >= 11 ? cfa_off * 2 : cfa_off;
         } else {
+            *truncated = true;
             break;
         }
 
         // Check if the next frame is below on the current stack
         if (sp < prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
+            *truncated = sp != 0x0;
             break;
         }
 
         // Stack pointer must be word aligned
         if ((sp & (sizeof(uintptr_t) - 1)) != 0) {
+            *truncated = true;
             break;
         }
 
@@ -135,6 +151,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         }
 
         if (pc < (const void*)MIN_VALID_PC || pc > (const void*)-MIN_VALID_PC) {
+            *truncated = pc != NULL;
             break;
         }
     }
