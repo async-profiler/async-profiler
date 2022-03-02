@@ -29,7 +29,7 @@ const char* const Log::LEVEL_NAME[] = {
 };
 
 FILE* Log::_file = stdout;
-LogLevel Log::_level = LOG_TRACE;
+LogLevel Log::_level = LOG_NONE;
 
 void Log::open(const char* file_name, const char* level) {
     if (_file != stdout && _file != stderr) {
@@ -45,7 +45,7 @@ void Log::open(const char* file_name, const char* level) {
         warn("Could not open log file: %s", file_name);
     }
 
-    LogLevel l = LOG_TRACE;
+    LogLevel l = LOG_NONE;
     if (level != NULL) {
         for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
             if (strcasecmp(LEVEL_NAME[i], level) == 0) {
@@ -83,7 +83,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     }
 
     if (level >= _level) {
-        fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
+        fprintf(_file, "[async-profiler][%s] %s\n", LEVEL_NAME[level], buf);
         fflush(_file);
     }
 }

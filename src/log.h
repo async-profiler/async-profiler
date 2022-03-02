@@ -26,13 +26,6 @@
 #define ATTR_FORMAT
 #endif
 
-#define LOG_LEVELS(fn) \
-    fn(TRACE) \
-    fn(DEBUG) \
-    fn(INFO) \
-    fn(WARN) \
-    fn(ERROR)
-
 enum LogLevel {
     LOG_TRACE,
     LOG_DEBUG,
@@ -60,6 +53,8 @@ class Log {
     static void ATTR_FORMAT info(const char* msg, ...);
     static void ATTR_FORMAT warn(const char* msg, ...);
     static void ATTR_FORMAT error(const char* msg, ...);
+
+    static LogLevel level() { return _level; }
 };
 
 #endif // _LOG_H
