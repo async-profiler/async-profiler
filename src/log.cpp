@@ -83,7 +83,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
     }
 
     if (level >= _level) {
-        fprintf(_file, "[async-profiler][%s] %s\n", LEVEL_NAME[level], buf);
+        fprintf(_file, "{\"@version\":\"1\",\"message\":\"%s\",\"logger_name\":\"async-profiler\",\"level\":\"%s\"}\n", buf, LEVEL_NAME[level]);
         fflush(_file);
     }
 }
