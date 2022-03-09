@@ -68,6 +68,9 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     }
 
     Log::open(args._log, args._loglevel);
+    if (args._unknown_arg != NULL) {
+        Log::warn("Unknown argument: %s", args._unknown_arg);
+    }
 
     if (!args.hasOutputFile()) {
         std::ostringstream out;
