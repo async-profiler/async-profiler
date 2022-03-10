@@ -36,6 +36,16 @@ class ExecutionEvent : public Event {
     }
 };
 
+class ContextIntervalEvent : public Event {
+  public:
+    u64 _tid;
+    u64 _timestamp;
+    u64 _duration;
+    const char* _context;
+
+  ContextIntervalEvent(u64 tid, u64 timestamp, u64 duration, const char* context) : _tid(tid), _timestamp(timestamp), _duration(duration), _context(context) {};
+};
+
 class AllocEvent : public Event {
   public:
     u32 _class_id;

@@ -44,6 +44,7 @@
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
+#include "varint.inline.h"
 #include "vmStructs.h"
 
 
@@ -721,6 +722,48 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
     _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
 
     _locks[lock_index].unlock();
+}
+
+int Profiler::recordContextIntervals(int tid, const char* context, jbyte* blob, jint blob_size, jlong threshold) {
+    size_t pos = 0;
+    u32 data_chunk_offset = (((((blob[pos] & 0xff) * 256) + (blob[pos + 1] & 0xff)) * 256) + (blob[pos + 2] & 0xff)) * 256 + (blob[pos + 3] & 0xff);
+    if (data_chunk_offset >= blob_size) {
+        Log::debug("Invalid context interval chunk ofset %u>%d", data_chunk_offset, blob_size);
+        return 1;
+    }
+    pos += 4;
+
+    u64 timestamp = readVarint(blob, &pos, blob_size);
+    u64 num_threads = readVarint(blob, &pos, blob_size);
+
+    GroupVarintIterator iterator(blob + data_chunk_offset, blob_size - data_chunk_offset);
+    for (u64 thrd = 0; thrd < num_threads; thrd++) {
+        u64 running_timestamp = timestamp;
+        u64 thread_id = readVarint(blob, &pos, blob_size);
+        u64 num_intervals = readVarint(blob, &pos, blob_size);
+
+        for (u64 interval = 0; interval < num_intervals; interval++) {
+            u64 from_delta = 0;
+            u64 till_delta = 0;
+            int error = 0;
+            if ((error = iterator.next(&from_delta)) != 0) {
+                Log::debug("Failed to retrieve the start of an interval (err=%d)", error);
+                return error | 0b00010000;
+            }
+            if ((error = iterator.next(&till_delta)) != 0) {
+                Log::debug("Failed to retrieve the end of an interval (err=%d)", error);
+                return error | 0b00100000;
+            }
+
+            if (till_delta >= threshold) {
+                ContextIntervalEvent event(thread_id, running_timestamp + from_delta, till_delta, context);
+                _jfr.recordContextInterval(&event);
+            }
+
+            running_timestamp += from_delta + till_delta;
+        }
+    }
+    return 0;
 }
 
 void Profiler::writeLog(LogLevel level, const char* message) {

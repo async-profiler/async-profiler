@@ -209,6 +209,7 @@ class Profiler {
     void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
     void recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event);
     void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated);
+    int recordContextIntervals(int tid, const char* context, jbyte* blob, jint blob_size, jlong threshold);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 

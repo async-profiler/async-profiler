@@ -719,7 +719,7 @@ class Recording {
     }
 
     void writeRecordingInfo(Buffer* buf) {
-        int start = buf->skip(1);
+        int start = buf->skip(5);
         buf->put8(T_ACTIVE_RECORDING);
         buf->putVar64(_recording_start_ticks);
         buf->putVar32(_stop_ticks - _recording_start_ticks);
@@ -731,7 +731,8 @@ class Recording {
         buf->putVar32(0);
         buf->putVar64(_recording_start_time / 1000);
         buf->putVar64((_stop_time - _recording_start_time) / 1000);
-        buf->put8(start, buf->offset() - start);
+        buf->putVar32(start, buf->offset() - start);
+        flushIfNeeded(buf);
     }
 
     void writeSettings(Buffer* buf, Arguments& args) {
@@ -1378,3 +1379,34 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
 
     _rec_lock.unlockShared();
 }
+
+    void FlightRecorder::recordContextInterval(ContextIntervalEvent* event) {
+        if (!_rec_lock.tryLockShared()) {
+            // No active recording
+            return;
+        }
+
+        int len = event->_context != NULL ? strlen(event->_context) : 0;
+        if (len > MAX_STRING_LENGTH) len = MAX_STRING_LENGTH;
+        /*
+         The data is:
+         - 1 byte for the event type
+         - 3 varint64 encoded longs (9 bytes at most each) = 27 bytes
+         - one UTF 8 string (1 byte header and len bytes content)
+         - 5 bytes for varint32 encoded event size
+         This makes (33 + len) bytes for the payload - let's reserve 40 bytes to be on the safe side
+         */
+        Buffer* buf = (Buffer*)alloca(len + 40); 
+        buf->reset();
+
+        int start = buf->skip(5); // varint32 encoded event size - always takes 5 bytes ¯\_(ツ)_/¯
+        buf->put8(T_CONTEXT_INTERVAL);
+        buf->putVar64(event->_timestamp);
+        buf->putVar64(event->_duration);
+        buf->putVar64(event->_tid);
+        buf->putUtf8(event->_context);
+        buf->putVar32(start, buf->offset() - start);
+        _rec->flush(buf);
+
+        _rec_lock.unlockShared();
+    }

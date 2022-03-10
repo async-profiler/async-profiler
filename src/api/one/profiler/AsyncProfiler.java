@@ -212,4 +212,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
+
+    // Datadog specific context interval events support
+    @Datadog
+    final native int writeContextIntervals0(String context, byte[] intervalBlobArray, int len, long threshold);
 }
