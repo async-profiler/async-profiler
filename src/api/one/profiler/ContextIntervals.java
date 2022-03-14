@@ -33,7 +33,7 @@ public final class ContextIntervals {
      * 
      * @param context the associated context
      * @param intervalBlob the context interval binary blob (custom format)
-     * @threshold intervals shorter than the threshold will not be emitted as JFR events
+     * @param threshold intervals shorter than the threshold will not be emitted as JFR events
      * @return returns exit code (0 = success)
      */
     public int writeContextIntervals(String context, ByteBuffer intervalBlob, long threshold) {
