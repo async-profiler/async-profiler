@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,12 +36,13 @@ public class ContextIntervalsTest {
     private static final byte duration = 3;
 
     private final int chunkOffsetIdx = 3;
-    private final int bitmapOffsetIdx = 11;
-    private final byte chunkOffset = 8;
+    private final int bitmapOffsetIdx = 12;
+    private final byte chunkOffset = 9;
     private final byte bitmapOffset = 6;
     private final byte[] dataTemplate = new byte[] {
         0, 0, 0, 0, // 4 bytes for the offset to group varint encoded chunk
         1, // varint encoded start timestamp (1)
+        1, // varint encoded frequency multuplier (1)
         1, // varint encoded number of threads (1)
         1, // varint encoded thread ID (1)
         1, // varint encoded number of intervals (1)
@@ -106,7 +108,11 @@ public class ContextIntervalsTest {
 
     @Test
     void testZeroOffsets() {
-        assertEquals(0, contextIntervals.writeContextIntervals("context", ByteBuffer.wrap(dataTemplate)));
+        byte[] data = Arrays.copyOf(dataTemplate, dataTemplate.length);
+        assertEquals(1, contextIntervals.writeContextIntervals("context", ByteBuffer.wrap(data)));
+
+        data[chunkOffsetIdx] = chunkOffset;
+        assertEquals(17, contextIntervals.writeContextIntervals("context", ByteBuffer.wrap(data)));
     }
 
     @Test
@@ -137,6 +143,35 @@ public class ContextIntervalsTest {
 
         assertEquals(1, durations.size());
         assertEquals(duration, durations.get(0).byteValue());
+    }
+    
+    @Test
+    void testPersistedSanity() throws Exception {
+        // persisted and encoded interval blob taken from a real life deployment - it contains 47 intervals
+        int expectedIntervals = 47;
+        String encoded = "AAAAIvb1iIiHwkvoBwiTAgGUAgGWAgFGDUcCVQFlAe4CGwAAANIs2DlgHjBMYJEXLl8F9uUrUcucNQGInnTTAwndBz7DCpqhagMQAeo+AXvDNIieDGCUFu4C3RN1CSwNvwUxW68NbxvvAasDdAGCCUgp69kBCK0BIJqNuS9/k15V1gHKg5YBxJlMOpIJQwPKAb2MrAMLHBsBslYoAjQBoAPEDtYC6AFkAUwb3QI6AXgBgAovAv4DQQF7GUID1miBAl4zJAlBDeICCAkWBgYRkw1LTvUfHgP6AaoBcQGSGLkBPwQvAlQCIwGwBUgBuwRwAS4IzUUUUUUiSmUSSSSSSUkUQ2SSSSSSSSSSSSSSSSSSSSSSSSSSQAA";
+        
+        byte[] data = java.util.Base64.getDecoder().decode(encoded);
+        assertEquals(0, contextIntervals.writeContextIntervals("context", ByteBuffer.wrap(data)));
+        
+        profiler.stop();
+
+        IItemCollection events = JfrLoaderToolkit.loadEvents(jfrPath.toFile());
+        IItemCollection filtered = events.apply(ItemFilters.type("datadog.ContextInterval"));
+
+        assertTrue(filtered.hasItems());
+
+        AtomicInteger counter = new AtomicInteger(0);
+        filtered.forEach(iterable -> {
+            IMemberAccessor<IQuantity, IItem> durationAccessor = JfrAttributes.DURATION.getAccessor(iterable.getType());
+            iterable.forEach(event -> {
+                long value = durationAccessor.getMember(event).longValue();
+                assertTrue(value >= 0);
+                assertTrue(value < 60 * 1_000_000_000L * 3); // sanity check - the blob does not contain any intervals longer than 1 minute
+                counter.incrementAndGet();
+            });
+        });
+        assertEquals(expectedIntervals, counter.get());
     }
 
     @Test

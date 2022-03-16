@@ -15,7 +15,7 @@ u32 GroupVarintIterator::_bitmap_bitmask[] = {
 GroupVarintIterator::GroupVarintIterator(jbyte *data_chunk, size_t size) {
     u32 bitmap_offset = (((((data_chunk[0] & 0xff) * 256) + (data_chunk[1] & 0xff)) * 256) + (data_chunk[2] & 0xff)) * 256 + (data_chunk[3] & 0xff);
 
-    if (bitmap_offset >= size) {
+    if (bitmap_offset < 2 || bitmap_offset >= size) {
         // corrupted data - make sure we are not going to read from random memory
         Log::debug("Invalid bitmap offset %u>%lu", bitmap_offset, size);
         _pos = 0;
@@ -29,7 +29,7 @@ GroupVarintIterator::GroupVarintIterator(jbyte *data_chunk, size_t size) {
     _data = data_chunk + 4;
     _bitmap = data_chunk + bitmap_offset;
 
-    _data_size = _bitmap - _data;
+    _data_size = bitmap_offset;
     _bitmap_size = size - _data_size;
 
     _bitmap_pos = 0;
@@ -45,6 +45,7 @@ bool GroupVarintIterator::hasNext() {
 GroupVarintIteratorError GroupVarintIterator::next(u64 *value) {
     if (!hasNext()) {
         // no more data
+        Log::debug("[GroupVarintIterator] No more data");
         return ERR_NO_DATA;
     }
     if (_bitmap_bit == -1) {
@@ -63,7 +64,6 @@ GroupVarintIteratorError GroupVarintIterator::next(u64 *value) {
     }
     unsigned int size = ((_current_size_mask & _bitmap_bitmask[_bitmap_bit]) >> (7 - _bitmap_bit) * 3) + 1;
     if (++_bitmap_bit > 7) {
-        _bitmap_pos += 3;
         _bitmap_bit = -1;
         if (_bitmap_pos >= _bitmap_size) {
             Log::debug("Out-of-bounds bitmap access %lu>%lu", _bitmap_pos, _bitmap_size);

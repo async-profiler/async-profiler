@@ -727,13 +727,14 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
 int Profiler::recordContextIntervals(int tid, const char* context, jbyte* blob, jint blob_size, jlong threshold) {
     size_t pos = 0;
     u32 data_chunk_offset = (((((blob[pos] & 0xff) * 256) + (blob[pos + 1] & 0xff)) * 256) + (blob[pos + 2] & 0xff)) * 256 + (blob[pos + 3] & 0xff);
-    if (data_chunk_offset >= blob_size) {
+    if (data_chunk_offset < 2 || data_chunk_offset >= blob_size) {
         Log::debug("Invalid context interval chunk ofset %u>%d", data_chunk_offset, blob_size);
         return 1;
     }
     pos += 4;
 
     u64 timestamp = readVarint(blob, &pos, blob_size);
+    u64 freq_multiplier = readVarint(blob, &pos, blob_size);
     u64 num_threads = readVarint(blob, &pos, blob_size);
 
     GroupVarintIterator iterator(blob + data_chunk_offset, blob_size - data_chunk_offset);
