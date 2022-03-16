@@ -1309,7 +1309,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
 
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
-    int event_mask = (args._event != NULL ? EM_CPU : 0) |
+    int event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
                      (args._alloc > 0 ? EM_ALLOC : 0) |
                      (args._lock > 0 ? EM_LOCK : 0) |
                      (args._memleak > 0 ? EM_MEMLEAK : 0);

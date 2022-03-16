@@ -943,7 +943,7 @@ bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
 }
 
 Engine* Profiler::selectEngine(Arguments& args) {
-    if (args._event == NULL) {
+    if (args._event == NULL || strcmp(args._event, EVENT_NOOP) == 0) {
         return &noop_engine;
     } else if (strcmp(args._event, EVENT_CPU) == 0) {
         return !perf_events.check(args) ? (Engine*)&perf_events :
@@ -1011,7 +1011,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
-    _event_mask = (args._event != NULL ? EM_CPU : 0) |
+    _event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
                   (args._alloc > 0 ? EM_ALLOC : 0) |
                   (args._lock > 0 ? EM_LOCK : 0) |
                   (args._memleak > 0 ? EM_MEMLEAK : 0);

@@ -24,6 +24,7 @@ const long DEFAULT_INTERVAL = 10000000;  // 10 ms
 const int DEFAULT_JSTACKDEPTH = 2048;
 const int DEFAULT_MEMLEAK_CAP = 8192;
 
+const char* const EVENT_NOOP   = "noop";
 const char* const EVENT_CPU    = "cpu";
 const char* const EVENT_ALLOC  = "alloc";
 const char* const EVENT_LOCK   = "lock";
