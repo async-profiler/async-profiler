@@ -687,14 +687,15 @@ class Recording {
 
     void writeMetadata(Buffer* buf) {
         int metadata_start = buf->skip(5);  // size will be patched later
-        buf->putVar32(T_METADATA);
+        buf->putVar64(T_METADATA);
         buf->putVar64(_start_ticks);
-        buf->putVar32(0);
-        buf->putVar32(1);
+        buf->put8(0);
+        buf->put8(1);
 
         std::vector<std::string>& strings = JfrMetadata::strings();
-        buf->putVar32(strings.size());
+        buf->putVar64(strings.size());
         for (int i = 0; i < strings.size(); i++) {
+            fprintf(stderr, "=> %d -> %s\n", i, strings[i].c_str());
             buf->putUtf8(strings[i].c_str());
         }
 
@@ -704,15 +705,18 @@ class Recording {
     }
 
     void writeElement(Buffer* buf, const Element* e) {
-        buf->putVar32(e->_name);
+        buf->putVar64(e->_name);
 
-        buf->putVar32(e->_attributes.size());
+        buf->putVar64(e->_attributes.size());
         for (int i = 0; i < e->_attributes.size(); i++) {
-            buf->putVar32(e->_attributes[i]._key);
-            buf->putVar32(e->_attributes[i]._value);
+            buf->putVar64(e->_attributes[i]._key);
+            buf->putVar64(e->_attributes[i]._value);
+            if (e->_attributes[i]._value == 254) {
+                fprintf(stderr, "==> attribute: %s\n", JfrMetadata::strings()[e->_attributes[i]._key].c_str());
+            }
         }
 
-        buf->putVar32(e->_children.size());
+        buf->putVar64(e->_children.size());
         for (int i = 0; i < e->_children.size(); i++) {
             writeElement(buf, e->_children[i]);
         }
@@ -720,15 +724,15 @@ class Recording {
 
     void writeRecordingInfo(Buffer* buf) {
         int start = buf->skip(5);
-        buf->put8(T_ACTIVE_RECORDING);
+        buf->putVar64(T_ACTIVE_RECORDING);
         buf->putVar64(_recording_start_ticks);
-        buf->putVar32(_stop_ticks - _recording_start_ticks);
-        buf->putVar32(_tid);
-        buf->putVar32(1);
+        buf->putVar64(_stop_ticks - _recording_start_ticks);
+        buf->putVar64(_tid);
+        buf->put8(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
         buf->putVar64(MAX_JLONG);
-        buf->putVar32(0);
+        buf->put8(0);
         buf->putVar64(_recording_start_time / 1000);
         buf->putVar64((_stop_time - _recording_start_time) / 1000);
         buf->putVar32(start, buf->offset() - start);
@@ -782,11 +786,11 @@ class Recording {
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
         int start = buf->skip(5);
-        buf->put8(T_ACTIVE_SETTING);
+        buf->putVar64(T_ACTIVE_SETTING);
         buf->putVar64(_start_ticks);
-        buf->putVar32(0);
-        buf->putVar32(_tid);
-        buf->putVar32(category);
+        buf->put8(0);
+        buf->putVar64(_tid);
+        buf->putVar64(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
         buf->putVar32(start, buf->offset() - start);
@@ -821,19 +825,19 @@ class Recording {
         str[sizeof(str) - 1] = 0;
 
         int start = buf->skip(5);
-        buf->put8(T_OS_INFORMATION);
+        buf->putVar64(T_OS_INFORMATION);
         buf->putVar64(_start_ticks);
         buf->putUtf8(str);
         buf->putVar32(start, buf->offset() - start);
 
         start = buf->skip(5);
-        buf->put8(T_CPU_INFORMATION);
+        buf->putVar64(T_CPU_INFORMATION);
         buf->putVar64(_start_ticks);
         buf->putUtf8(u.machine);
         buf->putUtf8(OS::getCpuDescription(str, sizeof(str) - 1) ? str : "");
-        buf->putVar32(1);
-        buf->putVar32(_available_processors);
-        buf->putVar32(_available_processors);
+        buf->put8(1);
+        buf->putVar64(_available_processors);
+        buf->putVar64(_available_processors);
         buf->putVar32(start, buf->offset() - start);
     }
 
@@ -851,7 +855,7 @@ class Recording {
 
         flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 5 * MAX_STRING_LENGTH);
         int start = buf->skip(5);
-        buf->put8(T_JVM_INFORMATION);
+        buf->putVar64(T_JVM_INFORMATION);
         buf->putVar64(_start_ticks);
         buf->putUtf8(jvm_name);
         buf->putUtf8(jvm_version);
@@ -859,7 +863,7 @@ class Recording {
         buf->putUtf8(_jvm_flags);
         buf->putUtf8(_java_command);
         buf->putVar64(OS::processStartTime());
-        buf->putVar32(OS::processId());
+        buf->putVar64(OS::processId());
         buf->putVar32(start, buf->offset() - start);
 
         jvmti->Deallocate((unsigned char*)jvm_version);
@@ -880,7 +884,7 @@ class Recording {
             if (jvmti->GetSystemProperty(key, &value) == 0) {
                 flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 2 * MAX_STRING_LENGTH);
                 int start = buf->skip(5);
-                buf->put8(T_INITIAL_SYSTEM_PROPERTY);
+                buf->putVar64(T_INITIAL_SYSTEM_PROPERTY);
                 buf->putVar64(_start_ticks);
                 buf->putUtf8(key);
                 buf->putUtf8(value);
@@ -902,7 +906,7 @@ class Recording {
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
             int start = buf->skip(5);
-            buf->put8(T_NATIVE_LIBRARY);
+            buf->putVar64(T_NATIVE_LIBRARY);
             buf->putVar64(_start_ticks);
             buf->putUtf8(native_libs[i]->name());
             buf->putVar64((uintptr_t) native_libs[i]->minAddress());
@@ -915,13 +919,13 @@ class Recording {
 
     void writeCpool(Buffer* buf) {
         buf->skip(5);  // size will be patched later
-        buf->putVar32(T_CPOOL);
+        buf->putVar64(T_CPOOL);
         buf->putVar64(_start_ticks);
-        buf->putVar32(0);
-        buf->putVar32(0);
-        buf->putVar32(1);
+        buf->put8(0);
+        buf->put8(0);
+        buf->put8(1);
 
-        buf->putVar32(9);
+        buf->put8(9);
 
         Lookup lookup(&_method_map, Profiler::instance()->classMap());
         writeFrameTypes(buf);
@@ -936,21 +940,21 @@ class Recording {
     }
 
     void writeFrameTypes(Buffer* buf) {
-        buf->putVar32(T_FRAME_TYPE);
-        buf->putVar32(6);
-        buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
-        buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
-        buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
-        buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
-        buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
-        buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar64(T_FRAME_TYPE);
+        buf->put8(6);
+        buf->putVar64(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
+        buf->putVar64(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
+        buf->putVar64(FRAME_INLINED);      buf->putUtf8("Inlined");
+        buf->putVar64(FRAME_NATIVE);       buf->putUtf8("Native");
+        buf->putVar64(FRAME_CPP);          buf->putUtf8("C++");
+        buf->putVar64(FRAME_KERNEL);       buf->putUtf8("Kernel");
     }
 
     void writeThreadStates(Buffer* buf) {
-        buf->putVar32(T_THREAD_STATE);
-        buf->putVar32(2);
-        buf->putVar32(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
-        buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
+        buf->putVar64(T_THREAD_STATE);
+        buf->put8(2);
+        buf->putVar64(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
+        buf->putVar64(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
 
     void writeThreads(Buffer* buf) {
@@ -963,8 +967,8 @@ class Recording {
         std::map<int, jlong>& thread_ids = profiler->_thread_ids;
         char name_buf[32];
 
-        buf->putVar32(T_THREAD);
-        buf->putVar32(threads.size());
+        buf->putVar64(T_THREAD);
+        buf->putVar64(threads.size());
         for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
             jlong thread_id;
@@ -978,9 +982,9 @@ class Recording {
                 thread_id = 0;
             }
 
-            buf->putVar32(threads[i]);
+            buf->putVar64(threads[i]);
             buf->putUtf8(thread_name);
-            buf->putVar32(threads[i]);
+            buf->putVar64(threads[i]);
             if (thread_id == 0) {
                 buf->put8(0);
             } else {
@@ -995,27 +999,27 @@ class Recording {
         std::map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
-        buf->putVar32(T_STACK_TRACE);
-        buf->putVar32(traces.size());
+        buf->putVar64(T_STACK_TRACE);
+        buf->putVar64(traces.size());
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
-            buf->putVar32(it->first);
-            buf->putVar32(trace->truncated ? 1 : 0);
-            buf->putVar32(trace->num_frames);
+            buf->putVar64(it->first);
+            buf->putVar64(trace->truncated ? 1 : 0);
+            buf->putVar64(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
-                buf->putVar32(mi->_key);
+                buf->putVar64(mi->_key);
                 jint bci = trace->frames[i].bci;
                 FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
                 if (bci >= 0) {
                     bci &= 0xffffff;
-                    buf->putVar32(mi->getLineNumber(bci));
-                    buf->putVar32(bci);
+                    buf->putVar64(mi->getLineNumber(bci));
+                    buf->putVar64(bci);
                 } else {
-                    buf->putVar32(0);
-                    buf->putVar32(bci);
+                    buf->put8(0);
+                    buf->putVar64(bci);
                 }
-                buf->put8(type);
+                buf->putVar64(type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
@@ -1032,18 +1036,18 @@ class Recording {
             }
         }
 
-        buf->putVar32(T_METHOD);
-        buf->putVar32(marked_count);
+        buf->putVar64(T_METHOD);
+        buf->putVar64(marked_count);
         for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
             MethodInfo& mi = it->second;
             if (mi._mark) {
                 mi._mark = false;
-                buf->putVar32(mi._key);
-                buf->putVar32(mi._class);
+                buf->putVar64(mi._key);
+                buf->putVar64(mi._class);
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
-                buf->putVar32(mi._modifiers);
-                buf->putVar32(mi.isHidden());
+                buf->putVar64(mi._modifiers);
+                buf->putVar64(mi.isHidden());
                 flushIfNeeded(buf);
             }
         }
@@ -1053,15 +1057,15 @@ class Recording {
         std::map<u32, const char*> classes;
         lookup->_classes->collect(classes);
 
-        buf->putVar32(T_CLASS);
-        buf->putVar32(classes.size());
+        buf->putVar64(T_CLASS);
+        buf->putVar64(classes.size());
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             const char* name = it->second;
-            buf->putVar32(it->first);
-            buf->putVar32(0);  // classLoader
+            buf->putVar64(it->first);
+            buf->putVar64(0);  // classLoader
             buf->putVar64(lookup->getSymbol(name) | _base_id);
             buf->putVar64(lookup->getPackage(name) | _base_id);
-            buf->putVar32(0);  // access flags
+            buf->putVar64(0);  // access flags
             flushIfNeeded(buf);
         }
     }
@@ -1083,8 +1087,8 @@ class Recording {
         std::map<u32, const char*> symbols;
         lookup->_symbols.collect(symbols);
 
-        buf->putVar32(T_SYMBOL);
-        buf->putVar32(symbols.size());
+        buf->putVar64(T_SYMBOL);
+        buf->putVar64(symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
             buf->putVar64(it->first | _base_id);
             buf->putUtf8(it->second);
@@ -1093,8 +1097,8 @@ class Recording {
     }
 
     void writeLogLevels(Buffer* buf) {
-        buf->putVar32(T_LOG_LEVEL);
-        buf->putVar32(LOG_ERROR - LOG_TRACE + 1);
+        buf->putVar64(T_LOG_LEVEL);
+        buf->putVar64(LOG_ERROR - LOG_TRACE + 1);
         for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
             buf->putVar32(i);
             buf->putUtf8(Log::LEVEL_NAME[i]);
@@ -1103,21 +1107,21 @@ class Recording {
 
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_EXECUTION_SAMPLE);
+        buf->putVar64(T_EXECUTION_SAMPLE);
         buf->putVar64(TSC::ticks());
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar32(event->_thread_state);
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_thread_state);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_ALLOC_IN_NEW_TLAB);
+        buf->putVar64(T_ALLOC_IN_NEW_TLAB);
         buf->putVar64(TSC::ticks());
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_class_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
@@ -1125,18 +1129,18 @@ class Recording {
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_ALLOC_OUTSIDE_TLAB);
+        buf->putVar64(T_ALLOC_OUTSIDE_TLAB);
         buf->putVar64(TSC::ticks());
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_class_id);
         buf->putVar64(event->_total_size);
         buf->put8(start, buf->offset() - start);
     }
 
     void recordHeapLiveObject(Buffer* buf, int tid, u32 call_trace_id, MemLeakEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_HEAP_LIVE_OBJECT);
+        buf->putVar64(T_HEAP_LIVE_OBJECT);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
@@ -1148,12 +1152,12 @@ class Recording {
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_MONITOR_ENTER);
+        buf->putVar64(T_MONITOR_ENTER);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_end_time - event->_start_time);
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_class_id);
         buf->put8(0);
         buf->putVar64(event->_address);
         buf->put8(start, buf->offset() - start);
@@ -1161,12 +1165,12 @@ class Recording {
 
     void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
-        buf->put8(T_THREAD_PARK);
+        buf->putVar64(T_THREAD_PARK);
         buf->putVar64(event->_start_time);
         buf->putVar64(event->_end_time - event->_start_time);
-        buf->putVar32(tid);
-        buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_class_id);
         buf->putVar64(event->_timeout);
         buf->putVar64(MIN_JLONG);
         buf->putVar64(event->_address);
@@ -1175,7 +1179,7 @@ class Recording {
 
     void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
         int start = buf->skip(1);
-        buf->put8(T_CPU_LOAD);
+        buf->putVar64(T_CPU_LOAD);
         buf->putVar64(TSC::ticks());
         buf->putFloat(proc_user);
         buf->putFloat(proc_system);
@@ -1370,9 +1374,9 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     buf->reset();
 
     int start = buf->skip(5);
-    buf->put8(T_LOG);
+    buf->putVar64(T_LOG);
     buf->putVar64(TSC::ticks());
-    buf->put8(level);
+    buf->putVar64(level);
     buf->putUtf8(message, len);
     buf->putVar32(start, buf->offset() - start);
     _rec->flush(buf);
@@ -1400,7 +1404,7 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
         buf->reset();
 
         int start = buf->skip(5); // varint32 encoded event size - always takes 5 bytes ¯\_(ツ)_/¯
-        buf->put8(T_CONTEXT_INTERVAL);
+        buf->putVar64(T_CONTEXT_INTERVAL);
         buf->putVar64(event->_timestamp);
         buf->putVar64(event->_duration);
         buf->putVar64(event->_tid);

@@ -67,7 +67,6 @@ enum JfrType {
     T_INITIAL_SYSTEM_PROPERTY = 114,
     T_NATIVE_LIBRARY = 115,
     T_LOG = 116,
-    T_CONTEXT_INTERVAL=117,
     T_ANNOTATION = 200,
     T_LABEL = 201,
     T_CATEGORY = 202,
@@ -77,6 +76,9 @@ enum JfrType {
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
     T_PERCENTAGE = 208,
+    // custom non-JFR event types
+    T_CUSTOM_EVENT = 4096,
+    T_CONTEXT_INTERVAL = T_CUSTOM_EVENT + 1,
 };
 
 
@@ -119,7 +121,7 @@ class Element {
 
     Element& attribute(const char* key, JfrType value) {
         char value_str[16];
-        sprintf(value_str, "%d", value);
+        sprintf(value_str, "%u", value);
         return attribute(key, value_str);
     }
 
@@ -157,6 +159,8 @@ class JfrMetadata : Element {
         e.attribute("id", id);
         if (simple) {
             e.attribute("simpleType", "true");
+        } else if (id > T_CUSTOM_EVENT) {
+            e.attribute("superType", "jdk.jfr.Event");
         } else if (id > T_ANNOTATION) {
             e.attribute("superType", "java.lang.annotation.Annotation");
         } else if (id > T_EVENT) {
