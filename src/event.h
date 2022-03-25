@@ -17,8 +17,13 @@
 #ifndef _EVENT_H
 #define _EVENT_H
 
+#include <cstring>
+#include <memory>
 #include <stdint.h>
 #include "os.h"
+using namespace std;
+
+#define MAX_STRING_LEN 8191
 
 
 class Event {
@@ -41,9 +46,15 @@ class ContextIntervalEvent : public Event {
     u64 _tid;
     u64 _timestamp;
     u64 _duration;
-    const char* _context;
+    std::unique_ptr<char> _context;
 
-  ContextIntervalEvent(u64 tid, u64 timestamp, u64 duration, const char* context) : _tid(tid), _timestamp(timestamp), _duration(duration), _context(context) {};
+  ContextIntervalEvent(u64 tid, u64 timestamp, u64 duration, const char* context)
+      : _tid(tid), _timestamp(timestamp), _duration(duration) {
+    _context = std::unique_ptr<char>(strndup(context, MAX_STRING_LEN));
+  }
+
+  ContextIntervalEvent(ContextIntervalEvent&& other) = default;
+  ContextIntervalEvent& operator=(ContextIntervalEvent&& other) = default;
 };
 
 class AllocEvent : public Event {

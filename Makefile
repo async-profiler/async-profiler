@@ -34,7 +34,7 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS),Darwin)
-  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE -std=c++11
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   FDTRANSFER_BIN=
   SOEXT=dylib

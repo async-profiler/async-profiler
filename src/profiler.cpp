@@ -758,6 +758,7 @@ int Profiler::recordContextIntervals(int tid, const char* context, jbyte* blob, 
 
             if (till_delta >= threshold) {
                 ContextIntervalEvent event(thread_id, running_timestamp + from_delta, till_delta, context);
+                // event must be properly deallocated once fully consumed
                 _jfr.recordContextInterval(&event);
             }
 
