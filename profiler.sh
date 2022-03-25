@@ -46,6 +46,7 @@ usage() {
     echo "  --jfrsync config  synchronize profiler with JFR recording"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
+    echo "  --safe-mode mode  disable stack recovery techniques (default: 0, i.e. everything enabled)"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
