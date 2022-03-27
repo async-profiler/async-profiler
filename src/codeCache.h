@@ -89,8 +89,8 @@ class CodeCache {
     const void* _max_address;
     const char* _text_base;
 
-    const void** _got_start;
-    const void** _got_end;
+    void** _got_start;
+    void** _got_end;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
@@ -125,19 +125,15 @@ class CodeCache {
         return address >= _min_address && address < _max_address;
     }
 
-    const char* textBase() const {
-        return _text_base;
-    }
-
     void setTextBase(const char* text_base) {
         _text_base = text_base;
     }
 
-    const void** gotStart() const {
+    void** gotStart() const {
         return _got_start;
     }
 
-    const void** gotEnd() const {
+    void** gotEnd() const {
         return _got_end;
     }
 
@@ -152,8 +148,8 @@ class CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 
-    void setGlobalOffsetTable(const void* start, unsigned int size);
-    const void** findGlobalOffsetEntry(const void* address);
+    void setGlobalOffsetTable(void** table, unsigned int count);
+    void** findGlobalOffsetEntry(void* address);
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);

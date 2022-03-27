@@ -103,7 +103,7 @@ class Profiler {
     volatile int _native_lib_count;
 
     // dlopen() hook support
-    const void** _dlopen_entry;
+    void** _dlopen_entry;
     static void* dlopen_hook(const char* filename, int flags);
     void switchLibraryTrap(bool enable);
 

@@ -39,7 +39,7 @@ class MachOParser {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
             if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
-                _cc->setGlobalOffsetTable(add(_image_base, section->addr), section->size);
+                _cc->setGlobalOffsetTable((void**)add(_image_base, section->addr), section->size / sizeof(void*));
                 break;
             }
             section++;
