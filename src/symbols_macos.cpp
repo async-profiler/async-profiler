@@ -22,7 +22,6 @@
 #include <mach-o/loader.h>
 #include <mach-o/nlist.h>
 #include "symbols.h"
-#include "arch.h"
 #include "log.h"
 
 
@@ -117,14 +116,19 @@ bool Symbols::_have_kernel_symbols = false;
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
 
-void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
     uint32_t images = _dyld_image_count();
 
-    for (uint32_t i = 0; i < images && count < size; i++) {
+    for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
+        }
+
+        int count = array->count();
+        if (count >= MAX_NATIVE_LIBS) {
+            break;
         }
 
         const char* path = _dyld_get_image_name(i);
@@ -143,8 +147,7 @@ void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, b
         dlclose(handle);
 
         cc->sort();
-        array[count] = cc;
-        atomicInc(count);
+        array->add(cc);
     }
 }
 

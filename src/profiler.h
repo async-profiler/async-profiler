@@ -42,7 +42,6 @@ const char FULL_VERSION_STRING[] =
 
 const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;
-const int MAX_NATIVE_LIBS   = 2048;
 const int CONCURRENCY_LEVEL = 16;
 
 
@@ -99,8 +98,7 @@ class Profiler {
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
-    CodeCache* _native_libs[MAX_NATIVE_LIBS];
-    volatile int _native_lib_count;
+    CodeCacheArray _native_libs;
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -169,7 +167,7 @@ class Profiler {
         _thread_events_state(JVMTI_DISABLE),
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
-        _native_lib_count(0),
+        _native_libs(),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {

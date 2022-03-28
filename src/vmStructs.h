@@ -153,6 +153,8 @@ class MethodList {
 };
 
 
+class NMethod;
+
 class VMSymbol : VMStructs {
   public:
     unsigned short length() {

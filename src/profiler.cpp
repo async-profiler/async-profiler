@@ -166,7 +166,7 @@ inline u32 Profiler::getLockIndex(int tid) {
 }
 
 void Profiler::updateSymbols(bool kernel_symbols) {
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS, kernel_symbols);
+    Symbols::parseLibraries(&_native_libs, kernel_symbols);
 }
 
 void Profiler::mangle(const char* name, char* buf, size_t size) {
@@ -196,15 +196,16 @@ const void* Profiler::resolveSymbol(const char* name) {
     }
 
     size_t len = strlen(name);
+    int native_lib_count = _native_libs.count();
     if (len > 0 && name[len - 1] == '*') {
-        for (int i = 0; i < _native_lib_count; i++) {
+        for (int i = 0; i < native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbolByPrefix(name, len - 1);
             if (address != NULL) {
                 return address;
             }
         }
     } else {
-        for (int i = 0; i < _native_lib_count; i++) {
+        for (int i = 0; i < native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbol(name);
             if (address != NULL) {
                 return address;
@@ -218,7 +219,7 @@ const void* Profiler::resolveSymbol(const char* name) {
 // For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name
 const char* Profiler::getLibraryName(const char* native_symbol) {
     short lib_index = NativeFunc::libIndex(native_symbol);
-    if (lib_index >= 0 && lib_index < _native_lib_count) {
+    if (lib_index >= 0 && lib_index < _native_libs.count()) {
         const char* s = _native_libs[lib_index]->name();
         if (s != NULL) {
             const char* p = strrchr(s, '/');
@@ -234,7 +235,7 @@ CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
     }
 
     const size_t lib_name_len = strlen(lib_name);
-    const int native_lib_count = _native_lib_count;
+    const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
         const char* s = _native_libs[i]->name();
         if (s != NULL) {
@@ -248,7 +249,7 @@ CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
 }
 
 CodeCache* Profiler::findNativeLibrary(const void* address) {
-    const int native_lib_count = _native_lib_count;
+    const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
             return _native_libs[i];

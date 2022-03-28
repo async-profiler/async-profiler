@@ -28,7 +28,6 @@
 #include <fcntl.h>
 #include <linux/limits.h>
 #include "symbols.h"
-#include "arch.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
@@ -146,7 +145,8 @@ class ElfParser {
     ElfSection* findSection(uint32_t type, const char* name);
     ElfProgramHeader* findProgramHeader(uint32_t type);
 
-    void parseProgramHeaders();
+    void parseDynamicSection();
+    void parseDwarfInfo();
     void loadSymbols(bool use_debug);
     bool loadSymbolsUsingBuildId();
     bool loadSymbolsUsingDebugLink();
@@ -155,7 +155,8 @@ class ElfParser {
 
   public:
     static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(CodeCache* cc, const char* base, bool load_symbols);
+    static void parseMem(CodeCache* cc, const char* base);
+    static void parseProgramHeaders(CodeCache* cc, const char* base);
 };
 
 
@@ -209,20 +210,24 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
     return true;
 }
 
-void ElfParser::parseMem(CodeCache* cc, const char* base, bool load_symbols) {
+void ElfParser::parseMem(CodeCache* cc, const char* base) {
     ElfParser elf(cc, base, base);
     if (elf.validHeader()) {
-        cc->setTextBase(base);
-        elf.parseProgramHeaders();
-        if (load_symbols) {
-            elf.loadSymbols(false);
-        }
+        elf.loadSymbols(false);
     }
 }
 
-void ElfParser::parseProgramHeaders() {
-    // Find the bounds of the Global Offset Table
-    ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
+void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
+    ElfParser elf(cc, base, base);
+    if (elf.validHeader()) {
+        cc->setTextBase(base);
+        elf.parseDynamicSection();
+        elf.parseDwarfInfo();
+    }
+}
+
+void ElfParser::parseDynamicSection() {
+   ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
         void** got_start = NULL;
         size_t plt_size = 0;
@@ -253,8 +258,9 @@ void ElfParser::parseProgramHeaders() {
             _cc->setGlobalOffsetTable(got_start, plt_size / plt_entry_size);
         }
     }
+}
 
-    // Read DWARF unwind info
+void ElfParser::parseDwarfInfo() {
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
     if (eh_frame_hdr != NULL && DWARF_SUPPORTED) {
         DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
@@ -451,7 +457,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
     if (kernel_symbols && !haveKernelSymbols()) {
@@ -460,8 +466,7 @@ void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, b
 
         if (haveKernelSymbols()) {
             cc->sort();
-            array[count] = cc;
-            atomicInc(count);
+            array->add(cc);
         } else {
             delete cc;
         }
@@ -476,7 +481,7 @@ void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, b
     size_t str_size = 0;
     ssize_t len;
 
-    while (count < size && (len = getline(&str, &str_size, f)) > 0) {
+    while ((len = getline(&str, &str_size, f)) > 0) {
         str[len - 1] = 0;
 
         MemoryMapDesc map(str);
@@ -486,19 +491,22 @@ void Symbols::parseLibraries(CodeCache** array, volatile int& count, int size, b
                 continue;  // the library was already parsed
             }
 
+            int count = array->count();
+            if (count >= MAX_NATIVE_LIBS) {
+                break;
+            }
+
             CodeCache* cc = new CodeCache(map.file(), count, image_base, map.end());
 
             if (map.inode() != 0) {
-                image_base -= map.offs();
-                ElfParser::parseFile(cc, image_base, map.file(), true);
-                ElfParser::parseMem(cc, image_base, false);
+                ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
+                ElfParser::parseProgramHeaders(cc, image_base);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, image_base, true);
+                ElfParser::parseMem(cc, image_base);
             }
 
             cc->sort();
-            array[count] = cc;
-            atomicInc(count);
+            array->add(cc);
         }
     }
 

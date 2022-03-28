@@ -26,6 +26,7 @@
 typedef bool (*NamePredicate)(const char* name);
 
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
+const int MAX_NATIVE_LIBS = 2048;
 
 
 class NativeFunc {
@@ -153,6 +154,31 @@ class CodeCache {
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+};
+
+
+class CodeCacheArray {
+  private:
+    CodeCache* _libs[MAX_NATIVE_LIBS];
+    int _count;
+
+  public:
+    CodeCacheArray() : _count(0) {
+    }
+
+    CodeCache* operator[](int index) {
+        return _libs[index];
+    }
+
+    int count() {
+        return __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+    }
+
+    void add(CodeCache* lib) {
+        int index = __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+        _libs[index] = lib;
+        __atomic_store_n(&_count, index + 1, __ATOMIC_RELEASE);
+    }
 };
 
 #endif // _CODECACHE_H
