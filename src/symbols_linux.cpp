@@ -76,7 +76,8 @@ class MemoryMapDesc {
       }
 
       const char* file()    { return _file; }
-      bool isExecutable()   { return _perm[0] == 'r' && _perm[2] == 'x'; }
+      bool isReadable()     { return _perm[0] == 'r'; }
+      bool isExecutable()   { return _perm[2] == 'x'; }
       const char* addr()    { return (const char*)strtoul(_addr, NULL, 16); }
       const char* end()     { return (const char*)strtoul(_end, NULL, 16); }
       unsigned long offs()  { return strtoul(_offs, NULL, 16); }
@@ -154,9 +155,9 @@ class ElfParser {
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
 
   public:
+    static void parseProgramHeaders(CodeCache* cc, const char* base);
     static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
     static void parseMem(CodeCache* cc, const char* base);
-    static void parseProgramHeaders(CodeCache* cc, const char* base);
 };
 
 
@@ -230,8 +231,10 @@ void ElfParser::parseDynamicSection() {
    ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
         void** got_start = NULL;
-        size_t plt_size = 0;
-        size_t plt_entry_size = 0;
+        size_t pltrelsz = 0;
+        size_t relsz = 0;
+        size_t relent = 0;
+        size_t relcount = 0;
 
         const char* dyn_start = at(dynamic);
         const char* dyn_end = dyn_start + dynamic->p_memsz;
@@ -241,28 +244,41 @@ void ElfParser::parseDynamicSection() {
                     got_start = (void**)dyn->d_un.d_ptr + 3;
                     break;
                 case DT_PLTRELSZ:
-                    plt_size = dyn->d_un.d_val;
+                    pltrelsz = dyn->d_un.d_val;
+                    break;
+                case DT_RELASZ:
+                case DT_RELSZ:
+                    relsz = dyn->d_un.d_val;
                     break;
                 case DT_RELAENT:
-                    plt_entry_size = dyn->d_un.d_val;
-                    break;
                 case DT_RELENT:
-                    if (plt_entry_size == 0) {
-                        plt_entry_size = dyn->d_un.d_val;
-                    }
+                    relent = dyn->d_un.d_val;
+                    break;
+                case DT_RELACOUNT:
+                case DT_RELCOUNT:
+                    relcount = dyn->d_un.d_val;
                     break;
             }
         }
 
-        if (got_start != NULL && plt_size != 0 && plt_entry_size != 0) {
-            _cc->setGlobalOffsetTable(got_start, plt_size / plt_entry_size);
+        if (got_start != NULL && relent != 0) {
+            if (pltrelsz != 0) {
+                // The number of entries in .got.plt section matches the number of entries in .rela.plt
+                _cc->setGlobalOffsetTable(got_start, pltrelsz / relent);
+            } else if (relsz != 0) {
+                // RELRO technique: .got.plt has been merged into .got and made read-only.
+                // Count the number of entries in .rela.dyn, excluding R_X86_64_RELATIVE.
+                _cc->setGlobalOffsetTable(got_start, relsz / relent - relcount);
+            }
         }
     }
 }
 
 void ElfParser::parseDwarfInfo() {
+    if (!DWARF_SUPPORTED) return;
+
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
-    if (eh_frame_hdr != NULL && DWARF_SUPPORTED) {
+    if (eh_frame_hdr != NULL) {
         DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
         _cc->setDwarfTable(dwarf.table(), dwarf.count());
     }
@@ -477,6 +493,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         return;
     }
 
+    const char* last_readable_base = NULL;
+    const char* image_end = NULL;
     char* str = NULL;
     size_t str_size = 0;
     ssize_t len;
@@ -485,8 +503,15 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         str[len - 1] = 0;
 
         MemoryMapDesc map(str);
-        if (map.isExecutable() && map.file() != NULL && map.file()[0] != 0) {
-            const char* image_base = map.addr();
+        if (!map.isReadable() || map.file() == NULL || map.file()[0] == 0) {
+            continue;
+        }
+
+        const char* image_base = map.addr();
+        if (image_base != image_end) last_readable_base = image_base;
+        image_end = map.end();
+
+        if (map.isExecutable()) {
             if (!_parsed_libraries.insert(image_base).second) {
                 continue;  // the library was already parsed
             }
@@ -496,11 +521,14 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                 break;
             }
 
-            CodeCache* cc = new CodeCache(map.file(), count, image_base, map.end());
+            CodeCache* cc = new CodeCache(map.file(), count, image_base, image_end);
 
             if (map.inode() != 0) {
-                ElfParser::parseFile(cc, image_base - map.offs(), map.file(), true);
-                ElfParser::parseProgramHeaders(cc, image_base);
+                // Be careful: executable file is not always ELF, e.g. classes.jsa
+                if ((image_base -= map.offs()) >= last_readable_base) {
+                    ElfParser::parseProgramHeaders(cc, image_base);
+                }
+                ElfParser::parseFile(cc, image_base, map.file(), true);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
                 ElfParser::parseMem(cc, image_base);
             }
