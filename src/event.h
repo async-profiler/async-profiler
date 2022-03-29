@@ -46,11 +46,11 @@ class ContextIntervalEvent : public Event {
     u64 _tid;
     u64 _timestamp;
     u64 _duration;
-    std::unique_ptr<char> _context;
+    std::unique_ptr<char, void(*)(void*)> _context;
 
   ContextIntervalEvent(u64 tid, u64 timestamp, u64 duration, const char* context)
-      : _tid(tid), _timestamp(timestamp), _duration(duration) {
-    _context = std::unique_ptr<char>(strndup(context, MAX_STRING_LEN));
+      : _tid(tid), _timestamp(timestamp), _duration(duration),
+        _context(std::unique_ptr<char, void(*)(void*)>(strndup(context, MAX_STRING_LEN), free)) {
   }
 
   ContextIntervalEvent(ContextIntervalEvent&& other) = default;
