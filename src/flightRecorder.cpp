@@ -1227,6 +1227,11 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     JNIEnv* env = VM::jni();
 
     if (_jfr_sync_class == NULL) {
+        if (env->FindClass("jdk/jfr/FlightRecorderListener") == NULL) {
+            env->ExceptionClear();
+            return Error("JDK Flight Recorder is not available");
+        }
+
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
         jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
