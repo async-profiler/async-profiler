@@ -677,7 +677,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -699,8 +699,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
         return;
     }
 
-    ExecutionEvent event;
-    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, event, counter);
 
     _locks[lock_index].unlock();
 }
