@@ -151,7 +151,7 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
 }
 
 
-static const void** _pthread_entry = NULL;
+static void** _pthread_entry = NULL;
 
 // Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
 // HotSpot puts VMThread into TLS on thread start, and resets on thread end.
@@ -173,9 +173,9 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     }
 }
 
-static const void** lookupThreadEntry() {
+static void** lookupThreadEntry() {
     CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
-    return lib != NULL ? lib->findGlobalOffsetEntry((const void*)&pthread_setspecific) : NULL;
+    return lib != NULL ? lib->findGlobalOffsetEntry((void*)&pthread_setspecific) : NULL;
 }
 
 

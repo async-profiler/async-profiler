@@ -856,8 +856,8 @@ class Recording {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
-        CodeCache** native_libs = profiler->_native_libs;
-        int native_lib_count = profiler->_native_lib_count;
+        CodeCacheArray& native_libs = profiler->_native_libs;
+        int native_lib_count = native_libs.count();
 
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
@@ -1225,6 +1225,11 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     JNIEnv* env = VM::jni();
 
     if (_jfr_sync_class == NULL) {
+        if (env->FindClass("jdk/jfr/FlightRecorderListener") == NULL) {
+            env->ExceptionClear();
+            return Error("JDK Flight Recorder is not available");
+        }
+
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
         jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));

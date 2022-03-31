@@ -356,7 +356,7 @@ Error Arguments::parse(const char* args) {
                 _reverse = true;
 
             DEFAULT()
-                msg = "Unknown argument";
+                if (_unknown_arg == NULL) _unknown_arg = arg;
         }
     }
 

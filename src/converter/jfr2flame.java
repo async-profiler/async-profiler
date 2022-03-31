@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Converts .jfr output produced by async-profiler to HTML Flame Graph.
@@ -46,11 +47,13 @@ public class jfr2flame {
     }
 
     public void convert(final FlameGraph fg, final boolean threads, final boolean total,
-                        final boolean lines, final boolean bci,
+                        final boolean lines, final boolean bci, final int threadState,
                         final Class<? extends Event> eventClass) throws IOException {
         EventAggregator agg = new EventAggregator(threads, total);
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
-            agg.collect(event);
+            if (threadState < 0 || ((ExecutionSample) event).threadState == threadState) {
+                agg.collect(event);
+            }
         }
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
@@ -178,12 +181,22 @@ public class jfr2flame {
         return result;
     }
 
+    private static int getMapKey(Map<Integer, String> map, String value) {
+        for (Map.Entry<Integer, String> entry : map.entrySet()) {
+            if (value.equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return -1;
+    }
+
     public static void main(String[] args) throws Exception {
         FlameGraph fg = new FlameGraph(args);
         if (fg.input == null) {
             System.out.println("Usage: java " + jfr2flame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
             System.out.println("options include all supported FlameGraph options, plus the following:");
+            System.out.println("  --cpu      CPU Flame Graph");
             System.out.println("  --alloc    Allocation Flame Graph");
             System.out.println("  --lock     Lock contention Flame Graph");
             System.out.println("  --threads  Split profile by threads");
@@ -200,16 +213,19 @@ public class jfr2flame {
         boolean bci = options.contains("--bci");
 
         Class<? extends Event> eventClass;
+        boolean cpu = false;
         if (options.contains("--alloc")) {
             eventClass = AllocationSample.class;
         } else if (options.contains("--lock")) {
             eventClass = ContendedLock.class;
         } else {
             eventClass = ExecutionSample.class;
+            cpu = options.contains("--cpu");
         }
 
         try (JfrReader jfr = new JfrReader(fg.input)) {
-            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, eventClass);
+            int threadState = cpu ? getMapKey(jfr.threadStates, "STATE_RUNNABLE") : -1;
+            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, threadState, eventClass);
         }
 
         fg.dump();
