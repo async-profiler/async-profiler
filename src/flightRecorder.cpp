@@ -1202,8 +1202,7 @@ void FlightRecorder::stop() {
 void FlightRecorder::flush() {
     if (_rec != NULL) {
         _rec_lock.lock();
-        // FIXME _rec->switchChunk();
-        _rec->checkpoint(false);
+        _rec->switchChunk();
         _rec_lock.unlock();
     }
 }
