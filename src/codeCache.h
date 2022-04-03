@@ -26,6 +26,7 @@
 typedef bool (*NamePredicate)(const char* name);
 
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
+const int MAX_NATIVE_LIBS = 2048;
 
 
 class NativeFunc {
@@ -89,8 +90,8 @@ class CodeCache {
     const void* _max_address;
     const char* _text_base;
 
-    const void** _got_start;
-    const void** _got_end;
+    void** _got_start;
+    void** _got_end;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
@@ -125,19 +126,15 @@ class CodeCache {
         return address >= _min_address && address < _max_address;
     }
 
-    const char* textBase() const {
-        return _text_base;
-    }
-
     void setTextBase(const char* text_base) {
         _text_base = text_base;
     }
 
-    const void** gotStart() const {
+    void** gotStart() const {
         return _got_start;
     }
 
-    const void** gotEnd() const {
+    void** gotEnd() const {
         return _got_end;
     }
 
@@ -152,11 +149,36 @@ class CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 
-    void setGlobalOffsetTable(const void* start, unsigned int size);
-    const void** findGlobalOffsetEntry(const void* address);
+    void setGlobalOffsetTable(void** table, unsigned int count);
+    void** findGlobalOffsetEntry(void* address);
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+};
+
+
+class CodeCacheArray {
+  private:
+    CodeCache* _libs[MAX_NATIVE_LIBS];
+    int _count;
+
+  public:
+    CodeCacheArray() : _count(0) {
+    }
+
+    CodeCache* operator[](int index) {
+        return _libs[index];
+    }
+
+    int count() {
+        return __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+    }
+
+    void add(CodeCache* lib) {
+        int index = __atomic_load_n(&_count, __ATOMIC_ACQUIRE);
+        _libs[index] = lib;
+        __atomic_store_n(&_count, index + 1, __ATOMIC_RELEASE);
+    }
 };
 
 #endif // _CODECACHE_H

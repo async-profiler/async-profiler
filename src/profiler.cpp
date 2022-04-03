@@ -166,7 +166,7 @@ inline u32 Profiler::getLockIndex(int tid) {
 }
 
 void Profiler::updateSymbols(bool kernel_symbols) {
-    Symbols::parseLibraries(_native_libs, _native_lib_count, MAX_NATIVE_LIBS, kernel_symbols);
+    Symbols::parseLibraries(&_native_libs, kernel_symbols);
 }
 
 void Profiler::mangle(const char* name, char* buf, size_t size) {
@@ -196,15 +196,16 @@ const void* Profiler::resolveSymbol(const char* name) {
     }
 
     size_t len = strlen(name);
+    int native_lib_count = _native_libs.count();
     if (len > 0 && name[len - 1] == '*') {
-        for (int i = 0; i < _native_lib_count; i++) {
+        for (int i = 0; i < native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbolByPrefix(name, len - 1);
             if (address != NULL) {
                 return address;
             }
         }
     } else {
-        for (int i = 0; i < _native_lib_count; i++) {
+        for (int i = 0; i < native_lib_count; i++) {
             const void* address = _native_libs[i]->findSymbol(name);
             if (address != NULL) {
                 return address;
@@ -218,7 +219,7 @@ const void* Profiler::resolveSymbol(const char* name) {
 // For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name
 const char* Profiler::getLibraryName(const char* native_symbol) {
     short lib_index = NativeFunc::libIndex(native_symbol);
-    if (lib_index >= 0 && lib_index < _native_lib_count) {
+    if (lib_index >= 0 && lib_index < _native_libs.count()) {
         const char* s = _native_libs[lib_index]->name();
         if (s != NULL) {
             const char* p = strrchr(s, '/');
@@ -234,7 +235,7 @@ CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
     }
 
     const size_t lib_name_len = strlen(lib_name);
-    const int native_lib_count = _native_lib_count;
+    const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
         const char* s = _native_libs[i]->name();
         if (s != NULL) {
@@ -248,7 +249,7 @@ CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
 }
 
 CodeCache* Profiler::findNativeLibrary(const void* address) {
-    const int native_lib_count = _native_lib_count;
+    const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
             return _native_libs[i];
@@ -287,7 +288,7 @@ bool Profiler::isAddressInCode(const void* pc) {
     }
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, const void** last_pc) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
@@ -297,14 +298,11 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == 0 && _engine == &perf_events) {
-        native_frames = PerfEvents::walk(tid, callchain, MAX_NATIVE_FRAMES);
-        if (_cstack == CSTACK_DWARF) {
-            native_frames += StackWalker::walkDwarf(ucontext, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames);
-        }
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES);
+        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
@@ -580,6 +578,35 @@ bool Profiler::fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_ent
     return false;
 }
 
+void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
+    if (nmethod->isNMethod()) {
+        jmethodID current_method_id = nmethod->method()->constMethod()->id();
+        if (current_method_id == NULL) {
+            return;
+        }
+
+        // Mark current_method as COMPILED and frames above current_method as INLINED
+        for (int i = 0; i < num_frames; i++) {
+            if (frames[i].method_id == NULL || frames[i].bci <= BCI_NATIVE_FRAME) {
+                break;
+            }
+            if (frames[i].method_id == current_method_id) {
+                frames[i].bci = FrameType::encode(FRAME_JIT_COMPILED, frames[i].bci);
+                break;
+            }
+            frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
+        }
+    } else if (nmethod->isInterpreter()) {
+        // Mark the first Java frame as INTERPRETED
+        for (int i = 0; i < num_frames; i++) {
+            if (frames[i].bci > BCI_NATIVE_FRAME) {
+                frames[i].bci = FrameType::encode(FRAME_INTERPRETED, frames[i].bci);
+                break;
+            }
+        }
+    }
+}
+
 void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
@@ -607,12 +634,19 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames = makeEventFrame(frames, event_type, event->id());
     }
 
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid);
+    const void* last_pc = NULL;
+    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &last_pc);
 
-    int first_java_frame = num_frames;
     if (event_type == 0) {
         // Async events
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth);
+        if (java_frames > 0 && last_pc != NULL) {
+            NMethod* nmethod = CodeHeap::findNMethod((const void*)last_pc);
+            if (nmethod != NULL) {
+                fillFrameTypes(frames + num_frames, java_frames, nmethod);
+            }
+        }
+        num_frames += java_frames;
     } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
         // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
         // but not directly, since the thread is in_vm rather than in_native
@@ -643,7 +677,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -665,9 +699,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
         return;
     }
 
-    ExecutionEvent event;
-    event._ecid = Profiler::instance()->getEcid();
-    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, event, counter);
 
     _locks[lock_index].unlock();
 }
@@ -890,7 +922,7 @@ Error Profiler::checkJvmCapabilities() {
 
     if (_dlopen_entry == NULL) {
         CodeCache* lib = findJvmLibrary("libj9prt");
-        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((const void*)dlopen)) == NULL) {
+        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
         Symbols::makePatchable(lib);
@@ -1215,7 +1247,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style | (VM::isOpenJ9() ? 0 : STYLE_ANNOTATE), _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_ANNOTATE, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);

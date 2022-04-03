@@ -51,7 +51,8 @@ class VMStructs {
     static int _frame_complete_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
-    static int _constmethod_offset;
+    static int _method_constmethod_offset;
+    static int _method_code_offset;
     static int _constmethod_constants_offset;
     static int _constmethod_idnum_offset;
     static int _pool_holder_offset;
@@ -151,6 +152,8 @@ class MethodList {
     }
 };
 
+
+class NMethod;
 
 class VMSymbol : VMStructs {
   public:
@@ -274,8 +277,16 @@ class ConstMethod : VMStructs {
 
 class VMMethod : VMStructs {
   public:
+    static VMMethod* fromMethodID(jmethodID id) {
+        return *(VMMethod**)id;
+    }
+
     ConstMethod* constMethod() {
-        return *(ConstMethod**) at(_constmethod_offset);
+        return *(ConstMethod**) at(_method_constmethod_offset);
+    }
+
+    NMethod* code() {
+        return *(NMethod**) at(_method_code_offset);
     }
 };
 
@@ -300,6 +311,11 @@ class NMethod : VMStructs {
     bool isNMethod() {
         const char* n = name();
         return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
+    }
+
+    bool isInterpreter() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "Interpreter") == 0;
     }
 
     VMMethod* method() {

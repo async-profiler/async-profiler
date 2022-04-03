@@ -36,6 +36,18 @@ enum FrameTypeId {
     FRAME_KERNEL       = 5,
 };
 
+class FrameType {
+  public:
+    static inline int encode(int type, int bci) {
+        return (1 << 24) | (type << 25) | (bci & 0xffffff);
+    }
+
+    static inline FrameTypeId decode(int bci) {
+        return (bci >> 24) > 0 ? (FrameTypeId)(bci >> 25) : FRAME_JIT_COMPILED;
+    }
+};
+
+
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)

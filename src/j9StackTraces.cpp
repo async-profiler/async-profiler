@@ -139,12 +139,13 @@ void J9StackTraces::timerLoop() {
 
             for (int j = 0; j < num_jvmti_frames; j++) {
                 frames[num_frames].method_id = jvmti_frames[j].method;
-                frames[num_frames].bci = (jvmti_frames[j].type << 24) | jvmti_frames[j].location;
+                frames[num_frames].bci = FrameType::encode(jvmti_frames[j].type, jvmti_frames[j].location);
                 num_frames++;
             }
 
             int tid = J9Ext::GetOSThreadID(thread);
-            Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames);
+            ExecutionEvent event;
+            Profiler::instance()->recordExternalSample(notif->counter, &event, tid, num_frames, frames);
 
             ptr += notif->size();
         }

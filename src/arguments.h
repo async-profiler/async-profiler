@@ -142,6 +142,8 @@ class Arguments {
     int _safe_mode;
     const char* _file;
     const char* _log;
+    const char* _loglevel;
+    const char* _unknown_arg;
     const char* _filter;
     int _include;
     int _exclude;
@@ -182,6 +184,8 @@ class Arguments {
         _safe_mode(0),
         _file(NULL),
         _log(NULL),
+        _loglevel(NULL),
+        _unknown_arg(NULL),
         _filter(NULL),
         _include(0),
         _exclude(0),

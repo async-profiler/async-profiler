@@ -861,8 +861,8 @@ class Recording {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
-        CodeCache** native_libs = profiler->_native_libs;
-        int native_lib_count = profiler->_native_lib_count;
+        CodeCacheArray& native_libs = profiler->_native_libs;
+        int native_lib_count = native_libs.count();
 
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
@@ -970,17 +970,18 @@ class Recording {
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
-                jint bci = trace->frames[i].bci;
-                FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
-                if (bci >= 0) {
-                    bci &= 0xffffff;
+                if (mi->_type < FRAME_NATIVE) {
+                    jint bci = trace->frames[i].bci;
+                    FrameTypeId type = FrameType::decode(bci);
+                    bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
                     buf->putVar32(mi->getLineNumber(bci));
                     buf->putVar32(bci);
+                    buf->put8(type);
                 } else {
                     buf->put8(0);
                     buf->put8(0);
+                    buf->put8(mi->_type);
                 }
-                buf->put8(type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
@@ -1227,6 +1228,11 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     JNIEnv* env = VM::jni();
 
     if (_jfr_sync_class == NULL) {
+        if (env->FindClass("jdk/jfr/FlightRecorderListener") == NULL) {
+            env->ExceptionClear();
+            return Error("JDK Flight Recorder is not available");
+        }
+
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
         jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
