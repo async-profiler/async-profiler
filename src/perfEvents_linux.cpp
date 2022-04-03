@@ -672,6 +672,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
+        event._ecid = Profiler::instance()->getEcid();
         Profiler::instance()->recordSample(ucontext, counter, 0, &event);
     } else {
         resetBuffer(OS::threadId());

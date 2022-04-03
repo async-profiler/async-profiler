@@ -616,6 +616,7 @@ void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
 
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
         ExecutionEvent event;
+        event._ecid = Profiler::instance()->getEcid();
         Profiler::instance()->recordSample(NULL, _interval, BCI_INSTRUMENT, &event);
     }
 }

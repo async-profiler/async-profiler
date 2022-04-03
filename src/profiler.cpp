@@ -666,6 +666,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
     }
 
     ExecutionEvent event;
+    event._ecid = Profiler::instance()->getEcid();
     _jfr.recordEvent(lock_index, tid, call_trace_id, 0, &event, counter);
 
     _locks[lock_index].unlock();

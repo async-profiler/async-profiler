@@ -30,6 +30,7 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     ExecutionEvent event;
+    event._ecid = Profiler::instance()->getEcid();
     Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
 }
 
