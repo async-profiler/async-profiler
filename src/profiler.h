@@ -72,8 +72,6 @@ class Profiler {
     std::map<int, std::string> _thread_names;
     std::map<int, jlong> _thread_ids;
 
-    std::map<int, std::string> _thread_ecid;
-
     Dictionary _class_map;
     Dictionary _symbol_map;
     ThreadFilter _thread_filter;
