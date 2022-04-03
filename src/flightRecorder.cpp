@@ -1073,6 +1073,7 @@ class Recording {
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
+        buf->putUtf8(event->_ecid);
         buf->put8(start, buf->offset() - start);
     }
 

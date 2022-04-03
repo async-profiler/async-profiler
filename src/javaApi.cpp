@@ -55,6 +55,28 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     }
 }
 
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_setEcid0(JNIEnv* env, jobject unused, jstring ecid) {
+    const char* ecid_str = env->GetStringUTFChars(ecid, NULL);
+
+    Error error = Profiler::instance()->setEcid(ecid_str);
+    env->ReleaseStringUTFChars(ecid, ecid_str);
+
+    if (error) {
+        JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+    }
+}
+
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_clearEcid0(JNIEnv* env, jobject unused) {
+    Error error = Profiler::instance()->setEcid("");
+
+    if (error) {
+        JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+    }
+}
+
+
 extern "C" DLLEXPORT jstring JNICALL
 Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring command) {
     Arguments args;
@@ -125,6 +147,8 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
+    F(setEcid0,      "(Ljava/lang/String;)V"),
+    F(clearEcid0,    "()V"),
 };
 
 #undef F

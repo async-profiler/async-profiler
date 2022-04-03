@@ -62,7 +62,7 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
-
+thread_local std::string localEcid;
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -1040,6 +1040,16 @@ error1:
     unlockAll();
 
     return error;
+}
+
+Error Profiler::setEcid(const char* ecid) {
+    std::string ecidStr = std::string(ecid);
+    localEcid = ecidStr;
+    return Error::OK;
+}
+
+const char* Profiler::getEcid() {
+    return localEcid.c_str();
 }
 
 Error Profiler::stop() {

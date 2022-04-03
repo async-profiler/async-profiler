@@ -23,6 +23,8 @@
 
 class Event {
   public:
+    const char* _ecid;
+
     u32 id() {
         return *(u32*)this;
     }
