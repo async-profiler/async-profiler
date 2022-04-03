@@ -69,6 +69,7 @@ void J9WallClock::timerLoop() {
 
                 int tid = J9Ext::GetOSThreadID(si->thread);
                 ExecutionEvent event;
+                event._ecid = Profiler::instance()->getEcid();
                 event._thread_state = (si->state & JVMTI_THREAD_STATE_RUNNABLE) ? THREAD_RUNNING : THREAD_SLEEPING;
                 Profiler::instance()->recordExternalSample(_interval, &event, tid, si->frame_count, frames);
             }
