@@ -23,8 +23,6 @@
 
 class Event {
   public:
-    const char* _ecid;
-
     u32 id() {
         return *(u32*)this;
     }
@@ -32,6 +30,7 @@ class Event {
 
 class ExecutionEvent : public Event {
   public:
+    const char* _ecid;
     ThreadState _thread_state;
 
     ExecutionEvent() : _thread_state(THREAD_RUNNING) {
