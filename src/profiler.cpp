@@ -62,7 +62,12 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
-thread_local std::string localEcid;
+
+#if defined(JAVAPROFILER_GLOBAL_DYNAMIC_TLS) || defined(ALPINE)
+    thread_local std::string localEcid __attribute__((tls_model("global-dynamic")));
+#else
+    thread_local std::string localEcid __attribute__((tls_model("initial-exec")));
+#endif
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
