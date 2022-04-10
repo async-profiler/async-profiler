@@ -967,9 +967,11 @@ Error Profiler::start(Arguments& args, bool reset) {
         memset(_failures, 0, sizeof(_failures));
 
         // Reset dicrionaries and bitmaps
+        lockAll();
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
+        unlockAll();
 
         // Reset thread names and IDs
         MutexLocker ml(_thread_names_lock);
@@ -1211,17 +1213,17 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     _call_trace_storage.collectSamples(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-        u64 samples = args._counter == COUNTER_SAMPLES ? loadAcquire((*it)->samples) : loadAcquire((*it)->counter);
-        if (samples == 0) continue;
+        CallTrace* trace = (*it)->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        CallTrace* trace = (*it)->trace;
-        if (excludeTrace(&fn, trace)) continue;
+        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+        if (counter == 0) continue;
 
         for (int j = trace->num_frames - 1; j >= 0; j--) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << samples << "\n";
+        out << counter << "\n";
     }
 }
 
@@ -1243,11 +1245,11 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     _call_trace_storage.collectSamples(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-        u64 samples = args._counter == COUNTER_SAMPLES ? loadAcquire((*it)->samples) : loadAcquire((*it)->counter);
-        if (samples == 0) continue;
+        CallTrace* trace = (*it)->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        CallTrace* trace = (*it)->trace;
-        if (excludeTrace(&fn, trace)) continue;
+        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+        if (counter == 0) continue;
 
         int num_frames = trace->num_frames;
 
@@ -1256,24 +1258,24 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
             // Thread frames always come first
             if (_add_sched_frame) {
                 const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, samples);
+                f = f->addChild(frame_name, counter);
             }
             if (_add_thread_frame) {
                 const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, samples);
+                f = f->addChild(frame_name, counter);
             }
 
             for (int j = 0; j < num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, samples);
+                f = f->addChild(frame_name, counter);
             }
         } else {
             for (int j = num_frames - 1; j >= 0; j--) {
                 const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, samples);
+                f = f->addChild(frame_name, counter);
             }
         }
-        f->addLeaf(samples);
+        f->addLeaf(counter);
     }
 
     flamegraph.dump(out, tree);
@@ -1291,8 +1293,11 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         samples.reserve(map.size());
 
         for (std::map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
-            total_counter += it->second.counter;
             CallTrace* trace = it->second.trace;
+            u64 counter = it->second.counter;
+            if (trace == NULL || counter == 0) continue;
+
+            total_counter += counter;
             if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
             samples.push_back(it->second);
         }

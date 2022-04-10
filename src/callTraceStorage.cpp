@@ -118,7 +118,10 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
             if (keys[slot] != 0 && loadAcquire(values[slot].samples) != 0) {
                 // Reset samples to avoid duplication of call traces between JFR chunks
                 values[slot].samples = 0;
-                map[capacity - (INITIAL_CAPACITY - 1) + slot] = values[slot].trace;
+                CallTrace* trace = values[slot].acquireTrace();
+                if (trace != NULL) {
+                    map[capacity - (INITIAL_CAPACITY - 1) + slot] = trace;
+                }
             }
         }
     }
@@ -149,7 +152,7 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
         u32 capacity = table->capacity();
 
         for (u32 slot = 0; slot < capacity; slot++) {
-            if (keys[slot] != 0 && loadAcquire(values[slot].counter) != 0) {
+            if (keys[slot] != 0 && values[slot].acquireTrace() != NULL) {
                 map[keys[slot]] += values[slot];
             }
         }
@@ -248,7 +251,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             if (trace == NULL) {
                 trace = storeCallTrace(num_frames, frames);
             }
-            table->values()[slot].trace = trace;
+            table->values()[slot].setTrace(trace);
             break;
         }
 
