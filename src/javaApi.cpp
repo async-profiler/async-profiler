@@ -120,22 +120,6 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
-extern "C" DLLEXPORT jint JNICALL
-Java_one_profiler_AsyncProfiler_writeContextIntervals0(JNIEnv* env, jobject unused, jstring context, jbyteArray data, jint len, jlong threshold) {
-    Profiler* profiler = Profiler::instance();
-    jboolean is_copy;
-    const char *native_context = env->GetStringUTFChars(context, 0);
-    jbyte* native_data = env->GetByteArrayElements(data, &is_copy);
-
-    int tid = OS::threadId();
-    jint rslt = profiler->recordContextIntervals(tid, native_context, native_data, len, threshold);
-
-    env->ReleaseStringUTFChars(context, native_context);
-    env->ReleaseByteArrayElements(data, native_data, JNI_ABORT);
-
-    return rslt;
-}
-
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
@@ -144,7 +128,6 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
-    F(writeContextIntervals0, "(Ljava/lang/String;[BIJ)I"),
 };
 
 #undef F

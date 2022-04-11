@@ -21,21 +21,18 @@
 #include "arguments.h"
 #include "event.h"
 #include "log.h"
-#include "sampler.h"
 
 class Recording;
 
 class FlightRecorder {
   private:
     Recording* _rec;
-    ReservoirSampler<ContextIntervalEvent, Recording> _sampler;
 
     Error startMasterRecording(Arguments& args);
     void stopMasterRecording();
-    void writeContextIntervalEvent(ContextIntervalEvent event);
 
   public:
-    FlightRecorder() : _rec(NULL), _sampler(100000) {
+    FlightRecorder() : _rec(NULL) {
 
     }
 
@@ -51,7 +48,6 @@ class FlightRecorder {
     void recordEvent(int lock_index, int tid, u32 call_trace_id,
                      int event_type, Event* event, u64 counter);
 
-    void recordContextInterval(ContextIntervalEvent* event);
     void recordLog(LogLevel level, const char* message, size_t len);
 };
 

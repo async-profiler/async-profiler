@@ -41,22 +41,6 @@ class ExecutionEvent : public Event {
     }
 };
 
-class ContextIntervalEvent : public Event {
-  public:
-    u64 _tid;
-    u64 _timestamp;
-    u64 _duration;
-    std::unique_ptr<char, void(*)(void*)> _context;
-
-  ContextIntervalEvent(u64 tid, u64 timestamp, u64 duration, const char* context)
-      : _tid(tid), _timestamp(timestamp), _duration(duration),
-        _context(std::unique_ptr<char, void(*)(void*)>(strndup(context, MAX_STRING_LEN), free)) {
-  }
-
-  ContextIntervalEvent(ContextIntervalEvent&& other) = default;
-  ContextIntervalEvent& operator=(ContextIntervalEvent&& other) = default;
-};
-
 class AllocEvent : public Event {
   public:
     u32 _class_id;

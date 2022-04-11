@@ -212,13 +212,6 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("level", T_LOG_LEVEL, "Level", F_CPOOL)
                 << field("message", T_STRING, "Message"))
 
-            << (type("datadog.ContextInterval", T_CONTEXT_INTERVAL, "Context Interval")
-                << category("Datadog")
-                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
-                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
-                << field("contextThread", T_LONG, "Context Thread ID")
-                << field("context", T_STRING, "Context"))
-
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 

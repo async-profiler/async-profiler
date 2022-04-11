@@ -76,6 +76,9 @@ enum JfrType {
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
     T_PERCENTAGE = 208,
+    // custon non-JFR types
+    T_CUSTOM_TYPE = 2048,
+    T_CONTEXT = T_CUSTOM_TYPE + 1,
     // custom non-JFR event types
     T_CUSTOM_EVENT = 4096,
     T_CONTEXT_INTERVAL = T_CUSTOM_EVENT + 1,
@@ -159,8 +162,10 @@ class JfrMetadata : Element {
         e.attribute("id", id);
         if (simple) {
             e.attribute("simpleType", "true");
-        } else if (id > T_CUSTOM_EVENT) {
-            e.attribute("superType", "jdk.jfr.Event");
+        } else if (id > T_CUSTOM_TYPE) {
+            if (id > T_CUSTOM_EVENT) {
+                e.attribute("superType", "jdk.jfr.Event");
+            }
         } else if (id > T_ANNOTATION) {
             e.attribute("superType", "java.lang.annotation.Annotation");
         } else if (id > T_EVENT) {

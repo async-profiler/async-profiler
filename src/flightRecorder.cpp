@@ -274,6 +274,15 @@ class Lookup {
     }
 };
 
+class ContextLookup {
+  public:
+    Dictionary _contexts;
+
+    u32 getContext(const char* name) {
+        return _contexts.lookup(name);
+    }
+};
+
 
 class Buffer {
   private:
@@ -430,6 +439,8 @@ class Recording {
     bool _cpu_monitor_enabled;
     Buffer _cpu_monitor_buf;
     CpuTimes _last_times;
+
+    ContextLookup _context_lookup;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -1183,29 +1194,6 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void writeContextIntervalEvent(ContextIntervalEvent* event) {
-        int len = event->_context != NULL ? strlen(event->_context.get()) : 0;
-        /*
-            The data is:
-            - 1 byte for the event type
-            - 3 varint64 encoded longs (9 bytes at most each) = 27 bytes
-            - one UTF 8 string (1 byte header and len bytes content)
-            - 5 bytes for varint32 encoded event size
-            This makes (33 + len) bytes for the payload - let's reserve 40 bytes to be on the safe side
-            */
-        Buffer* buf = (Buffer*)alloca(len + 40); 
-        buf->reset();
-
-        int start = buf->skip(5); // varint32 encoded event size - always takes 5 bytes ¯\_(ツ)_/¯
-        buf->putVar64(T_CONTEXT_INTERVAL);
-        buf->putVar64(event->_timestamp);
-        buf->putVar64(event->_duration);
-        buf->putVar64(event->_tid);
-        buf->putUtf8(event->_context.get());
-        buf->putVar32(start, buf->offset() - start);
-        flush(buf);
-    }
-
     void addThread(int tid) {
         if (!_thread_set.accept(tid)) {
             _thread_set.add(tid);
@@ -1266,7 +1254,6 @@ void FlightRecorder::stop() {
             stopMasterRecording();
         }
 
-        _sampler.flush(_rec, &Recording::writeContextIntervalEvent);
         delete _rec;
         _rec = NULL;
     }
@@ -1403,14 +1390,3 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
 
     _rec_lock.unlockShared();
 }
-
-void FlightRecorder::recordContextInterval(ContextIntervalEvent* event) {
-    if (!_rec_lock.tryLockShared()) {
-        // No active recording
-        return;
-    }
-    _sampler.sample(event);
-    _rec_lock.unlockShared();
-}
-
-template class ReservoirSampler<ContextIntervalEvent, Recording>;
