@@ -1107,7 +1107,6 @@ const char* Profiler::getEcid() {
     void *value = pthread_getspecific(local_ecid_key);
     if (!value) {
         return "";
-
     }
     const char* ecid = static_cast<const char*>(value);
     return ecid;
