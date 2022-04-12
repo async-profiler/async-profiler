@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/param.h>
 #include "profiler.h"
 #include "perfEvents.h"
@@ -63,11 +64,18 @@ static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
-#if defined(JAVAPROFILER_GLOBAL_DYNAMIC_TLS) || defined(ALPINE)
-    thread_local std::string localEcid __attribute__((tls_model("global-dynamic")));
-#else
-    thread_local std::string localEcid __attribute__((tls_model("initial-exec")));
-#endif
+static pthread_key_t local_ecid_key;
+static pthread_once_t local_ecid_key_once = PTHREAD_ONCE_INIT;
+
+static void destroyEcidKey(void* data) {
+    if (data) {
+        free(data);
+    }
+}
+
+static void createEcidKey() {
+    (void) pthread_key_create(&local_ecid_key, destroyEcidKey);
+}
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -545,7 +553,7 @@ inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame
         frames[i].bci = bci;
     }
     return num_frames;
-} 
+}
 
 inline int Profiler::makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id) {
     frames[0].bci = event_type;
@@ -1081,13 +1089,28 @@ error1:
 }
 
 Error Profiler::setEcid(const char* ecid) {
-    std::string ecidStr = std::string(ecid);
-    localEcid = ecidStr;
-    return Error::OK;
+    pthread_once(&local_ecid_key_once, createEcidKey);
+
+    void *value = pthread_getspecific(local_ecid_key);
+    destroyEcidKey(value);
+
+    int size = strlen(ecid);
+    char *duplicate = (char*) malloc( size+ 1 );
+    strcpy(duplicate, ecid);
+    int status = pthread_setspecific(local_ecid_key, duplicate);
+    return status == 0 ? Error::OK : Error("Cannot set pthread_setspecific");
 }
 
 const char* Profiler::getEcid() {
-    return localEcid.c_str();
+    pthread_once(&local_ecid_key_once, createEcidKey);
+
+    void *value = pthread_getspecific(local_ecid_key);
+    if (!value) {
+        return "";
+
+    }
+    const char* ecid = static_cast<const char*>(value);
+    return ecid;
 }
 
 Error Profiler::stop() {
