@@ -199,7 +199,7 @@ class Arguments {
         _cstack(CSTACK_DEFAULT),
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
-        _chunk_time(3600),
+        _chunk_time(0),
         _jfr_sync(NULL),
         _jfr_options(0),
         _dump_traces(0),

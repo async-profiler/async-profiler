@@ -105,7 +105,7 @@ void BpfClient::stop() {
     munmap(_bpf_map.addr, _bpf_map.size);
 }
 
-int BpfClient::getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth) {
+int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
     if (!__atomic_load_n(&_bpf_map_available, __ATOMIC_ACQUIRE)) {
         return 0;
     }
@@ -122,6 +122,7 @@ int BpfClient::getNativeTrace(void* ucontext, int tid, const void** callchain, i
         const void* ip = (const void*)trace->ip[depth];
         if (CodeHeap::contains(ip)) {
             // Stop at the first Java frame
+            *last_pc = ip;
             break;
         }
         callchain[depth++] = ip;

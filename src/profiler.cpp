@@ -301,6 +301,8 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == 0 && _engine == &perf_events) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
+    } else if (event_type == 0 && _engine == &bpf_client) {
+        native_frames = BpfClient::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, last_pc);
     } else {

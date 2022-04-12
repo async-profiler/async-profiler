@@ -39,7 +39,7 @@ class BpfClient : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    int getNativeTrace(void* ucontext, int tid, const void** callchain, int max_depth);
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
 };
 
 #endif // _BPFCLIENT_H
