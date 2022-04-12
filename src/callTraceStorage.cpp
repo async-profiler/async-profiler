@@ -134,10 +134,13 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
         u32 base = table->base();
 
         for (u32 slot = 0; slot < CAPACITY; slot++) {
-            if (keys[slot] != 0 && loadAcquire(values[slot].counter) != 0 && values[slot].trace != NULL) {
-                map[base + slot] = values[slot].trace;
-                // Reset to make sure each trace is dumped only once
-                values[slot].trace = NULL;
+            if (keys[slot] != 0 && loadAcquire(values[slot].counter) != 0) {
+                CallTrace* trace = values[slot].acquireTrace();
+                if (trace != NULL) {
+                    map[base + slot] = trace;
+                    // Reset to make sure each trace is dumped only once
+                    values[slot].setTrace(NULL);
+                }
             }
         }
     }
@@ -166,7 +169,7 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
         CallTraceSample* values = table->values();
 
         for (u32 slot = 0; slot < CAPACITY; slot++) {
-            if (keys[slot] != 0 && loadAcquire(values[slot].counter) != 0) {
+            if (keys[slot] != 0 && values[slot].acquireTrace() != NULL) {
                 map[keys[slot]] += values[slot];
             }
         }
@@ -240,7 +243,8 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
                 }
             }
 
-            table->values()[slot].trace = storeCallTrace(num_frames, frames);
+            CallTrace* trace = storeCallTrace(num_frames, frames);
+            table->values()[slot].setTrace(trace);
             break;
         }
 
