@@ -117,7 +117,7 @@ Error AllocTracer::start(Arguments& args) {
         return error;
     }
 
-    _interval = args._alloc;
+    _interval = args._alloc > 0 ? args._alloc : 0;
     _allocated_bytes = 0;
 
     if (!_in_new_tlab.install() || !_outside_tlab.install()) {

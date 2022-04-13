@@ -201,9 +201,9 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || value[0] == 0) {
                     msg = "event must not be empty";
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
-                    if (_alloc <= 0) _alloc = 1;
+                    if (_alloc < 0) _alloc = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
-                    if (_lock <= 0) _lock = 1;
+                    if (_lock < 0) _lock = 0;
                 } else if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {
@@ -222,13 +222,13 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("alloc")
-                _alloc = value == NULL ? 1 : parseUnits(value, BYTES);
+                _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
                 if (_alloc < 0) {
                     msg = "alloc must be >= 0";
                 }
 
             CASE("lock")
-                _lock = value == NULL ? 1 : parseUnits(value, NANOS);
+                _lock = value == NULL ? 0 : parseUnits(value, NANOS);
                 if (_lock < 0) {
                     msg = "lock must be >= 0";
                 }
@@ -342,7 +342,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc == 0 && _lock == 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0) {
         _event = EVENT_CPU;
     }
 

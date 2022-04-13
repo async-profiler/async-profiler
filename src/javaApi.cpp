@@ -30,9 +30,9 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
     Arguments args;
     const char* event_str = env->GetStringUTFChars(event, NULL);
     if (strcmp(event_str, EVENT_ALLOC) == 0) {
-        args._alloc = interval > 0 ? interval : 1;
+        args._alloc = interval > 0 ? interval : 0;
     } else if (strcmp(event_str, EVENT_LOCK) == 0) {
-        args._lock = interval > 0 ? interval : 1;
+        args._lock = interval > 0 ? interval : 0;
     } else {
         args._event = event_str;
         args._interval = interval;

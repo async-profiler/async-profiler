@@ -112,6 +112,7 @@ class VM {
 
     static int _hotspot_version;
     static bool _openj9;
+    static bool _can_sample_objects;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -160,6 +161,10 @@ class VM {
 
     static bool isOpenJ9() {
         return _openj9;
+    }
+
+    static bool canSampleObjects() {
+        return _can_sample_objects;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

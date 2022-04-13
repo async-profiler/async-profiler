@@ -728,15 +728,15 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
         }
 
-        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc > 0);
-        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc > 0);
-        if (args._alloc > 0) {
+        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
+        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
+        if (args._alloc >= 0) {
             writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
         }
 
-        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock > 0);
-        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock > 0);
-        if (args._lock > 0) {
+        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock >= 0);
+        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
+        if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
@@ -1269,8 +1269,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
-                     (args._alloc > 0 ? 2 : 0) |
-                     (args._lock > 0 ? 4 : 0);
+                     (args._alloc >= 0 ? 2 : 0) |
+                     (args._lock >= 0 ? 4 : 0);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

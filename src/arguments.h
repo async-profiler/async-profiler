@@ -20,7 +20,8 @@
 #include <stddef.h>
 
 
-const long DEFAULT_INTERVAL = 10000000;  // 10 ms
+const long DEFAULT_INTERVAL = 10000000;      // 10 ms
+const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU    = "cpu";
@@ -178,8 +179,8 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
-        _alloc(0),
-        _lock(0),
+        _alloc(-1),
+        _lock(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _safe_mode(0),
         _file(NULL),
