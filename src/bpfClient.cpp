@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <sched.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include "bpfClient.h"
@@ -44,13 +45,16 @@ struct BpfMap {
     u32 entry_size;
 
     BpfStackTrace* getStackForThread(u32 tid) const {
+        char* base = __atomic_load_n(&addr, __ATOMIC_ACQUIRE);
+        if (base == NULL) {
+            return NULL;
+        }
         size_t index = (salt + tid) & mask;
-        return (BpfStackTrace*)(addr + index * entry_size);
+        return (BpfStackTrace*)(base + index * entry_size);
     }
 };
 
-static BpfMap _bpf_map;
-static int _bpf_map_available = 0;
+static BpfMap _bpf_map = {0};
 
 static unsigned int _interval;
 static unsigned int _counter;
@@ -86,14 +90,14 @@ Error BpfClient::start(Arguments& args) {
     _bpf_map.entry_size = params.entry_size;
     _bpf_map.size = (size_t)params.entry_size * params.num_entries;
 
-    _bpf_map.addr = (char*)mmap(NULL, _bpf_map.size, PROT_READ, MAP_SHARED, fd, 0);
-    if (_bpf_map.addr == MAP_FAILED) {
+    char* addr = (char*)mmap(NULL, _bpf_map.size, PROT_READ, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
         close(fd);
         return Error("Failed to mmap stack trace buffer");
     }
 
     close(fd);
-    __atomic_store_n(&_bpf_map_available, 1, __ATOMIC_RELEASE);
+    __atomic_store_n(&_bpf_map.addr, addr, __ATOMIC_RELEASE);
 
     return Error::OK;
 }
@@ -101,17 +105,13 @@ Error BpfClient::start(Arguments& args) {
 void BpfClient::stop() {
     OS::installSignalHandler(BPF_SIGNAL, NULL, SIG_IGN);
 
-    __atomic_store_n(&_bpf_map_available, 0, __ATOMIC_RELEASE);
-    munmap(_bpf_map.addr, _bpf_map.size);
+    char* addr = __atomic_exchange_n(&_bpf_map.addr, NULL, __ATOMIC_ACQ_REL);
+    munmap(addr, _bpf_map.size);
 }
 
 int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
-    if (!__atomic_load_n(&_bpf_map_available, __ATOMIC_ACQUIRE)) {
-        return 0;
-    }
-
     BpfStackTrace* trace = _bpf_map.getStackForThread(tid);
-    if (trace->tid != tid) {
+    if (trace == NULL || trace->tid != tid) {
         return 0;
     }
 
@@ -129,4 +129,12 @@ int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_dep
     }
 
     return depth;
+}
+
+const char* BpfClient::schedPolicy(int tid) {
+    BpfStackTrace* trace = _bpf_map.getStackForThread(tid);
+    if (trace == NULL || trace->tid != tid || trace->sched_policy < SCHED_BATCH) {
+        return "SCHED_OTHER";
+    }
+    return trace->sched_policy >= SCHED_IDLE ? "SCHED_IDLE" : "SCHED_BATCH"; 
 }

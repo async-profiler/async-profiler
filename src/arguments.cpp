@@ -272,6 +272,7 @@ Error Arguments::parse(const char* args) {
                 }
                 if (_event == NULL) {
                     _event = EVENT_BPF;
+                    _sched = true;
                 }
                 if (_fdtransfer_path == NULL) {
                     _fdtransfer = true;

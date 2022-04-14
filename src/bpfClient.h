@@ -40,6 +40,8 @@ class BpfClient : public Engine {
     void stop();
 
     static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
+
+    static const char* schedPolicy(int tid);
 };
 
 #endif // _BPFCLIENT_H

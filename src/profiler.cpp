@@ -672,7 +672,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeEventFrame(frames + num_frames, BCI_THREAD_ID, tid);
     }
     if (_add_sched_frame) {
-        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)OS::schedPolicy(0));
+        const char* sched = _engine == &bpf_client ? BpfClient::schedPolicy(tid) : OS::schedPolicy(0);
+        num_frames += makeEventFrame(frames + num_frames, BCI_ERROR, (uintptr_t)sched);
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
