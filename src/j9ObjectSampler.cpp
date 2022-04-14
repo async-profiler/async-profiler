@@ -19,10 +19,6 @@
 #include "vmEntry.h"
 
 
-u64 J9ObjectSampler::_interval;
-volatile u64 J9ObjectSampler::_allocated_bytes;
-
-
 void J9ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                       jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {

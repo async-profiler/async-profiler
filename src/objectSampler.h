@@ -18,11 +18,15 @@
 #define _OBJECTSAMPLER_H
 
 #include <jvmti.h>
+#include "arch.h"
 #include "engine.h"
 
 
 class ObjectSampler : public Engine {
   protected:
+    static u64 _interval;
+    static volatile u64 _allocated_bytes;
+
     static void recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size);
 
   public:

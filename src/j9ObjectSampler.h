@@ -17,15 +17,10 @@
 #ifndef _J9OBJECTSAMPLER_H
 #define _J9OBJECTSAMPLER_H
 
-#include "arch.h"
 #include "objectSampler.h"
 
 
 class J9ObjectSampler : public ObjectSampler {
-  private:
-    static u64 _interval;
-    static volatile u64 _allocated_bytes;
-
   public:
     Error check(Arguments& args);
     Error start(Arguments& args);

@@ -58,17 +58,13 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     uintptr_t klass = frame.arg0();
     frame.ret();
 
-    if (_enabled) {
+    if (_enabled && updateCounter(_allocated_bytes, total_size, _interval)) {
         recordAllocation(ucontext, event_type, klass, total_size, instance_size);
     }
 }
 
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
-    if (!updateCounter(_allocated_bytes, total_size, _interval)) {
-        return;
-    }
-
     AllocEvent event;
     event._class_id = 0;
     event._total_size = total_size;

@@ -19,6 +19,10 @@
 #include "profiler.h"
 
 
+u64 ObjectSampler::_interval;
+volatile u64 ObjectSampler::_allocated_bytes;
+
+
 void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
@@ -29,7 +33,7 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
     AllocEvent event;
     event._class_id = 0;
-    event._total_size = size;
+    event._total_size = size > _interval ? size : _interval;
     event._instance_size = size;
 
     char* class_name;
@@ -58,8 +62,10 @@ Error ObjectSampler::start(Arguments& args) {
         return error;
     }
 
+    _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
+
     jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetHeapSamplingInterval(args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL);
+    jvmti->SetHeapSamplingInterval(_interval);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 
     return Error::OK;
