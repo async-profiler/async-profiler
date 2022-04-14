@@ -27,8 +27,8 @@
 #include "perfEvents.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
-#include "objectSampler.h"
 #include "wallClock.h"
+#include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
 #include "j9WallClock.h"
 #include "instrument.h"
@@ -59,6 +59,7 @@ static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
+static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
@@ -930,14 +931,20 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Engine* Profiler::allocEngine() {
-    return VM::isOpenJ9() ? (Engine*)&object_sampler : (Engine*)&alloc_tracer;
+Engine* Profiler::selectAllocEngine(long alloc_interval) {
+    if (VM::canSampleObjects() && (alloc_interval > 0 || VM::hotspot_version() == 0)) {
+        return &object_sampler;
+    } else if (VM::isOpenJ9()) {
+        return &j9_object_sampler;
+    } else {
+        return &alloc_tracer;
+    }
 }
 
 Engine* Profiler::activeEngine() {
     switch (_event_mask) {
         case EM_ALLOC:
-            return allocEngine();
+            return _alloc_engine;
         case EM_LOCK:
             return &lock_tracer;
         default:
@@ -977,8 +984,8 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _event_mask = (args._event != NULL ? EM_CPU : 0) |
-                  (args._alloc > 0 ? EM_ALLOC : 0) |
-                  (args._lock > 0 ? EM_LOCK : 0);
+                  (args._alloc >= 0 ? EM_ALLOC : 0) |
+                  (args._lock >= 0 ? EM_LOCK : 0);
     if (_event_mask == 0) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
@@ -1067,7 +1074,8 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        error = allocEngine()->start(args);
+        _alloc_engine = selectAllocEngine(args._alloc);
+        error = _alloc_engine->start(args);
         if (error) {
             goto error2;
         }
@@ -1091,7 +1099,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     return Error::OK;
 
 error3:
-    if (_event_mask & EM_ALLOC) allocEngine()->stop();
+    if (_event_mask & EM_ALLOC) _alloc_engine->stop();
 
 error2:
     _engine->stop();
@@ -1116,7 +1124,7 @@ Error Profiler::stop() {
     uninstallTraps();
 
     if (_event_mask & EM_LOCK) lock_tracer.stop();
-    if (_event_mask & EM_ALLOC) allocEngine()->stop();
+    if (_event_mask & EM_ALLOC) _alloc_engine->stop();
 
     _engine->stop();
 
@@ -1150,10 +1158,11 @@ Error Profiler::check(Arguments& args) {
         _engine = selectEngine(args._event);
         error = _engine->check(args);
     }
-    if (!error && args._alloc > 0) {
-        error = allocEngine()->check(args);
+    if (!error && args._alloc >= 0) {
+        _alloc_engine = selectAllocEngine(args._alloc);
+        error = _alloc_engine->check(args);
     }
-    if (!error && args._lock > 0) {
+    if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
     }
 

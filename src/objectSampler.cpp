@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Andrei Pangin
+ * Copyright 2022 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 #include <string.h>
 #include "objectSampler.h"
-#include "j9Ext.h"
 #include "profiler.h"
 
 
@@ -24,28 +23,17 @@ u64 ObjectSampler::_interval;
 volatile u64 ObjectSampler::_allocated_bytes;
 
 
-void ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
-                                    jobject object, jclass object_klass, jlong size) {
+void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
+                                       jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
         recordAllocation(jvmti, BCI_ALLOC, object_klass, size);
     }
 }
 
-void ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
-                                  jobject object, jclass object_klass, jlong size) {
-    if (_enabled) {
-        recordAllocation(jvmti, BCI_ALLOC_OUTSIDE_TLAB, object_klass, size);
-    }
-}
-
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
-    if (!updateCounter(_allocated_bytes, size, _interval)) {
-        return;
-    }
-
     AllocEvent event;
     event._class_id = 0;
-    event._total_size = size;
+    event._total_size = size > _interval ? size : _interval;
     event._instance_size = size;
 
     char* class_name;
@@ -62,8 +50,8 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass obj
 }
 
 Error ObjectSampler::check(Arguments& args) {
-    if (J9Ext::InstrumentableObjectAlloc_id < 0) {
-        return Error("InstrumentableObjectAlloc is not supported on this JVM");
+    if (!VM::canSampleObjects()) {
+        return Error("SampledObjectAlloc is not supported on this JVM");
     }
     return Error::OK;
 }
@@ -74,20 +62,16 @@ Error ObjectSampler::start(Arguments& args) {
         return error;
     }
 
-    _interval = args._alloc > 1 ? args._alloc : 524287;
-    _allocated_bytes = 0;
+    _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
     jvmtiEnv* jvmti = VM::jvmti();
-    if (jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)JavaObjectAlloc) != 0) {
-        return Error("Could not enable InstrumentableObjectAlloc callback");
-    }
-    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
+    jvmti->SetHeapSamplingInterval(_interval);
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 
     return Error::OK;
 }
 
 void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
-    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
-    jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 }

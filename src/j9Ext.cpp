@@ -15,7 +15,7 @@
  */
 
 #include "j9Ext.h"
-#include "objectSampler.h"
+#include "j9ObjectSampler.h"
 #include <string.h>
 
 
@@ -59,7 +59,7 @@ bool J9Ext::initialize(jvmtiEnv* jvmti, const void* j9thread_self) {
             if (strcmp(ext_events[i].id, "com.ibm.InstrumentableObjectAlloc") == 0) {
                 InstrumentableObjectAlloc_id = ext_events[i].extension_event_index;
                 // If we don't set a callback now, we won't be able to enable it later in runtime
-                jvmti->SetExtensionEventCallback(InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)ObjectSampler::JavaObjectAlloc);
+                jvmti->SetExtensionEventCallback(InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)J9ObjectSampler::JavaObjectAlloc);
                 jvmti->SetExtensionEventCallback(InstrumentableObjectAlloc_id, NULL);
                 break;
             }

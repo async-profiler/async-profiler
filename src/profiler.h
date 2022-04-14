@@ -77,6 +77,7 @@ class Profiler {
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _engine;
+    Engine* _alloc_engine;
     int _event_mask;
 
     time_t _start_time;
@@ -135,7 +136,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
-    Engine* allocEngine();
+    Engine* selectAllocEngine(long alloc_interval);
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
