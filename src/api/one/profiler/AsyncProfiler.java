@@ -208,18 +208,18 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
-    public void setEcid(String ecid) {
-        setEcid0(ecid);
+    public void setContextId(long contextId) {
+        setContextId0(contextId);
     }
 
-    public void clearEcid() {
-        clearEcid0();
+    public void clearContextId() {
+        clearContextId0();
     }
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
-    private native void setEcid0(String ecid);
-    private native void clearEcid0();
+    private native void setContextId0(long contextId);
+    private native void clearContextId0();
 }

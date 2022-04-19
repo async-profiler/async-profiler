@@ -64,18 +64,20 @@ static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
-static pthread_key_t local_ecid_key;
-static pthread_once_t local_ecid_key_once = PTHREAD_ONCE_INIT;
+static pthread_key_t local_context_key;
 
-static void destroyEcidKey(void* data) {
+static void destroyContext(void* data) {
     if (data) {
         free(data);
     }
 }
 
-static void createEcidKey() {
-    (void) pthread_key_create(&local_ecid_key, destroyEcidKey);
+static void* createContext() {
+    (void) pthread_key_create(&local_context_key, destroyContext);
+    return NULL;
 }
+
+static void* init_local_context = createContext();
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -107,6 +109,10 @@ struct MethodSample {
         samples += add_samples;
         counter += add_counter;
     }
+};
+
+struct Context {
+    u64 id;
 };
 
 typedef std::pair<std::string, MethodSample> NamedMethodSample;
@@ -1088,28 +1094,22 @@ error1:
     return error;
 }
 
-Error Profiler::setEcid(const char* ecid) {
-    pthread_once(&local_ecid_key_once, createEcidKey);
-
-    void *value = pthread_getspecific(local_ecid_key);
-    destroyEcidKey(value);
-
-    int size = strlen(ecid);
-    char *duplicate = (char*) malloc( size+ 1 );
-    strcpy(duplicate, ecid);
-    int status = pthread_setspecific(local_ecid_key, duplicate);
+Error Profiler::setContextId(u64 contextId) {
+    void *oldValue = pthread_getspecific(local_context_key);
+    Context *context = (Context*) malloc(sizeof(Context));
+    context->id = contextId;
+    int status = pthread_setspecific(local_context_key, context);
+    destroyContext(oldValue);
     return status == 0 ? Error::OK : Error("Cannot set pthread_setspecific");
 }
 
-const char* Profiler::getEcid() {
-    pthread_once(&local_ecid_key_once, createEcidKey);
-
-    void *value = pthread_getspecific(local_ecid_key);
+u64 Profiler::getContextId() {
+    void *value = pthread_getspecific(local_context_key);
     if (!value) {
-        return "";
+        return 0;
     }
-    const char* ecid = static_cast<const char*>(value);
-    return ecid;
+    Context* context = (Context*) value;
+    return context->id;
 }
 
 Error Profiler::stop() {

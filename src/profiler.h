@@ -192,8 +192,8 @@ class Profiler {
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
-    Error setEcid(const char* ecid);
-    const char* getEcid();
+    Error setContextId(u64 contextId);
+    u64 getContextId();
     Error stop();
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);

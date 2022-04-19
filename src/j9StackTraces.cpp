@@ -145,7 +145,7 @@ void J9StackTraces::timerLoop() {
 
             int tid = J9Ext::GetOSThreadID(thread);
             ExecutionEvent event;
-            event._ecid = Profiler::instance()->getEcid();
+            event._context_id = Profiler::instance()->getContextId();
             Profiler::instance()->recordExternalSample(notif->counter, &event, tid, num_frames, frames);
 
             ptr += notif->size();

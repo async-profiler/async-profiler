@@ -56,11 +56,8 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
 }
 
 extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_setEcid0(JNIEnv* env, jobject unused, jstring ecid) {
-    const char* ecid_str = env->GetStringUTFChars(ecid, NULL);
-
-    Error error = Profiler::instance()->setEcid(ecid_str);
-    env->ReleaseStringUTFChars(ecid, ecid_str);
+Java_one_profiler_AsyncProfiler_setContextId0(JNIEnv* env, jobject unused, jlong contextId) {
+    Error error = Profiler::instance()->setContextId(contextId);
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -68,8 +65,8 @@ Java_one_profiler_AsyncProfiler_setEcid0(JNIEnv* env, jobject unused, jstring ec
 }
 
 extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_clearEcid0(JNIEnv* env, jobject unused) {
-    Error error = Profiler::instance()->setEcid("");
+Java_one_profiler_AsyncProfiler_clearContextId0(JNIEnv* env, jobject unused) {
+    Error error = Profiler::instance()->setContextId(0);
 
     if (error) {
         JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
@@ -147,13 +144,13 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,        "(Ljava/lang/String;JZ)V"),
-    F(stop0,         "()V"),
-    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,    "()J"),
-    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
-    F(setEcid0,      "(Ljava/lang/String;)V"),
-    F(clearEcid0,    "()V"),
+    F(start0,          "(Ljava/lang/String;JZ)V"),
+    F(stop0,           "()V"),
+    F(execute0,        "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,      "()J"),
+    F(filterThread0,   "(Ljava/lang/Thread;Z)V"),
+    F(setContextId0,   "(J)V"),
+    F(clearContextId0, "()V"),
 };
 
 #undef F
