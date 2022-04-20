@@ -66,9 +66,9 @@ static Instrument instrument;
 
 static pthread_key_t local_context_key;
 
-static void destroyContext(void* data) {
-    if (data) {
-        free(data);
+static void destroyContext(void* value) {
+    if (value) {
+        free(value);
     }
 }
 
@@ -1095,11 +1095,19 @@ error1:
 }
 
 Error Profiler::setContextId(u64 contextId) {
-    void *oldValue = pthread_getspecific(local_context_key);
-    Context *context = (Context*) malloc(sizeof(Context));
-    context->id = contextId;
-    int status = pthread_setspecific(local_context_key, context);
-    destroyContext(oldValue);
+    void *value = pthread_getspecific(local_context_key);
+
+    int status = 0;
+
+    if (!value) {
+        Context *context = (Context*) malloc(sizeof(Context));
+        context->id = contextId;
+        status = pthread_setspecific(local_context_key, context);
+    } else {
+        Context* context = (Context*) value;
+        context->id = contextId;
+    }
+
     return status == 0 ? Error::OK : Error("Cannot set pthread_setspecific");
 }
 
