@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
@@ -32,7 +33,7 @@ public class FlameGraph {
     public boolean reverse;
     public double minwidth;
     public int skip;
-    public Pattern highlightStacksPattern = null;
+    public String highlightStacksJSArgument = "null";
     public String input;
     public String output;
 
@@ -58,7 +59,7 @@ public class FlameGraph {
             } else if (arg.equals("--skip")) {
                 skip = Integer.parseInt(args[++i]);
             } else if (arg.equals("--highlightstacks")) {
-                highlightStacksPattern = Pattern.compile(".*" + args[++i] + ".*");
+                highlightStacksJSArgument = "/" + args[++i] + "/";
             }
         }
     }
@@ -156,7 +157,7 @@ public class FlameGraph {
             title = title.replace("'", "\\'");
         }
 
-        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "')");
+        out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "', " + highlightStacksJSArgument + ")");
 
         x += frame.self;
         for (Map.Entry<String, Frame> e : frame.entrySet()) {
@@ -177,9 +178,7 @@ public class FlameGraph {
     }
 
     private int frameType(String title) {
-        if (highlightStacksPattern != null && highlightStacksPattern.matcher(title).matches()) {
-            return 6;
-        } else if (title.endsWith("_[j]")) {
+        if (title.endsWith("_[j]")) {
             return 1;
         } else if (title.endsWith("_[i]")) {
             return 2;
@@ -302,8 +301,12 @@ public class FlameGraph {
             "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n" +
             "\t}\n" +
             "\n" +
-            "\tfunction f(level, left, width, type, title) {\n" +
-            "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title});\n" +
+            "\tfunction f(level, left, width, type, title, highlightStackRegex) {\n" +
+            "\t\tvar paletteType = type;\n" +
+            "\t\tif (highlightStackRegex != null) {\n" +
+            "\t\t\tpaletteType = highlightStackRegex.test(title) ? 6 : type;\n" +
+            "\t\t}\n" +
+            "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[paletteType]), title: title});\n" +
             "\t}\n" +
             "\n" +
             "\tfunction samples(n) {\n" +
