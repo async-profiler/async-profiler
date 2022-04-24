@@ -17,13 +17,13 @@
 #ifndef _JAVAAPI_H
 #define _JAVAAPI_H
 
-#include "arguments.h"
+#include <jvmti.h>
 
 
 class JavaAPI {
   public:
-    static void registerNatives();
-    static Error startHttpServer(const char* address);
+    static void registerNatives(jvmtiEnv* jvmti, JNIEnv* jni);
+    static bool startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address);
 };
 
 #endif // _JAVAAPI_H

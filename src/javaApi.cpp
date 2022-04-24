@@ -148,10 +148,7 @@ static const JNINativeMethod* execute0 = &profiler_natives[2];
 
 // Since AsyncProfiler class can be renamed or moved to another package (shaded),
 // we look for the actual class in the stack trace.
-void JavaAPI::registerNatives() {
-    JNIEnv* jni = VM::jni();
-    jvmtiEnv* jvmti = VM::jvmti();
-
+void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
     jvmtiFrameInfo frame[10];
     jint frame_count;
     if (jvmti->GetStackTrace(NULL, 0, sizeof(frame) / sizeof(frame[0]), frame, &frame_count) != 0) {
@@ -179,35 +176,22 @@ void JavaAPI::registerNatives() {
     jni->ExceptionClear();
 }
 
-Error JavaAPI::startHttpServer(const char* address) {
-    static bool server_started = false;
-    if (server_started) {
-        return Error("Profiler server already started");
-    }
-
-    JNIEnv* jni = VM::jni();
-    jvmtiEnv* jvmti = VM::jvmti();
-
+bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address) {
     jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
     jobject loader;
     if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
         jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, sizeof(SERVER_CLASS));
-        if (cls == NULL) {
-            jni->ExceptionClear();
-            cls = jni->FindClass("one/profiler/Server");
-        }
         if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
             jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
             if (method != NULL) {
                 jni->CallStaticVoidMethod(cls, method, jni->NewStringUTF(address));
                 if (!jni->ExceptionCheck()) {
-                    server_started = true;
-                    return Error::OK;
+                    return true;
                 }
             }
         }
     }
 
     jni->ExceptionDescribe();
-    return Error("Failed to start profiler server");
+    return false;
 }

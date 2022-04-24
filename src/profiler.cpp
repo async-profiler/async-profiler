@@ -31,7 +31,6 @@
 #include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
 #include "j9WallClock.h"
-#include "javaApi.h"
 #include "instrument.h"
 #include "itimer.h"
 #include "dwarf.h"
@@ -1463,14 +1462,6 @@ void* Profiler::timerThreadEntry(void* arg) {
 }
 
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {
-    if (args._server != NULL) {
-        Error error = JavaAPI::startHttpServer(args._server);
-        if (error) {
-            return error;
-        }
-        Log::info("Profiler HTTP server started at %s", args._server);
-    }
-
     switch (args._action) {
         case ACTION_START:
         case ACTION_RESUME: {
