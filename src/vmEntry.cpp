@@ -338,10 +338,7 @@ extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
 
-    Log::open(_agent_args._log, _agent_args._loglevel);
-    if (_agent_args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", _agent_args._unknown_arg);
-    }
+    Log::open(_agent_args);
 
     if (error) {
         Log::error("%s", error.message());
@@ -361,10 +358,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args(true);
     Error error = args.parse(options);
 
-    Log::open(args._log, args._loglevel);
-    if (args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", args._unknown_arg);
-    }
+    Log::open(args);
 
     if (error) {
         Log::error("%s", error.message());
@@ -396,7 +390,7 @@ JNI_OnLoad(JavaVM* vm, void* reserved) {
         return 0;
     }
 
-    JavaAPI::registerNatives(VM::jvmti(), VM::jni());
+    JavaAPI::registerNatives();
     return JNI_VERSION_1_6;
 }
 

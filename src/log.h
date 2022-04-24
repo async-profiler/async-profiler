@@ -37,6 +37,8 @@ enum LogLevel {
 };
 
 
+class Arguments;
+
 class Log {
   private:
     static FILE* _file;
@@ -45,6 +47,7 @@ class Log {
   public:
     static const char* const LEVEL_NAME[];
 
+    static void open(Arguments& args);
     static void open(const char* file_name, const char* level);
     static void close();
 

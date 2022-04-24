@@ -32,6 +32,14 @@ FILE* Log::_file = stdout;
 LogLevel Log::_level = LOG_TRACE;
 
 
+void Log::open(Arguments& args) {
+    open(args._log, args._loglevel);
+
+    if (args._unknown_arg != NULL) {
+       warn("Unknown argument: %s", args._unknown_arg);
+    }
+}
+
 void Log::open(const char* file_name, const char* level) {
     if (_file != stdout && _file != stderr) {
         fclose(_file);

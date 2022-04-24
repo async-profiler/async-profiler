@@ -19,10 +19,22 @@
 #include <errno.h>
 #include <string.h>
 #include "javaApi.h"
-#include "arguments.h"
 #include "os.h"
 #include "profiler.h"
 #include "vmStructs.h"
+
+
+static const unsigned char SERVER_CLASS[] = {
+#include "helper/one/profiler/Server.class.h"
+};
+
+
+static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
+    jclass cls = env->FindClass(exception_class);
+    if (cls != NULL) {
+        env->ThrowNew(cls, message);
+    }
+}
 
 
 extern "C" DLLEXPORT void JNICALL
@@ -42,7 +54,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
     env->ReleaseStringUTFChars(event, event_str);
 
     if (error) {
-        JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+        throwNew(env, "java/lang/IllegalStateException", error.message());
     }
 }
 
@@ -51,7 +63,7 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     Error error = Profiler::instance()->stop();
 
     if (error) {
-        JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+        throwNew(env, "java/lang/IllegalStateException", error.message());
     }
 }
 
@@ -63,21 +75,18 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     env->ReleaseStringUTFChars(command, command_str);
 
     if (error) {
-        JavaAPI::throwNew(env, "java/lang/IllegalArgumentException", error.message());
+        throwNew(env, "java/lang/IllegalArgumentException", error.message());
         return NULL;
     }
 
-    Log::open(args._log, args._loglevel);
-    if (args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", args._unknown_arg);
-    }
+    Log::open(args);
 
     if (!args.hasOutputFile()) {
         std::ostringstream out;
         error = Profiler::instance()->runInternal(args, out);
         if (!error) {
             if (out.tellp() >= 0x3fffffff) {
-                JavaAPI::throwNew(env, "java/lang/IllegalStateException", "Output exceeds string size limit");
+                throwNew(env, "java/lang/IllegalStateException", "Output exceeds string size limit");
                 return NULL;
             }
             return env->NewStringUTF(out.str().c_str());
@@ -85,7 +94,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     } else {
         std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
-            JavaAPI::throwNew(env, "java/io/IOException", strerror(errno));
+            throwNew(env, "java/io/IOException", strerror(errno));
             return NULL;
         }
         error = Profiler::instance()->runInternal(args, out);
@@ -95,7 +104,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
         }
     }
 
-    JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+    throwNew(env, "java/lang/IllegalStateException", error.message());
     return NULL;
 }
 
@@ -132,19 +141,17 @@ static const JNINativeMethod profiler_natives[] = {
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
+static const JNINativeMethod* execute0 = &profiler_natives[2];
+
 #undef F
 
 
-void JavaAPI::throwNew(JNIEnv* env, const char* exception_class, const char* message) {
-    jclass cls = env->FindClass(exception_class);
-    if (cls != NULL) {
-        env->ThrowNew(cls, message);
-    }
-}
-
 // Since AsyncProfiler class can be renamed or moved to another package (shaded),
 // we look for the actual class in the stack trace.
-void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
+void JavaAPI::registerNatives() {
+    JNIEnv* jni = VM::jni();
+    jvmtiEnv* jvmti = VM::jvmti();
+
     jvmtiFrameInfo frame[10];
     jint frame_count;
     if (jvmti->GetStackTrace(NULL, 0, sizeof(frame) / sizeof(frame[0]), frame, &frame_count) != 0) {
@@ -170,4 +177,37 @@ void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 
     jni->ExceptionClear();
+}
+
+Error JavaAPI::startHttpServer(const char* address) {
+    static bool server_started = false;
+    if (server_started) {
+        return Error("Profiler server already started");
+    }
+
+    JNIEnv* jni = VM::jni();
+    jvmtiEnv* jvmti = VM::jvmti();
+
+    jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
+    jobject loader;
+    if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
+        jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, sizeof(SERVER_CLASS));
+        if (cls == NULL) {
+            jni->ExceptionClear();
+            cls = jni->FindClass("one/profiler/Server");
+        }
+        if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
+            jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
+            if (method != NULL) {
+                jni->CallStaticVoidMethod(cls, method, jni->NewStringUTF(address));
+                if (!jni->ExceptionCheck()) {
+                    server_started = true;
+                    return Error::OK;
+                }
+            }
+        }
+    }
+
+    jni->ExceptionDescribe();
+    return Error("Failed to start profiler server");
 }
