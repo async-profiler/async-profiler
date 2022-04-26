@@ -514,7 +514,8 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
                 break;
             }
             if (frames[i].method_id == current_method_id) {
-                frames[i].bci = FrameType::encode(FRAME_JIT_COMPILED, frames[i].bci);
+                int level = nmethod->level();
+                frames[i].bci = FrameType::encode(level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED, frames[i].bci);
                 break;
             }
             frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
@@ -1170,7 +1171,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style | STYLE_ANNOTATE, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1199,11 +1200,13 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
             for (int j = 0; j < num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
                 f = f->addChild(frame_name, counter);
+                f->addCompilationDetails(trace->frames[j].bci, counter);
             }
         } else {
             for (int j = num_frames - 1; j >= 0; j--) {
                 const char* frame_name = fn.name(trace->frames[j]);
                 f = f->addChild(frame_name, counter);
+                f->addCompilationDetails(trace->frames[j].bci, counter);
             }
         }
         f->addLeaf(counter);

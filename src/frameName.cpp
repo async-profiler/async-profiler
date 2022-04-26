@@ -146,6 +146,7 @@ const char* FrameName::typeSuffix(FrameTypeId type) {
     if (_style & STYLE_ANNOTATE) {
         switch (type) {
             case FRAME_JIT_COMPILED: return "_[j]";
+            case FRAME_C1_COMPILED:  return "_[j]";
             case FRAME_INLINED:      return "_[i]";
             default:                 return NULL;
         }
