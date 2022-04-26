@@ -57,18 +57,11 @@ void StackFrame::ret() {
     sp() += 4;
 }
 
-bool StackFrame::pop(bool trust_frame_pointer) {
-    if (trust_frame_pointer && withinCurrentStack(fp())) {
-        sp() = fp() + 8;
-        fp() = stackAt(-2);
-        pc() = stackAt(-1);
-        return true;
-    } else if (fp() == sp() || withinCurrentStack(stackAt(0))) {
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 8;
-        return true;
-    }
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    return false;
+}
+
+bool StackFrame::popMethod(instruction_t* entry) {
     return false;
 }
 

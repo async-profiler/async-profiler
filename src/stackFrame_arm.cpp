@@ -56,7 +56,11 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }
 
-bool StackFrame::pop(bool trust_frame_pointer) {
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    return false;
+}
+
+bool StackFrame::popMethod(instruction_t* entry) {
     return false;
 }
 
