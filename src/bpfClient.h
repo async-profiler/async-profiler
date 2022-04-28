@@ -39,7 +39,7 @@ class BpfClient : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
 
     static const char* schedPolicy(int tid);
 };

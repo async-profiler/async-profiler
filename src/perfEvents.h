@@ -24,7 +24,6 @@
 
 class PerfEvent;
 class PerfEventType;
-class StackContext;
 
 class PerfEvents : public Engine {
   private:

@@ -20,6 +20,8 @@
 #include "arguments.h"
 
 
+struct StackContext;
+
 class Engine {
   protected:
     static volatile bool _enabled;

@@ -21,6 +21,7 @@
 #include "fdtransferClient.h"
 #include "os.h"
 #include "profiler.h"
+#include "stackWalker.h"
 #include "vmStructs.h"
 
 
@@ -109,7 +110,7 @@ void BpfClient::stop() {
     munmap(addr, _bpf_map.size);
 }
 
-int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc) {
+int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
     BpfStackTrace* trace = _bpf_map.getStackForThread(tid);
     if (trace == NULL || trace->tid != tid) {
         return 0;
@@ -122,7 +123,7 @@ int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_dep
         const void* ip = (const void*)trace->ip[depth];
         if (CodeHeap::contains(ip)) {
             // Stop at the first Java frame
-            *last_pc = ip;
+            java_ctx->pc = ip;
             break;
         }
         callchain[depth++] = ip;
