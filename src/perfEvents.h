@@ -24,6 +24,7 @@
 
 class PerfEvent;
 class PerfEventType;
+class StackContext;
 
 class PerfEvents : public Engine {
   private:
@@ -47,7 +48,7 @@ class PerfEvents : public Engine {
     const char* title();
     const char* units();
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, const void** last_pc);
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
     static void resetBuffer(int tid);
 
     static bool supported();

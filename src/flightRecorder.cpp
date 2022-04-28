@@ -901,13 +901,14 @@ class Recording {
 
     void writeFrameTypes(Buffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
-        buf->putVar32(6);
+        buf->putVar32(7);
         buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
         buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
         buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
         buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
         buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
         buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
     }
 
     void writeThreadStates(Buffer* buf) {

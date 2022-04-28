@@ -51,6 +51,8 @@ class VMStructs {
     static int _frame_complete_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
+    static int _nmethod_entry_offset;
+    static int _nmethod_level_offset;
     static int _method_constmethod_offset;
     static int _method_code_offset;
     static int _constmethod_constants_offset;
@@ -320,6 +322,14 @@ class NMethod : VMStructs {
 
     VMMethod* method() {
         return *(VMMethod**) at(_nmethod_method_offset);
+    }
+
+    void* entry() {
+        return *(void**) at(_nmethod_entry_offset);
+    }
+
+    int level() {
+        return _nmethod_level_offset >= 0 ? *(int*) at(_nmethod_level_offset) : 0;
     }
 };
 

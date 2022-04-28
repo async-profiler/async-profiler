@@ -65,28 +65,12 @@ void StackFrame::ret() {
 }
 
 
-bool StackFrame::pop(bool trust_frame_pointer) {
-    if (trust_frame_pointer && withinCurrentStack(fp())) {
-        sp() = fp() + 16;
-        fp() = stackAt(-2);
-        pc() = stackAt(-1);
-        return true;
-    } else if (fp() == sp()) {
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 16;
-        return true;
-    }
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    return false;
+}
 
-    instruction_t insn = *(instruction_t*)pc();
-    if ((insn & 0xffe07fff) == 0xa9007bfd) {
-        // stp x29, x30, [sp, #offset]
-        // SP has been adjusted, but FP not yet stored in a new frame
-        unsigned int offset = (insn >> 12) & 0x1f8;
-        sp() += offset + 16;
-    }
-    ret();
-    return true;
+bool StackFrame::popMethod(instruction_t* entry) {
+    return false;
 }
 
 bool StackFrame::checkInterruptedSyscall() {

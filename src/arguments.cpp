@@ -83,6 +83,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
 //     loglevel=LEVEL   - logging level: TRACE, DEBUG, INFO, WARN, ERROR, or NONE
+//     server=ADDRESS   - start insecure HTTP server at ADDRESS/PORT
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
@@ -260,6 +261,12 @@ Error Arguments::parse(const char* args) {
                     msg = "loglevel must not be empty";
                 }
                 _loglevel = value;
+
+            CASE("server")
+                if (value == NULL || value[0] == 0) {
+                    msg = "server address must not be empty";
+                }
+                _server = value;
 
             CASE("fdtransfer")
                 _fdtransfer = true;

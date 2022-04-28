@@ -143,7 +143,7 @@ class CodeCache {
     void sort();
     void mark(NamePredicate predicate);
 
-    const char* find(const void* address);
+    CodeBlob* find(const void* address);
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);

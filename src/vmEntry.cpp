@@ -318,6 +318,15 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
     loadAllMethodIDs(jvmti, jni);
 
+    // Allow profiler server only at JVM startup
+    if (_agent_args._server != NULL) {
+        if (JavaAPI::startHttpServer(jvmti, jni, _agent_args._server)) {
+            Log::info("Profiler server started at %s", _agent_args._server);
+        } else {
+            Log::error("Failed to start profiler server");
+        }
+    }
+
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Error error = Profiler::instance()->run(_agent_args);
     if (error) {
@@ -366,10 +375,7 @@ extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
 
-    Log::open(_agent_args._log, _agent_args._loglevel);
-    if (_agent_args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", _agent_args._unknown_arg);
-    }
+    Log::open(_agent_args);
 
     if (error) {
         Log::error("%s", error.message());
@@ -389,10 +395,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args(true);
     Error error = args.parse(options);
 
-    Log::open(args._log, args._loglevel);
-    if (args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", args._unknown_arg);
-    }
+    Log::open(args);
 
     if (error) {
         Log::error("%s", error.message());
