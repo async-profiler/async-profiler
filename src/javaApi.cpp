@@ -72,7 +72,7 @@ Java_one_profiler_AsyncProfiler_setContextId0(JNIEnv* env, jobject unused, jlong
     Error error = Profiler::instance()->setContextId(contextId);
 
     if (error) {
-        JavaAPI::throwNew(env, "java/lang/IllegalStateException", error.message());
+        throwNew(env, "java/lang/IllegalStateException", error.message());
     }
 }
 
