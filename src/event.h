@@ -30,7 +30,6 @@ class Event {
 
 class ExecutionEvent : public Event {
   public:
-    u64 _context_id;
     ThreadState _thread_state;
 
     ExecutionEvent() : _thread_state(THREAD_RUNNING) {
