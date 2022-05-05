@@ -66,14 +66,8 @@ static Instrument instrument;
 
 static pthread_key_t local_context_key;
 
-static void destroyContext(void* value) {
-    if (value) {
-        free(value);
-    }
-}
-
 static void* createContext() {
-    (void) pthread_key_create(&local_context_key, destroyContext);
+    (void) pthread_key_create(&local_context_key, NULL);
     return NULL;
 }
 
@@ -1095,29 +1089,16 @@ error1:
 }
 
 Error Profiler::setContextId(u64 contextId) {
-    void *value = pthread_getspecific(local_context_key);
-
-    int status = 0;
-
-    if (!value) {
-        Context *context = (Context*) malloc(sizeof(Context));
-        context->id = contextId;
-        status = pthread_setspecific(local_context_key, context);
-    } else {
-        Context* context = (Context*) value;
-        context->id = contextId;
+    if (sizeof(uintptr_t) < sizeof(u64)) {
+        return Error("Setting contextId is supported on 64bit Java only");
     }
-
-    return status == 0 ? Error::OK : Error("Cannot set pthread_setspecific");
+    pthread_setspecific(local_context_key, (void *) contextId);
+    return Error::OK;
 }
 
 u64 Profiler::getContextId() {
-    void *value = pthread_getspecific(local_context_key);
-    if (!value) {
-        return 0;
-    }
-    Context* context = (Context*) value;
-    return context->id;
+    void* value = pthread_getspecific(local_context_key);
+    return (u64) value;
 }
 
 Error Profiler::stop() {

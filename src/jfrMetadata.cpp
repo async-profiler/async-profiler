@@ -100,7 +100,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
                 << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
-                << field("tlabSize", T_LONG, "TLAB Size", F_BYTES))
+                << field("tlabSize", T_LONG, "TLAB Size", F_BYTES)
+                << field("contextId", T_LONG, "Context ID"))
 
             << (type("jdk.ObjectAllocationOutsideTLAB", T_ALLOC_OUTSIDE_TLAB, "Allocation outside TLAB")
                 << category("Java Application")
@@ -108,7 +109,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
-                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES))
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
+                << field("contextId", T_LONG, "Context ID"))
 
             << (type("jdk.JavaMonitorEnter", T_MONITOR_ENTER, "Java Monitor Blocked")
                 << category("Java Application")
@@ -118,7 +120,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("monitorClass", T_CLASS, "Monitor Class", F_CPOOL)
                 << field("previousOwner", T_THREAD, "Previous Monitor Owner", F_CPOOL)
-                << field("address", T_LONG, "Monitor Address", F_ADDRESS))
+                << field("address", T_LONG, "Monitor Address", F_ADDRESS)
+                << field("contextId", T_LONG, "Context ID"))
 
             << (type("jdk.ThreadPark", T_THREAD_PARK, "Java Thread Park")
                 << category("Java Application")
