@@ -46,6 +46,7 @@
 #include "symbols.h"
 #include "vmStructs.h"
 
+void __attribute__((constructor)) createContextId();
 
 // The instance is not deleted on purpose, since profiler structures
 // can be still accessed concurrently during VM termination
@@ -64,14 +65,11 @@ static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
-static pthread_key_t local_context_key;
+static pthread_key_t local_context_id_key;
 
-static void* createContext() {
-    (void) pthread_key_create(&local_context_key, NULL);
-    return NULL;
+void createContextId() {
+    pthread_key_create(&local_context_id_key, NULL);
 }
-
-static void* init_local_context = createContext();
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -103,10 +101,6 @@ struct MethodSample {
         samples += add_samples;
         counter += add_counter;
     }
-};
-
-struct Context {
-    u64 id;
 };
 
 typedef std::pair<std::string, MethodSample> NamedMethodSample;
@@ -1092,12 +1086,12 @@ Error Profiler::setContextId(u64 contextId) {
     if (sizeof(uintptr_t) < sizeof(u64)) {
         return Error("Setting contextId is supported on 64bit Java only");
     }
-    pthread_setspecific(local_context_key, (void *) contextId);
+    pthread_setspecific(local_context_id_key, (void *) contextId);
     return Error::OK;
 }
 
 u64 Profiler::getContextId() {
-    void* value = pthread_getspecific(local_context_key);
+    void* value = pthread_getspecific(local_context_id_key);
     return (u64) value;
 }
 
