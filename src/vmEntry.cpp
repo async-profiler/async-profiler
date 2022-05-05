@@ -20,13 +20,13 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "j9Ext.h"
+#include "j9ObjectSampler.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
 #include "instrument.h"
 #include "lockTracer.h"
 #include "log.h"
-#include "objectSampler.h"
 #include "vmStructs.h"
 
 
@@ -41,6 +41,7 @@ jvmtiEnv* VM::_jvmti = NULL;
 
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
+bool VM::_can_sample_objects = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -128,6 +129,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     profiler->updateSymbols(false);
 
     _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
+    _can_sample_objects = !is_hotspot || hotspot_version() >= 11;
 
     CodeCache* lib = isOpenJ9()
         ? profiler->findJvmLibrary("libj9vm")
@@ -156,6 +158,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_retransform_classes = 1;
     capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
     capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
+    capabilities.can_generate_sampled_object_alloc_events = _can_sample_objects ? 1 : 0;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -163,7 +166,11 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_generate_compiled_method_load_events = 1;
     capabilities.can_generate_monitor_events = 1;
     capabilities.can_tag_objects = 1;
-    _jvmti->AddCapabilities(&capabilities);
+    if (_jvmti->AddCapabilities(&capabilities) != 0) {
+        _can_sample_objects = false;
+        capabilities.can_generate_sampled_object_alloc_events = 0;
+        _jvmti->AddCapabilities(&capabilities);
+    }
 
     jvmtiEventCallbacks callbacks = {0};
     callbacks.VMInit = VMInit;
@@ -177,7 +184,8 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
-    callbacks.VMObjectAlloc = ObjectSampler::VMObjectAlloc;
+    callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
+    callbacks.SampledObjectAlloc = ObjectSampler::SampledObjectAlloc;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
@@ -282,6 +290,15 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
     loadAllMethodIDs(jvmti, jni);
 
+    // Allow profiler server only at JVM startup
+    if (_agent_args._server != NULL) {
+        if (JavaAPI::startHttpServer(jvmti, jni, _agent_args._server)) {
+            Log::info("Profiler server started at %s", _agent_args._server);
+        } else {
+            Log::error("Failed to start profiler server");
+        }
+    }
+
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Error error = Profiler::instance()->run(_agent_args);
     if (error) {
@@ -330,10 +347,7 @@ extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
     Error error = _agent_args.parse(options);
 
-    Log::open(_agent_args._log, _agent_args._loglevel);
-    if (_agent_args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", _agent_args._unknown_arg);
-    }
+    Log::open(_agent_args);
 
     if (error) {
         Log::error("%s", error.message());
@@ -353,10 +367,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Arguments args(true);
     Error error = args.parse(options);
 
-    Log::open(args._log, args._loglevel);
-    if (args._unknown_arg != NULL) {
-        Log::warn("Unknown argument: %s", args._unknown_arg);
-    }
+    Log::open(args);
 
     if (error) {
         Log::error("%s", error.message());

@@ -14,36 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef _OBJECTSAMPLER_H
-#define _OBJECTSAMPLER_H
+#ifndef _J9OBJECTSAMPLER_H
+#define _J9OBJECTSAMPLER_H
 
-#include <jvmti.h>
-#include "arch.h"
-#include "engine.h"
+#include "objectSampler.h"
 
 
-class ObjectSampler : public Engine {
-  protected:
-    static u64 _interval;
-    static volatile u64 _allocated_bytes;
-
-    static void recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size);
-
+class J9ObjectSampler : public ObjectSampler {
   public:
-    const char* title() {
-        return "Allocation profile";
-    }
-
-    const char* units() {
-        return "bytes";
-    }
-
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 
-    static void JNICALL SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
-                                           jobject object, jclass object_klass, jlong size);
+    static void JNICALL JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
+                                        jobject object, jclass object_klass, jlong size);
+
+    static void JNICALL VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
+                                      jobject object, jclass object_klass, jlong size);
 };
 
-#endif // _OBJECTSAMPLER_H
+#endif // _J9OBJECTSAMPLER_H

@@ -115,10 +115,10 @@ void CodeCache::mark(NamePredicate predicate) {
     }
 }
 
-const char* CodeCache::find(const void* address) {
+CodeBlob* CodeCache::find(const void* address) {
     for (int i = 0; i < _count; i++) {
         if (address >= _blobs[i]._start && address < _blobs[i]._end) {
-            return _blobs[i]._name;
+            return &_blobs[i];
         }
     }
     return NULL;

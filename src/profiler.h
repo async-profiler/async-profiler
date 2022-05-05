@@ -53,6 +53,7 @@ union CallTraceBuffer {
 
 class FrameName;
 class NMethod;
+class StackContext;
 
 enum State {
     NEW,
@@ -78,6 +79,7 @@ class Profiler {
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _engine;
+    Engine* _alloc_engine;
     int _event_mask;
 
     time_t _start_time;
@@ -117,15 +119,12 @@ class Profiler {
 
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
-    bool inJavaCode(void* ucontext);
-    bool isAddressInCode(const void* pc);
-    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, const void** last_pc);
-    int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    bool isAddressInCode(uintptr_t addr);
+    int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, StackContext* java_ctx);
+    int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
     int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
     int convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames);
-    int makeEventFrame(ASGCT_CallFrame* frames, jint event_type, uintptr_t id);
-    bool fillTopFrame(const void* pc, ASGCT_CallFrame* frame, bool* is_entry_frame);
     void fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -134,7 +133,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
-    Engine* allocEngine();
+    Engine* selectAllocEngine(long alloc_interval);
     Engine* activeEngine();
     Error checkJvmCapabilities();
 

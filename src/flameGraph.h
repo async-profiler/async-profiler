@@ -22,6 +22,7 @@
 #include <iostream>
 #include "arch.h"
 #include "arguments.h"
+#include "vmEntry.h"
 
 
 class Trie {
@@ -29,10 +30,11 @@ class Trie {
     std::map<std::string, Trie> _children;
     u64 _total;
     u64 _self;
+    u64 _inlined, _c1_compiled, _interpreted;
 
-    Trie() : _children(), _total(0), _self(0) {
+    Trie() : _children(), _total(0), _self(0), _inlined(0), _c1_compiled(0), _interpreted(0) {
     }
-    
+
     Trie* addChild(const std::string& key, u64 value) {
         _total += value;
         return &_children[key];
@@ -41,6 +43,15 @@ class Trie {
     void addLeaf(u64 value) {
         _total += value;
         _self += value;
+    }
+
+    void addCompilationDetails(int bci, u64 counter) {
+        switch (FrameType::decode(bci)) {
+            case FRAME_INLINED:     _inlined += counter; break;
+            case FRAME_C1_COMPILED: _c1_compiled += counter; break;
+            case FRAME_INTERPRETED: _interpreted += counter; break;
+            default: break;
+        }
     }
 
     int depth(u64 cutoff) const {
@@ -71,7 +82,7 @@ class FlameGraph {
 
     void printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x);
     void printTreeFrame(std::ostream& out, const Trie& f, int level);
-    int frameType(std::string& name);
+    int frameType(std::string& name, const Trie& f);
 
   public:
     FlameGraph(const char* title, Counter counter, double minwidth, bool reverse) :

@@ -728,15 +728,15 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
         }
 
-        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc > 0);
-        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc > 0);
-        if (args._alloc > 0) {
+        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
+        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
+        if (args._alloc >= 0) {
             writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
         }
 
-        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock > 0);
-        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock > 0);
-        if (args._lock > 0) {
+        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock >= 0);
+        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
+        if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
@@ -902,13 +902,14 @@ class Recording {
 
     void writeFrameTypes(Buffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
-        buf->putVar32(6);
+        buf->putVar32(7);
         buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
         buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
         buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
         buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
         buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
         buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
     }
 
     void writeThreadStates(Buffer* buf) {
@@ -1273,8 +1274,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
-                     (args._alloc > 0 ? 2 : 0) |
-                     (args._lock > 0 ? 4 : 0);
+                     (args._alloc >= 0 ? 2 : 0) |
+                     (args._lock >= 0 ? 4 : 0);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

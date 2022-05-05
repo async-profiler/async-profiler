@@ -17,11 +17,25 @@
 #ifndef _STACKWALKER_H
 #define _STACKWALKER_H
 
+#include <stdint.h>
+
+
+struct StackContext {
+    const void* pc;
+    uintptr_t sp;
+    uintptr_t fp;
+
+    void set(const void* pc, uintptr_t sp, uintptr_t fp) {
+        this->pc = pc;
+        this->sp = sp;
+        this->fp = fp;
+    }
+};
 
 class StackWalker {
   public:
-    static int walkFP(void* ucontext, const void** callchain, int max_depth, const void** last_pc);
-    static int walkDwarf(void* ucontext, const void** callchain, int max_depth, const void** last_pc);
+    static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
+    static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
 };
 
 #endif // _STACKWALKER_H

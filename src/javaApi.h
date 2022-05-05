@@ -22,8 +22,8 @@
 
 class JavaAPI {
   public:
-    static void throwNew(JNIEnv* env, const char* exception_class, const char* message);
     static void registerNatives(jvmtiEnv* jvmti, JNIEnv* jni);
+    static bool startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address);
 };
 
 #endif // _JAVAAPI_H

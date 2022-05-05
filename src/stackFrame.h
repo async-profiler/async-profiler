@@ -63,7 +63,8 @@ class StackFrame {
 
     void ret();
 
-    bool pop(bool trust_frame_pointer);
+    bool popStub(instruction_t* entry, const char* name);
+    bool popMethod(instruction_t* entry);
 
     bool checkInterruptedSyscall();
 
