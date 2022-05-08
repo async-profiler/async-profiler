@@ -127,6 +127,11 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
     _runtime_stubs.add(address, length, name, true);
     _stubs_lock.unlock();
 
+    if (strcmp(name, "call_stub") == 0) {
+        _call_stub_begin = address;
+        _call_stub_end = (const char*)address + length;
+    }
+
     CodeHeap::updateBounds(address, (const char*)address + length);
 }
 
@@ -281,7 +286,7 @@ const char* Profiler::findNativeMethod(const void* address) {
 bool Profiler::isAddressInCode(uintptr_t addr) {
     const void* pc = (const void*)addr;
     if (CodeHeap::contains(pc)) {
-        return CodeHeap::findNMethod(pc) != NULL;
+        return CodeHeap::findNMethod(pc) != NULL && !(pc >= _call_stub_begin && pc < _call_stub_end);
     } else {
         return findNativeLibrary(pc) != NULL;
     }
@@ -354,10 +359,18 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
     if (!(_safe_mode & JAVA_STATE)) {
         int state = vm_thread->state();
-        if ((state == 8 || state == 9) && java_ctx->sp != 0) {
-            // If a thread is in Java state, unwind manually to the last known Java frame,
-            // since JVM does not always correctly unwind native frames
-            frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
+        if (state == 8 || state == 9) {
+            if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
+                // call_stub is unsafe to walk
+                frames->bci = BCI_NATIVE_FRAME;
+                frames->method_id = (jmethodID)"call_stub";
+                return 1;
+            }
+            if (java_ctx->sp != 0) {
+                // If a thread is in Java state, unwind manually to the last known Java frame,
+                // since JVM does not always correctly unwind native frames
+                frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
+            }
         }
     }
 
@@ -382,7 +395,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             if (_cstack != CSTACK_NO) {
                 max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, stub->_name);
             }
-            if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name) && isAddressInCode(frame.pc())) {
+            if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name)
+                    && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
         } else if (VMStructs::hasMethodStructs()) {
@@ -392,14 +406,16 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 if (method_id != NULL) {
                     max_depth -= makeFrame(trace.frames++, 0, method_id);
                 }
-                if ((_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry()) && isAddressInCode(frame.pc())) {
+                if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
+                        && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             } else if (nmethod != NULL) {
                 if (_cstack != CSTACK_NO) {
                     max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, nmethod->name());
                 }
-                if (!(_safe_mode & POP_STUB) && frame.popStub(NULL, nmethod->name()) && isAddressInCode(frame.pc())) {
+                if (!(_safe_mode & POP_STUB) && frame.popStub(NULL, nmethod->name())
+                        && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             }

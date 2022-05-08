@@ -48,6 +48,7 @@ int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
 int VMStructs::_nmethod_entry_offset = -1;
+int VMStructs::_nmethod_state_offset = -1;
 int VMStructs::_nmethod_level_offset = -1;
 int VMStructs::_method_constmethod_offset = -1;
 int VMStructs::_method_code_offset = -1;
@@ -148,6 +149,8 @@ void VMStructs::initOffsets() {
                 _nmethod_method_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_verified_entry_point") == 0) {
                 _nmethod_entry_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_state") == 0) {
+                _nmethod_state_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_comp_level") == 0) {
                 _nmethod_level_offset = *(int*)(entry + offset_offset);
             }

@@ -52,6 +52,7 @@ class VMStructs {
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
     static int _nmethod_entry_offset;
+    static int _nmethod_state_offset;
     static int _nmethod_level_offset;
     static int _method_constmethod_offset;
     static int _method_code_offset;
@@ -326,6 +327,10 @@ class NMethod : VMStructs {
 
     void* entry() {
         return *(void**) at(_nmethod_entry_offset);
+    }
+
+    char state() {
+        return *at(_nmethod_state_offset);
     }
 
     int level() {

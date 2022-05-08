@@ -101,6 +101,8 @@ class Profiler {
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
+    const void* _call_stub_begin;
+    const void* _call_stub_end;
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -167,6 +169,8 @@ class Profiler {
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
+        _call_stub_begin(NULL),
+        _call_stub_end(NULL),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
