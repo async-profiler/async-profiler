@@ -71,7 +71,6 @@ enum StackRecovery {
     UNKNOWN_JAVA = 0x1,
     POP_STUB     = 0x2,
     POP_METHOD   = 0x4,
-    SCAN_STACK   = 0x8,
     LAST_JAVA_PC = 0x10,
     GC_TRACES    = 0x20,
     JAVA_STATE   = 0x40,

@@ -43,10 +43,6 @@ class StackFrame {
         fp() = saved_fp;
     }
 
-    bool validSP() {
-        return withinCurrentStack(sp());
-    }
-
     uintptr_t stackAt(int slot) {
         return ((uintptr_t*)sp())[slot];
     }
@@ -67,10 +63,6 @@ class StackFrame {
     bool popMethod(instruction_t* entry);
 
     bool checkInterruptedSyscall();
-
-    // Look that many stack slots for a return address candidate.
-    // 0 = do not use stack snooping heuristics.
-    static int callerLookupSlots();
 
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);
