@@ -17,6 +17,7 @@
 #ifdef __i386__
 
 #include <errno.h>
+#include <string.h>
 #include "stackFrame.h"
 
 

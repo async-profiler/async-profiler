@@ -17,6 +17,7 @@
 #ifdef __aarch64__
 
 #include <errno.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
 

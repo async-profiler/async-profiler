@@ -17,6 +17,7 @@
 #if defined(__arm__) || defined(__thumb__)
 
 #include <errno.h>
+#include <string.h>
 #include "stackFrame.h"
 
 
