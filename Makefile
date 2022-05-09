@@ -84,7 +84,9 @@ else
 endif
 
 ifneq ($(ARCH),ppc64le)
-  CXXFLAGS += -momit-leaf-frame-pointer
+  ifneq ($(ARCH_TAG),arm32)
+    CXXFLAGS += -momit-leaf-frame-pointer
+  endif
 endif
 
 

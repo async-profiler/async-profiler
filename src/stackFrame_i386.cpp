@@ -58,10 +58,48 @@ void StackFrame::ret() {
 }
 
 bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip == entry || *ip == 0xc3
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        pc() = stackAt(0);
+        sp() += 4;
+        return true;
+    } else if (entry != NULL && entry[0] == 0x55 && entry[1] == 0x8b && entry[2] == 0xec) {
+        // The stub begins with
+        //   push ebp
+        //   mov  ebp, esp
+        if (ip == entry + 1) {
+            pc() = stackAt(1);
+            sp() += 8;
+            return true;
+        } else if (withinCurrentStack(fp())) {
+            sp() = fp() + 8;
+            fp() = stackAt(-2);
+            pc() = stackAt(-1);
+            return true;
+        }
+    }
     return false;
 }
 
 bool StackFrame::popMethod(instruction_t* entry) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip <= entry || *ip == 0xc3 || *ip == 0x55        // ret or push ebp
+        || (((uintptr_t)ip & 0xfff) && ip[-1] == 0x5d))  // after pop ebp
+    {
+        pc() = stackAt(0);
+        sp() += 4;
+        return true;
+    } else if (*ip == 0x5d) {
+        // pop ebp
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 8;
+        return true;
+    }
     return false;
 }
 

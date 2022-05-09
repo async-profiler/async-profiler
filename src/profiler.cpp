@@ -365,7 +365,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 frames->method_id = (jmethodID)"call_stub";
                 return 1;
             }
-            if (java_ctx->sp != 0) {
+            if (DWARF_SUPPORTED && java_ctx->sp != 0) {
                 // If a thread is in Java state, unwind manually to the last known Java frame,
                 // since JVM does not always correctly unwind native frames
                 frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
@@ -395,7 +395,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, stub->_name);
             }
             if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name)
-                    && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
+                    && isAddressInCode(frame.pc() -= ADJUST_RET)) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
         } else if (VMStructs::hasMethodStructs()) {
@@ -406,7 +406,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     max_depth -= makeFrame(trace.frames++, 0, method_id);
                 }
                 if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
-                        && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
+                        && isAddressInCode(frame.pc() -= ADJUST_RET)) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             } else if (nmethod != NULL) {
@@ -414,7 +414,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, nmethod->name());
                 }
                 if (!(_safe_mode & POP_STUB) && frame.popStub(NULL, nmethod->name())
-                        && isAddressInCode(frame.pc() -= sizeof(instruction_t))) {
+                        && isAddressInCode(frame.pc() -= ADJUST_RET)) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             }
