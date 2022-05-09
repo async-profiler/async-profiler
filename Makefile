@@ -42,6 +42,7 @@ ifeq ($(OS),Darwin)
     CFLAGS += $(FAT_BINARY_FLAGS)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
+    MERGE=false
   endif
 else
   CXXFLAGS += -Wl,-z,defs -Wl,-z,nodelete
