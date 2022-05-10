@@ -48,6 +48,12 @@ public class Proto {
         return this;
     }
 
+    public Proto field(int index, long n) {
+        tag(index, 0);
+        writeLong(n);
+        return this;
+    }
+
     public Proto field(int index, double d) {
         tag(index, 1);
         writeDouble(d);
@@ -74,6 +80,17 @@ public class Proto {
 
     public void writeInt(int n) {
         int length = n == 0 ? 1 : (38 - Integer.numberOfLeadingZeros(n)) / 7;
+        ensureCapacity(length);
+
+        while (n > 0x7f) {
+            buf[pos++] = (byte) (0x80 | (n & 0x7f));
+            n >>>= 7;
+        }
+        buf[pos++] = (byte) n;
+    }
+
+    public void writeLong(long n) {
+        int length = n == 0 ? 1 : (70 - Long.numberOfLeadingZeros(n)) / 7;
         ensureCapacity(length);
 
         while (n > 0x7f) {

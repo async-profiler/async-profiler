@@ -24,8 +24,9 @@ public class Main {
         System.out.println("Usage: java -cp converter.jar <Converter> [options] <input> <output>");
         System.out.println();
         System.out.println("Available converters:");
-        System.out.println("  FlameGraph input.collapsed output.html");
-        System.out.println("  jfr2flame  input.jfr       output.html");
-        System.out.println("  jfr2nflx   input.jfr       output.nflx");
+        System.out.println("  FlameGraph  input.collapsed output.html");
+        System.out.println("  jfr2flame   input.jfr       output.html");
+        System.out.println("  jfr2nflx    input.jfr       output.nflx");
+        System.out.println("  jfr2pprof   input.jfr       output.pprof");
     }
 }
