@@ -352,9 +352,12 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     }
 
     StackFrame frame(ucontext);
-    uintptr_t saved_pc = frame.pc(),
-              saved_sp = frame.sp(),
-              saved_fp = frame.fp();
+    uintptr_t saved_pc, saved_sp, saved_fp;
+    if (ucontext != NULL) {
+        saved_pc = frame.pc();
+        saved_sp = frame.sp();
+        saved_fp = frame.fp();
+    }
 
     if (!(_safe_mode & JAVA_STATE)) {
         int state = vm_thread->state();
@@ -382,7 +385,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         return trace.num_frames;
     }
 
-    if ((trace.num_frames == ticks_unknown_Java || trace.num_frames == ticks_not_walkable_Java) && !(_safe_mode & UNKNOWN_JAVA)) {
+    if ((trace.num_frames == ticks_unknown_Java || trace.num_frames == ticks_not_walkable_Java) && !(_safe_mode & UNKNOWN_JAVA) && ucontext != NULL) {
         CodeBlob* stub = NULL;
         _stubs_lock.lockShared();
         if (_runtime_stubs.contains(java_ctx->pc)) {
