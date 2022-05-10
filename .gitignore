@@ -5,3 +5,4 @@
 /test/*.class
 .vscode
 *.iml
+target/*

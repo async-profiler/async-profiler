@@ -17,7 +17,7 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVAC_RELEASE_VERSION=7
+JAVAC_RELEASE_VERSION=11
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
@@ -144,7 +144,7 @@ build/$(API_JAR): $(API_SOURCES)
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
-	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
+	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/converter $(CONVERTER_SOURCES)
 	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
 
