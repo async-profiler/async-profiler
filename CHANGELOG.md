@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.8] - Early Access
+## [2.8] - 2022-05-09
 
 ### Features
  - Mark top methods as interpreted, compiled (C1/C2), or inlined

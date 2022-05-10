@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.8-ea
+PROFILER_VERSION=2.8
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -56,6 +56,7 @@ else
   PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
+    CXXFLAGS += -D__musl__
   else
     OS_TAG=linux
   endif
