@@ -572,7 +572,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
-    if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
+    if (_add_event_frame && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
         num_frames = makeFrame(frames, event_type, event->id());
     }
 
@@ -919,6 +919,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
+        // Make sure frame structure is consistent throughout the entire recording
+        _add_event_frame = args._output != OUTPUT_JFR;
+        _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
+        _add_sched_frame = args._sched;
         unlockAll();
 
         // Reset thread names and IDs
@@ -947,8 +951,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _safe_mode |= GC_TRACES | LAST_JAVA_PC;
     }
 
-    _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
-    _add_sched_frame = args._sched;
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 

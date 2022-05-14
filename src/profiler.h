@@ -93,10 +93,11 @@ class Profiler {
     int _max_stack_depth;
     int _safe_mode;
     CStack _cstack;
+    bool _add_event_frame;
     bool _add_thread_frame;
     bool _add_sched_frame;
     bool _update_thread_names;
-    volatile bool _thread_events_state;
+    volatile jvmtiEventMode _thread_events_state;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
