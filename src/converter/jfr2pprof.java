@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
+import one.jfr.ClassRef;
+import one.jfr.Dictionary;
+import one.jfr.JfrReader;
+import one.jfr.MethodRef;
+import one.jfr.StackTrace;
+import one.jfr.event.ExecutionSample;
+import one.proto.Proto;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -23,15 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import one.jfr.ClassRef;
-import one.jfr.Dictionary;
-import one.jfr.JfrReader;
-import one.jfr.MethodRef;
-import one.jfr.StackTrace;
-import one.jfr.event.ExecutionSample;
-
-import one.proto.Proto;
-
 /**
  * Convert a JFR file to pprof
  * <p>
@@ -40,7 +39,7 @@ import one.proto.Proto;
 public class jfr2pprof {
 
     public static class Method {
-        public final byte[] name;
+        final byte[] name;
 
         public Method(final byte[] name) {
             this.name = name;
@@ -53,23 +52,8 @@ public class jfr2pprof {
 
         @Override
         public boolean equals(final Object other) {
-            if (null == other) {
-                return false;
-            }
-
-            if (other instanceof Method) {
-                final Method that = (Method) other;
-                return Arrays.equals(this.name, that.name);
-            } else {
-                return false;
-            }
+            return other instanceof Method && Arrays.equals(name, ((Method) other).name);
         }
-    }
-
-    private final JfrReader reader;
-
-    public jfr2pprof(final JfrReader reader) {
-        this.reader = reader;
     }
 
     public static final byte[] METHOD_UNKNOWN = "[unknown]".getBytes();
@@ -105,6 +89,12 @@ public class jfr2pprof {
     public static final int FUNCTION_ID = 1;
     public static final int FUNCTION_NAME = 2;
 
+    private final JfrReader reader;
+
+    public jfr2pprof(final JfrReader reader) {
+        this.reader = reader;
+    }
+
     // `Proto` instances are mutable, careful with reordering
     public void dump(final OutputStream out) throws Exception {
         // Mutable IDs, need to start at 1
@@ -113,44 +103,34 @@ public class jfr2pprof {
         int stringId = 1;
 
         // Used to de-dupe
-        final Map<Method, Long> functions = new HashMap<>();
-        final Map<Method, Long> locations = new HashMap<>();
-
-        final List<ExecutionSample> samples = reader.readAllEvents(ExecutionSample.class);
-        final Dictionary<StackTrace> stackTraces = reader.stackTraces;
-        final long startTicks = reader.startTicks;
+        final Map<Method, Integer> functions = new HashMap<>();
+        final Map<Method, Integer> locations = new HashMap<>();
 
         final Proto profile = new Proto(200_000)
-            .field(PROFILE_TIME_NANOS, reader.startNanos)
-            .field(PROFILE_DURATION_NANOS, reader.durationNanos())
-            .field(PROFILE_DEFAULT_SAMPLE_TYPE, 0L)
-            .field(PROFILE_STRING_TABLE, "".getBytes(StandardCharsets.UTF_8)) // "" needs to be index 0
-            .field(PROFILE_STRING_TABLE, "Async Profiler".getBytes(StandardCharsets.UTF_8))
-            .field(PROFILE_COMMENT, stringId++);
+                .field(PROFILE_TIME_NANOS, reader.startNanos)
+                .field(PROFILE_DURATION_NANOS, reader.durationNanos())
+                .field(PROFILE_DEFAULT_SAMPLE_TYPE, 0L)
+                .field(PROFILE_STRING_TABLE, "".getBytes(StandardCharsets.UTF_8)) // "" needs to be index 0
+                .field(PROFILE_STRING_TABLE, "async-profiler".getBytes(StandardCharsets.UTF_8))
+                .field(PROFILE_COMMENT, stringId++);
 
-        // Sample Type
-        final String sampleTypeName = "cpu";
-        final String sampleTypeUnit = "nanoseconds";
+        final Proto sampleType = new Proto(100);
 
-        final Proto sampleType = new Proto(10_000);
-
-        profile.field(PROFILE_STRING_TABLE, sampleTypeName.getBytes(StandardCharsets.UTF_8));
+        profile.field(PROFILE_STRING_TABLE, "cpu".getBytes(StandardCharsets.UTF_8));
         sampleType.field(VALUETYPE_TYPE, stringId++);
 
-        profile.field(PROFILE_STRING_TABLE, sampleTypeUnit.getBytes(StandardCharsets.UTF_8));
+        profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
         sampleType.field(VALUETYPE_UNIT, stringId++);
 
         profile.field(PROFILE_SAMPLE_TYPE, sampleType);
 
-        long previousTime = startTicks; // Mutate this to keep track of time deltas
+        final List<ExecutionSample> jfrSamples = reader.readAllEvents(ExecutionSample.class);
+        final Dictionary<StackTrace> stackTraces = reader.stackTraces;
+        long previousTime = reader.startTicks; // Mutate this to keep track of time deltas
 
         // Iterate over samples
-        for (final ExecutionSample jfrSample : samples) {
-            final int sampleThreadState = jfrSample.threadState;
-            final long sampleTime = jfrSample.time;
-            final int sampleThreadId = jfrSample.tid;
-            final int sampleStackTraceId = jfrSample.stackTraceId;
-            final StackTrace stackTrace = stackTraces.get(sampleStackTraceId);
+        for (final ExecutionSample jfrSample : jfrSamples) {
+            final StackTrace stackTrace = stackTraces.get(jfrSample.stackTraceId);
             final long[] methods = stackTrace.methods;
             final byte[] types = stackTrace.types;
 
@@ -160,15 +140,15 @@ public class jfr2pprof {
             for (int current = 0; current < methods.length; current++) {
                 final byte methodType = types[current];
                 final long methodIdentifier = methods[current];
-                final byte[] methodName = getMethodName(reader, methodIdentifier, methodType);
+                final byte[] methodName = getMethodName(methodIdentifier, methodType);
                 final Method method = new Method(methodName);
                 final int line = stackTrace.locations[current] >>> 16;
 
-                final Long methodId = functions.get(method);
+                final Integer methodId = functions.get(method);
                 if (null == methodId) {
-                    final long funcId = functionId++;
+                    final int funcId = functionId++;
                     profile.field(PROFILE_STRING_TABLE, methodName);
-                    final Proto function = new Proto(1_000)
+                    final Proto function = new Proto(16)
                         .field(FUNCTION_ID, funcId)
                         .field(FUNCTION_NAME, stringId++);
 
@@ -177,15 +157,15 @@ public class jfr2pprof {
                     functions.put(method, funcId);
                 }
 
-                final Long locaId = locations.get(method);
+                final Integer locaId = locations.get(method);
                 if (null == locaId) {
-                    final long locId = locationId++;
-                    final Proto locLine = new Proto(1_000).field(LINE_FUNCTION_ID, functions.get(method));
+                    final int locId = locationId++;
+                    final Proto locLine = new Proto(16).field(LINE_FUNCTION_ID, functions.get(method));
                     if (line > 0) {
                         locLine.field(LINE_LINE, line);
                     }
 
-                    final Proto location = new Proto(1_000)
+                    final Proto location = new Proto(16)
                         .field(LOCATION_ID, locId)
                         .field(LOCATION_LINE, locLine);
 
@@ -205,7 +185,7 @@ public class jfr2pprof {
         out.write(profile.buffer(), 0, profile.size());
     }
 
-    public static byte[] getMethodName(final JfrReader reader,final long methodId, final byte methodType) {
+    private byte[] getMethodName(final long methodId, final byte methodType) {
         final MethodRef ref = reader.methods.get(methodId);
         if (null == ref) {
             return METHOD_UNKNOWN;
@@ -239,7 +219,8 @@ public class jfr2pprof {
             dst = new File(dst, new File(args[0]).getName().replace(".jfr", ".pprof"));
         }
 
-        try (final JfrReader jfr = new JfrReader(args[0]); final FileOutputStream out = new FileOutputStream(dst)) {
+        try (final JfrReader jfr = new JfrReader(args[0]);
+             final FileOutputStream out = new FileOutputStream(dst)) {
             new jfr2pprof(jfr).dump(out);
         }
     }
