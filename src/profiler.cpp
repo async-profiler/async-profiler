@@ -404,13 +404,16 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         } else if (VMStructs::hasMethodStructs()) {
             NMethod* nmethod = CodeHeap::findNMethod((const void*)frame.pc());
             if (nmethod != NULL && nmethod->isNMethod()) {
-                jmethodID method_id = nmethod->method()->constMethod()->id();
-                if (method_id != NULL) {
-                    max_depth -= makeFrame(trace.frames++, 0, method_id);
-                }
-                if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
-                        && isAddressInCode(frame.pc() -= ADJUST_RET)) {
-                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                VMMethod* method = nmethod->method();
+                if (method != NULL) {
+                    jmethodID method_id = method->constMethod()->id();
+                    if (method_id != NULL) {
+                        max_depth -= makeFrame(trace.frames++, 0, method_id);
+                    }
+                    if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
+                            && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                        VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    }
                 }
             } else if (nmethod != NULL) {
                 if (_cstack != CSTACK_NO) {
@@ -521,7 +524,12 @@ inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame
 
 void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
     if (nmethod->isNMethod()) {
-        jmethodID current_method_id = nmethod->method()->constMethod()->id();
+        VMMethod* method = nmethod->method();
+        if (method == NULL) {
+            return;
+        }
+
+        jmethodID current_method_id = method->constMethod()->id();
         if (current_method_id == NULL) {
             return;
         }
@@ -534,9 +542,11 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
             if (frames[i].method_id == current_method_id) {
                 int level = nmethod->level();
                 frames[i].bci = FrameType::encode(level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED, frames[i].bci);
+                for (int j = 0; j < i; j++) {
+                    frames[j].bci = FrameType::encode(FRAME_INLINED, frames[j].bci);
+                }
                 break;
             }
-            frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
         }
     } else if (nmethod->isInterpreter()) {
         // Mark the first Java frame as INTERPRETED
