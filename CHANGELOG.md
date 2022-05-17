@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.8] - 2022-05-09
+
+### Features
+ - Mark top methods as interpreted, compiled (C1/C2), or inlined
+ - JVM TI based allocation profiling for JDK 11+
+ - Embedded HTTP management server
+
+### Improvements
+ - Re-implemented stack recovery for better reliability
+ - Add `loglevel` argument
+ - Do not mmap perf page in `--all-user` mode
+ - Distinguish runnable/sleeping threads in OpenJ9 wall-clock profiler
+ - `--cpu` converter option to extract CPU profile from the wall-clock output
+
 ## [2.7] - 2022-02-14
 
 ### Features

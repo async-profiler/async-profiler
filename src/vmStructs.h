@@ -51,7 +51,11 @@ class VMStructs {
     static int _frame_complete_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
-    static int _constmethod_offset;
+    static int _nmethod_entry_offset;
+    static int _nmethod_state_offset;
+    static int _nmethod_level_offset;
+    static int _method_constmethod_offset;
+    static int _method_code_offset;
     static int _constmethod_constants_offset;
     static int _constmethod_idnum_offset;
     static int _pool_holder_offset;
@@ -151,6 +155,8 @@ class MethodList {
     }
 };
 
+
+class NMethod;
 
 class VMSymbol : VMStructs {
   public:
@@ -274,8 +280,16 @@ class ConstMethod : VMStructs {
 
 class VMMethod : VMStructs {
   public:
+    static VMMethod* fromMethodID(jmethodID id) {
+        return *(VMMethod**)id;
+    }
+
     ConstMethod* constMethod() {
-        return *(ConstMethod**) at(_constmethod_offset);
+        return *(ConstMethod**) at(_method_constmethod_offset);
+    }
+
+    NMethod* code() {
+        return *(NMethod**) at(_method_code_offset);
     }
 };
 
@@ -302,8 +316,25 @@ class NMethod : VMStructs {
         return n != NULL && (strcmp(n, "nmethod") == 0 || strcmp(n, "native nmethod") == 0);
     }
 
+    bool isInterpreter() {
+        const char* n = name();
+        return n != NULL && strcmp(n, "Interpreter") == 0;
+    }
+
     VMMethod* method() {
         return *(VMMethod**) at(_nmethod_method_offset);
+    }
+
+    void* entry() {
+        return *(void**) at(_nmethod_entry_offset);
+    }
+
+    char state() {
+        return *at(_nmethod_state_offset);
+    }
+
+    int level() {
+        return _nmethod_level_offset >= 0 ? *(int*) at(_nmethod_level_offset) : 0;
     }
 };
 

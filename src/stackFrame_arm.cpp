@@ -17,6 +17,7 @@
 #if defined(__arm__) || defined(__thumb__)
 
 #include <errno.h>
+#include <string.h>
 #include "stackFrame.h"
 
 
@@ -56,16 +57,43 @@ void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }
 
-bool StackFrame::pop(bool trust_frame_pointer) {
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip == entry || *ip == 0xe12fff1e
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        ret();
+        return true;
+    }
     return false;
+}
+
+bool StackFrame::popMethod(instruction_t* entry) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip > entry && ip <= entry + 4 && (*ip & 0xffffff00) == 0xe24dd000) {
+        //    push  {r11, lr}
+        //    mov   r11, sp (optional)
+        // -> sub   sp, sp, #offs
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 8;
+        return true;
+    } else if (*ip == 0xe8bd4800) {
+        //    add   sp, sp, #offs
+        // -> pop   {r11, lr}
+        fp() = stackAt(0);
+        pc() = stackAt(1);
+        sp() += 8;
+        return true;
+    }
+    ret();
+    return true;
 }
 
 bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
-}
-
-int StackFrame::callerLookupSlots() {
-    return 0;
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

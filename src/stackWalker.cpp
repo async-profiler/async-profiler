@@ -28,34 +28,42 @@ const intptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, bool *truncated) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool *truncated) {
     const void* pc;
     uintptr_t fp;
-    uintptr_t prev_fp = (uintptr_t)&fp;
-    uintptr_t bottom = prev_fp + MAX_WALK_SIZE;
+    uintptr_t sp;
+    uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
 
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
+        sp = (uintptr_t)__builtin_frame_address(0);
     } else {
         StackFrame frame(ucontext);
         pc = (const void*)frame.pc();
         fp = frame.fp();
+        sp = frame.sp();
     }
 
     int depth = 0;
 
+    *truncated = false;
+
     // Walk until the bottom of the stack or until the first Java frame
-    while (!CodeHeap::contains(pc)) {
+    while (true) {
         if (depth == max_depth) {
             *truncated = true;
+            break;
+        }
+        if (CodeHeap::contains(pc)) {
+            java_ctx->set(pc, sp, fp);
             break;
         }
 
         callchain[depth++] = pc;
 
         // Check if the next frame is below on the current stack
-        if (fp <= prev_fp || fp >= prev_fp + MAX_FRAME_SIZE || fp >= bottom) {
+        if (fp < sp || fp >= sp + MAX_FRAME_SIZE || fp >= bottom) {
             *truncated = fp != 0x0;
             break;
         }
@@ -72,14 +80,14 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, b
             break;
         }
 
-        prev_fp = fp;
+        sp = fp + (FRAME_PC_SLOT + 1) * sizeof(void*);
         fp = *(uintptr_t*)fp;
     }
 
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, bool *truncated) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool *truncated) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -100,10 +108,16 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     int depth = 0;
     Profiler* profiler = Profiler::instance();
 
+    *truncated = false;
+
     // Walk until the bottom of the stack or until the first Java frame
-    while (!CodeHeap::contains(pc)) {
+    while (true) {
         if (depth == max_depth) {
             *truncated = true;
+            break;
+        }
+        if (CodeHeap::contains(pc)) {
+            java_ctx->set(pc, sp, fp);
             break;
         }
 

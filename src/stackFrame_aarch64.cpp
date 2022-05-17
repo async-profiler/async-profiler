@@ -17,6 +17,7 @@
 #ifdef __aarch64__
 
 #include <errno.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
 
@@ -65,24 +66,43 @@ void StackFrame::ret() {
 }
 
 
-bool StackFrame::pop(bool trust_frame_pointer) {
-    if (trust_frame_pointer && withinCurrentStack(fp())) {
-        sp() = fp() + 16;
-        fp() = stackAt(-2);
-        pc() = stackAt(-1);
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip == entry || *ip == 0xd65f03c0
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strncmp(name, "compare_long_string_", 20) == 0
+        || strcmp(name, "zero_blocks") == 0
+        || strcmp(name, "forward_copy_longs") == 0
+        || strcmp(name, "backward_copy_longs") == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        ret();
         return true;
-    } else if (fp() == sp()) {
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 16;
-        return true;
+    } else if (entry != NULL && entry[0] == 0xa9bf7bfd) {
+        // The stub begins with
+        //   stp  x29, x30, [sp, #-16]!
+        //   mov  x29, sp
+        if (ip == entry + 1) {
+            sp() += 16;
+            ret();
+            return true;
+        } else if (entry[1] == 0x910003fd && withinCurrentStack(fp())) {
+            sp() = fp() + 16;
+            fp() = stackAt(-2);
+            pc() = stackAt(-1);
+            return true;
+        }
     }
+    return false;
+}
 
-    instruction_t insn = *(instruction_t*)pc();
-    if ((insn & 0xffe07fff) == 0xa9007bfd) {
+bool StackFrame::popMethod(instruction_t* entry) {
+    instruction_t* ip = (instruction_t*)pc();
+    if ((*ip & 0xffe07fff) == 0xa9007bfd) {
         // stp x29, x30, [sp, #offset]
         // SP has been adjusted, but FP not yet stored in a new frame
-        unsigned int offset = (insn >> 12) & 0x1f8;
+        unsigned int offset = (*ip >> 12) & 0x1f8;
         sp() += offset + 16;
     }
     ret();
@@ -104,10 +124,6 @@ bool StackFrame::checkInterruptedSyscall() {
 #else
     return retval() == (uintptr_t)-EINTR;
 #endif
-}
-
-int StackFrame::callerLookupSlots() {
-    return 0;
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

@@ -94,7 +94,12 @@ static inline bool inC2PrologueCrit(uintptr_t pc) {
 }
 
 
-bool StackFrame::pop(bool trust_frame_pointer) {
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    pc() = _ucontext->uc_mcontext.regs->link;
+    return true;
+}
+
+bool StackFrame::popMethod(instruction_t* entry) {
     // On PPC there is a valid back link to the previous frame at all times. The callee stores
     // the return address in the caller's frame before it constructs its own frame. After it
     // has destroyed its frame it restores the link register and returns. A problematic sequence
@@ -118,10 +123,6 @@ bool StackFrame::pop(bool trust_frame_pointer) {
 
 bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
-}
-
-int StackFrame::callerLookupSlots() {
-    return 0;
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

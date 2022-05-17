@@ -34,7 +34,20 @@ enum FrameTypeId {
     FRAME_NATIVE       = 3,
     FRAME_CPP          = 4,
     FRAME_KERNEL       = 5,
+    FRAME_C1_COMPILED  = 6,
 };
+
+class FrameType {
+  public:
+    static inline int encode(int type, int bci) {
+        return (1 << 24) | (type << 25) | (bci & 0xffffff);
+    }
+
+    static inline FrameTypeId decode(int bci) {
+        return (bci >> 24) > 0 ? (FrameTypeId)(bci >> 25) : FRAME_JIT_COMPILED;
+    }
+};
+
 
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
@@ -101,6 +114,7 @@ class VM {
 
     static int _hotspot_version;
     static bool _openj9;
+    static bool _can_sample_objects;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -149,6 +163,10 @@ class VM {
 
     static bool isOpenJ9() {
         return _openj9;
+    }
+
+    static bool canSampleObjects() {
+        return _can_sample_objects;
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

@@ -76,12 +76,13 @@ static const char FLAMEGRAPH_HEADER[] =
     "\tc.font = document.body.style.font;\n"
     "\n"
     "\tconst palette = [\n"
-    "\t\t[0xa6e1a6, 20, 20, 20],\n"
+    "\t\t[0xb2e1b2, 20, 20, 20],\n"
     "\t\t[0x50e150, 30, 30, 30],\n"
     "\t\t[0x50cccc, 30, 30, 30],\n"
     "\t\t[0xe15a5a, 30, 40, 40],\n"
     "\t\t[0xc8c83c, 30, 30, 10],\n"
     "\t\t[0xe17d00, 30, 30,  0],\n"
+    "\t\t[0xcce880, 20, 20, 20],\n"
     "\t];\n"
     "\n"
     "\tfunction getColor(p) {\n"
@@ -89,8 +90,10 @@ static const char FLAMEGRAPH_HEADER[] =
     "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n"
     "\t}\n"
     "\n"
-    "\tfunction f(level, left, width, type, title) {\n"
-    "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title});\n"
+    "\tfunction f(level, left, width, type, title, inln, c1, int) {\n"
+    "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title,\n"
+    "\t\t\tdetails: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')\n"
+    "\t\t});\n"
     "\t}\n"
     "\n"
     "\tfunction samples(n) {\n"
@@ -205,7 +208,7 @@ static const char FLAMEGRAPH_HEADER[] =
     "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n"
     "\t\t\t\thl.firstChild.textContent = f.title;\n"
     "\t\t\t\thl.style.display = 'block';\n"
-    "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + ', ' + pct(f.width, levels[0][0].width) + '%%)';\n"
+    "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%%)';\n"
     "\t\t\t\tcanvas.style.cursor = 'pointer';\n"
     "\t\t\t\tcanvas.onclick = function() {\n"
     "\t\t\t\t\tif (f != root) {\n"
@@ -300,19 +303,25 @@ static const char TREE_HEADER[] =
     "    background-color: #D9D9D9;\n"
     "}\n"
     ".t0 {\n"
-    "    color: #32c832;\n"
+    "    color: #8eb48e;\n"
     "}\n"
     ".t1 {\n"
-    "    color: #32a5a5;\n"
+    "    color: #30b430;\n"
     "}\n"
     ".t2 {\n"
-    "    color: #be5a00;\n"
+    "    color: #30b4b4;\n"
     "}\n"
     ".t3 {\n"
-    "    color: #afaf32;\n"
+    "    color: #b43030;\n"
     "}\n"
     ".t4 {\n"
-    "    color: #c83232;\n"
+    "    color: #aaaa00;\n"
+    "}\n"
+    ".t5 {\n"
+    "    color: #cc8000;\n"
+    "}\n"
+    ".t6 {\n"
+    "    color: #a3ba66;\n"
     "}\n"
     "ul.tree li > div {\n"
     "    display: inline;\n"
@@ -496,10 +505,16 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
 
 void FlameGraph::printFrame(std::ostream& out, const std::string& name, const Trie& f, int level, u64 x) {
     std::string name_copy = name;
-    int type = frameType(name_copy);
+    int type = frameType(name_copy, f);
     StringUtils::replace(name_copy, '\'', "\\'", 2);
 
-    snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%d,'%s')\n", level, x, f._total, type, name_copy.c_str());
+    if (f._inlined | f._c1_compiled | f._interpreted) {
+        snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%d,'%s',%llu,%llu,%llu)\n",
+                 level, x, f._total, type, name_copy.c_str(), f._inlined, f._c1_compiled, f._interpreted);
+    } else {
+        snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%d,'%s')\n",
+                 level, x, f._total, type, name_copy.c_str());
+    }
     out << _buf;
 
     x += f._self;
@@ -523,7 +538,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
         std::string name = subnodes[i]._name;
         const Trie* trie = subnodes[i]._trie;
 
-        int type = frameType(name);
+        int type = frameType(name, f);
         StringUtils::replace(name, '&', "&amp;", 5);
         StringUtils::replace(name, '<', "&lt;", 4);
         StringUtils::replace(name, '>', "&gt;", 4);
@@ -557,7 +572,15 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
 }
 
 // TODO: Reuse frame type embedded in ASGCT_CallFrame
-int FlameGraph::frameType(std::string& name) {
+int FlameGraph::frameType(std::string& name, const Trie& f) {
+    if (f._inlined * 3 >= f._total) {
+        return FRAME_INLINED;
+    } else if (f._c1_compiled * 2 >= f._total) {
+        return FRAME_C1_COMPILED;
+    } else if (f._interpreted * 2 >= f._total) {
+        return FRAME_INTERPRETED;
+    }
+
     if (StringUtils::endsWith(name, "_[j]", 4)) {
         name = name.substr(0, name.length() - 4);
         return FRAME_JIT_COMPILED;
@@ -571,7 +594,7 @@ int FlameGraph::frameType(std::string& name) {
         return FRAME_CPP;
     } else if (((int)name.find('/') > 0 && name[0] != '[')
             || ((int)name.find('.') > 0 && name[0] >= 'A' && name[0] <= 'Z')) {
-        return FRAME_INTERPRETED;
+        return FRAME_JIT_COMPILED;
     } else {
         return FRAME_NATIVE;
     }

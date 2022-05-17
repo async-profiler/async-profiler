@@ -47,7 +47,11 @@ int VMStructs::_frame_size_offset = -1;
 int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
-int VMStructs::_constmethod_offset = -1;
+int VMStructs::_nmethod_entry_offset = -1;
+int VMStructs::_nmethod_state_offset = -1;
+int VMStructs::_nmethod_level_offset = -1;
+int VMStructs::_method_constmethod_offset = -1;
+int VMStructs::_method_code_offset = -1;
 int VMStructs::_constmethod_constants_offset = -1;
 int VMStructs::_constmethod_idnum_offset = -1;
 int VMStructs::_pool_holder_offset = -1;
@@ -143,10 +147,18 @@ void VMStructs::initOffsets() {
         } else if (strcmp(type, "CompiledMethod") == 0 || strcmp(type, "nmethod") == 0) {
             if (strcmp(field, "_method") == 0) {
                 _nmethod_method_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_verified_entry_point") == 0) {
+                _nmethod_entry_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_state") == 0) {
+                _nmethod_state_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_comp_level") == 0) {
+                _nmethod_level_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "Method") == 0) {
             if (strcmp(field, "_constMethod") == 0) {
-                _constmethod_offset = *(int*)(entry + offset_offset);
+                _method_constmethod_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_code") == 0) {
+                _method_code_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "ConstMethod") == 0) {
             if (strcmp(field, "_constants") == 0) {
@@ -281,7 +293,9 @@ void VMStructs::resolveOffsets() {
 
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0
-            && _constmethod_offset >= 0
+            && _nmethod_entry_offset >= 0
+            && _method_constmethod_offset >= 0
+            && _method_code_offset >= 0
             && _constmethod_constants_offset >= 0
             && _constmethod_idnum_offset >= 0
             && _pool_holder_offset >= 0;

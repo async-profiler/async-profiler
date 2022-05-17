@@ -17,6 +17,7 @@
 #ifdef __x86_64__
 
 #include <errno.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
 
@@ -66,40 +67,58 @@ void StackFrame::ret() {
 }
 
 
-static inline bool isFramePrologueEpilogue(uintptr_t pc) {
-    if (pc & 0xfff) {
-        // Make sure we are not at the page boundary, so that reading [pc - 1] is safe
-        unsigned int opcode = *(unsigned int*)(pc - 1);
-        if (opcode == 0xec834855) {
-            // push rbp
-            // sub  rsp, $const
+bool StackFrame::popStub(instruction_t* entry, const char* name) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip == entry || *ip == 0xc3
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        pc() = stackAt(0);
+        sp() += 8;
+        return true;
+    } else if (entry != NULL && *(unsigned int*)entry == 0xec8b4855) {
+        // The stub begins with
+        //   push rbp
+        //   mov  rbp, rsp
+        if (ip == entry + 1) {
+            pc() = stackAt(1);
+            sp() += 16;
             return true;
-        } else if (opcode == 0xec8b4855) {
-            // push rbp
-            // mov  rbp, rsp
+        } else if (withinCurrentStack(fp())) {
+            sp() = fp() + 16;
+            fp() = stackAt(-2);
+            pc() = stackAt(-1);
             return true;
         }
     }
-
-    if (*(unsigned char*)pc == 0x5d && *(unsigned short*)(pc + 1) == 0x0585) {
-        // pop  rbp
-        // test [polling_page], eax
-        return true;
-    }
-
     return false;
 }
 
-bool StackFrame::pop(bool trust_frame_pointer) {
-    if (trust_frame_pointer && withinCurrentStack(fp())) {
-        sp() = fp() + 16;
-        fp() = stackAt(-2);
-        pc() = stackAt(-1);
+bool StackFrame::popMethod(instruction_t* entry) {
+    instruction_t* ip = (instruction_t*)pc();
+    if (ip <= entry || *ip == 0xc3 || *ip == 0x55                               // ret or push rbp
+        || (((uintptr_t)ip & 0xfff) && ip[-1] == 0x5d)                          // after pop rbp
+        || (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3))  // poll return
+    {
+        pc() = stackAt(0);
+        sp() += 8;
         return true;
-    } else if (fp() == sp() || withinCurrentStack(stackAt(0)) || isFramePrologueEpilogue(pc())) {
+    } else if (*ip == 0x5d) {
+        // pop rbp
         fp() = stackAt(0);
         pc() = stackAt(1);
         sp() += 16;
+        return true;
+    } else if (ip <= entry + 15 && ((uintptr_t)ip & 0xfff) && ip[-1] == 0x55) {
+        // push rbp
+        pc() = stackAt(1);
+        sp() += 16;
+        return true;
+    } else if (ip <= entry + 7 && ip[0] == 0x48 && ip[1] == 0x89 && ip[2] == 0x6c && ip[3] == 0x24) {
+        // mov [rsp + #off], rbp
+        sp() += ip[4] + 16;
+        pc() = stackAt(-1);
         return true;
     }
     return false;
@@ -132,10 +151,6 @@ bool StackFrame::checkInterruptedSyscall() {
     }
     return false;
 #endif
-}
-
-int StackFrame::callerLookupSlots() {
-    return 7;
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

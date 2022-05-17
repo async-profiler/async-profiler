@@ -115,10 +115,10 @@ void CodeCache::mark(NamePredicate predicate) {
     }
 }
 
-const char* CodeCache::find(const void* address) {
+CodeBlob* CodeCache::find(const void* address) {
     for (int i = 0; i < _count; i++) {
         if (address >= _blobs[i]._start && address < _blobs[i]._end) {
-            return _blobs[i]._name;
+            return &_blobs[i];
         }
     }
     return NULL;
@@ -171,13 +171,13 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
-void CodeCache::setGlobalOffsetTable(const void* start, unsigned int size) {
-    _got_start = (const void**) start;
-    _got_end = (const void**) ((const char*)start + size);
+void CodeCache::setGlobalOffsetTable(void** table, unsigned int count) {
+    _got_start = table;
+    _got_end = table + count;
 }
 
-const void** CodeCache::findGlobalOffsetEntry(const void* address) {
-    for (const void** entry = _got_start; entry < _got_end; entry++) {
+void** CodeCache::findGlobalOffsetEntry(void* address) {
+    for (void** entry = _got_start; entry < _got_end; entry++) {
         if (*entry == address) {
             return entry;
         }

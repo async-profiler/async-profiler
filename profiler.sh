@@ -22,7 +22,7 @@ usage() {
     echo "  -t                profile different threads separately"
     echo "  -s                simple class names instead of FQN"
     echo "  -g                print method signatures"
-    echo "  -a                annotate Java method names"
+    echo "  -a                annotate Java methods"
     echo "  -l                prepend library names"
     echo "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr"
     echo "  -I include        output only stack traces containing the specified pattern"

@@ -83,6 +83,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
 //     loglevel=LEVEL   - logging level: TRACE, DEBUG, INFO, WARN, ERROR, or NONE
+//     server=ADDRESS   - start insecure HTTP server at ADDRESS/PORT
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
@@ -94,7 +95,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     sig              - print method signatures
-//     ann              - annotate Java method names
+//     ann              - annotate Java methods
 //     lib              - prepend library names
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
@@ -201,9 +202,9 @@ Error Arguments::parse(const char* args) {
                 if (value == NULL || value[0] == 0) {
                     msg = "event must not be empty";
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
-                    if (_alloc <= 0) _alloc = 1;
+                    if (_alloc < 0) _alloc = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
-                    if (_lock <= 0) _lock = 1;
+                    if (_lock < 0) _lock = 0;
                 } else if (strcmp(value, EVENT_MEMLEAK) == 0) {
                     if (_memleak <= 0) _memleak = 1;
                 } else if (_event != NULL) {
@@ -224,13 +225,13 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("alloc")
-                _alloc = value == NULL ? 1 : parseUnits(value, BYTES);
+                _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
                 if (_alloc < 0) {
                     msg = "alloc must be >= 0";
                 }
 
             CASE("lock")
-                _lock = value == NULL ? 1 : parseUnits(value, NANOS);
+                _lock = value == NULL ? 0 : parseUnits(value, NANOS);
                 if (_lock < 0) {
                     msg = "lock must be >= 0";
                 }
@@ -277,6 +278,12 @@ Error Arguments::parse(const char* args) {
                     msg = "loglevel must not be empty";
                 }
                 _loglevel = value;
+
+            CASE("server")
+                if (value == NULL || value[0] == 0) {
+                    msg = "server address must not be empty";
+                }
+                _server = value;
 
             CASE("fdtransfer")
                 _fdtransfer = true;
@@ -350,7 +357,7 @@ Error Arguments::parse(const char* args) {
                 _reverse = true;
 
             DEFAULT()
-                msg = "Unknown argument";
+                if (_unknown_arg == NULL) _unknown_arg = arg;
         }
     }
 
@@ -359,7 +366,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc == 0 && _lock == 0 && _memleak == 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _memleak == 0) {
         _event = EVENT_CPU;
     }
 

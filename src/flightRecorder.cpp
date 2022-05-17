@@ -768,15 +768,15 @@ class Recording {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
         }
 
-        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc > 0);
-        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc > 0);
-        if (args._alloc > 0) {
+        writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
+        writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
+        if (args._alloc >= 0) {
             writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
         }
 
-        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock > 0);
-        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock > 0);
-        if (args._lock > 0) {
+        writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock >= 0);
+        writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
+        if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
         }
 
@@ -907,8 +907,8 @@ class Recording {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
-        CodeCache** native_libs = profiler->_native_libs;
-        int native_lib_count = profiler->_native_lib_count;
+        CodeCacheArray& native_libs = profiler->_native_libs;
+        int native_lib_count = native_libs.count();
 
         for (int i = _recorded_lib_count; i < native_lib_count; i++) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
@@ -947,14 +947,15 @@ class Recording {
     }
 
     void writeFrameTypes(Buffer* buf) {
-        buf->putVar64(T_FRAME_TYPE);
-        buf->put8(6);
-        buf->putVar64(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
-        buf->putVar64(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
-        buf->putVar64(FRAME_INLINED);      buf->putUtf8("Inlined");
-        buf->putVar64(FRAME_NATIVE);       buf->putUtf8("Native");
-        buf->putVar64(FRAME_CPP);          buf->putUtf8("C++");
-        buf->putVar64(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar32(T_FRAME_TYPE);
+        buf->putVar32(7);
+        buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
+        buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
+        buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
+        buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
+        buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
+        buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
+        buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
     }
 
     void writeThreadStates(Buffer* buf) {
@@ -1017,16 +1018,17 @@ class Recording {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar64(mi->_key);
                 jint bci = trace->frames[i].bci;
-                FrameTypeId type = bci >= 0 ? (FrameTypeId)(bci >> 24) : mi->_type;
-                if (bci >= 0) {
-                    bci &= 0xffffff;
-                    buf->putVar64(mi->getLineNumber(bci));
-                    buf->putVar64(bci);
+                if (mi->_type < FRAME_NATIVE) {
+                    FrameTypeId type = FrameType::decode(bci);
+                    bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
+                    buf->putVar32(mi->getLineNumber(bci));
+                    buf->putVar32(bci);
+                    buf->put8(type);
                 } else {
-                    buf->put8(0);
-                    buf->putVar64(bci);
+                    buf->putVar32(0);
+                    buf->putVar32(bci);
+                    buf->put8(mi->_type);
                 }
-                buf->putVar64(type);
                 flushIfNeeded(buf);
             }
             flushIfNeeded(buf);
@@ -1284,6 +1286,11 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     JNIEnv* env = VM::jni();
 
     if (_jfr_sync_class == NULL) {
+        if (env->FindClass("jdk/jfr/FlightRecorderListener") == NULL) {
+            env->ExceptionClear();
+            return Error("JDK Flight Recorder is not available");
+        }
+
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
         jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
@@ -1321,8 +1328,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
-                     (args._alloc > 0 ? EM_ALLOC : 0) |
-                     (args._lock > 0 ? EM_LOCK : 0) |
+                     (args._alloc >= 0 ? EM_ALLOC : 0) |
+                     (args._lock >= 0 ? EM_LOCK : 0) |
                      (args._memleak > 0 ? EM_MEMLEAK : 0);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);

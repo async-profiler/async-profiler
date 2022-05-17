@@ -37,9 +37,10 @@ void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     J9StackTraceNotification notif = { .num_frames = 0, .truncated = false };
+    StackContext java_ctx;
     notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
-        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &notif.truncated)
-        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &notif.truncated);
+        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &notif.truncated)
+        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &notif.truncated);
     J9StackTraces::checkpoint(_interval, &notif);
 }
 

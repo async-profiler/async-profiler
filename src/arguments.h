@@ -20,7 +20,8 @@
 #include <stddef.h>
 
 
-const long DEFAULT_INTERVAL = 10000000;  // 10 ms
+const long DEFAULT_INTERVAL = 10000000;      // 10 ms
+const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const int DEFAULT_JSTACKDEPTH = 2048;
 const int DEFAULT_MEMLEAK_CAP = 8192;
 
@@ -148,6 +149,8 @@ class Arguments {
     const char* _file;
     const char* _log;
     const char* _loglevel;
+    const char* _unknown_arg;
+    const char* _server;
     const char* _filter;
     int _include;
     int _exclude;
@@ -182,8 +185,8 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
-        _alloc(0),
-        _lock(0),
+        _alloc(-1),
+        _lock(-1),
         _memleak(0),
         _memleak_cap(DEFAULT_MEMLEAK_CAP),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
@@ -191,6 +194,8 @@ class Arguments {
         _file(NULL),
         _log(NULL),
         _loglevel(NULL),
+        _unknown_arg(NULL),
+        _server(NULL),
         _filter(NULL),
         _include(0),
         _exclude(0),

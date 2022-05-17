@@ -38,13 +38,11 @@ class StackFrame {
     }
 
     void restore(uintptr_t saved_pc, uintptr_t saved_sp, uintptr_t saved_fp) {
-        pc() = saved_pc;
-        sp() = saved_sp;
-        fp() = saved_fp;
-    }
-
-    bool validSP() {
-        return withinCurrentStack(sp());
+        if (_ucontext != NULL) {
+            pc() = saved_pc;
+            sp() = saved_sp;
+            fp() = saved_fp;
+        }
     }
 
     uintptr_t stackAt(int slot) {
@@ -63,13 +61,10 @@ class StackFrame {
 
     void ret();
 
-    bool pop(bool trust_frame_pointer);
+    bool popStub(instruction_t* entry, const char* name);
+    bool popMethod(instruction_t* entry);
 
     bool checkInterruptedSyscall();
-
-    // Look that many stack slots for a return address candidate.
-    // 0 = do not use stack snooping heuristics.
-    static int callerLookupSlots();
 
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);
