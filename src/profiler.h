@@ -92,14 +92,17 @@ class Profiler {
     int _max_stack_depth;
     int _safe_mode;
     CStack _cstack;
+    bool _add_event_frame;
     bool _add_thread_frame;
     bool _add_sched_frame;
     bool _update_thread_names;
-    volatile bool _thread_events_state;
+    volatile jvmtiEventMode _thread_events_state;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
+    const void* _call_stub_begin;
+    const void* _call_stub_end;
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -168,6 +171,8 @@ class Profiler {
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
+        _call_stub_begin(NULL),
+        _call_stub_end(NULL),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {

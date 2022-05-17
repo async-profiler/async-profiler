@@ -153,10 +153,6 @@ bool StackFrame::checkInterruptedSyscall() {
 #endif
 }
 
-int StackFrame::callerLookupSlots() {
-    return 7;
-}
-
 bool StackFrame::isSyscall(instruction_t* pc) {
     return pc[0] == 0x0f && pc[1] == 0x05;
 }

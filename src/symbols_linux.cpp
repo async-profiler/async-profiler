@@ -107,6 +107,12 @@ typedef Elf32_Dyn  ElfDyn;
 #define ELF_R_SYM  ELF32_R_SYM
 #endif // __LP64__
 
+#ifdef __musl__
+#  define DYN_BASE _base
+#else
+#  define DYN_BASE 0
+#endif // __musl__
+
 
 class ElfParser {
   private:
@@ -241,7 +247,7 @@ void ElfParser::parseDynamicSection() {
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
                 case DT_PLTGOT:
-                    got_start = (void**)dyn->d_un.d_ptr + 3;
+                    got_start = (void**)(DYN_BASE + dyn->d_un.d_ptr) + 3;
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;

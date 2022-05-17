@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.8-bpf
+PROFILER_VERSION=2.8.1-bpf
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -42,6 +42,7 @@ ifeq ($(OS),Darwin)
     CFLAGS += $(FAT_BINARY_FLAGS)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
+    MERGE=false
   endif
 else
   CXXFLAGS += -Wl,-z,defs -Wl,-z,nodelete
@@ -55,6 +56,7 @@ else
   PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
+    CXXFLAGS += -D__musl__
   else
     OS_TAG=linux
   endif
@@ -84,7 +86,9 @@ else
 endif
 
 ifneq ($(ARCH),ppc64le)
-  CXXFLAGS += -momit-leaf-frame-pointer
+  ifneq ($(ARCH_TAG),arm32)
+    CXXFLAGS += -momit-leaf-frame-pointer
+  endif
 endif
 
 

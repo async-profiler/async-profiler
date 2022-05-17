@@ -38,8 +38,6 @@ import java.util.List;
 public class jfr2nflx {
 
     private static final String[] FRAME_TYPE = {"jit", "jit", "inlined", "user", "user", "kernel", "jit"};
-    private static final byte NATIVE_TYPE_MIN = 3;
-    private static final byte NATIVE_TYPE_MAX = 5;
     private static final byte[] NO_STACK = "[no_stack]".getBytes();
     private static final byte[] UNKNOWN = "[unknown]".getBytes();
 
@@ -151,7 +149,8 @@ public class jfr2nflx {
         byte[] className = jfr.symbols.get(cls.name);
         byte[] methodName = jfr.symbols.get(method.name);
 
-        if ((methodType >= NATIVE_TYPE_MIN && methodType <= NATIVE_TYPE_MAX) || className == null || className.length == 0) {
+        if ((methodType >= FlameGraph.FRAME_NATIVE && methodType <= FlameGraph.FRAME_KERNEL)
+                || className == null || className.length == 0) {
             return methodName;
         } else {
             byte[] fullName = Arrays.copyOf(className, className.length + 1 + methodName.length);
