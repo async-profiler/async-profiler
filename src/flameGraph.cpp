@@ -24,239 +24,10 @@
 // Browsers refuse to draw on canvas larger than 32767 px
 const int MAX_CANVAS_HEIGHT = 32767;
 
-static const char FLAMEGRAPH_HEADER[] =
-    "<!DOCTYPE html>\n"
-    "<html lang='en'>\n"
-    "<head>\n"
-    "<meta charset='utf-8'>\n"
-    "<style>\n"
-    "\tbody {margin: 0; padding: 10px; background-color: #ffffff}\n"
-    "\th1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}\n"
-    "\theader {margin: -24px 0 5px 0; line-height: 24px}\n"
-    "\tbutton {font: 12px sans-serif; cursor: pointer}\n"
-    "\tp {margin: 5px 0 5px 0}\n"
-    "\ta {color: #0366d6}\n"
-    "\t#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}\n"
-    "\t#hl span {padding: 0 3px 0 3px}\n"
-    "\t#status {overflow: hidden; white-space: nowrap}\n"
-    "\t#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}\n"
-    "\t#reset {cursor: pointer}\n"
-    "</style>\n"
-    "</head>\n"
-    "<body style='font: 12px Verdana, sans-serif'>\n"
-    "<h1>%s</h1>\n"
-    "<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>\n"
-    "<header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>\n"
-    "<canvas id='canvas' style='width: 100%%; height: %dpx'></canvas>\n"
-    "<div id='hl'><span></span></div>\n"
-    "<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>\n"
-    "<p id='status'>&nbsp;</p>\n"
-    "<script>\n"
-    "\t// Copyright 2020 Andrei Pangin\n"
-    "\t// Licensed under the Apache License, Version 2.0.\n"
-    "\t'use strict';\n"
-    "\tvar root, rootLevel, px, pattern;\n"
-    "\tvar reverse = %s;\n"
-    "\tconst levels = Array(%d);\n"
-    "\tfor (let h = 0; h < levels.length; h++) {\n"
-    "\t\tlevels[h] = [];\n"
-    "\t}\n"
-    "\n"
-    "\tconst canvas = document.getElementById('canvas');\n"
-    "\tconst c = canvas.getContext('2d');\n"
-    "\tconst hl = document.getElementById('hl');\n"
-    "\tconst status = document.getElementById('status');\n"
-    "\n"
-    "\tconst canvasWidth = canvas.offsetWidth;\n"
-    "\tconst canvasHeight = canvas.offsetHeight;\n"
-    "\tcanvas.style.width = canvasWidth + 'px';\n"
-    "\tcanvas.width = canvasWidth * (devicePixelRatio || 1);\n"
-    "\tcanvas.height = canvasHeight * (devicePixelRatio || 1);\n"
-    "\tif (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);\n"
-    "\tc.font = document.body.style.font;\n"
-    "\n"
-    "\tconst palette = [\n"
-    "\t\t[0xb2e1b2, 20, 20, 20],\n"
-    "\t\t[0x50e150, 30, 30, 30],\n"
-    "\t\t[0x50cccc, 30, 30, 30],\n"
-    "\t\t[0xe15a5a, 30, 40, 40],\n"
-    "\t\t[0xc8c83c, 30, 30, 10],\n"
-    "\t\t[0xe17d00, 30, 30,  0],\n"
-    "\t\t[0xcce880, 20, 20, 20],\n"
-    "\t];\n"
-    "\n"
-    "\tfunction getColor(p) {\n"
-    "\t\tconst v = Math.random();\n"
-    "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n"
-    "\t}\n"
-    "\n"
-    "\tfunction f(level, left, width, type, title, inln, c1, int) {\n"
-    "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title,\n"
-    "\t\t\tdetails: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')\n"
-    "\t\t});\n"
-    "\t}\n"
-    "\n"
-    "\tfunction samples(n) {\n"
-    "\t\treturn n === 1 ? '1 sample' : n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',') + ' samples';\n"
-    "\t}\n"
-    "\n"
-    "\tfunction pct(a, b) {\n"
-    "\t\treturn a >= b ? '100' : (100 * a / b).toFixed(2);\n"
-    "\t}\n"
-    "\n"
-    "\tfunction findFrame(frames, x) {\n"
-    "\t\tlet left = 0;\n"
-    "\t\tlet right = frames.length - 1;\n"
-    "\n"
-    "\t\twhile (left <= right) {\n"
-    "\t\t\tconst mid = (left + right) >>> 1;\n"
-    "\t\t\tconst f = frames[mid];\n"
-    "\n"
-    "\t\t\tif (f.left > x) {\n"
-    "\t\t\t\tright = mid - 1;\n"
-    "\t\t\t} else if (f.left + f.width <= x) {\n"
-    "\t\t\t\tleft = mid + 1;\n"
-    "\t\t\t} else {\n"
-    "\t\t\t\treturn f;\n"
-    "\t\t\t}\n"
-    "\t\t}\n"
-    "\n"
-    "\t\tif (frames[left] && (frames[left].left - x) * px < 0.5) return frames[left];\n"
-    "\t\tif (frames[right] && (x - (frames[right].left + frames[right].width)) * px < 0.5) return frames[right];\n"
-    "\n"
-    "\t\treturn null;\n"
-    "\t}\n"
-    "\n"
-    "\tfunction search(r) {\n"
-    "\t\tif (r && (r = prompt('Enter regexp to search:', '')) === null) {\n"
-    "\t\t\treturn;\n"
-    "\t\t}\n"
-    "\n"
-    "\t\tpattern = r ? RegExp(r) : undefined;\n"
-    "\t\tconst matched = render(root, rootLevel);\n"
-    "\t\tdocument.getElementById('matchval').textContent = pct(matched, root.width) + '%%';\n"
-    "\t\tdocument.getElementById('match').style.display = r ? 'inherit' : 'none';\n"
-    "\t}\n"
-    "\n"
-    "\tfunction render(newRoot, newLevel) {\n"
-    "\t\tif (root) {\n"
-    "\t\t\tc.fillStyle = '#ffffff';\n"
-    "\t\t\tc.fillRect(0, 0, canvasWidth, canvasHeight);\n"
-    "\t\t}\n"
-    "\n"
-    "\t\troot = newRoot || levels[0][0];\n"
-    "\t\trootLevel = newLevel || 0;\n"
-    "\t\tpx = canvasWidth / root.width;\n"
-    "\n"
-    "\t\tconst x0 = root.left;\n"
-    "\t\tconst x1 = x0 + root.width;\n"
-    "\t\tconst marked = [];\n"
-    "\n"
-    "\t\tfunction mark(f) {\n"
-    "\t\t\treturn marked[f.left] >= f.width || (marked[f.left] = f.width);\n"
-    "\t\t}\n"
-    "\n"
-    "\t\tfunction totalMarked() {\n"
-    "\t\t\tlet total = 0;\n"
-    "\t\t\tlet left = 0;\n"
-    "\t\t\tObject.keys(marked).sort(function(a, b) { return a - b; }).forEach(function(x) {\n"
-    "\t\t\t\tif (+x >= left) {\n"
-    "\t\t\t\t\ttotal += marked[x];\n"
-    "\t\t\t\t\tleft = +x + marked[x];\n"
-    "\t\t\t\t}\n"
-    "\t\t\t});\n"
-    "\t\t\treturn total;\n"
-    "\t\t}\n"
-    "\n"
-    "\t\tfunction drawFrame(f, y, alpha) {\n"
-    "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n"
-    "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n"
-    "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n"
-    "\n"
-    "\t\t\t\tif (f.width * px >= 21) {\n"
-    "\t\t\t\t\tconst chars = Math.floor(f.width * px / 7);\n"
-    "\t\t\t\t\tconst title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + '..';\n"
-    "\t\t\t\t\tc.fillStyle = '#000000';\n"
-    "\t\t\t\t\tc.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);\n"
-    "\t\t\t\t}\n"
-    "\n"
-    "\t\t\t\tif (alpha) {\n"
-    "\t\t\t\t\tc.fillStyle = 'rgba(255, 255, 255, 0.5)';\n"
-    "\t\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n"
-    "\t\t\t\t}\n"
-    "\t\t\t}\n"
-    "\t\t}\n"
-    "\n"
-    "\t\tfor (let h = 0; h < levels.length; h++) {\n"
-    "\t\t\tconst y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;\n"
-    "\t\t\tconst frames = levels[h];\n"
-    "\t\t\tfor (let i = 0; i < frames.length; i++) {\n"
-    "\t\t\t\tdrawFrame(frames[i], y, h < rootLevel);\n"
-    "\t\t\t}\n"
-    "\t\t}\n"
-    "\n"
-    "\t\treturn totalMarked();\n"
-    "\t}\n"
-    "\n"
-    "\tcanvas.onmousemove = function() {\n"
-    "\t\tconst h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);\n"
-    "\t\tif (h >= 0 && h < levels.length) {\n"
-    "\t\t\tconst f = findFrame(levels[h], event.offsetX / px + root.left);\n"
-    "\t\t\tif (f) {\n"
-    "\t\t\t\thl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';\n"
-    "\t\t\t\thl.style.width = (Math.min(f.width, root.width) * px) + 'px';\n"
-    "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n"
-    "\t\t\t\thl.firstChild.textContent = f.title;\n"
-    "\t\t\t\thl.style.display = 'block';\n"
-    "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%%)';\n"
-    "\t\t\t\tcanvas.style.cursor = 'pointer';\n"
-    "\t\t\t\tcanvas.onclick = function() {\n"
-    "\t\t\t\t\tif (f != root) {\n"
-    "\t\t\t\t\t\trender(f, h);\n"
-    "\t\t\t\t\t\tcanvas.onmousemove();\n"
-    "\t\t\t\t\t}\n"
-    "\t\t\t\t};\n"
-    "\t\t\t\tstatus.textContent = 'Function: ' + canvas.title;\n"
-    "\t\t\t\treturn;\n"
-    "\t\t\t}\n"
-    "\t\t}\n"
-    "\t\tcanvas.onmouseout();\n"
-    "\t}\n"
-    "\n"
-    "\tcanvas.onmouseout = function() {\n"
-    "\t\thl.style.display = 'none';\n"
-    "\t\tstatus.textContent = '\\xa0';\n"
-    "\t\tcanvas.title = '';\n"
-    "\t\tcanvas.style.cursor = '';\n"
-    "\t\tcanvas.onclick = '';\n"
-    "\t}\n"
-    "\n"
-    "\tdocument.getElementById('reverse').onclick = function() {\n"
-    "\t\treverse = !reverse;\n"
-    "\t\trender();\n"
-    "\t}\n"
-    "\n"
-    "\tdocument.getElementById('search').onclick = function() {\n"
-    "\t\tsearch(true);\n"
-    "\t}\n"
-    "\n"
-    "\tdocument.getElementById('reset').onclick = function() {\n"
-    "\t\tsearch(false);\n"
-    "\t}\n"
-    "\n"
-    "\twindow.onkeydown = function() {\n"
-    "\t\tif (event.ctrlKey && event.keyCode === 70) {\n"
-    "\t\t\tevent.preventDefault();\n"
-    "\t\t\tsearch(true);\n"
-    "\t\t} else if (event.keyCode === 27) {\n"
-    "\t\t\tsearch(false);\n"
-    "\t\t}\n"
-    "\t}\n";
-
-static const char FLAMEGRAPH_FOOTER[] =
-    "render();\n"
-    "</script></body></html>\n";
-
+static const char FLAMEGRAPH_TEMPLATE[] = {
+#include "helper/one/profiler/flame.html.h"
+0
+};
 
 static const char TREE_HEADER[] =
     "<!DOCTYPE html>\n"
@@ -492,14 +263,25 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
 
         out << TREE_FOOTER;
     } else {
-        char buf[sizeof(FLAMEGRAPH_HEADER) + 256];
-        snprintf(buf, sizeof(buf) - 1, FLAMEGRAPH_HEADER, _title,
-                 std::min(depth * 16, MAX_CANVAS_HEIGHT), _reverse ? "true" : "false", depth);
-        out << buf;
+        const char* tail = FLAMEGRAPH_TEMPLATE;
+
+        tail = printTill(out, tail, "/*height:*/300px/**/");
+        out << std::min(depth * 16, MAX_CANVAS_HEIGHT) << "px";
+
+        tail = printTill(out, tail, "/*title:*/");
+        out << _title;
+
+        tail = printTill(out, tail, "/*reverse:*/false/**/");
+        out << _reverse ? "true" : "false";
+
+        tail = printTill(out, tail, "/*depth:*/0/**/");
+        out << depth;
+
+        tail = printTill(out, tail, "/*frames:*/");
 
         printFrame(out, "all", _root, 0, 0);
 
-        out << FLAMEGRAPH_FOOTER;
+        out << tail;
     }
 }
 
@@ -569,6 +351,12 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
             out << "</ul>\n";
         }
     }
+}
+
+const char* FlameGraph::printTill(std::ostream& out, const char* data, const char* till) {
+    const char* pos = strstr(data, till);
+    out.write(data, pos - data);
+    return pos + strlen(till);
 }
 
 // TODO: Reuse frame type embedded in ASGCT_CallFrame

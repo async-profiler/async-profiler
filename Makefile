@@ -21,7 +21,9 @@ JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
+HTML := $(wildcard src/helper/one/profiler/*.html)
 JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
+HTML_HEADERS := $(patsubst %.html,%.html.h,$(HTML))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
@@ -122,7 +124,7 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS) $(HTML_HEADERS)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -144,6 +146,7 @@ build/$(API_JAR): $(API_SOURCES)
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
+	cp $(HTML) build/converter
 	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
 	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
@@ -153,6 +156,9 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 
 %.class: %.java
 	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $(*D)/*.java
+
+%.html.h: %.html
+	hexdump -v -e '1/1 "%u,"' $^ > $@
 
 test: all
 	test/smoke-test.sh
