@@ -27,6 +27,7 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 #include "flightRecorder.h"
+#include "incbin.h"
 #include "jfrMetadata.h"
 #include "dictionary.h"
 #include "os.h"
@@ -38,9 +39,7 @@
 #include "vmStructs.h"
 
 
-static const unsigned char JFR_SYNC_CLASS[] = {
-#include "helper/one/profiler/JfrSync.class.h"
-};
+INCBIN(JFR_SYNC_CLASS, "one/profiler/JfrSync.class")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();
@@ -1235,7 +1234,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
 
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
-        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
+        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
                 || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL

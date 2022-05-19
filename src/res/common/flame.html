@@ -14,7 +14,7 @@
 	#status {overflow: hidden; white-space: nowrap}
 	#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}
 	#reset {cursor: pointer}
-	#canvas {width: 100%; height: /*height:*/300px/**/}
+	#canvas {width: 100%; height: /*height:*/300px}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
@@ -30,8 +30,8 @@
 	// Licensed under the Apache License, Version 2.0.
 	'use strict';
 	var root, rootLevel, px, pattern;
-	var reverse = /*reverse:*/false/**/;
-	const levels = Array(/*depth:*/0/**/);
+	var reverse = /*reverse:*/false;
+	const levels = Array(/*depth:*/0);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
 	}

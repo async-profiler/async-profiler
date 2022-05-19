@@ -18,15 +18,14 @@
 #include <sstream>
 #include <errno.h>
 #include <string.h>
+#include "incbin.h"
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
 #include "vmStructs.h"
 
 
-static const unsigned char SERVER_CLASS[] = {
-#include "helper/one/profiler/Server.class.h"
-};
+INCBIN(SERVER_CLASS, "one/profiler/Server.class")
 
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
@@ -180,7 +179,7 @@ bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address)
     jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
     jobject loader;
     if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
-        jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, sizeof(SERVER_CLASS));
+        jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, INCBIN_SIZEOF(SERVER_CLASS));
         if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
             jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
             if (method != NULL) {

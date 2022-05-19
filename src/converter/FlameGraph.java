@@ -119,17 +119,16 @@ public class FlameGraph {
 
         String tail = getResource("/flame.html");
 
-        tail = printTill(out, tail, "/*height:*/300px/**/");
+        tail = printTill(out, tail, "/*height:*/300");
         out.print(Math.min(depth * 16, 32767));
-        out.print("px");
 
         tail = printTill(out, tail, "/*title:*/");
         out.print(title);
 
-        tail = printTill(out, tail, "/*reverse:*/false/**/");
+        tail = printTill(out, tail, "/*reverse:*/false");
         out.print(reverse);
 
-        tail = printTill(out, tail, "/*depth:*/0/**/");
+        tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
 
         tail = printTill(out, tail, "/*frames:*/");

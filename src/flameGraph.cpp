@@ -18,16 +18,14 @@
 #include <vector>
 #include <stdio.h>
 #include "flameGraph.h"
+#include "incbin.h"
 #include "vmEntry.h"
 
 
 // Browsers refuse to draw on canvas larger than 32767 px
 const int MAX_CANVAS_HEIGHT = 32767;
 
-static const char FLAMEGRAPH_TEMPLATE[] = {
-#include "helper/one/profiler/flame.html.h"
-0
-};
+INCBIN(FLAMEGRAPH_TEMPLATE, "flame.html")
 
 static const char TREE_HEADER[] =
     "<!DOCTYPE html>\n"
@@ -265,16 +263,16 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     } else {
         const char* tail = FLAMEGRAPH_TEMPLATE;
 
-        tail = printTill(out, tail, "/*height:*/300px/**/");
-        out << std::min(depth * 16, MAX_CANVAS_HEIGHT) << "px";
+        tail = printTill(out, tail, "/*height:*/300");
+        out << std::min(depth * 16, MAX_CANVAS_HEIGHT);
 
         tail = printTill(out, tail, "/*title:*/");
         out << _title;
 
-        tail = printTill(out, tail, "/*reverse:*/false/**/");
+        tail = printTill(out, tail, "/*reverse:*/false");
         out << _reverse ? "true" : "false";
 
-        tail = printTill(out, tail, "/*depth:*/0/**/");
+        tail = printTill(out, tail, "/*depth:*/0");
         out << depth;
 
         tail = printTill(out, tail, "/*frames:*/");
