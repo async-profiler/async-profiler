@@ -171,9 +171,9 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
-void CodeCache::setGlobalOffsetTable(void** table, unsigned int count) {
-    _got_start = table;
-    _got_end = table + count;
+void CodeCache::setGlobalOffsetTable(void** start, void** end) {
+    _got_start = start;
+    _got_end = end;
 }
 
 void** CodeCache::findGlobalOffsetEntry(void* address) {

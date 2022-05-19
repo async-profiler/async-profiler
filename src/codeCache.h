@@ -149,7 +149,7 @@ class CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 
-    void setGlobalOffsetTable(void** table, unsigned int count);
+    void setGlobalOffsetTable(void** start, void** end);
     void** findGlobalOffsetEntry(void* address);
 
     void setDwarfTable(FrameDesc* table, int length);
