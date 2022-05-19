@@ -26,168 +26,7 @@
 const int MAX_CANVAS_HEIGHT = 32767;
 
 INCBIN(FLAMEGRAPH_TEMPLATE, "flame.html")
-
-static const char TREE_HEADER[] =
-    "<!DOCTYPE html>\n"
-    "<html lang=\"en\">\n"
-    "<head>\n"
-    "<title>Tree view</title>\n"
-    "<meta charset=\"utf-8\"/>\n"
-    "<style>\n"
-    "body {\n"
-    "    font-family: Arial;\n"
-    "}\n"
-    "ul.tree li {\n"
-    "    list-style-type: none;\n"
-    "    position: relative;\n"
-    "}\n"
-    "ul.tree ul {\n"
-    "    margin-left: 20px; padding-left: 0;\n"
-    "}\n"
-    "ul.tree li ul {\n"
-    "    display: none;\n"
-    "}\n"
-    "ul.tree li.open > ul {\n"
-    "    display: block;\n"
-    "}\n"
-    "ul.tree li div:before {\n"
-    "    height: 1em;\n"
-    "    padding:0 .1em;\n"
-    "    font-size: .8em;\n"
-    "    display: block;\n"
-    "    position: absolute;\n"
-    "    left: -1.3em;\n"
-    "    top: .2em;\n"
-    "}\n"
-    "ul.tree li > div:not(:nth-last-child(2)):before {\n"
-    "    content: '+';\n"
-    "}\n"
-    "ul.tree li.open > div:not(:nth-last-child(2)):before {\n"
-    "    content: '-';\n"
-    "}\n"
-    ".sc {\n"
-    "    text-decoration: underline;\n"
-    "    text-decoration-color: black;\n"
-    "    font-weight: bold;\n"
-    "    background-color: #D9D9D9;\n"
-    "}\n"
-    ".t0 {\n"
-    "    color: #8eb48e;\n"
-    "}\n"
-    ".t1 {\n"
-    "    color: #30b430;\n"
-    "}\n"
-    ".t2 {\n"
-    "    color: #30b4b4;\n"
-    "}\n"
-    ".t3 {\n"
-    "    color: #b43030;\n"
-    "}\n"
-    ".t4 {\n"
-    "    color: #aaaa00;\n"
-    "}\n"
-    ".t5 {\n"
-    "    color: #cc8000;\n"
-    "}\n"
-    ".t6 {\n"
-    "    color: #a3ba66;\n"
-    "}\n"
-    "ul.tree li > div {\n"
-    "    display: inline;\n"
-    "    cursor: pointer;\n"
-    "    color: black;\n"
-    "    text-decoration: none;\n"
-    "}\n"
-    "</style>\n"
-    "<script>\n"
-    "function treeView(opt) {\n"
-    "    var tree = document.querySelectorAll('ul.tree div:not(:last-child)');\n"
-    "    for(var i = 0; i < tree.length; i++){\n"
-    "        var parent = tree[i].parentElement;\n"
-    "        var classList = parent.classList;\n"
-    "        if(opt == 0) {\n"
-    "            classList.add('open');\n"
-    "        } else {\n"
-    "            classList.remove('open');\n"
-    "        }\n"
-    "    }\n"
-    "}\n"
-    "function openParent(p,t) {\n"
-    "    if(p.parentElement.classList.contains(\"tree\")) {\n"
-    "        return;\n"
-    "    }\n"
-    "    p.parentElement.classList.add('open');\n"
-    "    openParent(p.parentElement,t);\n"
-    "}\n"
-    "function search() {\n"
-    "    var tree = document.querySelectorAll('ul.tree span');\n"
-    "    var check = document.getElementById('check');\n"
-    "    for(var i = 0; i < tree.length; i++){\n"
-    "        tree[i].classList.remove('sc');\n"
-    "        if(tree[i].innerHTML.includes(document.getElementById(\"search\").value)) {\n"
-    "            tree[i].classList.add('sc');\n"
-    "            openParent(tree[i].parentElement,tree);\n"
-    "        }\n"
-    "    }\n"
-    "}\n"
-    "function openUL(n) {\n"
-    "    var children = n.children;\n"
-    "    if(children.length == 1) {\n"
-    "        openNode(children[0]);\n"
-    "    }\n"
-    "}\n"
-    "function openNode(n) {\n"
-    "    var children = n.children;\n"
-    "    for(var i = 0; i < children.length; i++){\n"
-    "        if(children[i].nodeName == 'UL') {\n"
-    "            n.classList.add('open');\n"
-    "            openUL(children[i]);\n"
-    "        }\n"
-    "    }\n"
-    "}\n"
-    "function addClickActions() {\n"
-    "var tree = document.querySelectorAll('ul.tree div:not(:last-child)');\n"
-    "for(var i = 0; i < tree.length; i++){\n"
-    "    tree[i].addEventListener('click', function(e) {\n"
-    "        var parent = e.target.parentElement;\n"
-    "        var classList = parent.classList;\n"
-    "        if(classList.contains(\"open\")) {\n"
-    "            classList.remove('open');\n"
-    "            var opensubs = parent.querySelectorAll(':scope .open');\n"
-    "            for(var i = 0; i < opensubs.length; i++){\n"
-    "                opensubs[i].classList.remove('open');\n"
-    "            }\n"
-    "        } else {\n"
-    "            if(e.altKey) {\n"
-    "                classList.add('open');\n"
-    "                var opensubs = parent.querySelectorAll('li');\n"
-    "                for(var i = 0; i < opensubs.length; i++){\n"
-    "                    opensubs[i].classList.add('open');\n"
-    "                }\n"
-    "            } else {\n"
-    "                openNode(parent);\n"
-    "            }\n"
-    "        }\n"
-    "    });\n"
-    "}\n"
-    "}\n"
-    "</script>\n"
-    "</head>\n"
-    "<body>\n"
-    "<div style=\"padding-left: 25px;\">%s view, total %s: %s </div>\n"
-    "<div style=\"padding-left: 25px;\"><button type='button' onclick='treeView(0)'>++</button><button type='button' onclick='treeView(1)'>--</button>\n"
-    "<input type='text' id='search' value='' size='35' onkeypress=\"if(event.keyCode == 13) document.getElementById('searchBtn').click()\">\n"
-    "<button type='button' id='searchBtn' onclick='search()'>search</button></div>\n"
-    "<ul class=\"tree\">\n";
-
-static const char TREE_FOOTER[] = 
-    "<script>\n"
-    "addClickActions();\n"
-    "</script>\n"
-    "</ul>\n"
-    "</body>\n"
-    "</html>\n";
-
+INCBIN(TREE_TEMPLATE, "tree.html")
 
 class StringUtils {
   public:
@@ -250,16 +89,22 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     int depth = _root.depth(_mintotal);
 
     if (tree) {
-        char buf[sizeof(TREE_HEADER) + 256];
-        snprintf(buf, sizeof(buf) - 1, TREE_HEADER,
-                 _reverse ? "Backtrace" : "Call tree",
-                 _counter ==  COUNTER_SAMPLES ? "samples" : "counter",
-                 Format().thousands(_root._total));
-        out << buf;
+        const char* tail = TREE_TEMPLATE;
+
+        tail = printTill(out, tail, "/*title:*/");
+        out << (_reverse ? "Backtrace" : "Call tree");
+
+        tail = printTill(out, tail, "/*type:*/");
+        out << (_counter == COUNTER_SAMPLES ? "samples" : "counter");
+
+        tail = printTill(out, tail, "/*count:*/");
+        out << Format().thousands(_root._total);
+
+        tail = printTill(out, tail, "/*tree:*/");
 
         printTreeFrame(out, _root, 0);
 
-        out << TREE_FOOTER;
+        out << tail;
     } else {
         const char* tail = FLAMEGRAPH_TEMPLATE;
 

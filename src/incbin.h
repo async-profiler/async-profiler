@@ -9,8 +9,8 @@
      #NAME ":\n"\
      ".incbin \"" FILE "\"\n"\
      #NAME "_END:\n"\
-      ".previous\n"\
-     ".byte 0x00"\
+     ".byte 0x00\n"\
+     ".previous\n"\
     );
 
 #define INCBIN_SIZEOF(NAME) (NAME##_END - NAME)
