@@ -4,7 +4,6 @@ PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 RES_DIR=src/res
 COMMON_RES_DIR=$(RES_DIR)/common
-JAVA_RES_DIR=$(RES_DIR)/java
 CPP_RES_DIR=$(RES_DIR)/cpp
 
 LIB_PROFILER=libasyncProfiler.$(SOEXT)
@@ -25,9 +24,11 @@ JAVAC_RELEASE_VERSION=7
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
-COMPILED_JAVA_CLASSES := $(patsubst %.java,%.class,$(wildcard src/helper/one/profiler/*.java))
+JAVA_HELPER_SOURCES := $(wildcard src/helper/one/profiler/*.java)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
+CPP_RESOURCES := $(shell find $(COMMON_RES_DIR) -name '*') $(shell find $(CPP_RES_DIR) -name '*')
+JAVA_RESOURCES := $(shell find $(COMMON_RES_DIR) -name '*')
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -126,7 +127,7 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(COMPILED_JAVA_CLASSES)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(CPP_RESOURCES) build/java-helper
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -146,7 +147,7 @@ build/$(API_JAR): $(API_SOURCES)
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(JAVA_RESOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
 	cp -r $(COMMON_RES_DIR)/* build/converter
 	#cp -r $(JAVA_RES_DIR)/* build/converter
@@ -154,8 +155,10 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
 	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
 
-%.class: %.java
-	$(JAVAC) -g:none -d $(CPP_RES_DIR) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $(*D)/*.java
+build/java-helper: $(JAVA_HELPER_SOURCES)
+	@rm -f $@
+	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d $(CPP_RES_DIR) $^
+	@touch $@
 
 test: all
 	test/smoke-test.sh
