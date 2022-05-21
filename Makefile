@@ -25,6 +25,7 @@ JAVAC_RELEASE_VERSION=7
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
 JAVA_HELPER_SOURCES := $(wildcard src/helper/one/profiler/*.java)
+JAVA_HELPER_CLASSES := $(patsubst src/helper/%.java,$(CPP_RES_DIR)/%.class,$(JAVA_HELPER_SOURCES))
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 CPP_RESOURCES := $(shell find $(COMMON_RES_DIR) -name '*') $(shell find $(CPP_RES_DIR) -name '*')
@@ -127,7 +128,7 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(CPP_RESOURCES) build/java-helper
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(CPP_RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -155,10 +156,8 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(JAVA_RESOURCES) src/converter/MAN
 	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
 	$(RM) -r build/converter
 
-build/java-helper: $(JAVA_HELPER_SOURCES)
-	@rm -f $@
+$(CPP_RES_DIR)/%.class: src/helper/%.java
 	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d $(CPP_RES_DIR) $^
-	@touch $@
 
 test: all
 	test/smoke-test.sh
