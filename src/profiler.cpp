@@ -68,12 +68,12 @@ static Instrument instrument;
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
 enum StackRecovery {
-    UNKNOWN_JAVA = 0x1,
-    POP_STUB     = 0x2,
-    POP_METHOD   = 0x4,
-    LAST_JAVA_PC = 0x10,
-    GC_TRACES    = 0x20,
-    JAVA_STATE   = 0x40,
+    UNKNOWN_JAVA  = 0x1,
+    POP_STUB      = 0x2,
+    POP_METHOD    = 0x4,
+    UNWIND_NATIVE = 0x8,
+    LAST_JAVA_PC  = 0x10,
+    GC_TRACES     = 0x20,
 };
 
 
@@ -359,7 +359,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         saved_fp = frame.fp();
     }
 
-    if (!(_safe_mode & JAVA_STATE)) {
+    if (!(_safe_mode & UNWIND_NATIVE)) {
         int state = vm_thread->state();
         if (state == 8 || state == 9) {
             if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
