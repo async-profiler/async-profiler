@@ -1170,6 +1170,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     FrameName fn(args, args._style, _thread_names_lock, _thread_names);
+    char buf[32];
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1185,7 +1186,11 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << counter << "\n";
+        out.write(buf, sprintf(buf, "%llu\n", counter));
+    }
+
+    if (!out.good()) {
+        Log::warn("Output file may be incomplete");
     }
 }
 
