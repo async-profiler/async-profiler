@@ -115,7 +115,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
         out << _title;
 
         tail = printTill(out, tail, "/*reverse:*/false");
-        out << _reverse ? "true" : "false";
+        out << (_reverse ? "true" : "false");
 
         tail = printTill(out, tail, "/*depth:*/0");
         out << depth;
