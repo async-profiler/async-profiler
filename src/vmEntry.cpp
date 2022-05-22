@@ -157,7 +157,7 @@ bool VM::init(JavaVM* vm, bool attach) {
         }
     }
 
-    if (hotspot_version() == 8 && !WX_MEMORY) {
+    if (!attach && hotspot_version() == 8 && OS::isLinux()) {
         // Workaround for JDK-8185348
         char* func = (char*)lib->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
         if (func != NULL) {
@@ -266,13 +266,14 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
 }
 
 void* VM::getLibraryHandle(const char* name) {
-    if (!OS::isJavaLibraryVisible()) {
+    if (OS::isLinux()) {
         void* handle = dlopen(name, RTLD_LAZY);
         if (handle != NULL) {
             return handle;
         }
         Log::warn("Failed to load %s: %s", name, dlerror());
     }
+    // JVM symbols are globally visible on macOS
     return RTLD_DEFAULT;
 }
 

@@ -197,8 +197,8 @@ ThreadList* OS::listThreads() {
     return new MacThreadList();
 }
 
-bool OS::isJavaLibraryVisible() {
-    return true;
+bool OS::isLinux() {
+    return false;
 }
 
 SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {

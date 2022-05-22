@@ -231,8 +231,8 @@ ThreadList* OS::listThreads() {
     return new LinuxThreadList();
 }
 
-bool OS::isJavaLibraryVisible() {
-    return false;
+bool OS::isLinux() {
+    return true;
 }
 
 SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {

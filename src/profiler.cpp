@@ -1536,6 +1536,8 @@ Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
         return runInternal(args, std::cout);
     } else {
+        // Open output file under the lock to avoid races with background timer
+        MutexLocker ml(_state_lock);
         std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
             return Error("Could not open output file");

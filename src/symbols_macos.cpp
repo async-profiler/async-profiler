@@ -16,6 +16,7 @@
 
 #ifdef __APPLE__
 
+#include <set>
 #include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
@@ -38,7 +39,8 @@ class MachOParser {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
             if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
-                _cc->setGlobalOffsetTable((void**)add(_image_base, section->addr), section->size / sizeof(void*));
+                const char* got_start = add(_image_base, section->addr);
+                _cc->setGlobalOffsetTable((void**)got_start, (void**)(got_start + section->size));
                 break;
             }
             section++;
@@ -110,8 +112,8 @@ class MachOParser {
 
 
 Mutex Symbols::_parse_lock;
-std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
+static std::set<const void*> _parsed_libraries;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
