@@ -79,7 +79,7 @@ class OS {
     static ThreadState threadState(int thread_id);
     static ThreadList* listThreads();
 
-    static bool isJavaLibraryVisible();
+    static bool isLinux();
 
     static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static SigAction replaceCrashHandler(SigAction action);

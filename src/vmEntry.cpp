@@ -17,6 +17,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "vmEntry.h"
 #include "arguments.h"
 #include "j9Ext.h"
@@ -76,6 +77,13 @@ static bool isOpenJ9JitStub(const char* blob_name) {
             || strcmp(blob_name, "ANewArray") == 0;
     }
     return false;
+}
+
+static void* resolveMethodId(void** mid) {
+    return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
+}
+
+static void resolveMethodIdEnd() {
 }
 
 
@@ -146,6 +154,14 @@ bool VM::init(JavaVM* vm, bool attach) {
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub);
+        }
+    }
+
+    if (!attach && hotspot_version() == 8 && OS::isLinux()) {
+        // Workaround for JDK-8185348
+        char* func = (char*)lib->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
+        if (func != NULL) {
+            applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
         }
     }
 
@@ -237,14 +253,27 @@ void VM::ready() {
     functions->RetransformClasses = RetransformClassesHook;
 }
 
+void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
+    size_t size = end_patch - patch;
+    uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
+    uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
+
+    if (mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
+        memcpy(func, patch, size);
+        __builtin___clear_cache(func, func + size);
+        mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
+    }
+}
+
 void* VM::getLibraryHandle(const char* name) {
-    if (!OS::isJavaLibraryVisible()) {
+    if (OS::isLinux()) {
         void* handle = dlopen(name, RTLD_LAZY);
         if (handle != NULL) {
             return handle;
         }
         Log::warn("Failed to load %s: %s", name, dlerror());
     }
+    // JVM symbols are globally visible on macOS
     return RTLD_DEFAULT;
 }
 
