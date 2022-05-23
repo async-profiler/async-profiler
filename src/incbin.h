@@ -17,11 +17,16 @@
 #ifndef _INCBIN_H
 #define _INCBIN_H
 
+#ifdef __APPLE__
+    #define INCBIN_SECTION ".const_data\n"
+#else
+    #define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits\n"
+#endif
+
 #define INCBIN(NAME, FILE) \
     extern const char NAME[];\
     extern const char NAME##_END[];\
-    asm(\
-        ".section \".rodata\", \"a\", @progbits\n"\
+    asm(INCBIN_SECTION\
         #NAME ":\n"\
         ".incbin \"" FILE "\"\n"\
         #NAME "_END:\n"\
