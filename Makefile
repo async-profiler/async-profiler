@@ -2,8 +2,6 @@ PROFILER_VERSION=2.8
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
-RES_DIR=src/res
-JAVA_HELPER_DIR=src/helper
 
 LIB_PROFILER=libasyncProfiler.$(SOEXT)
 LIB_PROFILER_SO=libasyncProfiler.so
@@ -13,22 +11,20 @@ CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
-INCLUDES=-I$(JAVA_HOME)/include -I$(RES_DIR) -I$(JAVA_HELPER_DIR)
+INCLUDES=-I$(JAVA_HOME)/include -Isrc/res -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVAC_RELEASE_VERSION=7
+JAVAC_OPTIONS=-source 7 -target 7 -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
-JAVA_HELPER_CLASSES := $(patsubst %.java,%.class,$(shell find $(JAVA_HELPER_DIR) -name '*.java'))
+RESOURCES := $(wildcard src/res/*)
+JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
-COMMON_RESOURCES := $(shell find $(RES_DIR) -name '*')
-CPP_RESOURCES := $(JAVA_HELPER_CLASSES) $(COMMON_RESOURCES)
-JAVA_RESOURCES := $(COMMON_RESOURCES)
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -127,7 +123,7 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(CPP_RESOURCES)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -143,19 +139,18 @@ build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c s
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
-	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $^
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(JAVA_RESOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
-	cp -r $(RES_DIR)/* build/converter
-	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
+	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
 %.class: %.java
-	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $^
+	$(JAVAC) $(JAVAC_OPTIONS) -g:none $^
 
 test: all
 	test/smoke-test.sh

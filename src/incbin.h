@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Andrei Pangin
+ * Copyright 2022 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,20 @@
 #define _INCBIN_H
 
 #ifdef __APPLE__
-#    define INCBIN_SECTION ".const_data\n"
-#    define INCBIN_NAME(NAME) "_" #NAME
+#  define INCBIN_SECTION ".const_data"
+#  define INCBIN_SYMBOL  "_"
 #else
-#    define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits\n"
-#    define INCBIN_NAME(NAME) #NAME
+#  define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits"
+#  define INCBIN_SYMBOL
 #endif
 
 #define INCBIN(NAME, FILE) \
     extern const char NAME[];\
     extern const char NAME##_END[];\
-    asm(INCBIN_SECTION\
-        INCBIN_NAME(NAME) ":\n"\
+    asm(INCBIN_SECTION "\n"\
+        INCBIN_SYMBOL #NAME ":\n"\
         ".incbin \"" FILE "\"\n"\
-        INCBIN_NAME(NAME) "_END:\n"\
+        INCBIN_SYMBOL #NAME "_END:\n"\
         ".byte 0x00\n"\
         ".previous\n"\
     );

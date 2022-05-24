@@ -28,6 +28,7 @@ const int MAX_CANVAS_HEIGHT = 32767;
 INCBIN(FLAMEGRAPH_TEMPLATE, "flame.html")
 INCBIN(TREE_TEMPLATE, "tree.html")
 
+
 class StringUtils {
   public:
     static bool endsWith(const std::string& s, const char* suffix, size_t suffixlen) {
