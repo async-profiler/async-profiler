@@ -18,18 +18,20 @@
 #define _INCBIN_H
 
 #ifdef __APPLE__
-    #define INCBIN_SECTION ".const_data\n"
+#    define INCBIN_SECTION ".const_data\n"
+#    define INCBIN_NAME(NAME) "_" #NAME
 #else
-    #define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits\n"
+#    define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits\n"
+#    define INCBIN_NAME(NAME) #NAME
 #endif
 
 #define INCBIN(NAME, FILE) \
     extern const char NAME[];\
     extern const char NAME##_END[];\
     asm(INCBIN_SECTION\
-        #NAME ":\n"\
+        INCBIN_NAME(NAME) ":\n"\
         ".incbin \"" FILE "\"\n"\
-        #NAME "_END:\n"\
+        INCBIN_NAME(NAME) "_END:\n"\
         ".byte 0x00\n"\
         ".previous\n"\
     );
