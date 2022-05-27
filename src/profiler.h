@@ -34,6 +34,8 @@
 #include "threadFilter.h"
 #include "trap.h"
 #include "vmEntry.h"
+#include "objectSampler.h"
+#include "memleakTracer.h"
 
 
 const char FULL_VERSION_STRING[] =
@@ -248,6 +250,15 @@ class Profiler {
 
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         instance()->onThreadEnd(jvmti, jni, thread);
+    }
+
+    static void JNICALL SampledObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread, jobject object, jclass object_klass, jlong size) {
+        ObjectSampler::SampledObjectAlloc(jvmti_env, jni_env, thread, object, object_klass, size);
+        MemLeakTracer::SampledObjectAlloc(jvmti_env, jni_env, thread, object, object_klass, size);
+    }
+
+    static void JNICALL GarbageCollectionFinish(jvmtiEnv *jvmti_env) {
+        MemLeakTracer::GarbageCollectionFinish(jvmti_env);
     }
 
     friend class Recording;

@@ -26,7 +26,6 @@
 #include "profiler.h"
 #include "instrument.h"
 #include "lockTracer.h"
-#include "memleakTracer.h"
 #include "log.h"
 #include "vmStructs.h"
 
@@ -42,6 +41,7 @@ jvmtiEnv* VM::_jvmti = NULL;
 
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
+bool VM::_hotspot = false;
 bool VM::_can_sample_objects = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -97,19 +97,18 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 #endif
 
-    bool is_hotspot = false;
     bool is_zero_vm = false;
     char* prop;
     if (_jvmti->GetSystemProperty("java.vm.name", &prop) == 0) {
-        is_hotspot = strstr(prop, "OpenJDK") != NULL ||
-                     strstr(prop, "HotSpot") != NULL ||
-                     strstr(prop, "GraalVM") != NULL ||
-                     strstr(prop, "Dynamic Code Evolution") != NULL;
+        _hotspot = strstr(prop, "OpenJDK") != NULL ||
+                   strstr(prop, "HotSpot") != NULL ||
+                   strstr(prop, "GraalVM") != NULL ||
+                   strstr(prop, "Dynamic Code Evolution") != NULL;
         is_zero_vm = strstr(prop, "Zero") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
-    if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
+    if (_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
         if (strncmp(prop, "25.", 3) == 0) {
             _hotspot_version = 8;
         } else if (strncmp(prop, "24.", 3) == 0) {
@@ -129,8 +128,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
 
-    _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
-    _can_sample_objects = !is_hotspot || hotspot_version() >= 11;
+    _openj9 = !_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
 
     CodeCache* lib = isOpenJ9()
         ? profiler->findJvmLibrary("libj9vm")
@@ -154,12 +152,20 @@ bool VM::init(JavaVM* vm, bool attach) {
         ready();
     }
 
+    jvmtiCapabilities potential_capabilities = {0};
+    _jvmti->GetPotentialCapabilities(&potential_capabilities);
+
+    _can_sample_objects =
+        potential_capabilities.can_generate_sampled_object_alloc_events
+            && (!_hotspot || hotspot_version() >= 11);
+
     jvmtiCapabilities capabilities = {0};
     capabilities.can_generate_all_class_hook_events = 1;
     capabilities.can_retransform_classes = 1;
     capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
-    capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
+    // capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
     capabilities.can_generate_sampled_object_alloc_events = _can_sample_objects ? 1 : 0;
+    capabilities.can_generate_garbage_collection_events = 1;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -167,10 +173,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_generate_compiled_method_load_events = 1;
     capabilities.can_generate_monitor_events = 1;
     capabilities.can_tag_objects = 1;
-    if (hotspot_version() >= 11) {
-        capabilities.can_generate_sampled_object_alloc_events = 1;
-        capabilities.can_generate_garbage_collection_events = 1;
-    }
     _jvmti->AddCapabilities(&capabilities);
 
     jvmtiEventCallbacks callbacks = {0};
@@ -185,13 +187,9 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.ThreadEnd = Profiler::ThreadEnd;
     callbacks.MonitorContendedEnter = LockTracer::MonitorContendedEnter;
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
-    callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
-    // FIXME: add redirection of SampledObjectAlloc for both ObjectSampler and MemLeakTracer.
-    // callbacks.SampledObjectAlloc = ObjectSampler::SampledObjectAlloc;
-    if (hotspot_version() >= 11) {
-        callbacks.SampledObjectAlloc = MemLeakTracer::SampledObjectAlloc;
-        callbacks.GarbageCollectionFinish = MemLeakTracer::GarbageCollectionFinish;
-    }
+    // callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
+    callbacks.SampledObjectAlloc = Profiler::SampledObjectAlloc;
+    callbacks.GarbageCollectionFinish = Profiler::GarbageCollectionFinish;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);

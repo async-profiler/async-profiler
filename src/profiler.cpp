@@ -58,10 +58,10 @@ static void (*orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
 
 static Engine noop_engine;
 static PerfEvents perf_events;
-static AllocTracer alloc_tracer;
+// static AllocTracer alloc_tracer;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
-static J9ObjectSampler j9_object_sampler;
+// static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
@@ -897,12 +897,11 @@ Engine* Profiler::selectEngine(Arguments& args) {
 }
 
 Engine* Profiler::selectAllocEngine(long alloc_interval) {
-    if (VM::canSampleObjects() && (alloc_interval > 0 || VM::hotspot_version() == 0)) {
+    if (VM::canSampleObjects()) {
         return &object_sampler;
-    } else if (VM::isOpenJ9()) {
-        return &j9_object_sampler;
     } else {
-        return &alloc_tracer;
+        Log::info("Not enabling the alloc profiler, SampledObjectAlloc is not supported on this JVM");
+        return &noop_engine;
     }
 }
 
