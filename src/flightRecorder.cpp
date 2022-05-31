@@ -130,8 +130,7 @@ class Lookup {
     Dictionary _symbols;
 
   private:
-    void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
+    void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
             mi->_class = _classes->lookup("");
         } else if (lib_name[0] == '[' && lib_name[1] != 0) {
@@ -223,9 +222,13 @@ class Lookup {
         if (!mi->_mark) {
             mi->_mark = true;
             if (method == NULL) {
-                fillNativeMethodInfo(mi, "unknown");
-            } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
-                fillNativeMethodInfo(mi, (const char*)method);
+                fillNativeMethodInfo(mi, "unknown", NULL);
+            } else if (frame.bci == BCI_ERROR) {
+                fillNativeMethodInfo(mi, (const char*)method, NULL);
+            } else if (frame.bci == BCI_NATIVE_FRAME) {
+                const char* name = (const char*)method;
+                const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
+                fillNativeMethodInfo(mi, name, lib_name);
             } else {
                 fillJavaMethodInfo(mi, method, first_time);
             }
