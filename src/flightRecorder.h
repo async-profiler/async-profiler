@@ -21,6 +21,7 @@
 #include "arguments.h"
 #include "event.h"
 #include "log.h"
+#include "jfrMetadata.h"
 
 class Recording;
 
@@ -32,9 +33,7 @@ class FlightRecorder {
     void stopMasterRecording();
 
   public:
-    FlightRecorder() : _rec(NULL) {
-
-    }
+    FlightRecorder() : _rec(NULL) {}
 
     Error start(Arguments& args, bool reset);
     void stop();

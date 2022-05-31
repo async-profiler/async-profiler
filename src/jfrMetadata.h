@@ -129,14 +129,26 @@ class Element {
     }
 
     Element& operator<<(const Element& child) {
-        _children.push_back(&child);
+        if (!const_cast<Element&>(child).is_nofield()) {
+            _children.push_back(&child);
+        }
         return *this;
     }
+
+    virtual const bool is_nofield() { return false; }
+};
+
+class NoField : public Element {
+  public:
+    NoField(const char *name) : Element(name) {}
+
+    virtual const bool is_nofield() { return true; }
 };
 
 class JfrMetadata : Element {
   private:
     static JfrMetadata _root;
+    static bool _initialized;
 
     enum FieldFlags {
         F_CPOOL           = 0x1,
@@ -177,7 +189,10 @@ class JfrMetadata : Element {
         return e;
     }
 
-    static Element& field(const char* name, JfrType type, const char* label = NULL, int flags = 0) {
+    static Element& field(const char* name, JfrType type, const char* label = NULL, int flags = 0, bool condition = true) {
+        if (!condition) {
+            return *new NoField(name);
+        }
         Element& e = element("field");
         e.attribute("name", name);
         e.attribute("class", type);
@@ -230,14 +245,19 @@ class JfrMetadata : Element {
         return e;
     }
 
+
   public:
     JfrMetadata();
 
+    static void initialize();
+
     static Element* root() {
+        initialize();
         return &_root;
     }
 
     static std::vector<std::string>& strings() {
+        initialize();
         return _strings;
     }
 };

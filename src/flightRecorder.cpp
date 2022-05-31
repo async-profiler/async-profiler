@@ -735,10 +735,14 @@ class Recording {
         buf->putVar64(_recording_start_ticks);
         buf->putVar64(_stop_ticks - _recording_start_ticks);
         buf->putVar64(_tid);
+        buf->put8(0);
         buf->put8(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
         buf->putVar64(MAX_JLONG);
+        if (VM::hotspot_version() >= 14) {
+            buf->put8(0);
+        }
         buf->put8(0);
         buf->putVar64(_recording_start_time / 1000);
         buf->putVar64((_stop_time - _recording_start_time) / 1000);
@@ -799,6 +803,7 @@ class Recording {
         buf->putVar64(_start_ticks);
         buf->put8(0);
         buf->putVar64(_tid);
+        buf->put8(0);
         buf->putVar64(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
