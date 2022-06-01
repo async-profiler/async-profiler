@@ -227,8 +227,7 @@ class Lookup {
                 fillNativeMethodInfo(mi, (const char*)method, NULL);
             } else if (frame.bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
-                const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
-                fillNativeMethodInfo(mi, name, lib_name);
+                fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
             } else {
                 fillJavaMethodInfo(mi, method, first_time);
             }
