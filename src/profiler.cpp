@@ -1014,6 +1014,7 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _state = RUNNING;
     _start_time = time(NULL);
+    _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
         startTimer(args._timeout);
@@ -1169,7 +1170,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
 
     std::vector<CallTraceSample*> samples;
@@ -1186,6 +1187,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
+        // Beware of locale-sensitive conversion
         out.write(buf, sprintf(buf, "%llu\n", counter));
     }
 
@@ -1206,7 +1208,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1251,7 +1253,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
     char buf[1024] = {0};
 
     std::vector<CallTraceSample> samples;

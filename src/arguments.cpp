@@ -97,6 +97,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     sig              - print method signatures
 //     ann              - annotate Java methods
 //     lib              - prepend library names
+//     mcache           - max age of jmethodID cache (default: 0 = disabled)
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
@@ -322,6 +323,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("lib")
                 _style |= STYLE_LIB_NAMES;
+
+            CASE("mcache")
+                _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
 
             CASE("begin")
                 _begin = value;

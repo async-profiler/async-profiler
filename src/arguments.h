@@ -149,6 +149,7 @@ class Arguments {
     const char* _filter;
     int _include;
     int _exclude;
+    unsigned char _mcache;
     bool _loop;
     bool _threads;
     bool _sched;
@@ -192,6 +193,7 @@ class Arguments {
         _filter(NULL),
         _include(0),
         _exclude(0),
+        _mcache(0),
         _loop(false),
         _threads(false),
         _sched(false),

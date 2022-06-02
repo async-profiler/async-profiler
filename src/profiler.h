@@ -82,6 +82,7 @@ class Profiler {
     int _event_mask;
 
     time_t _start_time;
+    int _epoch;
     volatile bool _timer_is_running;
     pthread_t _timer_thread;
 
@@ -163,6 +164,7 @@ class Profiler {
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
+        _epoch(0),
         _timer_is_running(false),
         _max_stack_depth(0),
         _safe_mode(0),

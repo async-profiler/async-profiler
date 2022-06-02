@@ -80,12 +80,15 @@ bool Matcher::matches(const char* s) {
 }
 
 
-FrameName::FrameName(Arguments& args, int style, Mutex& thread_names_lock, ThreadMap& thread_names) :
-    _cache(),
+JMethodCache FrameName::_cache;
+
+FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names) :
     _class_names(),
     _include(),
     _exclude(),
     _style(style),
+    _cache_epoch((unsigned char)epoch),
+    _cache_max_age(args._mcache),
     _thread_names_lock(thread_names_lock),
     _thread_names(thread_names)
 {
@@ -100,6 +103,19 @@ FrameName::FrameName(Arguments& args, int style, Mutex& thread_names_lock, Threa
 }
 
 FrameName::~FrameName() {
+    if (_cache_max_age == 0) {
+        _cache.clear();
+    } else {
+        // Remove stale methods from the cache, leave the fresh ones for the next profiling session
+        for (JMethodCache::iterator it = _cache.begin(); it != _cache.end(); ) {
+            if (_cache_epoch - (unsigned char)it->second[0] >= _cache_max_age) {
+                _cache.erase(it++);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     freelocale(uselocale(_saved_locale));
 }
 
@@ -277,15 +293,16 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
 
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {
+                it->second[0] = _cache_epoch;
                 if (type_suffix != NULL) {
-                    snprintf(_buf, sizeof(_buf) - 1, "%s%s", it->second.c_str(), type_suffix);
+                    snprintf(_buf, sizeof(_buf) - 1, "%s%s", it->second.c_str() + 1, type_suffix);
                     return _buf;
                 }
-                return it->second.c_str();
+                return it->second.c_str() + 1;
             }
 
             char* newName = javaMethodName(frame.method_id);
-            _cache.insert(it, JMethodCache::value_type(frame.method_id, newName));
+            _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + newName));
             return type_suffix != NULL ? strcat(newName, type_suffix) : newName;
         }
     }
