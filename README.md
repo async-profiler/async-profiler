@@ -322,8 +322,8 @@ The following is a complete list of the command-line options accepted by
 * `status` - prints profiling status: whether profiler is active and
   for how long.
 
-* `list` - show the list of available profiling events. This option still
-  requires PID, since supported events may differ depending on JVM version.
+* `list` - show the list of profiling events available for the target process
+  (if PID is specified) or for the default JVM.
 
 * `-d N` - the profiling duration, in seconds. If no `start`, `resume`, `stop`
   or `status` option is given, the profiler will run for the specified period
