@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 #include <stdio.h>
+#include <string.h>
 #include "flameGraph.h"
 #include "incbin.h"
 #include "vmEntry.h"
