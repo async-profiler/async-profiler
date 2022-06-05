@@ -413,6 +413,7 @@ The following is a complete list of the command-line options accepted by
 * `-f FILENAME` - the file name to dump the profile information to.  
   `%p` in the file name is expanded to the PID of the target JVM;  
   `%t` - to the timestamp;  
+  `%n{MAX}` - to the sequence number;  
   `%{ENV}` - to the value of the given environment variable.  
   Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 

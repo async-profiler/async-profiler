@@ -123,9 +123,9 @@ class Arguments {
     bool _persistent;
 
     void appendToEmbeddedList(int& list, char* value);
+    const char* expandFilePattern(const char* pattern);
 
     static long long hash(const char* arg);
-    static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
     static long parseUnits(const char* str, const Multiplier* multipliers);
     static int parseTimeout(const char* str);
@@ -164,6 +164,7 @@ class Arguments {
     int _jfr_options;
     int _dump_traces;
     int _dump_flat;
+    unsigned int _file_num;
     const char* _begin;
     const char* _end;
     // FlameGraph parameters
@@ -208,6 +209,7 @@ class Arguments {
         _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),
+        _file_num(0),
         _begin(NULL),
         _end(NULL),
         _title(NULL),

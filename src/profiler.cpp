@@ -1550,6 +1550,7 @@ Error Profiler::restart(Arguments& args) {
     }
 
     if (args._loop) {
+        args._file_num++;
         return start(args, true);
     }
 
