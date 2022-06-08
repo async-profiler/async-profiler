@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.8.1] - Early Access
+
+### Improvements
+ - JFR to pprof converter (contributed by @NeQuissimus)
+ - JFR converter improvements: time range, collapsed output, pattern highlighting
+ - `%n` pattern in file names; limit number of output files
+ - `--lib` to customize profiler library path in a container
+ - `profiler.sh list` command now works without PID
+
+### Bug fixes
+ - Fixed crashes related to continuous profiling
+ - Fixed Alpine/musl compatibility issues
+ - Fixed incomplete collapsed output due to weird locale settings
+ - Workaround for JDK-8185348
+
 ## [2.8] - 2022-05-09
 
 ### Features
