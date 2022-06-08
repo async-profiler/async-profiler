@@ -44,6 +44,7 @@ usage() {
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
     echo "  --jfrsync config  synchronize profiler with JFR recording"
+    echo "  --lib path        full path to libasyncProfiler.so in the container"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
     echo ""
@@ -251,6 +252,10 @@ while [ $# -gt 0 ]; do
         --jfrsync)
             OUTPUT="jfr"
             PARAMS="$PARAMS,jfrsync=$2"
+            shift
+            ;;
+        --lib)
+            PROFILER="$2"
             shift
             ;;
         --fdtransfer)
