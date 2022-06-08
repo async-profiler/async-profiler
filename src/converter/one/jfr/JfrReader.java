@@ -93,6 +93,10 @@ public class JfrReader implements Closeable {
         return endNanos - startNanos;
     }
 
+    public long nanosToTicks(long nanos) {
+        return (long) ((nanos - startNanos) * (ticksPerSec / 1e9)) + startTicks;
+    }
+
     public List<Event> readAllEvents() throws IOException {
         return readAllEvents(null);
     }

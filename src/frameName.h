@@ -63,12 +63,15 @@ class Matcher {
 
 class FrameName {
   private:
-    JMethodCache _cache;
+    static JMethodCache _cache;
+
     ClassMap _class_names;
     std::vector<Matcher> _include;
     std::vector<Matcher> _exclude;
     char _buf[800];  // must be large enough for class name + method name + method signature
     int _style;
+    unsigned char _cache_epoch;
+    unsigned char _cache_max_age;
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
     locale_t _saved_locale;
@@ -81,7 +84,7 @@ class FrameName {
     char* javaClassName(const char* symbol, int length, int style);
 
   public:
-    FrameName(Arguments& args, int style, Mutex& thread_names_lock, ThreadMap& thread_names);
+    FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);

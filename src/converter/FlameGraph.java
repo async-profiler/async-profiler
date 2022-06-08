@@ -16,9 +16,11 @@
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.Reader;
@@ -35,40 +37,21 @@ public class FlameGraph {
     public static final byte FRAME_KERNEL = 5;
     public static final byte FRAME_C1_COMPILED = 6;
 
-    public String title = "Flame Graph";
-    public boolean reverse;
-    public double minwidth;
-    public int skip;
-    public String input;
-    public String output;
-
+    private final Arguments args;
     private final Frame root = new Frame(FRAME_NATIVE);
     private int depth;
     private long mintotal;
 
+    public FlameGraph(Arguments args) {
+        this.args = args;
+    }
+
     public FlameGraph(String... args) {
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if (!arg.startsWith("--") && !arg.isEmpty()) {
-                if (input == null) {
-                    input = arg;
-                } else {
-                    output = arg;
-                }
-            } else if (arg.equals("--title")) {
-                title = args[++i];
-            } else if (arg.equals("--reverse")) {
-                reverse = true;
-            } else if (arg.equals("--minwidth")) {
-                minwidth = Double.parseDouble(args[++i]);
-            } else if (arg.equals("--skip")) {
-                skip = Integer.parseInt(args[++i]);
-            }
-        }
+        this(new Arguments(args));
     }
 
     public void parse() throws IOException {
-        parse(new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8));
+        parse(new InputStreamReader(new FileInputStream(args.input), StandardCharsets.UTF_8));
     }
 
     public void parse(Reader in) throws IOException {
@@ -86,12 +69,12 @@ public class FlameGraph {
 
     public void addSample(String[] trace, long ticks) {
         Frame frame = root;
-        if (reverse) {
-            for (int i = trace.length; --i >= skip; ) {
+        if (args.reverse) {
+            for (int i = trace.length; --i >= args.skip; ) {
                 frame = frame.addChild(trace[i], ticks);
             }
         } else {
-            for (int i = skip; i < trace.length; i++) {
+            for (int i = args.skip; i < trace.length; i++) {
                 frame = frame.addChild(trace[i], ticks);
             }
         }
@@ -101,10 +84,10 @@ public class FlameGraph {
     }
 
     public void dump() throws IOException {
-        if (output == null) {
+        if (args.output == null) {
             dump(System.out);
         } else {
-            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(output), 32768);
+            try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(args.output), 32768);
                  PrintStream out = new PrintStream(bos, false, "UTF-8")) {
                 dump(out);
             }
@@ -112,39 +95,37 @@ public class FlameGraph {
     }
 
     public void dump(PrintStream out) {
-        mintotal = (long) (root.total * minwidth / 100);
+        mintotal = (long) (root.total * args.minwidth / 100);
         int depth = mintotal > 1 ? root.depth(mintotal) : this.depth + 1;
 
-        out.print(applyReplacements(HEADER,
-                "{title}", title,
-                "{height}", Math.min(depth * 16, 32767),
-                "{depth}", depth,
-                "{reverse}", reverse));
+        String tail = getResource("/flame.html");
+
+        tail = printTill(out, tail, "/*height:*/300");
+        out.print(Math.min(depth * 16, 32767));
+
+        tail = printTill(out, tail, "/*title:*/");
+        out.print(args.title);
+
+        tail = printTill(out, tail, "/*reverse:*/false");
+        out.print(args.reverse);
+
+        tail = printTill(out, tail, "/*depth:*/0");
+        out.print(depth);
+
+        tail = printTill(out, tail, "/*frames:*/");
 
         printFrame(out, "all", root, 0, 0);
 
-        out.print(FOOTER);
+        tail = printTill(out, tail, "/*highlight:*/");
+        out.print(args.highlight != null ? "'" + escape(args.highlight) + "'" : "");
+
+        out.print(tail);
     }
 
-    // Replace ${variables} in the given string with field values
-    private String applyReplacements(String s, Object... params) {
-        StringBuilder result = new StringBuilder(s.length() + 256);
-
-        int p = 0;
-        for (int q; (q = s.indexOf('$', p)) >= 0; ) {
-            result.append(s, p, q);
-            p = s.indexOf('}', q + 2) + 1;
-            String var = s.substring(q + 1, p);
-            for (int i = 0; i < params.length; i += 2) {
-                if (var.equals(params[i])) {
-                    result.append(params[i + 1]);
-                    break;
-                }
-            }
-        }
-
-        result.append(s, p, s.length());
-        return result.toString();
+    private String printTill(PrintStream out, String data, String till) {
+        int index = data.indexOf(till);
+        out.print(data.substring(0, index));
+        return data.substring(index + till.length());
     }
 
     private void printFrame(PrintStream out, String title, Frame frame, int level, long x) {
@@ -152,18 +133,12 @@ public class FlameGraph {
         if (type == FRAME_KERNEL) {
             title = stripSuffix(title);
         }
-        if (title.indexOf('\\') >= 0) {
-            title = title.replace("\\", "\\\\");
-        }
-        if (title.indexOf('\'') >= 0) {
-            title = title.replace("'", "\\'");
-        }
 
         if ((frame.inlined | frame.c1 | frame.interpreted) != 0 && frame.inlined < frame.total && frame.interpreted < frame.total) {
-            out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "'," +
+            out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + escape(title) + "'," +
                     frame.inlined + "," + frame.c1 + "," + frame.interpreted + ")");
         } else {
-            out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + title + "')");
+            out.println("f(" + level + "," + x + "," + frame.total + "," + type + ",'" + escape(title) + "')");
         }
 
         x += frame.self;
@@ -180,9 +155,32 @@ public class FlameGraph {
         return title.substring(0, title.length() - 4);
     }
 
-    public static void main(String[] args) throws IOException {
-        FlameGraph fg = new FlameGraph(args);
-        if (fg.input == null) {
+    static String escape(String s) {
+        if (s.indexOf('\\') >= 0) s = s.replace("\\", "\\\\");
+        if (s.indexOf('\'') >= 0) s = s.replace("'", "\\'");
+        return s;
+    }
+
+    private static String getResource(String name) {
+        try (InputStream stream = FlameGraph.class.getResourceAsStream(name)) {
+            if (stream == null) {
+                throw new IOException("No resource found");
+            }
+
+            ByteArrayOutputStream result = new ByteArrayOutputStream();
+            byte[] buffer = new byte[64 * 1024];
+            for (int length; (length = stream.read(buffer)) != -1; ) {
+                result.write(buffer, 0, length);
+            }
+            return result.toString("UTF-8");
+        } catch (IOException e) {
+            throw new IllegalStateException("Can't load resource with name " + name);
+        }
+    }
+
+    public static void main(String[] cmdline) throws IOException {
+        Arguments args = new Arguments(cmdline);
+        if (args.input == null) {
             System.out.println("Usage: java " + FlameGraph.class.getName() + " [options] input.collapsed [output.html]");
             System.out.println();
             System.out.println("Options:");
@@ -190,9 +188,11 @@ public class FlameGraph {
             System.out.println("  --reverse");
             System.out.println("  --minwidth PERCENT");
             System.out.println("  --skip FRAMES");
+            System.out.println("  --highlight PATTERN");
             System.exit(1);
         }
 
+        FlameGraph fg = new FlameGraph(args);
         fg.parse();
         fg.dump();
     }
@@ -267,235 +267,4 @@ public class FlameGraph {
             return depth + 1;
         }
     }
-
-    private static final String HEADER = "<!DOCTYPE html>\n" +
-            "<html lang='en'>\n" +
-            "<head>\n" +
-            "<meta charset='utf-8'>\n" +
-            "<style>\n" +
-            "\tbody {margin: 0; padding: 10px; background-color: #ffffff}\n" +
-            "\th1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}\n" +
-            "\theader {margin: -24px 0 5px 0; line-height: 24px}\n" +
-            "\tbutton {font: 12px sans-serif; cursor: pointer}\n" +
-            "\tp {margin: 5px 0 5px 0}\n" +
-            "\ta {color: #0366d6}\n" +
-            "\t#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}\n" +
-            "\t#hl span {padding: 0 3px 0 3px}\n" +
-            "\t#status {overflow: hidden; white-space: nowrap}\n" +
-            "\t#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}\n" +
-            "\t#reset {cursor: pointer}\n" +
-            "</style>\n" +
-            "</head>\n" +
-            "<body style='font: 12px Verdana, sans-serif'>\n" +
-            "<h1>${title}</h1>\n" +
-            "<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>\n" +
-            "<header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>\n" +
-            "<canvas id='canvas' style='width: 100%; height: ${height}px'></canvas>\n" +
-            "<div id='hl'><span></span></div>\n" +
-            "<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>\n" +
-            "<p id='status'>&nbsp;</p>\n" +
-            "<script>\n" +
-            "\t// Copyright 2020 Andrei Pangin\n" +
-            "\t// Licensed under the Apache License, Version 2.0.\n" +
-            "\t'use strict';\n" +
-            "\tvar root, rootLevel, px, pattern;\n" +
-            "\tvar reverse = ${reverse};\n" +
-            "\tconst levels = Array(${depth});\n" +
-            "\tfor (let h = 0; h < levels.length; h++) {\n" +
-            "\t\tlevels[h] = [];\n" +
-            "\t}\n" +
-            "\n" +
-            "\tconst canvas = document.getElementById('canvas');\n" +
-            "\tconst c = canvas.getContext('2d');\n" +
-            "\tconst hl = document.getElementById('hl');\n" +
-            "\tconst status = document.getElementById('status');\n" +
-            "\n" +
-            "\tconst canvasWidth = canvas.offsetWidth;\n" +
-            "\tconst canvasHeight = canvas.offsetHeight;\n" +
-            "\tcanvas.style.width = canvasWidth + 'px';\n" +
-            "\tcanvas.width = canvasWidth * (devicePixelRatio || 1);\n" +
-            "\tcanvas.height = canvasHeight * (devicePixelRatio || 1);\n" +
-            "\tif (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);\n" +
-            "\tc.font = document.body.style.font;\n" +
-            "\n" +
-            "\tconst palette = [\n" +
-            "\t\t[0xb2e1b2, 20, 20, 20],\n" +
-            "\t\t[0x50e150, 30, 30, 30],\n" +
-            "\t\t[0x50cccc, 30, 30, 30],\n" +
-            "\t\t[0xe15a5a, 30, 40, 40],\n" +
-            "\t\t[0xc8c83c, 30, 30, 10],\n" +
-            "\t\t[0xe17d00, 30, 30,  0],\n" +
-            "\t\t[0xcce880, 20, 20, 20],\n" +
-            "\t];\n" +
-            "\n" +
-            "\tfunction getColor(p) {\n" +
-            "\t\tconst v = Math.random();\n" +
-            "\t\treturn '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction f(level, left, width, type, title, inln, c1, int) {\n" +
-            "\t\tlevels[level].push({left: left, width: width, color: getColor(palette[type]), title: title,\n" +
-            "\t\t\tdetails: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')\n" +
-            "\t\t});\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction samples(n) {\n" +
-            "\t\treturn n === 1 ? '1 sample' : n.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ',') + ' samples';\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction pct(a, b) {\n" +
-            "\t\treturn a >= b ? '100' : (100 * a / b).toFixed(2);\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction findFrame(frames, x) {\n" +
-            "\t\tlet left = 0;\n" +
-            "\t\tlet right = frames.length - 1;\n" +
-            "\n" +
-            "\t\twhile (left <= right) {\n" +
-            "\t\t\tconst mid = (left + right) >>> 1;\n" +
-            "\t\t\tconst f = frames[mid];\n" +
-            "\n" +
-            "\t\t\tif (f.left > x) {\n" +
-            "\t\t\t\tright = mid - 1;\n" +
-            "\t\t\t} else if (f.left + f.width <= x) {\n" +
-            "\t\t\t\tleft = mid + 1;\n" +
-            "\t\t\t} else {\n" +
-            "\t\t\t\treturn f;\n" +
-            "\t\t\t}\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tif (frames[left] && (frames[left].left - x) * px < 0.5) return frames[left];\n" +
-            "\t\tif (frames[right] && (x - (frames[right].left + frames[right].width)) * px < 0.5) return frames[right];\n" +
-            "\n" +
-            "\t\treturn null;\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction search(r) {\n" +
-            "\t\tif (r && (r = prompt('Enter regexp to search:', '')) === null) {\n" +
-            "\t\t\treturn;\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tpattern = r ? RegExp(r) : undefined;\n" +
-            "\t\tconst matched = render(root, rootLevel);\n" +
-            "\t\tdocument.getElementById('matchval').textContent = pct(matched, root.width) + '%';\n" +
-            "\t\tdocument.getElementById('match').style.display = r ? 'inherit' : 'none';\n" +
-            "\t}\n" +
-            "\n" +
-            "\tfunction render(newRoot, newLevel) {\n" +
-            "\t\tif (root) {\n" +
-            "\t\t\tc.fillStyle = '#ffffff';\n" +
-            "\t\t\tc.fillRect(0, 0, canvasWidth, canvasHeight);\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\troot = newRoot || levels[0][0];\n" +
-            "\t\trootLevel = newLevel || 0;\n" +
-            "\t\tpx = canvasWidth / root.width;\n" +
-            "\n" +
-            "\t\tconst x0 = root.left;\n" +
-            "\t\tconst x1 = x0 + root.width;\n" +
-            "\t\tconst marked = [];\n" +
-            "\n" +
-            "\t\tfunction mark(f) {\n" +
-            "\t\t\treturn marked[f.left] >= f.width || (marked[f.left] = f.width);\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tfunction totalMarked() {\n" +
-            "\t\t\tlet total = 0;\n" +
-            "\t\t\tlet left = 0;\n" +
-            "\t\t\tObject.keys(marked).sort(function(a, b) { return a - b; }).forEach(function(x) {\n" +
-            "\t\t\t\tif (+x >= left) {\n" +
-            "\t\t\t\t\ttotal += marked[x];\n" +
-            "\t\t\t\t\tleft = +x + marked[x];\n" +
-            "\t\t\t\t}\n" +
-            "\t\t\t});\n" +
-            "\t\t\treturn total;\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tfunction drawFrame(f, y, alpha) {\n" +
-            "\t\t\tif (f.left < x1 && f.left + f.width > x0) {\n" +
-            "\t\t\t\tc.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;\n" +
-            "\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
-            "\n" +
-            "\t\t\t\tif (f.width * px >= 21) {\n" +
-            "\t\t\t\t\tconst chars = Math.floor(f.width * px / 7);\n" +
-            "\t\t\t\t\tconst title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + '..';\n" +
-            "\t\t\t\t\tc.fillStyle = '#000000';\n" +
-            "\t\t\t\t\tc.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);\n" +
-            "\t\t\t\t}\n" +
-            "\n" +
-            "\t\t\t\tif (alpha) {\n" +
-            "\t\t\t\t\tc.fillStyle = 'rgba(255, 255, 255, 0.5)';\n" +
-            "\t\t\t\t\tc.fillRect((f.left - x0) * px, y, f.width * px, 15);\n" +
-            "\t\t\t\t}\n" +
-            "\t\t\t}\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\tfor (let h = 0; h < levels.length; h++) {\n" +
-            "\t\t\tconst y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;\n" +
-            "\t\t\tconst frames = levels[h];\n" +
-            "\t\t\tfor (let i = 0; i < frames.length; i++) {\n" +
-            "\t\t\t\tdrawFrame(frames[i], y, h < rootLevel);\n" +
-            "\t\t\t}\n" +
-            "\t\t}\n" +
-            "\n" +
-            "\t\treturn totalMarked();\n" +
-            "\t}\n" +
-            "\n" +
-            "\tcanvas.onmousemove = function() {\n" +
-            "\t\tconst h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);\n" +
-            "\t\tif (h >= 0 && h < levels.length) {\n" +
-            "\t\t\tconst f = findFrame(levels[h], event.offsetX / px + root.left);\n" +
-            "\t\t\tif (f) {\n" +
-            "\t\t\t\thl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';\n" +
-            "\t\t\t\thl.style.width = (Math.min(f.width, root.width) * px) + 'px';\n" +
-            "\t\t\t\thl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';\n" +
-            "\t\t\t\thl.firstChild.textContent = f.title;\n" +
-            "\t\t\t\thl.style.display = 'block';\n" +
-            "\t\t\t\tcanvas.title = f.title + '\\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';\n" +
-            "\t\t\t\tcanvas.style.cursor = 'pointer';\n" +
-            "\t\t\t\tcanvas.onclick = function() {\n" +
-            "\t\t\t\t\tif (f != root) {\n" +
-            "\t\t\t\t\t\trender(f, h);\n" +
-            "\t\t\t\t\t\tcanvas.onmousemove();\n" +
-            "\t\t\t\t\t}\n" +
-            "\t\t\t\t};\n" +
-            "\t\t\t\tstatus.textContent = 'Function: ' + canvas.title;\n" +
-            "\t\t\t\treturn;\n" +
-            "\t\t\t}\n" +
-            "\t\t}\n" +
-            "\t\tcanvas.onmouseout();\n" +
-            "\t}\n" +
-            "\n" +
-            "\tcanvas.onmouseout = function() {\n" +
-            "\t\thl.style.display = 'none';\n" +
-            "\t\tstatus.textContent = '\\xa0';\n" +
-            "\t\tcanvas.title = '';\n" +
-            "\t\tcanvas.style.cursor = '';\n" +
-            "\t\tcanvas.onclick = '';\n" +
-            "\t}\n" +
-            "\n" +
-            "\tdocument.getElementById('reverse').onclick = function() {\n" +
-            "\t\treverse = !reverse;\n" +
-            "\t\trender();\n" +
-            "\t}\n" +
-            "\n" +
-            "\tdocument.getElementById('search').onclick = function() {\n" +
-            "\t\tsearch(true);\n" +
-            "\t}\n" +
-            "\n" +
-            "\tdocument.getElementById('reset').onclick = function() {\n" +
-            "\t\tsearch(false);\n" +
-            "\t}\n" +
-            "\n" +
-            "\twindow.onkeydown = function() {\n" +
-            "\t\tif (event.ctrlKey && event.keyCode === 70) {\n" +
-            "\t\t\tevent.preventDefault();\n" +
-            "\t\t\tsearch(true);\n" +
-            "\t\t} else if (event.keyCode === 27) {\n" +
-            "\t\t\tsearch(false);\n" +
-            "\t\t}\n" +
-            "\t}\n";
-
-    private static final String FOOTER = "render();\n" +
-            "</script></body></html>\n";
 }

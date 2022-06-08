@@ -27,6 +27,7 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 #include "flightRecorder.h"
+#include "incbin.h"
 #include "jfrMetadata.h"
 #include "dictionary.h"
 #include "os.h"
@@ -38,9 +39,7 @@
 #include "vmStructs.h"
 
 
-static const unsigned char JFR_SYNC_CLASS[] = {
-#include "helper/one/profiler/JfrSync.class.h"
-};
+INCBIN(JFR_SYNC_CLASS, "one/profiler/JfrSync.class")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();
@@ -131,8 +130,7 @@ class Lookup {
     Dictionary _symbols;
 
   private:
-    void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
-        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
+    void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
             mi->_class = _classes->lookup("");
         } else if (lib_name[0] == '[' && lib_name[1] != 0) {
@@ -218,9 +216,12 @@ class Lookup {
         if (mi->_key == 0) {
             mi->_key = _method_map.size();
             if (method == NULL) {
-                fillNativeMethodInfo(mi, "unknown");
-            } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
-                fillNativeMethodInfo(mi, (const char*)method);
+                fillNativeMethodInfo(mi, "unknown", NULL);
+            } else if (frame.bci == BCI_ERROR) {
+                fillNativeMethodInfo(mi, (const char*)method, NULL);
+            } else if (frame.bci == BCI_NATIVE_FRAME) {
+                const char* name = (const char*)method;
+                fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
             } else {
                 fillJavaMethodInfo(mi, method);
             }
@@ -1232,7 +1233,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
 
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
-        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
+        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
                 || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL

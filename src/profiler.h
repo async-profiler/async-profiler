@@ -81,8 +81,10 @@ class Profiler {
     int _event_mask;
 
     time_t _start_time;
-    volatile bool _timer_is_running;
-    pthread_t _timer_thread;
+    time_t _stop_time;
+    int _epoch;
+    WaitableMutex _timer_lock;
+    void* _timer_id;
 
     u64 _total_samples;
     u64 _failures[ASGCT_FAILURE_TYPES];
@@ -141,10 +143,10 @@ class Profiler {
     Error checkJvmCapabilities();
 
     time_t addTimeout(time_t start, int timeout);
-    void startTimer(int timeout);
+    void startTimer();
     void stopTimer();
-    void timerLoop(int timeout);
-    static void* timerThreadEntry(void* arg);
+    void timerLoop(void* timer_id);
+    static void timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg);
 
     void lockAll();
     void unlockAll();
@@ -164,7 +166,8 @@ class Profiler {
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
-        _timer_is_running(false),
+        _epoch(0),
+        _timer_id(NULL),
         _max_stack_depth(0),
         _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),

@@ -70,12 +70,12 @@ static Instrument instrument;
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
 enum StackRecovery {
-    UNKNOWN_JAVA = 0x1,
-    POP_STUB     = 0x2,
-    POP_METHOD   = 0x4,
-    LAST_JAVA_PC = 0x10,
-    GC_TRACES    = 0x20,
-    JAVA_STATE   = 0x40,
+    UNKNOWN_JAVA  = 0x1,
+    POP_STUB      = 0x2,
+    POP_METHOD    = 0x4,
+    UNWIND_NATIVE = 0x8,
+    LAST_JAVA_PC  = 0x10,
+    GC_TRACES     = 0x20,
 };
 
 
@@ -363,7 +363,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         saved_fp = frame.fp();
     }
 
-    if (!(_safe_mode & JAVA_STATE)) {
+    if (!(_safe_mode & UNWIND_NATIVE)) {
         int state = vm_thread->state();
         if (state == 8 || state == 9) {
             if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
@@ -1044,9 +1044,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _state = RUNNING;
     _start_time = time(NULL);
+    _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        startTimer(args._timeout);
+        _stop_time = addTimeout(_start_time, args._timeout);
+        startTimer();
     }
 
     return Error::OK;
@@ -1204,7 +1206,8 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style, _epoch, _thread_names_lock, _thread_names);
+    char buf[32];
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1220,7 +1223,12 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << counter << "\n";
+        // Beware of locale-sensitive conversion
+        out.write(buf, sprintf(buf, "%llu\n", counter));
+    }
+
+    if (!out.good()) {
+        Log::warn("Output file may be incomplete");
     }
 }
 
@@ -1236,7 +1244,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1281,7 +1289,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
     char buf[1024] = {0};
 
     std::vector<CallTraceSample> samples;
@@ -1397,58 +1405,66 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
     return result;
 }
 
-void Profiler::startTimer(int timeout) {
-    _timer_is_running = true;
-    if (pthread_create(&_timer_thread, NULL, timerThreadEntry, (void*)(intptr_t)timeout) != 0) {
-        Log::warn("Unable to create Profiler timer thread");
-        _timer_is_running = false;
+void Profiler::startTimer() {
+    JNIEnv* jni = VM::jni();
+    jclass Thread = jni->FindClass("java/lang/Thread");
+    jmethodID init = jni->GetMethodID(Thread, "<init>", "(Ljava/lang/String;)V");
+    jmethodID setDaemon = jni->GetMethodID(Thread, "setDaemon", "(Z)V");
+
+    jstring name = jni->NewStringUTF("Async-profiler Timer");
+    if (name != NULL && init != NULL && setDaemon != NULL) {
+        jthread thread_obj = jni->NewObject(Thread, init, name);
+        if (thread_obj != NULL) {
+            jni->CallVoidMethod(thread_obj, setDaemon, JNI_TRUE);
+            MutexLocker ml(_timer_lock);
+            _timer_id = (void*)(intptr_t)(0x80000000 | _epoch);
+            if (VM::jvmti()->RunAgentThread(thread_obj, timerThreadEntry, _timer_id, JVMTI_THREAD_NORM_PRIORITY) == 0) {
+                return;
+            }
+            _timer_id = 0;
+        }
     }
+
+    jni->ExceptionDescribe();
 }
 
 void Profiler::stopTimer() {
-    if (_timer_is_running) {
-        _timer_is_running = false;
-        if (pthread_self() == _timer_thread) {
-            pthread_detach(_timer_thread);
-        } else {
-            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
-            pthread_join(_timer_thread, NULL);
-        }
+    MutexLocker ml(_timer_lock);
+    if (_timer_id != NULL) {
+        _timer_id = NULL;
+        _timer_lock.notify();
     }
 }
 
-void Profiler::timerLoop(int timeout) {
-    u64 stop_micros = addTimeout(_start_time, timeout) * 1000000ULL;
-    u64 current_time = OS::nanotime();
-    u64 sleep_until = current_time + (_jfr.active() || timeout <= 0 ? 1000000000 : timeout * 1000000000ULL);
+void Profiler::timerLoop(void* timer_id) {
+    u64 current_micros = OS::micros();
+    u64 stop_micros = _stop_time * 1000000ULL;
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
 
-    while (_timer_is_running) {
-        while ((current_time = OS::nanotime()) < sleep_until) {
-            OS::sleep(sleep_until - current_time);
-            if (!_timer_is_running) return;
+    MutexLocker ml(_timer_lock);
+    while (_timer_id == timer_id) {
+        while (!_timer_lock.waitUntil(sleep_until) && _timer_id == timer_id) {
+            // timeout not reached
         }
+        if (_timer_id != timer_id) return;
 
-        u64 wall_time = OS::micros();
-        if (wall_time >= stop_micros) {
+        if ((current_micros = OS::micros()) >= stop_micros) {
             VM::restartProfiler();
             return;
         }
 
-        bool need_switch_chunk = _jfr.timerTick(wall_time);
+        bool need_switch_chunk = _jfr.timerTick(current_micros);
         if (need_switch_chunk) {
             // Flush under profiler state lock
             flushJfr();
         }
 
-        sleep_until = current_time + 1000000000;
+        sleep_until = current_micros + 1000000;
     }
 }
 
-void* Profiler::timerThreadEntry(void* arg) {
-    VM::attachThread("Async-profiler Timer");
-    instance()->timerLoop((int)(intptr_t)arg);
-    VM::detachThread();
-    return NULL;
+void Profiler::timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
+    instance()->timerLoop(arg);
 }
 
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {
@@ -1569,6 +1585,7 @@ Error Profiler::restart(Arguments& args) {
     }
 
     if (args._loop) {
+        args._file_num++;
         return start(args, true);
     }
 

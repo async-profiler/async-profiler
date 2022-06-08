@@ -322,8 +322,8 @@ The following is a complete list of the command-line options accepted by
 * `status` - prints profiling status: whether profiler is active and
   for how long.
 
-* `list` - show the list of available profiling events. This option still
-  requires PID, since supported events may differ depending on JVM version.
+* `list` - show the list of profiling events available for the target process
+  (if PID is specified) or for the default JVM.
 
 * `-d N` - the profiling duration, in seconds. If no `start`, `resume`, `stop`
   or `status` option is given, the profiler will run for the specified period
@@ -413,6 +413,7 @@ The following is a complete list of the command-line options accepted by
 * `-f FILENAME` - the file name to dump the profile information to.  
   `%p` in the file name is expanded to the PID of the target JVM;  
   `%t` - to the timestamp;  
+  `%n{MAX}` - to the sequence number;  
   `%{ENV}` - to the value of the given environment variable.  
   Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
 
