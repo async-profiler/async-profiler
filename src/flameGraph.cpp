@@ -126,6 +126,8 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
 
         printFrame(out, "all", _root, 0, 0);
 
+        tail = printTill(out, tail, "/*highlight:*/");
+
         out << tail;
     }
 }

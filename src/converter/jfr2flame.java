@@ -27,8 +27,6 @@ import one.jfr.event.ExecutionSample;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -45,18 +43,26 @@ public class jfr2flame {
         this.jfr = jfr;
     }
 
-    public void convert(final FlameGraph fg, final boolean threads, final boolean total,
-                        final boolean lines, final boolean bci, final int threadState,
-                        final Class<? extends Event> eventClass) throws IOException {
-        EventAggregator agg = new EventAggregator(threads, total);
+    public void convert(final FlameGraph fg, final Arguments args) throws IOException {
+        EventAggregator agg = new EventAggregator(args.threads, args.total);
+
+        Class<? extends Event> eventClass = args.alloc ? AllocationSample.class :
+                args.lock ? ContendedLock.class : ExecutionSample.class;
+        int threadState = args.cpu ? getMapKey(jfr.threadStates, "STATE_RUNNABLE") : -1;
+
+        long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
+        long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
+
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
-            if (threadState < 0 || ((ExecutionSample) event).threadState == threadState) {
-                agg.collect(event);
+            if (event.time >= startTicks && event.time <= endTicks) {
+                if (threadState < 0 || ((ExecutionSample) event).threadState == threadState) {
+                    agg.collect(event);
+                }
             }
         }
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
-        final boolean scale = total && eventClass == ContendedLock.class && ticksToNanos != 1.0;
+        final boolean scale = args.total && eventClass == ContendedLock.class && ticksToNanos != 1.0;
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -68,8 +74,8 @@ public class jfr2flame {
                     byte[] types = stackTrace.types;
                     int[] locations = stackTrace.locations;
                     String classFrame = getClassFrame(event);
-                    String[] trace = new String[methods.length + (threads ? 1 : 0) + (classFrame != null ? 1 : 0)];
-                    if (threads) {
+                    String[] trace = new String[methods.length + (args.threads ? 1 : 0) + (classFrame != null ? 1 : 0)];
+                    if (args.threads) {
                         trace[0] = getThreadFrame(event.tid);
                     }
                     int idx = trace.length;
@@ -79,9 +85,9 @@ public class jfr2flame {
                     for (int i = 0; i < methods.length; i++) {
                         String methodName = getMethodName(methods[i], types[i]);
                         int location;
-                        if (lines && (location = locations[i] >>> 16) != 0) {
+                        if (args.lines && (location = locations[i] >>> 16) != 0) {
                             methodName += ":" + location;
-                        } else if (bci && (location = locations[i] & 0xffff) != 0) {
+                        } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
                             methodName += "@" + location;
                         }
                         trace[--idx] = methodName + FRAME_SUFFIX[types[i]];
@@ -181,6 +187,17 @@ public class jfr2flame {
         return result;
     }
 
+    // millis can be an absolute timestamp or an offset from the beginning/end of the recording
+    private long toTicks(long millis) {
+        long nanos = millis * 1_000_000;
+        if (millis < 0) {
+            nanos += jfr.endNanos;
+        } else if (millis < 1500000000000L) {
+            nanos += jfr.startNanos;
+        }
+        return jfr.nanosToTicks(nanos);
+    }
+
     private static int getMapKey(Map<Integer, String> map, String value) {
         for (Map.Entry<Integer, String> entry : map.entrySet()) {
             if (value.equals(entry.getValue())) {
@@ -190,42 +207,30 @@ public class jfr2flame {
         return -1;
     }
 
-    public static void main(String[] args) throws Exception {
-        FlameGraph fg = new FlameGraph(args);
-        if (fg.input == null) {
+    public static void main(String[] cmdline) throws Exception {
+        Arguments args = new Arguments(cmdline);
+        if (args.input == null) {
             System.out.println("Usage: java " + jfr2flame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
             System.out.println("options include all supported FlameGraph options, plus the following:");
-            System.out.println("  --cpu      CPU Flame Graph");
-            System.out.println("  --alloc    Allocation Flame Graph");
-            System.out.println("  --lock     Lock contention Flame Graph");
-            System.out.println("  --threads  Split profile by threads");
-            System.out.println("  --total    Accumulate the total value (time, bytes, etc.)");
-            System.out.println("  --lines    Show line numbers");
-            System.out.println("  --bci      Show bytecode indices");
+            System.out.println("  --cpu        CPU Flame Graph");
+            System.out.println("  --alloc      Allocation Flame Graph");
+            System.out.println("  --lock       Lock contention Flame Graph");
+            System.out.println("  --threads    Split profile by threads");
+            System.out.println("  --total      Accumulate the total value (time, bytes, etc.)");
+            System.out.println("  --lines      Show line numbers");
+            System.out.println("  --bci        Show bytecode indices");
+            System.out.println("  --from TIME  Start time in ms (absolute or relative)");
+            System.out.println("  --to TIME    End time in ms (absolute or relative)");
+            System.out.println("  --collapsed  Use collapsed stacks output format");
             System.exit(1);
         }
 
-        HashSet<String> options = new HashSet<>(Arrays.asList(args));
-        boolean threads = options.contains("--threads");
-        boolean total = options.contains("--total");
-        boolean lines = options.contains("--lines");
-        boolean bci = options.contains("--bci");
+        boolean collapsed = args.collapsed || args.output != null && args.output.endsWith(".collapsed");
+        FlameGraph fg = collapsed ? new CollapsedStacks(args) : new FlameGraph(args);
 
-        Class<? extends Event> eventClass;
-        boolean cpu = false;
-        if (options.contains("--alloc")) {
-            eventClass = AllocationSample.class;
-        } else if (options.contains("--lock")) {
-            eventClass = ContendedLock.class;
-        } else {
-            eventClass = ExecutionSample.class;
-            cpu = options.contains("--cpu");
-        }
-
-        try (JfrReader jfr = new JfrReader(fg.input)) {
-            int threadState = cpu ? getMapKey(jfr.threadStates, "STATE_RUNNABLE") : -1;
-            new jfr2flame(jfr).convert(fg, threads, total, lines, bci, threadState, eventClass);
+        try (JfrReader jfr = new JfrReader(args.input)) {
+            new jfr2flame(jfr).convert(fg, args);
         }
 
         fg.dump();

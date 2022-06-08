@@ -102,7 +102,7 @@
 	}
 
 	function search(r) {
-		if (r && (r = prompt('Enter regexp to search:', '')) === null) {
+		if (r === true && (r = prompt('Enter regexp to search:', '')) === null) {
 			return;
 		}
 
@@ -228,5 +228,5 @@
 	}
 
 /*frames:*/
-render();
+search(/*highlight:*/);
 </script></body></html>
