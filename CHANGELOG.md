@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.8.1] - Early Access
+## [2.8.1] - 2022-06-10
 
 ### Improvements
  - JFR to pprof converter (contributed by @NeQuissimus)
