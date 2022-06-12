@@ -45,8 +45,12 @@
 #include "symbols.h"
 #include "vmStructs.h"
 
+static pthread_key_t local_await_data_key;
+static void __attribute__((constructor)) createAwaitDataKey(void) {
+    pthread_key_create(&local_await_data_key, NULL);
+}
 
-// The instance is not deleted on purpose, since profiler structures
+// The instance is deliberately not deleted, since profiler structures
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
 
@@ -63,7 +67,7 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
-
+static bool savedAwaitTrace = false;
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -116,6 +120,156 @@ static inline int makeFrame(ASGCT_CallFrame* frames, jint type, const char* id) 
     return makeFrame(frames, type, (jmethodID)id);
 }
 
+FrameIterator::FrameIterator(std::vector<CallTraceSample*> &samples) : awaitTraces() {
+    if (savedAwaitTrace)
+        for(std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) 
+            addAwaitTrace((*it)->trace);
+}
+
+FrameIterator::FrameIterator(std::vector<CallTraceSample> &samples) : awaitTraces() {
+    if (savedAwaitTrace)
+        for(std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) 
+            addAwaitTrace((*it).trace);
+}
+
+void FrameIterator::set(CallTrace* trace_, bool reversed, int ignore_last) {
+    traceStack[0] = trace_;
+    depth = 0;
+    i = reversed ? trace_->num_frames - 1 - ignore_last: 0;
+}
+
+int FrameIterator::setAndCount(CallTrace* trace_, bool reversed, int ignore_last) {
+    traceStack[0] = trace_;
+    int n = i = depth = 0;
+    if(!hasAwaits) n = trace_->num_frames;
+    else { while(next() != NULL) n++; depth = 0; }
+    i = reversed ? trace_->num_frames - 1 - ignore_last: 0;
+    return n;
+}
+
+ASGCT_CallFrame* FrameIterator::prev() {
+    if(!hasAwaits) return i>= 0 ? traceStack[0]->frames + i-- : NULL;
+    CallTrace* atrace;
+    if(i >= 0) {
+        if (traceStack[depth]->frames[i].bci == BCI_AWAIT_INSERTION) {
+            atrace = awaitTraces[traceStack[depth]->frames[i--].method_id];
+            if (atrace == NULL || depth >= 9) return prev(); // missing or too deep
+            positionStack[depth] = i;
+            i = atrace->num_frames - 1;
+            traceStack[++depth] = atrace;
+            return prev();
+        } else if(traceStack[depth]->frames[i].bci == BCI_AWAIT_MARKER) {
+            i--; // skip over marker
+            return prev();
+        } else
+            return traceStack[depth]->frames + i--;
+    } else if(depth > 0) {
+      depth--;
+      i = positionStack[depth];
+      return prev();
+    }
+    else return NULL;
+}
+
+ASGCT_CallFrame* FrameIterator::next() {
+    if(!hasAwaits) return i < traceStack[0]->num_frames ? traceStack[0]->frames + i++ : NULL;
+    CallTrace* atrace;
+    if(i < traceStack[depth]->num_frames) {
+      if(traceStack[depth]->frames[i].bci == BCI_AWAIT_INSERTION) {
+        atrace = awaitTraces[traceStack[depth]->frames[i++].method_id];
+        if(atrace == NULL || depth >= MAX_DEPTH -1)
+            return next(); // missing or too deep
+        positionStack[depth] = i;
+        i = 0;
+        traceStack[++depth] = atrace;
+        return next();
+      }
+      else if(traceStack[depth]->frames[i].bci == BCI_AWAIT_MARKER) {
+          i++;
+          return next();
+      } else
+        return traceStack[depth]->frames + i++;
+    }
+    else if(depth > 0) {
+      depth--;
+      i = positionStack[depth];
+      return next();
+    }
+    else return NULL;
+}
+
+AwaitData* Profiler::awaitData() {
+    return (AwaitData*) pthread_getspecific(local_await_data_key);
+}
+
+AwaitData* Profiler::maybeInitAwaitData() {
+    AwaitData* ad = awaitData();
+    if(ad == NULL) {
+        lockAll();
+        ad = (AwaitData *) calloc(1, sizeof(AwaitData));
+        unlockAll();
+        pthread_setspecific(local_await_data_key, (void *) ad);
+    }
+    return ad;
+}
+
+long Profiler::setAwaitStackId(long id, long signal, jmethodID insertionId) {
+    AwaitData* ad = maybeInitAwaitData();
+    long prev = ad->stackId;
+    ad->stackId = id;
+    ad->sampledSignalToSet = signal;
+    ad->sampledSignal = 0;
+    ad->insertionId = insertionId;
+    return prev;
+}
+
+long Profiler::getAwaitSampledSignal() {
+    AwaitData* ad = awaitData();
+    if(ad == NULL) return 0;
+    else return ad->sampledSignal;
+}
+
+long Profiler::saveAwaitFrames(AwaitFrameType ft, long *elems, int n) {
+    if(n == 0) return 0;
+    int tid = OS::threadId();
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+      return 0;
+    }
+    ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
+    if (frames == NULL) {
+       _locks[lock_index].unlock();
+       return 0;
+    }
+    if(n > _max_stack_depth)
+        n = _max_stack_depth;
+    switch(ft) {
+        case AW_METHOD:
+            for(int i=1; i<n; i++) {
+                frames[i].bci = FrameType::encode(FRAME_AWAIT_J, frames[i].bci);
+                frames[i].method_id = (jmethodID) elems[i];
+            }
+            break;
+        case AW_STRING:
+            for(int i=1; i<n; i++) {
+                frames[i].bci = BCI_AWAIT_S;
+                frames[i].method_id = (jmethodID) elems[i];
+            }
+            break;
+        default:
+            _locks[lock_index].unlock();
+            return -1;
+    }
+    savedAwaitTrace = true;
+    frames[0].method_id = (jmethodID) elems[0];
+    frames[0].bci = BCI_AWAIT_MARKER;
+    u32 ret = _call_trace_storage.put(n, frames, 0);
+    _locks[lock_index].unlock();
+    return ret;
+}
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
     CodeHeap::updateBounds(address, (const char*)address + length);
@@ -626,6 +780,20 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
 
+    AwaitData* ad = awaitData();
+    if(ad != NULL) {
+        if (ad->insertionId != 0 && ad->stackId != 0) {
+            for (int i = 0; i < num_frames; i++) {
+                if (frames[i].method_id == ad->insertionId) {
+                    frames[i].method_id = (jmethodID) ad->stackId;
+                    frames[i].bci = BCI_AWAIT_INSERTION;
+                    ad->sampledSignal = ad->sampledSignalToSet;
+                    break;
+                }
+            }
+        }
+    }
+
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
 
@@ -816,6 +984,7 @@ void Profiler::updateNativeThreadNames() {
 }
 
 bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
+    if(trace->frames[0].bci == BCI_AWAIT_MARKER) return true;
     bool checkInclude = fn->hasIncludeList();
     bool checkExclude = fn->hasExcludeList();
     if (!(checkInclude || checkExclude)) {
@@ -1180,6 +1349,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
+    FrameIterator fi(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
@@ -1188,9 +1358,13 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
         if (counter == 0) continue;
 
-        for (int j = trace->num_frames - 1; j >= 0; j--) {
-            const char* frame_name = fn.name(trace->frames[j]);
-            out << frame_name << (j == 0 ? ' ' : ';');
+        int n = fi.setAndCount(trace, true);
+
+        ASGCT_CallFrame* frame;
+        int j = n-1;
+        while((frame = fi.prev()) != NULL) {
+            const char* frame_name = fn.name(*frame);
+            out << frame_name << (j-- == 0 ? ' ' : ';');
         }
         // Beware of locale-sensitive conversion
         out.write(buf, sprintf(buf, "%llu\n", counter));
@@ -1217,6 +1391,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
+    FrameIterator fi(samples);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
@@ -1239,16 +1414,20 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
                 f = f->addChild(frame_name, counter);
             }
 
-            for (int j = 0; j < num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
+            fi.set(trace, false);
+            ASGCT_CallFrame* frame;
+            while((frame = fi.next()) != NULL) {
+                const char* frame_name = fn.name(*frame);
                 f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
+                f->addCompilationDetails(frame->bci, counter);
             }
         } else {
-            for (int j = num_frames - 1; j >= 0; j--) {
-                const char* frame_name = fn.name(trace->frames[j]);
+              ASGCT_CallFrame* frame;
+              fi.set(trace, true);
+              while((frame = fi.prev()) != NULL) {
+                const char* frame_name = fn.name(*frame);
                 f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
+                f->addCompilationDetails(frame->bci, counter);
             }
         }
         f->addLeaf(counter);
@@ -1304,6 +1483,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         std::sort(samples.begin(), samples.end());
 
         int max_count = args._dump_traces;
+        FrameIterator fi(samples);
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
             snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
                      it->counter, units_str, it->counter * cpercent,
@@ -1311,9 +1491,12 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             out << buf;
 
             CallTrace* trace = it->trace;
-            for (int j = 0; j < trace->num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
+            fi.set(trace, false);
+            ASGCT_CallFrame* aframe;
+            int j = 0;
+            while((aframe = fi.next())) {
+                const char* frame_name = fn.name(*aframe);
+                snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j++, frame_name);
                 out << buf;
             }
             out << "\n";

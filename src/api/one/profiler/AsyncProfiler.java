@@ -218,4 +218,10 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
+    public static native long getMethodID(Class cls, String method, String sig);
+    public static native long getStaticMethodID(Class cls, String method, String sig);
+    public static native long setAwaitStackId(long id, long signal, long insertionId);
+    public static native long getAwaitSampledSignal();
+    public native long saveAwaitFrames(int tp, long[] ids, int nids);
+    public static native long saveString(String s);
 }

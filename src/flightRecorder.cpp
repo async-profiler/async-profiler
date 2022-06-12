@@ -176,6 +176,10 @@ class Lookup {
             mi->_name = _symbols.lookup(name, len - 4);
             mi->_sig = _symbols.lookup("(Lk;)L;");
             mi->_type = FRAME_KERNEL;
+        } else if (len >= 4 && strcmp(name + len - 4, "_[a]") == 0) {
+            mi->_name = _symbols.lookup(name, len - 4);
+            mi->_sig = _symbols.lookup("()L");
+            mi->_type = FRAME_AWAIT_S;
         } else {
             mi->_name = _symbols.lookup(name);
             mi->_sig = _symbols.lookup("()L;");
@@ -242,8 +246,11 @@ class Lookup {
             } else if (frame.bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
                 fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
+            } else if (frame.bci == BCI_AWAIT_S) {
+                fillNativeMethodInfo(mi, (const char*)method, NULL);
             } else {
                 fillJavaMethodInfo(mi, method, first_time);
+                if (frame.bci == BCI_AWAIT_J) mi->_type = FRAME_AWAIT_J;
             }
         }
 
@@ -917,7 +924,7 @@ class Recording {
 
     void writeFrameTypes(Buffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
-        buf->putVar32(7);
+        buf->putVar32(9);
         buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
         buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
         buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
@@ -925,7 +932,9 @@ class Recording {
         buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
         buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
         buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
-    }
+        buf->putVar32(FRAME_AWAIT_S);      buf->putUtf8("Await name");
+        buf->putVar32(FRAME_AWAIT_J);      buf->putUtf8("Await method");
+        }
 
     void writeThreadStates(Buffer* buf) {
         buf->putVar32(T_THREAD_STATE);
@@ -974,7 +983,16 @@ class Recording {
 
     void writeStackTraces(Buffer* buf, Lookup* lookup) {
         std::map<u32, CallTrace*> traces;
+        std::map<jmethodID, CallTrace*> awaitTraces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
+
+        // Collect all await traces
+        for (std::map<u32, CallTrace *>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+            CallTrace *trace = it->second;
+            if (trace->frames[0].bci == BCI_AWAIT_MARKER) {
+                awaitTraces[trace->frames[0].method_id] = trace;
+            }
+        }
 
         buf->putVar32(T_STACK_TRACE);
         buf->putVar32(traces.size());
@@ -982,27 +1000,51 @@ class Recording {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
             buf->putVar32(0);  // truncated
-            buf->putVar32(trace->num_frames);
-            for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
-                buf->putVar32(mi->_key);
-                if (mi->_type < FRAME_NATIVE) {
-                    jint bci = trace->frames[i].bci;
-                    FrameTypeId type = FrameType::decode(bci);
-                    bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
-                    buf->putVar32(mi->getLineNumber(bci));
-                    buf->putVar32(bci);
-                    buf->put8(type);
-                } else {
-                    buf->put8(0);
-                    buf->put8(0);
-                    buf->put8(mi->_type);
-                }
-                flushIfNeeded(buf);
-            }
+
+            int n = countFrames(trace->frames, trace->num_frames, awaitTraces);
+            buf->putVar32(n);
+
+            writeFrames(buf, trace->frames, trace->num_frames, awaitTraces, lookup);
             flushIfNeeded(buf);
         }
     }
+
+    int writeFrames(Buffer *buf, ASGCT_CallFrame *frames, int n, std::map<jmethodID, CallTrace *> awaitTraces, Lookup *lookup) {
+        CallTrace *atrace;
+        int m = 0;
+        for (int i = 0; i < n; i++) {
+            // Recursively insert await frames if they exist
+            if (frames[i].bci == BCI_AWAIT_INSERTION) {
+                if ((atrace = awaitTraces[frames[i].method_id]) != NULL)
+                    m += writeFrames(buf, atrace->frames + 1, atrace->num_frames - 1, awaitTraces, lookup);
+            } else if (frames[i].bci != BCI_AWAIT_MARKER) { 
+                m++;
+                if (buf != NULL) {
+                    MethodInfo *mi = lookup->resolveMethod(frames[i]);
+                    buf->putVar32(mi->_key);
+                    if (mi->_type < FRAME_NATIVE) {
+                        jint bci = frames[i].bci;
+                        FrameTypeId type = FrameType::decode(bci);
+                        bci = (bci & 0x10000) ? 0 : (bci & 0xffff);
+                        buf->putVar32(mi->getLineNumber(bci));
+                        buf->putVar32(bci);
+                        buf->put8(type);
+                    } else {
+                        buf->put8(0);
+                        buf->put8(0);
+                        buf->put8(mi->_type);
+                    }
+                    flushIfNeeded(buf);
+                }
+            }
+        }
+        return m;
+    }
+
+    int countFrames(ASGCT_CallFrame* frames, int n, std::map<jmethodID, CallTrace*> awaitTraces) {
+        return writeFrames(NULL, frames, n, awaitTraces, NULL);
+    }
+
 
     void writeMethods(Buffer* buf, Lookup* lookup) {
         MethodMap* method_map = lookup->_method_map;
