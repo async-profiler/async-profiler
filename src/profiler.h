@@ -62,6 +62,49 @@ enum State {
     TERMINATED
 };
 
+enum AwaitFrameType {
+  AW_METHOD =1,
+  AW_STRING =2
+};
+
+// Iterates over frames with (potentially) inserted await stacks
+class FrameIterator {
+private:
+  static const int MAX_DEPTH = 5;
+  CallTrace* traceStack[MAX_DEPTH];
+  int positionStack[MAX_DEPTH];
+  std::map<jmethodID, CallTrace*> awaitTraces;
+  int depth = 0;
+  int i = 0;
+  bool hasAwaits = false;
+  void addAwaitTrace(CallTrace* trace) {
+    if(trace->frames[0].bci == BCI_AWAIT_MARKER) {
+        awaitTraces[trace->frames[0].method_id] = trace;
+        hasAwaits = true;
+    }
+  }
+public:
+  FrameIterator(std::vector<CallTraceSample*> &samples, bool savedAwaitStacks);
+    FrameIterator(std::vector<CallTraceSample> &samples, bool savedAwaitStacks);
+    FrameIterator(std::map<long long unsigned int, CallTraceSample> &samples, bool savedAwaitStacks);
+  void set(CallTrace* trace_, bool reversed, int ignore_last = 0);
+  int setAndCount(CallTrace* trace_, bool reversed, int ignore_last = 0);
+  ASGCT_CallFrame* prev();
+  ASGCT_CallFrame* next();
+};
+
+typedef struct AwaitData_ {
+    // When sampling occurs, we will search for a method_id == insertionId
+    jmethodID insertionId;
+    // If we find it, then we will replace method_id in that frame with
+    long stackId;
+    // And we will also put the value of
+    long sampledSignalToSet;
+    // into
+    long sampledSignal;
+    // to alert the setter.
+} AwaitData;
+
 class Profiler {
   private:
     Mutex _state_lock;
@@ -154,6 +197,10 @@ class Profiler {
     void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
     void dumpText(std::ostream& out, Arguments& args);
 
+    AwaitData* awaitData();
+    AwaitData* maybeInitAwaitData();
+    bool _savedAwaitStacks = false;
+
     static Profiler* const _instance;
 
   public:
@@ -185,6 +232,14 @@ class Profiler {
     static Profiler* instance() {
         return _instance;
     }
+
+    bool savedAwaitStacks() {
+      return _savedAwaitStacks;
+    }
+
+    long setAwaitStackId(long, long, jmethodID);
+    long getAwaitSampledSignal();
+    long saveAwaitFrames(AwaitFrameType,long*,int);
 
     u64 total_samples() { return _total_samples; }
     time_t uptime()     { return time(NULL) - _start_time; }

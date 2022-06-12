@@ -34,7 +34,7 @@ class StringUtils {
   public:
     static bool endsWith(const std::string& s, const char* suffix, size_t suffixlen) {
         size_t len = s.length();
-        return len >= suffixlen && s.compare(len - suffixlen, suffixlen, suffix) == 0; 
+        return len >= suffixlen && s.compare(len - suffixlen, suffixlen, suffix) == 0;
     }
 
     static void replace(std::string& s, char c, const char* replacement, size_t rlen) {
@@ -225,6 +225,9 @@ int FlameGraph::frameType(std::string& name, const Trie& f) {
     } else if (StringUtils::endsWith(name, "_[k]", 4)) {
         name = name.substr(0, name.length() - 4);
         return FRAME_KERNEL;
+    } else if (StringUtils::endsWith(name, "_[a]", 4)){
+        name = name.substr(0, name.length() - 4);
+        return FRAME_AWAIT_S;
     } else if (name.find("::") != std::string::npos || name.compare(0, 2, "-[") == 0 || name.compare(0, 2, "+[") == 0) {
         return FRAME_CPP;
     } else if (((int)name.find('/') > 0 && name[0] != '[')

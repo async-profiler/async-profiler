@@ -34,7 +34,7 @@ import java.util.Map;
  */
 public class jfr2flame {
 
-    private static final String[] FRAME_SUFFIX = {"_[0]", "_[j]", "_[i]", "", "", "_[k]", "_[1]"};
+    private static final String[] FRAME_SUFFIX = {"_[0]", "_[j]", "_[i]", "", "", "_[k]", "_[1]", "_[a]", "_[a]"};
 
     private final JfrReader jfr;
     private final Dictionary<String> methodNames = new Dictionary<>();
