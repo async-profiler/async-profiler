@@ -50,6 +50,10 @@ bool FdTransferClient::connectToServer(const char *path, int pid) {
         }
     }
 
+    // Do not block for more than 10 seconds when waiting for a response
+    struct timeval tv = {10, 0};
+    setsockopt(_peer, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+
     if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == -1) {
         Log::warn("FdTransferClient connect(): %s", strerror(errno));
         return false;
