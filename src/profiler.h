@@ -84,8 +84,8 @@ private:
     }
   }
 public:
-  FrameIterator(std::vector<CallTraceSample*> &samples);
-  FrameIterator(std::vector<CallTraceSample> &samples);
+  FrameIterator(std::vector<CallTraceSample*> &samples, bool savedAwaitStacks);
+  FrameIterator(std::vector<CallTraceSample> &samples, bool savedAwaitStacks);
   void set(CallTrace* trace_, bool reversed, int ignore_last = 0);
   int setAndCount(CallTrace* trace_, bool reversed, int ignore_last = 0);
   ASGCT_CallFrame* prev();
@@ -198,6 +198,7 @@ class Profiler {
 
     AwaitData* awaitData();
     AwaitData* maybeInitAwaitData();
+    bool _savedAwaitStacks = false;
 
     static Profiler* const _instance;
 
@@ -229,6 +230,10 @@ class Profiler {
 
     static Profiler* instance() {
         return _instance;
+    }
+
+    bool savedAwaitStacks() {
+      return _savedAwaitStacks;
     }
 
     long setAwaitStackId(long, long, jmethodID);

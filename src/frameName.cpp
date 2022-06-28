@@ -159,7 +159,8 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
 }
 
 const char* FrameName::typeSuffix(FrameTypeId type) {
-    if(type == FRAME_AWAIT_J || type == FRAME_AWAIT_S)  // this is silly
+  // Want to identify await frames visually irrespective of style
+    if(type == FRAME_AWAIT_J || type == FRAME_AWAIT_S)
         return "_[a]";
     if (_style & STYLE_ANNOTATE) {
         switch (type) {
@@ -291,18 +292,13 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             return _buf;
         }
 
-        case BCI_AWAIT_MARKER: {
-            snprintf(_buf, sizeof(_buf) - 1, "[Unexpected await marker %ld]", (long)frame.method_id);
-            return _buf;
-        }
-
-        case BCI_AWAIT_INSERTION: {
-            snprintf(_buf, sizeof(_buf) - 1, "[Unexpected insertion marker %ld]", (long)frame.method_id);
-            return _buf;
-        }
-
         case BCI_AWAIT_S: {
             return (const char*) frame.method_id;
+        }
+
+        case BCI_AWAIT_INSERTION:
+        case BCI_AWAIT_MARKER: {
+            return "[await_marker]";
         }
 
 

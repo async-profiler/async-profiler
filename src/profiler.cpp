@@ -67,7 +67,6 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
-static bool savedAwaitTrace = false;
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -120,14 +119,14 @@ static inline int makeFrame(ASGCT_CallFrame* frames, jint type, const char* id) 
     return makeFrame(frames, type, (jmethodID)id);
 }
 
-FrameIterator::FrameIterator(std::vector<CallTraceSample*> &samples) : awaitTraces() {
-    if (savedAwaitTrace)
+FrameIterator::FrameIterator(std::vector<CallTraceSample*> &samples, bool savedAwaitStacks) : awaitTraces() {
+    if (savedAwaitStacks)
         for(std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) 
             addAwaitTrace((*it)->trace);
 }
 
-FrameIterator::FrameIterator(std::vector<CallTraceSample> &samples) : awaitTraces() {
-    if (savedAwaitTrace)
+FrameIterator::FrameIterator(std::vector<CallTraceSample> &samples, bool savedAwaitStacks) : awaitTraces() {
+    if (savedAwaitStacks)
         for(std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) 
             addAwaitTrace((*it).trace);
 }
@@ -149,18 +148,16 @@ int FrameIterator::setAndCount(CallTrace* trace_, bool reversed, int ignore_last
 
 ASGCT_CallFrame* FrameIterator::prev() {
     if(!hasAwaits) return i>= 0 ? traceStack[0]->frames + i-- : NULL;
-    CallTrace* atrace;
     if(i >= 0) {
         if (traceStack[depth]->frames[i].bci == BCI_AWAIT_INSERTION) {
-            atrace = awaitTraces[traceStack[depth]->frames[i--].method_id];
-            if (atrace == NULL || depth >= 9) return prev(); // missing or too deep
+            CallTrace *atrace = awaitTraces[traceStack[depth]->frames[i--].method_id];
+            if (atrace == NULL || depth >= MAX_DEPTH -1) return prev();
             positionStack[depth] = i;
             i = atrace->num_frames - 1;
             traceStack[++depth] = atrace;
             return prev();
         } else if(traceStack[depth]->frames[i].bci == BCI_AWAIT_MARKER) {
-            i--; // skip over marker
-            return prev();
+            i--; return prev();
         } else
             return traceStack[depth]->frames + i--;
     } else if(depth > 0) {
@@ -173,22 +170,18 @@ ASGCT_CallFrame* FrameIterator::prev() {
 
 ASGCT_CallFrame* FrameIterator::next() {
     if(!hasAwaits) return i < traceStack[0]->num_frames ? traceStack[0]->frames + i++ : NULL;
-    CallTrace* atrace;
     if(i < traceStack[depth]->num_frames) {
       if(traceStack[depth]->frames[i].bci == BCI_AWAIT_INSERTION) {
-        atrace = awaitTraces[traceStack[depth]->frames[i++].method_id];
-        if(atrace == NULL || depth >= MAX_DEPTH -1)
-            return next(); // missing or too deep
+        CallTrace *atrace = awaitTraces[traceStack[depth]->frames[i++].method_id];
+        if(atrace == NULL || depth >= MAX_DEPTH -1) return next();
         positionStack[depth] = i;
         i = 0;
         traceStack[++depth] = atrace;
         return next();
-      }
-      else if(traceStack[depth]->frames[i].bci == BCI_AWAIT_MARKER) {
-          i++;
-          return next();
+      } else if(traceStack[depth]->frames[i].bci == BCI_AWAIT_MARKER) {
+          i++; return next();
       } else
-        return traceStack[depth]->frames + i++;
+         return traceStack[depth]->frames + i++;
     }
     else if(depth > 0) {
       depth--;
@@ -226,7 +219,9 @@ long Profiler::setAwaitStackId(long id, long signal, jmethodID insertionId) {
 long Profiler::getAwaitSampledSignal() {
     AwaitData* ad = awaitData();
     if(ad == NULL) return 0;
-    else return ad->sampledSignal;
+    long ret = ad->sampledSignal;
+    ad->sampledSignal = 0;
+    return ret;
 }
 
 long Profiler::saveAwaitFrames(AwaitFrameType ft, long *elems, int n) {
@@ -263,7 +258,7 @@ long Profiler::saveAwaitFrames(AwaitFrameType ft, long *elems, int n) {
             _locks[lock_index].unlock();
             return -1;
     }
-    savedAwaitTrace = true;
+    _savedAwaitStacks = true;
     frames[0].method_id = (jmethodID) elems[0];
     frames[0].bci = BCI_AWAIT_MARKER;
     u32 ret = _call_trace_storage.put(n, frames, 0);
@@ -1349,7 +1344,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-    FrameIterator fi(samples);
+    FrameIterator fi(samples, _savedAwaitStacks);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
@@ -1391,7 +1386,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-    FrameIterator fi(samples);
+    FrameIterator fi(samples, _savedAwaitStacks);
 
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
@@ -1483,7 +1478,7 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         std::sort(samples.begin(), samples.end());
 
         int max_count = args._dump_traces;
-        FrameIterator fi(samples);
+        FrameIterator fi(samples, _savedAwaitStacks);
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
             snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
                      it->counter, units_str, it->counter * cpercent,

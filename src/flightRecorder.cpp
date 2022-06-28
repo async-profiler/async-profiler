@@ -983,16 +983,18 @@ class Recording {
 
     void writeStackTraces(Buffer* buf, Lookup* lookup) {
         std::map<u32, CallTrace*> traces;
-        std::map<jmethodID, CallTrace*> awaitTraces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
-
-        // Collect all await traces
-        for (std::map<u32, CallTrace *>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
-            CallTrace *trace = it->second;
-            if (trace->frames[0].bci == BCI_AWAIT_MARKER) {
-                awaitTraces[trace->frames[0].method_id] = trace;
+        std::map<jmethodID, CallTrace*> *awaitTraces = NULL;
+        if (Profiler::instance()->savedAwaitStacks()) {
+            awaitTraces = new std::map<jmethodID, CallTrace*>();
+            for (std::map<u32, CallTrace *>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+                CallTrace *trace = it->second;
+                if (trace->frames[0].bci == BCI_AWAIT_MARKER)
+                    (*awaitTraces)[trace->frames[0].method_id] = trace;
             }
         }
+
+
 
         buf->putVar32(T_STACK_TRACE);
         buf->putVar32(traces.size());
@@ -1001,21 +1003,22 @@ class Recording {
             buf->putVar32(it->first);
             buf->putVar32(0);  // truncated
 
-            int n = countFrames(trace->frames, trace->num_frames, awaitTraces);
+            int n = awaitTraces ? countFrames(trace->frames, trace->num_frames, awaitTraces) : trace->num_frames;
             buf->putVar32(n);
 
             writeFrames(buf, trace->frames, trace->num_frames, awaitTraces, lookup);
             flushIfNeeded(buf);
         }
+        if(awaitTraces) delete awaitTraces;
     }
 
-    int writeFrames(Buffer *buf, ASGCT_CallFrame *frames, int n, std::map<jmethodID, CallTrace *> awaitTraces, Lookup *lookup) {
-        CallTrace *atrace;
+    int writeFrames(Buffer *buf, ASGCT_CallFrame *frames, int n, std::map<jmethodID, CallTrace *> *awaitTraces, Lookup *lookup) {
         int m = 0;
         for (int i = 0; i < n; i++) {
             // Recursively insert await frames if they exist
-            if (frames[i].bci == BCI_AWAIT_INSERTION) {
-                if ((atrace = awaitTraces[frames[i].method_id]) != NULL)
+            if (awaitTraces && frames[i].bci == BCI_AWAIT_INSERTION) {
+                CallTrace *atrace;
+                if ((atrace = (*awaitTraces)[frames[i].method_id]) != NULL)
                     m += writeFrames(buf, atrace->frames + 1, atrace->num_frames - 1, awaitTraces, lookup);
             } else if (frames[i].bci != BCI_AWAIT_MARKER) { 
                 m++;
@@ -1041,10 +1044,9 @@ class Recording {
         return m;
     }
 
-    int countFrames(ASGCT_CallFrame* frames, int n, std::map<jmethodID, CallTrace*> awaitTraces) {
+    int countFrames(ASGCT_CallFrame* frames, int n, std::map<jmethodID, CallTrace*> *awaitTraces) {
         return writeFrames(NULL, frames, n, awaitTraces, NULL);
     }
-
 
     void writeMethods(Buffer* buf, Lookup* lookup) {
         MethodMap* method_map = lookup->_method_map;
