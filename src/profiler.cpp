@@ -403,7 +403,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
         } else if (VMStructs::hasMethodStructs()) {
             NMethod* nmethod = CodeHeap::findNMethod((const void*)frame.pc());
-            if (nmethod != NULL && nmethod->isNMethod()) {
+            if (nmethod != NULL && nmethod->isNMethod() && nmethod->isAlive()) {
                 VMMethod* method = nmethod->method();
                 if (method != NULL) {
                     jmethodID method_id = method->constMethod()->id();
@@ -523,7 +523,7 @@ inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame
 }
 
 void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
-    if (nmethod->isNMethod()) {
+    if (nmethod->isNMethod() && nmethod->isAlive()) {
         VMMethod* method = nmethod->method();
         if (method == NULL) {
             return;
