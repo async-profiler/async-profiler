@@ -706,6 +706,7 @@ Error Profiler::installTraps(const char* begin, const char* end) {
 void Profiler::uninstallTraps() {
     _begin_trap.uninstall();
     _end_trap.uninstall();
+    _engine->enableEvents(false);
 }
 
 void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
