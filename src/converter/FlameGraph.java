@@ -239,11 +239,13 @@ public class FlameGraph {
                 child = getChild(title, FRAME_KERNEL);
             } else if (title.endsWith("_[1]")) {
                 (child = getChild(stripSuffix(title), FRAME_JIT_COMPILED)).c1 += ticks;
+            } else if (title.endsWith("_[0]")) {
+                (child = getChild(stripSuffix(title), FRAME_JIT_COMPILED)).interpreted += ticks;
             } else if (title.contains("::") || title.startsWith("-[") || title.startsWith("+[")) {
                 child = getChild(title, FRAME_CPP);
             } else if (title.indexOf('/') > 0 && title.charAt(0) != '['
                     || title.indexOf('.') > 0 && Character.isUpperCase(title.charAt(0))) {
-                (child = getChild(title, FRAME_JIT_COMPILED)).interpreted += ticks;
+                child = getChild(title, FRAME_JIT_COMPILED);
             } else {
                 child = getChild(title, FRAME_NATIVE);
             }
