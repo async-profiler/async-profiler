@@ -1038,6 +1038,7 @@ error1:
     _jfr.stop();
     unlockAll();
 
+    FdTransferClient::closePeer();
     return error;
 }
 
