@@ -259,6 +259,7 @@ void ElfParser::parseDynamicSection() {
         char* rel = NULL;
         size_t relsz = 0;
         size_t relent = 0;
+        size_t relcount = 0;
 
         const char* dyn_start = at(dynamic);
         const char* dyn_end = dyn_start + dynamic->p_memsz;
@@ -282,25 +283,37 @@ void ElfParser::parseDynamicSection() {
                 case DT_RELENT:
                     relent = dyn->d_un.d_val;
                     break;
+                case DT_RELACOUNT:
+                case DT_RELCOUNT:
+                    relcount = dyn->d_un.d_val;
+                    break;
             }
         }
 
-        if (got_start != NULL && relent != 0) {
-            if (pltrelsz != 0) {
+        if (relent != 0) {
+            if (pltrelsz != 0 && got_start != NULL) {
                 // The number of entries in .got.plt section matches the number of entries in .rela.plt
                 _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent);
             } else if (rel != NULL && relsz != 0) {
                 // RELRO technique: .got.plt has been merged into .got and made read-only.
                 // Find .got end from the highest relocation address.
-                for (char* p = rel + relsz; (p -= relent) >= rel; ) {
-                    ElfRelocation* last_rel = (ElfRelocation*)p;
-                    if (ELF_R_TYPE(last_rel->r_info) == R_GLOB_DAT) {
-                        void** got_end = (void**)(_base + last_rel->r_offset) + 1;
-                        if (got_end > got_start) {
-                            _cc->setGlobalOffsetTable(got_start, got_end);
-                            break;
-                        }
+                void** min_addr = (void**)-1;
+                void** max_addr = (void**)0;
+                for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                    ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                    if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
+                        void** addr = (void**)(_base + r->r_offset);
+                        if (addr < min_addr) min_addr = addr;
+                        if (addr > max_addr) max_addr = addr;
                     }
+                }
+
+                if (got_start == NULL) {
+                    got_start = (void**)min_addr;
+                }
+
+                if (max_addr >= got_start) {
+                    _cc->setGlobalOffsetTable(got_start, max_addr + 1);
                 }
             }
         }
