@@ -174,7 +174,8 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static void** lookupThreadEntry() {
-    CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
+    CodeCache* lib = VM::isZing() ? Profiler::instance()->findLibraryByName("libazsys")
+                                  : Profiler::instance()->findJvmLibrary("libj9thr");
     return lib != NULL ? lib->findGlobalOffsetEntry((void*)&pthread_setspecific) : NULL;
 }
 

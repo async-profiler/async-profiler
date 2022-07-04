@@ -212,7 +212,8 @@ class Profiler {
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
     CodeCache* findJvmLibrary(const char* lib_name);
-    CodeCache* findNativeLibrary(const void* address);
+    CodeCache* findLibraryByName(const char* lib_name);
+    CodeCache* findLibraryByAddress(const void* address);
     const char* findNativeMethod(const void* address);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
