@@ -125,10 +125,12 @@ typedef Elf32_Dyn  ElfDyn;
 #  error "Compiling on unsupported arch"
 #endif
 
+// GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
+// A tricky case is when we attach to a musl container from a glibc host.
 #ifdef __musl__
-#  define DYN_BASE _base
+#  define DYN_PTR(ptr)  (_base + (ptr))
 #else
-#  define DYN_BASE 0
+#  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
 #endif // __musl__
 
 
@@ -266,14 +268,14 @@ void ElfParser::parseDynamicSection() {
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
                 case DT_PLTGOT:
-                    got_start = (void**)(DYN_BASE + dyn->d_un.d_ptr) + 3;
+                    got_start = (void**)DYN_PTR(dyn->d_un.d_ptr) + 3;
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;
                     break;
                 case DT_RELA:
                 case DT_REL:
-                    rel = (char*)(DYN_BASE + dyn->d_un.d_ptr);
+                    rel = (char*)DYN_PTR(dyn->d_un.d_ptr);
                     break;
                 case DT_RELASZ:
                 case DT_RELSZ:
