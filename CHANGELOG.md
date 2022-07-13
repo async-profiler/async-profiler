@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.8.2] - 2022-07-13
+
+### Bug fixes
+ - The same .so works with glibc and musl
+ - dlopen hook did not work on Arch Linux
+ - Fixed JDK 7 crash
+ - Fixed CPU profiling on Zing
+
+### Changes
+ - Mark interpreted frames with `_[0]` in collapsed output
+ - Double click selects a method name on a flame graph
+
 ## [2.8.1] - 2022-06-10
 
 ### Improvements
