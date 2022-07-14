@@ -1,0 +1,71 @@
+name: Release
+on:
+  push:
+    tags:
+    - "v*.*.*"
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - run: make release
+      - uses: actions/upload-artifact@v3
+        with:
+          path: |
+            ./*.zip
+            ./build/*.jar
+  build-linux-x86:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+      - run: make release
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./*.tar.gz
+  build-linux-musl:
+    runs-on: ubuntu-latest
+    container:
+      image: adoptopenjdk/openjdk11:jdk-11.0.15_10-alpine-slim
+    steps:
+      - uses: actions/checkout@v3
+      - run: apk add linux-headers make g++ && make release
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./*.tar.gz
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pguyot/arm-runner-action@v2
+        with:
+          base_image: raspios_lite_arm64:2022-01-28
+          image_additional_mb: 1000
+          copy_artifact_path: "./*.tar.gz"
+          commands: |
+            sudo apt update && sudo apt install g++ make openjdk-11-dbg openjdk-11-jdk -y && export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-arm64 && make release
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ./*.tar.gz
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-linux-arm64, build-linux-musl, build-linux-x86, build-mac]
+    if: ${{ always() && !(contains(needs.*.result, 'failure')) }}
+    steps:
+      - uses: actions/download-artifact@v3
+        id: download
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./artifact/*.tar.gz
+            ./artifact/*.zip
+            ./artifact/build/converter.jar
