@@ -40,7 +40,7 @@ class MachOParser {
         for (uint32_t i = 0; i < sc->nsects; i++) {
             if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
                 const char* got_start = add(_image_base, section->addr);
-                _cc->setGlobalOffsetTable((void**)got_start, (void**)(got_start + section->size));
+                _cc->setGlobalOffsetTable((void**)got_start, (void**)(got_start + section->size), true);
                 break;
             }
             section++;
@@ -151,10 +151,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         cc->sort();
         array->add(cc);
     }
-}
-
-void Symbols::makePatchable(CodeCache* cc) {
-    // Global Offset Table is always writable
 }
 
 #endif // __APPLE__

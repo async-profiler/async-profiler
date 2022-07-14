@@ -145,7 +145,7 @@ bool VM::init(JavaVM* vm, bool attach) {
         ? profiler->findJvmLibrary("libj9vm")
         : profiler->findLibraryByAddress((const void*)_asyncGetCallTrace);
     if (lib == NULL) {
-        return false;  // TODO: verify
+        return false;
     }
 
     VMStructs::init(lib);

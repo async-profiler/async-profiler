@@ -32,7 +32,6 @@
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
-#include "os.h"
 
 
 class SymbolDesc {
@@ -254,7 +253,7 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
 }
 
 void ElfParser::parseDynamicSection() {
-   ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
+    ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
         void** got_start = NULL;
         size_t pltrelsz = 0;
@@ -295,7 +294,7 @@ void ElfParser::parseDynamicSection() {
         if (relent != 0) {
             if (pltrelsz != 0 && got_start != NULL) {
                 // The number of entries in .got.plt section matches the number of entries in .rela.plt
-                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent);
+                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent, false);
             } else if (rel != NULL && relsz != 0) {
                 // RELRO technique: .got.plt has been merged into .got and made read-only.
                 // Find .got end from the highest relocation address.
@@ -315,7 +314,7 @@ void ElfParser::parseDynamicSection() {
                 }
 
                 if (max_addr >= got_start) {
-                    _cc->setGlobalOffsetTable(got_start, max_addr + 1);
+                    _cc->setGlobalOffsetTable(got_start, max_addr + 1, false);
                 }
             }
         }
@@ -599,12 +598,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     free(str);
     fclose(f);
-}
-
-void Symbols::makePatchable(CodeCache* cc) {
-    uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
-    uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
-    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
 }
 
 #endif // __linux__

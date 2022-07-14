@@ -92,6 +92,7 @@ class CodeCache {
 
     void** _got_start;
     void** _got_end;
+    bool _got_patchable;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
@@ -101,6 +102,7 @@ class CodeCache {
     CodeBlob* _blobs;
 
     void expand();
+    void makeGotPatchable();
 
   public:
     CodeCache(const char* name,
@@ -130,14 +132,6 @@ class CodeCache {
         _text_base = text_base;
     }
 
-    void** gotStart() const {
-        return _got_start;
-    }
-
-    void** gotEnd() const {
-        return _got_end;
-    }
-
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
@@ -149,7 +143,7 @@ class CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 
-    void setGlobalOffsetTable(void** start, void** end);
+    void setGlobalOffsetTable(void** start, void** end, bool patchable);
     void** findGlobalOffsetEntry(void* address);
 
     void setDwarfTable(FrameDesc* table, int length);

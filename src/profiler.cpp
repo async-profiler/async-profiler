@@ -887,7 +887,6 @@ Error Profiler::checkJvmCapabilities() {
         if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
-        Symbols::makePatchable(lib);
     }
 
     if (!VMStructs::hasDebugSymbols() && !VM::isOpenJ9()) {
