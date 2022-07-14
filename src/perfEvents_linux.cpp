@@ -605,7 +605,8 @@ int PerfEvents::createForThread(int tid) {
 
     if (fd == -1) {
         int err = errno;
-        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
+        _events[tid]._fd = 0;
         return err;
     }
 
