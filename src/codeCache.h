@@ -102,7 +102,6 @@ class CodeCache {
     CodeBlob* _blobs;
 
     void expand();
-    void makeGotPatchable();
 
   public:
     CodeCache(const char* name,
@@ -132,6 +131,14 @@ class CodeCache {
         _text_base = text_base;
     }
 
+    void** gotStart() const {
+        return _got_start;
+    }
+
+    void** gotEnd() const {
+        return _got_end;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
@@ -145,6 +152,7 @@ class CodeCache {
 
     void setGlobalOffsetTable(void** start, void** end, bool patchable);
     void** findGlobalOffsetEntry(void* address);
+    void makeGotPatchable();
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
