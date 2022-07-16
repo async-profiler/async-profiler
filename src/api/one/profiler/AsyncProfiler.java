@@ -39,14 +39,20 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
             return instance;
         }
 
-        if (libPath == null) {
-            System.loadLibrary("asyncProfiler");
-        } else {
+        AsyncProfiler profiler = new AsyncProfiler();
+        if (libPath != null) {
             System.load(libPath);
+        } else {
+            try {
+                // No need to load library, if it has been preloaded with -agentpath
+                profiler.getVersion();
+            } catch (UnsatisfiedLinkError e) {
+                System.loadLibrary("asyncProfiler");
+            }
         }
 
-        instance = new AsyncProfiler();
-        return instance;
+        instance = profiler;
+        return profiler;
     }
 
     /**

@@ -23,7 +23,7 @@
 #ifdef __clang__
 #  define DLLEXPORT __attribute__((visibility("default")))
 #else
-#  define DLLEXPORT __attribute__((externally_visible))
+#  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
 #endif
 
 
