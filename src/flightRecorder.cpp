@@ -1286,7 +1286,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc >= 0 ? 2 : 0) |
-                     (args._lock >= 0 ? 4 : 0);
+                     (args._lock >= 0 ? 4 : 0) |
+                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

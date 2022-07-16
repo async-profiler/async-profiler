@@ -90,6 +90,22 @@ class JfrSync implements FlightRecorderListener {
             recording.disable("jdk.JavaMonitorEnter");
             recording.disable("jdk.ThreadPark");
         }
+
+        // Shifted JfrOption values
+        if ((eventMask & 0x10) != 0) {
+            recording.disable("jdk.OSInformation");
+            recording.disable("jdk.CPUInformation");
+            recording.disable("jdk.JVMInformation");
+        }
+        if ((eventMask & 0x20) != 0) {
+            recording.disable("jdk.InitialSystemProperty");
+        }
+        if ((eventMask & 0x40) != 0) {
+            recording.disable("jdk.NativeLibrary");
+        }
+        if ((eventMask & 0x80) != 0) {
+            recording.disable("jdk.CPULoad");
+        }
     }
 
     private static native void stopProfiler();
