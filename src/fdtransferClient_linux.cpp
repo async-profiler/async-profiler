@@ -32,6 +32,8 @@
 int FdTransferClient::_peer = -1;
 
 bool FdTransferClient::connectToServer(const char *path, int pid) {
+    closePeer();
+
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (_peer == -1) {
         Log::warn("FdTransferClient socket(): %s", strerror(errno));

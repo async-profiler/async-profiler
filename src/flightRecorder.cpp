@@ -130,6 +130,21 @@ class Lookup {
     Dictionary _symbols;
 
   private:
+    void cutArguments(char* func) {
+        char* p = strrchr(func, ')');
+        if (p == NULL) return;
+
+        int balance = 1;
+        while (--p > func) {
+            if (*p == '(' && --balance == 0) {
+                *p = 0;
+                return;
+            } else if (*p == ')') {
+                balance++;
+            }
+        }
+    }
+
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
             mi->_class = _classes->lookup("");
@@ -147,8 +162,7 @@ class Lookup {
             int status;
             char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
             if (demangled != NULL) {
-                char* p = strchr(demangled, '(');
-                if (p != NULL) *p = 0;
+                cutArguments(demangled);
                 mi->_name = _symbols.lookup(demangled);
                 mi->_sig = _symbols.lookup("()L;");
                 mi->_type = FRAME_CPP;
@@ -1269,7 +1283,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc >= 0 ? 2 : 0) |
-                     (args._lock >= 0 ? 4 : 0);
+                     (args._lock >= 0 ? 4 : 0) |
+                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

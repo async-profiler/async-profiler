@@ -294,6 +294,7 @@ void VMStructs::resolveOffsets() {
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0
             && _nmethod_entry_offset >= 0
+            && _nmethod_state_offset >= 0
             && _method_constmethod_offset >= 0
             && _method_code_offset >= 0
             && _constmethod_constants_offset >= 0

@@ -18,13 +18,13 @@ to learn about all features.
 
 ## Download
 
-Current release (2.8.1):
+Current release (2.8.3):
 
- - Linux x64 (glibc): [async-profiler-2.8.1-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.1/async-profiler-2.8.1-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.8.1-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.1/async-profiler-2.8.1-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.8.1-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.1/async-profiler-2.8.1-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.8.1-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.1/async-profiler-2.8.1-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.1/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.8.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.8.3-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.8.3-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.8.3-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
@@ -250,7 +250,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.8.1/src/arguments.cpp#L52).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.8.3/src/arguments.cpp#L52).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`

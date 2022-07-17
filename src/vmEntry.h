@@ -23,7 +23,7 @@
 #ifdef __clang__
 #  define DLLEXPORT __attribute__((visibility("default")))
 #else
-#  define DLLEXPORT __attribute__((externally_visible))
+#  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
 #endif
 
 
@@ -113,6 +113,7 @@ class VM {
 
     static int _hotspot_version;
     static bool _openj9;
+    static bool _zing;
     static bool _can_sample_objects;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -163,6 +164,10 @@ class VM {
 
     static bool isOpenJ9() {
         return _openj9;
+    }
+
+    static bool isZing() {
+        return _zing;
     }
 
     static bool canSampleObjects() {

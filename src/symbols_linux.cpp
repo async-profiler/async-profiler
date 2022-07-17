@@ -32,7 +32,6 @@
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
-#include "os.h"
 
 
 class SymbolDesc {
@@ -125,10 +124,12 @@ typedef Elf32_Dyn  ElfDyn;
 #  error "Compiling on unsupported arch"
 #endif
 
+// GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
+// A tricky case is when we attach to a musl container from a glibc host.
 #ifdef __musl__
-#  define DYN_BASE _base
+#  define DYN_PTR(ptr)  (_base + (ptr))
 #else
-#  define DYN_BASE 0
+#  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
 #endif // __musl__
 
 
@@ -252,27 +253,28 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
 }
 
 void ElfParser::parseDynamicSection() {
-   ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
+    ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
         void** got_start = NULL;
         size_t pltrelsz = 0;
         char* rel = NULL;
         size_t relsz = 0;
         size_t relent = 0;
+        size_t relcount = 0;
 
         const char* dyn_start = at(dynamic);
         const char* dyn_end = dyn_start + dynamic->p_memsz;
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
                 case DT_PLTGOT:
-                    got_start = (void**)(DYN_BASE + dyn->d_un.d_ptr) + 3;
+                    got_start = (void**)DYN_PTR(dyn->d_un.d_ptr) + 3;
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;
                     break;
                 case DT_RELA:
                 case DT_REL:
-                    rel = (char*)(DYN_BASE + dyn->d_un.d_ptr);
+                    rel = (char*)DYN_PTR(dyn->d_un.d_ptr);
                     break;
                 case DT_RELASZ:
                 case DT_RELSZ:
@@ -282,25 +284,37 @@ void ElfParser::parseDynamicSection() {
                 case DT_RELENT:
                     relent = dyn->d_un.d_val;
                     break;
+                case DT_RELACOUNT:
+                case DT_RELCOUNT:
+                    relcount = dyn->d_un.d_val;
+                    break;
             }
         }
 
-        if (got_start != NULL && relent != 0) {
-            if (pltrelsz != 0) {
+        if (relent != 0) {
+            if (pltrelsz != 0 && got_start != NULL) {
                 // The number of entries in .got.plt section matches the number of entries in .rela.plt
-                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent);
+                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent, false);
             } else if (rel != NULL && relsz != 0) {
                 // RELRO technique: .got.plt has been merged into .got and made read-only.
                 // Find .got end from the highest relocation address.
-                for (char* p = rel + relsz; (p -= relent) >= rel; ) {
-                    ElfRelocation* last_rel = (ElfRelocation*)p;
-                    if (ELF_R_TYPE(last_rel->r_info) == R_GLOB_DAT) {
-                        void** got_end = (void**)(_base + last_rel->r_offset) + 1;
-                        if (got_end > got_start) {
-                            _cc->setGlobalOffsetTable(got_start, got_end);
-                            break;
-                        }
+                void** min_addr = (void**)-1;
+                void** max_addr = (void**)0;
+                for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                    ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                    if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
+                        void** addr = (void**)(_base + r->r_offset);
+                        if (addr < min_addr) min_addr = addr;
+                        if (addr > max_addr) max_addr = addr;
                     }
+                }
+
+                if (got_start == NULL) {
+                    got_start = (void**)min_addr;
+                }
+
+                if (max_addr >= got_start) {
+                    _cc->setGlobalOffsetTable(got_start, max_addr + 1, false);
                 }
             }
         }
@@ -584,12 +598,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     free(str);
     fclose(f);
-}
-
-void Symbols::makePatchable(CodeCache* cc) {
-    uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
-    uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
-    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
 }
 
 #endif // __linux__

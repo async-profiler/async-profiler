@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.8.3] - 2022-07-16
+
+### Improvements
+ - Support virtualized ARM64 macOS
+ - A switch to generate auxiliary events by async-profiler or FlightRecorder in jfrsync mode
+
+### Bug fixes
+ - Could not recreate perf_events after the first failure
+ - Handle different versions of Zing properly
+ - Do not call System.loadLibrary, when libasyncProfiler is preloaded
+
+## [2.8.2] - 2022-07-13
+
+### Bug fixes
+ - The same .so works with glibc and musl
+ - dlopen hook did not work on Arch Linux
+ - Fixed JDK 7 crash
+ - Fixed CPU profiling on Zing
+
+### Changes
+ - Mark interpreted frames with `_[0]` in collapsed output
+ - Double click selects a method name on a flame graph
+
 ## [2.8.1] - 2022-06-10
 
 ### Improvements

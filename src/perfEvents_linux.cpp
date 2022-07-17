@@ -174,6 +174,17 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static void** lookupThreadEntry() {
+    // Depending on Zing version, pthread_setspecific is called either from libazsys.so or from libjvm.so
+    if (VM::isZing()) {
+        CodeCache* libazsys = Profiler::instance()->findLibraryByName("libazsys");
+        if (libazsys != NULL) {
+            void** entry = libazsys->findGlobalOffsetEntry((void*)&pthread_setspecific);
+            if (entry != NULL) {
+                return entry;
+            }
+        }
+    }
+
     CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
     return lib != NULL ? lib->findGlobalOffsetEntry((void*)&pthread_setspecific) : NULL;
 }
@@ -604,7 +615,8 @@ int PerfEvents::createForThread(int tid) {
 
     if (fd == -1) {
         int err = errno;
-        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
+        _events[tid]._fd = 0;
         return err;
     }
 

@@ -172,6 +172,7 @@
 		if (h >= 0 && h < levels.length) {
 			const f = findFrame(levels[h], event.offsetX / px + root.left);
 			if (f) {
+				if (f != root) getSelection().removeAllRanges();
 				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
 				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
@@ -198,6 +199,10 @@
 		canvas.title = '';
 		canvas.style.cursor = '';
 		canvas.onclick = '';
+	}
+
+	canvas.ondblclick = function() {
+		getSelection().selectAllChildren(hl);
 	}
 
 	document.getElementById('reverse').onclick = function() {

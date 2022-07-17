@@ -42,6 +42,7 @@ jvmtiEnv* VM::_jvmti = NULL;
 
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
+bool VM::_zing = false;
 bool VM::_can_sample_objects = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -113,6 +114,7 @@ bool VM::init(JavaVM* vm, bool attach) {
                      strstr(prop, "GraalVM") != NULL ||
                      strstr(prop, "Dynamic Code Evolution") != NULL;
         is_zero_vm = strstr(prop, "Zero") != NULL;
+        _zing = !is_hotspot && strstr(prop, "Zing") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
@@ -141,9 +143,9 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     CodeCache* lib = isOpenJ9()
         ? profiler->findJvmLibrary("libj9vm")
-        : profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
+        : profiler->findLibraryByAddress((const void*)_asyncGetCallTrace);
     if (lib == NULL) {
-        return false;  // TODO: verify
+        return false;
     }
 
     VMStructs::init(lib);
