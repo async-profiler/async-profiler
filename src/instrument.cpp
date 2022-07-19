@@ -18,15 +18,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "arch.h"
+#include "incbin.h"
 #include "os.h"
 #include "profiler.h"
 #include "vmEntry.h"
 #include "instrument.h"
 
 
-static const unsigned char INSTRUMENT_CLASS[] = {
-#include "helper/one/profiler/Instrument.class.h"
-};
+INCBIN(INSTRUMENT_CLASS, "one/profiler/Instrument.class")
 
 
 enum ConstantTag {
@@ -515,7 +514,7 @@ Error Instrument::check(Arguments& args) {
         JNIEnv* jni = VM::jni();
         const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
 
-        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, sizeof(INSTRUMENT_CLASS));
+        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
             jni->ExceptionDescribe();
             return Error("Could not load Instrument class");

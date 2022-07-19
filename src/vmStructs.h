@@ -333,6 +333,10 @@ class NMethod : VMStructs {
         return *at(_nmethod_state_offset);
     }
 
+    bool isAlive() {
+        return state() >= 0 && state() <= 1;
+    }
+
     int level() {
         return _nmethod_level_offset >= 0 ? *(int*) at(_nmethod_level_offset) : 0;
     }

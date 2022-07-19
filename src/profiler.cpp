@@ -72,12 +72,12 @@ static MemLeakTracer memleak_tracer;
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
 enum StackRecovery {
-    UNKNOWN_JAVA = (1 << 0),
-    POP_STUB     = (1 << 1),
-    POP_METHOD   = (1 << 2),
-    LAST_JAVA_PC = (1 << 3),
-    GC_TRACES    = (1 << 4),
-    JAVA_STATE   = (1 << 5),
+    UNKNOWN_JAVA  = (1 << 0),
+    POP_STUB      = (1 << 1),
+    POP_METHOD    = (1 << 2),
+    UNWIND_NATIVE = (1 << 3),
+    LAST_JAVA_PC  = (1 << 4),
+    GC_TRACES     = (1 << 5),
 };
 
 struct MethodSample {
@@ -179,6 +179,9 @@ const char* Profiler::asgctError(int code) {
             return "safepoint";
         case ticks_skipped:
             return "skipped";
+        case ticks_unknown_state:
+            // Zing sometimes returns it
+            return "unknown_state";
         default:
             // Should not happen
             return "unexpected_state";
@@ -265,10 +268,10 @@ const char* Profiler::getLibraryName(const char* native_symbol) {
 }
 
 CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
-    if (!VM::isOpenJ9()) {
-        return VMStructs::libjvm();
-    }
+    return VM::isOpenJ9() ? findLibraryByName(lib_name) : VMStructs::libjvm();
+}
 
+CodeCache* Profiler::findLibraryByName(const char* lib_name) {
     const size_t lib_name_len = strlen(lib_name);
     const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
@@ -283,7 +286,7 @@ CodeCache* Profiler::findJvmLibrary(const char* lib_name) {
     return NULL;
 }
 
-CodeCache* Profiler::findNativeLibrary(const void* address) {
+CodeCache* Profiler::findLibraryByAddress(const void* address) {
     const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
         if (_native_libs[i]->contains(address)) {
@@ -294,7 +297,7 @@ CodeCache* Profiler::findNativeLibrary(const void* address) {
 }
 
 const char* Profiler::findNativeMethod(const void* address) {
-    CodeCache* lib = findNativeLibrary(address);
+    CodeCache* lib = findLibraryByAddress(address);
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
@@ -303,7 +306,7 @@ bool Profiler::isAddressInCode(uintptr_t addr) {
     if (CodeHeap::contains(pc)) {
         return CodeHeap::findNMethod(pc) != NULL && !(pc >= _call_stub_begin && pc < _call_stub_end);
     } else {
-        return findNativeLibrary(pc) != NULL;
+        return findLibraryByAddress(pc) != NULL;
     }
 }
 
@@ -375,7 +378,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         saved_fp = frame.fp();
     }
 
-    if (!(_safe_mode & JAVA_STATE)) {
+    if (!(_safe_mode & UNWIND_NATIVE)) {
         int state = vm_thread->state();
         if (state == 8 || state == 9) {
             if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
@@ -419,14 +422,17 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
         } else if (VMStructs::hasMethodStructs()) {
             NMethod* nmethod = CodeHeap::findNMethod((const void*)frame.pc());
-            if (nmethod != NULL && nmethod->isNMethod()) {
-                jmethodID method_id = nmethod->method()->constMethod()->id();
-                if (method_id != NULL) {
-                    max_depth -= makeFrame(trace.frames++, 0, method_id);
-                }
-                if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
-                        && isAddressInCode(frame.pc() -= ADJUST_RET)) {
-                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+            if (nmethod != NULL && nmethod->isNMethod() && nmethod->isAlive()) {
+                VMMethod* method = nmethod->method();
+                if (method != NULL) {
+                    jmethodID method_id = method->constMethod()->id();
+                    if (method_id != NULL) {
+                        max_depth -= makeFrame(trace.frames++, 0, method_id);
+                    }
+                    if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
+                            && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                        VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    }
                 }
             } else if (nmethod != NULL) {
                 if (_cstack != CSTACK_NO) {
@@ -454,7 +460,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     m->setFrameCompleteOffset(0);
                 }
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-            } else if (findNativeLibrary((const void*)pc) != NULL) {
+            } else if (findLibraryByAddress((const void*)pc) != NULL) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
 
@@ -536,8 +542,13 @@ inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame
 }
 
 void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
-    if (nmethod->isNMethod()) {
-        jmethodID current_method_id = nmethod->method()->constMethod()->id();
+    if (nmethod->isNMethod() && nmethod->isAlive()) {
+        VMMethod* method = nmethod->method();
+        if (method == NULL) {
+            return;
+        }
+
+        jmethodID current_method_id = method->constMethod()->id();
         if (current_method_id == NULL) {
             return;
         }
@@ -550,9 +561,11 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
             if (frames[i].method_id == current_method_id) {
                 int level = nmethod->level();
                 frames[i].bci = FrameType::encode(level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED, frames[i].bci);
+                for (int j = 0; j < i; j++) {
+                    frames[j].bci = FrameType::encode(FRAME_INLINED, frames[j].bci);
+                }
                 break;
             }
-            frames[i].bci = FrameType::encode(FRAME_INLINED, frames[i].bci);
         }
     } else if (nmethod->isInterpreter()) {
         // Mark the first Java frame as INTERPRETED
@@ -629,7 +642,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
-    if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
+    if (_add_event_frame && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
         num_frames = makeFrame(frames, event_type, event->id());
     }
 
@@ -753,6 +766,7 @@ Error Profiler::installTraps(const char* begin, const char* end) {
 void Profiler::uninstallTraps() {
     _begin_trap.uninstall();
     _end_trap.uninstall();
+    _engine->enableEvents(false);
 }
 
 void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -932,7 +946,6 @@ Error Profiler::checkJvmCapabilities() {
         if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
             return Error("Could not set dlopen hook. Unsupported JVM?");
         }
-        Symbols::makePatchable(lib);
     }
 
     if (!VMStructs::hasDebugSymbols() && !VM::isOpenJ9()) {
@@ -979,6 +992,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         _class_map.clear();
         _thread_filter.clear();
         _call_trace_storage.clear();
+        // Make sure frame structure is consistent throughout the entire recording
+        _add_event_frame = args._output != OUTPUT_JFR;
+        _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
+        _add_sched_frame = args._sched;
         unlockAll();
 
         // Reset thread names and IDs
@@ -1007,8 +1024,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _safe_mode |= GC_TRACES | LAST_JAVA_PC;
     }
 
-    _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
-    _add_sched_frame = args._sched;
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
@@ -1068,9 +1083,11 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _state = RUNNING;
     _start_time = time(NULL);
+    _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        startTimer(args._timeout);
+        _stop_time = addTimeout(_start_time, args._timeout);
+        startTimer();
     }
 
     return Error::OK;
@@ -1092,6 +1109,7 @@ error1:
     _jfr.stop();
     unlockAll();
 
+    FdTransferClient::closePeer();
     return error;
 }
 
@@ -1230,7 +1248,8 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style, _epoch, _thread_names_lock, _thread_names);
+    char buf[32];
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1246,7 +1265,12 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
             out << frame_name << (j == 0 ? ' ' : ';');
         }
-        out << counter << "\n";
+        // Beware of locale-sensitive conversion
+        out.write(buf, sprintf(buf, "%llu\n", counter));
+    }
+
+    if (!out.good()) {
+        Log::warn("Output file may be incomplete");
     }
 }
 
@@ -1262,7 +1286,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1307,7 +1331,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_DOTTED, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
     char buf[1024] = {0};
 
     std::vector<CallTraceSample> samples;
@@ -1423,58 +1447,66 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
     return result;
 }
 
-void Profiler::startTimer(int timeout) {
-    _timer_is_running = true;
-    if (pthread_create(&_timer_thread, NULL, timerThreadEntry, (void*)(intptr_t)timeout) != 0) {
-        Log::warn("Unable to create Profiler timer thread");
-        _timer_is_running = false;
+void Profiler::startTimer() {
+    JNIEnv* jni = VM::jni();
+    jclass Thread = jni->FindClass("java/lang/Thread");
+    jmethodID init = jni->GetMethodID(Thread, "<init>", "(Ljava/lang/String;)V");
+    jmethodID setDaemon = jni->GetMethodID(Thread, "setDaemon", "(Z)V");
+
+    jstring name = jni->NewStringUTF("Async-profiler Timer");
+    if (name != NULL && init != NULL && setDaemon != NULL) {
+        jthread thread_obj = jni->NewObject(Thread, init, name);
+        if (thread_obj != NULL) {
+            jni->CallVoidMethod(thread_obj, setDaemon, JNI_TRUE);
+            MutexLocker ml(_timer_lock);
+            _timer_id = (void*)(intptr_t)(0x80000000 | _epoch);
+            if (VM::jvmti()->RunAgentThread(thread_obj, timerThreadEntry, _timer_id, JVMTI_THREAD_NORM_PRIORITY) == 0) {
+                return;
+            }
+            _timer_id = 0;
+        }
     }
+
+    jni->ExceptionDescribe();
 }
 
 void Profiler::stopTimer() {
-    if (_timer_is_running) {
-        _timer_is_running = false;
-        if (pthread_self() == _timer_thread) {
-            pthread_detach(_timer_thread);
-        } else {
-            pthread_kill(_timer_thread, WAKEUP_SIGNAL);
-            pthread_join(_timer_thread, NULL);
-        }
+    MutexLocker ml(_timer_lock);
+    if (_timer_id != NULL) {
+        _timer_id = NULL;
+        _timer_lock.notify();
     }
 }
 
-void Profiler::timerLoop(int timeout) {
-    u64 stop_micros = addTimeout(_start_time, timeout) * 1000000ULL;
-    u64 current_time = OS::nanotime();
-    u64 sleep_until = current_time + (_jfr.active() || timeout <= 0 ? 1000000000 : timeout * 1000000000ULL);
+void Profiler::timerLoop(void* timer_id) {
+    u64 current_micros = OS::micros();
+    u64 stop_micros = _stop_time * 1000000ULL;
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
 
-    while (_timer_is_running) {
-        while ((current_time = OS::nanotime()) < sleep_until) {
-            OS::sleep(sleep_until - current_time);
-            if (!_timer_is_running) return;
+    MutexLocker ml(_timer_lock);
+    while (_timer_id == timer_id) {
+        while (!_timer_lock.waitUntil(sleep_until) && _timer_id == timer_id) {
+            // timeout not reached
         }
+        if (_timer_id != timer_id) return;
 
-        u64 wall_time = OS::micros();
-        if (wall_time >= stop_micros) {
+        if ((current_micros = OS::micros()) >= stop_micros) {
             VM::restartProfiler();
             return;
         }
 
-        bool need_switch_chunk = _jfr.timerTick(wall_time);
+        bool need_switch_chunk = _jfr.timerTick(current_micros);
         if (need_switch_chunk) {
             // Flush under profiler state lock
             flushJfr();
         }
 
-        sleep_until = current_time + 1000000000;
+        sleep_until = current_micros + 1000000;
     }
 }
 
-void* Profiler::timerThreadEntry(void* arg) {
-    VM::attachThread("Async-profiler Timer");
-    instance()->timerLoop((int)(intptr_t)arg);
-    VM::detachThread();
-    return NULL;
+void Profiler::timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
+    instance()->timerLoop(arg);
 }
 
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {
@@ -1563,6 +1595,8 @@ Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
         return runInternal(args, std::cout);
     } else {
+        // Open output file under the lock to avoid races with background timer
+        MutexLocker ml(_state_lock);
         std::ofstream out(args.file(), std::ios::out | std::ios::trunc);
         if (!out.is_open()) {
             return Error("Could not open output file");
@@ -1594,6 +1628,7 @@ Error Profiler::restart(Arguments& args) {
     }
 
     if (args._loop) {
+        args._file_num++;
         return start(args, true);
     }
 

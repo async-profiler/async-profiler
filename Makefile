@@ -1,5 +1,5 @@
 ifeq ($(PROFILER_VERSION),)
-  export PROFILER_VERSION=2.8
+  export PROFILER_VERSION=2.8.3
 endif
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
@@ -13,19 +13,20 @@ CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
-INCLUDES=-I$(JAVA_HOME)/include
+INCLUDES=-I$(JAVA_HOME)/include -Isrc/res -Isrc/helper
 LIBS=-ldl -lpthread
-MERGE?=true
+MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVAC_RELEASE_VERSION=7
+JAVAC_OPTIONS=-source 7 -target 7 -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
-OBJECTS := $(SOURCES:src/%.cpp=build/%.o)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
-JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
+RESOURCES := $(wildcard src/res/*)
+JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
+JAVA_HELPER_SOURCES := $(wildcard src/helper/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
 ifeq ($(JAVA_HOME),)
@@ -97,7 +98,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
+all: build build/helpers build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -125,15 +126,12 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
-	for f in $(SOURCES); do echo '#include "'$$f'"'; done |\
+	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-$(OBJECTS): build/%.o: src/%.cpp $(HEADERS) $(JAVA_HEADERS)
-	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -c -o $@ $<
-build/$(LIB_PROFILER_SO): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
 
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
@@ -144,21 +142,21 @@ build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c s
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
-	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $^
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(JAVA_HELPER_SOURCES) $(RESOURCES) src/converter/MANIFEST.MF
 	mkdir -p build/converter
-	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
-	$(RM) -r build/converter
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES) $(JAVA_HELPER_SOURCES)
+	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter . -C src/res .
+	# $(RM) -r build/converter
 
-%.class.h: %.class
-	hexdump -v -e '1/1 "%u,"' $^ > $@
+build/helpers: $(JAVA_HELPER_SOURCES)
+	$(JAVAC) $(JAVAC_OPTIONS) -d src/helper $(JAVA_HELPER_SOURCES)
 
-%.class: %.java
-	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $(*D)/*.java
+# %.class: %.java
+# 	$(JAVAC) $(JAVAC_OPTIONS) -g:none $^
 
 test: all
 	test/smoke-test.sh
@@ -180,8 +178,14 @@ clean:
 cppcheck:
 	cppcheck \
 		--error-exitcode=2 \
-		--suppress=memleak:src/codeCache.cpp:27 \
+		--suppress=memleak:src/codeCache.cpp:30 \
 		--suppress=memleakOnRealloc:src/dwarf.cpp:345 \
-		--suppress=memleakOnRealloc:src/memleakTracer.cpp:340 \
+		--suppress=memleakOnRealloc:src/memleakTracer.cpp:336 \
 		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
+    --suppress=comparePointers:src/flightRecorder.cpp:1318 \
+    --suppress=comparePointers:src/instrument.cpp:517 \
+    --suppress=comparePointers:src/javaApi.cpp:183 \
+    --suppress=comparePointers:src/memleakTracer.cpp:233 \
+    --suppress=comparePointers:src/memleakTracer.cpp:244 \
+    --force \
 		src/

@@ -44,6 +44,7 @@ usage() {
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
     echo "  --jfrsync config  synchronize profiler with JFR recording"
+    echo "  --lib path        full path to libasyncProfiler.so in the container"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
     echo ""
@@ -253,6 +254,10 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,jfrsync=$2"
             shift
             ;;
+        --lib)
+            PROFILER="$2"
+            shift
+            ;;
         --fdtransfer)
             PARAMS="$PARAMS,fdtransfer"
             USE_FDTRANSFER="true"
@@ -292,8 +297,19 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
-    usage
+if [ "$PID" = "" ]; then
+    case "$ACTION" in
+        version)
+            java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
+            ;;
+        list)
+            java "-agentpath:$PROFILER=list" -version 2> /dev/null
+            ;;
+        *)
+            usage
+            ;;
+    esac
+    exit 0
 fi
 
 # If no -f argument is given, use temporary file to transfer output to caller terminal.
@@ -334,6 +350,9 @@ case $ACTION in
     status|list)
         jattach "$ACTION,file=$FILE"
         ;;
+    version)
+        jattach "version=full,file=$FILE"
+        ;;
     collect)
         fdtransfer
         jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
@@ -351,12 +370,5 @@ case $ACTION in
         trap - INT
         echo Done >&2
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
-        ;;
-    version)
-        if [ "$PID" = "" ]; then
-            java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
-        else
-            jattach "version=full,file=$FILE"
-        fi
         ;;
 esac

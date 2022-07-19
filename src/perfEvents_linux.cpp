@@ -174,6 +174,17 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static void** lookupThreadEntry() {
+    // Depending on Zing version, pthread_setspecific is called either from libazsys.so or from libjvm.so
+    if (VM::isZing()) {
+        CodeCache* libazsys = Profiler::instance()->findLibraryByName("libazsys");
+        if (libazsys != NULL) {
+            void** entry = libazsys->findGlobalOffsetEntry((void*)&pthread_setspecific);
+            if (entry != NULL) {
+                return entry;
+            }
+        }
+    }
+
     CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
     return lib != NULL ? lib->findGlobalOffsetEntry((void*)&pthread_setspecific) : NULL;
 }
@@ -614,7 +625,8 @@ int PerfEvents::registerThread(int tid) {
 
     if (fd == -1) {
         int err = errno;
-        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
+        _events[tid]._fd = 0;
         return err;
     }
 
@@ -626,7 +638,7 @@ int PerfEvents::registerThread(int tid) {
 
     void* page = NULL;
     if ((_ring & RING_KERNEL)) {
-        page = mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+        page = _use_mmap_page ? mmap(NULL, 2 * OS::page_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0) : NULL;
         if (page == MAP_FAILED) {
             Log::info("perf_event mmap failed: %s", strerror(errno));
             page = NULL;
@@ -785,7 +797,7 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_user = 1;
     }
 
-    if (_cstack == CSTACK_DWARF) {
+    if (_cstack == CSTACK_FP || _cstack == CSTACK_DWARF) {
         attr.exclude_callchain_user = 1;
     }
 

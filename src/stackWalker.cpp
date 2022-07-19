@@ -93,7 +93,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     uintptr_t sp;
     uintptr_t prev_sp;
     uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
-
+    
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
@@ -125,7 +125,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         prev_sp = sp;
 
         FrameDesc* f;
-        CodeCache* cc = profiler->findNativeLibrary(pc);
+        CodeCache* cc = profiler->findLibraryByAddress(pc);
         if (cc == NULL || (f = cc->findFrameDesc(pc)) == NULL) {
             f = &FrameDesc::default_frame;
         }

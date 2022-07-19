@@ -18,10 +18,11 @@
 #define _MUTEX_H
 
 #include <pthread.h>
+#include "arch.h"
 
 
 class Mutex {
-  private:
+  protected:
     pthread_mutex_t _mutex;
 
   public:
@@ -31,6 +32,16 @@ class Mutex {
     void unlock();
 };
 
+class WaitableMutex : public Mutex {
+  protected:
+    pthread_cond_t _cond;
+
+  public:
+    WaitableMutex();
+
+    bool waitUntil(u64 wall_time);
+    void notify();
+};
 
 class MutexLocker {
   private:

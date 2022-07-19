@@ -16,6 +16,7 @@
 
 #ifdef __linux__
 
+#include <set>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,6 @@
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
-#include "os.h"
 
 
 class SymbolDesc {
@@ -56,7 +56,7 @@ class MemoryMapDesc {
     const char* _end;
     const char* _perm;
     const char* _offs;
-    const char* _device;
+    const char* _dev;
     const char* _inode;
     const char* _file;
 
@@ -66,8 +66,8 @@ class MemoryMapDesc {
           _end = strchr(_addr, '-') + 1;
           _perm = strchr(_end, ' ') + 1;
           _offs = strchr(_perm, ' ') + 1;
-          _device = strchr(_offs, ' ') + 1;
-          _inode = strchr(_device, ' ') + 1;
+          _dev = strchr(_offs, ' ') + 1;
+          _inode = strchr(_dev, ' ') + 1;
           _file = strchr(_inode, ' ');
 
           if (_file != NULL) {
@@ -81,6 +81,7 @@ class MemoryMapDesc {
       const char* addr()    { return (const char*)strtoul(_addr, NULL, 16); }
       const char* end()     { return (const char*)strtoul(_end, NULL, 16); }
       unsigned long offs()  { return strtoul(_offs, NULL, 16); }
+      unsigned long dev()   { return strtoul(_dev, NULL, 16) << 8 | strtoul(_dev + 3, NULL, 16); }
       unsigned long inode() { return strtoul(_inode, NULL, 10); }
 };
 
@@ -94,6 +95,7 @@ typedef Elf64_Nhdr ElfNote;
 typedef Elf64_Sym  ElfSymbol;
 typedef Elf64_Rel  ElfRelocation;
 typedef Elf64_Dyn  ElfDyn;
+#define ELF_R_TYPE ELF64_R_TYPE
 #define ELF_R_SYM  ELF64_R_SYM
 #else
 const unsigned char ELFCLASS_SUPPORTED = ELFCLASS32;
@@ -104,13 +106,30 @@ typedef Elf32_Nhdr ElfNote;
 typedef Elf32_Sym  ElfSymbol;
 typedef Elf32_Rel  ElfRelocation;
 typedef Elf32_Dyn  ElfDyn;
+#define ELF_R_TYPE ELF32_R_TYPE
 #define ELF_R_SYM  ELF32_R_SYM
 #endif // __LP64__
 
-#ifdef __musl__
-#  define DYN_BASE _base
+#if defined(__x86_64__)
+#  define R_GLOB_DAT R_X86_64_GLOB_DAT
+#elif defined(__i386__)
+#  define R_GLOB_DAT R_386_GLOB_DAT
+#elif defined(__arm__) || defined(__thumb__)
+#  define R_GLOB_DAT R_ARM_GLOB_DAT
+#elif defined(__aarch64__)
+#  define R_GLOB_DAT R_AARCH64_GLOB_DAT
+#elif defined(__PPC64__)
+#  define R_GLOB_DAT R_PPC64_GLOB_DAT
 #else
-#  define DYN_BASE 0
+#  error "Compiling on unsupported arch"
+#endif
+
+// GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
+// A tricky case is when we attach to a musl container from a glibc host.
+#ifdef __musl__
+#  define DYN_PTR(ptr)  (_base + (ptr))
+#else
+#  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
 #endif // __musl__
 
 
@@ -234,10 +253,11 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
 }
 
 void ElfParser::parseDynamicSection() {
-   ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
+    ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
         void** got_start = NULL;
         size_t pltrelsz = 0;
+        char* rel = NULL;
         size_t relsz = 0;
         size_t relent = 0;
         size_t relcount = 0;
@@ -247,10 +267,14 @@ void ElfParser::parseDynamicSection() {
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
                 case DT_PLTGOT:
-                    got_start = (void**)(DYN_BASE + dyn->d_un.d_ptr) + 3;
+                    got_start = (void**)DYN_PTR(dyn->d_un.d_ptr) + 3;
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;
+                    break;
+                case DT_RELA:
+                case DT_REL:
+                    rel = (char*)DYN_PTR(dyn->d_un.d_ptr);
                     break;
                 case DT_RELASZ:
                 case DT_RELSZ:
@@ -267,14 +291,31 @@ void ElfParser::parseDynamicSection() {
             }
         }
 
-        if (got_start != NULL && relent != 0) {
-            if (pltrelsz != 0) {
+        if (relent != 0) {
+            if (pltrelsz != 0 && got_start != NULL) {
                 // The number of entries in .got.plt section matches the number of entries in .rela.plt
-                _cc->setGlobalOffsetTable(got_start, pltrelsz / relent);
-            } else if (relsz != 0) {
+                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent, false);
+            } else if (rel != NULL && relsz != 0) {
                 // RELRO technique: .got.plt has been merged into .got and made read-only.
-                // Count the number of entries in .rela.dyn, excluding R_X86_64_RELATIVE.
-                _cc->setGlobalOffsetTable(got_start, relsz / relent - relcount);
+                // Find .got end from the highest relocation address.
+                void** min_addr = (void**)-1;
+                void** max_addr = (void**)0;
+                for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                    ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                    if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
+                        void** addr = (void**)(_base + r->r_offset);
+                        if (addr < min_addr) min_addr = addr;
+                        if (addr > max_addr) max_addr = addr;
+                    }
+                }
+
+                if (got_start == NULL) {
+                    got_start = (void**)min_addr;
+                }
+
+                if (max_addr >= got_start) {
+                    _cc->setGlobalOffsetTable(got_start, max_addr + 1, false);
+                }
             }
         }
     }
@@ -437,8 +478,9 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 
 
 Mutex Symbols::_parse_lock;
-std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
+static std::set<const void*> _parsed_libraries;
+static std::set<unsigned long> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
@@ -470,8 +512,14 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
         if (type == 'T' || type == 't' || type == 'W' || type == 'w') {
             const char* addr = symbol.addr();
             if (addr != NULL) {
+                if (!_have_kernel_symbols) {
+                    if (strncmp(symbol.name(), "__LOAD_PHYSICAL_ADDR", 20) == 0 ||
+                        strncmp(symbol.name(), "phys_startup", 12) == 0) {
+                        continue;
+                    }
+                    _have_kernel_symbols = true;
+                }
                 cc->add(addr, 0, symbol.name());
-                _have_kernel_symbols = true;
             }
         }
     }
@@ -529,12 +577,16 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             CodeCache* cc = new CodeCache(map.file(), count, image_base, image_end);
 
-            if (map.inode() != 0) {
-                // Be careful: executable file is not always ELF, e.g. classes.jsa
-                if ((image_base -= map.offs()) >= last_readable_base) {
-                    ElfParser::parseProgramHeaders(cc, image_base);
+            unsigned long inode = map.inode();
+            if (inode != 0) {
+                // Do not parse the same executable twice, e.g. on Alpine Linux
+                if (_parsed_inodes.insert(map.dev() | inode << 16).second) {
+                    // Be careful: executable file is not always ELF, e.g. classes.jsa
+                    if ((image_base -= map.offs()) >= last_readable_base) {
+                        ElfParser::parseProgramHeaders(cc, image_base);
+                    }
+                    ElfParser::parseFile(cc, image_base, map.file(), true);
                 }
-                ElfParser::parseFile(cc, image_base, map.file(), true);
             } else if (strcmp(map.file(), "[vdso]") == 0) {
                 ElfParser::parseMem(cc, image_base);
             }
@@ -546,12 +598,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     free(str);
     fclose(f);
-}
-
-void Symbols::makePatchable(CodeCache* cc) {
-    uintptr_t got_start = (uintptr_t)cc->gotStart() & ~OS::page_mask;
-    uintptr_t got_size = ((uintptr_t)cc->gotEnd() - got_start + OS::page_mask) & ~OS::page_mask;
-    mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
 }
 
 #endif // __linux__

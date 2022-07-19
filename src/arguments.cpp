@@ -97,6 +97,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     sig              - print method signatures
 //     ann              - annotate Java methods
 //     lib              - prepend library names
+//     mcache           - max age of jmethodID cache (default: 0 = disabled)
 //     include=PATTERN  - include stack traces containing PATTERN
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
@@ -340,6 +341,9 @@ Error Arguments::parse(const char* args) {
             CASE("lib")
                 _style |= STYLE_LIB_NAMES;
 
+            CASE("mcache")
+                _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
+
             CASE("begin")
                 _begin = value;
 
@@ -388,7 +392,7 @@ Error Arguments::parse(const char* args) {
 
 const char* Arguments::file() {
     if (_file != NULL && strchr(_file, '%') != NULL) {
-        return expandFilePattern(_buf, EXTRA_BUF_SIZE - 1, _file);
+        return expandFilePattern(_file);
     }
     return _file;
 }
@@ -408,11 +412,14 @@ long long Arguments::hash(const char* arg) {
     return h;
 }
 
-// Expands %p to the process id
-//         %t to the timestamp
-const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char* pattern) {
-    char* ptr = dest;
-    char* end = dest + max_size - 1;
+// Expands the following patterns:
+//   %p       process id
+//   %t       timestamp (yyyyMMdd-hhmmss)
+//   %n{MAX}  sequence number
+//   %{ENV}   environment variable
+const char* Arguments::expandFilePattern(const char* pattern) {
+    char* ptr = _buf;
+    char* end = _buf + EXTRA_BUF_SIZE - 1;
 
     while (ptr < end && *pattern != 0) {
         char c = *pattern++;
@@ -430,6 +437,15 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
                 ptr += snprintf(ptr, end - ptr, "%d%02d%02d-%02d%02d%02d",
                                 t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
                                 t.tm_hour, t.tm_min, t.tm_sec);
+                continue;
+            } else if (c == 'n') {
+                unsigned int max_files = 0;
+                const char* p;
+                if (*pattern == '{' && (p = strchr(pattern, '}')) != NULL) {
+                    max_files = atoi(pattern + 1);
+                    pattern = p + 1;
+                }
+                ptr += snprintf(ptr, end - ptr, "%u", max_files > 0 ? _file_num % max_files : _file_num);
                 continue;
             } else if (c == '{') {
                 char env_key[128];
@@ -449,8 +465,8 @@ const char* Arguments::expandFilePattern(char* dest, size_t max_size, const char
         *ptr++ = c;
     }
 
-    *ptr = 0;
-    return dest;
+    *(ptr < end ? ptr : end) = 0;
+    return _buf;
 }
 
 Output Arguments::detectOutputFormat(const char* file) {

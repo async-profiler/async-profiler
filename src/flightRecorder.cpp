@@ -27,6 +27,7 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 #include "flightRecorder.h"
+#include "incbin.h"
 #include "jfrMetadata.h"
 #include "dictionary.h"
 #include "os.h"
@@ -38,9 +39,7 @@
 #include "vmStructs.h"
 
 
-static const unsigned char JFR_SYNC_CLASS[] = {
-#include "helper/one/profiler/JfrSync.class.h"
-};
+INCBIN(JFR_SYNC_CLASS, "one/profiler/JfrSync.class")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();
@@ -136,10 +135,9 @@ class Lookup {
     Dictionary _symbols;
 
   private:
-    void fillNativeMethodInfo(MethodInfo* mi, const char* name) {
+    void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         mi->_class = _classes->lookup("");
         // TODO return the library name once we figured out how to cooperate with the backend
-//        const char* lib_name = name == NULL ? NULL : Profiler::instance()->getLibraryName(name);
 //        if (lib_name == NULL) {
 //            mi->_class = _classes->lookup("");
 //        } else if (lib_name[0] == '[' && lib_name[1] != 0) {
@@ -156,8 +154,7 @@ class Lookup {
             int status;
             char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
             if (demangled != NULL) {
-                char* p = strchr(demangled, '(');
-                if (p != NULL) *p = 0;
+                cutArguments(demangled);
                 mi->_name = _symbols.lookup(demangled);
                 mi->_sig = _symbols.lookup("()L;");
                 mi->_type = FRAME_CPP;
@@ -175,6 +172,21 @@ class Lookup {
             mi->_name = _symbols.lookup(name);
             mi->_sig = _symbols.lookup("()L;");
             mi->_type = FRAME_NATIVE;
+        }
+    }
+
+    void cutArguments(char* func) {
+        char* p = strrchr(func, ')');
+        if (p == NULL) return;
+
+        int balance = 1;
+        while (--p > func) {
+            if (*p == '(' && --balance == 0) {
+                *p = 0;
+                return;
+            } else if (*p == ')') {
+                balance++;
+            }
         }
     }
 
@@ -241,9 +253,12 @@ class Lookup {
         if (!mi->_mark) {
             mi->_mark = true;
             if (method == NULL) {
-                fillNativeMethodInfo(mi, "unknown");
-            } else if (frame.bci == BCI_NATIVE_FRAME || frame.bci == BCI_ERROR) {
-                fillNativeMethodInfo(mi, (const char*)method);
+                fillNativeMethodInfo(mi, "unknown", NULL);
+            } else if (frame.bci == BCI_ERROR) {
+                fillNativeMethodInfo(mi, (const char*)method, NULL);
+            } else if (frame.bci == BCI_NATIVE_FRAME) {
+                const char* name = (const char*)method;
+                fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
             } else {
                 fillJavaMethodInfo(mi, method, first_time);
             }
@@ -1300,7 +1315,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
 
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
-        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, sizeof(JFR_SYNC_CLASS));
+        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
         if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
                 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
                 || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
@@ -1337,7 +1352,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     int event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
                      (args._alloc >= 0 ? EM_ALLOC : 0) |
                      (args._lock >= 0 ? EM_LOCK : 0) |
-                     (args._memleak > 0 ? EM_MEMLEAK : 0);
+                     (args._memleak > 0 ? EM_MEMLEAK : 0) |
+                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
 
     env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
 

@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include "incbin.h"
 #include "memleakTracer.h"
 #include "os.h"
 #include "profiler.h"
@@ -23,13 +24,8 @@
 #include "vmStructs.h"
 
 
-static const unsigned char MEM_LEAK_CLASS[] = {
-#include "helper/one/profiler/MemLeak.class.h"
-};
-
-static const unsigned char MEM_LEAK_ENTRY_CLASS[] = {
-#include "helper/one/profiler/MemLeakEntry.class.h"
-};
+INCBIN(MEM_LEAK_CLASS, "one/profiler/MemLeak.class")
+INCBIN(MEM_LEAK_ENTRY_CLASS, "one/profiler/MemLeakEntry.class")
 
 bool MemLeakTracer::_initialized = false;
 int MemLeakTracer::_interval;
@@ -234,7 +230,7 @@ Error MemLeakTracer::initialize(Arguments& args) {
         return Error("Unable to find java/lang/Class.getName");
     }
 
-    if (!(_MemLeak = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_CLASS, sizeof(MEM_LEAK_CLASS))) ||
+    if (!(_MemLeak = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_CLASS, INCBIN_SIZEOF(MEM_LEAK_CLASS))) ||
         !(_MemLeak = (jclass)env->NewGlobalRef(_MemLeak))) {
         free(_table);
         env->ExceptionDescribe();
@@ -245,7 +241,7 @@ Error MemLeakTracer::initialize(Arguments& args) {
         env->ExceptionDescribe();
         return Error("Unable to find one/profiler/MemLeak.process");
     }
-    if (!(_MemLeakEntry = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_ENTRY_CLASS, sizeof(MEM_LEAK_ENTRY_CLASS))) ||
+    if (!(_MemLeakEntry = env->DefineClass(NULL, NULL, (const jbyte*)MEM_LEAK_ENTRY_CLASS, INCBIN_SIZEOF(MEM_LEAK_ENTRY_CLASS))) ||
         !(_MemLeakEntry = (jclass)env->NewGlobalRef(_MemLeakEntry))) {
         free(_table);
         env->ExceptionDescribe();
