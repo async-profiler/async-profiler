@@ -402,6 +402,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
             if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name)
                     && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                java_ctx->pc = (const void*)frame.pc();
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
         } else if (VMStructs::hasMethodStructs()) {
@@ -535,6 +536,12 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
         jmethodID current_method_id = method->constMethod()->id();
         if (current_method_id == NULL) {
             return;
+        }
+
+        // If the top frame is a runtime stub, skip it
+        if (num_frames > 0 && frames[0].bci == BCI_NATIVE_FRAME) {
+            frames++;
+            num_frames--;
         }
 
         // Mark current_method as COMPILED and frames above current_method as INLINED
