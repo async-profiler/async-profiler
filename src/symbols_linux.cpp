@@ -37,17 +37,17 @@
 class SymbolDesc {
   private:
     const char* _addr;
-    const char* _type;
+    const char* _desc;
 
   public:
       SymbolDesc(const char* s) {
           _addr = s;
-          _type = strchr(_addr, ' ') + 1;
+          _desc = strchr(_addr, ' ');
       }
 
       const char* addr() { return (const char*)strtoul(_addr, NULL, 16); }
-      char type()        { return _type[0]; }
-      const char* name() { return _type + 2; }
+      char type()        { return _desc != NULL ? _desc[1] : 0; }
+      const char* name() { return _desc + 3; }
 };
 
 class MemoryMapDesc {
@@ -81,8 +81,14 @@ class MemoryMapDesc {
       const char* addr()    { return (const char*)strtoul(_addr, NULL, 16); }
       const char* end()     { return (const char*)strtoul(_end, NULL, 16); }
       unsigned long offs()  { return strtoul(_offs, NULL, 16); }
-      unsigned long dev()   { return strtoul(_dev, NULL, 16) << 8 | strtoul(_dev + 3, NULL, 16); }
       unsigned long inode() { return strtoul(_inode, NULL, 10); }
+
+      unsigned long dev() {
+          char* colon;
+          unsigned long major = strtoul(_dev, &colon, 16);
+          unsigned long minor = strtoul(colon + 1, NULL, 16);
+          return major << 8 | minor;
+      }
 };
 
 
@@ -480,7 +486,7 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 static std::set<const void*> _parsed_libraries;
-static std::set<unsigned long> _parsed_inodes;
+static std::set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
@@ -580,7 +586,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             unsigned long inode = map.inode();
             if (inode != 0) {
                 // Do not parse the same executable twice, e.g. on Alpine Linux
-                if (_parsed_inodes.insert(map.dev() | inode << 16).second) {
+                if (_parsed_inodes.insert(u64(map.dev()) << 32 | inode).second) {
                     // Be careful: executable file is not always ELF, e.g. classes.jsa
                     if ((image_base -= map.offs()) >= last_readable_base) {
                         ElfParser::parseProgramHeaders(cc, image_base);
