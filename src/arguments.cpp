@@ -69,6 +69,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     tree             - produce call tree in HTML format
 //     jfr              - dump events in Java Flight Recorder format
 //     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler 
+//     jfrprovider      - register async-profiler as a Flight Recording provider
 //     traces[=N]       - dump top N call traces
 //     flat[=N]         - dump top N methods (aka flat profile)
 //     samples          - count the number of samples (default)
@@ -173,6 +174,9 @@ Error Arguments::parse(const char* args) {
                 _output = OUTPUT_JFR;
                 _jfr_options = JFR_SYNC_OPTS;
                 _jfr_sync = value == NULL ? "default" : value;
+
+            CASE("jfrprovider")
+                _jfr_provider = true;
 
             CASE("traces")
                 _output = OUTPUT_TEXT;

@@ -150,6 +150,7 @@ class Arguments {
     int _include;
     int _exclude;
     unsigned char _mcache;
+    bool _jfr_provider;
     bool _loop;
     bool _threads;
     bool _sched;
@@ -195,6 +196,7 @@ class Arguments {
         _include(0),
         _exclude(0),
         _mcache(0),
+        _jfr_provider(false),
         _loop(false),
         _threads(false),
         _sched(false),

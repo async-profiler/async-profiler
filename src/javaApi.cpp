@@ -26,6 +26,7 @@
 
 
 INCBIN(SERVER_CLASS, "one/profiler/Server.class")
+INCBIN(MXBEAN_CLASS, "one/profiler/FlightRecorderMXBeanImpl.class")
 
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
@@ -188,6 +189,18 @@ bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address)
                     return true;
                 }
             }
+        }
+    }
+
+    jni->ExceptionDescribe();
+    return false;
+}
+
+bool JavaAPI::registerJfrProvider(jvmtiEnv* jvmti, JNIEnv* jni) {
+    jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)MXBEAN_CLASS, INCBIN_SIZEOF(MXBEAN_CLASS));
+    if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
+        if (jni->NewObject(cls, jni->GetMethodID(cls, "<init>", "()V")) != NULL) {
+            return true;
         }
     }
 

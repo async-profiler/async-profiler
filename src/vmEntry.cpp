@@ -330,6 +330,14 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         }
     }
 
+    if (_agent_args._jfr_provider) {
+        if (JavaAPI::registerJfrProvider(jvmti, jni)) {
+            Log::info("Registered JFR provider");
+        } else {
+            Log::error("Failed to register JFR provider");
+        }
+    }
+
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Error error = Profiler::instance()->run(_agent_args);
     if (error) {

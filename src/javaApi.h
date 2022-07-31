@@ -24,6 +24,7 @@ class JavaAPI {
   public:
     static void registerNatives(jvmtiEnv* jvmti, JNIEnv* jni);
     static bool startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address);
+    static bool registerJfrProvider(jvmtiEnv* jvmti, JNIEnv* jni);
 };
 
 #endif // _JAVAAPI_H
