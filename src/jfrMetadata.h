@@ -52,21 +52,22 @@ enum JfrType {
 
     T_EVENT = 100,
     T_EXECUTION_SAMPLE = 101,
-    T_ALLOC_IN_NEW_TLAB = 102,
-    T_ALLOC_OUTSIDE_TLAB = 103,
-    T_HEAP_LIVE_OBJECT = 104,
-    T_MONITOR_ENTER = 105,
-    T_THREAD_PARK = 106,
-    T_CPU_LOAD = 107,
-    T_ACTIVE_RECORDING = 108,
-    T_ACTIVE_SETTING = 109,
-    T_OS_INFORMATION = 110,
-    T_CPU_INFORMATION = 111,
-    T_CPU_TSC = 112,
-    T_JVM_INFORMATION = 113,
-    T_INITIAL_SYSTEM_PROPERTY = 114,
-    T_NATIVE_LIBRARY = 115,
-    T_LOG = 116,
+    T_METHOD_SAMPLE = 102,
+    T_ALLOC_IN_NEW_TLAB = 103,
+    T_ALLOC_OUTSIDE_TLAB = 104,
+    T_HEAP_LIVE_OBJECT = 105,
+    T_MONITOR_ENTER = 106,
+    T_THREAD_PARK = 107,
+    T_CPU_LOAD = 108,
+    T_ACTIVE_RECORDING = 109,
+    T_ACTIVE_SETTING = 110,
+    T_OS_INFORMATION = 111,
+    T_CPU_INFORMATION = 112,
+    T_CPU_TSC = 113,
+    T_JVM_INFORMATION = 114,
+    T_INITIAL_SYSTEM_PROPERTY = 115,
+    T_NATIVE_LIBRARY = 116,
+    T_LOG = 117,
     T_ANNOTATION = 200,
     T_LABEL = 201,
     T_CATEGORY = 202,
@@ -76,12 +77,6 @@ enum JfrType {
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
     T_PERCENTAGE = 208,
-    // custon non-JFR types
-    T_CUSTOM_TYPE = 2048,
-    T_CONTEXT = T_CUSTOM_TYPE + 1,
-    // custom non-JFR event types
-    T_CUSTOM_EVENT = 4096,
-    T_CONTEXT_INTERVAL = T_CUSTOM_EVENT + 1,
 };
 
 
@@ -174,10 +169,6 @@ class JfrMetadata : Element {
         e.attribute("id", id);
         if (simple) {
             e.attribute("simpleType", "true");
-        } else if (id > T_CUSTOM_TYPE) {
-            if (id > T_CUSTOM_EVENT) {
-                e.attribute("superType", "jdk.jfr.Event");
-            }
         } else if (id > T_ANNOTATION) {
             e.attribute("superType", "java.lang.annotation.Annotation");
         } else if (id > T_EVENT) {

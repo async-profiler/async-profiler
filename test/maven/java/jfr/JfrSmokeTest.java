@@ -3,6 +3,7 @@ package jfr;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmc.common.IMCStackTrace;
+import org.openjdk.jmc.common.IMCThread;
 import org.openjdk.jmc.common.item.IItem;
 import org.openjdk.jmc.common.item.IItemCollection;
 import org.openjdk.jmc.common.item.IMemberAccessor;
@@ -28,6 +29,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -47,16 +49,16 @@ public class JfrSmokeTest {
             File launcher = Paths.get(whereami.toURI()).resolve("test/run_renaissance.sh").toFile();
             ProcessBuilder pb = new ProcessBuilder(
                     launcher.getAbsolutePath(),
-                    "-pa", "event=cpu,file=" + tempDir.toString() + "/profile.jfr",
+                    "-pa", "cpu,wall,file=" + tempDir.toString() + "/profile.jfr",
                     "-r", "2", "akka-uct");
             pb = pb.redirectError(ProcessBuilder.Redirect.PIPE).redirectOutput(ProcessBuilder.Redirect.PIPE);
             Instant startTs = Instant.now();
             Process process = pb.start();
             redirectToLog(process, "akka-uct");
             int rslt = process.waitFor();
-            Duration cpuTimeBoundary = Duration.between(startTs, Instant.now()).multipliedBy(Runtime.getRuntime().availableProcessors());
+            Instant endTs = Instant.now();
             assertEquals(0, rslt);
-            assertJfrs(tempDir, cpuTimeBoundary);
+            assertJfrs(tempDir, startTs, endTs);
         } finally {
             Files.walkFileTree(tempDir, new FileVisitor<Path>() {
                 @Override
@@ -84,37 +86,76 @@ public class JfrSmokeTest {
         }
     }
 
-    private static void assertJfrs(Path location, Duration cpuTimeBoundary) throws IOException {
-        Files.walk(location, 1).filter(Files::isRegularFile).forEach(file -> assertJfr(file, cpuTimeBoundary));
+    private static void assertJfrs(Path location, Instant start, Instant end) throws IOException {
+        Files.walk(location, 1).filter(Files::isRegularFile).forEach(file -> assertJfr(file, start, end));
     }
 
-    private static void assertJfr(Path jfr, Duration cpuTimeBoundary) {
+    private static void assertJfr(Path jfr, Instant start, Instant end) {
         try {
             IItemCollection events = JfrLoaderToolkit.loadEvents(jfr.toFile());
-            assertCpuSamples(events, cpuTimeBoundary);
+            assertCpuSamples(events, start, end);
+            assertWallSamples(events, start, end);
         } catch (IOException | CouldNotLoadRecordingException e) {
             fail(e);
         }
     }
 
-    private static void assertCpuSamples(IItemCollection events, Duration cpuTimeBoundary) {
-        IItemCollection cpuSamples = events.apply(ItemFilters.type("jdk.ExecutionSample"));
+    private static void assertCpuSamples(IItemCollection events, Instant start, Instant end) {
+        IItemCollection cpuSamples = events.apply(ItemFilters.type("datadog.ExecutionSample"));
 
-        assertCpuSampleCounts(cpuSamples, cpuTimeBoundary);
+        assertCpuSampleCounts(cpuSamples, start, end);
         assertHiddenLambdaFrames(cpuSamples);
     }
 
-    private static void assertCpuSampleCounts(IItemCollection cpuSamples, Duration cpuTimeBoundary) {
+    private static void assertCpuSampleCounts(IItemCollection cpuSamples, Instant start, Instant end) {
         assertTrue(cpuSamples.hasItems());
         long collectedSamples = cpuSamples.stream().flatMap(iterable -> iterable.stream()).count();
-        long estimatedCpuTimeRateMs = cpuTimeBoundary.toMillis() / collectedSamples;
+        long estimatedCpuTimeRateMs =
+            Duration.between(start, end)
+                .multipliedBy(Runtime.getRuntime().availableProcessors())
+                .toMillis()
+                    / collectedSamples;
         // make sure that the sampling interval is not shorter than requested
         // the reported cores may include HT cores - they don't contribute to available CPU time linearly so we also try to normalize to HW cores
         assertTrue(estimatedCpuTimeRateMs - 10 >= 0 || (estimatedCpuTimeRateMs / 2) - 10 >= 0, "Expected: >10ms, observed: " + estimatedCpuTimeRateMs + "ms");
     }
 
-    private static void assertHiddenLambdaFrames(IItemCollection cpuSamples) {
-        cpuSamples.stream().forEach(iterable -> {
+    private static void assertWallSamples(IItemCollection events, Instant start, Instant end) {
+        IItemCollection wallSamples = events.apply(ItemFilters.type("datadog.MethodSample"));
+
+        assertWallSampleCounts(wallSamples, start, end);
+        assertHiddenLambdaFrames(wallSamples);
+    }
+
+    private static void assertWallSampleCounts(IItemCollection wallSamples, Instant start, Instant end) {
+        long nthreads =
+            wallSamples
+                .stream()
+                .flatMap(iterable -> {
+                    IMemberAccessor<IMCThread, IItem> threadAccessor =
+                        JfrAttributes.EVENT_THREAD.getAccessor(iterable.getType());
+                    if (threadAccessor == null) {
+                        return Stream.empty();
+                    }
+                    return iterable.stream().map(threadAccessor::getMember);
+                })
+                .filter(t -> t != null)
+                .distinct()
+                .count();
+        assertTrue(wallSamples.hasItems());
+        long collectedSamples = wallSamples.stream().flatMap(iterable -> iterable.stream()).count();
+        long estimatedWallTimeRateMs =
+            Duration.between(start, end)
+                .multipliedBy(nthreads)
+                .toMillis()
+                    / collectedSamples;
+        // make sure that the sampling interval is not shorter than requested
+        // the reported cores may include HT cores - they don't contribute to available WALL time linearly so we also try to normalize to HW cores
+        assertTrue(estimatedWallTimeRateMs - 50 >= 0 || (estimatedWallTimeRateMs / 2) - 50 >= 0, "Expected: >50ms, observed: " + estimatedWallTimeRateMs + "ms");
+    }
+
+    private static void assertHiddenLambdaFrames(IItemCollection samples) {
+        samples.stream().forEach(iterable -> {
             IMemberAccessor<IMCStackTrace, IItem> stacktraceAccessor = JfrAttributes.EVENT_STACKTRACE.getAccessor(iterable.getType());
             assertTrue(iterable.stream().flatMap(event -> stacktraceAccessor.getMember(event).getFrames().stream()).allMatch(frame -> {
                     boolean rslt = !frame.getMethod().getType().getFullName().contains("$Lambda$") || frame.getMethod().isHidden();

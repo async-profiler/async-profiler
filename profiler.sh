@@ -14,7 +14,7 @@ usage() {
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
     echo "Options:"
-    echo "  -e event          profiling event: cpu|alloc|lock|cache-misses etc."
+    echo "  -e event          profiling event: <cpu|wall|alloc|lock|cache-misses|memleak>=<interval> etc."
     echo "  -d duration       run profiling for <duration> seconds"
     echo "  -f filename       dump output to <filename>"
     echo "  -i interval       sampling interval in nanoseconds"

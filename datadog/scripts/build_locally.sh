@@ -16,6 +16,8 @@ print_help() {
     architecture (linux-x64, linux-x64-musl and linux-arm64 are currently supported with linux-x64 being the default)
   -t
     force the tests to be run
+  -c
+    force cppcheck to be run
   -f
     force docker image rebuild
   -h
@@ -27,7 +29,8 @@ FORCE_REBUILD="no"
 ARCH="linux-x64"
 PLATFORM="linux/amd64"
 FORCE_TESTS="no"
-while getopts "a:tfh" arg; do
+FORCE_CPPCHECK="no"
+while getopts "a:tfhc" arg; do
   case $arg in
     a)
       ARCH=${OPTARG}
@@ -40,6 +43,9 @@ while getopts "a:tfh" arg; do
       ;;
     t)
       FORCE_TESTS="yes"
+      ;;
+    c)
+      FORCE_CPPCHECK="yes"
       ;;
     h)
       print_help
@@ -91,14 +97,18 @@ else
   VERSION=${BASE_VERSION}-DD-$(echo ${BRANCH} | tr '/' '_')-${HASH}
 fi
 echo "=== Building Async Profiler"
-echo "==    Version     : ${VERSION}"
-echo "==    Architecture: ${ARCH}"
-echo "==    With tests  : ${FORCE_TESTS}"
+echo "==    Version      : ${VERSION}"
+echo "==    Architecture : ${ARCH}"
+echo "==    With tests   : ${FORCE_TESTS}"
+echo "==    With cppcheck: ${FORCE_CPPCHECK}"
 popd >> /dev/null
+
+rm -f /tmp/docker.log
 
 echo "-> Building native library"
 # run the native build
-docker run --rm -it --platform ${PLATFORM} -v ${ASYNC_PROFILER_DIR}:/data/src/async-profiler -v ${MAVEN_DIR}/resources/native-libs/${ARCH}:/data/libs -v ${HERE}/../maven/repository:/root/.m2/repository ${TAG} /devtools/build_in_docker.sh ${VERSION} ${FORCE_TESTS} > /tmp/docker.log
+docker run --rm -it --platform ${PLATFORM} -v ${ASYNC_PROFILER_DIR}:/data/src/async-profiler -v ${MAVEN_DIR}/resources/native-libs/${ARCH}:/data/libs -v ${HERE}/../maven/repository:/root/.m2/repository ${TAG} bash -eux /devtools/build_in_docker.sh ${VERSION} ${FORCE_TESTS} ${FORCE_CPPCHECK}
+echo "-> Built native library"
 
 if [ 0 -ne $? ] || [ ! -z "$(fgrep 'error' /tmp/docker.log)" ]; then
   # print the output and exit if there is error

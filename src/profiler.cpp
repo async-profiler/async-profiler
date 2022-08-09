@@ -47,6 +47,7 @@
 #include "symbols.h"
 #include "varint.inline.h"
 #include "vmStructs.h"
+#include "context.h"
 
 
 // The instance is not deleted on purpose, since profiler structures
@@ -62,7 +63,8 @@ static PerfEvents perf_events;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
 // static J9ObjectSampler j9_object_sampler;
-static WallClock wall_clock;
+static WallClock cpu_engine(false);
+static WallClock wall_engine(true);
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
@@ -136,7 +138,8 @@ void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     }
     updateThreadName(jvmti, jni, thread);
 
-    _engine->registerThread(tid);
+    _cpu_engine->registerThread(tid);
+    _wall_engine->registerThread(tid);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
@@ -146,14 +149,18 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     }
     updateThreadName(jvmti, jni, thread);
 
-    _engine->unregisterThread(tid);
+    _cpu_engine->unregisterThread(tid);
+    _wall_engine->unregisterThread(tid);
 }
 
 int Profiler::registerThread(int tid) {
-    return _instance->_engine->registerThread(tid);
+    return
+        _instance->_cpu_engine->registerThread(tid) |
+        _instance->_wall_engine->registerThread(tid);
 }
 void Profiler::unregisterThread(int tid) {
-    _instance->_engine->unregisterThread(tid);
+    _instance->_cpu_engine->unregisterThread(tid);
+    _instance->_wall_engine->unregisterThread(tid);
 }
 
 const char* Profiler::asgctError(int code) {
@@ -314,11 +321,11 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames = 0;
 
-    if (_cstack == CSTACK_NO || (event_type != 0 && _cstack == CSTACK_DEFAULT)) {
+    if (_cstack == CSTACK_NO || (event_type != BCI_CPU && event_type != BCI_WALL && _cstack == CSTACK_DEFAULT)) {
         return 0;
     }
 
-    if (event_type == 0 && _engine == &perf_events) {
+    if (event_type == BCI_CPU && _cpu_engine == &perf_events) {
         native_frames += PerfEvents::walkKernel(tid, callchain + native_frames, MAX_NATIVE_FRAMES - native_frames, java_ctx);
     }
     if (_cstack == CSTACK_DWARF) {
@@ -581,6 +588,10 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
+
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -589,7 +600,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
-        if (event_type == 0 && _engine == &perf_events) {
+        if (event_type == BCI_CPU && _cpu_engine == &perf_events) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
             PerfEvents::resetBuffer(tid);
         }
@@ -599,7 +610,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
 
     int num_frames = 0;
-    if (!_jfr.active() && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
+    if (!_jfr.active() && BCI_ALLOC >= event_type && event_type >= BCI_PARK && event->id()) {
         num_frames = makeFrame(frames, event_type, event->id());
     }
 
@@ -618,10 +629,9 @@ void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
+void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
-    int tid = OS::threadId();
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -630,7 +640,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
-        if (event_type == 0 && _engine == &perf_events) {
+        if (event_type == BCI_CPU && _cpu_engine == &perf_events) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
             PerfEvents::resetBuffer(tid);
         }
@@ -649,7 +659,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     StackContext java_ctx = {0};
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx, &truncated);
 
-    if (event_type == 0) {
+    if (event_type == BCI_CPU || event_type == BCI_WALL) {
         // Async events
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx, &truncated);
         if (java_frames > 0 && java_ctx.pc != NULL) {
@@ -689,8 +699,12 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated) {
+void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
+
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
 
     if (_add_thread_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
@@ -752,9 +766,11 @@ Error Profiler::installTraps(const char* begin, const char* end) {
     _end_trap.assign(end_addr);
 
     if (_begin_trap.entry() == 0) {
-        _engine->enableEvents(true);
+        _cpu_engine->enableEvents(true);
+        _wall_engine->enableEvents(true);
     } else {
-        _engine->enableEvents(false);
+        _cpu_engine->enableEvents(false);
+        _wall_engine->enableEvents(false);
         if (!_begin_trap.install()) {
             return Error("Cannot install begin breakpoint");
         }
@@ -766,19 +782,22 @@ Error Profiler::installTraps(const char* begin, const char* end) {
 void Profiler::uninstallTraps() {
     _begin_trap.uninstall();
     _end_trap.uninstall();
-    _engine->enableEvents(false);
+    _cpu_engine->enableEvents(false);
+    _wall_engine->enableEvents(false);
 }
 
 void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
 
     if (_begin_trap.covers(frame.pc())) {
-        _engine->enableEvents(true);
+        _cpu_engine->enableEvents(true);
+        _wall_engine->enableEvents(true);
         _begin_trap.uninstall();
         _end_trap.install();
         frame.pc() = _begin_trap.entry();
     } else if (_end_trap.covers(frame.pc())) {
-        _engine->enableEvents(false);
+        _cpu_engine->enableEvents(false);
+        _wall_engine->enableEvents(false);
         _end_trap.uninstall();
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
@@ -893,14 +912,14 @@ bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
     return checkInclude;
 }
 
-Engine* Profiler::selectEngine(Arguments& args) {
-    if (args._event == NULL || strcmp(args._event, EVENT_NOOP) == 0) {
+Engine* Profiler::selectCpuEngine(Arguments& args) {
+    if (args._cpu < 0 && (args._event == NULL || strcmp(args._event, EVENT_NOOP) == 0)) {
         return &noop_engine;
-    } else if (strcmp(args._event, EVENT_CPU) == 0) {
+    } else if (args._cpu >= 0 || strcmp(args._event, EVENT_CPU) == 0) {
         return !perf_events.check(args) ? (Engine*)&perf_events :
-                    VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
+                    VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&cpu_engine;
     } else if (strcmp(args._event, EVENT_WALL) == 0) {
-        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
+        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_engine;
     } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
         return &itimer;
     } else if (strchr(args._event, '.') != NULL && strchr(args._event, ':') == NULL) {
@@ -908,6 +927,17 @@ Engine* Profiler::selectEngine(Arguments& args) {
     } else {
         return &perf_events;
     }
+}
+
+Engine* Profiler::selectWallEngine(Arguments& args) {
+    if (args._wall < 0) {
+        return &noop_engine;
+    }
+    if (VM::isOpenJ9()) {
+        Log::warn("Wall Profiler is not supported on OpenJ9. Falling back to noop engine");
+        return &noop_engine;
+    }
+    return (Engine*)&wall_engine;
 }
 
 Engine* Profiler::selectAllocEngine(long alloc_interval) {
@@ -921,6 +951,10 @@ Engine* Profiler::selectAllocEngine(long alloc_interval) {
 
 Engine* Profiler::activeEngine() {
     switch (_event_mask) {
+        case EM_CPU:
+            return _cpu_engine;
+        case EM_WALL:
+            return _wall_engine;
         case EM_ALLOC:
             return _alloc_engine;
         case EM_LOCK:
@@ -928,7 +962,8 @@ Engine* Profiler::activeEngine() {
         case EM_MEMLEAK:
             return &memleak_tracer;
         default:
-            return _engine;
+            Log::error("Unknown event_mask %d", _event_mask);
+            return NULL;
     }
 }
 
@@ -967,6 +1002,8 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
+                  (args._cpu >= 0 ? EM_CPU : 0) |
+                  (args._wall >= 0 ? EM_WALL : 0) |
                   (args._alloc >= 0 ? EM_ALLOC : 0) |
                   (args._lock >= 0 ? EM_LOCK : 0) |
                   (args._memleak > 0 ? EM_MEMLEAK : 0);
@@ -1027,16 +1064,19 @@ Error Profiler::start(Arguments& args, bool reset) {
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
 
-    _engine = selectEngine(args);
+    _cpu_engine = selectCpuEngine(args);
+    _wall_engine = selectWallEngine(args);
     _cstack = args._cstack;
     if (_cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
         return Error("DWARF unwinding is not supported on this platform");
-    } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
+    } else if (_cstack == CSTACK_LBR && _cpu_engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
     }
 
+    Contexts::setFiltering(args._contexts_filtering);
+
     // Kernel symbols are useful only for perf_events without --all-user
-    updateSymbols(_engine == &perf_events && (args._ring & RING_KERNEL));
+    updateSymbols(_cpu_engine == &perf_events && (args._ring & RING_KERNEL));
 
     error = installTraps(args._begin, args._end);
     if (error) {
@@ -1054,11 +1094,18 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
-    error = _engine->start(args);
-    if (error) {
-        goto error1;
+    if (_event_mask & EM_CPU) {
+        error = _cpu_engine->start(args);
+        if (error) {
+            goto error0;
+        }
     }
-
+    if (_event_mask & EM_WALL) {
+        error = _wall_engine->start(args);
+        if (error) {
+            goto error1;
+        }
+    }
     if (_event_mask & EM_ALLOC) {
         _alloc_engine = selectAllocEngine(args._alloc);
         error = _alloc_engine->start(args);
@@ -1099,9 +1146,12 @@ error3:
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
 
 error2:
-    _engine->stop();
+    if (_event_mask & EM_WALL) _wall_engine->stop();
 
 error1:
+    if (_event_mask & EM_CPU) _cpu_engine->stop();
+
+error0:
     uninstallTraps();
     switchLibraryTrap(false);
 
@@ -1124,8 +1174,8 @@ Error Profiler::stop() {
     if (_event_mask & EM_MEMLEAK) memleak_tracer.stop();
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
-
-    _engine->stop();
+    if (_event_mask & EM_WALL) _wall_engine->stop();
+    if (_event_mask & EM_CPU) _cpu_engine->stop();
 
     switchLibraryTrap(false);
     switchThreadEvents(JVMTI_DISABLE);
@@ -1153,9 +1203,13 @@ Error Profiler::check(Arguments& args) {
 
     Error error = checkJvmCapabilities();
 
-    if (!error && args._event != NULL) {
-        _engine = selectEngine(args);
-        error = _engine->check(args);
+    if (!error && (args._event != NULL || args._cpu >= 0)) {
+        _cpu_engine = selectCpuEngine(args);
+        error = _cpu_engine->check(args);
+    }
+    if (!error && args._wall >= 0) {
+        _wall_engine = selectWallEngine(args);
+        error = _wall_engine->check(args);
     }
     if (!error && args._alloc >= 0) {
         _alloc_engine = selectAllocEngine(args._alloc);

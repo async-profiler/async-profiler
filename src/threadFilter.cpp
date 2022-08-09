@@ -116,7 +116,7 @@ void ThreadFilter::collect(std::vector<int>& v) {
                 u32 word = b[j];
                 if (word) {
                     for (int bit = 0; bit < 32; bit++) {
-                        if (word & (1 << bit)) {
+                        if (word & (1U << bit)) {
                             v.push_back(start_id + j * 32 + bit);
                         }
                     }

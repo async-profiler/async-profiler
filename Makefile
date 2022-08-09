@@ -160,7 +160,8 @@ build/helpers: $(JAVA_HELPER_SOURCES)
 
 test: all
 	test/smoke-test.sh
-	test/smoke-jfr-test.sh
+	test/jfr-smoke-test.sh
+	test/context-smoke-test.sh
 	test/thread-smoke-test.sh
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
@@ -182,10 +183,10 @@ cppcheck:
 		--suppress=memleakOnRealloc:src/dwarf.cpp:345 \
 		--suppress=memleakOnRealloc:src/memleakTracer.cpp:336 \
 		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
-    --suppress=comparePointers:src/flightRecorder.cpp:1318 \
-    --suppress=comparePointers:src/instrument.cpp:517 \
-    --suppress=comparePointers:src/javaApi.cpp:183 \
-    --suppress=comparePointers:src/memleakTracer.cpp:233 \
-    --suppress=comparePointers:src/memleakTracer.cpp:244 \
-    --force \
+		--suppress=comparePointers:src/flightRecorder.cpp:1405 \
+		--suppress=comparePointers:src/instrument.cpp:518 \
+		--suppress=comparePointers:src/javaApi.cpp:213 \
+		--suppress=comparePointers:src/memleakTracer.cpp:233 \
+		--suppress=comparePointers:src/memleakTracer.cpp:244 \
+		--force \
 		src/

@@ -23,7 +23,12 @@
 long J9WallClock::_interval;
 
 Error J9WallClock::start(Arguments& args) {
-    _interval = args._interval ? args._interval : DEFAULT_INTERVAL * 5;
+    int interval = args._event != NULL ? args._interval : args._wall;
+    if (interval < 0) {
+        return Error("interval must be positive");
+    }
+
+    _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
     _max_stack_depth = args._jstackdepth;
 
     _running = true;
@@ -70,7 +75,7 @@ void J9WallClock::timerLoop() {
                 int tid = J9Ext::GetOSThreadID(si->thread);
                 ExecutionEvent event;
                 event._thread_state = (si->state & JVMTI_THREAD_STATE_RUNNABLE) ? THREAD_RUNNING : THREAD_SLEEPING;
-                Profiler::instance()->recordExternalSample(_interval, &event, tid, si->frame_count, frames, /*truncated=*/false);
+                Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames, /*truncated=*/false, BCI_WALL, &event);
             }
             jvmti->Deallocate((unsigned char*)stack_infos);
         }

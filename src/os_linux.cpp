@@ -127,6 +127,12 @@ u64 OS::nanotime() {
     return (u64)ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
+u64 OS::cputime() {
+    struct timespec ts;
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ts);
+    return (u64)ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
 u64 OS::micros() {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -163,14 +169,18 @@ u64 OS::ntoh64(u64 x) {
 }
 
 int OS::getMaxThreadId() {
-    char buf[16] = "65536";
-    int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
-    if (fd != -1) {
-        ssize_t r = read(fd, buf, sizeof(buf) - 1);
-        (void) r;
-        close(fd);
+    static volatile int maxThreadId = -1;
+    if (__atomic_load_n(&maxThreadId, __ATOMIC_ACQUIRE) == -1) {
+        char buf[16] = "65536";
+        int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
+        if (fd != -1) {
+            ssize_t r = read(fd, buf, sizeof(buf) - 1);
+            (void) r;
+            close(fd);
+        }
+        __atomic_store_n(&maxThreadId, atoi(buf), __ATOMIC_RELEASE);
     }
-    return atoi(buf);
+    return maxThreadId;
 }
 
 int OS::processId() {

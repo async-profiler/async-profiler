@@ -76,10 +76,11 @@ class JfrSync implements FlightRecorderListener {
         }
     }
 
-    final static int EM_CPU   = 1;
-    final static int EM_ALLOC = 2;
-    final static int EM_LOCK  = 4;
-    final static int EM_MEMLEAK = 8;
+    final static int EM_CPU     = 1 << 0;
+    final static int EM_WALL    = 1 << 1;
+    final static int EM_ALLOC   = 1 << 2;
+    final static int EM_LOCK    = 1 << 3;
+    final static int EM_MEMLEAK = 1 << 4;
 
     private static void disableBuiltinEvents(Recording recording, int eventMask) {
         if ((eventMask & EM_CPU) != 0) {

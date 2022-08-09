@@ -127,6 +127,10 @@ u64 OS::nanotime() {
     return (u64)mach_absolute_time() * timebase.numer / timebase.denom;
 }
 
+u64 OS::cputime() {
+    return (u64)clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID);
+}
+
 u64 OS::micros() {
     struct timeval tv;
     gettimeofday(&tv, NULL);

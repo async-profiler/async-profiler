@@ -23,11 +23,32 @@
 #include "engine.h"
 #include "os.h"
 
-
+/**
+ * This class is used for both Wall Time profiling and as the fallback for CPU Profiling (same as
+ * upstream).
+ *
+ * Why can we simply reuse this "WallClock" engine for both Wall Time and CPU profiling?
+ * That's because the "WallClock" here means it uses the wall clock to trigger the signals, as
+ * opposed to using a CPU clock for example. This makes a lot of sense for Wall Time profiling, but
+ * not necessarily for CPU profiling you might say. It however works well for CPU profiling as well,
+ * as long as it checks whether the thread to which it is sending a signal is currently running or
+ * not. That gives a statistically close enough approximation to the actual CPU time. That is also
+ * the most common approach used by other profilers, JFR included.
+ *
+ * I did try splitting up the Wall Time and CPU profiler in different classes with some shared code
+ * in a base class, however, that didn't lead to much shared code, and the main difference was the
+ * classes' names.
+ */
 class WallClock : public Engine {
   private:
-    static long _interval;
-    static bool _sample_idle_threads;
+    long _interval;
+    bool _sample_idle_threads;
+
+    // Maximum number of threads sampled in one iteration. This limit serves as a throttle
+    // when generating profiling signals. Otherwise applications with too many threads may
+    // suffer from a big profiling overhead. Also, keeping this limit low enough helps
+    // to avoid contention on a spin lock inside Profiler::recordSample().
+    long _threads_per_tick;
 
     volatile bool _running;
     pthread_t _thread;
@@ -41,13 +62,21 @@ class WallClock : public Engine {
 
     static ThreadState getThreadState(void* ucontext);
 
-    static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    void signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample);
 
-    static long adjustInterval(long interval, int thread_count);
+    long adjustInterval(long interval, int thread_count);
 
   public:
+    constexpr WallClock(bool sample_idle_threads) :
+        _sample_idle_threads(sample_idle_threads),
+        _interval(sample_idle_threads ? DEFAULT_WALL_INTERVAL : DEFAULT_CPU_INTERVAL),
+        _threads_per_tick(sample_idle_threads ? DEFAULT_WALL_THREADS_PER_TICK : DEFAULT_CPU_THREADS_PER_TICK),
+        _running(false),
+        _thread(0) {}
+
     const char* title() {
-        return _sample_idle_threads ? "Wall clock profile" : "CPU profile";
+        return _sample_idle_threads ? "Wall profile" : "CPU profile";
     }
 
     const char* units() {

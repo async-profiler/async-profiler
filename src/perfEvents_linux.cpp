@@ -43,6 +43,7 @@
 #include "stackWalker.h"
 #include "symbols.h"
 #include "vmStructs.h"
+#include "context.h"
 
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
@@ -460,7 +461,7 @@ struct PerfEventType {
     ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
 
 PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
-    {"cpu",          DEFAULT_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK},
+    {"cpu",      DEFAULT_CPU_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_TASK_CLOCK},
     {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
     {"context-switches",            1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
 
@@ -538,7 +539,7 @@ class PerfEvent : public SpinLock {
 };
 
 
-int PerfEvents::_max_events = 0;
+int PerfEvents::_max_events = -1;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
@@ -551,6 +552,10 @@ static int __intsort(const void *a, const void *b) {
 }
 
 int PerfEvents::registerThread(int tid) {
+    if (_max_events == -1) {
+        // It hasn't been started
+        return 0;
+    }
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;
@@ -702,9 +707,14 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     if (_enabled) {
+        int tid = OS::threadId();
+        if (!Contexts::filter(tid, BCI_CPU)) {
+            return;
+        }
+
         u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
-        Profiler::instance()->recordSample(ucontext, counter, 0, &event);
+        Profiler::instance()->recordSample(ucontext, counter, tid, BCI_CPU, &event);
     } else {
         resetBuffer(OS::threadId());
     }
@@ -721,7 +731,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        J9StackTraceNotification notif = { .num_frames = 0, .truncated = false };
+        J9StackTraceNotification notif = { .counter = (u64)_interval, .num_frames = 0, .truncated = false };
         StackContext java_ctx;
         notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx);
         if (_cstack == CSTACK_DWARF) {
@@ -760,7 +770,7 @@ Error PerfEvents::check(Arguments& args) {
         return Error("/proc/sys/kernel/perf_event_paranoid doesn't exist");
     }
 
-    PerfEventType* event_type = PerfEventType::forName(args._event);
+    PerfEventType* event_type = PerfEventType::forName(args._event == NULL ? EVENT_CPU : args._event);
     if (event_type == NULL) {
         return Error("Unsupported event type");
     } else if (event_type->counter_arg > 4) {
@@ -824,7 +834,7 @@ Error PerfEvents::check(Arguments& args) {
 }
 
 Error PerfEvents::start(Arguments& args) {
-    _event_type = PerfEventType::forName(args._event);
+    _event_type = PerfEventType::forName(args._event == NULL ? EVENT_CPU : args._event);;
     if (_event_type == NULL) {
         return Error("Unsupported event type");
     } else if (_event_type->counter_arg > 4) {
@@ -835,10 +845,11 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Could not set pthread hook");
     }
 
-    if (args._interval < 0) {
+    int interval = args._event != NULL ? args._interval : args._cpu;
+    if (interval < 0) {
         return Error("interval must be positive");
     }
-    _interval = args._interval ? args._interval : _event_type->default_interval;
+    _interval = interval ? interval : _event_type->default_interval;
 
     _ring = args._ring;
     if ((_ring & RING_KERNEL) && !Symbols::haveKernelSymbols()) {

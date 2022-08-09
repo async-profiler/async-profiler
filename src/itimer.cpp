@@ -20,6 +20,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "stackWalker.h"
+#include "context.h"
 
 
 long ITimer::_interval;
@@ -29,8 +30,13 @@ CStack ITimer::_cstack;
 void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
+    int tid = OS::threadId();
+    if (!Contexts::filter(tid, BCI_CPU)) {
+        return;
+    }
+
     ExecutionEvent event;
-    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+    Profiler::instance()->recordSample(ucontext, _interval, tid, BCI_CPU, &event);
 }
 
 void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -62,7 +68,7 @@ Error ITimer::start(Arguments& args) {
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
-    _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
+    _interval = args._interval ? args._interval : DEFAULT_CPU_INTERVAL;
     _cstack = args._cstack;
 
     if (VM::isOpenJ9()) {

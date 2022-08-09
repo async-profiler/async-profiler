@@ -198,6 +198,18 @@ Error Arguments::parse(const char* args) {
                     msg = "Invalid chunktime";
                 }
 
+            CASE("cpu")
+                _cpu = value == NULL ? 0 : parseUnits(value, NANOS);
+                if (_cpu < 0) {
+                    msg = "cpu must be >= 0";
+                }
+
+            CASE("wall")
+                _wall = value == NULL ? 0 : parseUnits(value, NANOS);
+                if (_wall < 0) {
+                    msg = "wall must be >= 0";
+                }
+
             // Basic options
             CASE("event")
                 if (value == NULL || value[0] == 0) {
@@ -360,6 +372,9 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
+            CASE("context")
+                _contexts_filtering = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }
@@ -370,7 +385,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _memleak == 0) {
+    if (_event == NULL && _cpu < 0 && _wall < 0 && _alloc < 0 && _lock < 0 && _memleak == 0) {
         _event = EVENT_CPU;
     }
 

@@ -49,10 +49,11 @@ const int CONCURRENCY_LEVEL = 16;
 
 // The same constants are used in JfrSync
 enum EventMask {
-    EM_CPU   = 1,
-    EM_ALLOC = 2,
-    EM_LOCK  = 4,
-    EM_MEMLEAK = 8
+    EM_CPU     = 1 << 0,
+    EM_WALL    = 1 << 1,
+    EM_ALLOC   = 1 << 2,
+    EM_LOCK    = 1 << 3,
+    EM_MEMLEAK = 1 << 4
 };
 
 union CallTraceBuffer {
@@ -72,6 +73,7 @@ enum State {
     TERMINATED
 };
 
+
 class Profiler {
   private:
     Mutex _state_lock;
@@ -87,7 +89,8 @@ class Profiler {
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
-    Engine* _engine;
+    Engine* _cpu_engine;
+    Engine* _wall_engine;
     Engine* _alloc_engine;
     int _event_mask;
 
@@ -146,7 +149,8 @@ class Profiler {
     void updateNativeThreadNames();
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
-    Engine* selectEngine(Arguments& args);
+    Engine* selectCpuEngine(Arguments& args);
+    Engine* selectWallEngine(Arguments& args);
     Engine* selectAllocEngine(long alloc_interval);
     Engine* activeEngine();
     Error checkJvmCapabilities();
@@ -199,7 +203,8 @@ class Profiler {
     u64 total_samples() { return _total_samples; }
     int max_stack_depth() { return _max_stack_depth; }
     time_t uptime()     { return time(NULL) - _start_time; }
-    Engine* engine()    { return _engine; }
+    Engine* cpuEngine() { return _cpu_engine; }
+    Engine* wallEngine() { return _wall_engine; }
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
@@ -215,9 +220,9 @@ class Profiler {
     Error dump(std::ostream& out, Arguments& args);
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
-    void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void recordSample(void* ucontext, u64 counter, int tid, jint event_type, Event* event);
     void recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event);
-    void recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated);
+    void recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated, jint event_type, Event* event);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 

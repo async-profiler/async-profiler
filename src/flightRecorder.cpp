@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include "context.h"
 #include "flightRecorder.h"
 #include "incbin.h"
 #include "jfrMetadata.h"
@@ -80,10 +81,11 @@ struct CpuTimes {
 
 class MethodInfo {
   public:
-    MethodInfo() : _mark(false), _key(0), _modifiers(0) {
+    MethodInfo() : _mark(false), _thread_entry(false), _key(0), _modifiers(0) {
     }
 
     bool _mark;
+    bool _thread_entry;
     u32 _key;
     u32 _class;
     u32 _name;
@@ -192,6 +194,7 @@ class Lookup {
 
     void fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
         jvmtiEnv* jvmti = VM::jvmti();
+        JNIEnv* jni = VM::jni();
 
         jclass method_class;
         char* class_name = NULL;
@@ -216,6 +219,19 @@ class Lookup {
                     if (class_modifiers & 0x0040) {
                         mi->_modifiers |= 0x0040;
                     }
+                }
+                // Check if the frame is Thread.run or inherits from it
+                if (strncmp(method_name, "run", 3) == 0 && strncmp(method_sig, "()V", 3) == 0) {
+                    jclass Thread_class = jni->FindClass("java/lang/Thread");
+                    jmethodID equals =
+                        jni->GetMethodID(jni->FindClass("java/lang/Class"), "equals", "(Ljava/lang/Object;)Z");
+                    jclass klass = method_class;
+                    do {
+                        if (jni->CallBooleanMethod(Thread_class, equals, klass)) {
+                            mi->_thread_entry = true;
+                            break;
+                        }
+                    } while ((klass = jni->GetSuperclass(klass)) != NULL);
                 }
             }
         } else {
@@ -766,6 +782,7 @@ class Recording {
     }
 
     void writeSettings(Buffer* buf, Arguments& args) {
+        writeBoolSetting(buf, T_ACTIVE_RECORDING, "asyncprofiler", true);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
@@ -784,9 +801,16 @@ class Recording {
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "hotspot", VM::isHotspot());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "openj9", VM::isOpenJ9());
 
-        writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
-        if (args._event != NULL) {
-            writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
+        if (!((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) || args._cpu >= 0)) {
+            writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", false);
+        } else {
+            writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", true);
+            writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._event != NULL ? args._interval : args._cpu);
+        }
+
+        writeBoolSetting(buf, T_METHOD_SAMPLE, "enabled", args._wall >= 0);
+        if (args._wall >= 0) {
+            writeIntSetting(buf, T_METHOD_SAMPLE, "interval", args._wall ? args._wall : DEFAULT_WALL_INTERVAL);
         }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
@@ -809,7 +833,8 @@ class Recording {
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VMStructs::hasDebugSymbols());
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->engine()->name());
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "cpuEngine", Profiler::instance()->cpuEngine()->name());
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "wallEngine", Profiler::instance()->wallEngine()->name());
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
@@ -1034,7 +1059,14 @@ class Recording {
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar64(it->first);
-            buf->putVar64(trace->truncated ? 1 : 0);
+            if (trace->num_frames > 0) {
+                MethodInfo* mi = lookup->resolveMethod(trace->frames[trace->num_frames - 1]);
+                if (mi->_type < FRAME_NATIVE) {
+                    buf->put8(mi->_thread_entry ? 0 : 1);
+                } else {
+                    buf->put8(trace->truncated);
+                }
+            }
             buf->putVar64(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
@@ -1137,16 +1169,46 @@ class Recording {
     }
 
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
+        volatile Context context = Contexts::get(tid);
+
         int start = buf->skip(1);
         buf->putVar64(T_EXECUTION_SAMPLE);
         buf->putVar64(TSC::ticks());
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
+        if (context.invalid) {
+            buf->putVar64(0);
+            buf->putVar64(0);
+        } else {
+            buf->putVar64(context.spanId);
+            buf->putVar64(context.rootSpanId);
+        }
+        buf->put8(start, buf->offset() - start);
+    }
+
+    void recordMethodSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
+        volatile Context context = Contexts::get(tid);
+
+        int start = buf->skip(1);
+        buf->putVar64(T_METHOD_SAMPLE);
+        buf->putVar64(TSC::ticks());
+        buf->putVar64(tid);
+        buf->putVar64(call_trace_id);
+        buf->putVar64(event->_thread_state);
+        if (context.invalid) {
+            buf->putVar64(0);
+            buf->putVar64(0);
+        } else {
+            buf->putVar64(context.spanId);
+            buf->putVar64(context.rootSpanId);
+        }
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        volatile Context context = Contexts::get(tid);
+
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_IN_NEW_TLAB);
         buf->putVar64(TSC::ticks());
@@ -1155,10 +1217,19 @@ class Recording {
         buf->putVar64(event->_class_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
+        if (context.invalid) {
+            buf->putVar64(0);
+            buf->putVar64(0);
+        } else {
+            buf->putVar64(context.spanId);
+            buf->putVar64(context.rootSpanId);
+        }
         buf->put8(start, buf->offset() - start);
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+        volatile Context context = Contexts::get(tid);
+
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_OUTSIDE_TLAB);
         buf->putVar64(TSC::ticks());
@@ -1166,6 +1237,13 @@ class Recording {
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_class_id);
         buf->putVar64(event->_total_size);
+        if (context.invalid) {
+            buf->putVar64(0);
+            buf->putVar64(0);
+        } else {
+            buf->putVar64(context.spanId);
+            buf->putVar64(context.rootSpanId);
+        }
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1182,6 +1260,8 @@ class Recording {
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+        volatile Context context = Contexts::get(tid);
+
         int start = buf->skip(1);
         buf->putVar64(T_MONITOR_ENTER);
         buf->putVar64(event->_start_time);
@@ -1191,6 +1271,13 @@ class Recording {
         buf->putVar64(event->_class_id);
         buf->put8(0);
         buf->putVar64(event->_address);
+        if (context.invalid) {
+            buf->putVar64(0);
+            buf->putVar64(0);
+        } else {
+            buf->putVar64(context.spanId);
+            buf->putVar64(context.rootSpanId);
+        }
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1350,6 +1437,8 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     jobject jfilename = env->NewStringUTF(args.file());
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
+                     (args._cpu >= 0 ? EM_CPU : 0) |
+                     (args._wall >= 0 ? EM_WALL : 0) |
                      (args._alloc >= 0 ? EM_ALLOC : 0) |
                      (args._lock >= 0 ? EM_LOCK : 0) |
                      (args._memleak > 0 ? EM_MEMLEAK : 0) |
@@ -1378,6 +1467,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
         switch (event_type) {
             case 0:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case BCI_WALL:
+                _rec->recordMethodSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
                 break;
             case BCI_ALLOC:
                 _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);

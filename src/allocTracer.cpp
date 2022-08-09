@@ -15,6 +15,7 @@
  */
 
 #include "allocTracer.h"
+#include "context.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
@@ -65,6 +66,11 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
+    int tid = OS::threadId();
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
+
     AllocEvent event;
     event._class_id = 0;
     event._total_size = total_size;
@@ -75,7 +81,7 @@ void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rkl
         event._class_id = Profiler::instance()->classMap()->lookup(symbol->body(), symbol->length());
     }
 
-    Profiler::instance()->recordSample(ucontext, total_size, event_type, &event);
+    Profiler::instance()->recordSample(ucontext, total_size, tid, event_type, &event);
 }
 
 Error AllocTracer::check(Arguments& args) {

@@ -20,8 +20,11 @@
 #include <stddef.h>
 
 
-const long DEFAULT_INTERVAL = 10000000;      // 10 ms
+const long DEFAULT_CPU_INTERVAL  = 10 * 1000 * 1000; // 10 ms
+const long DEFAULT_WALL_INTERVAL = 50 * 1000 * 1000; // 50 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
+const int DEFAULT_CPU_THREADS_PER_TICK  = 8;
+const int DEFAULT_WALL_THREADS_PER_TICK = 64; // There is context filtering
 const int DEFAULT_JSTACKDEPTH = 2048;
 const int DEFAULT_MEMLEAK_CAP = 8192;
 
@@ -140,6 +143,8 @@ class Arguments {
     const char* _event;
     int _timeout;
     long _interval;
+    long _cpu;
+    long _wall;
     long _alloc;
     long _lock;
     long _memleak;
@@ -176,6 +181,7 @@ class Arguments {
     const char* _title;
     double _minwidth;
     bool _reverse;
+    bool _contexts_filtering;
 
     Arguments(bool persistent = false) :
         _buf(NULL),
@@ -187,6 +193,8 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
+        _cpu(-1),
+        _wall(-1),
         _alloc(-1),
         _lock(-1),
         _memleak(0),
@@ -221,7 +229,8 @@ class Arguments {
         _end(NULL),
         _title(NULL),
         _minwidth(0),
-        _reverse(false) {
+        _reverse(false),
+        _contexts_filtering(false) {
     }
 
     ~Arguments();

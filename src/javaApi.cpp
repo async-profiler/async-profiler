@@ -23,6 +23,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "vmStructs.h"
+#include "context.h"
 
 
 INCBIN(SERVER_CLASS, "one/profiler/Server.class")
@@ -40,7 +41,11 @@ extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
     Arguments args;
     const char* event_str = env->GetStringUTFChars(event, NULL);
-    if (strcmp(event_str, EVENT_ALLOC) == 0) {
+    if (strcmp(event_str, EVENT_CPU) == 0) {
+        args._cpu = interval > 0 ? interval : DEFAULT_CPU_INTERVAL;
+    } else if (strcmp(event_str, EVENT_WALL) == 0) {
+        args._wall = interval > 0 ? interval : DEFAULT_WALL_INTERVAL;
+    } else if (strcmp(event_str, EVENT_ALLOC) == 0) {
         args._alloc = interval > 0 ? interval : 0;
     } else if (strcmp(event_str, EVENT_LOCK) == 0) {
         args._lock = interval > 0 ? interval : 0;
@@ -66,6 +71,28 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     if (error) {
         throwNew(env, "java/lang/IllegalStateException", error.message());
     }
+}
+
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_setContext0(JNIEnv* env, jobject unused, jint tid, jlong spanId, jlong rootSpanId) {
+    Context context = { .invalid = 0, .spanId = (u64)spanId, .rootSpanId = (u64)rootSpanId };
+    Error error = Contexts::set(tid, context);
+    if (error) {
+        throwNew(env, "java/lang/IllegalStateException", error.message());
+    }
+}
+
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_clearContext0(JNIEnv* env, jobject unused, jint tid) {
+    Error error = Contexts::clear(tid);
+    if (error) {
+        throwNew(env, "java/lang/IllegalStateException", error.message());
+    }
+}
+
+extern "C" DLLEXPORT jint JNICALL
+Java_one_profiler_AsyncProfiler_getTid0(JNIEnv* env, jobject unused) {
+    return OS::threadId();
 }
 
 extern "C" DLLEXPORT jstring JNICALL
@@ -134,11 +161,14 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,        "(Ljava/lang/String;JZ)V"),
-    F(stop0,         "()V"),
-    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,    "()J"),
-    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
+    F(start0,          "(Ljava/lang/String;JZ)V"),
+    F(stop0,           "()V"),
+    F(execute0,        "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,      "()J"),
+    F(filterThread0,   "(Ljava/lang/Thread;Z)V"),
+    F(setContext0,     "(IJJ)V"),
+    F(clearContext0,   "(I)V"),
+    F(getTid0,         "()I"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

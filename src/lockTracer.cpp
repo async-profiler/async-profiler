@@ -18,6 +18,7 @@
 #include "lockTracer.h"
 #include "profiler.h"
 #include "tsc.h"
+#include "context.h"
 
 
 double LockTracer::_ticks_to_nanos;
@@ -186,6 +187,11 @@ bool LockTracer::isConcurrentLock(const char* lock_name) {
 
 void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_time,
                                      const char* lock_name, jobject lock, jlong timeout) {
+    int tid = OS::threadId();
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
+
     LockEvent event;
     event._class_id = 0;
     event._start_time = start_time;
@@ -202,7 +208,7 @@ void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_tim
     }
 
     u64 duration_nanos = (u64)((end_time - start_time) * _ticks_to_nanos);
-    Profiler::instance()->recordSample(NULL, duration_nanos, event_type, &event);
+    Profiler::instance()->recordSample(NULL, duration_nanos, tid, event_type, &event);
 }
 
 void LockTracer::bindUnsafePark(UnsafeParkFunc entry) {

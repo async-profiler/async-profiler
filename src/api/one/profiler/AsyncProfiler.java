@@ -27,6 +27,12 @@ import java.io.IOException;
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
 
+    private static ThreadLocal<Integer> tid = new ThreadLocal<Integer>() {
+        @Override protected Integer initialValue() {
+            return getTid0();
+        }
+    };
+
     private AsyncProfiler() {
     }
 
@@ -214,8 +220,31 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    /**
+     * Passing context identifier to a profiler. This ID is thread-local and is dumped in
+     * the JFR output only. 0 is a reserved value for "no-context". The context functionality
+     * is available for 64bit Java only.
+     *
+     * @param spanId Span identifier that should be stored for current thread
+     * @param rootSpanId Root Span identifier that should be stored for current thread
+     */
+    public void setContext(long spanId, long rootSpanId) {
+        setContext0(tid.get(), spanId, rootSpanId);
+    }
+
+    /**
+     * Clears context identifier for current thread.
+     */
+    public void clearContext() {
+        clearContext0(tid.get());
+    }
+
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
+    private native void setContext0(int tid, long spanId, long rootSpanId);
+    private native void clearContext0(int tid);
+
+    private static native int getTid0();
 }

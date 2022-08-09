@@ -20,21 +20,11 @@
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
-
-
-// Maximum number of threads sampled in one iteration. This limit serves as a throttle
-// when generating profiling signals. Otherwise applications with too many threads may
-// suffer from a big profiling overhead. Also, keeping this limit low enough helps
-// to avoid contention on a spin lock inside Profiler::recordSample().
-const int THREADS_PER_TICK = 8;
+#include "context.h"
 
 // Set the hard limit for thread walking interval to 100 microseconds.
 // Smaller intervals are practically unusable due to large overhead.
 const long MIN_INTERVAL = 100000;
-
-
-long WallClock::_interval;
-bool WallClock::_sample_idle_threads;
 
 ThreadState WallClock::getThreadState(void* ucontext) {
     StackFrame frame(ucontext);
@@ -57,30 +47,59 @@ ThreadState WallClock::getThreadState(void* ucontext) {
     return THREAD_RUNNING;
 }
 
-void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+    WallClock *engine;
+    switch (signo) {
+    case SIGPROF:
+        engine = (WallClock*)Profiler::instance()->cpuEngine();
+        break;
+    case SIGVTALRM:
+        engine = (WallClock*)Profiler::instance()->wallEngine();
+        break;
+    default:
+        Log::error("Unknown signal %d", signo);
+        return;
+    }
+    engine->signalHandler(signo, siginfo, ucontext, engine->_interval);
+}
+
+void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
+    int tid = OS::threadId();
+    int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
+
     ExecutionEvent event;
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
-    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+    Profiler::instance()->recordSample(ucontext, last_sample, tid, event_type, &event);
 }
 
 long WallClock::adjustInterval(long interval, int thread_count) {
-    if (thread_count > THREADS_PER_TICK) {
-        interval /= (thread_count + THREADS_PER_TICK - 1) / THREADS_PER_TICK;
+    if (thread_count > _threads_per_tick) {
+        interval /= (thread_count + _threads_per_tick - 1) / _threads_per_tick;
     }
     return interval;
 }
 
 Error WallClock::start(Arguments& args) {
-    if (args._interval < 0) {
-        return Error("interval must be positive");
+    if (_sample_idle_threads) {
+        int interval = args._event != NULL ? args._interval : args._wall;
+        if (interval < 0) {
+            return Error("interval must be positive");
+        }
+        _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
+
+        OS::installSignalHandler(SIGVTALRM, sharedSignalHandler);
+    } else {
+        int interval = args._event != NULL ? args._interval : args._cpu;
+        if (interval < 0) {
+            return Error("interval must be positive");
+        }
+        _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
+
+        OS::installSignalHandler(SIGPROF, sharedSignalHandler);
     }
-
-    _sample_idle_threads = strcmp(args._event, EVENT_WALL) == 0;
-
-    // Increase default interval for wall clock mode due to larger number of sampled threads
-    _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
-
-    OS::installSignalHandler(SIGVTALRM, signalHandler);
 
     _running = true;
 
@@ -103,7 +122,7 @@ void WallClock::timerLoop() {
     bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
-    ThreadList* thread_list = OS::listThreads();
+    ThreadList* thread_list = sample_idle_threads ? Contexts::listThreads() : OS::listThreads();
     long long next_cycle_time = OS::nanotime();
 
     while (_running) {
@@ -118,7 +137,7 @@ void WallClock::timerLoop() {
             next_cycle_time += adjustInterval(_interval, estimated_thread_count);
         }
 
-        for (int count = 0; count < THREADS_PER_TICK; ) {
+        for (int count = 0; count < _threads_per_tick; ) {
             int thread_id = thread_list->next();
             if (thread_id == -1) {
                 thread_list->rewind();
@@ -130,7 +149,7 @@ void WallClock::timerLoop() {
             }
 
             if (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING) {
-                if (OS::sendSignalToThread(thread_id, SIGVTALRM)) {
+                if (OS::sendSignalToThread(thread_id, sample_idle_threads ? SIGVTALRM : SIGPROF)) {
                     count++;
                 }
             }

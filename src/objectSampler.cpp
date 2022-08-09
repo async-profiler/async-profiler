@@ -17,6 +17,7 @@
 #include <string.h>
 #include "objectSampler.h"
 #include "profiler.h"
+#include "context.h"
 
 
 u64 ObjectSampler::_interval;
@@ -31,6 +32,11 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 }
 
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
+    int tid = OS::threadId();
+    if (!Contexts::filter(tid, event_type)) {
+        return;
+    }
+
     AllocEvent event;
     event._class_id = 0;
     event._total_size = size > _interval ? size : _interval;
@@ -46,7 +52,7 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass obj
         jvmti->Deallocate((unsigned char*)class_name);
     }
 
-    Profiler::instance()->recordSample(NULL, size, event_type, &event);
+    Profiler::instance()->recordSample(NULL, size, tid, event_type, &event);
 }
 
 Error ObjectSampler::check(Arguments& args) {
