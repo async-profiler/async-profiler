@@ -76,18 +76,12 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
 extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_setContext0(JNIEnv* env, jobject unused, jint tid, jlong spanId, jlong rootSpanId) {
     Context context = { .invalid = 0, .spanId = (u64)spanId, .rootSpanId = (u64)rootSpanId };
-    Error error = Contexts::set(tid, context);
-    if (error) {
-        throwNew(env, "java/lang/IllegalStateException", error.message());
-    }
+    Contexts::set(tid, context);
 }
 
 extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_clearContext0(JNIEnv* env, jobject unused, jint tid) {
-    Error error = Contexts::clear(tid);
-    if (error) {
-        throwNew(env, "java/lang/IllegalStateException", error.message());
-    }
+    Contexts::clear(tid);
 }
 
 extern "C" DLLEXPORT jint JNICALL

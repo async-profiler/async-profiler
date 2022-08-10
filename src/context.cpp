@@ -52,25 +52,25 @@ bool Contexts::filter(int tid, int event_type) {
     }
 }
 
-Error Contexts::set(int tid, Context context) {
+void Contexts::set(int tid, Context context) {
     bool installed;
     lock(tid);
     installed = _contexts[tid].spanId == 0;
     _contexts[tid] = context;
     unlock(tid);
     if (installed == 0) {
-        registerThread(tid);
+        // FIXME: reenable when using thread filtering based on context
+        // registerThread(tid);
     }
-    return Error::OK;
 }
 
-Error Contexts::clear(int tid) {
-    unregisterThread(tid);
+void Contexts::clear(int tid) {
+    // FIXME: reenable when using thread filtering based on context
+    // unregisterThread(tid);
     lock(tid);
     _contexts[tid].spanId = 0;
     _contexts[tid].rootSpanId = 0;
     unlock(tid);
-    return Error::OK;
 }
 
 void Contexts::initialize() {

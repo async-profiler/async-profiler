@@ -51,8 +51,8 @@ class Contexts {
   public:
     static void initialize();
 
-    static Error set(int tid, Context context);
-    static Error clear(int tid);
+    static void set(int tid, Context context);
+    static void clear(int tid);
     static Context get(int tid);
     static bool filter(int tid, int event_type);
 
