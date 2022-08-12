@@ -100,7 +100,7 @@ void JfrMetadata::initialize() {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("spanId", T_LONG, "Span ID")
-                << field("rootSpanId", T_LONG, "Root Span ID"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.MethodSample", T_METHOD_SAMPLE, "Method Wall Profiling Sample")
                 << category("Datadog", "Profiling")
@@ -109,7 +109,7 @@ void JfrMetadata::initialize() {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("spanId", T_LONG, "Span ID")
-                << field("rootSpanId", T_LONG, "Root Span ID"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.ObjectAllocationInNewTLAB", T_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB")
                 << category("Java Application")
@@ -120,7 +120,7 @@ void JfrMetadata::initialize() {
                 << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
                 << field("tlabSize", T_LONG, "TLAB Size", F_BYTES)
                 << field("spanId", T_LONG, "Span ID")
-                << field("rootSpanId", T_LONG, "Root Span ID"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.ObjectAllocationOutsideTLAB", T_ALLOC_OUTSIDE_TLAB, "Allocation outside TLAB")
                 << category("Java Application")
@@ -130,7 +130,7 @@ void JfrMetadata::initialize() {
                 << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
                 << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
                 << field("spanId", T_LONG, "Span ID")
-                << field("rootSpanId", T_LONG, "Root Span ID"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.HeapLiveObject", T_HEAP_LIVE_OBJECT, "Heap Live Object")
                 << category("Datadog")
@@ -151,7 +151,7 @@ void JfrMetadata::initialize() {
                 << field("previousOwner", T_THREAD, "Previous Monitor Owner", F_CPOOL)
                 << field("address", T_LONG, "Monitor Address", F_ADDRESS)
                 << field("spanId", T_LONG, "Span ID")
-                << field("rootSpanId", T_LONG, "Root Span ID"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("jdk.ThreadPark", T_THREAD_PARK, "Java Thread Park")
                 << category("Java Application")
