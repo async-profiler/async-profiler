@@ -93,7 +93,7 @@ check_if_terminated() {
 
 fdtransfer() {
     if [ "$USE_FDTRANSFER" = "true" ]; then
-        FDTRANSFER_PATH="@async-profiler-$PID-$(od -An -N3 -i /dev/random | xargs)"
+        FDTRANSFER_PATH="@async-profiler-$(od -An -N3 -i /dev/random | xargs)"
         PARAMS="$PARAMS,fdtransfer=$FDTRANSFER_PATH"
         "$FDTRANSFER" "$FDTRANSFER_PATH" "$PID"
     fi
