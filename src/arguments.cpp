@@ -271,8 +271,8 @@ Error Arguments::parse(const char* args) {
 
             CASE("fdtransfer")
                 _fdtransfer = true;
-                if (value == NULL) {
-                    msg ="fdtransfer path must not be empty";
+                if (value == NULL || value[0] == 0) {
+                    msg = "fdtransfer path must not be empty";
                 }
                 _fdtransfer_path = value;
 
