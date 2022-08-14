@@ -293,9 +293,12 @@ static int single_pid_server(int pid, const char *path) {
     // Create the server before forking, so w're ready to accept connections once our parent
     // exits.
 
-    if (enter_ns(pid, "net") == -1) {
-        fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
-        return 1;
+    // Abstract namespace UDS requires us to move network namespace.
+    if (sun.sun_path[0] == '\0') {
+        if (enter_ns(pid, "net") == -1) {
+            fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
+            return 1;
+        }
     }
 
     if (!FdTransferServer::bindServer(&sun, addrlen, 10)) {
