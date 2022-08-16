@@ -151,8 +151,7 @@ public class jfr2flame {
             byte[] className = jfr.symbols.get(cls.name);
             byte[] methodName = jfr.symbols.get(method.name);
 
-            if ((methodType >= FlameGraph.FRAME_NATIVE && methodType <= FlameGraph.FRAME_KERNEL)
-                    || className == null || className.length == 0) {
+            if (className == null || className.length == 0 || isNativeFrame(methodType)) {
                 result = new String(methodName, StandardCharsets.UTF_8);
             } else {
                 String classStr = toJavaClassName(className, 0, args.dot);
@@ -163,6 +162,11 @@ public class jfr2flame {
 
         methodNames.put(methodId, result);
         return result;
+    }
+
+    private boolean isNativeFrame(byte methodType) {
+        return methodType >= FlameGraph.FRAME_NATIVE && methodType <= FlameGraph.FRAME_KERNEL
+                && jfr.frameTypes.size() > FlameGraph.FRAME_NATIVE + 1;
     }
 
     private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
