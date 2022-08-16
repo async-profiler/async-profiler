@@ -90,13 +90,27 @@ Error WallClock::start(Arguments& args) {
         }
         _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
 
+        _filtering = args._wall_filtering;
+
+        _threads_per_tick =
+            args._wall_threads_per_tick ?
+                args._wall_threads_per_tick :
+                DEFAULT_WALL_THREADS_PER_TICK;
+
         OS::installSignalHandler(SIGVTALRM, sharedSignalHandler);
     } else {
         int interval = args._event != NULL ? args._interval : args._cpu;
         if (interval < 0) {
             return Error("interval must be positive");
         }
-        _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
+        _interval = interval ? interval : DEFAULT_CPU_INTERVAL;
+
+        _filtering = args._cpu_filtering;
+
+        _threads_per_tick =
+            args._cpu_threads_per_tick ?
+                args._cpu_threads_per_tick :
+                DEFAULT_CPU_THREADS_PER_TICK;
 
         OS::installSignalHandler(SIGPROF, sharedSignalHandler);
     }
@@ -122,7 +136,9 @@ void WallClock::timerLoop() {
     bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
-    ThreadList* thread_list = sample_idle_threads ? Contexts::listThreads() : OS::listThreads();
+    // FIXME: reenable when using thread filtering based on context. See context.cpp
+    // ThreadList* thread_list = _filtering ? Contexts::listThreads() : OS::listThreads();
+    ThreadList* thread_list = OS::listThreads();
     long long next_cycle_time = OS::nanotime();
 
     while (_running) {

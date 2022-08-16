@@ -204,10 +204,26 @@ Error Arguments::parse(const char* args) {
                     msg = "cpu must be >= 0";
                 }
 
+            CASE("cpufilter")
+                _cpu_filtering = true;
+
+            CASE("cputpt")
+                if (value == NULL || (_cpu_threads_per_tick = atoi(value)) <= 0) {
+                    msg = "cputpt must be > 0";
+                }
+
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
                 if (_wall < 0) {
                     msg = "wall must be >= 0";
+                }
+
+            CASE("wallfilter")
+                _wall_filtering = true;
+
+            CASE("walltpt")
+                if (value == NULL || (_wall_threads_per_tick = atoi(value)) <= 0) {
+                    msg = "walltpt must be > 0";
                 }
 
             // Basic options
@@ -371,9 +387,6 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
-
-            CASE("context")
-                _contexts_filtering = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;

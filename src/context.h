@@ -37,7 +37,8 @@ class Contexts {
   private:
     static int _contexts_size;
     static Context* _contexts;
-    static bool _filtering;
+    static bool _wall_filtering;
+    static bool _cpu_filtering;
 
     static BitsetElement* _threads;
     static int _threads_size;
@@ -56,8 +57,11 @@ class Contexts {
     static Context get(int tid);
     static bool filter(int tid, int event_type);
 
-    static void setFiltering(bool filtering) {
-        _filtering = filtering;
+    static void setWallFiltering(bool wall_filtering) {
+        _wall_filtering = wall_filtering;
+    }
+    static void setCpuFiltering(bool cpu_filtering) {
+        _cpu_filtering = cpu_filtering;
     }
 
     static ThreadList* listThreads();

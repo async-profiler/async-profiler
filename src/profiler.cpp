@@ -1073,7 +1073,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Branch stack is supported only with PMU events");
     }
 
-    Contexts::setFiltering(args._contexts_filtering);
+    Contexts::setWallFiltering(args._wall_filtering);
+    Contexts::setCpuFiltering(args._cpu_filtering);
 
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_cpu_engine == &perf_events && (args._ring & RING_KERNEL));

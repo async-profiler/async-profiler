@@ -26,7 +26,8 @@
 int Contexts::_contexts_size = -1;
 Context* Contexts::_contexts = NULL;
 
-bool Contexts::_filtering = false;
+bool Contexts::_wall_filtering = true;
+bool Contexts::_cpu_filtering = true;
 
 BitsetElement* Contexts::_threads = NULL;
 int Contexts::_threads_size = 0;
@@ -36,16 +37,14 @@ Context Contexts::get(int tid) {
 }
 
 bool Contexts::filter(int tid, int event_type) {
-    if (!_filtering) {
-        return true;
-    }
+    // the thread should be suspended, so _contexts[tid] shouldn't change
+    Context context = _contexts[tid];
 
     switch (event_type) {
-    case BCI_WALL: {
-        // the thread should be suspended, so _contexts[tid] shouldn't change
-        Context context = _contexts[tid];
-        return context.invalid == 0 && context.spanId != 0;
-    }
+    case BCI_WALL:
+        return !_wall_filtering || (context.invalid == 0 && context.spanId != 0);
+    case BCI_CPU:
+        return !_cpu_filtering || (context.invalid == 0 && context.spanId != 0);
     default:
         // no filtering based on context
         return true;
@@ -91,7 +90,7 @@ void Contexts::unlock(int tid) {
 }
 
 void Contexts::registerThread(int tid) {
-    if (!_filtering) {
+    if (!(_wall_filtering || _cpu_filtering)) {
         // Only track threads when filtering is enabled
         return;
     }
@@ -117,7 +116,7 @@ void Contexts::registerThread(int tid) {
 }
 
 void Contexts::unregisterThread(int tid) {
-    if (!_filtering) {
+    if (!(_wall_filtering || _cpu_filtering)) {
         // Only track threads when filtering is enabled
         return;
     }
@@ -176,6 +175,5 @@ class ContextsThreadList : public ThreadList {
 
 ThreadList* Contexts::listThreads() {
     // FIXME: study whether using Contexts::listThreads() introduces bias
-    // return _filtering ? new ContextsThreadList() : OS::listThreads();
-    return OS::listThreads();
+    return new ContextsThreadList();
 }

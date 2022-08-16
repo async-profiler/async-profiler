@@ -49,6 +49,7 @@ class WallClock : public Engine {
     // suffer from a big profiling overhead. Also, keeping this limit low enough helps
     // to avoid contention on a spin lock inside Profiler::recordSample().
     long _threads_per_tick;
+    bool _filtering;
 
     volatile bool _running;
     pthread_t _thread;
@@ -70,8 +71,9 @@ class WallClock : public Engine {
   public:
     constexpr WallClock(bool sample_idle_threads) :
         _sample_idle_threads(sample_idle_threads),
-        _interval(sample_idle_threads ? DEFAULT_WALL_INTERVAL : DEFAULT_CPU_INTERVAL),
-        _threads_per_tick(sample_idle_threads ? DEFAULT_WALL_THREADS_PER_TICK : DEFAULT_CPU_THREADS_PER_TICK),
+        _interval(LONG_MAX),
+        _threads_per_tick(0),
+        _filtering(false),
         _running(false),
         _thread(0) {}
 
