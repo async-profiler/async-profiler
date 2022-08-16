@@ -678,7 +678,7 @@ class Recording {
         buf->putVar32(T_METADATA);
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
-        buf->putVar32(1);
+        buf->putVar32(0x7fffffff);  // must not clash with JFR metadata ID, or 'jfr print' will break
 
         std::vector<std::string>& strings = JfrMetadata::strings();
         buf->putVar32(strings.size());
