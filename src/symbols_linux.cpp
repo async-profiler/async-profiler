@@ -342,6 +342,7 @@ void ElfParser::loadSymbols(bool use_debug) {
     ElfSection* section = findSection(SHT_SYMTAB, ".symtab");
     if (section != NULL) {
         loadSymbolTable(section);
+        _cc->setDebugSymbols(true);
         goto loaded;
     }
 

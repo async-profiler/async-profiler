@@ -130,10 +130,6 @@ class VMStructs {
                                             jint start_depth, jint max_frame_count,
                                             jvmtiFrameInfo* frame_buffer, jint* count_ptr);
     static GetStackTraceFunc _get_stack_trace;
-
-    static bool hasDebugSymbols() {
-        return _get_stack_trace != NULL;
-    }
 };
 
 
