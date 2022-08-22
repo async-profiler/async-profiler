@@ -1256,6 +1256,7 @@ class Recording {
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_age);
         buf->putVar64(event->_instance_size);
+        buf->putVar64(event->_interval);
         buf->put8(start, buf->offset() - start);
     }
 
