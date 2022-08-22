@@ -50,6 +50,7 @@ pthread_mutex_t MemLeakTracer::_cleanup_mutex;
 pthread_cond_t MemLeakTracer::_cleanup_cond;
 u32 MemLeakTracer::_cleanup_round;
 bool MemLeakTracer::_cleanup_run;
+get_sampling_interval MemLeakTracer::_get_sampling_interval;
 
 static int __min(int a, int b) {
     return a < b ? a : b;
@@ -118,6 +119,7 @@ void MemLeakTracer::flush_table(JNIEnv *env) {
             event._start_time = _table[i].time;
             event._age = _table[i].age;
             event._instance_size = _table[i].ref_size;
+            event._interval = _table[i].interval;
 
             jstring name_str = (jstring)env->CallObjectMethod(env->GetObjectClass(ref), _Class_getName);
             const char *name = env->GetStringUTFChars(name_str, NULL);
@@ -263,6 +265,18 @@ Error MemLeakTracer::initialize(Arguments& args) {
         return Error("Unable to create Memory Leak cleanup thread");
     }
 
+    CodeCache* libjvm = VMStructs::libjvm();
+
+    // this symbol should be availabel given the current JVTMI heap sampler implementation
+    // Note: when/if that implementation would change in the future the alernatives should be added here
+    const void* get_interval_ptr = libjvm->findSymbol("_ZN17ThreadHeapSampler21get_sampling_intervalEv");
+    _get_sampling_interval = (get_sampling_interval)get_interval_ptr;
+
+    if (_get_sampling_interval == NULL) {
+        // fail if it is not possible to resolve the required symbol
+        return Error("Unable to resolve the sampling interval getter");
+    }
+
     env->ExceptionClear();
     _initialized = true;
 
@@ -309,6 +323,7 @@ retry:
     if (idx < _table_cap) {
         _table[idx].ref = ref;
         _table[idx].ref_size = size;
+        _table[idx].interval = _get_sampling_interval();
         _table[idx].age = 0;
         _table[idx].frames_size = frames_size;
         _table[idx].frames = new jvmtiFrameInfo[_table[idx].frames_size];

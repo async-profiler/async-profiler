@@ -139,7 +139,8 @@ void JfrMetadata::initialize() {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
                 << field("age", T_LONG, "Age", F_UNSIGNED)
-                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES))
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
+                << field("interval", T_LONG, "Sampling Interval", F_BYTES))
 
             << (type("datadog.JavaMonitorEnter", T_MONITOR_ENTER, "Java Monitor Blocked")
                 << category("Java Application")

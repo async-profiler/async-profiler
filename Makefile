@@ -181,12 +181,12 @@ cppcheck:
 		--error-exitcode=2 \
 		--suppress=memleak:src/codeCache.cpp:30 \
 		--suppress=memleakOnRealloc:src/dwarf.cpp:345 \
-		--suppress=memleakOnRealloc:src/memleakTracer.cpp:336 \
+		--suppress=memleakOnRealloc:src/memleakTracer.cpp:351 \
 		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
 		--suppress=comparePointers:src/flightRecorder.cpp:1405 \
 		--suppress=comparePointers:src/instrument.cpp:518 \
 		--suppress=comparePointers:src/javaApi.cpp:207 \
-		--suppress=comparePointers:src/memleakTracer.cpp:233 \
-		--suppress=comparePointers:src/memleakTracer.cpp:244 \
+		--suppress=comparePointers:src/memleakTracer.cpp:235 \
+		--suppress=comparePointers:src/memleakTracer.cpp:246 \
 		--force \
 		src/

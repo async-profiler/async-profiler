@@ -31,7 +31,10 @@ typedef struct MemLeakTableEntry {
     jint tid;
     jlong time;
     jlong age;
+    jint interval;
 } MemLeakTableEntry;
+
+typedef int(*get_sampling_interval)();
 
 class MemLeakTracer : public Engine {
   private:
@@ -59,6 +62,8 @@ class MemLeakTracer : public Engine {
     static pthread_cond_t _cleanup_cond;
     static u32 _cleanup_round;
     static bool _cleanup_run;
+
+    static get_sampling_interval _get_sampling_interval;
 
     static Error initialize(Arguments& args);
 

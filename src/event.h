@@ -63,6 +63,7 @@ class MemLeakEvent : public Event {
     u64 _start_time;
     u64 _age;
     u64 _instance_size;
+    u64 _interval;
 };
 
 #endif // _EVENT_H
