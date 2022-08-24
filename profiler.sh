@@ -93,7 +93,9 @@ check_if_terminated() {
 
 fdtransfer() {
     if [ "$USE_FDTRANSFER" = "true" ]; then
-        "$FDTRANSFER" "$PID"
+        FDTRANSFER_PATH="@async-profiler-$(od -An -N3 -i /dev/random | xargs)"
+        PARAMS="$PARAMS,fdtransfer=$FDTRANSFER_PATH"
+        "$FDTRANSFER" "$FDTRANSFER_PATH" "$PID"
     fi
 }
 
@@ -131,6 +133,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 USE_FDTRANSFER="false"
+FDTRANSFER_PATH=""
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 DURATION="60"
@@ -259,7 +262,6 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --fdtransfer)
-            PARAMS="$PARAMS,fdtransfer"
             USE_FDTRANSFER="true"
             ;;
         --safe-mode)

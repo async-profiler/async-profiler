@@ -28,7 +28,7 @@ class FdTransferClient {
     static int recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size);
 
   public:
-    static bool connectToServer(const char *path, int pid);
+    static bool connectToServer(const char *path);
     static bool hasPeer() { return _peer != -1; }
     static void closePeer() {
         if (_peer != -1) {
@@ -45,7 +45,7 @@ class FdTransferClient {
 
 class FdTransferClient {
   public:
-    static bool connectToServer(const char *path, int pid) { return false; }
+    static bool connectToServer(const char *path) { return false; }
     static bool hasPeer() { return false; }
     static void closePeer() { }
 };
