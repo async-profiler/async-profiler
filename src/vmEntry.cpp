@@ -96,14 +96,12 @@ bool VM::init(JavaVM* vm, bool attach) {
         return false;
     }
 
-#ifdef __APPLE__
     Dl_info dl_info;
     if (dladdr((const void*)wakeupHandler, &dl_info) && dl_info.dli_fname != NULL) {
         // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
-        // On Linux, we use 'nodelete' linker option.
+        // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
         dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
     }
-#endif
 
     bool is_hotspot = false;
     bool is_zero_vm = false;
