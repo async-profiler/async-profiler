@@ -138,7 +138,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
 
-    _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
+    _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self*"));
     _can_sample_objects = !is_hotspot || hotspot_version() >= 11;
 
     CodeCache* lib = isOpenJ9()
