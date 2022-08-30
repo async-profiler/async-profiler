@@ -68,7 +68,13 @@ bool FdTransferServer::bindServer(struct sockaddr_un *sun, socklen_t addrlen, in
         }
     }
 
-    if (bind(_server, (const struct sockaddr*)sun, addrlen) < 0 || listen(_server, 1) < 0) {
+    if (bind(_server, (const struct sockaddr*)sun, addrlen) < 0) {
+        perror("FdTransfer bind()");
+        close(_server);
+        return false;
+    }
+
+    if (listen(_server, 1) < 0) {
         perror("FdTransfer listen()");
         close(_server);
         return false;
@@ -267,7 +273,7 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
     return true;
 }
 
-static int single_pid_server(int pid) {
+static int single_pid_server(int pid, const char *path) {
     // get its nspid prior to moving to its PID namespace.
     int nspid;
     uid_t _target_uid;
@@ -279,7 +285,7 @@ static int single_pid_server(int pid) {
 
     struct sockaddr_un sun;
     socklen_t addrlen;
-    if (!socketPathForPid(nspid, &sun, &addrlen)) {
+    if (!socketPath(path, &sun, &addrlen)) {
         fprintf(stderr, "Path too long\n");
         return 1;
     }
@@ -287,9 +293,12 @@ static int single_pid_server(int pid) {
     // Create the server before forking, so w're ready to accept connections once our parent
     // exits.
 
-    if (enter_ns(pid, "net") == -1) {
-        fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
-        return 1;
+    // Abstract namespace UDS requires us to move network namespace.
+    if (sun.sun_path[0] == '\0') {
+        if (enter_ns(pid, "net") == -1) {
+            fprintf(stderr, "Failed to enter the net NS of target process %d\n", pid);
+            return 1;
+        }
     }
 
     if (!FdTransferServer::bindServer(&sun, addrlen, 10)) {
@@ -360,18 +369,19 @@ static int path_server(const char *path) {
 }
 
 int main(int argc, const char** argv) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s <pid>|<path>\n", argv[0]);
+    int pid = 0;
+    if (argc == 3) {
+        pid = atoi(argv[2]);
+    } else if (argc != 2) {
+        fprintf(stderr, "Usage: %s <path> [<pid>]\n", argv[0]);
         return 1;
     }
 
-    int pid = atoi(argv[1]);
     // 2 modes:
-    // pid == 0 - bind on a path and accept requests forever, from any PID, until being killed
-    // pid != 0 - bind on an abstract namespace UDS for that PID, accept requests only from that PID
-    //            until the single connection is closed.
+    // pid is not given - bind on a path and accept requests forever, from any PID, until being killed.
+    // pid is given     - bind on an path for that PID, accept requests only from that PID until the single connection is closed.
     if (pid != 0) {
-        return single_pid_server(pid);
+        return single_pid_server(pid, argv[1]);
     } else {
         return path_server(argv[1]);
     }

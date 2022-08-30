@@ -45,6 +45,7 @@ CodeCache::CodeCache(const char* name, short lib_index, const void* min_address,
     _got_start = NULL;
     _got_end = NULL;
     _got_patchable = false;
+    _debug_symbols = false;
 
     _dwarf_table = NULL;
     _dwarf_table_length = 0;

@@ -33,6 +33,8 @@ class Arguments {
     boolean total;
     boolean lines;
     boolean bci;
+    boolean simple;
+    boolean dot;
     boolean collapsed;
     long from;
     long to;

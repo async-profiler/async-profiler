@@ -31,7 +31,7 @@
 
 int FdTransferClient::_peer = -1;
 
-bool FdTransferClient::connectToServer(const char *path, int pid) {
+bool FdTransferClient::connectToServer(const char *path) {
     closePeer();
 
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -42,14 +42,8 @@ bool FdTransferClient::connectToServer(const char *path, int pid) {
 
     struct sockaddr_un sun;
     socklen_t addrlen;
-    if (path != NULL) {
-        if (!socketPath(path, &sun, &addrlen)) {
-            return false;
-        }
-    } else {
-        if (!socketPathForPid(pid, &sun, &addrlen)) {
-            return false;
-        }
+    if (!socketPath(path, &sun, &addrlen)) {
+        return false;
     }
 
     // Do not block for more than 10 seconds when waiting for a response

@@ -93,6 +93,7 @@ class CodeCache {
     void** _got_start;
     void** _got_end;
     bool _got_patchable;
+    bool _debug_symbols;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
@@ -137,6 +138,14 @@ class CodeCache {
 
     void** gotEnd() const {
         return _got_end;
+    }
+
+    bool hasDebugSymbols() const {
+        return _debug_symbols;
+    }
+
+    void setDebugSymbols(bool debug_symbols) {
+        _debug_symbols = debug_symbols;
     }
 
     void add(const void* start, int length, const char* name, bool update_bounds = false);

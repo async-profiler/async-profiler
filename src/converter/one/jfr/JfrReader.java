@@ -304,10 +304,10 @@ public class JfrReader implements Closeable {
                 buf.position(buf.position() + (CHUNK_HEADER_SIZE + 3));
                 break;
             case "java.lang.Thread":
-                readThreads(type.field("group") != null);
+                readThreads(type.fields.size());
                 break;
             case "java.lang.Class":
-                readClasses(type.field("hidden") != null);
+                readClasses(type.fields.size());
                 break;
             case "jdk.types.Symbol":
                 readSymbols();
@@ -329,7 +329,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private void readThreads(boolean hasGroup) {
+    private void readThreads(int fieldCount) {
         int count = threads.preallocate(getVarint());
         for (int i = 0; i < count; i++) {
             long id = getVarlong();
@@ -337,12 +337,12 @@ public class JfrReader implements Closeable {
             int osThreadId = getVarint();
             String javaName = getString();
             long javaThreadId = getVarlong();
-            if (hasGroup) getVarlong();
+            readFields(fieldCount - 4);
             threads.put(id, javaName != null ? javaName : osName);
         }
     }
 
-    private void readClasses(boolean hasHidden) {
+    private void readClasses(int fieldCount) {
         int count = classes.preallocate(getVarint());
         for (int i = 0; i < count; i++) {
             long id = getVarlong();
@@ -350,7 +350,7 @@ public class JfrReader implements Closeable {
             long name = getVarlong();
             long pkg = getVarlong();
             int modifiers = getVarint();
-            if (hasHidden) getVarint();
+            readFields(fieldCount - 4);
             classes.put(id, new ClassRef(name));
         }
     }
@@ -434,6 +434,12 @@ public class JfrReader implements Closeable {
             } else {
                 getString();
             }
+        }
+    }
+
+    private void readFields(int count) {
+        while (count-- > 0) {
+            getVarlong();
         }
     }
 

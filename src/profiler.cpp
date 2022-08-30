@@ -406,6 +406,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
             if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name)
                     && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                java_ctx->pc = (const void*)frame.pc();
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
         } else if (VMStructs::hasMethodStructs()) {
@@ -541,6 +542,12 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
             return;
         }
 
+        // If the top frame is a runtime stub, skip it
+        if (num_frames > 0 && frames[0].bci == BCI_NATIVE_FRAME) {
+            frames++;
+            num_frames--;
+        }
+
         // Mark current_method as COMPILED and frames above current_method as INLINED
         for (int i = 0; i < num_frames; i++) {
             if (frames[i].method_id == NULL || frames[i].bci <= BCI_NATIVE_FRAME) {
@@ -606,12 +613,14 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
             }
         }
         num_frames += java_frames;
-    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && VMStructs::_get_stack_trace != NULL) {
-        // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
-        // but not directly, since the thread is in_vm rather than in_native
-        num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && !VM::isOpenJ9()) {
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
+        if (VMStructs::_get_stack_trace != NULL) {
+            // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
+            // but not directly, since the thread is in_vm rather than in_native
+            num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
+        } else {
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+        }
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
@@ -919,7 +928,7 @@ Error Profiler::checkJvmCapabilities() {
         return Error("Could not set dlopen hook. Unsupported JVM?");
     }
 
-    if (!VMStructs::hasDebugSymbols() && !VM::isOpenJ9()) {
+    if (!VMStructs::libjvm()->hasDebugSymbols()) {
         Log::warn("Install JVM debug symbols to improve profile accuracy");
     }
 
@@ -947,7 +956,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (args._fdtransfer) {
-        if (!FdTransferClient::connectToServer(args._fdtransfer_path, OS::processId())) {
+        if (!FdTransferClient::connectToServer(args._fdtransfer_path)) {
             return Error("Failed to initialize FdTransferClient");
         }
     }
