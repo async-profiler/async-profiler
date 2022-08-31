@@ -242,7 +242,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param nids    - number of await frames
      * @return
      */
-    public native long saveAwaitFrames(int tp, long[] ids, int nids);
+    public static native long saveAwaitFrames(int tp, long[] ids, int nids);
 
     /** Convenience methods, in conjuction with above.  */
     public static native long getMethodID(Class cls, String method, String sig, boolean isStatic);

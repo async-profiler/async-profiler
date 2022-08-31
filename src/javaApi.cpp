@@ -66,7 +66,7 @@ Java_one_profiler_AsyncProfiler_getAwaitSampledSignal(JNIEnv* env, jobject unuse
 }
 
 extern "C" JNIEXPORT long JNICALL
-Java_one_profiler_AsyncProfiler_saveAwaitFrames(JNIEnv* env, jclass unused, int ft, jlongArray ids, jint nids) {
+Java_one_profiler_AsyncProfiler_saveAwaitFrames(JNIEnv* env, jobject unused, int ft, jlongArray ids, jint nids) {
   jlong *elems = (jlong*) env->GetPrimitiveArrayCritical(ids, 0);
   long ret = Profiler::instance()->saveAwaitFrames(static_cast<AwaitFrameType>(ft), elems, nids);
   env->ReleasePrimitiveArrayCritical(ids, (void*) elems, 0);
