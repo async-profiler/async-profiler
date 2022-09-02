@@ -111,6 +111,28 @@ const int PERF_REG_PC = 32;  // PERF_REG_POWERPC_NIP
 #define rmb()             asm volatile ("sync" : : : "memory") // lwsync would do but better safe than sorry
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
+#elif defined(__riscv) && (__riscv_xlen == 64)
+
+typedef unsigned int instruction_t;
+#if defined(__riscv_compressed)
+const instruction_t BREAKPOINT = 0x9002; // EBREAK (compressed form)
+#else
+const instruction_t BREAKPOINT = 0x00100073; // EBREAK
+#endif
+const int BREAKPOINT_OFFSET = 0;
+
+const int SYSCALL_SIZE = sizeof(instruction_t);
+const int FRAME_PC_SLOT = 1;    // return address is at -1 from FP
+const int ADJUST_RET = 0;       // No need for adjustments
+const int PROBE_SP_LIMIT = 0;
+const int PLT_HEADER_SIZE = 24; // Best guess from examining readelf
+const int PLT_ENTRY_SIZE = 24;  // ...same...
+const int PERF_REG_PC = 0;      // PERF_REG_RISCV_PC
+
+#define spinPause()       // No architecture support
+#define rmb()             asm volatile ("fence" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+
 #else
 
 #error "Compiling on unsupported arch"

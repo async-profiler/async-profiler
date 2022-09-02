@@ -70,22 +70,22 @@ else
     else
       ARCH_TAG=arm32
     endif
+  else ifeq ($(findstring aarch64,$(ARCH)),aarch64)
+    ARCH_TAG=arm64
+  else ifeq ($(ARCH),ppc64le)
+    ARCH_TAG=ppc64le
+  else ifeq ($(ARCH),riscv64)
+    ARCH_TAG=riscv64
   else
-    ifeq ($(findstring aarch64,$(ARCH)),aarch64)
-      ARCH_TAG=arm64
-    else
-      ifeq ($(ARCH),ppc64le)
-        ARCH_TAG=ppc64le
-      else
-        ARCH_TAG=x86
-      endif
-    endif
+    ARCH_TAG=x86
   endif
 endif
 
 ifneq ($(ARCH),ppc64le)
   ifneq ($(ARCH_TAG),arm32)
-    CXXFLAGS += -momit-leaf-frame-pointer
+    ifneq ($(ARCH_TAG),riscv64)
+      CXXFLAGS += -momit-leaf-frame-pointer
+    endif
   endif
 endif
 
