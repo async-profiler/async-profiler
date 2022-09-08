@@ -328,6 +328,10 @@ static int accept_client(int s, unsigned long long key) {
         return -1;
     }
 
+    // Reset the timeout, as the command execution may take arbitrary long time
+    struct timeval tv0 = {0, 0};
+    setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv0, sizeof(tv0));
+
     return client;
 }
 
