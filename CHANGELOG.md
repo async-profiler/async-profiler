@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.8.8] - 2022-09-10
+
+### Bug fixes
+ - Could not find NativeLibrary_load on JDK 11.0.15
+
 ## [1.8.7] - 2021-10-01
 
 ### Bug fixes
