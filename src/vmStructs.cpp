@@ -391,10 +391,12 @@ void VMStructs::initLogging(JNIEnv* env) {
                 const char* s = env->GetStringUTFChars(log_config, NULL);
                 if (s != NULL) {
                     const char* p = strstr(s, "#0: ");
-                    const char* q;
-                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL &&
-                        (q = strchr(p + 1, '\n')) != NULL && q - p < sizeof(cmd) - 41) {
-                        memcpy(cmd + 41, p + 1, q - p - 1);
+                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL) {
+                        const char* q = p + 1;  // start of decorators
+                        while (*q > ' ') q++;
+                        if (q - p < sizeof(cmd) - 41) {
+                            memcpy(cmd + 41, p + 1, q - p - 1);
+                        }
                     }
                     env->ReleaseStringUTFChars(log_config, s);
                 }
