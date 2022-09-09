@@ -46,8 +46,8 @@ static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
 }
 
 
-const int BUFFER_SIZE = 1024;
-const int BUFFER_LIMIT = BUFFER_SIZE - 128;
+const int SMALL_BUFFER_SIZE = 1024;
+const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
@@ -276,12 +276,13 @@ class Lookup {
 class Buffer {
   private:
     int _offset;
-    char _data[BUFFER_SIZE - sizeof(int)];
+    char _data[0];
 
-  public:
+  protected:
     Buffer() : _offset(0) {
     }
 
+  public:
     const char* data() const {
         return _data;
     }
@@ -385,6 +386,15 @@ class Buffer {
     }
 };
 
+class SmallBuffer : public Buffer {
+  private:
+    char _buf[SMALL_BUFFER_SIZE - sizeof(Buffer)];
+
+  public:
+    SmallBuffer() : Buffer() {
+    }
+};
+
 class RecordingBuffer : public Buffer {
   private:
     char _buf[RECORDING_BUFFER_SIZE - sizeof(Buffer)];
@@ -424,7 +434,7 @@ class Recording {
     int _recorded_lib_count;
 
     bool _cpu_monitor_enabled;
-    Buffer _cpu_monitor_buf;
+    SmallBuffer _cpu_monitor_buf;
     CpuTimes _last_times;
 
     static float ratio(float value) {
@@ -572,7 +582,7 @@ class Recording {
         }
 
         recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
+        flushIfNeeded(&_cpu_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_times = times;
     }
