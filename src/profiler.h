@@ -143,8 +143,8 @@ class Profiler {
     JNINativeMethod _load_method;
     void* _original_NativeLibrary_load;
     void* _trapped_NativeLibrary_load;
-    static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin);
-    static jboolean JNICALL NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni);
+    static jboolean JNICALL NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin, jboolean throws);
+    static jboolean JNICALL NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni, jboolean throws);
     void bindNativeLibraryLoad(JNIEnv* env, bool enable);
 
     // Support for intercepting Thread.setNativeName()

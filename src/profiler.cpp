@@ -596,16 +596,16 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, jmetho
     _locks[lock_index].unlock();
 }
 
-jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean))
-                       _instance._original_NativeLibrary_load)(env, self, name, builtin);
+jboolean JNICALL Profiler::NativeLibraryLoadTrap(JNIEnv* env, jobject self, jstring name, jboolean builtin, jboolean throws) {
+    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jstring, jboolean, jboolean))
+                       _instance._original_NativeLibrary_load)(env, self, name, builtin, throws);
     _instance.updateSymbols(false);
     return result;
 }
 
-jboolean JNICALL Profiler::NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni) {
-    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jobject, jstring, jboolean, jboolean))
-                       _instance._original_NativeLibrary_load)(env, self, lib, name, builtin, jni);
+jboolean JNICALL Profiler::NativeLibrariesLoadTrap(JNIEnv* env, jobject self, jobject lib, jstring name, jboolean builtin, jboolean jni, jboolean throws) {
+    jboolean result = ((jboolean JNICALL (*)(JNIEnv*, jobject, jobject, jstring, jboolean, jboolean, jboolean))
+                       _instance._original_NativeLibrary_load)(env, self, lib, name, builtin, jni, throws);
     _instance.updateSymbols(false);
     return result;
 }
@@ -616,6 +616,8 @@ void JNICALL Profiler::ThreadSetNativeNameTrap(JNIEnv* env, jobject self, jstrin
 }
 
 void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
+    static unsigned int warning_reported = 0;
+
     jclass NativeLibrary;
 
     if (_original_NativeLibrary_load == NULL) {
@@ -625,15 +627,25 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             strcpy(original_jni_name, "Java_jdk_internal_loader_NativeLibraries_");
             _trapped_NativeLibrary_load = (void*)NativeLibrariesLoadTrap;
 
-            // JDK 15+
-            _load_method.name = (char*)"load";
-            _load_method.signature = (char*)"(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZ)Z";
+            if (env->GetStaticMethodID(NativeLibrary, "load", "(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZZ)Z") != NULL) {
+                // JDK 17+
+                _load_method.name = (char*)"load";
+                _load_method.signature = (char*)"(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZZ)Z";
+            } else {
+                // JDK 15-16
+                _load_method.name = (char*)"load";
+                _load_method.signature = (char*)"(Ljdk/internal/loader/NativeLibraries$NativeLibraryImpl;Ljava/lang/String;ZZ)Z";
+            }
 
         } else if ((NativeLibrary = env->FindClass("java/lang/ClassLoader$NativeLibrary")) != NULL) {
             strcpy(original_jni_name, "Java_java_lang_ClassLoader_00024NativeLibrary_");
             _trapped_NativeLibrary_load = (void*)NativeLibraryLoadTrap;
 
-            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)Z") != NULL) {
+            if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;ZZ)Z") != NULL) {
+                // JDK 11.0.15+ (workaround for JDK-8288547)
+                _load_method.name = (char*)"load0";
+                _load_method.signature = (char*)"(Ljava/lang/String;ZZ)Z";
+            } else if (env->GetMethodID(NativeLibrary, "load0", "(Ljava/lang/String;Z)Z") != NULL) {
                 // JDK 9-14
                 _load_method.name = (char*)"load0";
                 _load_method.signature = (char*)"(Ljava/lang/String;Z)Z";
@@ -648,13 +660,13 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             }
 
         } else {
-            fprintf(stderr, "WARNING: Failed to intercept NativeLibraries.load()\n");
+            if (!warning_reported++) fprintf(stderr, "WARNING: async-profiler failed to intercept NativeLibraries.load()\n");
             return;
         }
 
         strcat(original_jni_name, _load_method.name);
         if ((_original_NativeLibrary_load = dlsym(VM::_libjava, original_jni_name)) == NULL) {
-            fprintf(stderr, "WARNING: Could not find %s\n", original_jni_name);
+            if (!warning_reported++) fprintf(stderr, "WARNING: async-profiler could not find %s\n", original_jni_name);
             return;
         }
 
@@ -663,7 +675,7 @@ void Profiler::bindNativeLibraryLoad(JNIEnv* env, bool enable) {
             ? "jdk/internal/loader/NativeLibraries"
             : "java/lang/ClassLoader$NativeLibrary";
         if ((NativeLibrary = env->FindClass(class_name)) == NULL) {
-            fprintf(stderr, "WARNING: Could not find %s\n", class_name);
+            if (!warning_reported++) fprintf(stderr, "WARNING: async-profiler could not find %s\n", class_name);
             return;
         }
     }
