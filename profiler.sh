@@ -10,6 +10,7 @@ usage() {
     echo "  dump              dump collected data without stopping profiling session"
     echo "  check             check if the specified profiling event is available"
     echo "  status            print profiling status"
+    echo "  meminfo           print profiler memory stats"
     echo "  list              list profiling events supported by the target JVM"
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
@@ -149,7 +150,7 @@ while [ $# -gt 0 ]; do
         -h|"-?")
             usage
             ;;
-        start|resume|stop|dump|check|status|list|collect)
+        start|resume|stop|dump|check|status|meminfo|list|collect)
             ACTION="$1"
             ;;
         -v|--version)
@@ -349,7 +350,7 @@ case $ACTION in
     stop|dump)
         jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT"
         ;;
-    status|list)
+    status|meminfo|list)
         jattach "$ACTION,file=$FILE"
         ;;
     version)

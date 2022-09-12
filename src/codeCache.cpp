@@ -34,6 +34,10 @@ void NativeFunc::destroy(char* name) {
     free(from(name));
 }
 
+size_t NativeFunc::usedMemory(const char* name) {
+    return sizeof(NativeFunc) + 1 + strlen(from(name)->_name);
+}
+
 
 CodeCache::CodeCache(const char* name, short lib_index, const void* min_address, const void* max_address) {
     _name = NativeFunc::create(name, -1);
@@ -223,4 +227,14 @@ FrameDesc* CodeCache::findFrameDesc(const void* pc) {
     }
 
     return low > 0 ? &_dwarf_table[low - 1] : NULL;
+}
+
+size_t CodeCache::usedMemory() {
+    size_t bytes = _capacity * sizeof(CodeBlob);
+    bytes += _dwarf_table_length * sizeof(FrameDesc);
+    bytes += NativeFunc::usedMemory(_name);
+    for (int i = 0; i < _count; i++) {
+        bytes += NativeFunc::usedMemory(_blobs[i]._name);
+    }
+    return bytes;
 }

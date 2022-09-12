@@ -322,6 +322,8 @@ The following is a complete list of the command-line options accepted by
 * `status` - prints profiling status: whether profiler is active and
   for how long.
 
+* `meminfo` - prints used memory statistics.
+
 * `list` - show the list of profiling events available for the target process
   (if PID is specified) or for the default JVM.
 

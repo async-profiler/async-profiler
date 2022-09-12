@@ -120,6 +120,15 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
             }
         }
     }
+
+    size_t usedMemory() {
+        size_t bytes = 0;
+        for (const_iterator it = begin(); it != end(); ++it) {
+            bytes += sizeof(jmethodID) + sizeof(MethodInfo);
+            bytes += it->second._line_number_table_size * sizeof(jvmtiLineNumberEntry);
+        }
+        return bytes;
+    }
 };
 
 class Lookup {
@@ -555,6 +564,10 @@ class Recording {
 
     bool needSwitchChunk(u64 wall_time) {
         return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _start_time >= _chunk_time;
+    }
+
+    size_t usedMemory() {
+        return _method_map.usedMemory() + _thread_set.usedMemory();
     }
 
     void cpuMonitorCycle() {
@@ -1234,6 +1247,16 @@ void FlightRecorder::flush() {
         _rec->switchChunk();
         _rec_lock.unlock();
     }
+}
+
+size_t FlightRecorder::usedMemory() {
+    size_t bytes = 0;
+    if (_rec != NULL) {
+        _rec_lock.lock();
+        bytes = _rec->usedMemory();
+        _rec_lock.unlock();
+    }
+    return bytes;
 }
 
 bool FlightRecorder::timerTick(u64 wall_time) {

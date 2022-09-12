@@ -60,6 +60,8 @@ class ThreadFilter {
     void init(const char* filter);
     void clear();
 
+    size_t usedMemory();
+
     bool accept(int thread_id);
     void add(int thread_id);
     void remove(int thread_id);

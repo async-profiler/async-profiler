@@ -59,6 +59,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     dump             - dump collected data without stopping profiling session
 //     check            - check if the specified profiling event is available
 //     status           - print profiling status (inactive / running for X seconds)
+//     meminfo          - print profiler memory stats
 //     list             - show the list of available profiling events
 //     version[=full]   - display the agent version
 //     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
@@ -146,6 +147,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("status")
                 _action = ACTION_STATUS;
+
+            CASE("meminfo")
+                _action = ACTION_MEMINFO;
 
             CASE("list")
                 _action = ACTION_LIST;

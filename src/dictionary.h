@@ -50,6 +50,7 @@ class Dictionary {
     volatile unsigned int _base_index;
 
     static void clear(DictTable* table);
+    static size_t usedMemory(DictTable* table);
 
     static unsigned int hash(const char* key, size_t length);
 
@@ -60,6 +61,7 @@ class Dictionary {
     ~Dictionary();
 
     void clear();
+    size_t usedMemory();
 
     unsigned int lookup(const char* key);
     unsigned int lookup(const char* key, size_t length);

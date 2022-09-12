@@ -55,6 +55,10 @@ class LongHashTable {
         return prev;
     }
 
+    size_t usedMemory() {
+        return getSize(_capacity);
+    }
+
     LongHashTable* prev() {
         return _prev;
     }
@@ -106,6 +110,14 @@ void CallTraceStorage::clear() {
     _current_table->clear();
     _allocator.clear();
     _overflow = 0;
+}
+
+size_t CallTraceStorage::usedMemory() {
+    size_t bytes = _allocator.usedMemory();
+    for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
+        bytes += table->usedMemory();
+    }
+    return bytes;
 }
 
 void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
