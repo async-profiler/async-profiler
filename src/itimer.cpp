@@ -42,7 +42,13 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
-    J9StackTraceNotification notif = { .num_frames = 0, .truncated = false };
+    J9StackTraceNotification notif = {
+        .env = NULL,
+        .counter = 0,
+        .num_frames = 0, 
+        .truncated = false,
+        .reserved = 0
+    };
     StackContext java_ctx;
     notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
         ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &notif.truncated)

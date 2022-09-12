@@ -731,7 +731,13 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
-        J9StackTraceNotification notif = { .counter = (u64)_interval, .num_frames = 0, .truncated = false };
+        J9StackTraceNotification notif = {
+            .env = NULL,
+            .counter = (u64)_interval,
+            .num_frames = 0, 
+            .truncated = false,
+            .reserved = 0
+        };
         StackContext java_ctx;
         notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx);
         if (_cstack == CSTACK_DWARF) {

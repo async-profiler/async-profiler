@@ -12,7 +12,7 @@ API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
-CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
+CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden -std=c++11
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/res -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
@@ -35,7 +35,7 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS),Darwin)
-  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE -std=c++11
+  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   FDTRANSFER_BIN=
   SOEXT=dylib
