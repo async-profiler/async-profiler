@@ -19,10 +19,13 @@ import java.lang.reflect.Modifier;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.StringTokenizer;
+import java.util.regex.Pattern;
 
 class Arguments {
     String title = "Flame Graph";
     String highlight;
+    Pattern include;
+    Pattern exclude;
     double minwidth;
     int skip;
     boolean reverse;
@@ -62,6 +65,8 @@ class Arguments {
                         f.setDouble(this, Double.parseDouble(args[++i]));
                     } else if (type == long.class) {
                         f.setLong(this, parseTimestamp(args[++i]));
+                    } else if (type == Pattern.class) {
+                        f.set(this, Pattern.compile(args[++i]));
                     }
                 } catch (NoSuchFieldException | IllegalAccessException e) {
                     throw new IllegalArgumentException(arg);
