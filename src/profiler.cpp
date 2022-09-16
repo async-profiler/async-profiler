@@ -1175,11 +1175,11 @@ void Profiler::printUsedMemory(std::ostream& out) {
     char buf[1024];
     const size_t KB = 1024;
     snprintf(buf, sizeof(buf) - 1,
-             "Call trace storage: %7d KB\n"
-             "      Dictionaries: %7d KB\n"
-             "        Code cache: %7d KB\n"
+             "Call trace storage: %7zu KB\n"
+             "      Dictionaries: %7zu KB\n"
+             "        Code cache: %7zu KB\n"
              "------------------------------\n"
-             "             Total: %7d KB\n",
+             "             Total: %7zu KB\n",
              call_trace_storage / KB, dictionaries / KB, code_cache / KB,
              (call_trace_storage + dictionaries + code_cache) / KB);
     out << buf;
