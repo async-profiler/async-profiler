@@ -20,6 +20,7 @@
 #include "tsc.h"
 #include "context.h"
 
+volatile bool LockTracer::_enabled = false;
 
 double LockTracer::_ticks_to_nanos;
 jlong LockTracer::_threshold;

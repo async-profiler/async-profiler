@@ -26,7 +26,7 @@ volatile u64 ObjectSampler::_allocated_bytes;
 
 void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                        jobject object, jclass object_klass, jlong size) {
-    if (_enabled) {
+    if (_interval > 0) {
         recordAllocation(jvmti, BCI_ALLOC, object_klass, size);
     }
 }

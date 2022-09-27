@@ -23,6 +23,7 @@
 
 class J9WallClock : public Engine {
   private:
+    static volatile bool _enabled;
     static long _interval;
 
     int _max_stack_depth;
@@ -51,6 +52,10 @@ class J9WallClock : public Engine {
 
     Error start(Arguments& args);
     void stop();
+
+    inline void enableEvents(bool enabled) {
+      _enabled = enabled;
+    }
 };
 
 #endif // _J9WALLCLOCK_H

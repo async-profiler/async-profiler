@@ -503,7 +503,7 @@ bool BytecodeRewriter::rewriteClass() {
     return true;
 }
 
-
+volatile bool Instrument::_enabled = false;
 char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;

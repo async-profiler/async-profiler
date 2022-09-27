@@ -22,8 +22,6 @@
 
 class Engine {
   protected:
-    static volatile bool _enabled;
-
     static bool updateCounter(volatile unsigned long long& counter, unsigned long long value, unsigned long long interval) {
         if (interval <= 1) {
             return true;
@@ -64,8 +62,8 @@ class Engine {
     virtual int registerThread(int tid) { return -1; }
     virtual void unregisterThread(int tid) {}
 
-    void enableEvents(bool enabled) {
-        _enabled = enabled;
+    virtual void enableEvents(bool enabled) {
+        // do nothing
     }
 };
 

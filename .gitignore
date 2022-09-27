@@ -17,3 +17,6 @@
 datadog/maven/tmp
 datadog/maven/repository
 datadog/maven/resources
+
+**/harness*
+**/launcher*

@@ -538,7 +538,7 @@ class PerfEvent : public SpinLock {
     friend class PerfEvents;
 };
 
-
+volatile bool PerfEvents::_enabled = false;
 int PerfEvents::_max_events = -1;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;

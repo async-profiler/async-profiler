@@ -23,6 +23,7 @@
 
 class ITimer : public Engine {
   private:
+    static volatile bool _enabled;
     static long _interval;
     static CStack _cstack;
 
@@ -45,6 +46,10 @@ class ITimer : public Engine {
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    inline void enableEvents(bool enabled) {
+      _enabled = enabled;
+    }
 };
 
 #endif // _ITIMER_H

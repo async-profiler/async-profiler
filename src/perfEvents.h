@@ -28,6 +28,7 @@ class StackContext;
 
 class PerfEvents : public Engine {
   private:
+    static volatile bool _enabled;
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
@@ -60,6 +61,10 @@ class PerfEvents : public Engine {
     static void resetBuffer(int tid);
 
     static const char* getEventName(int event_id);
+
+    inline void enableEvents(bool enabled) {
+      _enabled = enabled;
+    }
 };
 
 #endif // _PERFEVENTS_H

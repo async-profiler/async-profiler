@@ -26,6 +26,8 @@
 // Smaller intervals are practically unusable due to large overhead.
 const long MIN_INTERVAL = 100000;
 
+volatile bool WallClock::_enabled = false;
+
 ThreadState WallClock::getThreadState(void* ucontext) {
     StackFrame frame(ucontext);
     uintptr_t pc = frame.pc();

@@ -23,6 +23,7 @@
 
 class Instrument : public Engine {
   private:
+    static volatile bool _enabled;
     static char* _target_class;
     static bool _instrument_class_loaded;
     static u64 _interval;
@@ -53,6 +54,10 @@ class Instrument : public Engine {
                                           jint* new_class_data_len, u8** new_class_data);
 
     static void JNICALL recordSample(JNIEnv* jni, jobject unused);
+
+    inline void enableEvents(bool enabled) {
+      _enabled = enabled;
+    }
 };
 
 #endif // _INSTRUMENT_H

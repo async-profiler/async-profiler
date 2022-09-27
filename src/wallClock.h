@@ -41,6 +41,7 @@
  */
 class WallClock : public Engine {
   private:
+    static volatile bool _enabled;
     long _interval;
     bool _sample_idle_threads;
 
@@ -91,6 +92,10 @@ class WallClock : public Engine {
 
     Error start(Arguments& args);
     void stop();
+
+    inline void enableEvents(bool enabled) {
+        _enabled = enabled;
+    }
 };
 
 #endif // _WALLCLOCK_H

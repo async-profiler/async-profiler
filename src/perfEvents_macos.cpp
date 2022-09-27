@@ -18,7 +18,7 @@
 
 #include "perfEvents.h"
 
-
+volatile bool PerfEvents::_enabled = false;
 int PerfEvents::_max_events;
 PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;

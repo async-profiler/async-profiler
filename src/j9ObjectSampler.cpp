@@ -21,14 +21,14 @@
 
 void J9ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                       jobject object, jclass object_klass, jlong size) {
-    if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
+    if (_interval > 0  && updateCounter(_allocated_bytes, size, _interval)) {
         recordAllocation(jvmti, BCI_ALLOC, object_klass, size);
     }
 }
 
 void J9ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                     jobject object, jclass object_klass, jlong size) {
-    if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
+    if (_interval > 0  && updateCounter(_allocated_bytes, size, _interval)) {
         recordAllocation(jvmti, BCI_ALLOC_OUTSIDE_TLAB, object_klass, size);
     }
 }

@@ -19,6 +19,7 @@
 #include "j9Ext.h"
 #include "profiler.h"
 
+volatile bool J9WallClock::_enabled = false;
 
 long J9WallClock::_interval;
 

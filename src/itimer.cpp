@@ -22,7 +22,7 @@
 #include "stackWalker.h"
 #include "context.h"
 
-
+volatile bool ITimer::_enabled = false;
 long ITimer::_interval;
 CStack ITimer::_cstack;
 

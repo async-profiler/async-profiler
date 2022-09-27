@@ -34,6 +34,7 @@ class LockTracer : public Engine {
     static jclass _LockSupport;
     static jmethodID _getBlocker;
     static bool _initialized;
+    static volatile bool _enabled;
 
     static void initialize();
 
@@ -64,6 +65,10 @@ class LockTracer : public Engine {
 
     static void JNICALL MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
     static void JNICALL MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object);
+
+    inline void enableEvents(bool enabled) {
+      _enabled = enabled;
+    }
 };
 
 #endif // _LOCKTRACER_H
