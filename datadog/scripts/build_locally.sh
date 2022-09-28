@@ -77,7 +77,7 @@ esac
 TAG="async-profiler-build:$ARCH"
 
 if [ -z "$(docker images | grep async-profiler-build | grep ${ARCH})" ] || [ "yes" = "${FORCE_REBUILD}" ];then
-  docker build --build-arg IMAGE=${IMAGE} -t ${TAG} ${ASYNC_PROFILER_DIR}/datadog/docker
+  docker build --build-arg IMAGE=${IMAGE} -t ${TAG} --platform ${PLATFORM} ${ASYNC_PROFILER_DIR}/datadog/docker
 fi
 
 # create the native lib arch specific directory
