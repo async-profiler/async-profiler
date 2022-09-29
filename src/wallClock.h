@@ -49,7 +49,7 @@ class WallClock : public Engine {
     // when generating profiling signals. Otherwise applications with too many threads may
     // suffer from a big profiling overhead. Also, keeping this limit low enough helps
     // to avoid contention on a spin lock inside Profiler::recordSample().
-    long _threads_per_tick;
+    int _reservoir_size;
     bool _filtering;
 
     volatile bool _running;
@@ -67,13 +67,11 @@ class WallClock : public Engine {
     static void sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     void signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample);
 
-    long adjustInterval(long interval, int thread_count);
-
   public:
     constexpr WallClock(bool sample_idle_threads) :
         _sample_idle_threads(sample_idle_threads),
         _interval(LONG_MAX),
-        _threads_per_tick(0),
+        _reservoir_size(0),
         _filtering(false),
         _running(false),
         _thread(0) {}

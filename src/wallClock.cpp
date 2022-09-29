@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-#include <string.h>
+#include <math.h>
+#include <random>
 #include <unistd.h>
-#include <sys/types.h>
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "context.h"
-
-// Set the hard limit for thread walking interval to 100 microseconds.
-// Smaller intervals are practically unusable due to large overhead.
-const long MIN_INTERVAL = 100000;
 
 volatile bool WallClock::_enabled = false;
 
@@ -77,14 +73,7 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
     Profiler::instance()->recordSample(ucontext, last_sample, tid, event_type, &event);
 }
 
-long WallClock::adjustInterval(long interval, int thread_count) {
-    if (thread_count > _threads_per_tick) {
-        interval /= (thread_count + _threads_per_tick - 1) / _threads_per_tick;
-    }
-    return interval;
-}
-
-Error WallClock::start(Arguments& args) {
+Error WallClock::start(Arguments &args) {
     if (_sample_idle_threads) {
         int interval = args._event != NULL ? args._interval : args._wall;
         if (interval < 0) {
@@ -94,7 +83,7 @@ Error WallClock::start(Arguments& args) {
 
         _filtering = args._wall_filtering;
 
-        _threads_per_tick =
+        _reservoir_size =
             args._wall_threads_per_tick ?
                 args._wall_threads_per_tick :
                 DEFAULT_WALL_THREADS_PER_TICK;
@@ -109,7 +98,7 @@ Error WallClock::start(Arguments& args) {
 
         _filtering = args._cpu_filtering;
 
-        _threads_per_tick =
+        _reservoir_size =
             args._cpu_threads_per_tick ?
                 args._cpu_threads_per_tick :
                 DEFAULT_CPU_THREADS_PER_TICK;
@@ -132,7 +121,19 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
+bool shouldSample(
+        int self,
+        int thread_id,
+        bool sample_idle_threads,
+        bool thread_filter_enabled,
+        ThreadFilter* thread_filter) {
+    return thread_id != -1 && thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id))
+           && (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING);
+}
+
 void WallClock::timerLoop() {
+    std::vector<int> reservoir;
+    reservoir.reserve(_reservoir_size);
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();
@@ -141,50 +142,41 @@ void WallClock::timerLoop() {
     // FIXME: reenable when using thread filtering based on context. See context.cpp
     // ThreadList* thread_list = _filtering ? Contexts::listThreads() : OS::listThreads();
     ThreadList* thread_list = OS::listThreads();
-    long long next_cycle_time = OS::nanotime();
+
+    std::default_random_engine generator;
+    std::uniform_real_distribution<double> uniform(0.0, 1.0);
+    std::uniform_int_distribution<int> random_index(0, _reservoir_size);
 
     while (_running) {
-        if (!_enabled) {
-            OS::sleep(_interval);
-            continue;
-        }
-
-        if (sample_idle_threads) {
-            // Try to keep the wall clock interval stable, regardless of the number of profiled threads
-            int estimated_thread_count = thread_filter_enabled ? thread_filter->size() : thread_list->size();
-            next_cycle_time += adjustInterval(_interval, estimated_thread_count);
-        }
-
-        for (int count = 0; count < _threads_per_tick; ) {
-            int thread_id = thread_list->next();
-            if (thread_id == -1) {
-                thread_list->rewind();
-                break;
-            }
-
-            if (thread_id == self || (thread_filter_enabled && !thread_filter->accept(thread_id))) {
-                continue;
-            }
-
-            if (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING) {
-                if (OS::sendSignalToThread(thread_id, sample_idle_threads ? SIGVTALRM : SIGPROF)) {
-                    count++;
+        if (_enabled) {
+            int num_threads = thread_list->size();
+            for (int i = 0; i < num_threads && reservoir.size() < _reservoir_size; i++) {
+                int thread_id = thread_list->next();
+                if (shouldSample(self, thread_id, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                    reservoir.push_back(thread_id);
                 }
             }
-        }
-
-        if (sample_idle_threads) {
-            long long current_time = OS::nanotime();
-            if (next_cycle_time - current_time > MIN_INTERVAL) {
-                OS::sleep(next_cycle_time - current_time);
-            } else {
-                next_cycle_time = current_time + MIN_INTERVAL;
-                OS::sleep(MIN_INTERVAL);
+            if (reservoir.size() == _reservoir_size) {
+                double weight = exp(log(uniform(generator)) / _reservoir_size);
+                for (int i = _reservoir_size, skip = 0; i < num_threads; i += skip) {
+                    int thread_id = thread_list->next();
+                    if (shouldSample(self, thread_id, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                        reservoir[random_index(generator)] = thread_id;
+                    }
+                    skip = (int) (log(uniform(generator)) / log(1 - weight)) + 1;
+                    weight *= exp(log(uniform(generator)) / _reservoir_size);
+                    for (int j = 0; j < skip; j++) {
+                        // FIXME - don't need to parse thread id, add API to skip next thread
+                        thread_list->next();
+                    }
+                }
             }
-        } else {
-            OS::sleep(_interval);
+            for (auto const &thread_id: reservoir) {
+                OS::sendSignalToThread(thread_id, sample_idle_threads ? SIGVTALRM : SIGPROF);
+            }
+            reservoir.clear();
+            thread_list->rewind();
         }
+        OS::sleep(_interval);
     }
-
-    delete thread_list;
 }
