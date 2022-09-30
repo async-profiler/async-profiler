@@ -562,7 +562,10 @@ class Recording {
     }
 
     size_t usedMemory() {
-        return _method_map.usedMemory() + _thread_set.usedMemory();
+        return _thread_set.usedMemory() +
+               _lookup._method_map.usedMemory() +
+               _lookup._packages.usedMemory() +
+               _lookup._symbols.usedMemory();
     }
 
     void cpuMonitorCycle() {

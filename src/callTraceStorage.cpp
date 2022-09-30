@@ -56,7 +56,7 @@ class LongHashTable {
     }
 
     size_t usedMemory() const {
-        return getSize(_capacity);
+        return getSize();
     }
 
     LongHashTable* trim() {
