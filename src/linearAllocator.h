@@ -43,6 +43,7 @@ class LinearAllocator {
     ~LinearAllocator();
 
     void clear();
+    size_t usedMemory();
     Chunk* trim();
     void freeChain(Chunk* chunk);
 

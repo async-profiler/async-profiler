@@ -41,6 +41,14 @@ void LinearAllocator::clear() {
     _tail->offs = sizeof(Chunk);
 }
 
+size_t LinearAllocator::usedMemory() {
+    size_t bytes = _reserve->prev == _tail ? _chunk_size : 0;
+    for (Chunk* chunk = _tail; chunk != NULL; chunk = chunk->prev) {
+        bytes += _chunk_size;
+    }
+    return bytes;
+}
+
 Chunk* LinearAllocator::trim() {
     return __atomic_exchange_n(&_tail->prev, NULL, __ATOMIC_ACQ_REL);
 }

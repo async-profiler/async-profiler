@@ -46,8 +46,8 @@ static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
 }
 
 
-const int BUFFER_SIZE = 1024;
-const int BUFFER_LIMIT = BUFFER_SIZE - 128;
+const int SMALL_BUFFER_SIZE = 1024;
+const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
@@ -119,6 +119,15 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
                 jvmti->Deallocate((unsigned char*)line_number_table);
             }
         }
+    }
+
+    size_t usedMemory() {
+        size_t bytes = 0;
+        for (const_iterator it = begin(); it != end(); ++it) {
+            bytes += sizeof(jmethodID) + sizeof(MethodInfo);
+            bytes += it->second._line_number_table_size * sizeof(jvmtiLineNumberEntry);
+        }
+        return bytes;
     }
 };
 
@@ -270,12 +279,13 @@ class Lookup {
 class Buffer {
   private:
     int _offset;
-    char _data[BUFFER_SIZE - sizeof(int)];
+    char _data[0];
 
-  public:
+  protected:
     Buffer() : _offset(0) {
     }
 
+  public:
     const char* data() const {
         return _data;
     }
@@ -379,6 +389,15 @@ class Buffer {
     }
 };
 
+class SmallBuffer : public Buffer {
+  private:
+    char _buf[SMALL_BUFFER_SIZE - sizeof(Buffer)];
+
+  public:
+    SmallBuffer() : Buffer() {
+    }
+};
+
 class RecordingBuffer : public Buffer {
   private:
     char _buf[RECORDING_BUFFER_SIZE - sizeof(Buffer)];
@@ -418,7 +437,7 @@ class Recording {
     int _recorded_lib_count;
 
     bool _cpu_monitor_enabled;
-    Buffer _cpu_monitor_buf;
+    SmallBuffer _cpu_monitor_buf;
     CpuTimes _last_times;
 
     static float ratio(float value) {
@@ -542,6 +561,10 @@ class Recording {
         return loadAcquire(_bytes_written) >= _chunk_size || wall_time - _stop_time >= _chunk_time;
     }
 
+    size_t usedMemory() {
+        return _method_map.usedMemory() + _thread_set.usedMemory();
+    }
+
     void cpuMonitorCycle() {
         if (!_cpu_monitor_enabled) return;
 
@@ -567,7 +590,7 @@ class Recording {
         }
 
         recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-        flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
+        flushIfNeeded(&_cpu_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_times = times;
     }
@@ -1221,6 +1244,16 @@ void FlightRecorder::flush() {
         _rec->switchChunk();
         _rec_lock.unlock();
     }
+}
+
+size_t FlightRecorder::usedMemory() {
+    size_t bytes = 0;
+    if (_rec != NULL) {
+        _rec_lock.lock();
+        bytes = _rec->usedMemory();
+        _rec_lock.unlock();
+    }
+    return bytes;
 }
 
 bool FlightRecorder::timerTick(u64 wall_time) {

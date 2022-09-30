@@ -72,6 +72,7 @@ class CallTraceStorage {
     ~CallTraceStorage();
 
     void clear();
+    size_t usedMemory();
     Chunk* trimAllocator();
     LongHashTable* trimTable();
     void freeMemory(Chunk* chunk, LongHashTable* table);

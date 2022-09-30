@@ -27,6 +27,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 public class FlameGraph {
     public static final byte FRAME_INTERPRETED = 0;
@@ -68,6 +69,10 @@ public class FlameGraph {
     }
 
     public void addSample(String[] trace, long ticks) {
+        if (excludeTrace(trace)) {
+            return;
+        }
+
         Frame frame = root;
         if (args.reverse) {
             for (int i = trace.length; --i >= args.skip; ) {
@@ -151,6 +156,26 @@ public class FlameGraph {
         }
     }
 
+    private boolean excludeTrace(String[] trace) {
+        Pattern include = args.include;
+        Pattern exclude = args.exclude;
+        if (include == null && exclude == null) {
+            return false;
+        }
+
+        for (String frame : trace) {
+            if (exclude != null && exclude.matcher(frame).matches()) {
+                return true;
+            }
+            if (include != null && include.matcher(frame).matches()) {
+                include = null;
+                if (exclude == null) break;
+            }
+        }
+
+        return include != null;
+    }
+
     static String stripSuffix(String title) {
         return title.substring(0, title.length() - 4);
     }
@@ -188,6 +213,8 @@ public class FlameGraph {
             System.out.println("  --reverse");
             System.out.println("  --minwidth PERCENT");
             System.out.println("  --skip FRAMES");
+            System.out.println("  --include PATTERN");
+            System.out.println("  --exclude PATTERN");
             System.out.println("  --highlight PATTERN");
             System.exit(1);
         }

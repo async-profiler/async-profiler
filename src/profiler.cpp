@@ -1196,6 +1196,30 @@ Error Profiler::dump(std::ostream& out, Arguments& args) {
     return Error::OK;
 }
 
+void Profiler::printUsedMemory(std::ostream& out) {
+    size_t call_trace_storage = _call_trace_storage.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory() + _jfr.usedMemory();
+
+    size_t code_cache = _runtime_stubs.usedMemory();
+    int native_lib_count = _native_libs.count();
+    for (int i = 0; i < native_lib_count; i++) {
+        code_cache += _native_libs[i]->usedMemory();
+    }
+    code_cache += native_lib_count * sizeof(CodeCache);
+
+    char buf[1024];
+    const size_t KB = 1024;
+    snprintf(buf, sizeof(buf) - 1,
+             "Call trace storage: %7zu KB\n"
+             "      Dictionaries: %7zu KB\n"
+             "        Code cache: %7zu KB\n"
+             "------------------------------\n"
+             "             Total: %7zu KB\n",
+             call_trace_storage / KB, dictionaries / KB, code_cache / KB,
+             (call_trace_storage + dictionaries + code_cache) / KB);
+    out << buf;
+}
+
 void Profiler::lockAll() {
     for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
 }
@@ -1524,6 +1548,11 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             } else {
                 out << "Profiler is not active\n";
             }
+            break;
+        }
+        case ACTION_MEMINFO: {
+            MutexLocker ml(_state_lock);
+            printUsedMemory(out);
             break;
         }
         case ACTION_LIST: {

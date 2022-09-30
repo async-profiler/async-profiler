@@ -64,6 +64,8 @@ int jattach(int pid, int argc, char** argv) {
     }
 }
 
+#ifdef JATTACH_VERSION
+
 int main(int argc, char** argv) {
     if (argc < 3) {
         printf("jattach " JATTACH_VERSION " built on " __DATE__ "\n"
@@ -86,3 +88,5 @@ int main(int argc, char** argv) {
 
     return jattach(pid, argc - 2, argv + 2);
 }
+
+#endif // JATTACH_VERSION

@@ -44,6 +44,8 @@ class NativeFunc {
     static char* create(const char* name, short lib_index);
     static void destroy(char* name);
 
+    static size_t usedMemory(const char* name);
+
     static short libIndex(const char* name) {
         return from(name)->_lib_index;
     }
@@ -165,6 +167,8 @@ class CodeCache {
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+
+    size_t usedMemory();
 };
 
 

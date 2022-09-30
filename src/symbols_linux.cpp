@@ -146,6 +146,7 @@ class ElfParser {
     const char* _file_name;
     ElfHeader* _header;
     const char* _sections;
+    const char* _vaddr_diff;
 
     ElfParser(CodeCache* cc, const char* base, const void* addr, const char* file_name = NULL) {
         _cc = cc;
@@ -171,12 +172,13 @@ class ElfParser {
     }
 
     const char* at(ElfProgramHeader* pheader) {
-        return _header->e_type == ET_EXEC ? (const char*)pheader->p_vaddr : (const char*)_header + pheader->p_vaddr;
+        return _header->e_type == ET_EXEC ? (const char*)pheader->p_vaddr : _vaddr_diff + pheader->p_vaddr;
     }
 
     ElfSection* findSection(uint32_t type, const char* name);
     ElfProgramHeader* findProgramHeader(uint32_t type);
 
+    void calcVirtualLoadAddress();
     void parseDynamicSection();
     void parseDwarfInfo();
     void loadSymbols(bool use_debug);
@@ -253,9 +255,23 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
     ElfParser elf(cc, base, base);
     if (elf.validHeader()) {
         cc->setTextBase(base);
+        elf.calcVirtualLoadAddress();
         elf.parseDynamicSection();
         elf.parseDwarfInfo();
     }
+}
+
+void ElfParser::calcVirtualLoadAddress() {
+    // Find a difference between the virtual load address (often zero) and the actual DSO base
+    const char* pheaders = (const char*)_header + _header->e_phoff;
+    for (int i = 0; i < _header->e_phnum; i++) {
+        ElfProgramHeader* pheader = (ElfProgramHeader*)(pheaders + i * _header->e_phentsize);
+        if (pheader->p_type == PT_LOAD) {
+            _vaddr_diff = _base - pheader->p_vaddr;
+            return;
+        }
+    }
+    _vaddr_diff = _base;
 }
 
 void ElfParser::parseDynamicSection() {
