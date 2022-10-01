@@ -288,6 +288,7 @@ Error Arguments::parse(const char* args) {
                 if (_event == NULL) {
                     _event = EVENT_BPF;
                     _sched = true;
+                    _alloc_hook = true;
                 }
                 if (_fdtransfer_path == NULL) {
                     _fdtransfer = true;
@@ -321,6 +322,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+
+            CASE("allochook")
+                _alloc_hook = true;
 
             CASE("allkernel")
                 _ring = RING_KERNEL;

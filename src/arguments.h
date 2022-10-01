@@ -155,6 +155,7 @@ class Arguments {
     bool _loop;
     bool _threads;
     bool _sched;
+    bool _alloc_hook;
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
@@ -200,6 +201,7 @@ class Arguments {
         _loop(false),
         _threads(false),
         _sched(false),
+        _alloc_hook(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),
