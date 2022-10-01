@@ -229,15 +229,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
-                if (_alloc < 0) {
-                    msg = "alloc must be >= 0";
-                }
 
             CASE("lock")
                 _lock = value == NULL ? 0 : parseUnits(value, NANOS);
-                if (_lock < 0) {
-                    msg = "lock must be >= 0";
-                }
 
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
@@ -480,6 +474,9 @@ Output Arguments::detectOutputFormat(const char* file) {
 long Arguments::parseUnits(const char* str, const Multiplier* multipliers) {
     char* end;
     long result = strtol(str, &end, 0);
+    if (end == str) {
+        return -1;
+    }
 
     char c = *end;
     if (c == 0) {
