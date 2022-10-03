@@ -137,7 +137,7 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
-    Engine* selectAllocEngine(long alloc_interval);
+    Engine* selectAllocEngine(long alloc_interval, bool live);
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
@@ -191,6 +191,7 @@ class Profiler {
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
+    CallTraceStorage* callTraceStorage() { return &_call_trace_storage; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, std::ostream& out);
@@ -204,7 +205,7 @@ class Profiler {
     void printUsedMemory(std::ostream& out);
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
-    void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    u32 recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
     void recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);

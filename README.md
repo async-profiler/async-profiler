@@ -361,6 +361,10 @@ The following is a complete list of the command-line options accepted by
 * `--alloc N` - allocation profiling interval in bytes or in other units,
   if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (gigabytes).
 
+* `--live` - retain allocation samples with live objects only
+  (object that have not been collected by the end of profiling session).
+  Useful for finding Java heap memory leaks.
+
 * `--lock N` - lock profiling threshold in nanoseconds (or other units).
   In lock profiling mode, record contended locks that the JVM has waited for
   longer than the specified duration.

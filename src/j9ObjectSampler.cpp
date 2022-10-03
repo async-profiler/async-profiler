@@ -22,20 +22,23 @@
 void J9ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                       jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
-        recordAllocation(jvmti, BCI_ALLOC, object_klass, size);
+        recordAllocation(jvmti, jni, BCI_ALLOC, object, object_klass, size);
     }
 }
 
 void J9ObjectSampler::VMObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                     jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {
-        recordAllocation(jvmti, BCI_ALLOC_OUTSIDE_TLAB, object_klass, size);
+        recordAllocation(jvmti, jni, BCI_ALLOC_OUTSIDE_TLAB, object, object_klass, size);
     }
 }
 
 Error J9ObjectSampler::check(Arguments& args) {
     if (J9Ext::InstrumentableObjectAlloc_id < 0) {
         return Error("InstrumentableObjectAlloc is not supported on this JVM");
+    }
+    if (args._live) {
+        return Error("'live' option is supported on OpenJDK 11+");
     }
     return Error::OK;
 }
@@ -47,6 +50,7 @@ Error J9ObjectSampler::start(Arguments& args) {
     }
 
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
+    _live = false;
     _allocated_bytes = 0;
 
     jvmtiEnv* jvmti = VM::jvmti();

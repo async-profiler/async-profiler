@@ -25,9 +25,11 @@
 class ObjectSampler : public Engine {
   protected:
     static u64 _interval;
+    static bool _live;
     static volatile u64 _allocated_bytes;
 
-    static void recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size);
+    static void recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_type,
+                                 jobject object, jclass object_klass, jlong size);
 
   public:
     const char* title() {

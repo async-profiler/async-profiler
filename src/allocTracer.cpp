@@ -79,6 +79,10 @@ void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rkl
 }
 
 Error AllocTracer::check(Arguments& args) {
+    if (args._live) {
+        return Error("'live' option is supported on OpenJDK 11+");
+    }
+
     if (_in_new_tlab.entry() != 0 && _outside_tlab.entry() != 0) {
         return Error::OK;
     }

@@ -569,7 +569,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
-void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
+u32 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
@@ -585,7 +585,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
             PerfEvents::resetBuffer(tid);
         }
-        return;
+        return 0;
     }
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
@@ -639,6 +639,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
 
     _locks[lock_index].unlock();
+    return call_trace_id;
 }
 
 void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames) {
@@ -861,8 +862,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Engine* Profiler::selectAllocEngine(long alloc_interval) {
-    if (VM::canSampleObjects() && (alloc_interval > 0 || VM::hotspot_version() == 0)) {
+Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
+    if (VM::canSampleObjects() && (alloc_interval > 0 || live || VM::hotspot_version() == 0)) {
         return &object_sampler;
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;
@@ -1009,7 +1010,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        _alloc_engine = selectAllocEngine(args._alloc);
+        _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->start(args);
         if (error) {
             goto error2;
@@ -1097,7 +1098,7 @@ Error Profiler::check(Arguments& args) {
         error = _engine->check(args);
     }
     if (!error && args._alloc >= 0) {
-        _alloc_engine = selectAllocEngine(args._alloc);
+        _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->check(args);
     }
     if (!error && args._lock >= 0) {

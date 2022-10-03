@@ -36,6 +36,7 @@ usage() {
     echo ""
     echo "  --loop time       run profiler in a loop"
     echo "  --alloc bytes     allocation profiling interval in bytes"
+    echo "  --live            build allocation profile from live objects only"
     echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
     echo "  --all-user        only include user-mode events"
@@ -241,6 +242,9 @@ while [ $# -gt 0 ]; do
             ;;
         --sched)
             PARAMS="$PARAMS,sched"
+            ;;
+        --live)
+            PARAMS="$PARAMS,live"
             ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"

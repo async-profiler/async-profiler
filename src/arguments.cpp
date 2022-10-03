@@ -64,6 +64,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     version[=full]   - display the agent version
 //     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
 //     alloc[=BYTES]    - profile allocations with BYTES interval
+//     live             - build allocation profile from live objects only
 //     lock[=DURATION]  - profile contended locks longer than DURATION ns
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
@@ -291,6 +292,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+
+            CASE("live")
+                _live = true;
 
             CASE("allkernel")
                 _ring = RING_KERNEL;

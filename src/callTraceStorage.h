@@ -80,6 +80,7 @@ class CallTraceStorage {
     void collectSamples(std::map<u64, CallTraceSample>& map);
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    void add(u32 call_trace_id, u64 counter);
 };
 
 #endif // _CALLTRACESTORAGE
