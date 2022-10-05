@@ -63,10 +63,6 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
     int tid = OS::threadId();
-    if (tid < 0) {
-        // invalid tid - skip
-        return;
-    }
     int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
     Context ctx = Contexts::get(tid);
     if (!Contexts::filter(ctx, event_type)) {
