@@ -63,12 +63,18 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
     int tid = OS::threadId();
+    if (tid < 0) {
+        // invalid tid - skip
+        return;
+    }
     int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
-    if (!Contexts::filter(tid, event_type)) {
+    Context ctx = Contexts::get(tid);
+    if (!Contexts::filter(ctx, event_type)) {
         return;
     }
 
     ExecutionEvent event;
+    event._context = ctx;
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
     Profiler::instance()->recordSample(ucontext, last_sample, tid, event_type, &event);
 }

@@ -189,22 +189,23 @@ bool LockTracer::isConcurrentLock(const char* lock_name) {
 void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_time,
                                      const char* lock_name, jobject lock, jlong timeout) {
     int tid = OS::threadId();
-    if (!Contexts::filter(tid, event_type)) {
+    Context ctx = Contexts::get(tid);
+    if (!Contexts::filter(ctx, event_type)) {
         return;
     }
 
     LockEvent event;
-    event._class_id = 0;
     event._start_time = start_time;
     event._end_time = end_time;
     event._address = *(uintptr_t*)lock;
     event._timeout = timeout;
+    event._context = ctx;
 
     if (lock_name != NULL) {
         if (lock_name[0] == 'L') {
-            event._class_id = Profiler::instance()->classMap()->lookup(lock_name + 1, strlen(lock_name) - 2);
+            event._id = Profiler::instance()->classMap()->lookup(lock_name + 1, strlen(lock_name) - 2);
         } else {
-            event._class_id = Profiler::instance()->classMap()->lookup(lock_name);
+            event._id = Profiler::instance()->classMap()->lookup(lock_name);
         }
     }
 

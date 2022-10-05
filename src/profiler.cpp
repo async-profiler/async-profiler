@@ -65,7 +65,7 @@ static ObjectSampler object_sampler;
 // static J9ObjectSampler j9_object_sampler;
 static WallClock cpu_engine(false);
 static WallClock wall_engine(true);
-static J9WallClock j9_wall_clock;
+static J9WallClock j9_engine;
 static ITimer itimer;
 static Instrument instrument;
 static MemLeakTracer memleak_tracer;
@@ -588,7 +588,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
-    if (!Contexts::filter(tid, event_type)) {
+    if (!Contexts::filter(event->_context, event_type)) {
         return;
     }
 
@@ -610,8 +610,8 @@ void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
 
     int num_frames = 0;
-    if (!_jfr.active() && BCI_ALLOC >= event_type && event_type >= BCI_PARK && event->id()) {
-        num_frames = makeFrame(frames, event_type, event->id());
+    if (!_jfr.active() && BCI_ALLOC >= event_type && event_type >= BCI_PARK && event->_id) {
+        num_frames = makeFrame(frames, event_type, event->_id);
     }
 
     num_frames += convertFrames(jvmti_frames, frames + num_frames, num_jvmti_frames);
@@ -652,8 +652,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
-    if (_add_event_frame && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
-        num_frames = makeFrame(frames, event_type, event->id());
+    if (_add_event_frame && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->_id) {
+        num_frames = makeFrame(frames, event_type, event->_id);
     }
 
     StackContext java_ctx = {0};
@@ -702,7 +702,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
 void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
-    if (!Contexts::filter(tid, event_type)) {
+    if (!Contexts::filter(event->_context, event_type)) {
         return;
     }
 
@@ -725,7 +725,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_
         return;
     }
 
-    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
 
     _locks[lock_index].unlock();
 }
@@ -916,10 +916,13 @@ Engine* Profiler::selectCpuEngine(Arguments& args) {
     if (args._cpu < 0 && (args._event == NULL || strcmp(args._event, EVENT_NOOP) == 0)) {
         return &noop_engine;
     } else if (args._cpu >= 0 || strcmp(args._event, EVENT_CPU) == 0) {
-        return !perf_events.check(args) ? (Engine*)&perf_events :
-                    VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&cpu_engine;
+        if (VM::isOpenJ9()) {
+            // signal based samplers are unstable on J9
+            return (Engine*)&j9_engine;
+        }
+        return !perf_events.check(args) ? (Engine*)&perf_events : (Engine*)&cpu_engine;
     } else if (strcmp(args._event, EVENT_WALL) == 0) {
-        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_engine;
+        return (Engine*)&noop_engine;
     } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
         return &itimer;
     } else if (strchr(args._event, '.') != NULL && strchr(args._event, ':') == NULL) {
@@ -930,12 +933,12 @@ Engine* Profiler::selectCpuEngine(Arguments& args) {
 }
 
 Engine* Profiler::selectWallEngine(Arguments& args) {
-    if (args._wall < 0) {
+    if (args._wall < 0 && (args._event == NULL || strcmp(args._event, EVENT_WALL) != 0)) {
         return &noop_engine;
     }
     if (VM::isOpenJ9()) {
-        Log::warn("Wall Profiler is not supported on OpenJ9. Falling back to noop engine");
-        return &noop_engine;
+        j9_engine.sampleIdleThreads();
+        return (Engine*)&j9_engine;
     }
     return (Engine*)&wall_engine;
 }

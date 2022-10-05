@@ -24,9 +24,17 @@ volatile bool J9WallClock::_enabled = false;
 long J9WallClock::_interval;
 
 Error J9WallClock::start(Arguments& args) {
+    if (_running) {
+        // only one instance should be running
+        return Error::OK;
+    }
+
+    if (args._wall >= 0 || strcmp(args._event, EVENT_WALL) == 0) {
+        _sample_idle_threads = true;
+    }
     int interval = args._event != NULL ? args._interval : args._wall;
     if (interval < 0) {
-        return Error("interval must be positive");
+        return Error("interval must be non-negative");
     }
 
     _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
@@ -67,6 +75,15 @@ void J9WallClock::timerLoop() {
         if (J9Ext::GetAllStackTracesExtended(_max_stack_depth, (void**)&stack_infos, &thread_count) == 0) {
             for (int i = 0; i < thread_count; i++) {
                 jvmtiStackInfoExtended* si = &stack_infos[i];
+                if (si->frame_count <= 0) {
+                    // no frames recorded
+                    continue;
+                }
+                ThreadState ts = (si->state & JVMTI_THREAD_STATE_RUNNABLE) ? THREAD_RUNNING : THREAD_SLEEPING;
+                if (!_sample_idle_threads && ts != THREAD_RUNNING) {
+                    // in execution profiler mode the non-running threads are skipped
+                    continue;
+                }
                 for (int j = 0; j < si->frame_count; j++) {
                     jvmtiFrameInfoExtended* fi = &si->frame_buffer[j];
                     frames[j].method_id = fi->method;
@@ -74,9 +91,19 @@ void J9WallClock::timerLoop() {
                 }
 
                 int tid = J9Ext::GetOSThreadID(si->thread);
+                if (tid == -1) {
+                    // clearly an invalid TID; skip the thread
+                    continue;
+                }
                 ExecutionEvent event;
-                event._thread_state = (si->state & JVMTI_THREAD_STATE_RUNNABLE) ? THREAD_RUNNING : THREAD_SLEEPING;
-                Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames, /*truncated=*/false, BCI_WALL, &event);
+                event._thread_state = ts;
+                event._context = Contexts::get(tid);
+                if (ts == THREAD_RUNNING) {    
+                    Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames, /*truncated=*/false, BCI_CPU, &event);
+                }
+                if (_sample_idle_threads) {
+                    Profiler::instance()->recordExternalSample(_interval, tid, si->frame_count, frames, /*truncated=*/false, BCI_WALL, &event);
+                }
             }
             jvmti->Deallocate((unsigned char*)stack_infos);
         }

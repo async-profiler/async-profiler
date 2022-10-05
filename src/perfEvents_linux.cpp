@@ -708,12 +708,14 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     if (_enabled) {
         int tid = OS::threadId();
-        if (!Contexts::filter(tid, BCI_CPU)) {
+        Context ctx = Contexts::get(tid);
+        if (!Contexts::filter(ctx, BCI_CPU)) {
             return;
         }
 
         u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
+        event._context = ctx;
         Profiler::instance()->recordSample(ucontext, counter, tid, BCI_CPU, &event);
     } else {
         resetBuffer(OS::threadId());

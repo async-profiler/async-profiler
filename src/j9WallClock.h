@@ -26,6 +26,7 @@ class J9WallClock : public Engine {
     static volatile bool _enabled;
     static long _interval;
 
+    bool _sample_idle_threads;
     int _max_stack_depth;
     volatile bool _running;
     pthread_t _thread;
@@ -39,7 +40,7 @@ class J9WallClock : public Engine {
 
   public:
     const char* title() {
-        return "Wall clock profile";
+        return _sample_idle_threads ? "J9 WallClock Profiler" : "J9 Execution Profiler";
     }
 
     const char* units() {
@@ -47,7 +48,11 @@ class J9WallClock : public Engine {
     }
 
     const char* name() {
-        return "J9WallClock";
+        return _sample_idle_threads ? "J9WallClock" : "J9Execution";
+    }
+
+    inline void sampleIdleThreads() {
+      _sample_idle_threads = true;
     }
 
     Error start(Arguments& args);

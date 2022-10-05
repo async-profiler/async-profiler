@@ -67,18 +67,19 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
     int tid = OS::threadId();
-    if (!Contexts::filter(tid, event_type)) {
+    Context ctx = Contexts::get(tid);
+    if (!Contexts::filter(ctx, event_type)) {
         return;
     }
 
     AllocEvent event;
-    event._class_id = 0;
     event._total_size = total_size;
     event._instance_size = instance_size;
+    event._context = ctx;
 
     if (VMStructs::hasClassNames()) {
         VMSymbol* symbol = VMKlass::fromHandle(rklass)->name();
-        event._class_id = Profiler::instance()->classMap()->lookup(symbol->body(), symbol->length());
+        event._id = Profiler::instance()->classMap()->lookup(symbol->body(), symbol->length());
     }
 
     Profiler::instance()->recordSample(ucontext, total_size, tid, event_type, &event);

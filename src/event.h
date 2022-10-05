@@ -28,29 +28,28 @@ using namespace std;
 
 class Event {
   public:
-    u32 id() {
-        return *(u32*)this;
-    }
+    u32 _id;
+    Context _context;
+
+    Event(Context ctx) : _id(0), _context(ctx) {}
+    Event() : Event({0, 0, 0}) {}
 };
 
 class ExecutionEvent : public Event {
   public:
     ThreadState _thread_state;
 
-    ExecutionEvent() : _thread_state(THREAD_RUNNING) {
-    }
+    ExecutionEvent() : Event(), _thread_state(THREAD_RUNNING) {}
 };
 
 class AllocEvent : public Event {
   public:
-    u32 _class_id;
     u64 _total_size;
     u64 _instance_size;
 };
 
 class LockEvent : public Event {
   public:
-    u32 _class_id;
     u64 _start_time;
     u64 _end_time;
     uintptr_t _address;
@@ -59,7 +58,6 @@ class LockEvent : public Event {
 
 class MemLeakEvent : public Event {
   public:
-    u32 _class_id;
     u64 _start_time;
     u64 _age;
     u64 _instance_size;

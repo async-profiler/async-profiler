@@ -33,21 +33,23 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
     int tid = OS::threadId();
-    if (!Contexts::filter(tid, event_type)) {
+    Context ctx = Contexts::get(tid);
+
+    if (!Contexts::filter(ctx, event_type)) {
         return;
     }
 
     AllocEvent event;
-    event._class_id = 0;
     event._total_size = size > _interval ? size : _interval;
     event._instance_size = size;
+    event._context = ctx;
 
     char* class_name;
     if (jvmti->GetClassSignature(object_klass, &class_name, NULL) == 0) {
         if (class_name[0] == 'L') {
-            event._class_id = Profiler::instance()->classMap()->lookup(class_name + 1, strlen(class_name) - 2);
+            event._id = Profiler::instance()->classMap()->lookup(class_name + 1, strlen(class_name) - 2);
         } else {
-            event._class_id = Profiler::instance()->classMap()->lookup(class_name);
+            event._id = Profiler::instance()->classMap()->lookup(class_name);
         }
         jvmti->Deallocate((unsigned char*)class_name);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Datadog, Inc
+ * Copyright 2021, 2022 Datadog, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,19 +36,23 @@ Context Contexts::get(int tid) {
     return _contexts[tid];
 }
 
-bool Contexts::filter(int tid, int event_type) {
-    // the thread should be suspended, so _contexts[tid] shouldn't change
-    Context context = _contexts[tid];
-
+bool Contexts::filter(Context ctx, int event_type) {
     switch (event_type) {
     case BCI_WALL:
-        return !_wall_filtering || (context.invalid == 0 && context.spanId != 0);
+        return !_wall_filtering || (ctx.invalid == 0 && ctx.spanId != 0);
     case BCI_CPU:
-        return !_cpu_filtering || (context.invalid == 0 && context.spanId != 0);
+        return !_cpu_filtering || (ctx.invalid == 0 && ctx.spanId != 0);
     default:
         // no filtering based on context
         return true;
     }
+}
+
+bool Contexts::filter(int tid, int event_type) {
+    // the thread should be suspended, so _contexts[tid] shouldn't change
+    Context context = _contexts[tid];
+
+    return filter(context, event_type);
 }
 
 void Contexts::set(int tid, Context context) {

@@ -1169,7 +1169,7 @@ class Recording {
     }
 
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
-        volatile Context context = Contexts::get(tid);
+        volatile Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_EXECUTION_SAMPLE);
@@ -1188,7 +1188,7 @@ class Recording {
     }
 
     void recordMethodSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
-        volatile Context context = Contexts::get(tid);
+        volatile Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_METHOD_SAMPLE);
@@ -1207,14 +1207,14 @@ class Recording {
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        volatile Context context = Contexts::get(tid);
+        volatile Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_IN_NEW_TLAB);
         buf->putVar64(TSC::ticks());
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
-        buf->putVar64(event->_class_id);
+        buf->putVar64(event->_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
         if (context.invalid) {
@@ -1228,14 +1228,14 @@ class Recording {
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        volatile Context context = Contexts::get(tid);
+        volatile Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_OUTSIDE_TLAB);
         buf->putVar64(TSC::ticks());
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
-        buf->putVar64(event->_class_id);
+        buf->putVar64(event->_id);
         buf->putVar64(event->_total_size);
         if (context.invalid) {
             buf->putVar64(0);
@@ -1253,7 +1253,7 @@ class Recording {
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
-        buf->putVar32(event->_class_id);
+        buf->putVar32(event->_id);
         buf->putVar64(event->_age);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_interval);
@@ -1261,7 +1261,7 @@ class Recording {
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
-        volatile Context context = Contexts::get(tid);
+        volatile Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_MONITOR_ENTER);
@@ -1269,7 +1269,7 @@ class Recording {
         buf->putVar64(event->_end_time - event->_start_time);
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
-        buf->putVar64(event->_class_id);
+        buf->putVar64(event->_id);
         buf->put8(0);
         buf->putVar64(event->_address);
         if (context.invalid) {
@@ -1289,7 +1289,7 @@ class Recording {
         buf->putVar64(event->_end_time - event->_start_time);
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
-        buf->putVar64(event->_class_id);
+        buf->putVar64(event->_id);
         buf->putVar64(event->_timeout);
         buf->putVar64(MIN_JLONG);
         buf->putVar64(event->_address);

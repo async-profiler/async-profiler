@@ -142,12 +142,16 @@ void J9StackTraces::timerLoop() {
                 frames[num_frames].bci = FrameType::encode(jvmti_frames[j].type, jvmti_frames[j].location);
                 num_frames++;
             }
+            ptr += notif->size();
 
             int tid = J9Ext::GetOSThreadID(thread);
+            if (tid < 0) {
+                // invalid tid - skip
+                continue;
+            }
             ExecutionEvent event;
+            event._context = Contexts::get(tid);
             Profiler::instance()->recordExternalSample(notif->counter, tid, num_frames, frames, /*truncated=*/false, BCI_CPU, &event);
-
-            ptr += notif->size();
         }
     }
 

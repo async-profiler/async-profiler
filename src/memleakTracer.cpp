@@ -1,5 +1,5 @@
 /*
-* Copyright 2021 Datadog, Inc
+* Copyright 2021, 2022 Datadog, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,7 +123,7 @@ void MemLeakTracer::flush_table(JNIEnv *env) {
 
             jstring name_str = (jstring)env->CallObjectMethod(env->GetObjectClass(ref), _Class_getName);
             const char *name = env->GetStringUTFChars(name_str, NULL);
-            event._class_id = name != NULL ? Profiler::instance()->classMap()->lookup(name) : 0;
+            event._id = name != NULL ? Profiler::instance()->classMap()->lookup(name) : 0;
             env->ReleaseStringUTFChars(name_str, name);
 
             Profiler::instance()->recordExternalSample(_table[i].ref_size, _table[i].tid,

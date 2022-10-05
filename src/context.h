@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Datadog, Inc
+ * Copyright 2021, 2022 Datadog, Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ class Contexts {
     static void clear(int tid);
     static Context get(int tid);
     static bool filter(int tid, int event_type);
+    static bool filter(Context ctx, int event_type);
 
     static void setWallFiltering(bool wall_filtering) {
         _wall_filtering = wall_filtering;

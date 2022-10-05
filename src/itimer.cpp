@@ -31,11 +31,13 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     int tid = OS::threadId();
-    if (!Contexts::filter(tid, BCI_CPU)) {
+    Context ctx = Contexts::get(tid);
+    if (!Contexts::filter(ctx, BCI_CPU)) {
         return;
     }
 
     ExecutionEvent event;
+    event._context = ctx;
     Profiler::instance()->recordSample(ucontext, _interval, tid, BCI_CPU, &event);
 }
 
