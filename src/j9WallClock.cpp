@@ -29,7 +29,7 @@ Error J9WallClock::start(Arguments& args) {
         return Error::OK;
     }
 
-    if (args._wall >= 0 || strcmp(args._event, EVENT_WALL) == 0) {
+    if (args._wall >= 0) {
         _sample_idle_threads = true;
     }
     int interval = args._event != NULL ? args._interval : args._wall;
