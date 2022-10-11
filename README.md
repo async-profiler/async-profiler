@@ -170,7 +170,8 @@ Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC is required. After building, the profiler agent binary
 will be in the `build` subdirectory. Additionally, a small application `jattach`
 that can load the agent into the target process will also be compiled to the
-`build` subdirectory.
+`build` subdirectory. If the build fails due to
+`Source option 7 is no longer supported. Use 8 or later.`, use `make JAVA_TARGET=8`.
 
 ## Basic Usage
 
