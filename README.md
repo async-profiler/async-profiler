@@ -30,7 +30,7 @@ Current release (2.8.3):
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
 Note: async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.
-For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-profiler.html).
+For more information refer to [IntelliJ IDEA documentation](https://lp.jetbrains.com/intellij-idea-profiler/).
 
 ## Supported platforms
 
