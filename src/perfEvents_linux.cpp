@@ -42,6 +42,7 @@
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
+#include "thread.h"
 #include "vmStructs.h"
 #include "context.h"
 
@@ -165,11 +166,14 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     }
 
     if (value != NULL) {
+        ProfiledThread::initCurrentThread();
         int result = pthread_setspecific(key, value);
-        Profiler::registerThread(OS::threadId());
+        Profiler::registerThread(ProfiledThread::currentTid());
         return result;
     } else {
-        Profiler::registerThread(OS::threadId());
+        int tid = ProfiledThread::currentTid();
+        Profiler::unregisterThread(tid);
+        ProfiledThread::release();
         return pthread_setspecific(key, value);
     }
 }
@@ -706,8 +710,12 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
+    ProfiledThread* current = ProfiledThread::current();
+    if (current != NULL) {
+        current->noteCPUSample();
+    }
+    int tid = current != NULL ? current->tid() : OS::threadId();
     if (_enabled) {
-        int tid = OS::threadId();
         Context ctx = Contexts::get(tid);
         if (!Contexts::filter(ctx, BCI_CPU)) {
             return;
@@ -718,7 +726,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         event._context = ctx;
         Profiler::instance()->recordSample(ucontext, counter, tid, BCI_CPU, &event);
     } else {
-        resetBuffer(OS::threadId());
+        resetBuffer(tid);
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
@@ -741,7 +749,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
             .reserved = 0
         };
         StackContext java_ctx;
-        notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(OS::threadId(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx);
+        notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(ProfiledThread::currentTid(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx);
         if (_cstack == CSTACK_DWARF) {
             notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx, &notif.truncated);
         } else {
@@ -749,7 +757,7 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {
-        resetBuffer(OS::threadId());
+        resetBuffer(ProfiledThread::currentTid());
     }
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);

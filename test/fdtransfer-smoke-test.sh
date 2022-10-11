@@ -1,7 +1,7 @@
 #!/bin/bash
 # based on smoke-test.sh
 
-set -e  # exit on any failure
+# set -e  # exit on any failure
 set -x  # print all executed lines
 
 UNAME_S=$(uname -s)
@@ -27,10 +27,16 @@ fi
   FILENAME=/tmp/java-fdtransfer-smoke.trace
   JAVAPID=$!
 
+  function cleanup {
+    kill $JAVAPID
+  }
+
+  trap cleanup EXIT
+
   sleep 1     # allow the Java runtime to initialize
   sudo ../profiler.sh -f $FILENAME -o collapsed -e cpu -i 1ms --fdtransfer -d 5 $JAVAPID
 
-  kill $JAVAPID
+  sleep 2
 
   function assert_string() {
     if ! grep -q "$1" $FILENAME; then

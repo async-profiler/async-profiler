@@ -21,6 +21,7 @@
 #include "profiler.h"
 #include "stackWalker.h"
 #include "context.h"
+#include "thread.h"
 
 volatile bool ITimer::_enabled = false;
 long ITimer::_interval;
@@ -30,7 +31,14 @@ CStack ITimer::_cstack;
 void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
-    int tid = OS::threadId();
+    int tid = 0;
+    ProfiledThread* current = ProfiledThread::current();
+    if (current != NULL) {
+        current->noteCPUSample();
+        tid = current->tid();
+    } else {
+        tid = OS::threadId();
+    }
     Context ctx = Contexts::get(tid);
     if (!Contexts::filter(ctx, BCI_CPU)) {
         return;

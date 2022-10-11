@@ -1184,6 +1184,7 @@ class Recording {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         }
+        buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1203,6 +1204,7 @@ class Recording {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         }
+        buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
 

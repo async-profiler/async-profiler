@@ -36,6 +36,7 @@
 #include "vmEntry.h"
 #include "objectSampler.h"
 #include "memleakTracer.h"
+#include "thread.h"
 
 
 const char FULL_VERSION_STRING[] =

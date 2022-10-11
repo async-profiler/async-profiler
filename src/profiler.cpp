@@ -45,6 +45,7 @@
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
+#include "thread.h"
 #include "varint.inline.h"
 #include "vmStructs.h"
 #include "context.h"
@@ -132,7 +133,9 @@ void Profiler::addRuntimeStub(const void* address, int length, const char* name)
 }
 
 void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    int tid = OS::threadId();
+    ProfiledThread::initCurrentThread();
+
+    int tid = ProfiledThread::currentTid();
     if (_thread_filter.enabled()) {
         _thread_filter.remove(tid);
     }
@@ -143,7 +146,7 @@ void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
-    int tid = OS::threadId();
+    int tid = ProfiledThread::currentTid();
     if (_thread_filter.enabled()) {
         _thread_filter.remove(tid);
     }
@@ -151,6 +154,7 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 
     _cpu_engine->unregisterThread(tid);
     _wall_engine->unregisterThread(tid);
+    ProfiledThread::release();
 }
 
 int Profiler::registerThread(int tid) {
@@ -657,7 +661,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
     }
 
     StackContext java_ctx = {0};
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx, &truncated);
+    ASGCT_CallFrame* native_stop = frames + num_frames;
+    num_frames += getNativeTrace(ucontext, native_stop, event_type, tid, &java_ctx, &truncated);
 
     if (event_type == BCI_CPU || event_type == BCI_WALL) {
         // Async events
@@ -1004,6 +1009,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         return error;
     }
 
+    ProfiledThread::initExistingThreads();
     _event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
                   (args._cpu >= 0 ? EM_CPU : 0) |
                   (args._wall >= 0 ? EM_WALL : 0) |
@@ -1017,7 +1023,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (args._fdtransfer) {
+        fprintf(stderr, "Initing fdtransfer\n");
         if (!FdTransferClient::connectToServer(args._fdtransfer_path, OS::processId())) {
+            fprintf(stderr, "FDTransfer failed\n");
             return Error("Failed to initialize FdTransferClient");
         }
     }
@@ -1078,7 +1086,6 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     Contexts::setWallFiltering(args._wall_filtering);
     Contexts::setCpuFiltering(args._cpu_filtering);
-
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_cpu_engine == &perf_events && (args._ring & RING_KERNEL));
 
@@ -1088,7 +1095,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     switchLibraryTrap(true);
-
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args, reset);
         if (error) {

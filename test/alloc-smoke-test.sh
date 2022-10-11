@@ -20,10 +20,14 @@ fi
   FILENAME=/tmp/java-alloc-smoke.trace
   JAVAPID=$!
 
+  function cleanup {
+    kill $JAVAPID
+  }
+
+  trap cleanup EXIT
+
   sleep 1     # allow the Java runtime to initialize
   ../profiler.sh -f $FILENAME -o collapsed -d 5 -e alloc -t $JAVAPID
-
-  kill $JAVAPID
 
   function assert_string() {
     if ! grep -q "$1" $FILENAME; then

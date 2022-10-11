@@ -19,6 +19,7 @@
 #include "profiler.h"
 #include "tsc.h"
 #include "context.h"
+#include "thread.h"
 
 volatile bool LockTracer::_enabled = false;
 
@@ -188,7 +189,7 @@ bool LockTracer::isConcurrentLock(const char* lock_name) {
 
 void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_time,
                                      const char* lock_name, jobject lock, jlong timeout) {
-    int tid = OS::threadId();
+    int tid = ProfiledThread::currentTid();
     Context ctx = Contexts::get(tid);
     if (!Contexts::filter(ctx, event_type)) {
         return;

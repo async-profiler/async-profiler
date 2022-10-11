@@ -62,16 +62,24 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
-    int tid = OS::threadId();
+    ProfiledThread* current = ProfiledThread::current();
+    int tid = current != NULL ? current->tid() : OS::threadId();
     int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
     Context ctx = Contexts::get(tid);
     if (!Contexts::filter(ctx, event_type)) {
         return;
     }
+    u64 skipped = 0;
+    if (current != NULL && event_type == BCI_WALL) {
+        if (_collapsing && !current->noteWallSample(false, &skipped)) {
+            return;
+        }
+    }
 
     ExecutionEvent event;
     event._context = ctx;
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    event._weight = skipped + 1;
     Profiler::instance()->recordSample(ucontext, last_sample, tid, event_type, &event);
 }
 
@@ -84,6 +92,7 @@ Error WallClock::start(Arguments &args) {
         _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
 
         _filtering = args._wall_filtering;
+        _collapsing = args._wall_collapsing;
 
         _reservoir_size =
             args._wall_threads_per_tick ?

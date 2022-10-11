@@ -20,6 +20,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "log.h"
+#include "thread.h"
 #include "tsc.h"
 #include "vmStructs.h"
 
@@ -328,7 +329,7 @@ retry:
         _table[idx].frames_size = frames_size;
         _table[idx].frames = new jvmtiFrameInfo[_table[idx].frames_size];
         memcpy(_table[idx].frames, frames, sizeof(jvmtiFrameInfo) * _table[idx].frames_size);
-        _table[idx].tid = OS::threadId();
+        _table[idx].tid = ProfiledThread::currentTid();
         _table[idx].time = TSC::ticks();
     }
 

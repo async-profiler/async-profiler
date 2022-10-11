@@ -213,7 +213,16 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("wall")
-                _wall = value == NULL ? 0 : parseUnits(value, NANOS);
+                if (value == NULL) {
+                    _wall = 0;
+                } else {
+                    if (value[0] == '~') {
+                        _wall_collapsing = true;
+                        _wall = parseUnits(value + 1, NANOS);
+                    } else {
+                        _wall = parseUnits(value, NANOS);
+                    }
+                }
                 if (_wall < 0) {
                     msg = "wall must be >= 0";
                 }

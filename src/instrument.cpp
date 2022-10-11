@@ -24,6 +24,7 @@
 #include "vmEntry.h"
 #include "instrument.h"
 #include "context.h"
+#include "thread.h"
 
 
 INCBIN(INSTRUMENT_CLASS, "one/profiler/Instrument.class")
@@ -614,7 +615,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
-    int tid = OS::threadId();
+    int tid = ProfiledThread::currentTid();
     if (!Contexts::filter(tid, BCI_INSTRUMENT)) {
         return;
     }

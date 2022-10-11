@@ -42,6 +42,7 @@
 class WallClock : public Engine {
   private:
     static volatile bool _enabled;
+    bool _collapsing;
     long _interval;
     bool _sample_idle_threads;
 
@@ -70,6 +71,7 @@ class WallClock : public Engine {
   public:
     constexpr WallClock(bool sample_idle_threads) :
         _sample_idle_threads(sample_idle_threads),
+        _collapsing(false),
         _interval(LONG_MAX),
         _reservoir_size(0),
         _filtering(false),

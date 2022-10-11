@@ -12,6 +12,7 @@
 *.iml
 
 **/.resources/
+**/*.jar
 
 # ignore all temporary locations related to maven builds
 datadog/maven/tmp

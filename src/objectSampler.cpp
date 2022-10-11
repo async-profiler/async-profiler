@@ -18,6 +18,7 @@
 #include "objectSampler.h"
 #include "profiler.h"
 #include "context.h"
+#include "thread.h"
 
 
 u64 ObjectSampler::_interval;
@@ -32,9 +33,8 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 }
 
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
-    int tid = OS::threadId();
+    int tid = ProfiledThread::currentTid();
     Context ctx = Contexts::get(tid);
-
     if (!Contexts::filter(ctx, event_type)) {
         return;
     }
