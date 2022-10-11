@@ -16,6 +16,7 @@
 
 #include <math.h>
 #include <random>
+#include "debugSupport.h"
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
@@ -56,6 +57,7 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
     ProfiledThread* current = ProfiledThread::current();
     int tid = current != NULL ? current->tid() : OS::threadId();
+    Shims::instance().setSighandlerTid(tid);
     ContextSnapshot ctx = Contexts::get(tid);
     u64 skipped = 0;
     if (current != NULL) {
@@ -69,6 +71,7 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
     event._thread_state = getThreadState(ucontext);
     event._weight = skipped + 1;
     Profiler::instance()->recordSample(ucontext, last_sample, tid, BCI_WALL, &event);
+    Shims::instance().setSighandlerTid(-1);
 }
 
 Error WallClock::start(Arguments &args) {

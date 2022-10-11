@@ -15,6 +15,7 @@
  */
 
 #include <sys/time.h>
+#include "debugSupport.h"
 #include "itimer.h"
 #include "j9StackTraces.h"
 #include "os.h"
@@ -27,7 +28,6 @@ volatile bool ITimer::_enabled = false;
 long ITimer::_interval;
 CStack ITimer::_cstack;
 
-
 void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
@@ -39,11 +39,13 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     } else {
         tid = OS::threadId();
     }
+    Shims::instance().setSighandlerTid(tid);
     ContextSnapshot ctx = Contexts::get(tid);
 
     ExecutionEvent event;
     event._context = ctx;
     Profiler::instance()->recordSample(ucontext, _interval, tid, BCI_CPU, &event);
+    Shims::instance().setSighandlerTid(-1);
 }
 
 void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -57,9 +59,11 @@ void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
         .reserved = 0
     };
     StackContext java_ctx;
+    Shims::instance().setSighandlerTid(ProfiledThread::currentTid());
     notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
         ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &notif.truncated)
         : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &notif.truncated);
+    Shims::instance().setSighandlerTid(-1);
     J9StackTraces::checkpoint(_interval, &notif);
 }
 
