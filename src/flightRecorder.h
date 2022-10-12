@@ -28,7 +28,7 @@ class FlightRecorder {
   private:
     Recording* _rec;
 
-    Error startMasterRecording(Arguments& args);
+    Error startMasterRecording(Arguments& args, const char* filename);
     void stopMasterRecording();
 
   public:

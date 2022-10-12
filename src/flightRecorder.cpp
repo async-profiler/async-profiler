@@ -451,8 +451,8 @@ class Recording {
     }
 
   public:
-    Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
-        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args.file());
+    Recording(int fd, const char* master_recording_file, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
+        _master_recording_file = master_recording_file == NULL ? NULL : strdup(master_recording_file);
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
@@ -1196,8 +1196,9 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
     }
 
     char* filename_tmp = NULL;
+    const char* master_recording_file = NULL;
     if (args._jfr_sync != NULL) {
-        Error error = startMasterRecording(args);
+        Error error = startMasterRecording(args, master_recording_file = filename);
         if (error) {
             return error;
         }
@@ -1223,7 +1224,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         free(filename_tmp);
     }
 
-    _rec = new Recording(fd, args);
+    _rec = new Recording(fd, master_recording_file, args);
     _rec_lock.unlock();
     return Error::OK;
 }
@@ -1272,7 +1273,7 @@ bool FlightRecorder::timerTick(u64 wall_time) {
     return need_switch_chunk;
 }
 
-Error FlightRecorder::startMasterRecording(Arguments& args) {
+Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename) {
     JNIEnv* env = VM::jni();
 
     if (_jfr_sync_class == NULL) {
@@ -1315,7 +1316,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args) {
     }
     env->ExceptionClear();
 
-    jobject jfilename = env->NewStringUTF(args.file());
+    jobject jfilename = env->NewStringUTF(filename);
     jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
     int event_mask = (args._event != NULL ? 1 : 0) |
                      (args._alloc >= 0 ? 2 : 0) |
