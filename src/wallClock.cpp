@@ -156,7 +156,7 @@ void WallClock::timerLoop() {
 
     std::default_random_engine generator;
     std::uniform_real_distribution<double> uniform(0.0, 1.0);
-    std::uniform_int_distribution<int> random_index(0, _reservoir_size);
+    std::uniform_int_distribution<int> random_index(0, _reservoir_size - 1);
 
     while (_running) {
         if (_enabled) {
