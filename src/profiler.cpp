@@ -33,7 +33,6 @@
 #include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
 #include "j9WallClock.h"
-#include "instrument.h"
 #include "itimer.h"
 #include "dwarf.h"
 #include "flameGraph.h"
@@ -68,7 +67,6 @@ static WallClock cpu_engine(false);
 static WallClock wall_engine(true);
 static J9WallClock j9_engine;
 static ITimer itimer;
-static Instrument instrument;
 static MemLeakTracer memleak_tracer;
 
 
@@ -681,10 +679,8 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
     } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && !VM::isOpenJ9()) {
         num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx, &truncated);
     } else {
-        // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
-        // Skip Instrument.recordSample() method
-        int start_depth = event_type == BCI_INSTRUMENT ? 1 : 0;
-        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
+        // Lock events can safely call synchronous JVM TI stack walker.
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, 0, _max_stack_depth);
     }
 
     if (num_frames == 0) {
@@ -930,8 +926,6 @@ Engine* Profiler::selectCpuEngine(Arguments& args) {
         return (Engine*)&noop_engine;
     } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
         return &itimer;
-    } else if (strchr(args._event, '.') != NULL && strchr(args._event, ':') == NULL) {
-        return &instrument;
     } else {
         return &perf_events;
     }

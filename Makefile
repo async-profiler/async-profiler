@@ -184,7 +184,6 @@ cppcheck:
 		--suppress=memleakOnRealloc:src/memleakTracer.cpp:352 \
 		--suppress=memleakOnRealloc:src/jattach/jattach_openj9.c:147 \
 		--suppress=comparePointers:src/flightRecorder.cpp:1408 \
-		--suppress=comparePointers:src/instrument.cpp:519 \
 		--suppress=comparePointers:src/javaApi.cpp:207 \
 		--suppress=comparePointers:src/memleakTracer.cpp:236 \
 		--suppress=comparePointers:src/memleakTracer.cpp:247 \
