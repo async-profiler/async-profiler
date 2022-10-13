@@ -22,7 +22,7 @@ JAR=$(JAVA_HOME)/bin/jar
 JAVAC_OPTIONS=-source 7 -target 7 -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
-HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
+HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
@@ -37,7 +37,6 @@ OS:=$(shell uname -s)
 ifeq ($(OS),Darwin)
   CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
   INCLUDES += -I$(JAVA_HOME)/include/darwin
-  FDTRANSFER_BIN=
   SOEXT=dylib
   PACKAGE_EXT=zip
   OS_TAG=macos
@@ -55,7 +54,6 @@ else
   endif
   LIBS += -lrt
   INCLUDES += -I$(JAVA_HOME)/include/linux
-  FDTRANSFER_BIN=build/fdtransfer
   SOEXT=so
   PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
@@ -98,7 +96,7 @@ endif
 
 .PHONY: all release test clean
 
-all: build build/helpers build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
+all: build build/helpers build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -111,7 +109,7 @@ $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
-$(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
+$(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) \
                 build/$(API_JAR) build/$(CONVERTER_JAR) \
                 profiler.sh LICENSE *.md
 	mkdir -p $(PACKAGE_DIR)
@@ -136,9 +134,6 @@ endif
 
 build/$(JATTACH): src/jattach/*.c src/jattach/*.h
 	$(CC) $(CFLAGS) -DJATTACH_VERSION=\"$(PROFILER_VERSION)-ap\" -o $@ src/jattach/*.c
-
-build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c src/jattach/psutil.h
-	$(CXX) $(CFLAGS) -o $@ src/fdtransfer/*.cpp src/jattach/psutil.c
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
@@ -165,7 +160,6 @@ test: all
 	test/thread-smoke-test.sh
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
-	test/fdtransfer-smoke-test.sh
 	test/sleep-test.sh
 	echo "All tests passed"
 

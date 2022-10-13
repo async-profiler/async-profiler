@@ -36,7 +36,6 @@
 #include "log.h"
 #include "os.h"
 #include "perfEvents.h"
-#include "fdtransferClient.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
@@ -625,12 +624,7 @@ int PerfEvents::registerThread(int tid) {
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
 
-    int fd;
-    if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(&tid, &attr);
-    } else {
-        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
-    }
+    int fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
 
     if (fd == -1) {
         int err = errno;
@@ -949,7 +943,7 @@ Error PerfEvents::start(Arguments& args) {
         J9StackTraces::stop();
         Profiler::instance()->switchThreadEvents(JVMTI_DISABLE);
         if (err == EACCES || err == EPERM) {
-            return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
+            return Error("No access to perf events. Try --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
         } else {
             return Error("Perf events unavailable");
         }

@@ -45,8 +45,6 @@ usage() {
     echo "  --ttsp            time-to-safepoint profiling"
     echo "  --jfrsync config  synchronize profiler with JFR recording"
     echo "  --lib path        full path to libasyncProfiler.so in the container"
-    echo "  --fdtransfer      use fdtransfer to serve perf requests"
-    echo "                    from the non-privileged target"
     echo ""
     echo "<pid> is a numeric process ID of the target JVM"
     echo "      or 'jps' keyword to find running JVM automatically"
@@ -91,12 +89,6 @@ check_if_terminated() {
     fi
 }
 
-fdtransfer() {
-    if [ "$USE_FDTRANSFER" = "true" ]; then
-        "$FDTRANSFER" "$PID"
-    fi
-}
-
 jattach() {
     set +e
     "$JATTACH" "$PID" load "$PROFILER" true "$1,log=$LOG" > /dev/null
@@ -129,8 +121,6 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
 
 JATTACH=$SCRIPT_DIR/build/jattach
-FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
-USE_FDTRANSFER="false"
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 DURATION="60"
@@ -258,10 +248,6 @@ while [ $# -gt 0 ]; do
             PROFILER="$2"
             shift
             ;;
-        --fdtransfer)
-            PARAMS="$PARAMS,fdtransfer"
-            USE_FDTRANSFER="true"
-            ;;
         --safe-mode)
             PARAMS="$PARAMS,safemode=$2"
             shift
@@ -338,7 +324,6 @@ fi
 
 case $ACTION in
     start|resume)
-        fdtransfer
         jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         ;;
     check)
@@ -354,7 +339,6 @@ case $ACTION in
         jattach "version=full,file=$FILE"
         ;;
     collect)
-        fdtransfer
         jattach "start,file=$FILE,$OUTPUT$FORMAT$PARAMS"
         echo Profiling for "$DURATION" seconds >&2
         set +e

@@ -30,7 +30,6 @@
 #include <linux/limits.h>
 #include "symbols.h"
 #include "dwarf.h"
-#include "fdtransferClient.h"
 #include "log.h"
 
 
@@ -489,12 +488,7 @@ static std::set<const void*> _parsed_libraries;
 static std::set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
-    int fd;
-    if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestKallsymsFd();
-    } else {
-        fd = open("/proc/kallsyms", O_RDONLY);
-    }
+    int fd = open("/proc/kallsyms", O_RDONLY);
 
     if (fd == -1) {
         Log::warn("open(\"/proc/kallsyms\"): %s", strerror(errno));
