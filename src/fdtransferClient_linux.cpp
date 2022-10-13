@@ -64,7 +64,7 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
     request.tid = *tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }
@@ -87,7 +87,7 @@ int FdTransferClient::requestKallsymsFd() {
     struct fd_request request;
     request.type = KALLSYMS_FD;
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }
@@ -118,7 +118,7 @@ int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t
     msg.msg_control = u.buf;
     msg.msg_controllen = sizeof(u.buf);
 
-    ssize_t ret = recvmsg(_peer, &msg, 0);
+    ssize_t ret = RESTARTABLE(recvmsg(_peer, &msg, 0));
     if (ret < 0) {
         Log::warn("FdTransferClient recvmsg(): %s", strerror(errno));
         return -1;

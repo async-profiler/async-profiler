@@ -123,7 +123,7 @@ bool FdTransferServer::serveRequests(int peer_pid) {
         unsigned char request_buf[1024];
         struct fd_request *req = (struct fd_request *)request_buf;
 
-        ssize_t ret = recv(_peer, req, sizeof(request_buf), 0);
+        ssize_t ret = RESTARTABLE(recv(_peer, req, sizeof(request_buf), 0));
 
         if (ret == 0) {
             // EOF means done
@@ -264,7 +264,7 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
         memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
     }
 
-    ssize_t ret = sendmsg(_peer, &msg, 0);
+    ssize_t ret = RESTARTABLE(sendmsg(_peer, &msg, 0));
     if (ret < 0) {
         perror("sendmsg()");
         return false;
