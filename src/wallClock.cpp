@@ -138,7 +138,7 @@ bool shouldSample(
         bool sample_idle_threads,
         bool thread_filter_enabled,
         ThreadFilter* thread_filter) {
-    return thread_id != -1 && thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id))
+    return thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id))
            && (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING);
 }
 
@@ -155,31 +155,35 @@ void WallClock::timerLoop() {
     ThreadList* thread_list = OS::listThreads();
 
     std::default_random_engine generator;
-    std::uniform_real_distribution<double> uniform(0.0, 1.0);
-    std::uniform_int_distribution<int> random_index(0, _reservoir_size);
+    std::uniform_real_distribution<double> uniform(1e-16, 1.0);
+    std::uniform_int_distribution<int> random_index(0, _reservoir_size - 1);
 
     while (_running) {
         if (_enabled) {
-            int num_threads = thread_list->size();
-            for (int i = 0; i < num_threads && reservoir.size() < _reservoir_size; i++) {
-                int thread_id = thread_list->next();
-                if (shouldSample(self, thread_id, sample_idle_threads, thread_filter_enabled, thread_filter)) {
-                    reservoir.push_back(thread_id);
+            int tid = thread_list->next();
+            for (int i = 0; i < _reservoir_size && tid != -1; ) {
+                if (shouldSample(self, tid, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                    reservoir.push_back(tid);
+                    i++;
                 }
+                tid = thread_list->next();
             }
-            if (reservoir.size() == _reservoir_size) {
-                double weight = exp(log(uniform(generator)) / _reservoir_size);
-                for (int i = _reservoir_size, skip = 0; i < num_threads; i += skip) {
-                    int thread_id = thread_list->next();
-                    if (shouldSample(self, thread_id, sample_idle_threads, thread_filter_enabled, thread_filter)) {
-                        reservoir[random_index(generator)] = thread_id;
+            if (tid != -1) {
+                double x = log(uniform(generator));
+                double weight = exp(x / _reservoir_size);
+                // produces a value in [0, _)
+                int num_threads_to_skip = (int) (x / log(1 - weight));
+                while (tid != -1) {
+                    for (int i = 0; i < num_threads_to_skip && tid != -1; i++) {
+                        tid = thread_list->next();
                     }
-                    skip = (int) (log(uniform(generator)) / log(1 - weight)) + 1;
-                    weight *= exp(log(uniform(generator)) / _reservoir_size);
-                    for (int j = 0; j < skip; j++) {
-                        // FIXME - don't need to parse thread id, add API to skip next thread
-                        thread_list->next();
+                    if (shouldSample(self, tid, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                        reservoir[random_index(generator)] = tid;
                     }
+                    x = log(uniform(generator));
+                    weight *= exp(x / _reservoir_size);
+                    num_threads_to_skip = (int) (x / log(1 - weight));
+                    tid = thread_list->next();
                 }
             }
             for (auto const &thread_id: reservoir) {
