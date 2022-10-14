@@ -21,8 +21,6 @@
 #include "arguments.h"
 #include "os.h"
 
-typedef u64 BitsetElement;
-
 typedef struct {
     volatile u64 spanId;
     volatile u64 rootSpanId;
@@ -44,12 +42,6 @@ class Contexts {
     static bool _wall_filtering;
     static bool _cpu_filtering;
 
-    static BitsetElement* _threads;
-    static int _threads_size;
-
-    static void registerThread(int tid);
-    static void unregisterThread(int tid);
-
   public:
     static void initialize();
 
@@ -68,8 +60,6 @@ class Contexts {
     static void setCpuFiltering(bool cpu_filtering) {
         _cpu_filtering = cpu_filtering;
     }
-
-    static ThreadList* listThreads();
 };
 
 #endif /* _CONTEXT_H */
