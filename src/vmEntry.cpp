@@ -26,7 +26,6 @@
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
-#include "instrument.h"
 #include "lockTracer.h"
 #include "log.h"
 #include "vmStructs.h"
@@ -203,7 +202,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.VMDeath = VMDeath;
     callbacks.ClassLoad = ClassLoad;
     callbacks.ClassPrepare = ClassPrepare;
-    callbacks.ClassFileLoadHook = Instrument::ClassFileLoadHook;
     callbacks.CompiledMethodLoad = Profiler::CompiledMethodLoad;
     callbacks.DynamicCodeGenerated = Profiler::DynamicCodeGenerated;
     callbacks.ThreadStart = Profiler::ThreadStart;
