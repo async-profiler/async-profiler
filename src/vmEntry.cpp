@@ -328,15 +328,6 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
     loadAllMethodIDs(jvmti, jni);
 
-    // Allow profiler server only at JVM startup
-    if (_agent_args._server != NULL) {
-        if (JavaAPI::startHttpServer(jvmti, jni, _agent_args._server)) {
-            Log::info("Profiler server started at %s", _agent_args._server);
-        } else {
-            Log::error("Failed to start profiler server");
-        }
-    }
-
     // Delayed start of profiler if agent has been loaded at VM bootstrap
     Error error = Profiler::instance()->run(_agent_args);
     if (error) {

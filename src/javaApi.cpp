@@ -199,23 +199,3 @@ void JavaAPI::registerNatives(jvmtiEnv* jvmti, JNIEnv* jni) {
 
     jni->ExceptionClear();
 }
-
-bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address) {
-    jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
-    jobject loader;
-    if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
-        jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, INCBIN_SIZEOF(SERVER_CLASS));
-        if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
-            jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
-            if (method != NULL) {
-                jni->CallStaticVoidMethod(cls, method, jni->NewStringUTF(address));
-                if (!jni->ExceptionCheck()) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    jni->ExceptionDescribe();
-    return false;
-}
