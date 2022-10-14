@@ -22,8 +22,8 @@
 #include "os.h"
 
 typedef struct {
-    volatile u64 spanId;
-    volatile u64 rootSpanId;
+    u64 spanId;
+    u64 rootSpanId;
 } Context;
 
 typedef struct {
