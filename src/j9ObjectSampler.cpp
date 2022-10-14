@@ -37,9 +37,6 @@ Error J9ObjectSampler::check(Arguments& args) {
     if (J9Ext::InstrumentableObjectAlloc_id < 0) {
         return Error("InstrumentableObjectAlloc is not supported on this JVM");
     }
-    if (args._live) {
-        return Error("'live' option is supported on OpenJDK 11+");
-    }
     return Error::OK;
 }
 
@@ -50,8 +47,9 @@ Error J9ObjectSampler::start(Arguments& args) {
     }
 
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
-    _live = false;
     _allocated_bytes = 0;
+
+    initLiveRefs(args._live);
 
     jvmtiEnv* jvmti = VM::jvmti();
     if (jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)JavaObjectAlloc) != 0) {
@@ -66,4 +64,6 @@ void J9ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
     jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, NULL);
+
+    dumpLiveRefs();
 }

@@ -28,6 +28,9 @@ class ObjectSampler : public Engine {
     static bool _live;
     static volatile u64 _allocated_bytes;
 
+    static void initLiveRefs(bool live);
+    static void dumpLiveRefs();
+
     static void recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_type,
                                  jobject object, jclass object_klass, jlong size);
 

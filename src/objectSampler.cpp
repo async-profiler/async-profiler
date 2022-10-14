@@ -147,6 +147,19 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_typ
     }
 }
 
+void ObjectSampler::initLiveRefs(bool live) {
+    _live = live;
+    if (_live) {
+        live_refs.init();
+    }
+}
+
+void ObjectSampler::dumpLiveRefs() {
+    if (_live) {
+        live_refs.dump(VM::jni());
+    }
+}
+
 Error ObjectSampler::check(Arguments& args) {
     if (!VM::canSampleObjects()) {
         return Error("SampledObjectAlloc is not supported on this JVM");
@@ -161,11 +174,8 @@ Error ObjectSampler::start(Arguments& args) {
     }
 
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
-    _live = args._live;
 
-    if (_live) {
-        live_refs.init();
-    }
+    initLiveRefs(args._live);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetHeapSamplingInterval(_interval);
@@ -178,7 +188,5 @@ void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 
-    if (_live) {
-        live_refs.dump(VM::jni());
-    }
+    dumpLiveRefs();
 }
