@@ -38,7 +38,6 @@
 #include "dwarf.h"
 #include "flameGraph.h"
 #include "flightRecorder.h"
-#include "fdtransferClient.h"
 #include "frameName.h"
 #include "os.h"
 #include "safeAccess.h"
@@ -1022,14 +1021,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Only JFR output supports multiple events");
     }
 
-    if (args._fdtransfer) {
-        fprintf(stderr, "Initing fdtransfer\n");
-        if (!FdTransferClient::connectToServer(args._fdtransfer_path, OS::processId())) {
-            fprintf(stderr, "FDTransfer failed\n");
-            return Error("Failed to initialize FdTransferClient");
-        }
-    }
-
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
@@ -1169,7 +1160,6 @@ error0:
     _jfr.stop();
     unlockAll();
 
-    FdTransferClient::closePeer();
     return error;
 }
 
@@ -1200,7 +1190,6 @@ Error Profiler::stop() {
     _jfr.stop();
     unlockAll();
 
-    FdTransferClient::closePeer();
     _state = IDLE;
     return Error::OK;
 }

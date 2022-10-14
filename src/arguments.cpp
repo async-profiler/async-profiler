@@ -91,7 +91,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
-//     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     sig              - print method signatures
@@ -322,10 +321,6 @@ Error Arguments::parse(const char* args) {
                     msg = "server address must not be empty";
                 }
                 _server = value;
-
-            CASE("fdtransfer")
-                _fdtransfer = true;
-                _fdtransfer_path = value;
 
             // Filters
             CASE("filter")
