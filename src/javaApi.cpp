@@ -79,11 +79,6 @@ Java_one_profiler_AsyncProfiler_setContext0(JNIEnv* env, jobject unused, jint ti
     Contexts::set(tid, context);
 }
 
-extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_clearContext0(JNIEnv* env, jobject unused, jint tid) {
-    Contexts::clear(tid);
-}
-
 extern "C" DLLEXPORT jint JNICALL
 Java_one_profiler_AsyncProfiler_getTid0(JNIEnv* env, jobject unused) {
     return OS::threadId();
@@ -161,7 +156,6 @@ static const JNINativeMethod profiler_natives[] = {
     F(getSamples,      "()J"),
     F(filterThread0,   "(Ljava/lang/Thread;Z)V"),
     F(setContext0,     "(IJJ)V"),
-    F(clearContext0,   "(I)V"),
     F(getTid0,         "()I"),
 };
 

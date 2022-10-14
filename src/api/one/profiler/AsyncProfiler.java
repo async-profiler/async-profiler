@@ -236,7 +236,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * Clears context identifier for current thread.
      */
     public void clearContext() {
-        clearContext0(tid.get());
+        setContext0(tid.get(), 0, 0);
     }
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
@@ -244,7 +244,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
     private native void setContext0(int tid, long spanId, long rootSpanId);
-    private native void clearContext0(int tid);
 
     private static native int getTid0();
 }
