@@ -39,9 +39,9 @@ Context Contexts::get(int tid) {
 bool Contexts::filter(Context ctx, int event_type) {
     switch (event_type) {
     case BCI_WALL:
-        return !_wall_filtering || ctx.spanId != 0;
+        return !_wall_filtering || ctx.spanId > 0;
     case BCI_CPU:
-        return !_cpu_filtering || ctx.spanId != 0;
+        return !_cpu_filtering || ctx.spanId > 0;
     default:
         // no filtering based on context
         return true;
@@ -79,6 +79,11 @@ void Contexts::initialize() {
             free(contexts);
         }
     }
+}
+
+ContextStorage Contexts::getStorage() {
+    initialize();
+    return {.capacity = _contexts_size * (int) sizeof(Context), .storage = _contexts};
 }
 
 void Contexts::registerThread(int tid) {

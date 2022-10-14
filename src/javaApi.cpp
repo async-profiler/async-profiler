@@ -73,12 +73,6 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
     }
 }
 
-extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_setContext0(JNIEnv* env, jobject unused, jint tid, jlong spanId, jlong rootSpanId) {
-    Context context = { .spanId = (u64)spanId, .rootSpanId = (u64)rootSpanId };
-    Contexts::set(tid, context);
-}
-
 extern "C" DLLEXPORT jint JNICALL
 Java_one_profiler_AsyncProfiler_getTid0(JNIEnv* env, jobject unused) {
     return OS::threadId();
@@ -147,16 +141,22 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_AsyncProfiler_getContextStorage0(JNIEnv* env) {
+    ContextStorage storage = Contexts::getStorage();
+    return env->NewDirectByteBuffer((void*) storage.storage, (jlong) storage.capacity);
+}
+
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,          "(Ljava/lang/String;JZ)V"),
-    F(stop0,           "()V"),
-    F(execute0,        "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,      "()J"),
-    F(filterThread0,   "(Ljava/lang/Thread;Z)V"),
-    F(setContext0,     "(IJJ)V"),
-    F(getTid0,         "()I"),
+    F(start0,            "(Ljava/lang/String;JZ)V"),
+    F(stop0,             "()V"),
+    F(execute0,          "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,        "()J"),
+    F(filterThread0,     "(Ljava/lang/Thread;Z)V"),
+    F(getTid0,           "()I"),
+    F(getContextStorage0, "()Ljava/nio/ByteBuffer"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

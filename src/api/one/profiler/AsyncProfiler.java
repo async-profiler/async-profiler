@@ -17,6 +17,7 @@
 package one.profiler;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -26,12 +27,19 @@ import java.io.IOException;
  */
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
-
-    private static ThreadLocal<Integer> tid = new ThreadLocal<Integer>() {
+    // this - along with the code that writes to the buffer - must be updated
+    // if/when the context changes.
+    // There is no sense in trying to determine this value dynamically.
+    private static final int CONTEXT_SIZE = 16;
+    private static ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
         @Override protected Integer initialValue() {
             return getTid0();
         }
     };
+
+    // TODO decide whether it's worth doing this lazily,
+    //  or not at all when contextual features are disabled
+    private final ByteBuffer contextStorage = getContextStorage0();
 
     private AsyncProfiler() {
     }
@@ -229,21 +237,25 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param rootSpanId Root Span identifier that should be stored for current thread
      */
     public void setContext(long spanId, long rootSpanId) {
-        setContext0(tid.get(), spanId, rootSpanId);
+        int tid = TID.get();
+        int index = tid * CONTEXT_SIZE;
+        contextStorage.putLong(index, Long.MIN_VALUE); // mark invalid bit
+        contextStorage.putLong(index + 8, rootSpanId);
+        contextStorage.putLong(index, spanId); // publish the value
     }
 
     /**
      * Clears context identifier for current thread.
      */
     public void clearContext() {
-        setContext0(tid.get(), 0, 0);
+        setContext(0, 0);
     }
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
-    private native void setContext0(int tid, long spanId, long rootSpanId);
+    private native ByteBuffer getContextStorage0();
 
     private static native int getTid0();
 }

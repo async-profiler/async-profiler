@@ -28,6 +28,11 @@ typedef struct {
     volatile u64 rootSpanId;
 } Context;
 
+typedef struct {
+    const int capacity;
+    const Context* storage;
+} ContextStorage;
+
 class ContextsThreadList;
 
 class Contexts {
@@ -53,6 +58,9 @@ class Contexts {
     static Context get(int tid);
     static bool filter(int tid, int event_type);
     static bool filter(Context ctx, int event_type);
+    // not to be called except to share with Java callers as a DirectByteBuffer
+    static ContextStorage getStorage();
+
 
     static void setWallFiltering(bool wall_filtering) {
         _wall_filtering = wall_filtering;
