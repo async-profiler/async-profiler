@@ -75,7 +75,7 @@ Java_one_profiler_AsyncProfiler_stop0(JNIEnv* env, jobject unused) {
 
 extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_setContext0(JNIEnv* env, jobject unused, jint tid, jlong spanId, jlong rootSpanId) {
-    Context context = { .invalid = 0, .spanId = (u64)spanId, .rootSpanId = (u64)rootSpanId };
+    Context context = { .spanId = (u64)spanId, .rootSpanId = (u64)rootSpanId };
     Contexts::set(tid, context);
 }
 

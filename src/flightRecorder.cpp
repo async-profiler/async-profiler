@@ -1177,13 +1177,8 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.invalid) {
-            buf->putVar64(0);
-            buf->putVar64(0);
-        } else {
-            buf->putVar64(context.spanId);
-            buf->putVar64(context.rootSpanId);
-        }
+        buf->putVar64(context.spanId);
+        buf->putVar64(context.rootSpanId);
         buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
@@ -1197,13 +1192,8 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.invalid) {
-            buf->putVar64(0);
-            buf->putVar64(0);
-        } else {
-            buf->putVar64(context.spanId);
-            buf->putVar64(context.rootSpanId);
-        }
+        buf->putVar64(context.spanId);
+        buf->putVar64(context.rootSpanId);
         buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
@@ -1219,13 +1209,8 @@ class Recording {
         buf->putVar64(event->_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
-        if (context.invalid) {
-            buf->putVar64(0);
-            buf->putVar64(0);
-        } else {
-            buf->putVar64(context.spanId);
-            buf->putVar64(context.rootSpanId);
-        }
+        buf->putVar64(context.spanId);
+        buf->putVar64(context.rootSpanId);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1239,13 +1224,8 @@ class Recording {
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_id);
         buf->putVar64(event->_total_size);
-        if (context.invalid) {
-            buf->putVar64(0);
-            buf->putVar64(0);
-        } else {
-            buf->putVar64(context.spanId);
-            buf->putVar64(context.rootSpanId);
-        }
+        buf->putVar64(context.spanId);
+        buf->putVar64(context.rootSpanId);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1274,13 +1254,8 @@ class Recording {
         buf->putVar64(event->_id);
         buf->put8(0);
         buf->putVar64(event->_address);
-        if (context.invalid) {
-            buf->putVar64(0);
-            buf->putVar64(0);
-        } else {
-            buf->putVar64(context.spanId);
-            buf->putVar64(context.rootSpanId);
-        }
+        buf->putVar64(context.spanId);
+        buf->putVar64(context.rootSpanId);
         buf->put8(start, buf->offset() - start);
     }
 

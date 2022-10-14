@@ -39,9 +39,9 @@ Context Contexts::get(int tid) {
 bool Contexts::filter(Context ctx, int event_type) {
     switch (event_type) {
     case BCI_WALL:
-        return !_wall_filtering || (ctx.invalid == 0 && ctx.spanId != 0);
+        return !_wall_filtering || ctx.spanId != 0;
     case BCI_CPU:
-        return !_cpu_filtering || (ctx.invalid == 0 && ctx.spanId != 0);
+        return !_cpu_filtering || ctx.spanId != 0;
     default:
         // no filtering based on context
         return true;
@@ -57,10 +57,8 @@ bool Contexts::filter(int tid, int event_type) {
 
 void Contexts::set(int tid, Context context) {
     bool installed;
-    lock(tid);
     installed = _contexts[tid].spanId == 0;
     _contexts[tid] = context;
-    unlock(tid);
     if (installed == 0) {
         // FIXME: reenable when using thread filtering based on context
         // registerThread(tid);
@@ -70,10 +68,8 @@ void Contexts::set(int tid, Context context) {
 void Contexts::clear(int tid) {
     // FIXME: reenable when using thread filtering based on context
     // unregisterThread(tid);
-    lock(tid);
     _contexts[tid].spanId = 0;
     _contexts[tid].rootSpanId = 0;
-    unlock(tid);
 }
 
 void Contexts::initialize() {
@@ -83,14 +79,6 @@ void Contexts::initialize() {
             free(contexts);
         }
     }
-}
-
-void Contexts::lock(int tid) {
-    __atomic_store_n(&_contexts[tid].invalid, 1, __ATOMIC_SEQ_CST);
-}
-
-void Contexts::unlock(int tid) {
-    __atomic_store_n(&_contexts[tid].invalid, 0, __ATOMIC_SEQ_CST);
 }
 
 void Contexts::registerThread(int tid) {

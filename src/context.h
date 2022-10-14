@@ -24,7 +24,6 @@
 typedef u64 BitsetElement;
 
 typedef struct {
-    volatile u64 invalid;
     volatile u64 spanId;
     volatile u64 rootSpanId;
 } Context;
@@ -42,9 +41,6 @@ class Contexts {
 
     static BitsetElement* _threads;
     static int _threads_size;
-
-    static void lock(int tid);
-    static void unlock(int tid);
 
     static void registerThread(int tid);
     static void unregisterThread(int tid);
