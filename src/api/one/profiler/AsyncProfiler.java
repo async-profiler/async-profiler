@@ -31,7 +31,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     // if/when the context changes.
     // There is no sense in trying to determine this value dynamically.
     private static final int CONTEXT_SIZE = 16;
-    private static ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
+    private static final ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
         @Override protected Integer initialValue() {
             return getTid0();
         }
