@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
  */
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
+    private static final boolean IS_64_BIT = getNativePointerSize0() == 8;
     // this - along with the code that writes to the buffer - must be updated
     // if/when the context changes.
     // There is no sense in trying to determine this value dynamically.
@@ -39,7 +40,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     // TODO decide whether it's worth doing this lazily,
     //  or not at all when contextual features are disabled
-    private final ByteBuffer contextStorage = getContextStorage0();
+    private final ByteBuffer contextStorage = IS_64_BIT ? getContextStorage0() : null;
 
     private AsyncProfiler() {
     }
@@ -237,6 +238,9 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param rootSpanId Root Span identifier that should be stored for current thread
      */
     public void setContext(long spanId, long rootSpanId) {
+        if (!IS_64_BIT) {
+            return;
+        }
         int tid = TID.get();
         int index = tid * CONTEXT_SIZE;
         contextStorage.putLong(index, Long.MIN_VALUE); // mark invalid bit
@@ -255,7 +259,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
-    private native ByteBuffer getContextStorage0();
 
+    private static native int getNativePointerSize0();
+    private static native ByteBuffer getContextStorage0();
     private static native int getTid0();
 }
