@@ -31,9 +31,9 @@ Context Contexts::get(int tid) {
 bool Contexts::filter(Context ctx, int event_type) {
     switch (event_type) {
     case BCI_WALL:
-        return !_wall_filtering || ctx.spanId > 0;
+        return !_wall_filtering || ctx.valid == 1;
     case BCI_CPU:
-        return !_cpu_filtering || ctx.spanId > 0;
+        return !_cpu_filtering || ctx.valid == 1;
     default:
         // no filtering based on context
         return true;
@@ -46,20 +46,16 @@ bool Contexts::filter(int tid, int event_type) {
     return filter(context, event_type);
 }
 
-void Contexts::set(int tid, Context context) {
-    _contexts[tid] = context;
-}
-
-void Contexts::clear(int tid) {
-    _contexts[tid].spanId = 0;
-    _contexts[tid].rootSpanId = 0;
-}
-
 void Contexts::initialize() {
     if (__atomic_load_n(&_contexts, __ATOMIC_ACQUIRE) == NULL) {
-        Context *contexts = (Context*)calloc(_contexts_size = OS::getMaxThreadId(), sizeof(Context));
+        _contexts_size = OS::getMaxThreadId();
+        int capacity = _contexts_size * sizeof(Context);
+        Context *contexts = (Context*) aligned_alloc(sizeof(Context), capacity);
         if (!__sync_bool_compare_and_swap(&_contexts, NULL, contexts)) {
             free(contexts);
+        } else {
+            // need to zero the storage because there is no aligned_calloc
+            memset(contexts, 0, _contexts_size * sizeof(Context) / sizeof(int));
         }
     }
 }

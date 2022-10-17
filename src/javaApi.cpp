@@ -152,6 +152,11 @@ Java_one_profiler_AsyncProfiler_getNativePointerSize0(JNIEnv* env) {
     return sizeof(void*);
 }
 
+extern "C" DLLEXPORT jint JNICALL
+Java_one_profiler_AsyncProfiler_getContextSize0(JNIEnv* env) {
+    return sizeof(Context);
+}
+
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
@@ -162,7 +167,8 @@ static const JNINativeMethod profiler_natives[] = {
     F(filterThread0,         "(Ljava/lang/Thread;Z)V"),
     F(getTid0,               "()I"),
     F(getContextStorage0,    "()Ljava/nio/ByteBuffer"),
-    F(getNativePointerSize0, "()V")
+    F(getNativePointerSize0, "()V"),
+    F(getContextSize0,       "()I"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

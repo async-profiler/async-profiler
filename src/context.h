@@ -22,8 +22,14 @@
 #include "os.h"
 
 typedef struct {
+    u64 valid;
     u64 spanId;
     u64 rootSpanId;
+    u64 pad1;
+    u64 pad2;
+    u64 pad3;
+    u64 pad4;
+    u64 pad5;
 } Context;
 
 typedef struct {

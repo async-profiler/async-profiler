@@ -28,10 +28,7 @@ import java.nio.ByteBuffer;
 public class AsyncProfiler implements AsyncProfilerMXBean {
     private static AsyncProfiler instance;
     private static final boolean IS_64_BIT = getNativePointerSize0() == 8;
-    // this - along with the code that writes to the buffer - must be updated
-    // if/when the context changes.
-    // There is no sense in trying to determine this value dynamically.
-    private static final int CONTEXT_SIZE = 16;
+    private static final int CONTEXT_SIZE = getContextSize0();
     private static final ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
         @Override protected Integer initialValue() {
             return getTid0();
@@ -243,9 +240,10 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
         int tid = TID.get();
         int index = tid * CONTEXT_SIZE;
-        contextStorage.putLong(index, Long.MIN_VALUE); // mark invalid bit
-        contextStorage.putLong(index + 8, rootSpanId);
-        contextStorage.putLong(index, spanId); // publish the value
+        contextStorage.putLong(index, 0); // mark invalid
+        contextStorage.putLong(index + 8, spanId);
+        contextStorage.putLong(index + 16, rootSpanId);
+        contextStorage.putLong(index, 1); // mark valid
     }
 
     /**
@@ -261,6 +259,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void filterThread0(Thread thread, boolean enable);
 
     private static native int getNativePointerSize0();
+    private static native int getContextSize0();
     private static native ByteBuffer getContextStorage0();
     private static native int getTid0();
 }

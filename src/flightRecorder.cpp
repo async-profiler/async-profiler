@@ -1177,7 +1177,7 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.spanId > 0) {
+        if (context.valid == 1) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1197,7 +1197,7 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.spanId > 0) {
+        if (context.valid == 1) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1219,7 +1219,7 @@ class Recording {
         buf->putVar64(event->_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
-        if (context.spanId > 0) {
+        if (context.valid == 1) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1239,7 +1239,7 @@ class Recording {
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_id);
         buf->putVar64(event->_total_size);
-        if (context.spanId > 0) {
+        if (context.valid == 1) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1274,7 +1274,7 @@ class Recording {
         buf->putVar64(event->_id);
         buf->put8(0);
         buf->putVar64(event->_address);
-        if (context.spanId > 0) {
+        if (context.valid == 1) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {

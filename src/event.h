@@ -32,7 +32,7 @@ class Event {
     Context _context;
 
     Event(Context ctx) : _id(0), _context(ctx) {}
-    Event() : Event({0, 0}) {}
+    Event() : Event({0, 0, 0, 0, 0, 0, 0, 0}) {}
 };
 
 class ExecutionEvent : public Event {
