@@ -31,9 +31,9 @@ Context Contexts::get(int tid) {
 bool Contexts::filter(Context ctx, int event_type) {
     switch (event_type) {
     case BCI_WALL:
-        return !_wall_filtering || ctx.valid == 1;
+        return !_wall_filtering || (ctx.valid == 1 && ctx.spanId != 0);
     case BCI_CPU:
-        return !_cpu_filtering || ctx.valid == 1;
+        return !_cpu_filtering || (ctx.valid == 1 && ctx.spanId != 0);
     default:
         // no filtering based on context
         return true;
