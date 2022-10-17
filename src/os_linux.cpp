@@ -230,7 +230,21 @@ ThreadState OS::threadState(int thread_id) {
     ThreadState state = THREAD_INVALID;
     if (read(fd, buf, sizeof(buf)) > 0) {
         char* s = strchr(buf, ')');
-        state = s != NULL && (s[2] == 'R' || s[2] == 'D') ? THREAD_RUNNING : THREAD_SLEEPING;
+        if (s != NULL) {
+            switch (s[2]) {
+                case 'R':
+                    state = THREAD_RUNNING;
+                    break;
+                case 'D':
+                    state = THREAD_UNINTERRUPTIBLE;
+                    break;
+                case 'S':
+                    state = THREAD_SLEEPING;
+                    break;
+                default:
+                    state = THREAD_INVALID;
+            }
+        }
     }
 
     close(fd);
