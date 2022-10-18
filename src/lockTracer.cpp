@@ -191,9 +191,6 @@ void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_tim
                                      const char* lock_name, jobject lock, jlong timeout) {
     int tid = ProfiledThread::currentTid();
     Context ctx = Contexts::get(tid);
-    if (!Contexts::filter(ctx, event_type)) {
-        return;
-    }
 
     LockEvent event;
     event._start_time = start_time;

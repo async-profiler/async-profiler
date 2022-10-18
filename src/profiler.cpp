@@ -589,10 +589,6 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 void Profiler::recordExternalSample(u64 counter, int tid, jvmtiFrameInfo *jvmti_frames, jint num_jvmti_frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
-    if (!Contexts::filter(event->_context, event_type)) {
-        return;
-    }
-
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -701,10 +697,6 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
 
 void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated, jint event_type, Event* event) {
     atomicInc(_total_samples);
-
-    if (!Contexts::filter(event->_context, event_type)) {
-        return;
-    }
 
     if (_add_thread_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
@@ -1069,8 +1061,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Branch stack is supported only with PMU events");
     }
 
-    Contexts::setWallFiltering(args._wall_filtering);
-    Contexts::setCpuFiltering(args._cpu_filtering);
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_cpu_engine == &perf_events && (args._ring & RING_KERNEL));
 

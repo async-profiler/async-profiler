@@ -144,10 +144,8 @@ class Arguments {
     int _timeout;
     long _interval;
     long _cpu;
-    bool _cpu_filtering;
     int _cpu_threads_per_tick;
     long _wall;
-    bool _wall_filtering;
     bool _wall_collapsing;
     int _wall_threads_per_tick;
     long _alloc;
@@ -196,10 +194,8 @@ class Arguments {
         _timeout(0),
         _interval(0),
         _cpu(-1),
-        _cpu_filtering(false),
         _cpu_threads_per_tick(DEFAULT_CPU_THREADS_PER_TICK),
         _wall(-1),
-        _wall_filtering(false),
         _wall_collapsing(false),
         _wall_threads_per_tick(DEFAULT_WALL_THREADS_PER_TICK),
         _alloc(-1),

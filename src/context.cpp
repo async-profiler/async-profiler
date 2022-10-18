@@ -21,29 +21,8 @@
 int Contexts::_contexts_size = -1;
 Context* Contexts::_contexts = NULL;
 
-bool Contexts::_wall_filtering = true;
-bool Contexts::_cpu_filtering = true;
-
 Context Contexts::get(int tid) {
     return _contexts[tid];
-}
-
-bool Contexts::filter(Context ctx, int event_type) {
-    switch (event_type) {
-    case BCI_WALL:
-        return !_wall_filtering || (ctx.valid == 1 && ctx.spanId != 0);
-    case BCI_CPU:
-        return !_cpu_filtering || (ctx.valid == 1 && ctx.spanId != 0);
-    default:
-        // no filtering based on context
-        return true;
-    }
-}
-
-bool Contexts::filter(int tid, int event_type) {
-    // the thread should be suspended, so _contexts[tid] shouldn't change
-    Context context = _contexts[tid];
-    return filter(context, event_type);
 }
 
 void Contexts::initialize() {

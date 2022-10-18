@@ -69,9 +69,6 @@ void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rkl
                                    uintptr_t total_size, uintptr_t instance_size) {
     int tid = ProfiledThread::currentTid();
     Context ctx = Contexts::get(tid);
-    if (!Contexts::filter(ctx, event_type)) {
-        return;
-    }
 
     AllocEvent event;
     event._total_size = total_size;

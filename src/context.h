@@ -45,8 +45,6 @@ class Contexts {
   private:
     static int _contexts_size;
     static Context* _contexts;
-    static bool _wall_filtering;
-    static bool _cpu_filtering;
 
   public:
     static void initialize();
@@ -58,14 +56,6 @@ class Contexts {
     static bool filter(Context ctx, int event_type);
     // not to be called except to share with Java callers as a DirectByteBuffer
     static ContextStorage getStorage();
-
-
-    static void setWallFiltering(bool wall_filtering) {
-        _wall_filtering = wall_filtering;
-    }
-    static void setCpuFiltering(bool cpu_filtering) {
-        _cpu_filtering = cpu_filtering;
-    }
 };
 
 #endif /* _CONTEXT_H */
