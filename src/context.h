@@ -21,13 +21,21 @@
 #include "arguments.h"
 #include "os.h"
 
-typedef u64 BitsetElement;
+typedef struct {
+    u64 valid;
+    u64 spanId;
+    u64 rootSpanId;
+    u64 pad1;
+    u64 pad2;
+    u64 pad3;
+    u64 pad4;
+    u64 pad5;
+} Context;
 
 typedef struct {
-    volatile u64 invalid;
-    volatile u64 spanId;
-    volatile u64 rootSpanId;
-} Context;
+    const int capacity;
+    const Context* storage;
+} ContextStorage;
 
 class ContextsThreadList;
 
@@ -40,15 +48,6 @@ class Contexts {
     static bool _wall_filtering;
     static bool _cpu_filtering;
 
-    static BitsetElement* _threads;
-    static int _threads_size;
-
-    static void lock(int tid);
-    static void unlock(int tid);
-
-    static void registerThread(int tid);
-    static void unregisterThread(int tid);
-
   public:
     static void initialize();
 
@@ -57,6 +56,9 @@ class Contexts {
     static Context get(int tid);
     static bool filter(int tid, int event_type);
     static bool filter(Context ctx, int event_type);
+    // not to be called except to share with Java callers as a DirectByteBuffer
+    static ContextStorage getStorage();
+
 
     static void setWallFiltering(bool wall_filtering) {
         _wall_filtering = wall_filtering;
@@ -64,8 +66,6 @@ class Contexts {
     static void setCpuFiltering(bool cpu_filtering) {
         _cpu_filtering = cpu_filtering;
     }
-
-    static ThreadList* listThreads();
 };
 
 #endif /* _CONTEXT_H */
