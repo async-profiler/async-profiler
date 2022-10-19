@@ -51,7 +51,6 @@ class WallClock : public Engine {
     // suffer from a big profiling overhead. Also, keeping this limit low enough helps
     // to avoid contention on a spin lock inside Profiler::recordSample().
     int _reservoir_size;
-    bool _filtering;
 
     volatile bool _running;
     pthread_t _thread;
@@ -74,7 +73,6 @@ class WallClock : public Engine {
         _collapsing(false),
         _interval(LONG_MAX),
         _reservoir_size(0),
-        _filtering(false),
         _running(false),
         _thread(0) {}
 

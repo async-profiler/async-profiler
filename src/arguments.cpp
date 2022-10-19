@@ -203,9 +203,6 @@ Error Arguments::parse(const char* args) {
                     msg = "cpu must be >= 0";
                 }
 
-            CASE("cpufilter")
-                _cpu_filtering = true;
-
             CASE("cputpt")
                 if (value == NULL || (_cpu_threads_per_tick = atoi(value)) <= 0) {
                     msg = "cputpt must be > 0";
@@ -225,9 +222,6 @@ Error Arguments::parse(const char* args) {
                 if (_wall < 0) {
                     msg = "wall must be >= 0";
                 }
-
-            CASE("wallfilter")
-                _wall_filtering = true;
 
             CASE("walltpt")
                 if (value == NULL || (_wall_threads_per_tick = atoi(value)) <= 0) {

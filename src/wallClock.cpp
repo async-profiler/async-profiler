@@ -66,9 +66,6 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
     int tid = current != NULL ? current->tid() : OS::threadId();
     int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
     Context ctx = Contexts::get(tid);
-    if (!Contexts::filter(ctx, event_type)) {
-        return;
-    }
     u64 skipped = 0;
     if (current != NULL && event_type == BCI_WALL) {
         if (_collapsing && !current->noteWallSample(false, &skipped)) {
@@ -91,7 +88,6 @@ Error WallClock::start(Arguments &args) {
         }
         _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
 
-        _filtering = args._wall_filtering;
         _collapsing = args._wall_collapsing;
 
         _reservoir_size =
@@ -106,8 +102,6 @@ Error WallClock::start(Arguments &args) {
             return Error("interval must be positive");
         }
         _interval = interval ? interval : DEFAULT_CPU_INTERVAL;
-
-        _filtering = args._cpu_filtering;
 
         _reservoir_size =
             args._cpu_threads_per_tick ?
@@ -150,8 +144,6 @@ void WallClock::timerLoop() {
     bool thread_filter_enabled = thread_filter->enabled();
     bool sample_idle_threads = _sample_idle_threads;
 
-    // FIXME: reenable when using thread filtering based on context. See context.cpp
-    // ThreadList* thread_list = _filtering ? Contexts::listThreads() : OS::listThreads();
     ThreadList* thread_list = OS::listThreads();
 
     std::mt19937 generator(std::random_device{}());

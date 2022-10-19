@@ -40,9 +40,6 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         tid = OS::threadId();
     }
     Context ctx = Contexts::get(tid);
-    if (!Contexts::filter(ctx, BCI_CPU)) {
-        return;
-    }
 
     ExecutionEvent event;
     event._context = ctx;
