@@ -57,7 +57,7 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
     ProfiledThread* current = ProfiledThread::current();
     int tid = current != NULL ? current->tid() : OS::threadId();
-    Context ctx = Contexts::get(tid);
+    Context& ctx = Contexts::get(tid);
     u64 skipped = 0;
     if (current != NULL) {
         if (_collapsing && !current->noteWallSample(false, &skipped)) {

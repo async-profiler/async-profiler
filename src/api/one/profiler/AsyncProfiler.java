@@ -227,10 +227,9 @@ public class AsyncProfiler {
         }
         int tid = TID.get();
         int index = tid * CONTEXT_SIZE;
-        contextStorage.putLong(index, 0); // mark invalid
-        contextStorage.putLong(index + 8, spanId);
-        contextStorage.putLong(index + 16, rootSpanId);
-        contextStorage.putLong(index, 1); // mark valid
+        contextStorage.putLong(index, spanId);
+        contextStorage.putLong(index + 8, rootSpanId);
+        contextStorage.putLong(index + 16, spanId ^ rootSpanId);
     }
 
     /**

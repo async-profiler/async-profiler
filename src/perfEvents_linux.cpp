@@ -710,7 +710,7 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
     int tid = current != NULL ? current->tid() : OS::threadId();
     if (_enabled) {
-        Context ctx = Contexts::get(tid);
+        Context& ctx = Contexts::get(tid);
 
         u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
