@@ -34,7 +34,7 @@ void Contexts::initialize() {
             free(contexts);
         } else {
             // need to zero the storage because there is no aligned_calloc
-            memset(contexts, 0, _contexts_size * sizeof(Context) / sizeof(int));
+            memset(contexts, 0, capacity);
         }
     }
 }
