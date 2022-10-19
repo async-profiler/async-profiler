@@ -103,22 +103,13 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-bool shouldSample(
-        int self,
-        int thread_id,
-        bool thread_filter_enabled,
-        ThreadFilter* thread_filter) {
-    return thread_id != -1 && thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id));
-}
-
 void WallClock::timerLoop() {
+    std::vector<int> tids;
+    tids.reserve(OS::getMaxThreadId());
     std::vector<int> reservoir;
     reservoir.reserve(_reservoir_size);
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
-    bool thread_filter_enabled = thread_filter->enabled();
-
-    ThreadList* thread_list = OS::listThreads();
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<double> uniform(1e-16, 1.0);
@@ -126,37 +117,34 @@ void WallClock::timerLoop() {
 
     while (_running) {
         if (_enabled) {
-            int tid = thread_list->next();
-            for (int i = 0; i < _reservoir_size && tid != -1; tid = thread_list->next()) {
-                if (shouldSample(self, tid, thread_filter_enabled, thread_filter)) {
-                    reservoir.push_back(tid);
-                    i++;
-                }
-            }
-            if (tid != -1) {
-                double weight = exp(log(uniform(generator)) / _reservoir_size);
-                // produces a value in [0, _)
-                int num_threads_to_skip = (int) (log(uniform(generator)) / log(1 - weight));
+            if (thread_filter->enabled()) {
+                thread_filter->remove(self);
+                thread_filter->collect(tids);
+            } else {
+                ThreadList* thread_list = OS::listThreads();
+                int tid = thread_list->next();
                 while (tid != -1) {
-                    for (int i = 0; i < num_threads_to_skip && tid != -1;) {
-                        tid = thread_list->next();
-                        if (shouldSample(self, tid, thread_filter_enabled, thread_filter)) {
-                            i++;
-                        }
+                    if (tid != self) {
+                        tids.push_back(tid);
                     }
-                    if (tid != -1) {
-                        reservoir[random_index(generator)] = tid;
-                    }
-                    weight *= exp(log(uniform(generator)) / _reservoir_size);
-                    num_threads_to_skip = (int) (log(uniform(generator)) / log(1 - weight));
                     tid = thread_list->next();
                 }
+            }
+            for (int i = 0; i < _reservoir_size && i < tids.size(); i++) {
+                reservoir.push_back(tids[i]);
+            }
+            double weight = exp(log(uniform(generator)) / _reservoir_size);
+            int target = _reservoir_size + (int) (log(uniform(generator)) / log(1 - weight));
+            while (target < tids.size()) {
+                reservoir[random_index(generator)] = tids[target];
+                weight *= exp(log(uniform(generator)) / _reservoir_size);
+                target += (int) (log(uniform(generator)) / log(1 - weight));
             }
             for (auto const &thread_id: reservoir) {
                 OS::sendSignalToThread(thread_id, SIGVTALRM);
             }
             reservoir.clear();
-            thread_list->rewind();
+            tids.clear();
         }
         OS::sleep(_interval);
     }
