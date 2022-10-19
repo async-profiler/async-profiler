@@ -23,28 +23,11 @@
 #include "engine.h"
 #include "os.h"
 
-/**
- * This class is used for both Wall Time profiling and as the fallback for CPU Profiling (same as
- * upstream).
- *
- * Why can we simply reuse this "WallClock" engine for both Wall Time and CPU profiling?
- * That's because the "WallClock" here means it uses the wall clock to trigger the signals, as
- * opposed to using a CPU clock for example. This makes a lot of sense for Wall Time profiling, but
- * not necessarily for CPU profiling you might say. It however works well for CPU profiling as well,
- * as long as it checks whether the thread to which it is sending a signal is currently running or
- * not. That gives a statistically close enough approximation to the actual CPU time. That is also
- * the most common approach used by other profilers, JFR included.
- *
- * I did try splitting up the Wall Time and CPU profiler in different classes with some shared code
- * in a base class, however, that didn't lead to much shared code, and the main difference was the
- * classes' names.
- */
 class WallClock : public Engine {
   private:
     static volatile bool _enabled;
     bool _collapsing;
     long _interval;
-    bool _sample_idle_threads;
 
     // Maximum number of threads sampled in one iteration. This limit serves as a throttle
     // when generating profiling signals. Otherwise applications with too many threads may
@@ -68,8 +51,7 @@ class WallClock : public Engine {
     void signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample);
 
   public:
-    constexpr WallClock(bool sample_idle_threads) :
-        _sample_idle_threads(sample_idle_threads),
+    constexpr WallClock() :
         _collapsing(false),
         _interval(LONG_MAX),
         _reservoir_size(0),
@@ -77,7 +59,7 @@ class WallClock : public Engine {
         _thread(0) {}
 
     const char* title() {
-        return _sample_idle_threads ? "Wall profile" : "CPU profile";
+        return "Wall profile";
     }
 
     const char* units() {
