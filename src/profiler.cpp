@@ -1239,9 +1239,7 @@ Error Profiler::dump(std::ostream& out, Arguments& args) {
             break;
         case OUTPUT_JFR:
             if (_state == RUNNING) {
-                lockAll();
-                _jfr.flush();
-                unlockAll();
+                return _jfr.dump(args.file());
             }
             break;
         default:

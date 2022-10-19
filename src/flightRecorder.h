@@ -27,13 +27,18 @@ class Recording;
 
 class FlightRecorder {
   private:
+    const char* _filename;
+    Arguments _args;
     Recording* _rec;
+
+    Error newRecording(bool reset);
 
   public:
     FlightRecorder() : _rec(NULL) {}
 
     Error start(Arguments& args, bool reset);
     void stop();
+    Error dump(const char* filename);
     void flush();
     bool timerTick(u64 wall_time);
 

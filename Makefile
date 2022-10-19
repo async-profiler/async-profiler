@@ -161,6 +161,7 @@ test: all
 	test/alloc-smoke-test.sh
 	test/load-library-test.sh
 	test/sleep-test.sh
+	test/jfr-dump-test.sh
 	echo "All tests passed"
 
 test-%: all

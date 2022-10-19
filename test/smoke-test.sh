@@ -12,7 +12,7 @@ fi
   cd $(dirname $0)
 
   if [ "Target.class" -ot "Target.java" ]; then
-     ${JAVA_HOME}/bin/javac Target.java
+     ${JAVA_HOME}/bin/javac -cp ../build/async-profiler.jar Target.java
   fi
 
   ${JAVA_HOME}/bin/java Target &

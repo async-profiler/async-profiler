@@ -239,11 +239,6 @@ while [ $# -gt 0 ]; do
         --ttsp)
             PARAMS="$PARAMS,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized"
             ;;
-        --jfrsync)
-            OUTPUT="jfr"
-            PARAMS="$PARAMS,jfrsync=$2"
-            shift
-            ;;
         --lib)
             PROFILER="$2"
             shift

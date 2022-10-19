@@ -26,9 +26,6 @@
 #include "context.h"
 
 
-INCBIN(SERVER_CLASS, "one/profiler/Server.class")
-
-
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
     jclass cls = env->FindClass(exception_class);
     if (cls != NULL) {

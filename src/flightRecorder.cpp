@@ -522,6 +522,10 @@ class Recording {
 
         close(_fd);
     }
+    
+    void copyTo(int target_fd) {
+        OS::copyFile(_fd, target_fd, 0, finishChunk(true));
+    }
 
     off_t finishChunk() {
         return finishChunk(false);
@@ -1308,24 +1312,29 @@ char* Recording::_jvm_args = NULL;
 char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
 
-
 Error FlightRecorder::start(Arguments& args, bool reset) {
-    const char* filename = args.file();
-    if (filename == NULL || filename[0] == 0) {
+    _filename = args.file();
+    if (_filename == NULL || _filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
     }
+    _args = args;
 
     if (!TSC::initialized()) {
         TSC::initialize();
     }
 
-    int fd = open(filename, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
+    Error ret = newRecording(reset);
+    _rec_lock.unlock();
+    return ret;
+}
+
+Error FlightRecorder::newRecording(bool reset) {
+    int fd = open(_filename, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
         return Error("Could not open Flight Recorder output file");
     }
 
-    _rec = new Recording(fd, args);
-    _rec_lock.unlock();
+    _rec = new Recording(fd, _args);
     return Error::OK;
 }
 
@@ -1335,6 +1344,30 @@ void FlightRecorder::stop() {
 
         delete _rec;
         _rec = NULL;
+    }
+}
+
+Error FlightRecorder::dump(const char* filename) {
+    if (_rec != NULL) {
+        Error rslt = Error::OK;
+        _rec_lock.lock();
+        if (filename != NULL && strcmp(filename, _filename) != 0) {
+            // if the filname to dump the recording to is specified move the current working file there
+            int copy_fd = open(filename, O_CREAT | O_RDWR | O_TRUNC, 0644);
+            _rec->copyTo(copy_fd);
+            close(copy_fd);
+            // ... and restart the recording a-new
+            delete _rec;
+            _rec = NULL;
+            
+            rslt = newRecording(true);
+        } else {
+            flush();
+        }
+        _rec_lock.unlock();
+        return rslt;
+    } else {
+        return Error("No active recording");
     }
 }
 

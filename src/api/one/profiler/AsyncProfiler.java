@@ -18,6 +18,8 @@ package one.profiler;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -25,7 +27,7 @@ import java.nio.ByteBuffer;
  * The first call to {@link #getInstance()} initiates loading of
  * libasyncProfiler.so.
  */
-public class AsyncProfiler implements AsyncProfilerMXBean {
+public class AsyncProfiler {
     private static AsyncProfiler instance;
     private static final boolean IS_64_BIT = getNativePointerSize0() == 8;
     private static final int CONTEXT_SIZE = getContextSize0();
@@ -74,7 +76,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param interval Sampling interval, e.g. nanoseconds for Events.CPU
      * @throws IllegalStateException If profiler is already running
      */
-    @Override
     public void start(String event, long interval) throws IllegalStateException {
         if (event == null) {
             throw new NullPointerException();
@@ -90,7 +91,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param interval Sampling interval, e.g. nanoseconds for Events.CPU
      * @throws IllegalStateException If profiler is already running
      */
-    @Override
     public void resume(String event, long interval) throws IllegalStateException {
         if (event == null) {
             throw new NullPointerException();
@@ -103,7 +103,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      *
      * @throws IllegalStateException If profiler is not running
      */
-    @Override
     public void stop() throws IllegalStateException {
         stop0();
     }
@@ -113,7 +112,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      *
      * @return Number of samples
      */
-    @Override
     public native long getSamples();
 
     /**
@@ -121,7 +119,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      *
      * @return Version string
      */
-    @Override
     public String getVersion() {
         try {
             return execute0("version");
@@ -139,7 +136,6 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @throws IllegalArgumentException If failed to parse the command
      * @throws IOException If failed to create output file
      */
-    @Override
     public String execute(String command) throws IllegalArgumentException, IllegalStateException, IOException {
         if (command == null) {
             throw new NullPointerException();
@@ -153,10 +149,28 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      * @param counter Which counter to display in the output
      * @return Textual representation of the profile
      */
-    @Override
     public String dumpCollapsed(Counter counter) {
         try {
             return execute0("collapsed," + counter.name().toLowerCase());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Dump profile in JFR format.<br>
+     * This will cause the current data to be first written in a separate file and then truncated
+     * such that two subsequent calls to this method will result in non-overlapping recordings.
+     * @param path path 
+     * @return
+     */
+    public boolean dumpJfr(Path path) {
+        if (!Files.exists(path.getParent())) {
+            throw new IllegalArgumentException("Path " + path.getParent() + " does not exist");
+        }
+        try {
+            String ret = execute0("dump,file=" + path.toString() + ",output=jfr");
+            return ret.isEmpty() || ret.equals("OK");
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
