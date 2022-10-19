@@ -29,9 +29,6 @@ class FlightRecorder {
   private:
     Recording* _rec;
 
-    Error startMasterRecording(Arguments& args);
-    void stopMasterRecording();
-
   public:
     FlightRecorder() : _rec(NULL) {}
 

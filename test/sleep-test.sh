@@ -15,17 +15,15 @@ fi
      ${JAVA_HOME}/bin/javac SleepTest.java
   fi
 
-  FILENAME=/tmp/java-sleep.trace
+  FILENAME=/tmp/java-sleep.jfr
 
-  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so=start,event=itimer,flat,file=$FILENAME SleepTest 1000
+  ${JAVA_HOME}/bin/java -cp .:../build/async-profiler.jar -agentpath:../build/libasyncProfiler.so=start,wall=500ms,jfr,thread,file=$FILENAME SleepTest 1000
 
   # wait for normal termination
 
-  function assert_string() {
-    if ! grep -q -e "$1" $FILENAME; then
-      exit 1
-    fi
-  }
-
-  assert_string "Total samples[[:blank:]]\+: [0-1]" # We do not expect more than 1 sample.
+  SAMPLES=$(jfr print --events MethodSample $FILENAME | grep SleepTest | wc -l)
+  if [ $SAMPLES -ne 2 ]; then
+    echo "Expected number of samples: 2, received: $SAMPLES"
+    exit 1
+  fi
 )

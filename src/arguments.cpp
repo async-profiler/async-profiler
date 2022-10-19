@@ -65,12 +65,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     alloc[=BYTES]    - profile allocations with BYTES interval
 //     lock[=DURATION]  - profile contended locks longer than DURATION ns
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
-//     flamegraph       - produce Flame Graph in HTML format
-//     tree             - produce call tree in HTML format
 //     jfr              - dump events in Java Flight Recorder format
-//     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler 
 //     traces[=N]       - dump top N call traces
-//     flat[=N]         - dump top N methods (aka flat profile)
 //     samples          - count the number of samples (default)
 //     total            - count the total value (time, bytes, etc.) instead of samples
 //     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
@@ -156,30 +152,11 @@ Error Arguments::parse(const char* args) {
             CASE("collapsed")
                 _output = OUTPUT_COLLAPSED;
 
-            CASE("flamegraph")
-                _output = OUTPUT_FLAMEGRAPH;
-
-            CASE("tree")
-                _output = OUTPUT_TREE;
-
             CASE("jfr")
                 _output = OUTPUT_JFR;
                 if (value != NULL) {
                     _jfr_options = (int)strtol(value, NULL, 0);
                 }
-
-            CASE("jfrsync")
-                _output = OUTPUT_JFR;
-                _jfr_options = JFR_SYNC_OPTS;
-                _jfr_sync = value == NULL ? "default" : value;
-
-            CASE("traces")
-                _output = OUTPUT_TEXT;
-                _dump_traces = value == NULL ? INT_MAX : atoi(value);
-
-            CASE("flat")
-                _output = OUTPUT_TEXT;
-                _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
             CASE("samples")
                 _counter = COUNTER_SAMPLES;
@@ -402,11 +379,9 @@ Error Arguments::parse(const char* args) {
 
     if (_file != NULL && _output == OUTPUT_NONE) {
         _output = detectOutputFormat(_file);
-        if (_output == OUTPUT_SVG) {
-            return Error("SVG format is obsolete, use .html for FlameGraph");
+        if (_output == OUTPUT_NONE) {
+            return Error("Unsuported format. Use '*.jfr' or '*.collapsed' or '*.folded'");
         }
-        _dump_traces = 100;
-        _dump_flat = 200;
     }
 
     if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
@@ -498,17 +473,13 @@ const char* Arguments::expandFilePattern(const char* pattern) {
 Output Arguments::detectOutputFormat(const char* file) {
     const char* ext = strrchr(file, '.');
     if (ext != NULL) {
-        if (strcmp(ext, ".html") == 0) {
-            return OUTPUT_FLAMEGRAPH;
-        } else if (strcmp(ext, ".jfr") == 0) {
+        if (strcmp(ext, ".jfr") == 0) {
             return OUTPUT_JFR;
         } else if (strcmp(ext, ".collapsed") == 0 || strcmp(ext, ".folded") == 0) {
             return OUTPUT_COLLAPSED;
-        } else if (strcmp(ext, ".svg") == 0) {
-            return OUTPUT_SVG;
         }
     }
-    return OUTPUT_TEXT;
+    return OUTPUT_NONE;
 }
 
 long Arguments::parseUnits(const char* str, const Multiplier* multipliers) {

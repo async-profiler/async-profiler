@@ -35,7 +35,6 @@
 #include "j9WallClock.h"
 #include "itimer.h"
 #include "dwarf.h"
-#include "flameGraph.h"
 #include "flightRecorder.h"
 #include "frameName.h"
 #include "os.h"
@@ -1239,15 +1238,6 @@ Error Profiler::dump(std::ostream& out, Arguments& args) {
         case OUTPUT_COLLAPSED:
             dumpCollapsed(out, args);
             break;
-        case OUTPUT_FLAMEGRAPH:
-            dumpFlameGraph(out, args, false);
-            break;
-        case OUTPUT_TREE:
-            dumpFlameGraph(out, args, true);
-            break;
-        case OUTPUT_TEXT:
-            dumpText(out, args);
-            break;
         case OUTPUT_JFR:
             if (_state == RUNNING) {
                 lockAll();
@@ -1308,149 +1298,6 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
     if (!out.good()) {
         Log::warn("Output file may be incomplete");
-    }
-}
-
-void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
-    char title[64];
-    if (args._title == NULL) {
-        Engine* active_engine = activeEngine();
-        if (args._counter == COUNTER_SAMPLES) {
-            strcpy(title, active_engine->title());
-        } else {
-            sprintf(title, "%s (%s)", active_engine->title(), active_engine->units());
-        }
-    }
-
-    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-
-    std::vector<CallTraceSample*> samples;
-    _call_trace_storage.collectSamples(samples);
-
-    for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-        CallTrace* trace = (*it)->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace)) continue;
-
-        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (counter == 0) continue;
-
-        int num_frames = trace->num_frames;
-
-        Trie* f = flamegraph.root();
-        if (args._reverse) {
-            // Thread frames always come first
-            if (_add_sched_frame) {
-                const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, counter);
-            }
-            if (_add_thread_frame) {
-                const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, counter);
-            }
-
-            for (int j = 0; j < num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
-            }
-        } else {
-            for (int j = num_frames - 1; j >= 0; j--) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
-            }
-        }
-        f->addLeaf(counter);
-    }
-
-    flamegraph.dump(out, tree);
-}
-
-void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
-    char buf[1024] = {0};
-
-    std::vector<CallTraceSample> samples;
-    u64 total_counter = 0;
-    {
-        std::map<u64, CallTraceSample> map;
-        _call_trace_storage.collectSamples(map);
-        samples.reserve(map.size());
-
-        for (std::map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
-            CallTrace* trace = it->second.trace;
-            u64 counter = it->second.counter;
-            if (trace == NULL || counter == 0) continue;
-
-            total_counter += counter;
-            if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
-            samples.push_back(it->second);
-        }
-    }
-
-    // Print summary
-    snprintf(buf, sizeof(buf) - 1,
-            "--- Execution profile ---\n"
-            "Total samples       : %lld\n",
-            _total_samples);
-    out << buf;
-
-    double spercent = 100.0 / _total_samples;
-    for (int i = 1; i < ASGCT_FAILURE_TYPES; i++) {
-        const char* err_string = asgctError(-i);
-        if (err_string != NULL && _failures[i] > 0) {
-            snprintf(buf, sizeof(buf), "%-20s: %lld (%.2f%%)\n", err_string, _failures[i], _failures[i] * spercent);
-            out << buf;
-        }
-    }
-    out << "\n";
-
-    double cpercent = 100.0 / total_counter;
-    const char* units_str = activeEngine()->units();
-
-    // Print top call stacks
-    if (args._dump_traces > 0) {
-        std::sort(samples.begin(), samples.end());
-
-        int max_count = args._dump_traces;
-        for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
-            snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
-                     it->counter, units_str, it->counter * cpercent,
-                     it->samples, it->samples == 1 ? "" : "s");
-            out << buf;
-
-            CallTrace* trace = it->trace;
-            for (int j = 0; j < trace->num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
-                out << buf;
-            }
-            out << "\n";
-        }
-    }
-
-    // Print top methods
-    if (args._dump_flat > 0) {
-        std::map<std::string, MethodSample> histogram;
-        for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-            const char* frame_name = fn.name(it->trace->frames[0]);
-            histogram[frame_name].add(it->samples, it->counter);
-        }
-
-        std::vector<NamedMethodSample> methods(histogram.begin(), histogram.end());
-        std::sort(methods.begin(), methods.end(), sortByCounter);
-
-        snprintf(buf, sizeof(buf) - 1, "%12s  percent  samples  top\n"
-                                       "  ----------  -------  -------  ---\n", units_str);
-        out << buf;
-
-        int max_count = args._dump_flat;
-        for (std::vector<NamedMethodSample>::const_iterator it = methods.begin(); it != methods.end() && --max_count >= 0; ++it) {
-            snprintf(buf, sizeof(buf) - 1, "%12lld  %6.2f%%  %7lld  %s\n",
-                     it->second.counter, it->second.counter * cpercent, it->second.samples, it->first.c_str());
-            out << buf;
-        }
     }
 }
 

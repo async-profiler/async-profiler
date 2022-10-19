@@ -78,11 +78,7 @@ enum CStack {
 
 enum Output {
     OUTPUT_NONE,
-    OUTPUT_TEXT,
-    OUTPUT_SVG,  // obsolete
     OUTPUT_COLLAPSED,
-    OUTPUT_FLAMEGRAPH,
-    OUTPUT_TREE,
     OUTPUT_JFR
 };
 
@@ -171,10 +167,7 @@ class Arguments {
     Output _output;
     long _chunk_size;
     long _chunk_time;
-    const char* _jfr_sync;
     int _jfr_options;
-    int _dump_traces;
-    int _dump_flat;
     unsigned int _file_num;
     const char* _begin;
     const char* _end;
@@ -221,10 +214,7 @@ class Arguments {
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),
-        _jfr_sync(NULL),
         _jfr_options(0),
-        _dump_traces(0),
-        _dump_flat(0),
         _file_num(0),
         _begin(NULL),
         _end(NULL),

@@ -165,9 +165,8 @@ class Profiler {
     void lockAll();
     void unlockAll();
 
+    // TODO: Remove when tests are switched to JFR validation
     void dumpCollapsed(std::ostream& out, Arguments& args);
-    void dumpFlameGraph(std::ostream& out, Arguments& args, bool tree);
-    void dumpText(std::ostream& out, Arguments& args);
 
     static Profiler* const _instance;
 

@@ -58,7 +58,6 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 
 static SpinLock _rec_lock(1);
 
-static jclass _jfr_sync_class = NULL;
 static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
@@ -446,7 +445,6 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
-    char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
     MethodMap _method_map;
@@ -479,7 +477,6 @@ class Recording {
 
   public:
     Recording(int fd, Arguments& args) : _fd(fd), _thread_set(), _method_map() {
-        _master_recording_file = args._jfr_sync == NULL ? NULL : strdup(args.file());
         _chunk_start = lseek(_fd, 0, SEEK_END);
         _start_time = OS::micros();
         _start_ticks = TSC::ticks();
@@ -522,11 +519,6 @@ class Recording {
 
     ~Recording() {
         off_t chunk_end = finishChunk(true);
-
-        if (_master_recording_file != NULL) {
-            appendRecording(_master_recording_file, chunk_end);
-            free(_master_recording_file);
-        }
 
         close(_fd);
     }
@@ -629,10 +621,6 @@ class Recording {
         flushIfNeeded(&_cpu_monitor_buf, BUFFER_LIMIT);
 
         _last_times = times;
-    }
-
-    bool hasMasterRecording() const {
-        return _master_recording_file != NULL;
     }
 
     void appendRecording(const char* target_file, size_t size) {
@@ -1327,32 +1315,13 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    char* filename_tmp = NULL;
-    if (args._jfr_sync != NULL) {
-        Error error = startMasterRecording(args);
-        if (error) {
-            return error;
-        }
-
-        size_t len = strlen(filename);
-        filename_tmp = (char*)malloc(len + 16);
-        snprintf(filename_tmp, len + 16, "%s.%d~", filename, OS::processId());
-        filename = filename_tmp;
-    }
-
     if (!TSC::initialized()) {
         TSC::initialize();
     }
 
     int fd = open(filename, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {
-        free(filename_tmp);
         return Error("Could not open Flight Recorder output file");
-    }
-
-    if (args._jfr_sync != NULL) {
-        unlink(filename_tmp);
-        free(filename_tmp);
     }
 
     _rec = new Recording(fd, args);
@@ -1363,10 +1332,6 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 void FlightRecorder::stop() {
     if (_rec != NULL) {
         _rec_lock.lock();
-
-        if (_rec->hasMasterRecording()) {
-            stopMasterRecording();
-        }
 
         delete _rec;
         _rec = NULL;
@@ -1392,75 +1357,6 @@ bool FlightRecorder::timerTick(u64 wall_time) {
 
     _rec_lock.unlockShared();
     return need_switch_chunk;
-}
-
-Error FlightRecorder::startMasterRecording(Arguments& args) {
-    JNIEnv* env = VM::jni();
-
-    if (_jfr_sync_class == NULL) {
-        if (env->FindClass("jdk/jfr/FlightRecorderListener") == NULL) {
-            env->ExceptionClear();
-            return Error("JDK Flight Recorder is not available");
-        }
-
-        const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
-
-        jclass cls = env->DefineClass(NULL, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
-        if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
-                || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
-                || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
-                || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL
-                || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
-            env->ExceptionDescribe();
-            return Error("Failed to initialize JfrSync class");
-        }
-    }
-
-    jclass options_class = env->FindClass("jdk/jfr/internal/Options");
-    if (options_class != NULL) {
-        if (args._chunk_size > 0) {
-            jmethodID method = env->GetStaticMethodID(options_class, "setMaxChunkSize", "(J)V");
-            if (method != NULL) {
-                env->CallStaticVoidMethod(options_class, method, args._chunk_size < 1024 * 1024 ? 1024 * 1024 : args._chunk_size);
-            }
-        }
-
-        if (args._jstackdepth > 0) {
-            jmethodID method = env->GetStaticMethodID(options_class, "setStackDepth", "(Ljava/lang/Integer;)V");
-            if (method != NULL) {
-                jobject value = env->CallStaticObjectMethod(_jfr_sync_class, _box_method, args._jstackdepth);
-                if (value != NULL) {
-                    env->CallStaticVoidMethod(options_class, method, value);
-                }
-            }
-        }
-    }
-    env->ExceptionClear();
-
-    jobject jfilename = env->NewStringUTF(args.file());
-    jobject jsettings = args._jfr_sync == NULL ? NULL : env->NewStringUTF(args._jfr_sync);
-    int event_mask = ((args._event != NULL && strcmp(args._event, EVENT_NOOP) != 0) ? EM_CPU : 0) |
-                     (args._cpu >= 0 ? EM_CPU : 0) |
-                     (args._wall >= 0 ? EM_WALL : 0) |
-                     (args._alloc >= 0 ? EM_ALLOC : 0) |
-                     (args._lock >= 0 ? EM_LOCK : 0) |
-                     (args._memleak > 0 ? EM_MEMLEAK : 0) |
-                     ((args._jfr_options ^ JFR_SYNC_OPTS) << 4);
-
-    env->CallStaticVoidMethod(_jfr_sync_class, _start_method, jfilename, jsettings, event_mask);
-
-    if (env->ExceptionCheck()) {
-        env->ExceptionDescribe();
-        return Error("Could not start master JFR recording");
-    }
-
-    return Error::OK;
-}
-
-void FlightRecorder::stopMasterRecording() {
-    JNIEnv* env = VM::jni();
-    env->CallStaticVoidMethod(_jfr_sync_class, _stop_method);
-    env->ExceptionClear();
 }
 
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
