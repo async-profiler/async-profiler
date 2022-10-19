@@ -46,28 +46,20 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    WallClock *engine;
-    switch (signo) {
-    case SIGPROF:
-        engine = (WallClock*)Profiler::instance()->cpuEngine();
-        break;
-    case SIGVTALRM:
-        engine = (WallClock*)Profiler::instance()->wallEngine();
-        break;
-    default:
+    WallClock *engine = (WallClock*)Profiler::instance()->wallEngine();
+    if (signo == SIGVTALRM) {
+        engine->signalHandler(signo, siginfo, ucontext, engine->_interval);
+    } else {
         Log::error("Unknown signal %d", signo);
-        return;
     }
-    engine->signalHandler(signo, siginfo, ucontext, engine->_interval);
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample) {
     ProfiledThread* current = ProfiledThread::current();
     int tid = current != NULL ? current->tid() : OS::threadId();
-    int event_type = _sample_idle_threads ? BCI_WALL : BCI_CPU;
     Context ctx = Contexts::get(tid);
     u64 skipped = 0;
-    if (current != NULL && event_type == BCI_WALL) {
+    if (current != NULL) {
         if (_collapsing && !current->noteWallSample(false, &skipped)) {
             return;
         }
@@ -75,41 +67,26 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
 
     ExecutionEvent event;
     event._context = ctx;
-    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
+    event._thread_state = getThreadState(ucontext);
     event._weight = skipped + 1;
-    Profiler::instance()->recordSample(ucontext, last_sample, tid, event_type, &event);
+    Profiler::instance()->recordSample(ucontext, last_sample, tid, BCI_WALL, &event);
 }
 
 Error WallClock::start(Arguments &args) {
-    if (_sample_idle_threads) {
-        int interval = args._event != NULL ? args._interval : args._wall;
-        if (interval < 0) {
-            return Error("interval must be positive");
-        }
-        _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
-
-        _collapsing = args._wall_collapsing;
-
-        _reservoir_size =
-            args._wall_threads_per_tick ?
-                args._wall_threads_per_tick :
-                DEFAULT_WALL_THREADS_PER_TICK;
-
-        OS::installSignalHandler(SIGVTALRM, sharedSignalHandler);
-    } else {
-        int interval = args._event != NULL ? args._interval : args._cpu;
-        if (interval < 0) {
-            return Error("interval must be positive");
-        }
-        _interval = interval ? interval : DEFAULT_CPU_INTERVAL;
-
-        _reservoir_size =
-            args._cpu_threads_per_tick ?
-                args._cpu_threads_per_tick :
-                DEFAULT_CPU_THREADS_PER_TICK;
-
-        OS::installSignalHandler(SIGPROF, sharedSignalHandler);
+    int interval = args._event != NULL ? args._interval : args._wall;
+    if (interval < 0) {
+        return Error("interval must be positive");
     }
+    _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
+
+    _collapsing = args._wall_collapsing;
+
+    _reservoir_size =
+            args._wall_threads_per_tick ?
+            args._wall_threads_per_tick :
+            DEFAULT_WALL_THREADS_PER_TICK;
+
+    OS::installSignalHandler(SIGVTALRM, sharedSignalHandler);
 
     _running = true;
 
@@ -129,11 +106,9 @@ void WallClock::stop() {
 bool shouldSample(
         int self,
         int thread_id,
-        bool sample_idle_threads,
         bool thread_filter_enabled,
         ThreadFilter* thread_filter) {
-    return thread_id != -1 && thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id))
-           && (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING);
+    return thread_id != -1 && thread_id != self && (!thread_filter_enabled || thread_filter->accept(thread_id));
 }
 
 void WallClock::timerLoop() {
@@ -142,7 +117,6 @@ void WallClock::timerLoop() {
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();
-    bool sample_idle_threads = _sample_idle_threads;
 
     ThreadList* thread_list = OS::listThreads();
 
@@ -154,7 +128,7 @@ void WallClock::timerLoop() {
         if (_enabled) {
             int tid = thread_list->next();
             for (int i = 0; i < _reservoir_size && tid != -1; tid = thread_list->next()) {
-                if (shouldSample(self, tid, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                if (shouldSample(self, tid, thread_filter_enabled, thread_filter)) {
                     reservoir.push_back(tid);
                     i++;
                 }
@@ -166,7 +140,7 @@ void WallClock::timerLoop() {
                 while (tid != -1) {
                     for (int i = 0; i < num_threads_to_skip && tid != -1;) {
                         tid = thread_list->next();
-                        if (shouldSample(self, tid, sample_idle_threads, thread_filter_enabled, thread_filter)) {
+                        if (shouldSample(self, tid, thread_filter_enabled, thread_filter)) {
                             i++;
                         }
                     }
@@ -179,7 +153,7 @@ void WallClock::timerLoop() {
                 }
             }
             for (auto const &thread_id: reservoir) {
-                OS::sendSignalToThread(thread_id, sample_idle_threads ? SIGVTALRM : SIGPROF);
+                OS::sendSignalToThread(thread_id, SIGVTALRM);
             }
             reservoir.clear();
             thread_list->rewind();

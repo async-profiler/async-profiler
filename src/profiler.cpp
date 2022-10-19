@@ -61,8 +61,7 @@ static PerfEvents perf_events;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
 // static J9ObjectSampler j9_object_sampler;
-static WallClock cpu_engine(false);
-static WallClock wall_engine(true);
+static WallClock wall_engine;
 static J9WallClock j9_engine;
 static ITimer itimer;
 static MemLeakTracer memleak_tracer;
@@ -911,7 +910,7 @@ Engine* Profiler::selectCpuEngine(Arguments& args) {
             // signal based samplers are unstable on J9
             return (Engine*)&j9_engine;
         }
-        return !perf_events.check(args) ? (Engine*)&perf_events : (Engine*)&cpu_engine;
+        return !perf_events.check(args) ? (Engine*)&perf_events : (Engine*)&noop_engine;
     } else if (strcmp(args._event, EVENT_WALL) == 0) {
         return (Engine*)&noop_engine;
     } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
