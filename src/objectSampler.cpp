@@ -34,7 +34,7 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, int event_type, jclass object_klass, jlong size) {
     int tid = ProfiledThread::currentTid();
-    Context ctx = Contexts::get(tid);
+    const Context& ctx = Contexts::get(tid);
 
     AllocEvent event;
     event._total_size = size > _interval ? size : _interval;

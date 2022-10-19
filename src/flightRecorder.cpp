@@ -1161,7 +1161,7 @@ class Recording {
     }
 
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
-        volatile Context context = event->_context;
+        Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_EXECUTION_SAMPLE);
@@ -1169,7 +1169,7 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.valid == 1) {
+        if (Contexts::isValid(context)) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1181,7 +1181,7 @@ class Recording {
     }
 
     void recordMethodSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
-        volatile Context context = event->_context;
+        Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_METHOD_SAMPLE);
@@ -1189,7 +1189,7 @@ class Recording {
         buf->putVar64(tid);
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_thread_state);
-        if (context.valid == 1) {
+        if (Contexts::isValid(context)) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1201,7 +1201,7 @@ class Recording {
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        volatile Context context = event->_context;
+        Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_IN_NEW_TLAB);
@@ -1211,7 +1211,7 @@ class Recording {
         buf->putVar64(event->_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
-        if (context.valid == 1) {
+        if (Contexts::isValid(context)) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1222,7 +1222,7 @@ class Recording {
     }
 
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
-        volatile Context context = event->_context;
+        Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_ALLOC_OUTSIDE_TLAB);
@@ -1231,7 +1231,7 @@ class Recording {
         buf->putVar64(call_trace_id);
         buf->putVar64(event->_id);
         buf->putVar64(event->_total_size);
-        if (context.valid == 1) {
+        if (Contexts::isValid(context)) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {
@@ -1255,7 +1255,7 @@ class Recording {
     }
 
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
-        volatile Context context = event->_context;
+        Context context = event->_context;
 
         int start = buf->skip(1);
         buf->putVar64(T_MONITOR_ENTER);
@@ -1266,7 +1266,7 @@ class Recording {
         buf->putVar64(event->_id);
         buf->put8(0);
         buf->putVar64(event->_address);
-        if (context.valid == 1) {
+        if (Contexts::isValid(context)) {
             buf->putVar64(context.spanId);
             buf->putVar64(context.rootSpanId);
         } else {

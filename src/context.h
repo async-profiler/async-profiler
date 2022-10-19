@@ -22,9 +22,9 @@
 #include "os.h"
 
 typedef struct {
-    u64 valid;
     u64 spanId;
     u64 rootSpanId;
+    u64 checksum;
     u64 pad1;
     u64 pad2;
     u64 pad3;
@@ -48,12 +48,8 @@ class Contexts {
 
   public:
     static void initialize();
-
-    static void set(int tid, Context context);
-    static void clear(int tid);
-    static Context get(int tid);
-    static bool filter(int tid, int event_type);
-    static bool filter(Context ctx, int event_type);
+    static const Context& get(int tid);
+    static bool isValid(const Context& context);
     // not to be called except to share with Java callers as a DirectByteBuffer
     static ContextStorage getStorage();
 };
