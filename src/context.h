@@ -48,8 +48,8 @@ class Contexts {
 
   public:
     static void initialize();
-    static Context& get(int tid);
-    static bool isValid(Context& context);
+    static const Context& get(int tid);
+    static bool isValid(const Context& context);
     // not to be called except to share with Java callers as a DirectByteBuffer
     static ContextStorage getStorage();
 };

@@ -21,11 +21,11 @@
 int Contexts::_contexts_size = -1;
 Context* Contexts::_contexts = NULL;
 
-Context& Contexts::get(int tid) {
+const Context& Contexts::get(int tid) {
     return _contexts[tid];
 }
 
-bool Contexts::isValid(Context &context) {
+bool Contexts::isValid(const Context &context) {
     return (context.spanId ^ context.rootSpanId) == context.checksum;
 }
 
