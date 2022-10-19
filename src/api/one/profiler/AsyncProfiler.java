@@ -29,17 +29,14 @@ import java.nio.file.Path;
  */
 public class AsyncProfiler {
     private static AsyncProfiler instance;
-    private static final boolean IS_64_BIT = getNativePointerSize0() == 8;
-    private static final int CONTEXT_SIZE = getContextSize0();
+    private static final int CONTEXT_SIZE = 64;
     private static final ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
         @Override protected Integer initialValue() {
             return getTid0();
         }
     };
 
-    // TODO decide whether it's worth doing this lazily,
-    //  or not at all when contextual features are disabled
-    private final ByteBuffer contextStorage = IS_64_BIT ? getContextStorage0() : null;
+    private ByteBuffer contextStorage;
 
     private AsyncProfiler() {
     }
@@ -64,9 +61,15 @@ public class AsyncProfiler {
                 System.loadLibrary("asyncProfiler");
             }
         }
-
+        profiler.loadContextStorage();
         instance = profiler;
         return profiler;
+    }
+
+    private void loadContextStorage() {
+        if (this.contextStorage == null) {
+            this.contextStorage = getNativePointerSize0() == 8 ? getContextStorage0() : null;
+        }
     }
 
     /**
@@ -219,7 +222,7 @@ public class AsyncProfiler {
      * @param rootSpanId Root Span identifier that should be stored for current thread
      */
     public void setContext(long spanId, long rootSpanId) {
-        if (!IS_64_BIT) {
+        if (contextStorage == null) {
             return;
         }
         int tid = TID.get();
@@ -242,8 +245,7 @@ public class AsyncProfiler {
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
     private native void filterThread0(Thread thread, boolean enable);
 
-    private static native int getNativePointerSize0();
-    private static native int getContextSize0();
-    private static native ByteBuffer getContextStorage0();
     private static native int getTid0();
+    private static native ByteBuffer getContextStorage0();
+    private static native int getNativePointerSize0();
 }
