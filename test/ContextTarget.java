@@ -15,9 +15,11 @@ public class ContextTarget {
     }
 
     public static void main(String[] args) {
+        ap.addThread(Thread.currentThread());
         long ts = System.nanoTime();
         entry(200, 750);
         System.err.println("===> time: " + (System.nanoTime() - ts) + "ns");
+        ap.removeThread(Thread.currentThread());
     }
 
     // @Trace(operationName = "doEntry")
