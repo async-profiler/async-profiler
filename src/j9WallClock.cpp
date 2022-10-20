@@ -32,12 +32,11 @@ Error J9WallClock::start(Arguments& args) {
     if (args._wall >= 0) {
         _sample_idle_threads = true;
     }
-    int interval = args._event != NULL ? args._interval : args._wall;
-    if (interval < 0) {
+
+    _interval = args._wall > 0 ? args._wall : DEFAULT_WALL_INTERVAL;
+    if (_interval < 0) {
         return Error("interval must be non-negative");
     }
-
-    _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
     _max_stack_depth = args._jstackdepth;
 
     _running = true;
