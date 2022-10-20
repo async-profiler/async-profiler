@@ -18,6 +18,7 @@ package one.profiler;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -68,7 +69,9 @@ public class AsyncProfiler {
 
     private void loadContextStorage() {
         if (this.contextStorage == null) {
-            this.contextStorage = getNativePointerSize0() == 8 ? getContextStorage0() : null;
+            this.contextStorage = getNativePointerSize0() == 8
+                ? getContextStorage0().order(ByteOrder.LITTLE_ENDIAN)
+                : null;
         }
     }
 
