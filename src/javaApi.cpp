@@ -139,14 +139,18 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 }
 
 extern "C" DLLEXPORT jobject JNICALL
-Java_one_profiler_AsyncProfiler_getContextStorage0(JNIEnv* env, jobject unused) {
-    ContextStorage storage = Contexts::getStorage();
-    return env->NewDirectByteBuffer((void*) storage.storage, (jlong) storage.capacity);
+Java_one_profiler_AsyncProfiler_getContextPage0(JNIEnv* env, jobject unused, jint tid) {
+    ContextPage page = Contexts::getPage((int) tid);
+    return env->NewDirectByteBuffer((void*) page.storage, (jlong) page.capacity);
 }
 
 extern "C" DLLEXPORT jint JNICALL
-Java_one_profiler_AsyncProfiler_getNativePointerSize0(JNIEnv* env, jobject unused) {
-    return sizeof(void*);
+Java_one_profiler_AsyncProfiler_getMaxContextPages0(JNIEnv* env, jobject unused) {
+    if (sizeof(void*) == 8) {
+        return (jint) Contexts::getMaxPages();
+    }
+    // feature disabled on 32 bit systems
+    return 0;
 }
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
@@ -158,8 +162,8 @@ static const JNINativeMethod profiler_natives[] = {
     F(getSamples,            "()J"),
     F(filterThread0,         "(Ljava/lang/Thread;Z)V"),
     F(getTid0,               "()I"),
-    F(getContextStorage0,    "()Ljava/nio/ByteBuffer"),
-    F(getNativePointerSize0, "()I")
+    F(getContextPage0,       "(I)Ljava/nio/ByteBuffer"),
+    F(getMaxContextPages0,   "()I")
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

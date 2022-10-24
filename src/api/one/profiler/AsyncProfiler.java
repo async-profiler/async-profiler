@@ -31,13 +31,15 @@ import java.nio.file.Path;
 public class AsyncProfiler {
     private static AsyncProfiler instance;
     private static final int CONTEXT_SIZE = 64;
+    // must be kept in sync with PAGE_SIZE in context.h
+    private static final int PAGE_SIZE = 1024;
     private static final ThreadLocal<Integer> TID = new ThreadLocal<Integer>() {
         @Override protected Integer initialValue() {
             return getTid0();
         }
     };
 
-    private ByteBuffer contextStorage;
+    private ByteBuffer[] contextStorage;
 
     private AsyncProfiler() {
     }
@@ -62,16 +64,17 @@ public class AsyncProfiler {
                 System.loadLibrary("asyncProfiler");
             }
         }
-        profiler.loadContextStorage();
+        profiler.initializeContextStorage();
         instance = profiler;
         return profiler;
     }
 
-    private void loadContextStorage() {
+    private void initializeContextStorage() {
         if (this.contextStorage == null) {
-            this.contextStorage = getNativePointerSize0() == 8
-                ? getContextStorage0().order(ByteOrder.LITTLE_ENDIAN)
-                : null;
+            int maxPages = getMaxContextPages0();
+            if (maxPages > 0) {
+                contextStorage = new ByteBuffer[maxPages];
+            }
         }
     }
 
@@ -229,10 +232,16 @@ public class AsyncProfiler {
             return;
         }
         int tid = TID.get();
-        int index = tid * CONTEXT_SIZE;
-        contextStorage.putLong(index, spanId);
-        contextStorage.putLong(index + 8, rootSpanId);
-        contextStorage.putLong(index + 16, spanId ^ rootSpanId);
+        int pageIndex = tid / PAGE_SIZE;
+        ByteBuffer page = contextStorage[pageIndex];
+        if (page == null) {
+            // the underlying page allocation is atomic so we don't care which view we have over it
+            contextStorage[pageIndex] = page = getContextPage0(tid).order(ByteOrder.LITTLE_ENDIAN);
+        }
+        int index = (tid % PAGE_SIZE) * CONTEXT_SIZE;
+        page.putLong(index, spanId);
+        page.putLong(index + 8, rootSpanId);
+        page.putLong(index + 16, spanId ^ rootSpanId);
     }
 
     /**
@@ -248,6 +257,6 @@ public class AsyncProfiler {
     private native void filterThread0(Thread thread, boolean enable);
 
     private static native int getTid0();
-    private static native ByteBuffer getContextStorage0();
-    private static native int getNativePointerSize0();
+    private static native ByteBuffer getContextPage0(int tid);
+    private static native int getMaxContextPages0();
 }

@@ -15,35 +15,44 @@
  */
 
 #include "context.h"
-#include "os.h"
 #include "vmEntry.h"
+#include "os.h"
 
-int Contexts::_contexts_size = -1;
-Context* Contexts::_contexts = NULL;
+static const Context* EMPTY = new Context {0, 0, 0, 0, 0, 0, 0, 0};
+Context** Contexts::_pages = new Context *[Contexts::getMaxPages()];
 
 const Context& Contexts::get(int tid) {
-    return _contexts[tid];
+    int pageIndex = tid / PAGE_SIZE;
+    Context* page = _pages[pageIndex];
+    if (page == NULL) {
+        return *EMPTY;
+    }
+    return page[tid % PAGE_SIZE];
 }
 
 bool Contexts::isValid(const Context &context) {
     return (context.spanId ^ context.rootSpanId) == context.checksum;
 }
 
-void Contexts::initialize() {
-    if (__atomic_load_n(&_contexts, __ATOMIC_ACQUIRE) == NULL) {
-        _contexts_size = OS::getMaxThreadId();
-        int capacity = _contexts_size * sizeof(Context);
-        Context *contexts = (Context*) aligned_alloc(sizeof(Context), capacity);
-        if (!__sync_bool_compare_and_swap(&_contexts, NULL, contexts)) {
-            free(contexts);
+void Contexts::initialize(int pageIndex) {
+    if (__atomic_load_n(&_pages[pageIndex], __ATOMIC_ACQUIRE) == NULL) {
+        int capacity = PAGE_SIZE * sizeof(Context);
+        Context *page = (Context*) aligned_alloc(sizeof(Context), capacity);
+        if (!__sync_bool_compare_and_swap(&_pages[pageIndex], NULL, page)) {
+            free(page);
         } else {
             // need to zero the storage because there is no aligned_calloc
-            memset(contexts, 0, capacity);
+            memset(page, 0, capacity);
         }
     }
 }
 
-ContextStorage Contexts::getStorage() {
-    initialize();
-    return {.capacity = _contexts_size * (int) sizeof(Context), .storage = _contexts};
+ContextPage Contexts::getPage(int tid) {
+    int pageIndex = tid / PAGE_SIZE;
+    initialize(pageIndex);
+    return {.capacity = PAGE_SIZE * sizeof(Context), .storage = _pages[pageIndex]};
+}
+
+int Contexts::getMaxPages() {
+    return OS::getMaxThreadId() / PAGE_SIZE;
 }

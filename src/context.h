@@ -19,7 +19,6 @@
 
 #include "arch.h"
 #include "arguments.h"
-#include "os.h"
 
 typedef struct {
     u64 spanId;
@@ -32,26 +31,27 @@ typedef struct {
     u64 pad5;
 } Context;
 
+// must be kept in sync with PAGE_SIZE in AsyncProfiler.java
+const u32 PAGE_SIZE = 1024;
+
 typedef struct {
     const int capacity;
     const Context* storage;
-} ContextStorage;
-
-class ContextsThreadList;
+} ContextPage;
 
 class Contexts {
-    friend class ContextsThreadList;
 
   private:
-    static int _contexts_size;
-    static Context* _contexts;
+    static Context** _pages;
+    static void initialize(int pageIndex);
 
   public:
-    static void initialize();
+    // get and isValid must not allocate
     static const Context& get(int tid);
     static bool isValid(const Context& context);
     // not to be called except to share with Java callers as a DirectByteBuffer
-    static ContextStorage getStorage();
+    static ContextPage getPage(int tid);
+    static int getMaxPages();
 };
 
 #endif /* _CONTEXT_H */
