@@ -19,7 +19,7 @@
 #include "os.h"
 
 static const Context* EMPTY = new Context {0, 0, 0, 0, 0, 0, 0, 0};
-Context** Contexts::_pages = new Context *[Contexts::getMaxPages()];
+Context** Contexts::_pages = new Context *[Contexts::getMaxPages()]();
 
 const Context& Contexts::get(int tid) {
     int pageIndex = tid / PAGE_SIZE;
