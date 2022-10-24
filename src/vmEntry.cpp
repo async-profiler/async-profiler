@@ -135,8 +135,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
     _getManagement = (JVM_GetManagement)dlsym(_libjvm, "JVM_GetManagement");
 
-    Contexts::initialize();
-
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
 
