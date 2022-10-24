@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+#include <chrono>
 #include <math.h>
 #include <random>
-#include <unistd.h>
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "context.h"
+#include "log.h"
 
 volatile bool WallClock::_enabled = false;
 
@@ -103,13 +104,28 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
+std::chrono::steady_clock::time_point now() {
+    if (Log::level() <= LOG_DEBUG) {
+        return std::chrono::steady_clock::now();
+    }
+    return std::chrono::steady_clock::time_point::min();
+}
+
+void logDurationSince(const char* format, std::chrono::steady_clock::time_point const &begin) {
+    if (Log::level() <= LOG_DEBUG) {
+        Log::debug(format, (int) std::chrono::duration_cast<std::chrono::microseconds>(now() - begin).count());
+    }
+}
+
 void WallClock::timerLoop() {
     std::vector<int> tids;
-    tids.reserve(OS::getMaxThreadId());
+    tids.reserve(_reservoir_size);
     std::vector<int> reservoir;
     reservoir.reserve(_reservoir_size);
     int self = OS::threadId();
+    Log::debug("in wallclock timer loop on %d", self);
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
+    thread_filter->remove(self);
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<double> uniform(1e-16, 1.0);
@@ -117,9 +133,11 @@ void WallClock::timerLoop() {
 
     while (_running) {
         if (_enabled) {
+            auto begin = now();
             if (thread_filter->enabled()) {
-                thread_filter->remove(self);
                 thread_filter->collect(tids);
+                Log::debug("thread filter has %d threads", (int) tids.size());
+                logDurationSince("thread filter collected in %dus", begin);
             } else {
                 ThreadList* thread_list = OS::listThreads();
                 int tid = thread_list->next();
@@ -129,7 +147,9 @@ void WallClock::timerLoop() {
                     }
                     tid = thread_list->next();
                 }
+                logDurationSince("OS threads collected in %dus", begin);
             }
+            auto sampleBegin = now();
             for (int i = 0; i < _reservoir_size && i < tids.size(); i++) {
                 reservoir.push_back(tids[i]);
             }
@@ -140,9 +160,13 @@ void WallClock::timerLoop() {
                 weight *= exp(log(uniform(generator)) / _reservoir_size);
                 target += (int) (log(uniform(generator)) / log(1 - weight));
             }
+            logDurationSince("threads selected in %dus", sampleBegin);
+            auto signalBegin = now();
             for (auto const &thread_id: reservoir) {
                 OS::sendSignalToThread(thread_id, SIGVTALRM);
             }
+            logDurationSince("threads signalled in %dus", signalBegin);
+            logDurationSince("wallclock profile interval complete in %dus", begin);
             reservoir.clear();
             tids.clear();
         }
