@@ -19,7 +19,7 @@
 #include "os.h"
 
 static const Context* EMPTY = new Context {0, 0, 0, 0, 0, 0, 0, 0};
-Context** Contexts::_pages = new Context *[Contexts::getMaxPages()];
+Context** Contexts::_pages = new Context *[Contexts::getMaxPages()]();
 
 const Context& Contexts::get(int tid) {
     int pageIndex = tid / PAGE_SIZE;
@@ -38,12 +38,11 @@ void Contexts::initialize(int pageIndex) {
     if (__atomic_load_n(&_pages[pageIndex], __ATOMIC_ACQUIRE) == NULL) {
         int capacity = PAGE_SIZE * sizeof(Context);
         Context *page = (Context*) aligned_alloc(sizeof(Context), capacity);
+        // need to zero the storage because there is no aligned_calloc
+        memset(page, 0, capacity);
         if (!__sync_bool_compare_and_swap(&_pages[pageIndex], NULL, page)) {
             free(page);
-        } else {
-            // need to zero the storage because there is no aligned_calloc
-            memset(page, 0, capacity);
-        }
+        } 
     }
 }
 
