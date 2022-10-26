@@ -910,7 +910,7 @@ Engine* Profiler::selectCpuEngine(Arguments& args) {
             // signal based samplers are unstable on J9
             return (Engine*)&j9_engine;
         }
-        return !perf_events.check(args) ? (Engine*)&perf_events : (Engine*)&noop_engine;
+        return !perf_events.check(args) ? (Engine*)&perf_events : &itimer;
     } else if (strcmp(args._event, EVENT_WALL) == 0) {
         return (Engine*)&noop_engine;
     } else if (strcmp(args._event, EVENT_ITIMER) == 0) {
