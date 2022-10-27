@@ -131,6 +131,12 @@ FrameIterator::FrameIterator(std::vector<CallTraceSample> &samples, bool savedAw
             addAwaitTrace((*it).trace);
 }
 
+FrameIterator::FrameIterator(std::map<long long unsigned int, CallTraceSample> &samples, bool savedAwaitStacks) : awaitTraces() {
+    if(savedAwaitStacks)
+        for (std::map<u64, CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it)
+            addAwaitTrace(it->second.trace);
+}
+
 void FrameIterator::set(CallTrace* trace_, bool reversed, int ignore_last) {
     traceStack[0] = trace_;
     depth = 0;
@@ -1436,10 +1442,12 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
     char buf[1024] = {0};
 
     std::vector<CallTraceSample> samples;
+    FrameIterator *fi;
     u64 total_counter = 0;
     {
         std::map<u64, CallTraceSample> map;
         _call_trace_storage.collectSamples(map);
+        fi = new FrameIterator(map, _savedAwaitStacks);
         samples.reserve(map.size());
 
         for (std::map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
@@ -1478,7 +1486,6 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
         std::sort(samples.begin(), samples.end());
 
         int max_count = args._dump_traces;
-        FrameIterator fi(samples, _savedAwaitStacks);
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end() && --max_count >= 0; ++it) {
             snprintf(buf, sizeof(buf) - 1, "--- %lld %s (%.2f%%), %lld sample%s\n",
                      it->counter, units_str, it->counter * cpercent,
@@ -1486,10 +1493,10 @@ void Profiler::dumpText(std::ostream& out, Arguments& args) {
             out << buf;
 
             CallTrace* trace = it->trace;
-            fi.set(trace, false);
+            fi->set(trace, false);
             ASGCT_CallFrame* aframe;
             int j = 0;
-            while((aframe = fi.next())) {
+            while((aframe = fi->next())) {
                 const char* frame_name = fn.name(*aframe);
                 snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j++, frame_name);
                 out << buf;

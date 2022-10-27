@@ -85,7 +85,8 @@ private:
   }
 public:
   FrameIterator(std::vector<CallTraceSample*> &samples, bool savedAwaitStacks);
-  FrameIterator(std::vector<CallTraceSample> &samples, bool savedAwaitStacks);
+    FrameIterator(std::vector<CallTraceSample> &samples, bool savedAwaitStacks);
+    FrameIterator(std::map<long long unsigned int, CallTraceSample> &samples, bool savedAwaitStacks);
   void set(CallTrace* trace_, bool reversed, int ignore_last = 0);
   int setAndCount(CallTrace* trace_, bool reversed, int ignore_last = 0);
   ASGCT_CallFrame* prev();
