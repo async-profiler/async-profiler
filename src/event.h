@@ -64,4 +64,60 @@ class MemLeakEvent : public Event {
     u64 _interval;
 };
 
+class WallClockEpochEvent {
+  public:
+    bool _dirty;
+    u64 _start_time;
+    u64 _duration_millis;
+    u32 _num_samplable_threads;
+    u32 _num_successful_samples;
+    u32 _num_failed_samples;
+
+    WallClockEpochEvent(u64 start_time) :
+        _dirty(false),
+        _start_time(start_time),
+        _duration_millis(0),
+        _num_samplable_threads(0),
+        _num_successful_samples(0),
+        _num_failed_samples(0) {}
+
+    bool hasChanged() {
+        return _dirty;
+    }
+
+    void updateNumSamplableThreads(u32 num_samplable_threads) {
+        if (_num_samplable_threads != num_samplable_threads) {
+            _dirty = true;
+            _num_samplable_threads = num_samplable_threads;
+        }
+    }
+
+    void updateNumSuccessfulSamples(u32 num_successful_samples) {
+        if (_num_successful_samples != num_successful_samples) {
+            _dirty = true;
+            _num_successful_samples = num_successful_samples;
+        }
+    }
+
+    void updateNumFailedSamples(u32 num_failed_samples) {
+        if (_num_failed_samples != num_failed_samples) {
+            _dirty = true;
+            _num_failed_samples = num_failed_samples;
+        }
+    }
+
+    void endEpoch(u64 millis) {
+        _duration_millis = millis;
+    }
+
+    void clean() {
+        _dirty = false;
+    }
+
+    void newEpoch(u64 start_time) {
+        _dirty = false;
+        _start_time = start_time;
+    }
+};
+
 #endif // _EVENT_H
