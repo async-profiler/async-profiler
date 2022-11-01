@@ -100,8 +100,7 @@ void JfrMetadata::initialize() {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("spanId", T_LONG, "Span ID")
-                << field("localRootSpanId", T_LONG, "Local Root Span ID")
-                << field("weight", T_LONG, "Sample weight"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.MethodSample", T_METHOD_SAMPLE, "Method Wall Profiling Sample")
                 << category("Datadog", "Profiling")
@@ -110,8 +109,7 @@ void JfrMetadata::initialize() {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("spanId", T_LONG, "Span ID")
-                << field("localRootSpanId", T_LONG, "Local Root Span ID")
-                << field("weight", T_LONG, "Sample weight"))
+                << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
             << (type("datadog.ObjectAllocationInNewTLAB", T_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB")
                 << category("Java Application")

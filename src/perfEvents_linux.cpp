@@ -705,9 +705,6 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     ProfiledThread* current = ProfiledThread::current();
-    if (current != NULL) {
-        current->noteCPUSample();
-    }
     int tid = current != NULL ? current->tid() : OS::threadId();
     if (_enabled) {
         const Context& ctx = Contexts::get(tid);
