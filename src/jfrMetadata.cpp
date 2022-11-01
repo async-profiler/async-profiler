@@ -111,6 +111,14 @@ void JfrMetadata::initialize() {
                 << field("spanId", T_LONG, "Span ID")
                 << field("localRootSpanId", T_LONG, "Local Root Span ID"))
 
+            << (type("datadog.WallClockSamplingEpoch", T_WALLCLOCK_SAMPLE_EPOCH, "WallClock Sampling Epoch")
+                << category("Datadog", "Profiling")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_MILLIS)
+                << field("samplePoolSize", T_INT, "Sample Pool Size")
+                << field("numSuccessfulSamples", T_INT, "Number of Successful Samples")
+                << field("numFailedSamples", T_INT, "Number of Failed Samples"))
+
             << (type("datadog.ObjectAllocationInNewTLAB", T_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB")
                 << category("Java Application")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)

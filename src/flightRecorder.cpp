@@ -1198,6 +1198,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordWallClockEpoch(Buffer* buf, WallClockEpochEvent* event) {
+        int start = buf->skip(1);
+        buf->putVar64(T_WALLCLOCK_SAMPLE_EPOCH);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_duration_millis);
+        buf->putVar64(event->_num_samplable_threads);
+        buf->putVar64(event->_num_successful_samples);
+        buf->putVar64(event->_num_failed_samples);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         Context context = event->_context;
 
@@ -1388,6 +1399,13 @@ bool FlightRecorder::timerTick(u64 wall_time) {
 
     _rec_lock.unlockShared();
     return need_switch_chunk;
+}
+
+void FlightRecorder::wallClockEpoch(int lock_index, WallClockEpochEvent* event) {
+    if (_rec != NULL) {
+        Buffer* buf = _rec->buffer(lock_index);
+        _rec->recordWallClockEpoch(buf, event);
+    }
 }
 
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,

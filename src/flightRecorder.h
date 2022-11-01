@@ -41,6 +41,7 @@ class FlightRecorder {
     Error dump(const char* filename);
     void flush();
     bool timerTick(u64 wall_time);
+    void wallClockEpoch(int lock_index, WallClockEpochEvent* event);
 
     bool active() const {
         return _rec != NULL;

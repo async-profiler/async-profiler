@@ -77,6 +77,7 @@ enum JfrType {
     T_MEMORY_ADDRESS = 206,
     T_UNSIGNED = 207,
     T_PERCENTAGE = 208,
+    T_WALLCLOCK_SAMPLE_EPOCH = 209
 };
 
 
