@@ -38,9 +38,8 @@ class Event {
 class ExecutionEvent : public Event {
   public:
     ThreadState _thread_state;
-    u64 _weight;
 
-    ExecutionEvent() : Event(), _thread_state(THREAD_RUNNING), _weight(1) {}
+    ExecutionEvent() : Event(), _thread_state(THREAD_RUNNING) {}
 };
 
 class AllocEvent : public Event {

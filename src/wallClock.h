@@ -26,7 +26,6 @@
 class WallClock : public Engine {
   private:
     static volatile bool _enabled;
-    bool _collapsing;
     long _interval;
 
     // Maximum number of threads sampled in one iteration. This limit serves as a throttle
@@ -52,7 +51,6 @@ class WallClock : public Engine {
 
   public:
     constexpr WallClock() :
-        _collapsing(false),
         _interval(LONG_MAX),
         _reservoir_size(0),
         _running(false),

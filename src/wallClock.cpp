@@ -59,17 +59,10 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
     ProfiledThread* current = ProfiledThread::current();
     int tid = current != NULL ? current->tid() : OS::threadId();
     const Context& ctx = Contexts::get(tid);
-    u64 skipped = 0;
-    if (current != NULL) {
-        if (_collapsing && !current->noteWallSample(false, &skipped)) {
-            return;
-        }
-    }
 
     ExecutionEvent event;
     event._context = ctx;
     event._thread_state = getThreadState(ucontext);
-    event._weight = skipped + 1;
     Profiler::instance()->recordSample(ucontext, last_sample, tid, BCI_WALL, &event);
 }
 
@@ -79,8 +72,6 @@ Error WallClock::start(Arguments &args) {
         return Error("interval must be positive");
     }
     _interval = interval ? interval : DEFAULT_WALL_INTERVAL;
-
-    _collapsing = args._wall_collapsing;
 
     _reservoir_size =
             args._wall_threads_per_tick ?
