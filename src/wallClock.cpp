@@ -50,8 +50,6 @@ void WallClock::sharedSignalHandler(int signo, siginfo_t* siginfo, void* ucontex
     WallClock *engine = (WallClock*)Profiler::instance()->wallEngine();
     if (signo == SIGVTALRM) {
         engine->signalHandler(signo, siginfo, ucontext, engine->_interval);
-    } else {
-        Log::error("Unknown signal %d", signo);
     }
 }
 
