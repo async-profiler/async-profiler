@@ -382,7 +382,7 @@ The following is a complete list of the command-line options accepted by
 
 * `-g` - print method signatures.
 
-* `-a` - annotate JIT compiled methods with `_[j]` and inlined methods with `_[i]`.
+* `-a` - annotate JIT compiled methods with `_[j]`, inlined methods with `_[i]`, interpreted methods with `_[0]` and C1 compiled methods with `_[1]`.
 
 * `-l` - prepend library names to symbols, e.g. ``libjvm.so`JVM_DefineClassWithSource``.
 
@@ -463,7 +463,7 @@ The following is a complete list of the command-line options accepted by
   Example: `./profiler.sh -e cpu --jfrsync profile -f combined.jfr 8983`
 
 * `--fdtransfer` - runs "fdtransfer" alongside, which is a small program providing an interface
-  for the profiler to access, `perf_event_open` even while this syscall is unavailable for the
+  for the profiler to access `perf_event_open` even while this syscall is unavailable for the
   profiled process (due to low privileges).
   See [Profiling Java in a container](#profiling-java-in-a-container).
 
