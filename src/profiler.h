@@ -87,7 +87,6 @@ class Profiler {
     std::map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
-    ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _cpu_engine;
@@ -175,7 +174,6 @@ class Profiler {
         _state(NEW),
         _begin_trap(2),
         _end_trap(3),
-        _thread_filter(),
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
@@ -207,7 +205,6 @@ class Profiler {
     Engine* wallEngine() { return _wall_engine; }
 
     Dictionary* classMap() { return &_class_map; }
-    ThreadFilter* threadFilter() { return &_thread_filter; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, std::ostream& out);
