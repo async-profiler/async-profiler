@@ -1176,6 +1176,7 @@ class Recording {
             buf->putVar64(0);
             buf->putVar64(0);
         }
+        buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1195,6 +1196,7 @@ class Recording {
             buf->putVar64(0);
             buf->putVar64(0);
         }
+        buf->putVar64(event->_weight);
         buf->put8(start, buf->offset() - start);
     }
 
