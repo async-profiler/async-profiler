@@ -28,8 +28,15 @@ class ProfiledThread {
     u64 _cpu_epoch;
     u64 _wall_epoch;
     u64 _skipped_samples;
+    u64 _context_key;
 
-    ProfiledThread(int buffer_pos, int tid) :  _buffer_pos(buffer_pos), _tid(tid), _cpu_epoch(0), _wall_epoch(0), _skipped_samples(0) {};
+    ProfiledThread(int buffer_pos, int tid) :
+        _buffer_pos(buffer_pos),
+        _tid(tid),
+        _cpu_epoch(0),
+        _wall_epoch(0),
+        _skipped_samples(0),
+        _context_key(0) {};
 
     void releaseFromBuffer();
   public:
@@ -64,7 +71,7 @@ class ProfiledThread {
     inline u64 noteCPUSample() {
         return ++_cpu_epoch;
     }
-    bool noteWallSample(bool all, u64* skipped_samples);
+    bool noteWallSample(bool all, u64 context_key, u64* skipped_samples);
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 };
