@@ -34,6 +34,7 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     int tid = 0;
     ProfiledThread* current = ProfiledThread::current();
     if (current != NULL) {
+        current->noteCPUSample();
         tid = current->tid();
     } else {
         tid = OS::threadId();

@@ -190,7 +190,7 @@ Error Arguments::parse(const char* args) {
                     _wall = 0;
                 } else {
                     if (value[0] == '~') {
-                        // backward compatability - we just won't collapse the events
+                        _wall_collapsing = true;
                         _wall = parseUnits(value + 1, NANOS);
                     } else {
                         _wall = parseUnits(value, NANOS);
