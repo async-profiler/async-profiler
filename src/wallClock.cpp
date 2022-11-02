@@ -61,7 +61,7 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64
     const Context& ctx = Contexts::get(tid);
     u64 skipped = 0;
     if (current != NULL) {
-        if (_collapsing && !current->noteWallSample(false, &skipped)) {
+        if (_collapsing && !current->noteWallSample(false, ctx.spanId, &skipped)) {
             return;
         }
     }
