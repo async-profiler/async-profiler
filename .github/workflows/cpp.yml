@@ -21,7 +21,7 @@ jobs:
         if: always()
         with:
           name: hs_err_files.zip
-          path: test/hs_err_*
+          path: hs_err_*
       - uses: actions/upload-artifact@v3
         if: success()
         with:
