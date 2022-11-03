@@ -688,7 +688,10 @@ void Profiler::recordSample(void* ucontext, u64 counter, int tid, jint event_typ
 
 void Profiler::recordWallClockEpoch(int tid, WallClockEpochEvent *event) {
     u32 lock_index = getLockIndex(tid);
-    _jfr.wallClockEpoch(lock_index, event);
+    if (_locks[lock_index].tryLock()) {
+        _jfr.wallClockEpoch(lock_index, event);
+        _locks[lock_index].unlock();
+    }
 }
 
 void Profiler::recordExternalSample(u64 counter, int tid, int num_frames, ASGCT_CallFrame* frames, bool truncated, jint event_type, Event* event) {
