@@ -24,7 +24,8 @@
 #include "profiler.h"
 #include "vmStructs.h"
 #include "context.h"
-
+#include "engine.h"
+#include "wallClock.h"
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
     jclass cls = env->FindClass(exception_class);
@@ -130,11 +131,12 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
         return;
     }
 
-    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
-    if (enable) {
-        thread_filter->add(thread_id);
-    } else {
-        thread_filter->remove(thread_id);
+    if (WallClock* wall_engine = dynamic_cast<WallClock*>(Profiler::instance()->wallEngine())) {
+        if (enable) {
+            wall_engine->registerThread(thread_id);
+        } else {
+            wall_engine->unregisterThread(thread_id);
+        }
     }
 }
 
