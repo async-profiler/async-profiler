@@ -90,7 +90,7 @@ class Profiler {
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
     Engine* _cpu_engine;
-    Engine* _wall_engine;
+    Engine* _wall_engine = NULL;
     Engine* _alloc_engine;
     int _event_mask;
 
