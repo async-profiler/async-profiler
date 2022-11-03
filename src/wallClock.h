@@ -22,14 +22,12 @@
 #include <pthread.h>
 #include "engine.h"
 #include "os.h"
-#include "threadFilter.h"
 
 class WallClock : public Engine {
   private:
     static volatile bool _enabled;
     bool _collapsing;
     long _interval;
-    ThreadFilter _thread_filter;
 
     // Maximum number of threads sampled in one iteration. This limit serves as a throttle
     // when generating profiling signals. Otherwise applications with too many threads may
@@ -53,13 +51,12 @@ class WallClock : public Engine {
     void signalHandler(int signo, siginfo_t* siginfo, void* ucontext, u64 last_sample);
 
   public:
-    WallClock() :
+    constexpr WallClock() :
         _collapsing(false),
         _interval(LONG_MAX),
         _reservoir_size(0),
         _running(false),
-        _thread(0),
-        _thread_filter() {}
+        _thread(0) {}
 
     const char* title() {
         return "Wall profile";
@@ -79,9 +76,6 @@ class WallClock : public Engine {
     inline void enableEvents(bool enabled) {
         _enabled = enabled;
     }
-
-    virtual int registerThread(int tid);
-    virtual void unregisterThread(int tid);
 };
 
 #endif // _WALLCLOCK_H

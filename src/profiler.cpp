@@ -131,15 +131,20 @@ void Profiler::onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ProfiledThread::initCurrentThread();
 
     int tid = ProfiledThread::currentTid();
+    if (_thread_filter.enabled()) {
+        _thread_filter.remove(tid);
+    }
     updateThreadName(jvmti, jni, thread);
 
-    // do not register thread here because wall_engine has thread registration
-    // taken care of via JNI
     _cpu_engine->registerThread(tid);
+    _wall_engine->registerThread(tid);
 }
 
 void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     int tid = ProfiledThread::currentTid();
+    if (_thread_filter.enabled()) {
+        _thread_filter.remove(tid);
+    }
     updateThreadName(jvmti, jni, thread);
 
     _cpu_engine->unregisterThread(tid);
@@ -149,10 +154,12 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 int Profiler::registerThread(int tid) {
-    return _instance->_cpu_engine->registerThread(tid);
+    return _instance->_cpu_engine->registerThread(tid) |
+            _instance->_wall_engine->registerThread(tid);
 }
 void Profiler::unregisterThread(int tid) {
     _instance->_cpu_engine->unregisterThread(tid);
+    _instance->_wall_engine->unregisterThread(tid);
 }
 
 const char* Profiler::asgctError(int code) {
@@ -1048,6 +1055,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
+    _thread_filter.init(args._filter);
 
     _cpu_engine = selectCpuEngine(args);
     _wall_engine = selectWallEngine(args);
