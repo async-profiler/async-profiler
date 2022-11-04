@@ -37,6 +37,8 @@ public class FlameGraph {
     public static final byte FRAME_CPP = 4;
     public static final byte FRAME_KERNEL = 5;
     public static final byte FRAME_C1_COMPILED = 6;
+    public static final byte FRAME_AWAIT_S = 7;
+    public static final byte FRAME_AWAIT_J = 8;
 
     private final Arguments args;
     private final Frame root = new Frame(FRAME_NATIVE);
@@ -264,6 +266,8 @@ public class FlameGraph {
                 (child = getChild(stripSuffix(title), FRAME_JIT_COMPILED)).inlined += ticks;
             } else if (title.endsWith("_[k]")) {
                 child = getChild(title, FRAME_KERNEL);
+            } else if (title.endsWith("_[a]")) {
+                child = getChild(stripSuffix(title), FRAME_AWAIT_S);
             } else if (title.endsWith("_[1]")) {
                 (child = getChild(stripSuffix(title), FRAME_JIT_COMPILED)).c1 += ticks;
             } else if (title.endsWith("_[0]")) {
