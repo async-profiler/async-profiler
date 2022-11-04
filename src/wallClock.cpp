@@ -85,8 +85,6 @@ Error WallClock::start(Arguments &args) {
             args._wall_threads_per_tick :
             DEFAULT_WALL_THREADS_PER_TICK;
 
-    _thread_filter.init(args._filter);
-
     OS::installSignalHandler(SIGVTALRM, sharedSignalHandler);
 
     _running = true;
@@ -104,19 +102,6 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-int WallClock::registerThread(int tid) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.add(tid);
-    }
-    return 0;
-}
-
-void WallClock::unregisterThread(int tid) {
-    if (_thread_filter.enabled()) {
-        _thread_filter.remove(tid);
-    }
-}
-
 void WallClock::timerLoop() {
     std::vector<int> tids;
     tids.reserve(_reservoir_size);
@@ -124,7 +109,8 @@ void WallClock::timerLoop() {
     reservoir.reserve(_reservoir_size);
     int self = OS::threadId();
     Log::debug("in wallclock timer loop on %d", self);
-    _thread_filter.remove(self);
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
+    thread_filter->remove(self);
 
     std::mt19937 generator(std::random_device{}());
     std::uniform_real_distribution<double> uniform(1e-16, 1.0);
@@ -135,8 +121,8 @@ void WallClock::timerLoop() {
 
     while (_running) {
         if (_enabled) {
-            if (_thread_filter.enabled()) {
-                _thread_filter.collect(tids);
+            if (thread_filter->enabled()) {
+                thread_filter->collect(tids);
             } else {
                 ThreadList* thread_list = OS::listThreads();
                 int tid = thread_list->next();

@@ -130,13 +130,11 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     } else if ((thread_id = VMThread::nativeThreadId(env, thread)) < 0) {
         return;
     }
-    Engine* engine = Profiler::instance()->wallEngine();
-    if (engine != NULL) {
-        if (enable) {
-            engine->registerThread(thread_id);
-        } else {
-            engine->unregisterThread(thread_id);
-        }
+    ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
+    if (enable) {
+        thread_filter->add(thread_id);
+    } else {
+        thread_filter->remove(thread_id);
     }
 }
 
