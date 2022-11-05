@@ -39,7 +39,7 @@ void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     } else {
         tid = OS::threadId();
     }
-    const Context& ctx = Contexts::get(tid);
+    ContextSnapshot ctx = Contexts::get(tid);
 
     ExecutionEvent event;
     event._context = ctx;

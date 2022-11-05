@@ -18,20 +18,18 @@
 #include "vmEntry.h"
 #include "os.h"
 
-static const Context* EMPTY = new Context {0, 0, 0, 0, 0, 0, 0, 0};
 Context** Contexts::_pages = new Context *[Contexts::getMaxPages()]();
 
-const Context& Contexts::get(int tid) {
+const ContextSnapshot Contexts::get(int tid) {
     int pageIndex = tid / PAGE_SIZE;
     Context* page = _pages[pageIndex];
-    if (page == NULL) {
-        return *EMPTY;
+    if (page != NULL) {
+        Context& context = page[tid % PAGE_SIZE];
+        if ((context.spanId ^ context.rootSpanId) == context.checksum) {
+            return {context.spanId, context.rootSpanId};
+        }
     }
-    return page[tid % PAGE_SIZE];
-}
-
-bool Contexts::isValid(const Context &context) {
-    return (context.spanId ^ context.rootSpanId) == context.checksum;
+    return {0, 0};
 }
 
 void Contexts::initialize(int pageIndex) {
