@@ -144,15 +144,32 @@ void WallClock::timerLoop() {
                 target += (int) (log(uniform(generator)) / log(1 - weight));
             }
             int numFailures = 0;
+
+            int threads_already_exited = 0;
+            int permission_denied = 0;
             for (auto const &thread_id: reservoir) {
                 if (!OS::sendSignalToThread(thread_id, SIGVTALRM)) {
                     numFailures++;
+                    if (errno != 0) {
+                        switch (errno) {
+                            case ESRCH:
+                                threads_already_exited++;
+                                break;
+                            case EPERM:
+                                permission_denied++;
+                                break;
+                            default:
+                                Log::debug("unexpected error %s", strerror(errno));
+                        }
+                    }
                 }
             }
 
             epoch.updateNumSamplableThreads(tids.size());
             epoch.updateNumFailedSamples(numFailures);
             epoch.updateNumSuccessfulSamples(reservoir.size() - numFailures);
+            epoch.updateNumExitedThreads(threads_already_exited);
+            epoch.updateNumPermissionDenied(permission_denied);
             auto endTime = TSC::ticks();
             auto duration = (1000 * (endTime - startTime)) / TSC::frequency();
             if (epoch.hasChanged() || duration >= 1000) {

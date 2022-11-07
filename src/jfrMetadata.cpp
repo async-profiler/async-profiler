@@ -119,7 +119,9 @@ void JfrMetadata::initialize() {
                 << field("duration", T_LONG, "Duration", F_DURATION_MILLIS)
                 << field("samplePoolSize", T_INT, "Sample Pool Size")
                 << field("numSuccessfulSamples", T_INT, "Number of Successful Samples")
-                << field("numFailedSamples", T_INT, "Number of Failed Samples"))
+                << field("numFailedSamples", T_INT, "Number of Failed Samples")
+                << field("numExitedThreads", T_INT, "Number of Exited Threads Before Handling Signal")
+                << field("numPermissionDenied", T_INT, "Number of Permission Denied Errors"))
 
             << (type("datadog.ObjectAllocationInNewTLAB", T_ALLOC_IN_NEW_TLAB, "Allocation in new TLAB")
                 << category("Java Application")
