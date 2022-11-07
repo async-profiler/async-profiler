@@ -1198,6 +1198,8 @@ class Recording {
         buf->putVar64(event->_num_samplable_threads);
         buf->putVar64(event->_num_successful_samples);
         buf->putVar64(event->_num_failed_samples);
+        buf->putVar64(event->_num_exited_threads);
+        buf->putVar64(event->_num_permission_denied);
         buf->put8(start, buf->offset() - start);
     }
 
