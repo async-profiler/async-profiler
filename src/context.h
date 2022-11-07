@@ -31,6 +31,11 @@ typedef struct {
     u64 pad5;
 } Context;
 
+typedef struct {
+    u64 spanId;
+    u64 rootSpanId;
+} ContextSnapshot;
+
 // must be kept in sync with PAGE_SIZE in AsyncProfiler.java
 const u32 PAGE_SIZE = 1024;
 
@@ -46,9 +51,8 @@ class Contexts {
     static void initialize(int pageIndex);
 
   public:
-    // get and isValid must not allocate
-    static const Context& get(int tid);
-    static bool isValid(const Context& context);
+    // get must not allocate
+    static const ContextSnapshot get(int tid);
     // not to be called except to share with Java callers as a DirectByteBuffer
     static ContextPage getPage(int tid);
     static int getMaxPages();

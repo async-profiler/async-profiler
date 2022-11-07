@@ -68,7 +68,7 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
     int tid = ProfiledThread::currentTid();
-    const Context& ctx = Contexts::get(tid);
+    ContextSnapshot ctx = Contexts::get(tid);
 
     AllocEvent event;
     event._total_size = total_size;
