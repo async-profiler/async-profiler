@@ -68,7 +68,7 @@ class FrameName {
     ClassMap _class_names;
     std::vector<Matcher> _include;
     std::vector<Matcher> _exclude;
-    char _buf[800];  // must be large enough for class name + method name + method signature
+    char _buf[1024];  // must be large enough for class name + method name + method signature
     int _style;
     unsigned char _cache_epoch;
     unsigned char _cache_max_age;

@@ -188,7 +188,7 @@ char* FrameName::javaMethodName(jmethodID method) {
         result = javaClassName(class_name + 1, strlen(class_name) - 2, _style);
         strcat(result, ".");
         strcat(result, method_name);
-        if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
+        if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, sizeof(_buf) - strlen(result) - 1));
     } else {
         snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
         result = _buf;
