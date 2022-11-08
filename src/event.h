@@ -73,6 +73,8 @@ class WallClockEpochEvent {
     u32 _num_samplable_threads;
     u32 _num_successful_samples;
     u32 _num_failed_samples;
+    u32 _num_exited_threads;
+    u32 _num_permission_denied;
 
     WallClockEpochEvent(u64 start_time) :
         _dirty(false),
@@ -80,7 +82,9 @@ class WallClockEpochEvent {
         _duration_millis(0),
         _num_samplable_threads(0),
         _num_successful_samples(0),
-        _num_failed_samples(0) {}
+        _num_failed_samples(0),
+        _num_exited_threads(0),
+        _num_permission_denied(0) {}
 
     bool hasChanged() {
         return _dirty;
@@ -104,6 +108,20 @@ class WallClockEpochEvent {
         if (_num_failed_samples != num_failed_samples) {
             _dirty = true;
             _num_failed_samples = num_failed_samples;
+        }
+    }
+
+    void updateNumExitedThreads(u32 num_exited_threads) {
+        if (_num_exited_threads != num_exited_threads) {
+            _dirty = true;
+            _num_exited_threads = num_exited_threads;
+        }
+    }
+
+    void updateNumPermissionDenied(u32 num_permission_denied) {
+        if (_num_permission_denied != num_permission_denied) {
+            _dirty = true;
+            _num_permission_denied = num_permission_denied;
         }
     }
 
