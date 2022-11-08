@@ -27,7 +27,7 @@ function assertSamples() {
   echo "---"
   FILENAME=/tmp/java-context-smoke.jfr
 
-  ${JAVA_HOME}/bin/java -cp .:../build/async-profiler.jar -agentpath:../build/libasyncProfiler.so=start,${CPU_ARG},${WALL_ARG},${FILTER_ARG},context,jfr,threads,file=$FILENAME ContextTarget
+  LD_PRELOAD=../build/debug/libdebug.so ${JAVA_HOME}/bin/java -cp .:../build/async-profiler.jar -agentpath:../build/debug/libasyncProfiler.so=start,${CPU_ARG},${WALL_ARG},${FILTER_ARG},context,jfr,threads,file=$FILENAME ContextTarget
   CPU_SAMPLES=$(jfr summary $FILENAME | grep datadog\.ExecutionSample | tr -s " " | cut -f 3 -d ' ')
   WALL_SAMPLES=$(jfr summary $FILENAME | grep datadog\.MethodSample | tr -s " " | cut -f 3 -d ' ')
 

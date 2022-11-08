@@ -33,6 +33,7 @@
 #include <linux/perf_event.h>
 #include "arch.h"
 #include "j9StackTraces.h"
+#include "debugSupport.h"
 #include "log.h"
 #include "os.h"
 #include "perfEvents.h"
@@ -44,7 +45,6 @@
 #include "thread.h"
 #include "vmStructs.h"
 #include "context.h"
-
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
 #ifndef F_SETOWN_EX
@@ -64,7 +64,6 @@ enum {
     HW_BREAKPOINT_RW = 3,
     HW_BREAKPOINT_X  = 4
 };
-
 
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
@@ -710,12 +709,15 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
     int tid = current != NULL ? current->tid() : OS::threadId();
     if (_enabled) {
+        int tid = OS::threadId();
+        Shims::instance().setSighandlerTid(tid);
         ContextSnapshot ctx = Contexts::get(tid);
 
         u64 counter = readCounter(siginfo, ucontext);
         ExecutionEvent event;
         event._context = ctx;
         Profiler::instance()->recordSample(ucontext, counter, tid, BCI_CPU, &event);
+        Shims::instance().setSighandlerTid(-1);
     } else {
         resetBuffer(tid);
     }
@@ -739,17 +741,21 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
             .truncated = false,
             .reserved = 0
         };
+        Shims::instance().setSighandlerTid(ProfiledThread::currentTid());
         StackContext java_ctx;
         notif.num_frames += _cstack == CSTACK_NO ? 0 : PerfEvents::walkKernel(ProfiledThread::currentTid(), notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx);
         if (_cstack == CSTACK_DWARF) {
             notif.num_frames += StackWalker::walkDwarf(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx, &notif.truncated);
+            Shims::instance().setSighandlerTid(-1);
         } else {
             notif.num_frames += StackWalker::walkFP(ucontext, notif.addr + notif.num_frames, MAX_J9_NATIVE_FRAMES - notif.num_frames, &java_ctx, &notif.truncated);
+            Shims::instance().setSighandlerTid(-1);
         }
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(ProfiledThread::currentTid());
     }
+    
 
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_RESET, 0);
     ioctl(siginfo->si_fd, PERF_EVENT_IOC_REFRESH, 1);

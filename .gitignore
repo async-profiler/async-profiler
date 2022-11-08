@@ -1,10 +1,12 @@
 /build/
+/build/debug/
 /nbproject/
 /out/
 /.idea/
 /target/
 **/*.class
 **/*.class.h
+**/*.so
 .vscode
 .classpath
 .project

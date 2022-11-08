@@ -7,6 +7,8 @@ PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
 LIB_PROFILER=libasyncProfiler.$(SOEXT)
 LIB_PROFILER_SO=libasyncProfiler.so
+LIB_DEBUG=libdebug.$(SOEXT)
+LIB_DEBUG_SO=libdebug.so
 JATTACH=jattach
 API_JAR=async-profiler.jar
 CONVERTER_JAR=converter.jar
@@ -24,6 +26,7 @@ JAVAC_OPTIONS=-source 7 -target 7 -Xlint:-options
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
+DEBUG_SOURCES := $(wildcard src/debug/*.c)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 JAVA_HELPER_SOURCES := $(wildcard src/helper/one/profiler/*.java)
@@ -94,9 +97,9 @@ ifneq ($(ARCH),ppc64le)
 endif
 
 
-.PHONY: all release test clean
+.PHONY: all release test clean debug
 
-all: build build/helpers build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR)
+all: build build/helpers build/$(LIB_PROFILER) build/$(JATTACH) build/$(API_JAR) build/$(CONVERTER_JAR) build/debug/$(LIB_DEBUG) build/debug/$(LIB_PROFILER_SO)
 
 release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -122,7 +125,18 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) \
 	-ln -s $(<F) $@
 
 build:
-	mkdir -p build
+	mkdir -p build/debug
+
+build/debug/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+ifeq ($(MERGE),true)
+	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -DDEBUG -fPIC -shared -o $@ -xc++ - $(LIBS)
+else
+	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -DDEBUG -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+endif
+
+build/debug/$(LIB_DEBUG_SO): $(DEBUG_SOURCES) $(HEADERS)
+	$(CC) $(CFLAGS) $(INCLUDES) -fPIC -shared -o $@ $(DEBUG_SOURCES)
 
 build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
