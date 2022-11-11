@@ -1201,6 +1201,7 @@ class Recording {
         buf->putVar64(event->_num_exited_threads);
         buf->putVar64(event->_num_permission_denied);
         buf->put8(start, buf->offset() - start);
+        flushIfNeeded(buf); 
     }
 
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
