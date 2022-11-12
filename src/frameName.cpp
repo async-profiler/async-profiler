@@ -86,6 +86,7 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     _class_names(),
     _include(),
     _exclude(),
+    _str(),
     _style(style),
     _cache_epoch((unsigned char)epoch),
     _cache_max_age(args._mcache),
@@ -94,7 +95,6 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
 {
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
-    memset(_buf, 0, sizeof(_buf));
 
     buildFilter(_include, args._buf, args._include);
     buildFilter(_exclude, args._buf, args._exclude);
@@ -126,13 +126,6 @@ void FrameName::buildFilter(std::vector<Matcher>& vector, const char* base, int 
     }
 }
 
-char* FrameName::truncate(char* name, int max_length) {
-    if (strlen(name) > max_length && max_length >= 4) {
-        strcpy(name + max_length - 4, "...)");
-    }
-    return name;
-}
-
 const char* FrameName::decodeNativeSymbol(const char* name) {
     const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
 
@@ -141,18 +134,17 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
         char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
         if (demangled != NULL) {
             if (lib_name != NULL) {
-                snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, demangled);
+                _str.assign(lib_name).append("`").append(demangled);
             } else {
-                strncpy(_buf, demangled, sizeof(_buf) - 1);
+                _str.assign(demangled);
             }
             free(demangled);
-            return _buf;
+            return _str.c_str();
         }
     }
 
     if (lib_name != NULL) {
-        snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, name);
-        return _buf;
+        return _str.assign(lib_name).append("`").append(name).c_str();
     } else {
         return name;
     }
@@ -171,12 +163,11 @@ const char* FrameName::typeSuffix(FrameTypeId type) {
     return NULL;
 }
 
-char* FrameName::javaMethodName(jmethodID method) {
+void FrameName::javaMethodName(jmethodID method) {
     jclass method_class;
     char* class_name = NULL;
     char* method_name = NULL;
     char* method_sig = NULL;
-    char* result;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
@@ -185,25 +176,28 @@ char* FrameName::javaMethodName(jmethodID method) {
         (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
         // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
-        result = javaClassName(class_name + 1, strlen(class_name) - 2, _style);
-        strcat(result, ".");
-        strcat(result, method_name);
-        if (_style & STYLE_SIGNATURES) strcat(result, truncate(method_sig, 255));
+        javaClassName(class_name + 1, strlen(class_name) - 2, _style);
+        _str.append(".").append(method_name);
+        if (_style & STYLE_SIGNATURES) {
+            if (_style & STYLE_NO_SEMICOLON) {
+                for (char* s = method_sig; *s; s++) {
+                    if (*s == ';') *s = '|';
+                }
+            }
+            _str.append(method_sig);
+        }
     } else {
-        snprintf(_buf, sizeof(_buf) - 1, "[jvmtiError %d]", err);
-        result = _buf;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "[jvmtiError %d]", err);
+        _str.assign(buf);
     }
 
     jvmti->Deallocate((unsigned char*)class_name);
     jvmti->Deallocate((unsigned char*)method_sig);
     jvmti->Deallocate((unsigned char*)method_name);
-
-    return result;
 }
 
-char* FrameName::javaClassName(const char* symbol, int length, int style) {
-    char* result = _buf;
-
+void FrameName::javaClassName(const char* symbol, size_t length, int style) {
     int array_dimension = 0;
     while (*symbol == '[') {
         array_dimension++;
@@ -211,42 +205,40 @@ char* FrameName::javaClassName(const char* symbol, int length, int style) {
     }
 
     if (array_dimension == 0) {
-        strncpy(result, symbol, length);
-        result[length] = 0;
+        _str.assign(symbol, length);
     } else {
         switch (*symbol) {
-            case 'B': strcpy(result, "byte");    break;
-            case 'C': strcpy(result, "char");    break;
-            case 'I': strcpy(result, "int");     break;
-            case 'J': strcpy(result, "long");    break;
-            case 'S': strcpy(result, "short");   break;
-            case 'Z': strcpy(result, "boolean"); break;
-            case 'F': strcpy(result, "float");   break;
-            case 'D': strcpy(result, "double");  break;
-            default:
-                length -= array_dimension + 2;
-                strncpy(result, symbol + 1, length);
-                result[length] = 0;
+            case 'B': _str.assign("byte");    break;
+            case 'C': _str.assign("char");    break;
+            case 'I': _str.assign("int");     break;
+            case 'J': _str.assign("long");    break;
+            case 'S': _str.assign("short");   break;
+            case 'Z': _str.assign("boolean"); break;
+            case 'F': _str.assign("float");   break;
+            case 'D': _str.assign("double");  break;
+            default:  _str.assign(symbol + 1, length - array_dimension - 2);
         }
 
         do {
-            strcat(result, "[]");
+            _str += "[]";
         } while (--array_dimension > 0);
     }
 
     if (style & STYLE_SIMPLE) {
-        for (char* s = result; *s; s++) {
-            if (*s == '/' && !isDigit(s[1])) result = s + 1;
+        size_t start = 0;
+        size_t size = _str.size();
+        for (size_t i = 0; i < size; i++) {
+            if (_str[i] == '/' && !isDigit(_str[i + 1])) start = i + 1;
         }
+        _str.erase(0, start);
     }
 
     if (style & STYLE_DOTTED) {
-        for (char* s = result; *s; s++) {
-            if (*s == '/' && !isDigit(s[1])) *s = '.';
+        size_t size = _str.size();
+        for (size_t i = 0; i < size; i++) {
+            if (_str[i] == '/' && !isDigit(_str[i + 1])) _str[i] = '.';
         }
     }
-
-    return result;
 }
 
 const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
@@ -263,11 +255,11 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         case BCI_LOCK:
         case BCI_PARK: {
             const char* symbol = _class_names[(uintptr_t)frame.method_id];
-            char* class_name = javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
+            javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
             if (!for_matching && !(_style & STYLE_DOTTED)) {
-                strcat(class_name, frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]");
+                _str += frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
             }
-            return class_name;
+            return _str.c_str();
         }
 
         case BCI_THREAD_ID: {
@@ -276,18 +268,19 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             ThreadMap::iterator it = _thread_names.find(tid);
             if (for_matching) {
                 return it != _thread_names.end() ? it->second.c_str() : "";
-            } else if (it != _thread_names.end()) {
-                snprintf(_buf, sizeof(_buf) - 1, "[%s tid=%d]", it->second.c_str(), tid);
-            } else {
-                snprintf(_buf, sizeof(_buf) - 1, "[tid=%d]", tid);
             }
-            return _buf;
+
+            char buf[32];
+            snprintf(buf, sizeof(buf), "tid=%d]", tid);
+            if (it != _thread_names.end()) {
+                return _str.assign("[").append(it->second).append(" ").append(buf).c_str();
+            } else {
+                return _str.assign("[").append(buf).c_str();
+            }
         }
 
-        case BCI_ERROR: {
-            snprintf(_buf, sizeof(_buf) - 1, "[%s]", (const char*)frame.method_id);
-            return _buf;
-        }
+        case BCI_ERROR:
+            return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
 
         default: {
             const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
@@ -296,15 +289,17 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             if (it != _cache.end() && it->first == frame.method_id) {
                 it->second[0] = _cache_epoch;
                 if (type_suffix != NULL) {
-                    snprintf(_buf, sizeof(_buf) - 1, "%s%s", it->second.c_str() + 1, type_suffix);
-                    return _buf;
+                    return _str.assign(it->second, 1, std::string::npos).append(type_suffix).c_str();
                 }
                 return it->second.c_str() + 1;
             }
 
-            char* newName = javaMethodName(frame.method_id);
-            _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + newName));
-            return type_suffix != NULL ? strcat(newName, type_suffix) : newName;
+            javaMethodName(frame.method_id);
+            _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + _str));
+            if (type_suffix != NULL) {
+                _str += type_suffix;
+            }
+            return _str.c_str();
         }
     }
 }

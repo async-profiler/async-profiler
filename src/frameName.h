@@ -68,7 +68,7 @@ class FrameName {
     ClassMap _class_names;
     std::vector<Matcher> _include;
     std::vector<Matcher> _exclude;
-    char _buf[800];  // must be large enough for class name + method name + method signature
+    std::string _str;
     int _style;
     unsigned char _cache_epoch;
     unsigned char _cache_max_age;
@@ -77,11 +77,10 @@ class FrameName {
     locale_t _saved_locale;
 
     void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
-    char* truncate(char* name, int max_length);
     const char* decodeNativeSymbol(const char* name);
     const char* typeSuffix(FrameTypeId type);
-    char* javaMethodName(jmethodID method);
-    char* javaClassName(const char* symbol, int length, int style);
+    void javaMethodName(jmethodID method);
+    void javaClassName(const char* symbol, size_t length, int style);
 
   public:
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
