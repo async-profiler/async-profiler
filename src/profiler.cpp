@@ -74,6 +74,7 @@ enum StackRecovery {
     UNWIND_NATIVE = 0x8,
     LAST_JAVA_PC  = 0x10,
     GC_TRACES     = 0x20,
+    PROBE_SP      = 0x100,
 };
 
 
@@ -417,6 +418,15 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
                             && isAddressInCode(frame.pc() -= ADJUST_RET)) {
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    }
+                    if ((_safe_mode & PROBE_SP) && trace.num_frames < 0) {
+                        if (method_id != NULL) {
+                            trace.frames--;
+                        }
+                        for (int i = 0; trace.num_frames < 0 && i < PROBE_SP_LIMIT; i++) {
+                            frame.sp() += sizeof(void*);
+                            VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                        }
                     }
                 }
             } else if (nmethod != NULL) {
