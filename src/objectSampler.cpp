@@ -17,11 +17,27 @@
 #include <string.h>
 #include "objectSampler.h"
 #include "profiler.h"
+#include "tsc.h"
 
 
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
+
+
+static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
+    u32 class_id = 0;
+    char* class_name;
+    if (jvmti->GetClassSignature(cls, &class_name, NULL) == 0) {
+        if (class_name[0] == 'L') {
+            class_id = Profiler::instance()->classMap()->lookup(class_name + 1, strlen(class_name) - 2);
+        } else {
+            class_id = Profiler::instance()->classMap()->lookup(class_name);
+        }
+        jvmti->Deallocate((unsigned char*)class_name);
+    }
+    return class_id;
+}
 
 
 class LiveRefs {
@@ -30,17 +46,15 @@ class LiveRefs {
 
     SpinLock _lock;
     jweak _refs[MAX_REFS];
-    jlong _sizes[MAX_REFS];
-    u32 _traces[MAX_REFS];
+    struct {
+        jlong size;
+        u64 trace;
+        u64 time;
+    } _values[MAX_REFS];
+    bool _full;
 
     static inline bool collected(jweak w) {
         return *(void**)((uintptr_t)w & ~(uintptr_t)1) == NULL;
-    }
-
-    void set(u32 index, jweak w, jlong size, u32 call_trace_id) {
-        _refs[index] = w;
-        _sizes[index] = size;
-        _traces[index] = call_trace_id;
     }
 
   public:
@@ -49,48 +63,42 @@ class LiveRefs {
 
     void init() {
         memset(_refs, 0, sizeof(_refs));
-        memset(_sizes, 0, sizeof(_sizes));
-        memset(_traces, 0, sizeof(_traces));
-
+        memset(_values, 0, sizeof(_values));
+        _full = false;
         _lock.unlock();
     }
 
-    void add(JNIEnv* jni, jobject object, jlong size, u32 call_trace_id) {
+    void gc() {
+        _full = false;
+    }
+
+    void add(JNIEnv* jni, jobject object, jlong size, u64 trace) {
+        if (_full) {
+            return;
+        }
+
         jweak wobject = jni->NewWeakGlobalRef(object);
         if (wobject == NULL) {
             return;
         }
 
         if (_lock.tryLock()) {
-            jlong min_size = size;
-            u32 min_index = 0;
-
-            u32 start = (((uintptr_t)object >> 4) * 31 + ((uintptr_t)jni >> 4) + call_trace_id) & (MAX_REFS - 1);
+            u32 start = (((uintptr_t)object >> 4) * 31 + ((uintptr_t)jni >> 4) + trace) & (MAX_REFS - 1);
             u32 i = start;
             do {
                 jweak w = _refs[i];
-                if (w == NULL) {
-                    set(i, wobject, size, call_trace_id);
+                if (w == NULL || collected(w)) {
+                    if (w != NULL) jni->DeleteWeakGlobalRef(w);
+                    _refs[i] = wobject;
+                    _values[i].size = size;
+                    _values[i].trace = trace;
+                    _values[i].time = TSC::ticks();
                     _lock.unlock();
                     return;
-                } else if (collected(w)) {
-                    jni->DeleteWeakGlobalRef(w);
-                    set(i, wobject, size, call_trace_id);
-                    _lock.unlock();
-                    return;
-                } else if (_sizes[i] < min_size) {
-                    min_size = _sizes[i];
-                    min_index = i;
                 }
             } while ((i = (i + 1) & (MAX_REFS - 1)) != start);
 
-            if (min_size < size) {
-                jni->DeleteWeakGlobalRef(_refs[min_index]);
-                set(min_index, wobject, size, call_trace_id);
-                _lock.unlock();
-                return;
-            }
-
+            _full = true;
             _lock.unlock();
         }
 
@@ -100,14 +108,29 @@ class LiveRefs {
     void dump(JNIEnv* jni) {
         _lock.lock();
 
+        jvmtiEnv* jvmti = VM::jvmti();
+        Profiler* profiler = Profiler::instance();
+
         for (u32 i = 0; i < MAX_REFS; i++) {
+            if ((i % 32) == 0) jni->PushLocalFrame(64);
+
             jweak w = _refs[i];
             if (w != NULL) {
-                if (!collected(w)) {
-                    Profiler::instance()->callTraceStorage()->add(_traces[i], _sizes[i]);
+                jobject obj = jni->NewLocalRef(w);
+                if (obj != NULL) {
+                    LiveObject event;
+                    event._alloc_size = _values[i].size;
+                    event._alloc_time = _values[i].time;
+                    event._class_id = lookupClassId(jvmti, jni->GetObjectClass(obj));
+
+                    int tid = _values[i].trace >> 32;
+                    u32 call_trace_id = (u32)_values[i].trace;
+                    profiler->recordExternalSample(event._alloc_size, tid, BCI_LIVE_OBJECT, &event, call_trace_id);
                 }
                 jni->DeleteWeakGlobalRef(w);
             }
+
+            if ((i % 32) == 31 || i == MAX_REFS - 1) jni->PopLocalFrame(NULL);
         }
     }
 };
@@ -122,26 +145,20 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
     }
 }
 
+void ObjectSampler::GarbageCollectionStart(jvmtiEnv* jvmti) {
+    live_refs.gc();
+}
+
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_type,
                                      jobject object, jclass object_klass, jlong size) {
     AllocEvent event;
-    event._class_id = 0;
     event._total_size = size > _interval ? size : _interval;
     event._instance_size = size;
-
-    char* class_name;
-    if (jvmti->GetClassSignature(object_klass, &class_name, NULL) == 0) {
-        if (class_name[0] == 'L') {
-            event._class_id = Profiler::instance()->classMap()->lookup(class_name + 1, strlen(class_name) - 2);
-        } else {
-            event._class_id = Profiler::instance()->classMap()->lookup(class_name);
-        }
-        jvmti->Deallocate((unsigned char*)class_name);
-    }
+    event._class_id = lookupClassId(jvmti, object_klass);
 
     if (_live) {
-        u32 call_trace_id = Profiler::instance()->recordSample(NULL, 0, event_type, &event);
-        live_refs.add(jni, object, size, call_trace_id);
+        u64 trace = Profiler::instance()->recordSample(NULL, 0, event_type, &event);
+        live_refs.add(jni, object, size, trace);
     } else {
         Profiler::instance()->recordSample(NULL, size, event_type, &event);
     }
@@ -180,12 +197,14 @@ Error ObjectSampler::start(Arguments& args) {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetHeapSamplingInterval(_interval);
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
 
     return Error::OK;
 }
 
 void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 
     dumpLiveRefs();

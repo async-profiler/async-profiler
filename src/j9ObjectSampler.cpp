@@ -56,12 +56,14 @@ Error J9ObjectSampler::start(Arguments& args) {
         return Error("Could not enable InstrumentableObjectAlloc callback");
     }
     jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
+    jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
 
     return Error::OK;
 }
 
 void J9ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
+    jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_VM_OBJECT_ALLOC, NULL);
     jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, NULL);
 

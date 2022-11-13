@@ -181,6 +181,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_get_line_numbers = 1;
     capabilities.can_generate_compiled_method_load_events = 1;
     capabilities.can_generate_monitor_events = 1;
+    capabilities.can_generate_garbage_collection_events = 1;
     capabilities.can_tag_objects = 1;
     if (_jvmti->AddCapabilities(&capabilities) != 0) {
         _can_sample_objects = false;
@@ -202,6 +203,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
     callbacks.SampledObjectAlloc = ObjectSampler::SampledObjectAlloc;
+    callbacks.GarbageCollectionStart = ObjectSampler::GarbageCollectionStart;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);

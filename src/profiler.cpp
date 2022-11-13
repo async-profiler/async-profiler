@@ -579,7 +579,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
-u32 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
+u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
@@ -646,13 +646,13 @@ u32 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
-    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     _locks[lock_index].unlock();
-    return call_trace_id;
+    return (u64)tid << 32 | call_trace_id;
 }
 
-void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -674,7 +674,23 @@ void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_
         return;
     }
 
-    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
+
+    _locks[lock_index].unlock();
+}
+
+void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, u32 call_trace_id) {
+    _call_trace_storage.add(call_trace_id, counter);
+
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        return;
+    }
+
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     _locks[lock_index].unlock();
 }

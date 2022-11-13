@@ -49,6 +49,8 @@ class ObjectSampler : public Engine {
 
     static void JNICALL SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                            jobject object, jclass object_klass, jlong size);
+
+    static void JNICALL GarbageCollectionStart(jvmtiEnv* jvmti);
 };
 
 #endif // _OBJECTSAMPLER_H

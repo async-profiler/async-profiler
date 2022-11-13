@@ -46,7 +46,7 @@ class FlightRecorder {
     }
 
     void recordEvent(int lock_index, int tid, u32 call_trace_id,
-                     int event_type, Event* event, u64 counter);
+                     int event_type, Event* event);
 
     void recordLog(LogLevel level, const char* message, size_t len);
 };

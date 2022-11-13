@@ -1139,6 +1139,18 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
+        int start = buf->skip(1);
+        buf->put8(T_LIVE_OBJECT);
+        buf->putVar64(TSC::ticks());
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_class_id);
+        buf->putVar64(event->_alloc_size);
+        buf->putVar64(event->_alloc_time);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_MONITOR_ENTER);
@@ -1340,7 +1352,7 @@ void FlightRecorder::stopMasterRecording() {
 }
 
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
-                                 int event_type, Event* event, u64 counter) {
+                                 int event_type, Event* event) {
     if (_rec != NULL) {
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
@@ -1352,6 +1364,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case BCI_ALLOC_OUTSIDE_TLAB:
                 _rec->recordAllocationOutsideTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
+                break;
+            case BCI_LIVE_OBJECT:
+                _rec->recordLiveObject(buf, tid, call_trace_id, (LiveObject*)event);
                 break;
             case BCI_LOCK:
                 _rec->recordMonitorBlocked(buf, tid, call_trace_id, (LockEvent*)event);
