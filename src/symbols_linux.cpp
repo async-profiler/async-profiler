@@ -145,6 +145,8 @@ class ElfParser {
     const char* _base;
     const char* _file_name;
     ElfHeader* _header;
+    const char* pheaders;
+    int mmap_length;
     const char* _sections;
     const char* _vaddr_diff;
 
@@ -179,8 +181,10 @@ class ElfParser {
     ElfProgramHeader* findProgramHeader(uint32_t type);
 
     void calcVirtualLoadAddress();
+    bool calcProgramHeaderAddress();
     void parseDynamicSection();
     void parseDwarfInfo();
+    void clean();
     void loadSymbols(bool use_debug);
     bool loadSymbolsUsingBuildId();
     bool loadSymbolsUsingDebugLink();
@@ -210,8 +214,6 @@ ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
 }
 
 ElfProgramHeader* ElfParser::findProgramHeader(uint32_t type) {
-    const char* pheaders = (const char*)_header + _header->e_phoff;
-
     for (int i = 0; i < _header->e_phnum; i++) {
         ElfProgramHeader* pheader = (ElfProgramHeader*)(pheaders + i * _header->e_phentsize);
         if (pheader->p_type == type) {
@@ -255,15 +257,52 @@ void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base) {
     ElfParser elf(cc, base, base);
     if (elf.validHeader()) {
         cc->setTextBase(base);
+        if (!elf.calcProgramHeaderAddress()) {
+            Log::warn("calc program header address error");
+            return;
+        }
         elf.calcVirtualLoadAddress();
         elf.parseDynamicSection();
         elf.parseDwarfInfo();
+        elf.clean();
+    }
+}
+
+bool ElfParser::calcProgramHeaderAddress() {
+    if (_header->e_phoff == 64) {
+        pheaders = (const char*)_header + _header->e_phoff;
+        mmap_length = 0;
+    } else {
+        // program headers may not exist in the current memory segment, try reading from the file via e_phoff
+        if (_header->e_phnum == 0) {
+            Log::warn("%s no program header\n", _cc->name());
+            return false;
+        }
+        int fd = open(_cc->name(), O_RDONLY);
+        if (fd < 0) {
+            Log::warn("open %s failed\n", _cc->name());
+            return false;
+        }
+        mmap_length = _header->e_phnum * _header->e_phentsize;
+        pheaders = (const char*) mmap(NULL, mmap_length, PROT_READ, MAP_SHARED, fd, _header->e_phoff);
+        close(fd);
+        if (pheaders == MAP_FAILED) {
+            Log::warn("mmap %s failed\n", _cc->name());
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void ElfParser::clean() {
+    if (mmap_length > 0 && munmap((void *)pheaders, mmap_length) != 0) {
+        Log::warn("munmap %s failed: %x\n", _cc->name());
     }
 }
 
 void ElfParser::calcVirtualLoadAddress() {
     // Find a difference between the virtual load address (often zero) and the actual DSO base
-    const char* pheaders = (const char*)_header + _header->e_phoff;
     for (int i = 0; i < _header->e_phnum; i++) {
         ElfProgramHeader* pheader = (ElfProgramHeader*)(pheaders + i * _header->e_phentsize);
         if (pheader->p_type == PT_LOAD) {
