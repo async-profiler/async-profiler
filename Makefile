@@ -98,7 +98,7 @@ endif
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
+release: build $(PACKAGE_NAME).$(PACKAGE_EXT) $(PACKAGE_NAME).jar
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
@@ -108,6 +108,11 @@ $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/build/$(JATTACH) $(PACKAGE_DIR)/build/$(LIB_PROFILER_SO)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
+
+$(PACKAGE_NAME).jar: build/$(LIB_PROFILER_SO)
+	mkdir -p build/$(OS_TAG)-$(ARCH_TAG)
+	cp build/$(LIB_PROFILER_SO) build/$(OS_TAG)-$(ARCH_TAG)/
+	$(JAR) cf $@ -C build $(OS_TAG)-$(ARCH_TAG)
 
 $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
                 build/$(API_JAR) build/$(CONVERTER_JAR) \
