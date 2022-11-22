@@ -34,6 +34,7 @@ public class ThreadFilterSmokeTest {
     doThreadFiltering(asyncProfiler);
     asyncProfiler.execute("start,wall=~1ms,filter=0,jfr,thread,file=" + jfrDump.toAbsolutePath());
     doThreadFiltering(asyncProfiler);
+    asyncProfiler.stop();
   }
 
   private void doThreadFiltering(AsyncProfiler asyncProfiler) throws Exception {
