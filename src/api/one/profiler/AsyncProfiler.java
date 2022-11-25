@@ -221,17 +221,27 @@ public class AsyncProfiler {
 
     /**
      * Passing context identifier to a profiler. This ID is thread-local and is dumped in
-     * the JFR output only. 0 is a reserved value for "no-context". The context functionality
-     * is available for 64bit Java only.
+     * the JFR output only. 0 is a reserved value for "no-context".
      *
      * @param spanId Span identifier that should be stored for current thread
      * @param rootSpanId Root Span identifier that should be stored for current thread
      */
     public void setContext(long spanId, long rootSpanId) {
+        setContext(TID.get(), spanId, rootSpanId);
+    }
+
+    /**
+     * Passing context identifier to a profiler. This ID is thread-local and is dumped in
+     * the JFR output only. 0 is a reserved value for "no-context".
+     *
+     * @param spanId Span identifier that should be stored for current thread
+     * @param rootSpanId Root Span identifier that should be stored for current thread
+     * @param tid the native thread id
+     */
+    public void setContext(int tid, long spanId, long rootSpanId) {
         if (contextStorage == null) {
             return;
         }
-        int tid = TID.get();
         int pageIndex = tid / PAGE_SIZE;
         ByteBuffer page = contextStorage[pageIndex];
         if (page == null) {
@@ -248,7 +258,19 @@ public class AsyncProfiler {
      * Clears context identifier for current thread.
      */
     public void clearContext() {
-        setContext(0, 0);
+        clearContext(TID.get());
+    }
+
+    /**
+     * Clears context identifier for the given thread id.
+     * @param the native thread id
+     */
+    public void clearContext(int tid) {
+        setContext(tid, 0, 0);
+    }
+
+    public int getNativeThreadId() {
+        return getTid0();
     }
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
