@@ -273,7 +273,7 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
     return true;
 }
 
-static int single_pid_server(int pid, const char *path) {
+static int single_pid_server(int pid, const char *path, unsigned int timeout) {
     // get its nspid prior to moving to its PID namespace.
     int nspid;
     uid_t _target_uid;
@@ -301,7 +301,7 @@ static int single_pid_server(int pid, const char *path) {
         }
     }
 
-    if (!FdTransferServer::bindServer(&sun, addrlen, 10)) {
+    if (!FdTransferServer::bindServer(&sun, addrlen, timeout)) {
         return 1;
     }
 
@@ -370,10 +370,14 @@ static int path_server(const char *path) {
 
 int main(int argc, const char** argv) {
     int pid = 0;
-    if (argc == 3) {
+    unsigned int timeout = 10; // 10 is the default
+    if (argc == 4) {
+        pid = atoi(argv[2]);
+        timeout = atoi(argv[3]);
+    } else if (argc == 3) {
         pid = atoi(argv[2]);
     } else if (argc != 2) {
-        fprintf(stderr, "Usage: %s <path> [<pid>]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <path> [<pid> [<timeout>]]\n", argv[0]);
         return 1;
     }
 
@@ -381,7 +385,7 @@ int main(int argc, const char** argv) {
     // pid is not given - bind on a path and accept requests forever, from any PID, until being killed.
     // pid is given     - bind on an path for that PID, accept requests only from that PID until the single connection is closed.
     if (pid != 0) {
-        return single_pid_server(pid, argv[1]);
+        return single_pid_server(pid, argv[1], timeout);
     } else {
         return path_server(argv[1]);
     }
