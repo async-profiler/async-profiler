@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>tools.profiler</groupId>
-    <artifactId>async-profiler</artifactId>
+    <artifactId>async-profiler-native</artifactId>
     <version>2.9-rc</version>
     <packaging>jar</packaging>
 
@@ -34,37 +34,29 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>tools.profiler</groupId>
-            <artifactId>async-profiler-api</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>tools.profiler</groupId>
-            <artifactId>async-profiler-native</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-    </dependencies>
-
     <build>
+        <resources>
+            <resource>
+                <directory>native</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
                 <executions>
                     <execution>
-                        <id>make-assembly</id>
                         <phase>package</phase>
                         <goals>
-                            <goal>single</goal>
+                            <goal>jar</goal>
                         </goals>
+                        <configuration>
+                            <classifier>${native.platform}</classifier>
+                            <includes>
+                                <include>${native.platform}/**</include>
+                            </includes>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

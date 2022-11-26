@@ -5,6 +5,7 @@
 ### Features
  - Java Heap leak profiler
  - `meminfo` command to print profiler's memory usage
+ - Profiler API with embedded agent as a Maven artifact
 
 ### Improvements
  - `--include`/`--exclude` options in the FlameGraph converter

@@ -94,11 +94,11 @@ ifneq ($(ARCH),ppc64le)
 endif
 
 
-.PHONY: all release test clean
+.PHONY: all release test native clean
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: build $(PACKAGE_NAME).$(PACKAGE_EXT) $(PACKAGE_NAME).jar
+release: build $(PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
@@ -108,11 +108,6 @@ $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/build/$(JATTACH) $(PACKAGE_DIR)/build/$(LIB_PROFILER_SO)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
-
-$(PACKAGE_NAME).jar: build/$(LIB_PROFILER_SO)
-	mkdir -p build/$(OS_TAG)-$(ARCH_TAG)
-	cp build/$(LIB_PROFILER_SO) build/$(OS_TAG)-$(ARCH_TAG)/
-	$(JAR) cf $@ -C build $(OS_TAG)-$(ARCH_TAG)
 
 $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
                 build/$(API_JAR) build/$(CONVERTER_JAR) \
@@ -149,10 +144,10 @@ build/$(API_JAR): $(API_SOURCES)
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter . -C src/res .
+	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
 %.class: %.java
@@ -165,6 +160,12 @@ test: all
 	test/load-library-test.sh
 	test/fdtransfer-smoke-test.sh
 	echo "All tests passed"
+
+native:
+	mkdir -p native/linux-x64 native/linux-arm64 native/macos
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
 
 clean:
 	$(RM) -r build
