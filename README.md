@@ -40,6 +40,8 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 ### Community supported builds
 
  - **Windows** / x64 - <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/IntelliJ_IDEA_Icon.svg" width="16" height="16"/> [IntelliJ IDEA](https://www.jetbrains.com/idea/) 2021.2 and later
+ - [**ap-loader**](https://github.com/jvm-profiling-tools/ap-loader) -
+   all-in-one JAR for using async-profiler in Java programs and as a CLI tool
 
 ## CPU profiling
 
