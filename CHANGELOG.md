@@ -1,6 +1,6 @@
 # Changelog
 
-## [2.9] - Release Candidate
+## [2.9] - 2022-11-27
 
 ### Features
  - Java Heap leak profiler
