@@ -1284,7 +1284,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     FrameName fn(args, args._style, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
-
+    memset(buf, 0, sizeof(buf));
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 

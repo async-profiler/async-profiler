@@ -195,6 +195,5 @@ cppcheck:
 		--suppress=comparePointers:src/flightRecorder.cpp:1408 \
 		--suppress=comparePointers:src/memleakTracer.cpp:236 \
 		--suppress=comparePointers:src/memleakTracer.cpp:247 \
-		--suppress=uninitvar:src/profiler.cpp:1303 \
 		--force \
 		src/
