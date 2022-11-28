@@ -234,9 +234,9 @@ public class AsyncProfiler {
      * Passing context identifier to a profiler. This ID is thread-local and is dumped in
      * the JFR output only. 0 is a reserved value for "no-context".
      *
+     * @param tid the native thread id
      * @param spanId Span identifier that should be stored for current thread
      * @param rootSpanId Root Span identifier that should be stored for current thread
-     * @param tid the native thread id
      */
     public void setContext(int tid, long spanId, long rootSpanId) {
         if (contextStorage == null) {
@@ -263,7 +263,7 @@ public class AsyncProfiler {
 
     /**
      * Clears context identifier for the given thread id.
-     * @param the native thread id
+     * @param tid the native thread id
      */
     public void clearContext(int tid) {
         setContext(tid, 0, 0);
