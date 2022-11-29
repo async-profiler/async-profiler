@@ -123,18 +123,15 @@ Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
 }
 
 extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthread thread, jboolean enable) {
-    int thread_id;
-    if (thread == NULL) {
-        thread_id = OS::threadId();
-    } else if ((thread_id = VMThread::nativeThreadId(env, thread)) < 0) {
+Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jint tid, jboolean enable) {
+    if (tid < 0) {
         return;
     }
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     if (enable) {
-        thread_filter->add(thread_id);
+        thread_filter->add(tid);
     } else {
-        thread_filter->remove(thread_id);
+        thread_filter->remove(tid);
     }
 }
 
@@ -160,7 +157,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(stop0,                 "()V"),
     F(execute0,              "(Ljava/lang/String;)Ljava/lang/String;"),
     F(getSamples,            "()J"),
-    F(filterThread0,         "(Ljava/lang/Thread;Z)V"),
+    F(filterThread0,         "(I;Z)V"),
     F(getTid0,               "()I"),
     F(getContextPage0,       "(I)Ljava/nio/ByteBuffer"),
     F(getMaxContextPages0,   "()I")

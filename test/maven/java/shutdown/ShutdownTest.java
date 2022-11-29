@@ -27,14 +27,14 @@ public class ShutdownTest {
   @Test
   public void testShutdownWall() throws IOException {
     AsyncProfiler ap = AsyncProfiler.getInstance(Utils.getAsyncProfilerLib());
-    ap.addThread(Thread.currentThread());
+    ap.addThread(ap.getNativeThreadId());
     runTest(ap, "start,wall=~10us,filter=0,thread");
   }
 
   @Test
   public void testShutdownCpuAndWall() throws IOException {
     AsyncProfiler ap = AsyncProfiler.getInstance(Utils.getAsyncProfilerLib());
-    ap.addThread(Thread.currentThread());
+    ap.addThread(ap.getNativeThreadId());
     runTest(ap, "start,cpu=10us,wall=~10us,filter=0,thread");
   }
 
