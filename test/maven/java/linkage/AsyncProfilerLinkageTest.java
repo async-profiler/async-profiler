@@ -10,7 +10,7 @@ public class AsyncProfilerLinkageTest {
     @Test
     public void testContextApiLinked() throws Exception {
         AsyncProfiler ap = AsyncProfiler.getInstance(Utils.getAsyncProfilerLib());
-        ap.addThread(Thread.currentThread());
+        ap.addThread(ap.getNativeThreadId());
         ap.setContext(1, 1);
         ap.clearContext();
     }

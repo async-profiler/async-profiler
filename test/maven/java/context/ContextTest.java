@@ -35,7 +35,7 @@ public class ContextTest {
     public void testReadContext() throws Exception {
         Path jfrDump = Files.createTempFile("context-test", ".jfr");
         AsyncProfiler ap = AsyncProfiler.getInstance(Utils.getAsyncProfilerLib());
-        ap.addThread(Thread.currentThread());
+        ap.addThread(ap.getNativeThreadId());
         ap.setContext(42, 84);
         ap.execute("start,cpu=1ms,jfr,thread,file=" + jfrDump.toAbsolutePath());
         // do some work to get some cpu samples

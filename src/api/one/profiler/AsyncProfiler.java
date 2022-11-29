@@ -189,35 +189,22 @@ public class AsyncProfiler {
      * Add the given thread to the set of profiled threads.
      * 'filter' option must be enabled to use this method.
      *
-     * @param thread Thread to include in profiling
+     * @param tid native thread id to include in profiling
      */
-    public void addThread(Thread thread) {
-        filterThread(thread, true);
+    public void addThread(int tid) {
+        filterThread0(tid, true);
     }
 
     /**
-     * Remove the given thread from the set of profiled threads.
+     * Remove the given thread to the set of profiled threads.
      * 'filter' option must be enabled to use this method.
      *
-     * @param thread Thread to exclude from profiling
+     * @param tid native thread id to remove from profiling
      */
-    public void removeThread(Thread thread) {
-        filterThread(thread, false);
+    public void removeThread(int tid) {
+        filterThread0(tid, false);
     }
 
-    private void filterThread(Thread thread, boolean enable) {
-        if (thread == null || thread == Thread.currentThread()) {
-            filterThread0(null, enable);
-        } else {
-            // Need to take lock to avoid race condition with a thread state change
-            synchronized (thread) {
-                Thread.State state = thread.getState();
-                if (state != Thread.State.NEW && state != Thread.State.TERMINATED) {
-                    filterThread0(thread, enable);
-                }
-            }
-        }
-    }
 
     /**
      * Passing context identifier to a profiler. This ID is thread-local and is dumped in
@@ -276,7 +263,7 @@ public class AsyncProfiler {
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
     private native void stop0() throws IllegalStateException;
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
-    private native void filterThread0(Thread thread, boolean enable);
+    private native void filterThread0(int tid, boolean enable);
 
     private static native int getTid0();
     private static native ByteBuffer getContextPage0(int tid);

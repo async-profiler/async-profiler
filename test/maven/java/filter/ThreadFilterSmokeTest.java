@@ -44,14 +44,15 @@ public class ThreadFilterSmokeTest {
       futures[i] = executorService.submit(new Runnable() {
         @Override
         public void run() {
-          asyncProfiler.addThread(Thread.currentThread());
+          int tid = asyncProfiler.getNativeThreadId();
+          asyncProfiler.addThread(tid);
           asyncProfiler.setContext(id, 42);
           try {
             Thread.sleep(2);
           } catch(InterruptedException e) {
             Thread.currentThread().interrupt();
           }
-          asyncProfiler.removeThread(Thread.currentThread());
+          asyncProfiler.removeThread(tid);
         }
       });
     }
