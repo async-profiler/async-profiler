@@ -176,6 +176,7 @@ test: all
 	test/load-library-test.sh
 	test/sleep-test.sh
 	test/jfr-dump-test.sh
+	test/load-libraries.sh
 	echo "All tests passed"
 
 test-%: all
