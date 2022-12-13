@@ -103,10 +103,10 @@ The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 
 ### Installing Debug Symbols
 
-The allocation profiler requires HotSpot debug symbols. Oracle JDK already has them
-embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
-in a separate package. For example, to install OpenJDK debug symbols on
-Debian / Ubuntu, run:
+Prior to JDK 11, the allocation profiler required HotSpot debug symbols.
+Oracle JDK already has them embedded in `libjvm.so`, but in OpenJDK builds
+they are typically shipped in a separate package. For example, to install
+OpenJDK debug symbols on Debian / Ubuntu, run:
 ```
 # apt install openjdk-8-dbg
 ```
