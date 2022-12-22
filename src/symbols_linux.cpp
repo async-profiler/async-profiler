@@ -583,10 +583,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         if (!map.isReadable() || map.file() == NULL || map.file()[0] == 0) {
             continue;
         }
-        if (strchr(map.file(), ':') != NULL) {
-            // Skip pseudofiles like anon_inode:name, /memfd:name
-            continue;
-        }
 
         const char* image_base = map.addr();
         if (image_base != image_end) last_readable_base = image_base;
@@ -604,19 +600,22 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             CodeCache* cc = new CodeCache(map.file(), count, image_base, image_end);
 
-            unsigned long inode = map.inode();
-            if (inode != 0) {
-                // Do not parse the same executable twice, e.g. on Alpine Linux
-                if (_parsed_inodes.insert(u64(map.dev()) << 32 | inode).second) {
-                    // Be careful: executable file is not always ELF, e.g. classes.jsa
-                    unsigned long offs = map.offs();
-                    if ((unsigned long)image_base > offs && (image_base -= offs) >= last_readable_base) {
-                        ElfParser::parseProgramHeaders(cc, image_base, image_end);
+            // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
+            if (strchr(map.file(), ':') == NULL) {
+                unsigned long inode = map.inode();
+                if (inode != 0) {
+                    // Do not parse the same executable twice, e.g. on Alpine Linux
+                    if (_parsed_inodes.insert(u64(map.dev()) << 32 | inode).second) {
+                        // Be careful: executable file is not always ELF, e.g. classes.jsa
+                        unsigned long offs = map.offs();
+                        if ((unsigned long)image_base > offs && (image_base -= offs) >= last_readable_base) {
+                            ElfParser::parseProgramHeaders(cc, image_base, image_end);
+                        }
+                        ElfParser::parseFile(cc, image_base, map.file(), true);
                     }
-                    ElfParser::parseFile(cc, image_base, map.file(), true);
+                } else if (strcmp(map.file(), "[vdso]") == 0) {
+                    ElfParser::parseMem(cc, image_base);
                 }
-            } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, image_base);
             }
 
             cc->sort();
