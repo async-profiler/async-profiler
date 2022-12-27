@@ -11,7 +11,7 @@
 	a {color: #0366d6}
 	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
 	#hl span {padding: 0 3px 0 3px}
-	#status {overflow: hidden; white-space: nowrap}
+	#status {overflow: hidden; white-space: nowrap; position: fixed; bottom: 0px}
 	#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
@@ -19,7 +19,7 @@
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>/*title:*/</h1>
-<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: left; position: fixed'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
