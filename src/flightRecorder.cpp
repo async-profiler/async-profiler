@@ -463,7 +463,6 @@ class Recording {
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
 
         _tid = OS::threadId();
-        addThread(_tid);
         VM::jvmti()->GetAvailableProcessors(&_available_processors);
 
         writeHeader(_buf);
@@ -958,8 +957,10 @@ class Recording {
     }
 
     void writeThreads(Buffer* buf) {
+        addThread(_tid);
         std::vector<int> threads;
         _thread_set.collect(threads);
+        _thread_set.clear();
 
         Profiler* profiler = Profiler::instance();
         MutexLocker ml(profiler->_thread_names_lock);
