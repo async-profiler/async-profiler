@@ -19,6 +19,8 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
+import one.jfr.event.AllocationSample;
+import one.jfr.event.Event;
 import one.jfr.event.ExecutionSample;
 import one.proto.Proto;
 
@@ -27,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +59,16 @@ public class jfr2pprof {
         }
     }
 
+    public static final String TYPE_CPU = "cpu";
+    public static final String TYPE_ALLOC = "alloc";
+
     public static final byte[] METHOD_UNKNOWN = "[unknown]".getBytes();
+
+    public static final byte[] VALUE_TYPE_CPU = "cpu".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_TYPE_MEMORY = "allocations".getBytes(StandardCharsets.UTF_8);
+
+    public static final byte[] VALUE_UNIT_CPU = "nanoseconds".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_UNIT_MEMORY = "count".getBytes(StandardCharsets.UTF_8);
 
     // Profile IDs
     public static final int PROFILE_SAMPLE_TYPE = 1;
@@ -96,7 +108,7 @@ public class jfr2pprof {
     }
 
     // `Proto` instances are mutable, careful with reordering
-    public void dump(final OutputStream out) throws Exception {
+    public void dump(final OutputStream out, final String type) throws Exception {
         // Mutable IDs, need to start at 1
         int functionId = 1;
         int locationId = 1;
@@ -105,6 +117,17 @@ public class jfr2pprof {
         // Used to de-dupe
         final Map<Method, Integer> functions = new HashMap<>();
         final Map<Method, Integer> locations = new HashMap<>();
+
+        byte[] valueType = null;
+        byte[] valueUnit = null;
+
+        if (TYPE_CPU.equals(type)) {
+            valueType = VALUE_TYPE_CPU;
+            valueUnit = VALUE_UNIT_CPU;
+        } else if (TYPE_ALLOC.equals(type)) {
+            valueType = VALUE_TYPE_MEMORY;
+            valueUnit = VALUE_UNIT_MEMORY;
+        }
 
         final Proto profile = new Proto(200_000)
                 .field(PROFILE_TIME_NANOS, reader.startNanos)
@@ -116,20 +139,21 @@ public class jfr2pprof {
 
         final Proto sampleType = new Proto(100);
 
-        profile.field(PROFILE_STRING_TABLE, "cpu".getBytes(StandardCharsets.UTF_8));
+        profile.field(PROFILE_STRING_TABLE, valueType);
         sampleType.field(VALUETYPE_TYPE, stringId++);
 
-        profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
+        profile.field(PROFILE_STRING_TABLE, valueUnit);
         sampleType.field(VALUETYPE_UNIT, stringId++);
 
         profile.field(PROFILE_SAMPLE_TYPE, sampleType);
 
-        final List<ExecutionSample> jfrSamples = reader.readAllEvents(ExecutionSample.class);
+        final List<Event> samples = reader.readAllEvents();
+
         final Dictionary<StackTrace> stackTraces = reader.stackTraces;
         long previousTime = reader.startTicks; // Mutate this to keep track of time deltas
 
         // Iterate over samples
-        for (final ExecutionSample jfrSample : jfrSamples) {
+        for (final Event jfrSample : samples) {
             final StackTrace stackTrace = stackTraces.get(jfrSample.stackTraceId);
             final long[] methods = stackTrace.methods;
             final byte[] types = stackTrace.types;
@@ -209,19 +233,25 @@ public class jfr2pprof {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " input.jfr output.pprof");
+        if (args.length < 3) {
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc] input.jfr output.pprof");
             System.exit(1);
         }
 
-        File dst = new File(args[1]);
-        if (dst.isDirectory()) {
-            dst = new File(dst, new File(args[0]).getName().replace(".jfr", ".pprof"));
+        final String type = args[0];
+        if (!TYPE_CPU.equals(type) && !TYPE_ALLOC.equals(type)) {
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc] input.jfr output.pprof");
+            System.exit(1);
         }
 
-        try (final JfrReader jfr = new JfrReader(args[0]);
+        File dst = new File(args[2]);
+        if (dst.isDirectory()) {
+            dst = new File(dst, new File(args[1]).getName().replace(".jfr", ".pprof"));
+        }
+
+        try (final JfrReader jfr = new JfrReader(args[1]);
              final FileOutputStream out = new FileOutputStream(dst)) {
-            new jfr2pprof(jfr).dump(out);
+            new jfr2pprof(jfr).dump(out, type);
         }
     }
 }
