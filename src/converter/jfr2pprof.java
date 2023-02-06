@@ -20,6 +20,7 @@ import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
+import one.jfr.event.ContendedLock;
 import one.jfr.event.Event;
 import one.jfr.event.ExecutionSample;
 import one.proto.Proto;
@@ -61,14 +62,17 @@ public class jfr2pprof {
 
     public static final String TYPE_CPU = "cpu";
     public static final String TYPE_ALLOC = "alloc";
+    public static final String TYPE_LOCK = "lock";
 
     public static final byte[] METHOD_UNKNOWN = "[unknown]".getBytes();
 
     public static final byte[] VALUE_TYPE_CPU = "cpu".getBytes(StandardCharsets.UTF_8);
-    public static final byte[] VALUE_TYPE_MEMORY = "allocations".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_TYPE_ALLOC = "allocations".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_TYPE_LOCK = "lock".getBytes(StandardCharsets.UTF_8);
 
     public static final byte[] VALUE_UNIT_CPU = "nanoseconds".getBytes(StandardCharsets.UTF_8);
-    public static final byte[] VALUE_UNIT_MEMORY = "count".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_UNIT_ALLOC = "count".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] VALUE_UNIT_LOCK = "nanoseconds".getBytes(StandardCharsets.UTF_8);
 
     // Profile IDs
     public static final int PROFILE_SAMPLE_TYPE = 1;
@@ -120,13 +124,20 @@ public class jfr2pprof {
 
         byte[] valueType = null;
         byte[] valueUnit = null;
+        Class<? extends Event> eventClass = null;
 
         if (TYPE_CPU.equals(type)) {
             valueType = VALUE_TYPE_CPU;
             valueUnit = VALUE_UNIT_CPU;
+            eventClass = ExecutionSample.class;
         } else if (TYPE_ALLOC.equals(type)) {
-            valueType = VALUE_TYPE_MEMORY;
-            valueUnit = VALUE_UNIT_MEMORY;
+            valueType = VALUE_TYPE_ALLOC;
+            valueUnit = VALUE_UNIT_ALLOC;
+            eventClass = AllocationSample.class;
+        } else if (TYPE_LOCK.equals(type)) {
+            valueType = VALUE_TYPE_LOCK;
+            valueUnit = VALUE_UNIT_LOCK;
+            eventClass = ContendedLock.class;
         }
 
         final Proto profile = new Proto(200_000)
@@ -147,7 +158,7 @@ public class jfr2pprof {
 
         profile.field(PROFILE_SAMPLE_TYPE, sampleType);
 
-        final List<Event> samples = reader.readAllEvents();
+        final List<? extends Event> samples = reader.readAllEvents(eventClass);
 
         final Dictionary<StackTrace> stackTraces = reader.stackTraces;
         long previousTime = reader.startTicks; // Mutate this to keep track of time deltas
@@ -234,13 +245,13 @@ public class jfr2pprof {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 3) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc] input.jfr output.pprof");
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc|lock] input.jfr output.pprof");
             System.exit(1);
         }
 
         final String type = args[0];
-        if (!TYPE_CPU.equals(type) && !TYPE_ALLOC.equals(type)) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc] input.jfr output.pprof");
+        if (!TYPE_CPU.equals(type) && !TYPE_ALLOC.equals(type) && !TYPE_LOCK.equals(type)) {
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc|lock] input.jfr output.pprof");
             System.exit(1);
         }
 
