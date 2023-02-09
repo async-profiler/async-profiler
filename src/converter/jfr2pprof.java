@@ -244,25 +244,49 @@ public class jfr2pprof {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 3) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc|lock] input.jfr output.pprof");
+
+        final Arguments arguments = new Arguments(args);
+        if (arguments.input == null || arguments.output == null) {
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [options] input.jfr output.pprof");
+            System.out.println();
+            System.out.println("options can be one or more of the following:");
+            System.out.println("  --cpu        CPU");
+            System.out.println("  --alloc      Allocation");
+            System.out.println("  --lock       Lock contention");
+            System.out.println();
+            System.out.println("If no options are given, --cpu is assumed");
             System.exit(1);
         }
 
-        final String type = args[0];
-        if (!TYPE_CPU.equals(type) && !TYPE_ALLOC.equals(type) && !TYPE_LOCK.equals(type)) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [cpu|alloc|lock] input.jfr output.pprof");
-            System.exit(1);
+        final List<String> types = new ArrayList<>();
+
+        if (arguments.cpu) {
+            types.add(TYPE_CPU);
         }
 
-        File dst = new File(args[2]);
-        if (dst.isDirectory()) {
-            dst = new File(dst, new File(args[1]).getName().replace(".jfr", ".pprof"));
+        if (arguments.alloc) {
+            types.add(TYPE_ALLOC);
         }
 
-        try (final JfrReader jfr = new JfrReader(args[1]);
-             final FileOutputStream out = new FileOutputStream(dst)) {
-            new jfr2pprof(jfr).dump(out, type);
+        if (arguments.lock) {
+            types.add(TYPE_LOCK);
+        }
+
+        if (types.isEmpty()) {
+            types.add(TYPE_CPU);
+        }
+
+        for (final String type : types) {
+          File dst = new File(arguments.output + "." + type);
+
+          if (dst.isDirectory()) {
+              dst = new File(dst, new File(arguments.input).getName().replace(".jfr", ".pprof" + "." + type));
+          }
+
+          try (final JfrReader jfr = new JfrReader(arguments.input);
+               final FileOutputStream out = new FileOutputStream(dst)) {
+              new jfr2pprof(jfr).dump(out, type);
+          }
         }
     }
 }
