@@ -48,6 +48,7 @@ int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
 int VMStructs::_nmethod_entry_offset = -1;
+int VMStructs::_nmethod_state_offset = -1;
 int VMStructs::_nmethod_level_offset = -1;
 int VMStructs::_method_constmethod_offset = -1;
 int VMStructs::_method_code_offset = -1;
@@ -148,6 +149,8 @@ void VMStructs::initOffsets() {
                 _nmethod_method_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_verified_entry_point") == 0) {
                 _nmethod_entry_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_state") == 0) {
+                _nmethod_state_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_comp_level") == 0) {
                 _nmethod_level_offset = *(int*)(entry + offset_offset);
             }
@@ -291,6 +294,7 @@ void VMStructs::resolveOffsets() {
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0
             && _nmethod_entry_offset >= 0
+            && _nmethod_state_offset >= 0
             && _method_constmethod_offset >= 0
             && _method_code_offset >= 0
             && _constmethod_constants_offset >= 0
@@ -329,7 +333,9 @@ void VMStructs::resolveOffsets() {
 }
 
 void VMStructs::initJvmFunctions() {
-    _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
+    if (!VM::isOpenJ9() && !VM::isZing()) {
+        _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
+    }
 
     if (VM::hotspot_version() == 8) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
@@ -385,10 +391,12 @@ void VMStructs::initLogging(JNIEnv* env) {
                 const char* s = env->GetStringUTFChars(log_config, NULL);
                 if (s != NULL) {
                     const char* p = strstr(s, "#0: ");
-                    const char* q;
-                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL &&
-                        (q = strchr(p + 1, '\n')) != NULL && q - p < sizeof(cmd) - 41) {
-                        memcpy(cmd + 41, p + 1, q - p - 1);
+                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL) {
+                        const char* q = p + 1;  // start of decorators
+                        while (*q > ' ') q++;
+                        if (q - p < sizeof(cmd) - 41) {
+                            memcpy(cmd + 41, p + 1, q - p - 1);
+                        }
                     }
                     env->ReleaseStringUTFChars(log_config, s);
                 }

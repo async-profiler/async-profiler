@@ -43,6 +43,7 @@ class LinearAllocator {
     ~LinearAllocator();
 
     void clear();
+    size_t usedMemory();
 
     void* alloc(size_t size);
 };

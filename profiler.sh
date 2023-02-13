@@ -10,6 +10,7 @@ usage() {
     echo "  dump              dump collected data without stopping profiling session"
     echo "  check             check if the specified profiling event is available"
     echo "  status            print profiling status"
+    echo "  meminfo           print profiler memory stats"
     echo "  list              list profiling events supported by the target JVM"
     echo "  collect           collect profile for the specified period of time"
     echo "                    and then stop (default action)"
@@ -35,6 +36,7 @@ usage() {
     echo ""
     echo "  --loop time       run profiler in a loop"
     echo "  --alloc bytes     allocation profiling interval in bytes"
+    echo "  --live            build allocation profile from live objects only"
     echo "  --lock duration   lock profiling threshold in nanoseconds"
     echo "  --total           accumulate the total value (time, bytes, etc.)"
     echo "  --all-user        only include user-mode events"
@@ -44,6 +46,7 @@ usage() {
     echo "  --end function    end profiling when function is executed"
     echo "  --ttsp            time-to-safepoint profiling"
     echo "  --jfrsync config  synchronize profiler with JFR recording"
+    echo "  --lib path        full path to libasyncProfiler.so in the container"
     echo "  --fdtransfer      use fdtransfer to serve perf requests"
     echo "                    from the non-privileged target"
     echo ""
@@ -92,7 +95,9 @@ check_if_terminated() {
 
 fdtransfer() {
     if [ "$USE_FDTRANSFER" = "true" ]; then
-        "$FDTRANSFER" "$PID"
+        FDTRANSFER_PATH="@async-profiler-$(od -An -N3 -i /dev/random | xargs)"
+        PARAMS="$PARAMS,fdtransfer=$FDTRANSFER_PATH"
+        "$FDTRANSFER" "$FDTRANSFER_PATH" "$PID"
     fi
 }
 
@@ -130,6 +135,7 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_BIN")" > /dev/null 2>&1; pwd -P)"
 JATTACH=$SCRIPT_DIR/build/jattach
 FDTRANSFER=$SCRIPT_DIR/build/fdtransfer
 USE_FDTRANSFER="false"
+FDTRANSFER_PATH=""
 PROFILER=$SCRIPT_DIR/build/libasyncProfiler.so
 ACTION="collect"
 DURATION="60"
@@ -145,7 +151,7 @@ while [ $# -gt 0 ]; do
         -h|"-?")
             usage
             ;;
-        start|resume|stop|dump|check|status|list|collect)
+        start|resume|stop|dump|check|status|meminfo|list|collect)
             ACTION="$1"
             ;;
         -v|--version)
@@ -237,6 +243,9 @@ while [ $# -gt 0 ]; do
         --sched)
             PARAMS="$PARAMS,sched"
             ;;
+        --live)
+            PARAMS="$PARAMS,live"
+            ;;
         --cstack|--call-graph)
             PARAMS="$PARAMS,cstack=$2"
             shift
@@ -253,8 +262,11 @@ while [ $# -gt 0 ]; do
             PARAMS="$PARAMS,jfrsync=$2"
             shift
             ;;
+        --lib)
+            PROFILER="$2"
+            shift
+            ;;
         --fdtransfer)
-            PARAMS="$PARAMS,fdtransfer"
             USE_FDTRANSFER="true"
             ;;
         --safe-mode)
@@ -292,8 +304,19 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-if [ "$PID" = "" ] && [ "$ACTION" != "version" ]; then
-    usage
+if [ "$PID" = "" ]; then
+    case "$ACTION" in
+        version)
+            java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
+            ;;
+        list)
+            java "-agentpath:$PROFILER=list" -version 2> /dev/null
+            ;;
+        *)
+            usage
+            ;;
+    esac
+    exit 0
 fi
 
 # If no -f argument is given, use temporary file to transfer output to caller terminal.
@@ -331,8 +354,11 @@ case $ACTION in
     stop|dump)
         jattach "$ACTION,file=$FILE,$OUTPUT$FORMAT"
         ;;
-    status|list)
+    status|meminfo|list)
         jattach "$ACTION,file=$FILE"
+        ;;
+    version)
+        jattach "version=full,file=$FILE"
         ;;
     collect)
         fdtransfer
@@ -351,12 +377,5 @@ case $ACTION in
         trap - INT
         echo Done >&2
         jattach "stop,file=$FILE,$OUTPUT$FORMAT"
-        ;;
-    version)
-        if [ "$PID" = "" ]; then
-            java "-agentpath:$PROFILER=version=full" -version 2> /dev/null
-        else
-            jattach "version=full,file=$FILE"
-        fi
         ;;
 esac

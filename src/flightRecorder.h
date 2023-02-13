@@ -28,7 +28,7 @@ class FlightRecorder {
   private:
     Recording* _rec;
 
-    Error startMasterRecording(Arguments& args);
+    Error startMasterRecording(Arguments& args, const char* filename);
     void stopMasterRecording();
 
   public:
@@ -38,6 +38,7 @@ class FlightRecorder {
     Error start(Arguments& args, bool reset);
     void stop();
     void flush();
+    size_t usedMemory();
     bool timerTick(u64 wall_time);
 
     bool active() const {
@@ -45,7 +46,7 @@ class FlightRecorder {
     }
 
     void recordEvent(int lock_index, int tid, u32 call_trace_id,
-                     int event_type, Event* event, u64 counter);
+                     int event_type, Event* event);
 
     void recordLog(LogLevel level, const char* message, size_t len);
 };

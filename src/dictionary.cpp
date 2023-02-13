@@ -61,6 +61,21 @@ void Dictionary::clear(DictTable* table) {
     }
 }
 
+size_t Dictionary::usedMemory() {
+    return _table != NULL ? usedMemory(_table) : 0;
+}
+
+size_t Dictionary::usedMemory(DictTable* table) {
+    size_t bytes = sizeof(DictTable);
+    for (int i = 0; i < ROWS; i++) {
+        DictRow* row = &table->rows[i];
+        if (row->next != NULL) {
+            bytes += usedMemory(row->next);
+        }
+    }
+    return bytes;
+}
+
 // Many popular symbols are quite short, e.g. "[B", "()V" etc.
 // FNV-1a is reasonably fast and sufficiently random.
 unsigned int Dictionary::hash(const char* key, size_t length) {

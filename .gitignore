@@ -1,6 +1,7 @@
 /build/
 /nbproject/
 /out/
+/target/
 /.idea/
 /test/*.class
 .vscode

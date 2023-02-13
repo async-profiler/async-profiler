@@ -16,6 +16,7 @@
 
 #ifdef __APPLE__
 
+#include <set>
 #include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
@@ -38,7 +39,8 @@ class MachOParser {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
             if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
-                _cc->setGlobalOffsetTable((void**)add(_image_base, section->addr), section->size / sizeof(void*));
+                const char* got_start = add(_image_base, section->addr);
+                _cc->setGlobalOffsetTable((void**)got_start, (void**)(got_start + section->size), true);
                 break;
             }
             section++;
@@ -48,6 +50,7 @@ class MachOParser {
     void loadSymbols(const symtab_command* symtab, const char* text_base, const char* link_base) {
         const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
+        bool debug_symbols = false;
 
         for (uint32_t i = 0; i < symtab->nsyms; i++) {
             if ((sym->n_type & 0xee) == 0x0e && sym->n_value != 0) {
@@ -55,9 +58,12 @@ class MachOParser {
                 const char* name = str_table + sym->n_un.n_strx;
                 if (name[0] == '_') name++;
                 _cc->add(addr, 0, name);
+                debug_symbols = true;
             }
             sym++;
         }
+
+        _cc->setDebugSymbols(debug_symbols);
     }
 
   public:
@@ -110,8 +116,8 @@ class MachOParser {
 
 
 Mutex Symbols::_parse_lock;
-std::set<const void*> Symbols::_parsed_libraries;
 bool Symbols::_have_kernel_symbols = false;
+static std::set<const void*> _parsed_libraries;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
@@ -149,10 +155,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         cc->sort();
         array->add(cc);
     }
-}
-
-void Symbols::makePatchable(CodeCache* cc) {
-    // Global Offset Table is always writable
 }
 
 #endif // __APPLE__

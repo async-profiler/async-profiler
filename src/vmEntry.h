@@ -23,7 +23,7 @@
 #ifdef __clang__
 #  define DLLEXPORT __attribute__((visibility("default")))
 #else
-#  define DLLEXPORT __attribute__((externally_visible))
+#  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
 #endif
 
 
@@ -54,11 +54,12 @@ enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)
     BCI_ALLOC               = -11,  // name of the allocated class
     BCI_ALLOC_OUTSIDE_TLAB  = -12,  // name of the class allocated outside TLAB
-    BCI_LOCK                = -13,  // class name of the locked object
-    BCI_PARK                = -14,  // class name of the park() blocker
-    BCI_THREAD_ID           = -15,  // method_id designates a thread
-    BCI_ERROR               = -16,  // method_id is an error string
-    BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
+    BCI_LIVE_OBJECT         = -13,  // name of the allocated class
+    BCI_LOCK                = -14,  // class name of the locked object
+    BCI_PARK                = -15,  // class name of the park() blocker
+    BCI_THREAD_ID           = -16,  // method_id designates a thread
+    BCI_ERROR               = -17,  // method_id is an error string
+    BCI_INSTRUMENT          = -18,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp
@@ -113,12 +114,14 @@ class VM {
 
     static int _hotspot_version;
     static bool _openj9;
+    static bool _zing;
     static bool _can_sample_objects;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
     static void ready();
+    static void applyPatch(char* func, const char* patch, const char* end_patch);
     static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
@@ -162,6 +165,10 @@ class VM {
 
     static bool isOpenJ9() {
         return _openj9;
+    }
+
+    static bool isZing() {
+        return _zing;
     }
 
     static bool canSampleObjects() {

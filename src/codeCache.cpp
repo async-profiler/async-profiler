@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "codeCache.h"
 #include "dwarf.h"
+#include "os.h"
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
@@ -31,6 +34,10 @@ void NativeFunc::destroy(char* name) {
     free(from(name));
 }
 
+size_t NativeFunc::usedMemory(const char* name) {
+    return sizeof(NativeFunc) + 1 + strlen(from(name)->_name);
+}
+
 
 CodeCache::CodeCache(const char* name, short lib_index, const void* min_address, const void* max_address) {
     _name = NativeFunc::create(name, -1);
@@ -41,6 +48,8 @@ CodeCache::CodeCache(const char* name, short lib_index, const void* min_address,
 
     _got_start = NULL;
     _got_end = NULL;
+    _got_patchable = false;
+    _debug_symbols = false;
 
     _dwarf_table = NULL;
     _dwarf_table_length = 0;
@@ -171,18 +180,29 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
-void CodeCache::setGlobalOffsetTable(void** table, unsigned int count) {
-    _got_start = table;
-    _got_end = table + count;
+void CodeCache::setGlobalOffsetTable(void** start, void** end, bool patchable) {
+    _got_start = start;
+    _got_end = end;
+    _got_patchable = patchable;
 }
 
 void** CodeCache::findGlobalOffsetEntry(void* address) {
     for (void** entry = _got_start; entry < _got_end; entry++) {
         if (*entry == address) {
+            makeGotPatchable();
             return entry;
         }
     }
     return NULL;
+}
+
+void CodeCache::makeGotPatchable() {
+    if (!_got_patchable) {
+        uintptr_t got_start = (uintptr_t)_got_start & ~OS::page_mask;
+        uintptr_t got_size = ((uintptr_t)_got_end - got_start + OS::page_mask) & ~OS::page_mask;
+        mprotect((void*)got_start, got_size, PROT_READ | PROT_WRITE);
+        _got_patchable = true;
+    }
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
@@ -207,4 +227,14 @@ FrameDesc* CodeCache::findFrameDesc(const void* pc) {
     }
 
     return low > 0 ? &_dwarf_table[low - 1] : NULL;
+}
+
+size_t CodeCache::usedMemory() {
+    size_t bytes = _capacity * sizeof(CodeBlob);
+    bytes += _dwarf_table_length * sizeof(FrameDesc);
+    bytes += NativeFunc::usedMemory(_name);
+    for (int i = 0; i < _count; i++) {
+        bytes += NativeFunc::usedMemory(_blobs[i]._name);
+    }
+    return bytes;
 }

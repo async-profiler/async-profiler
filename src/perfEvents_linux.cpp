@@ -174,6 +174,17 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 }
 
 static void** lookupThreadEntry() {
+    // Depending on Zing version, pthread_setspecific is called either from libazsys.so or from libjvm.so
+    if (VM::isZing()) {
+        CodeCache* libazsys = Profiler::instance()->findLibraryByName("libazsys");
+        if (libazsys != NULL) {
+            void** entry = libazsys->findGlobalOffsetEntry((void*)&pthread_setspecific);
+            if (entry != NULL) {
+                return entry;
+            }
+        }
+    }
+
     CodeCache* lib = Profiler::instance()->findJvmLibrary("libj9thr");
     return lib != NULL ? lib->findGlobalOffsetEntry((void*)&pthread_setspecific) : NULL;
 }
@@ -604,7 +615,8 @@ int PerfEvents::createForThread(int tid) {
 
     if (fd == -1) {
         int err = errno;
-        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(errno));
+        Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
+        _events[tid]._fd = 0;
         return err;
     }
 
@@ -622,14 +634,26 @@ int PerfEvents::createForThread(int tid) {
     ex.type = F_OWNER_TID;
     ex.pid = tid;
 
-    fcntl(fd, F_SETFL, O_ASYNC);
-    fcntl(fd, F_SETSIG, SIGPROF);
-    fcntl(fd, F_SETOWN_EX, &ex);
+    int err;
+    if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, SIGPROF) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
+        err = errno;
+        Log::warn("perf_event fcntl failed: %s", strerror(err));
+    } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, PERF_EVENT_IOC_REFRESH, 1) < 0) {
+        err = errno;
+        Log::warn("perf_event ioctl failed: %s", strerror(err));
+    } else {
+        return 0;
+    }
 
-    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-    ioctl(fd, PERF_EVENT_IOC_REFRESH, 1);
+    // Failed to setup perf_event - rollback changes
+    if (page != NULL) {
+        munmap(page, 2 * OS::page_size);
+        _events[tid]._page = NULL;
+    }
+    close(fd);
+    _events[tid]._fd = 0;
 
-    return 0;
+    return err;
 }
 
 void PerfEvents::destroyForThread(int tid) {
@@ -795,8 +819,8 @@ Error PerfEvents::start(Arguments& args) {
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {
         Log::warn("Kernel symbols are unavailable due to restrictions. Try\n"
-                  "  sysctl kernel.kptr_restrict=0\n"
-                  "  sysctl kernel.perf_event_paranoid=1");
+                  "  sysctl kernel.perf_event_paranoid=1\n"
+                  "  sysctl kernel.kptr_restrict=0");
         _ring = RING_USER;
     }
     _cstack = args._cstack;

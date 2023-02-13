@@ -38,6 +38,7 @@ enum Action {
     ACTION_DUMP,
     ACTION_CHECK,
     ACTION_STATUS,
+    ACTION_MEMINFO,
     ACTION_LIST,
     ACTION_VERSION,
     ACTION_FULL_VERSION
@@ -55,11 +56,12 @@ enum Ring {
 };
 
 enum Style {
-    STYLE_SIMPLE     = 1,
-    STYLE_DOTTED     = 2,
-    STYLE_SIGNATURES = 4,
-    STYLE_ANNOTATE   = 8,
-    STYLE_LIB_NAMES  = 16
+    STYLE_SIMPLE       = 1,
+    STYLE_DOTTED       = 2,
+    STYLE_SIGNATURES   = 4,
+    STYLE_ANNOTATE     = 8,
+    STYLE_LIB_NAMES    = 16,
+    STYLE_NO_SEMICOLON = 32
 };
 
 enum CStack {
@@ -123,9 +125,9 @@ class Arguments {
     bool _persistent;
 
     void appendToEmbeddedList(int& list, char* value);
+    const char* expandFilePattern(const char* pattern);
 
     static long long hash(const char* arg);
-    static const char* expandFilePattern(char* dest, size_t max_size, const char* pattern);
     static Output detectOutputFormat(const char* file);
     static long parseUnits(const char* str, const Multiplier* multipliers);
     static int parseTimeout(const char* str);
@@ -149,9 +151,11 @@ class Arguments {
     const char* _filter;
     int _include;
     int _exclude;
+    unsigned char _mcache;
     bool _loop;
     bool _threads;
     bool _sched;
+    bool _live;
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
@@ -163,6 +167,7 @@ class Arguments {
     int _jfr_options;
     int _dump_traces;
     int _dump_flat;
+    unsigned int _file_num;
     const char* _begin;
     const char* _end;
     // FlameGraph parameters
@@ -192,9 +197,11 @@ class Arguments {
         _filter(NULL),
         _include(0),
         _exclude(0),
+        _mcache(0),
         _loop(false),
         _threads(false),
         _sched(false),
+        _live(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),
@@ -206,6 +213,7 @@ class Arguments {
         _jfr_options(0),
         _dump_traces(0),
         _dump_flat(0),
+        _file_num(0),
         _begin(NULL),
         _end(NULL),
         _title(NULL),

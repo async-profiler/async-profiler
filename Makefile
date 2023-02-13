@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.8-ea
+PROFILER_VERSION=2.9
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -11,17 +11,19 @@ CONVERTER_JAR=converter.jar
 
 CFLAGS=-O3
 CXXFLAGS=-O3 -fno-omit-frame-pointer -fvisibility=hidden
-INCLUDES=-I$(JAVA_HOME)/include
+INCLUDES=-I$(JAVA_HOME)/include -Isrc/res -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVAC_RELEASE_VERSION=7
+JAVA_TARGET=7
+JAVAC_OPTIONS=-source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
-JAVA_HEADERS := $(patsubst %.java,%.class.h,$(wildcard src/helper/one/profiler/*.java))
+RESOURCES := $(wildcard src/res/*)
+JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 
@@ -31,7 +33,7 @@ endif
 
 OS:=$(shell uname -s)
 ifeq ($(OS),Darwin)
-  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE
+  CXXFLAGS += -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE -Wl,-rpath,@executable_path/../lib -Wl,-rpath,@executable_path/../lib/server
   INCLUDES += -I$(JAVA_HOME)/include/darwin
   FDTRANSFER_BIN=
   SOEXT=dylib
@@ -42,9 +44,10 @@ ifeq ($(OS),Darwin)
     CFLAGS += $(FAT_BINARY_FLAGS)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
+    MERGE=false
   endif
 else
-  CXXFLAGS += -Wl,-z,defs -Wl,-z,nodelete
+  CXXFLAGS += -Wl,-z,defs
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
@@ -55,6 +58,7 @@ else
   PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
+    CXXFLAGS += -D__musl__
   else
     OS_TAG=linux
   endif
@@ -84,11 +88,13 @@ else
 endif
 
 ifneq ($(ARCH),ppc64le)
-  CXXFLAGS += -momit-leaf-frame-pointer
+  ifneq ($(ARCH_TAG),arm32)
+    CXXFLAGS += -momit-leaf-frame-pointer
+  endif
 endif
 
 
-.PHONY: all release test clean
+.PHONY: all release test native clean
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
@@ -118,7 +124,7 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(JAVA_HEADERS)
+build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -134,21 +140,18 @@ build/fdtransfer: src/fdtransfer/*.cpp src/fdtransfer/*.h src/jattach/psutil.c s
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
-	$(JAVAC) -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) -d build/api $^
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $^
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
-	$(JAVAC) -source 7 -target 7 -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter .
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
+	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
-%.class.h: %.class
-	hexdump -v -e '1/1 "%u,"' $^ > $@
-
 %.class: %.java
-	$(JAVAC) -g:none -source $(JAVAC_RELEASE_VERSION) -target $(JAVAC_RELEASE_VERSION) $(*D)/*.java
+	$(JAVAC) $(JAVAC_OPTIONS) -g:none $^
 
 test: all
 	test/smoke-test.sh
@@ -157,6 +160,12 @@ test: all
 	test/load-library-test.sh
 	test/fdtransfer-smoke-test.sh
 	echo "All tests passed"
+
+native:
+	mkdir -p native/linux-x64 native/linux-arm64 native/macos
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
 
 clean:
 	$(RM) -r build

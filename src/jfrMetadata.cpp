@@ -208,6 +208,15 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("level", T_LOG_LEVEL, "Level", F_CPOOL)
                 << field("message", T_STRING, "Message"))
 
+            << (type("profiler.LiveObject", T_LIVE_OBJECT, "Live Object")
+                << category("Java Application")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("objectClass", T_CLASS, "Object Class", F_CPOOL)
+                << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
+                << field("allocationTime", T_LONG, "Allocation Time", F_TIME_TICKS))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 

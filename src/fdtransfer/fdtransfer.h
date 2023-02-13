@@ -26,6 +26,8 @@
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
 
+#define RESTARTABLE(call)  ({ ssize_t ret; while ((ret = call) < 0 && errno == EINTR); ret; })
+
 
 // base header for all requests
 enum request_type {
@@ -56,28 +58,15 @@ struct perf_fd_response {
     int tid;
 };
 
-
-static inline bool socketPathForPid(int pid, struct sockaddr_un *sun, socklen_t *addrlen) {
-    sun->sun_path[0] = '\0';
-    const int max_size = sizeof(sun->sun_path) - 1;
-    const int path_len = snprintf(sun->sun_path + 1, max_size, "async-profiler-%d", pid);
-    if (path_len > max_size) {
-        return false;
-    }
-
-    sun->sun_family = AF_UNIX;
-    // +1 for the first \0 byte
-    *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - (path_len + 1));
-
-    return true;
-}
-
 static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen_t *addrlen) {
     const int path_len = strlen(path);
     if (path_len > sizeof(sun->sun_path)) {
         return false;
     }
     memcpy(sun->sun_path, path, path_len);
+    if (sun->sun_path[0] == '@') {
+        sun->sun_path[0] = '\0';
+    }
 
     sun->sun_family = AF_UNIX;
     *addrlen = sizeof(*sun) - (sizeof(sun->sun_path) - path_len);

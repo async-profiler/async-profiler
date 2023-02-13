@@ -73,11 +73,14 @@ class CallTraceStorage {
     ~CallTraceStorage();
 
     void clear();
+    size_t usedMemory();
+
     void collectTraces(std::map<u32, CallTrace*>& map);
     void collectSamples(std::vector<CallTraceSample*>& samples);
     void collectSamples(std::map<u64, CallTraceSample>& map);
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    void add(u32 call_trace_id, u64 counter);
 };
 
 #endif // _CALLTRACESTORAGE

@@ -52,6 +52,7 @@ class VMStructs {
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
     static int _nmethod_entry_offset;
+    static int _nmethod_state_offset;
     static int _nmethod_level_offset;
     static int _method_constmethod_offset;
     static int _method_code_offset;
@@ -129,10 +130,6 @@ class VMStructs {
                                             jint start_depth, jint max_frame_count,
                                             jvmtiFrameInfo* frame_buffer, jint* count_ptr);
     static GetStackTraceFunc _get_stack_trace;
-
-    static bool hasDebugSymbols() {
-        return _get_stack_trace != NULL;
-    }
 };
 
 
@@ -326,6 +323,14 @@ class NMethod : VMStructs {
 
     void* entry() {
         return *(void**) at(_nmethod_entry_offset);
+    }
+
+    char state() {
+        return *at(_nmethod_state_offset);
+    }
+
+    bool isAlive() {
+        return state() >= 0 && state() <= 1;
     }
 
     int level() {

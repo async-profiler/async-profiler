@@ -17,6 +17,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include "vmEntry.h"
 #include "arguments.h"
 #include "j9Ext.h"
@@ -41,6 +42,7 @@ jvmtiEnv* VM::_jvmti = NULL;
 
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
+bool VM::_zing = false;
 bool VM::_can_sample_objects = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -78,6 +80,13 @@ static bool isOpenJ9JitStub(const char* blob_name) {
     return false;
 }
 
+static void* resolveMethodId(void** mid) {
+    return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
+}
+
+static void resolveMethodIdEnd() {
+}
+
 
 bool VM::init(JavaVM* vm, bool attach) {
     if (_jvmti != NULL) return true;
@@ -87,14 +96,12 @@ bool VM::init(JavaVM* vm, bool attach) {
         return false;
     }
 
-#ifdef __APPLE__
     Dl_info dl_info;
     if (dladdr((const void*)wakeupHandler, &dl_info) && dl_info.dli_fname != NULL) {
         // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
-        // On Linux, we use 'nodelete' linker option.
+        // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
         dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
     }
-#endif
 
     bool is_hotspot = false;
     bool is_zero_vm = false;
@@ -105,6 +112,7 @@ bool VM::init(JavaVM* vm, bool attach) {
                      strstr(prop, "GraalVM") != NULL ||
                      strstr(prop, "Dynamic Code Evolution") != NULL;
         is_zero_vm = strstr(prop, "Zero") != NULL;
+        _zing = !is_hotspot && strstr(prop, "Zing") != NULL;
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
@@ -133,9 +141,9 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     CodeCache* lib = isOpenJ9()
         ? profiler->findJvmLibrary("libj9vm")
-        : profiler->findNativeLibrary((const void*)_asyncGetCallTrace);
+        : profiler->findLibraryByAddress((const void*)_asyncGetCallTrace);
     if (lib == NULL) {
-        return false;  // TODO: verify
+        return false;
     }
 
     VMStructs::init(lib);
@@ -146,6 +154,14 @@ bool VM::init(JavaVM* vm, bool attach) {
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub);
+        }
+    }
+
+    if (!attach && hotspot_version() == 8 && OS::isLinux()) {
+        // Workaround for JDK-8185348
+        char* func = (char*)lib->findSymbol("_ZN6Method26checked_resolve_jmethod_idEP10_jmethodID");
+        if (func != NULL) {
+            applyPatch(func, (const char*)resolveMethodId, (const char*)resolveMethodIdEnd);
         }
     }
 
@@ -165,6 +181,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_get_line_numbers = 1;
     capabilities.can_generate_compiled_method_load_events = 1;
     capabilities.can_generate_monitor_events = 1;
+    capabilities.can_generate_garbage_collection_events = 1;
     capabilities.can_tag_objects = 1;
     if (_jvmti->AddCapabilities(&capabilities) != 0) {
         _can_sample_objects = false;
@@ -186,6 +203,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.MonitorContendedEntered = LockTracer::MonitorContendedEntered;
     callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
     callbacks.SampledObjectAlloc = ObjectSampler::SampledObjectAlloc;
+    callbacks.GarbageCollectionStart = ObjectSampler::GarbageCollectionStart;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
@@ -237,14 +255,27 @@ void VM::ready() {
     functions->RetransformClasses = RetransformClassesHook;
 }
 
+void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
+    size_t size = end_patch - patch;
+    uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
+    uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
+
+    if (mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
+        memcpy(func, patch, size);
+        __builtin___clear_cache(func, func + size);
+        mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
+    }
+}
+
 void* VM::getLibraryHandle(const char* name) {
-    if (!OS::isJavaLibraryVisible()) {
+    if (OS::isLinux()) {
         void* handle = dlopen(name, RTLD_LAZY);
         if (handle != NULL) {
             return handle;
         }
         Log::warn("Failed to load %s: %s", name, dlerror());
     }
+    // JVM symbols are globally visible on macOS
     return RTLD_DEFAULT;
 }
 

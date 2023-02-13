@@ -48,7 +48,7 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 
     // Make sure the previous instruction address is readable
     uintptr_t prev_pc = pc - SYSCALL_SIZE;
-    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::instance()->findNativeLibrary((instruction_t*)prev_pc) != NULL) {
+    if ((pc & 0xfff) >= SYSCALL_SIZE || Profiler::instance()->findLibraryByAddress((instruction_t*)prev_pc) != NULL) {
         if (StackFrame::isSyscall((instruction_t*)prev_pc) && frame.checkInterruptedSyscall()) {
             return THREAD_SLEEPING;
         }

@@ -44,6 +44,8 @@ class NativeFunc {
     static char* create(const char* name, short lib_index);
     static void destroy(char* name);
 
+    static size_t usedMemory(const char* name);
+
     static short libIndex(const char* name) {
         return from(name)->_lib_index;
     }
@@ -92,6 +94,8 @@ class CodeCache {
 
     void** _got_start;
     void** _got_end;
+    bool _got_patchable;
+    bool _debug_symbols;
 
     FrameDesc* _dwarf_table;
     int _dwarf_table_length;
@@ -138,6 +142,14 @@ class CodeCache {
         return _got_end;
     }
 
+    bool hasDebugSymbols() const {
+        return _debug_symbols;
+    }
+
+    void setDebugSymbols(bool debug_symbols) {
+        _debug_symbols = debug_symbols;
+    }
+
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
@@ -149,11 +161,14 @@ class CodeCache {
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
 
-    void setGlobalOffsetTable(void** table, unsigned int count);
+    void setGlobalOffsetTable(void** start, void** end, bool patchable);
     void** findGlobalOffsetEntry(void* address);
+    void makeGotPatchable();
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+
+    size_t usedMemory();
 };
 
 

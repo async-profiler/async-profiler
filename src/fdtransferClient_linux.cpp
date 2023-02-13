@@ -31,7 +31,9 @@
 
 int FdTransferClient::_peer = -1;
 
-bool FdTransferClient::connectToServer(const char *path, int pid) {
+bool FdTransferClient::connectToServer(const char *path) {
+    closePeer();
+
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (_peer == -1) {
         Log::warn("FdTransferClient socket(): %s", strerror(errno));
@@ -40,15 +42,13 @@ bool FdTransferClient::connectToServer(const char *path, int pid) {
 
     struct sockaddr_un sun;
     socklen_t addrlen;
-    if (path != NULL) {
-        if (!socketPath(path, &sun, &addrlen)) {
-            return false;
-        }
-    } else {
-        if (!socketPathForPid(pid, &sun, &addrlen)) {
-            return false;
-        }
+    if (!socketPath(path, &sun, &addrlen)) {
+        return false;
     }
+
+    // Do not block for more than 10 seconds when waiting for a response
+    struct timeval tv = {10, 0};
+    setsockopt(_peer, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == -1) {
         Log::warn("FdTransferClient connect(): %s", strerror(errno));
@@ -64,7 +64,7 @@ int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
     request.tid = *tid;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }
@@ -87,7 +87,7 @@ int FdTransferClient::requestKallsymsFd() {
     struct fd_request request;
     request.type = KALLSYMS_FD;
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }
@@ -118,7 +118,7 @@ int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t
     msg.msg_control = u.buf;
     msg.msg_controllen = sizeof(u.buf);
 
-    ssize_t ret = recvmsg(_peer, &msg, 0);
+    ssize_t ret = RESTARTABLE(recvmsg(_peer, &msg, 0));
     if (ret < 0) {
         Log::warn("FdTransferClient recvmsg(): %s", strerror(errno));
         return -1;

@@ -83,8 +83,10 @@ class Profiler {
     int _event_mask;
 
     time_t _start_time;
-    volatile bool _timer_is_running;
-    pthread_t _timer_thread;
+    time_t _stop_time;
+    int _epoch;
+    WaitableMutex _timer_lock;
+    void* _timer_id;
 
     u64 _total_samples;
     u64 _failures[ASGCT_FAILURE_TYPES];
@@ -94,14 +96,17 @@ class Profiler {
     int _max_stack_depth;
     int _safe_mode;
     CStack _cstack;
+    bool _add_event_frame;
     bool _add_thread_frame;
     bool _add_sched_frame;
     bool _update_thread_names;
-    volatile bool _thread_events_state;
+    volatile jvmtiEventMode _thread_events_state;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
+    const void* _call_stub_begin;
+    const void* _call_stub_end;
 
     // dlopen() hook support
     void** _dlopen_entry;
@@ -133,15 +138,15 @@ class Profiler {
     bool excludeTrace(FrameName* fn, CallTrace* trace);
     void mangle(const char* name, char* buf, size_t size);
     Engine* selectEngine(const char* event_name);
-    Engine* selectAllocEngine(long alloc_interval);
+    Engine* selectAllocEngine(long alloc_interval, bool live);
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
     time_t addTimeout(time_t start, int timeout);
-    void startTimer(int timeout);
+    void startTimer();
     void stopTimer();
-    void timerLoop(int timeout);
-    static void* timerThreadEntry(void* arg);
+    void timerLoop(void* timer_id);
+    static void timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg);
 
     void lockAll();
     void unlockAll();
@@ -161,13 +166,16 @@ class Profiler {
         _call_trace_storage(),
         _jfr(),
         _start_time(0),
-        _timer_is_running(false),
+        _epoch(0),
+        _timer_id(NULL),
         _max_stack_depth(0),
         _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
+        _call_stub_begin(NULL),
+        _call_stub_end(NULL),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
@@ -196,10 +204,12 @@ class Profiler {
     Error stop();
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
+    void printUsedMemory(std::ostream& out);
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
-    void recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
-    void recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames);
+    u64 recordSample(void* ucontext, u64 counter, jint event_type, Event* event);
+    void recordExternalSample(u64 counter, int tid, jint event_type, Event* event, int num_frames, ASGCT_CallFrame* frames);
+    void recordExternalSample(u64 counter, int tid, jint event_type, Event* event, u32 call_trace_id);
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
@@ -207,7 +217,8 @@ class Profiler {
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
     CodeCache* findJvmLibrary(const char* lib_name);
-    CodeCache* findNativeLibrary(const void* address);
+    CodeCache* findLibraryByName(const char* lib_name);
+    CodeCache* findLibraryByAddress(const void* address);
     const char* findNativeMethod(const void* address);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
