@@ -19,11 +19,7 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
-import one.jfr.event.AllocationSample;
-import one.jfr.event.ContendedLock;
-import one.jfr.event.Event;
-import one.jfr.event.EventAggregator;
-import one.jfr.event.ExecutionSample;
+import one.jfr.event.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,8 +44,10 @@ public class jfr2flame {
     public void convert(final FlameGraph fg) throws IOException {
         EventAggregator agg = new EventAggregator(args.threads, args.total);
 
-        Class<? extends Event> eventClass = args.alloc ? AllocationSample.class :
-                args.lock ? ContendedLock.class : ExecutionSample.class;
+        Class<? extends Event> eventClass =
+                args.live ? LiveObject.class :
+                        args.alloc ? AllocationSample.class :
+                                args.lock ? ContendedLock.class : ExecutionSample.class;
         int threadState = args.cpu ? getMapKey(jfr.threadStates, "STATE_RUNNABLE") : -1;
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
@@ -114,6 +112,9 @@ public class jfr2flame {
             suffix = ((AllocationSample) event).tlabSize == 0 ? "_[k]" : "_[i]";
         } else if (event instanceof ContendedLock) {
             classId = ((ContendedLock) event).classId;
+            suffix = "_[i]";
+        } else if (event instanceof LiveObject) {
+            classId = ((LiveObject) event).classId;
             suffix = "_[i]";
         } else {
             return null;
@@ -236,6 +237,7 @@ public class jfr2flame {
             System.out.println("options include all supported FlameGraph options, plus the following:");
             System.out.println("  --cpu        CPU Flame Graph");
             System.out.println("  --alloc      Allocation Flame Graph");
+            System.out.println("  --live       Include only live objects in allocation profile");
             System.out.println("  --lock       Lock contention Flame Graph");
             System.out.println("  --threads    Split profile by threads");
             System.out.println("  --total      Accumulate the total value (time, bytes, etc.)");

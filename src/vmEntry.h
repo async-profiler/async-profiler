@@ -54,11 +54,12 @@ enum ASGCT_CallFrameType {
     BCI_NATIVE_FRAME        = -10,  // native function name (char*)
     BCI_ALLOC               = -11,  // name of the allocated class
     BCI_ALLOC_OUTSIDE_TLAB  = -12,  // name of the class allocated outside TLAB
-    BCI_LOCK                = -13,  // class name of the locked object
-    BCI_PARK                = -14,  // class name of the park() blocker
-    BCI_THREAD_ID           = -15,  // method_id designates a thread
-    BCI_ERROR               = -16,  // method_id is an error string
-    BCI_INSTRUMENT          = -17,  // synthetic method_id that should not appear in the call stack
+    BCI_LIVE_OBJECT         = -13,  // name of the allocated class
+    BCI_LOCK                = -14,  // class name of the locked object
+    BCI_PARK                = -15,  // class name of the park() blocker
+    BCI_THREAD_ID           = -16,  // method_id designates a thread
+    BCI_ERROR               = -17,  // method_id is an error string
+    BCI_INSTRUMENT          = -18,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

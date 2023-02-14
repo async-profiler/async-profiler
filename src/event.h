@@ -52,4 +52,11 @@ class LockEvent : public Event {
     long long _timeout;
 };
 
+class LiveObject : public Event {
+  public:
+    u32 _class_id;
+    u64 _alloc_size;
+    u64 _alloc_time;
+};
+
 #endif // _EVENT_H

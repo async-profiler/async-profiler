@@ -26,6 +26,8 @@
 
 #define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
 
+#define RESTARTABLE(call)  ({ ssize_t ret; while ((ret = call) < 0 && errno == EINTR); ret; })
+
 
 // base header for all requests
 enum request_type {

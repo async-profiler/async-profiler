@@ -1,4 +1,4 @@
-PROFILER_VERSION=2.8.3-bpf
+PROFILER_VERSION=2.9-bpf
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -17,7 +17,8 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVAC_OPTIONS=-source 7 -target 7 -Xlint:-options
+JAVA_TARGET=7
+JAVAC_OPTIONS=-source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
 HEADERS := $(wildcard src/*.h src/fdtransfer/*.h)
@@ -93,7 +94,7 @@ ifneq ($(ARCH),ppc64le)
 endif
 
 
-.PHONY: all release test clean
+.PHONY: all release test native clean
 
 all: build build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) build/$(API_JAR) build/$(CONVERTER_JAR)
 
@@ -143,10 +144,10 @@ build/$(API_JAR): $(API_SOURCES)
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES) src/converter/MANIFEST.MF
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
-	$(JAR) cfm $@ src/converter/MANIFEST.MF -C build/converter . -C src/res .
+	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
 %.class: %.java
@@ -159,6 +160,12 @@ test: all
 	test/load-library-test.sh
 	test/fdtransfer-smoke-test.sh
 	echo "All tests passed"
+
+native:
+	mkdir -p native/linux-x64 native/linux-arm64 native/macos
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
 
 clean:
 	$(RM) -r build

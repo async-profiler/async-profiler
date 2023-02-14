@@ -76,6 +76,7 @@ enum StackRecovery {
     UNWIND_NATIVE = 0x8,
     LAST_JAVA_PC  = 0x10,
     GC_TRACES     = 0x20,
+    PROBE_SP      = 0x100,
 };
 
 
@@ -414,13 +415,22 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             if (nmethod != NULL && nmethod->isNMethod() && nmethod->isAlive()) {
                 VMMethod* method = nmethod->method();
                 if (method != NULL) {
-                    jmethodID method_id = method->constMethod()->id();
+                    jmethodID method_id = method->id();
                     if (method_id != NULL) {
                         max_depth -= makeFrame(trace.frames++, 0, method_id);
                     }
                     if (!(_safe_mode & POP_METHOD) && frame.popMethod((instruction_t*)nmethod->entry())
                             && isAddressInCode(frame.pc() -= ADJUST_RET)) {
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    }
+                    if ((_safe_mode & PROBE_SP) && trace.num_frames < 0) {
+                        if (method_id != NULL) {
+                            trace.frames--;
+                        }
+                        for (int i = 0; trace.num_frames < 0 && i < PROBE_SP_LIMIT; i++) {
+                            frame.sp() += sizeof(void*);
+                            VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                        }
                     }
                 }
             } else if (nmethod != NULL) {
@@ -537,7 +547,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
             return;
         }
 
-        jmethodID current_method_id = method->constMethod()->id();
+        jmethodID current_method_id = method->id();
         if (current_method_id == NULL) {
             return;
         }
@@ -573,7 +583,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
-void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
+u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
@@ -589,7 +599,7 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
             PerfEvents::resetBuffer(tid);
         }
-        return;
+        return 0;
     }
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
@@ -641,12 +651,13 @@ void Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event*
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
-    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     _locks[lock_index].unlock();
+    return (u64)tid << 32 | call_trace_id;
 }
 
-void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -668,7 +679,23 @@ void Profiler::recordExternalSample(u64 counter, Event* event, int tid, int num_
         return;
     }
 
-    _jfr.recordEvent(lock_index, tid, call_trace_id, 0, event, counter);
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
+
+    _locks[lock_index].unlock();
+}
+
+void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, u32 call_trace_id) {
+    _call_trace_storage.add(call_trace_id, counter);
+
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        return;
+    }
+
+    _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     _locks[lock_index].unlock();
 }
@@ -894,8 +921,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
     }
 }
 
-Engine* Profiler::selectAllocEngine(long alloc_interval) {
-    if (VM::canSampleObjects() && (alloc_interval > 0 || VM::hotspot_version() == 0)) {
+Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
+    if (VM::canSampleObjects() && (alloc_interval > 0 || live || VM::hotspot_version() == 0)) {
         return &object_sampler;
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;
@@ -1039,7 +1066,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
-        _alloc_engine = selectAllocEngine(args._alloc);
+        _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->start(args);
         if (error) {
             goto error2;
@@ -1127,7 +1154,7 @@ Error Profiler::check(Arguments& args) {
         error = _engine->check(args);
     }
     if (!error && args._alloc >= 0) {
-        _alloc_engine = selectAllocEngine(args._alloc);
+        _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->check(args);
     }
     if (!error && args._lock >= 0) {
@@ -1243,7 +1270,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style, _epoch, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
 
     std::vector<CallTraceSample*> samples;

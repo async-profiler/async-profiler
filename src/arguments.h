@@ -57,11 +57,12 @@ enum Ring {
 };
 
 enum Style {
-    STYLE_SIMPLE     = 1,
-    STYLE_DOTTED     = 2,
-    STYLE_SIGNATURES = 4,
-    STYLE_ANNOTATE   = 8,
-    STYLE_LIB_NAMES  = 16
+    STYLE_SIMPLE       = 1,
+    STYLE_DOTTED       = 2,
+    STYLE_SIGNATURES   = 4,
+    STYLE_ANNOTATE     = 8,
+    STYLE_LIB_NAMES    = 16,
+    STYLE_NO_SEMICOLON = 32
 };
 
 enum CStack {
@@ -155,6 +156,7 @@ class Arguments {
     bool _loop;
     bool _threads;
     bool _sched;
+    bool _live;
     bool _alloc_hook;
     bool _fdtransfer;
     const char* _fdtransfer_path;
@@ -201,6 +203,7 @@ class Arguments {
         _loop(false),
         _threads(false),
         _sched(false),
+        _live(false),
         _alloc_hook(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),

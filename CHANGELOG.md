@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.9] - 2022-11-27
+
+### Features
+ - Java Heap leak profiler
+ - `meminfo` command to print profiler's memory usage
+ - Profiler API with embedded agent as a Maven artifact
+
+### Improvements
+ - `--include`/`--exclude` options in the FlameGraph converter
+ - `--simple` and `--dot` options in jfr2flame converter
+ - An option for agressive recovery of `[unknown_Java]` stack traces
+ - Do not truncate signatures in collapsed format
+ - Display inlined frames under a runtime stub
+
+### Bug fixes
+ - Profiler did not work with Homebrew JDK
+ - Fixed allocation profiling on Zing
+ - Various `jfrsync` fixes
+ - Symbol parsing fixes
+ - Attaching to a container on Linux 3.x could fail
+
 ## [2.8.3] - 2022-07-16
 
 ### Improvements

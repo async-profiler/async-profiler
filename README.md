@@ -18,19 +18,19 @@ to learn about all features.
 
 ## Download
 
-Current release (2.8.3):
+Current release (2.9):
 
- - Linux x64 (glibc): [async-profiler-2.8.3-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.8.3-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.8.3-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.8.3-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/async-profiler-2.8.3-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.8.3/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.9-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.9-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.9-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.9-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
 Note: async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.
-For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-profiler.html).
+For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-and-allocation-profiling-basic-concepts.html).
 
 ## Supported platforms
 
@@ -40,6 +40,8 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 ### Community supported builds
 
  - **Windows** / x64 - <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/IntelliJ_IDEA_Icon.svg" width="16" height="16"/> [IntelliJ IDEA](https://www.jetbrains.com/idea/) 2021.2 and later
+ - [**ap-loader**](https://github.com/jvm-profiling-tools/ap-loader) -
+   all-in-one JAR for using async-profiler in Java programs and as a CLI tool
 
 ## CPU profiling
 
@@ -101,10 +103,10 @@ The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
 
 ### Installing Debug Symbols
 
-The allocation profiler requires HotSpot debug symbols. Oracle JDK already has them
-embedded in `libjvm.so`, but in OpenJDK builds they are typically shipped
-in a separate package. For example, to install OpenJDK debug symbols on
-Debian / Ubuntu, run:
+Prior to JDK 11, the allocation profiler required HotSpot debug symbols.
+Oracle JDK already has them embedded in `libjvm.so`, but in OpenJDK builds
+they are typically shipped in a separate package. For example, to install
+OpenJDK debug symbols on Debian / Ubuntu, run:
 ```
 # apt install openjdk-8-dbg
 ```
@@ -170,7 +172,8 @@ Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC is required. After building, the profiler agent binary
 will be in the `build` subdirectory. Additionally, a small application `jattach`
 that can load the agent into the target process will also be compiled to the
-`build` subdirectory.
+`build` subdirectory. If the build fails due to
+`Source option 7 is no longer supported. Use 8 or later.`, use `make JAVA_TARGET=8`.
 
 ## Basic Usage
 
@@ -250,7 +253,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.8.3/src/arguments.cpp#L52).
+[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.9/src/arguments.cpp#L52).
 The `profiler.sh` script actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
@@ -361,6 +364,10 @@ The following is a complete list of the command-line options accepted by
 * `--alloc N` - allocation profiling interval in bytes or in other units,
   if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (gigabytes).
 
+* `--live` - retain allocation samples with live objects only
+  (object that have not been collected by the end of profiling session).
+  Useful for finding Java heap memory leaks.
+
 * `--lock N` - lock profiling threshold in nanoseconds (or other units).
   In lock profiling mode, record contended locks that the JVM has waited for
   longer than the specified duration.
@@ -377,7 +384,7 @@ The following is a complete list of the command-line options accepted by
 
 * `-g` - print method signatures.
 
-* `-a` - annotate JIT compiled methods with `_[j]` and inlined methods with `_[i]`.
+* `-a` - annotate JIT compiled methods with `_[j]`, inlined methods with `_[i]`, interpreted methods with `_[0]` and C1 compiled methods with `_[1]`.
 
 * `-l` - prepend library names to symbols, e.g. ``libjvm.so`JVM_DefineClassWithSource``.
 
@@ -458,7 +465,7 @@ The following is a complete list of the command-line options accepted by
   Example: `./profiler.sh -e cpu --jfrsync profile -f combined.jfr 8983`
 
 * `--fdtransfer` - runs "fdtransfer" alongside, which is a small program providing an interface
-  for the profiler to access, `perf_event_open` even while this syscall is unavailable for the
+  for the profiler to access `perf_event_open` even while this syscall is unavailable for the
   profiled process (due to low privileges).
   See [Profiling Java in a container](#profiling-java-in-a-container).
 

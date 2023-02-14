@@ -16,10 +16,7 @@
 
 package one.jfr;
 
-import one.jfr.event.AllocationSample;
-import one.jfr.event.ContendedLock;
-import one.jfr.event.Event;
-import one.jfr.event.ExecutionSample;
+import one.jfr.event.*;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -68,6 +65,7 @@ public class JfrReader implements Closeable {
     private int allocationInNewTLAB;
     private int allocationOutsideTLAB;
     private int allocationSample;
+    private int liveObject;
     private int monitorEnter;
     private int threadPark;
     private int activeSetting;
@@ -134,6 +132,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+            } else if (type == liveObject) {
+                if (cls == null || cls == LiveObject.class) return (E) readLiveObject();
             } else if (type == monitorEnter) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
@@ -167,6 +167,16 @@ public class JfrReader implements Closeable {
         long allocationSize = getVarlong();
         long tlabSize = tlab ? getVarlong() : 0;
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
+    }
+
+    private LiveObject readLiveObject() {
+        long time = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        int classId = getVarint();
+        long allocationSize = getVarlong();
+        long allocatimeTime = getVarlong();
+        return new LiveObject(time, tid, stackTraceId, classId, allocationSize, allocatimeTime);
     }
 
     private ContendedLock readContendedLock(boolean hasTimeout) {
@@ -449,6 +459,7 @@ public class JfrReader implements Closeable {
         allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
         allocationSample = getTypeId("jdk.ObjectAllocationSample");
+        liveObject = getTypeId("profiler.LiveObject");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
         activeSetting = getTypeId("jdk.ActiveSetting");

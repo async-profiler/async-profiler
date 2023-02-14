@@ -31,6 +31,7 @@ class Arguments {
     boolean reverse;
     boolean cpu;
     boolean alloc;
+    boolean live;
     boolean lock;
     boolean threads;
     boolean total;

@@ -65,6 +65,7 @@ enum JfrType {
     T_INITIAL_SYSTEM_PROPERTY = 112,
     T_NATIVE_LIBRARY = 113,
     T_LOG = 114,
+    T_LIVE_OBJECT = 115,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,
