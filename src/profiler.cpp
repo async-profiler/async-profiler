@@ -411,7 +411,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             if (nmethod != NULL && nmethod->isNMethod() && nmethod->isAlive()) {
                 VMMethod* method = nmethod->method();
                 if (method != NULL) {
-                    jmethodID method_id = method->constMethod()->id();
+                    jmethodID method_id = method->id();
                     if (method_id != NULL) {
                         max_depth -= makeFrame(trace.frames++, 0, method_id);
                     }
@@ -543,7 +543,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
             return;
         }
 
-        jmethodID current_method_id = method->constMethod()->id();
+        jmethodID current_method_id = method->id();
         if (current_method_id == NULL) {
             return;
         }

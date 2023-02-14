@@ -269,20 +269,13 @@ class VMThread : VMStructs {
     }
 };
 
-class ConstMethod : VMStructs {
-  public:
-    jmethodID id();
-};
-
 class VMMethod : VMStructs {
   public:
     static VMMethod* fromMethodID(jmethodID id) {
         return *(VMMethod**)id;
     }
 
-    ConstMethod* constMethod() {
-        return *(ConstMethod**) at(_method_constmethod_offset);
-    }
+    jmethodID id();
 
     NMethod* code() {
         return *(NMethod**) at(_method_code_offset);

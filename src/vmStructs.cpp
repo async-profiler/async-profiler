@@ -19,6 +19,7 @@
 #include "vmStructs.h"
 #include "vmEntry.h"
 #include "j9Ext.h"
+#include "safeAccess.h"
 
 
 CodeCache* VMStructs::_libjvm = NULL;
@@ -419,9 +420,15 @@ int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
     return J9Ext::GetOSThreadID(thread);
 }
 
-jmethodID ConstMethod::id() {
-    const char* cpool = *(const char**) at(_constmethod_constants_offset);
-    unsigned short num = *(unsigned short*) at(_constmethod_idnum_offset);
+jmethodID VMMethod::id() {
+    // We may find a bogus NMethod during stack walking, it does not always point to a valid VMMethod
+    const char* const_method = (const char*) SafeAccess::load((void**) at(_method_constmethod_offset));
+    if (const_method == NULL) {
+        return NULL;
+    }
+
+    const char* cpool = *(const char**) (const_method + _constmethod_constants_offset);
+    unsigned short num = *(unsigned short*) (const_method + _constmethod_idnum_offset);
     if (cpool != NULL) {
         VMKlass* holder = *(VMKlass**)(cpool + _pool_holder_offset);
         if (holder != NULL) {
