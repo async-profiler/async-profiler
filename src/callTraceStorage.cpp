@@ -283,10 +283,9 @@ void CallTraceStorage::add(u32 call_trace_id, u64 counter) {
         return;
     }
 
-    call_trace_id += (INITIAL_CAPACITY - 1);
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
-        if (call_trace_id >= table->capacity()) {
-            CallTraceSample& s = table->values()[call_trace_id - table->capacity()];
+        if (call_trace_id >= table->base()) {
+            CallTraceSample& s = table->values()[call_trace_id - table->base()];
             atomicInc(s.samples);
             atomicInc(s.counter, counter);
             break;

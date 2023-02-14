@@ -106,7 +106,7 @@ int FdTransferClient::requestBpfMapFd(struct bpfmap_params* params) {
     request.header.type = BPFMAP_FD;
     request.version = 1;
 
-    if (send(_peer, &request, sizeof(request), 0) != sizeof(request)) {
+    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }
