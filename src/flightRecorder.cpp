@@ -17,7 +17,6 @@
 #include <map>
 #include <string>
 #include <arpa/inet.h>
-#include <cxxabi.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -26,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include "demangle.h"
 #include "flightRecorder.h"
 #include "incbin.h"
 #include "jfrMetadata.h"
@@ -168,8 +168,7 @@ class Lookup {
         mi->_line_number_table = NULL;
 
         if (name[0] == '_' && name[1] == 'Z') {
-            int status;
-            char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
+            char* demangled = Demangle::demangle(name);
             if (demangled != NULL) {
                 cutArguments(demangled);
                 mi->_name = _symbols.lookup(demangled);

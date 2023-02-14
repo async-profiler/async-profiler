@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include <cxxabi.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "demangle.h"
 #include "frameName.h"
 #include "profiler.h"
 #include "vmStructs.h"
@@ -130,8 +130,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
 
     if (name[0] == '_' && name[1] == 'Z') {
-        int status;
-        char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
+        char* demangled = Demangle::demangle(name);
         if (demangled != NULL) {
             if (lib_name != NULL) {
                 _str.assign(lib_name).append("`").append(demangled);
