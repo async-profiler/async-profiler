@@ -21,6 +21,7 @@ import one.jfr.event.*;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -77,6 +78,16 @@ public class JfrReader implements Closeable {
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
+        if (!readChunk(0)) {
+            throw new IOException("Incomplete JFR file");
+        }
+    }
+
+    public JfrReader(ByteBuffer buf) throws IOException {
+        this.ch = null;
+        this.buf = buf;
+
+        buf.order(ByteOrder.BIG_ENDIAN);
         if (!readChunk(0)) {
             throw new IOException("Incomplete JFR file");
         }
@@ -142,11 +153,7 @@ public class JfrReader implements Closeable {
                 readActiveSetting();
             }
 
-            if ((pos += size) <= buf.limit()) {
-                buf.position(pos);
-            } else {
-                seek(filePosition + pos);
-            }
+            seek(filePosition + pos + size);
         }
         return null;
     }
@@ -240,7 +247,8 @@ public class JfrReader implements Closeable {
         seek(metaOffset);
         ensureBytes(5);
 
-        ensureBytes(getVarint() - buf.position());
+        int posBeforeSize = buf.position();
+        ensureBytes(getVarint() - (buf.position() - posBeforeSize));
         getVarint();
         getVarlong();
         getVarlong();
@@ -293,7 +301,8 @@ public class JfrReader implements Closeable {
             seek(cpOffset);
             ensureBytes(5);
 
-            ensureBytes(getVarint() - buf.position());
+            int posBeforeSize = buf.position();
+            ensureBytes(getVarint() - (buf.position() - posBeforeSize));
             getVarint();
             getVarlong();
             getVarlong();
@@ -523,14 +532,23 @@ public class JfrReader implements Closeable {
     }
 
     private void seek(long pos) throws IOException {
-        filePosition = pos;
-        ch.position(pos);
-        buf.rewind().flip();
+        long bufPosition = pos - filePosition;
+        if (bufPosition >= 0 && bufPosition <= buf.limit()) {
+            buf.position((int) bufPosition);
+        } else {
+            filePosition = pos;
+            ch.position(pos);
+            buf.rewind().flip();
+        }
     }
 
     private boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
+        }
+
+        if (ch == null) {
+            return false;
         }
 
         filePosition += buf.position();
