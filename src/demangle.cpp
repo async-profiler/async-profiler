@@ -22,7 +22,18 @@
 
 char* Demangle::demangleCpp(const char* s) {
     int status;
-    return abi::__cxa_demangle(s, NULL, NULL, &status);
+    char* result = abi::__cxa_demangle(s, NULL, NULL, &status);
+    if (result == NULL && status == -2) {
+        // Strip compiler-specific suffix (e.g. ".part.123") and retry demangling
+        char buf[512];
+        const char* p = strchr(s, '.');
+        if (p != NULL && p - s < sizeof(buf)) {
+            memcpy(buf, s, p - s);
+            buf[p - s] = 0;
+            result = abi::__cxa_demangle(buf, NULL, NULL, &status);
+        }
+    }
+    return result;
 }
 
 char* Demangle::demangleRust(const char* s, const char* e) {
