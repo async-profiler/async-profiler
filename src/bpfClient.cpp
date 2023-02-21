@@ -111,23 +111,20 @@ void BpfClient::stop() {
 }
 
 int BpfClient::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
-    BpfStackTrace* trace = _bpf_map.getStackForThread(tid);
-    if (trace == NULL || trace->tid != tid) {
-        return 0;
-    }
-
     int depth = 0;
-    if (trace->depth < max_depth) max_depth = trace->depth;
 
-    while (depth < max_depth) {
-        const void* ip = (const void*)trace->ip[depth];
-        if (CodeHeap::contains(ip)) {
-            // Stop at the first Java frame
-            java_ctx->pc = ip;
-            break;
+    // Fill kernel frames from bpf map
+    BpfStackTrace* trace = _bpf_map.getStackForThread(tid);
+    if (trace != NULL && trace->tid == tid) {
+        int limit = trace->depth < max_depth ? trace->depth : max_depth;
+        while (depth < limit && (intptr_t)trace->ip[depth] < 0) {
+            callchain[depth] = (const void*)trace->ip[depth];
+            depth++;
         }
-        callchain[depth++] = ip;
     }
+
+    // Add user-space frames by manual stack walking
+    depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, java_ctx);
 
     return depth;
 }
