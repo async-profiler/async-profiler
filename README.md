@@ -407,8 +407,8 @@ The following is a complete list of the command-line options accepted by
   e.g. total allocation size.
 
 * `--chunksize N`, `--chunktime N` - approximate size and time limits for a single JFR chunk.
-  Default chunksize is 100MB and must be larger than 262,144 bytes while the default chunktime is 1 hour.
-  A new chunk will be generated whenever either threshold is reached.
+  A new chunk will be started whenever either limit is reached.
+  The default `chunksize` is 100MB, and the default `chunktime` is 1 hour.
   Example: `./profiler.sh -f profile.jfr --chunksize 100m --chunktime 1h 8983`
 
 * `-I include`, `-X exclude` - filter stack traces by the given pattern(s).
