@@ -37,7 +37,7 @@ import java.util.Map;
  */
 public class JfrReader implements Closeable {
     private static final int BUFFER_SIZE = 2 * 1024 * 1024;
-    private static final int CHUNK_HEADER_SIZE = 68;
+    static final int CHUNK_HEADER_SIZE = 68;
     private static final int CHUNK_SIGNATURE = 0x464c5200;
 
     private final FileChannel ch;
@@ -95,7 +95,9 @@ public class JfrReader implements Closeable {
 
     @Override
     public void close() throws IOException {
-        ch.close();
+        if (ch != null) {
+            ch.close();
+        }
     }
 
     public long durationNanos() {
@@ -106,56 +108,85 @@ public class JfrReader implements Closeable {
         return (long) ((nanos - startNanos) * (ticksPerSec / 1e9)) + startTicks;
     }
 
-    public List<Event> readAllEvents() throws IOException {
+    public <E extends Event> Chunks<E> readChunks(Class<E> cls) {
+        return new Chunks<>(this, cls);
+    }
+
+    <E extends Event> Chunk<E> nextChunk(int pos, Class<E> cls) throws IOException {
+        if (!readChunk(pos)) {
+            return null;
+        }
+        ArrayList<E> events = new ArrayList<>();
+        EventOrPosition<E> eventEventOrPosition;
+        while ((eventEventOrPosition = readEvent(cls)) != null) {
+            if (eventEventOrPosition.e == null) {
+                break;
+            }
+            events.add(eventEventOrPosition.e);
+        }
+
+        Collections.sort(events);
+        return Chunk.<E>builder().events(events)
+                .nextChunkPos(eventEventOrPosition == null ? -1 : eventEventOrPosition.pos).build();
+    }
+
+    public List<Event> readAllEvents() {
         return readAllEvents(null);
     }
 
-    public <E extends Event> List<E> readAllEvents(Class<E> cls) throws IOException {
+    public <E extends Event> List<E> readAllEvents(Class<E> cls) {
+        Chunks<E> chunks = readChunks(cls);
         ArrayList<E> events = new ArrayList<>();
-        for (E event; (event = readEvent(cls)) != null; ) {
-            events.add(event);
+        for (final Chunk<E> chunk : chunks) {
+            for (final E event : chunk) {
+                events.add(event);
+            }
         }
         Collections.sort(events);
         return events;
     }
 
     public Event readEvent() throws IOException {
-        return readEvent(null);
+        return readEvent(null).e;
     }
 
     @SuppressWarnings("unchecked")
-    public <E extends Event> E readEvent(Class<E> cls) throws IOException {
+    public <E extends Event> EventOrPosition<E> readEvent(Class<E> cls) throws IOException {
         while (ensureBytes(CHUNK_HEADER_SIZE)) {
             int pos = buf.position();
             int size = getVarint();
             int type = getVarint();
 
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
-                if (readChunk(pos)) {
-                    continue;
-                }
-                break;
+                // CTRL: next chunk
+                return EventOrPosition.forPosition(pos);
             }
 
             if (type == executionSample || type == nativeMethodSample) {
-                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
+                if (cls == null || cls == ExecutionSample.class)
+                    return EventOrPosition.forEvent((E) readExecutionSample());
             } else if (type == allocationInNewTLAB) {
-                if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
+                if (cls == null || cls == AllocationSample.class)
+                    return EventOrPosition.forEvent((E) readAllocationSample(true));
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
-                if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+                if (cls == null || cls == AllocationSample.class)
+                    return EventOrPosition.forEvent((E) readAllocationSample(false));
             } else if (type == liveObject) {
-                if (cls == null || cls == LiveObject.class) return (E) readLiveObject();
+                if (cls == null || cls == LiveObject.class)
+                    return EventOrPosition.forEvent((E) readLiveObject());
             } else if (type == monitorEnter) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
+                if (cls == null || cls == ContendedLock.class)
+                    return EventOrPosition.forEvent((E) readContendedLock(false));
             } else if (type == threadPark) {
-                if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+                if (cls == null || cls == ContendedLock.class)
+                    return EventOrPosition.forEvent((E) readContendedLock(true));
             } else if (type == activeSetting) {
                 readActiveSetting();
             }
 
             seek(filePosition + pos + size);
         }
-        return null;
+        return EventOrPosition.EOF();
     }
 
     private ExecutionSample readExecutionSample() {
@@ -542,7 +573,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private boolean ensureBytes(int needed) throws IOException {
+    boolean ensureBytes(int needed) throws IOException {
         if (buf.remaining() >= needed) {
             return true;
         }
@@ -566,5 +597,31 @@ public class JfrReader implements Closeable {
         }
         buf.flip();
         return buf.limit() > 0;
+    }
+
+    public static final class EventOrPosition<E extends Event> {
+        private final E e;
+        private final int pos;
+
+        private EventOrPosition(E e, int pos) {
+            this.e = e;
+            this.pos = pos;
+        }
+
+        public E getEvent() {
+            return e;
+        }
+
+        static <E extends Event> EventOrPosition<E> forEvent(E e) {
+            return new EventOrPosition<>(e, -1);
+        }
+
+        static <E extends Event> EventOrPosition<E> forPosition(int pos) {
+            return new EventOrPosition<>(null, pos);
+        }
+
+        static <E extends Event> EventOrPosition<E> EOF() {
+            return new EventOrPosition<>(null, -1);
+        }
     }
 }
