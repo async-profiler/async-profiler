@@ -78,19 +78,13 @@ public class JfrReader implements Closeable {
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
-        if (!readChunk(0)) {
-            throw new IOException("Incomplete JFR file");
-        }
     }
 
-    public JfrReader(ByteBuffer buf) throws IOException {
+    public JfrReader(ByteBuffer buf) {
         this.ch = null;
         this.buf = buf;
 
         buf.order(ByteOrder.BIG_ENDIAN);
-        if (!readChunk(0)) {
-            throw new IOException("Incomplete JFR file");
-        }
     }
 
     @Override
