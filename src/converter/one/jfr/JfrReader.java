@@ -43,12 +43,14 @@ public class JfrReader implements Closeable {
     private final FileChannel ch;
     private ByteBuffer buf;
     private long filePosition;
+    private boolean eof;
+    private boolean incomplete;
 
-    public boolean incomplete;
     public long startNanos = Long.MAX_VALUE;
     public long endNanos = Long.MIN_VALUE;
     public long startTicks = Long.MAX_VALUE;
     public long ticksPerSec;
+    public boolean stopAtNewChunk;
 
     public final Dictionary<JfrClass> types = new Dictionary<>();
     public final Map<String, JfrClass> typesByName = new HashMap<>();
@@ -98,6 +100,14 @@ public class JfrReader implements Closeable {
         ch.close();
     }
 
+    public boolean eof() {
+        return eof;
+    }
+
+    public boolean incomplete() {
+        return incomplete;
+    }
+
     public long durationNanos() {
         return endNanos - startNanos;
     }
@@ -131,10 +141,10 @@ public class JfrReader implements Closeable {
             int type = getVarint();
 
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
-                if (readChunk(pos)) {
+                if (readChunk(pos) && !stopAtNewChunk) {
                     continue;
                 }
-                break;
+                return null;
             }
 
             if (type == executionSample || type == nativeMethodSample) {
@@ -155,6 +165,8 @@ public class JfrReader implements Closeable {
 
             seek(filePosition + pos + size);
         }
+
+        eof = true;
         return null;
     }
 
@@ -222,7 +234,7 @@ public class JfrReader implements Closeable {
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
         if (cpOffset == 0 || metaOffset == 0) {
-            incomplete = true;
+            eof = incomplete = true;
             return false;
         }
 
