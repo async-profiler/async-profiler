@@ -133,7 +133,7 @@ typedef Elf32_Dyn  ElfDyn;
 // GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
 // A tricky case is when we attach to a musl container from a glibc host.
 #ifdef __musl__
-#  define DYN_PTR(ptr)  (_base + (ptr))
+#  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
 #else
 #  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
 #endif // __musl__
