@@ -889,7 +889,9 @@ Engine* Profiler::selectEngine(const char* event_name) {
 }
 
 Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
-    if (VM::canSampleObjects() && (alloc_interval > 0 || live || VM::hotspot_version() == 0)) {
+    if (VM::canSampleObjects() && (alloc_interval > 0 || live ||
+                                   VM::hotspot_version() == 0 ||
+                                   !VMStructs::libjvm()->hasDebugSymbols())) {
         return &object_sampler;
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;
