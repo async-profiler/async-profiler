@@ -34,6 +34,7 @@ class Arguments {
     boolean live;
     boolean lock;
     boolean threads;
+    boolean classify;
     boolean total;
     boolean lines;
     boolean bci;

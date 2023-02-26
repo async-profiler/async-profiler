@@ -62,7 +62,8 @@ public class jfr2flame {
         }
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
-        final boolean scale = args.total && eventClass == ContendedLock.class && ticksToNanos != 1.0;
+        final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
+        final Classifier classifier = new Classifier(methodNames);
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -75,7 +76,10 @@ public class jfr2flame {
                     byte[] types = stackTrace.types;
                     int[] locations = stackTrace.locations;
                     String classFrame = getClassFrame(event);
-                    String[] trace = new String[methods.length + (args.threads ? 1 : 0) + (classFrame != null ? 1 : 0)];
+                    String[] trace = new String[methods.length
+                            + (args.threads ? 1 : 0)
+                            + (args.classify ? 1 : 0)
+                            + (classFrame != null ? 1 : 0)];
                     if (args.threads) {
                         trace[0] = getThreadFrame(event.tid);
                     }
@@ -92,6 +96,9 @@ public class jfr2flame {
                             methodName += "@" + location;
                         }
                         trace[--idx] = methodName + FRAME_SUFFIX[types[i]];
+                    }
+                    if (args.classify) {
+                        trace[--idx] = classifier.getCategoryName(stackTrace);
                     }
                     fg.addSample(trace, scale ? (long) (value * ticksToNanos) : value);
                 }
@@ -240,6 +247,7 @@ public class jfr2flame {
             System.out.println("  --live       Include only live objects in allocation profile");
             System.out.println("  --lock       Lock contention Flame Graph");
             System.out.println("  --threads    Split profile by threads");
+            System.out.println("  --classify   Classify samples into predefined categories");
             System.out.println("  --total      Accumulate the total value (time, bytes, etc.)");
             System.out.println("  --lines      Show line numbers");
             System.out.println("  --bci        Show bytecode indices");
