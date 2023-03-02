@@ -34,7 +34,7 @@ static inline bool keyEquals(const char* candidate, const char* key, size_t leng
 
 Dictionary::Dictionary() {
     _table = (DictTable*)calloc(1, sizeof(DictTable));
-    _table->base_index = _base_index = 1;
+    _base_index = _table->base_index = 1;
 }
 
 Dictionary::~Dictionary() {
@@ -45,7 +45,7 @@ Dictionary::~Dictionary() {
 void Dictionary::clear() {
     clear(_table);
     memset(_table, 0, sizeof(DictTable));
-    _table->base_index = _base_index = 1;
+    _base_index = _table->base_index = 1;
 }
 
 void Dictionary::clear(DictTable* table) {
