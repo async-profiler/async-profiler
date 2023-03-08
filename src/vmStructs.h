@@ -79,6 +79,8 @@ class VMStructs {
     static const void** _code_heap_low_addr;
     static const void** _code_heap_high_addr;
     static int* _klass_offset_addr;
+    static const void* _call_helper_start;
+    static const void* _call_helper_end;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -364,6 +366,13 @@ class CodeHeap : VMStructs {
         if (contains(_code_heap[1], pc)) return findNMethod(_code_heap[1], pc);
         if (contains(_code_heap[2], pc)) return findNMethod(_code_heap[2], pc);
         return NULL;
+    }
+};
+
+class CallHelper : VMStructs {
+  public:
+    static bool contains(const void* pc) {
+        return pc >= _call_helper_start && pc < _call_helper_end;
     }
 };
 

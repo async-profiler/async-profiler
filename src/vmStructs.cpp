@@ -76,6 +76,8 @@ char** VMStructs::_code_heap_addr = NULL;
 const void** VMStructs::_code_heap_low_addr = NULL;
 const void** VMStructs::_code_heap_high_addr = NULL;
 int* VMStructs::_klass_offset_addr = NULL;
+const void* VMStructs::_call_helper_start = NULL;
+const void* VMStructs::_call_helper_end = NULL;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -336,6 +338,11 @@ void VMStructs::resolveOffsets() {
 void VMStructs::initJvmFunctions() {
     if (!VM::isOpenJ9() && !VM::isZing()) {
         _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
+        CodeBlob* call_helper = _libjvm->findBlobByPrefix("_ZN9JavaCalls11call_helper");
+        if (call_helper != NULL) {
+            _call_helper_start = call_helper->_start;
+            _call_helper_end = call_helper->_end;
+        }
     }
 
     if (VM::hotspot_version() == 8) {

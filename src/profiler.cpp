@@ -372,8 +372,13 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         if (state == 8 || state == 9) {
             if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
                 // call_stub is unsafe to walk
-                frames->bci = BCI_NATIVE_FRAME;
+                frames->bci = BCI_ERROR;
                 frames->method_id = (jmethodID)"call_stub";
+                return 1;
+            } else if (CallHelper::contains((const void*)saved_pc)) {
+                // JavaCalls::call_helper is also unsafe
+                frames->bci = BCI_ERROR;
+                frames->method_id = (jmethodID)"call_helper";
                 return 1;
             }
             if (DWARF_SUPPORTED && java_ctx->sp != 0) {

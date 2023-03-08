@@ -180,6 +180,17 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
+CodeBlob* CodeCache::findBlobByPrefix(const char* prefix) {
+    size_t prefix_len = strlen(prefix);
+    for (int i = 0; i < _count; i++) {
+        const char* blob_name = _blobs[i]._name;
+        if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
+            return &_blobs[i];
+        }
+    }
+    return NULL;
+}
+
 void CodeCache::setGlobalOffsetTable(void** start, void** end, bool patchable) {
     _got_start = start;
     _got_end = end;
