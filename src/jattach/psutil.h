@@ -20,6 +20,10 @@
 #include <sys/types.h>
 
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_PATH 1024
 extern char tmp_path[];
 
@@ -42,5 +46,9 @@ int get_process_info(int pid, uid_t* uid, gid_t* gid, int* nspid);
 //         0, if the target process is in the same namespace as the host,
 //        -1, if the attempt failed.
 int enter_ns(int pid, const char* type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _PSUTIL_H

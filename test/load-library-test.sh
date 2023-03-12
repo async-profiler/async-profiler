@@ -15,13 +15,13 @@ fi
      ${JAVA_HOME}/bin/javac LoadLibraryTest.java
   fi
 
-  ${JAVA_HOME}/bin/java -agentpath:../build/libasyncProfiler.so LoadLibraryTest &
+  ${JAVA_HOME}/bin/java -agentpath:../build/lib/libasyncProfiler.so LoadLibraryTest &
 
   FILENAME=/tmp/java.trace
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../profiler.sh -f $FILENAME -o collapsed -d 5 -i 1ms $JAVAPID
+  ../build/bin/asprof -f $FILENAME -o collapsed -d 5 -i 1ms $JAVAPID
 
   kill $JAVAPID
 

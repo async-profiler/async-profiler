@@ -161,6 +161,7 @@ static int read_response(int fd, const char* cmd) {
             result = strncmp(buf, "ATTACH_ERR AgentInitializationException", 39) == 0 ? atoi(buf + 39) : -1;
         }
     } else if (strncmp(cmd, "ATTACH_DIAGNOSTICS:", 19) == 0) {
+#ifndef SUPPRESS_OUTPUT
         char* p = strstr(buf, "openj9_diagnostics.string_result=");
         if (p != NULL) {
             // The result of a diagnostic command is encoded in Java Properties format
@@ -168,10 +169,13 @@ static int read_response(int fd, const char* cmd) {
             free(buf);
             return result;
         }
+#endif
     }
 
+#ifndef SUPPRESS_OUTPUT
     buf[off - 1] = '\n';
     fwrite(buf, 1, off, stdout);
+#endif
 
     free(buf);
     return result;
@@ -411,7 +415,9 @@ int jattach_openj9(int pid, int nspid, int argc, char** argv) {
     notify_semaphore(-1, notif_count);
     release_lock(attach_lock);
 
+#ifndef SUPPRESS_OUTPUT
     printf("Connected to remote JVM\n");
+#endif
 
     char cmd[8192];
     translate_command(cmd, sizeof(cmd), argc, argv);

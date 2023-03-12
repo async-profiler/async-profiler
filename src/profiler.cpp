@@ -1575,9 +1575,6 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << PROFILER_VERSION;
             out.flush();
             break;
-        case ACTION_FULL_VERSION:
-            out << FULL_VERSION_STRING;
-            break;
         default:
             break;
     }

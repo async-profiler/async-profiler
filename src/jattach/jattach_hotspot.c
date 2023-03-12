@@ -146,6 +146,7 @@ static int read_response(int fd, int argc, char** argv) {
         result = atoi(strncmp(buf + 2, "return code: ", 13) == 0 ? buf + 15 : buf + 2);
     }
 
+#ifndef SUPPRESS_OUTPUT
     // Mirror JVM response to stdout
     printf("JVM response code = ");
     do {
@@ -153,6 +154,7 @@ static int read_response(int fd, int argc, char** argv) {
         bytes = read(fd, buf, sizeof(buf));
     } while (bytes > 0);
     printf("\n");
+#endif
 
     return result;
 }
@@ -169,7 +171,9 @@ int jattach_hotspot(int pid, int nspid, int argc, char** argv) {
         return 1;
     }
 
+#ifndef SUPPRESS_OUTPUT
     printf("Connected to remote JVM\n");
+#endif
 
     if (write_command(fd, argc, argv) != 0) {
         perror("Error writing to socket");

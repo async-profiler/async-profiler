@@ -156,7 +156,7 @@ Error Arguments::parse(const char* args) {
                 _action = ACTION_LIST;
 
             CASE("version")
-                _action = value == NULL ? ACTION_VERSION : ACTION_FULL_VERSION;
+                _action = ACTION_VERSION;
 
             // Output formats
             CASE("collapsed")

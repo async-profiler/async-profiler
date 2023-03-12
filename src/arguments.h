@@ -40,8 +40,7 @@ enum Action {
     ACTION_STATUS,
     ACTION_MEMINFO,
     ACTION_LIST,
-    ACTION_VERSION,
-    ACTION_FULL_VERSION
+    ACTION_VERSION
 };
 
 enum Counter {

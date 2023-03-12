@@ -28,7 +28,7 @@ fi
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  sudo ../profiler.sh -f $FILENAME -o collapsed -e cpu -i 1ms --fdtransfer -d 5 $JAVAPID
+  sudo ../build/bin/asprof -f $FILENAME -o collapsed -e cpu -i 1ms --fdtransfer -d 5 $JAVAPID
 
   kill $JAVAPID
 

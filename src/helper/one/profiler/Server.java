@@ -69,6 +69,8 @@ class Server extends Thread implements Executor, HttpHandler {
             String command = getCommand(exchange.getRequestURI());
             if (command == null) {
                 sendResponse(exchange, 404, "Unknown command");
+            } else if (command.isEmpty()) {
+                sendResponse(exchange, 200, "Async-profiler server");
             } else {
                 String response = execute0(command);
                 sendResponse(exchange, 200, response);
@@ -86,7 +88,7 @@ class Server extends Thread implements Executor, HttpHandler {
         String path = uri.getPath();
         if (path.startsWith("/")) {
             if ((path = path.substring(1)).isEmpty()) {
-                return "version=full";
+                return "";
             }
             for (String command : COMMANDS) {
                 if (path.startsWith(command)) {
