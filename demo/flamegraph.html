@@ -3,27 +3,28 @@
 <head>
 <meta charset='utf-8'>
 <style>
-	body {margin: 0; padding: 10px; background-color: #ffffff}
+	body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
 	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
 	header {margin: -24px 0 5px 0; line-height: 24px}
 	button {font: 12px sans-serif; cursor: pointer}
-	p {margin: 5px 0 5px 0}
+	p {position: fixed; bottom: 0; margin: 0; padding: 2px 3px 2px 3px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
 	a {color: #0366d6}
 	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
 	#hl span {padding: 0 3px 0 3px}
-	#status {overflow: hidden; white-space: nowrap}
-	#match {overflow: hidden; white-space: nowrap; display: none; float: right; text-align: right}
+	#status {left: 0}
+	#match {right: 0}
 	#reset {cursor: pointer}
+	#canvas {width: 100%; height: 752px}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>Flame Graph</h1>
 <header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>
-<canvas id='canvas' style='width: 100%; height: 752px'></canvas>
+<canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
+<p id='status'></p>
 <p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
-<p id='status'>&nbsp;</p>
 <script>
 	// Copyright 2020 Andrei Pangin
 	// Licensed under the Apache License, Version 2.0.
@@ -104,7 +105,7 @@
 		pattern = r ? RegExp(r) : undefined;
 		const matched = render(root, rootLevel);
 		document.getElementById('matchval').textContent = pct(matched, root.width) + '%';
-		document.getElementById('match').style.display = r ? 'inherit' : 'none';
+		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
 	}
 
 	function render(newRoot, newLevel) {
@@ -187,6 +188,7 @@
 					}
 				};
 				status.textContent = 'Function: ' + canvas.title;
+				status.style.display = 'inline-block';
 				return;
 			}
 		}
@@ -195,7 +197,7 @@
 
 	canvas.onmouseout = function() {
 		hl.style.display = 'none';
-		status.textContent = '\xa0';
+		status.style.display = 'none';
 		canvas.title = '';
 		canvas.style.cursor = '';
 		canvas.onclick = '';
