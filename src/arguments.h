@@ -30,7 +30,9 @@ const char* const EVENT_LOCK   = "lock";
 const char* const EVENT_WALL   = "wall";
 const char* const EVENT_ITIMER = "itimer";
 
-enum Action {
+#define SHORT_ENUM __attribute__((__packed__))
+
+enum SHORT_ENUM Action {
     ACTION_NONE,
     ACTION_START,
     ACTION_RESUME,
@@ -43,12 +45,12 @@ enum Action {
     ACTION_VERSION
 };
 
-enum Counter {
+enum SHORT_ENUM Counter {
     COUNTER_SAMPLES,
     COUNTER_TOTAL
 };
 
-enum Ring {
+enum SHORT_ENUM Ring {
     RING_ANY,
     RING_KERNEL,
     RING_USER
@@ -63,7 +65,7 @@ enum Style {
     STYLE_NO_SEMICOLON = 32
 };
 
-enum CStack {
+enum SHORT_ENUM CStack {
     CSTACK_DEFAULT,
     CSTACK_NO,
     CSTACK_FP,
@@ -71,7 +73,13 @@ enum CStack {
     CSTACK_LBR
 };
 
-enum Output {
+enum SHORT_ENUM Clock {
+    CLK_DEFAULT,
+    CLK_TSC,
+    CLK_MONOTONIC
+};
+
+enum SHORT_ENUM Output {
     OUTPUT_NONE,
     OUTPUT_TEXT,
     OUTPUT_SVG,  // obsolete
@@ -159,6 +167,7 @@ class Arguments {
     const char* _fdtransfer_path;
     int _style;
     CStack _cstack;
+    Clock _clock;
     Output _output;
     long _chunk_size;
     long _chunk_time;
@@ -205,6 +214,7 @@ class Arguments {
         _fdtransfer_path(NULL),
         _style(0),
         _cstack(CSTACK_DEFAULT),
+        _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),

@@ -79,6 +79,7 @@ static const char USAGE_STRING[] =
     "  --all-user        only include user-mode events\n"
     "  --sched           group threads by scheduling policy\n"
     "  --cstack mode     how to traverse C stack: fp|dwarf|lbr|no\n"
+    "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
     "  --ttsp            time-to-safepoint profiling\n"
@@ -427,7 +428,7 @@ int main(int argc, const char** argv) {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--lock" || arg == "--chunksize" || arg == "--chunktime" ||
-                   arg == "--cstack" || arg == "--begin" || arg == "--end") {
+                   arg == "--cstack" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {

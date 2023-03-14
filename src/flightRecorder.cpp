@@ -64,6 +64,7 @@ static jmethodID _box_method;
 
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr"};
+static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
 
 struct CpuTime {
@@ -526,7 +527,7 @@ class Recording {
 
         // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
         u64 tsc_frequency = TSC::frequency();
-        if (tsc_frequency > 1000000000) {
+        if (TSC::enabled()) {
             tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
         }
 
@@ -747,6 +748,7 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", SETTING_CLOCK[args._clock]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
@@ -1221,9 +1223,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         filename = filename_tmp;
     }
 
-    if (!TSC::initialized()) {
-        TSC::initialize();
-    }
+    TSC::enable(args._clock);
 
     int fd = open(filename, O_CREAT | O_RDWR | (reset ? O_TRUNC : 0), 0644);
     if (fd == -1) {

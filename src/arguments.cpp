@@ -91,6 +91,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     sched            - group threads by scheduling policy
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
+//     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
@@ -312,6 +313,15 @@ Error Arguments::parse(const char* args) {
                         _cstack = CSTACK_LBR;
                     } else {
                         _cstack = CSTACK_FP;
+                    }
+                }
+
+            CASE("clock")
+                if (value != NULL) {
+                    if (value[0] == 't') {
+                        _clock = CLK_TSC;
+                    } else if (value[0] == 'm') {
+                        _clock = CLK_MONOTONIC;
                     }
                 }
 

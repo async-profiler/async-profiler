@@ -17,7 +17,11 @@
 #ifndef _TSC_H
 #define _TSC_H
 
+#include "arguments.h"
 #include "os.h"
+
+
+const u64 NANOTIME_FREQ = 1000000000;
 
 
 #if defined(__x86_64__)
@@ -51,16 +55,13 @@ static inline u64 rdtsc() {
 class TSC {
   private:
     static bool _initialized;
+    static bool _available;
     static bool _enabled;
     static u64 _offset;
     static u64 _frequency;
 
   public:
-    static void initialize();
-
-    static bool initialized() {
-        return TSC_SUPPORTED ? _initialized : true;
-    }
+    static void enable(Clock clock);
 
     static bool enabled() {
         return TSC_SUPPORTED && _enabled;
@@ -71,7 +72,7 @@ class TSC {
     }
 
     static u64 frequency() {
-        return _frequency;
+        return enabled() ? _frequency : NANOTIME_FREQ;
     }
 };
 

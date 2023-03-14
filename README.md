@@ -448,6 +448,9 @@ The following is a complete list of the command-line options accepted by
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
 
+* `--clock SOURCE` - clock source for JFR timestamps: `tsc` (default)
+  or `monotonic` (equivalent for `CLOCK_MONOTONIC`).
+
 * `--begin function`, `--end function` - automatically start/stop profiling
   when the specified native function is executed.
 
