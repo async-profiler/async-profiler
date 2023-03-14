@@ -166,7 +166,7 @@ Here are some useful native methods that you may want to profile:
 
 ## Building
 
-Build status: [![Build Status](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/cpp.yml/badge.svg?branch=master)](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/cpp.yml)
+Build status: [![Build Status](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/ci.yml)
 
 Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC is required. After building, the profiler agent binary
