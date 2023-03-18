@@ -384,7 +384,12 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             if (DWARF_SUPPORTED && java_ctx->sp != 0) {
                 // If a thread is in Java state, unwind manually to the last known Java frame,
                 // since JVM does not always correctly unwind native frames
-                frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
+                if (*(instruction_t*)java_ctx->pc == 0x5d) {
+                    // FIXME: simulate "pop rbp; ret"
+                    frame.restore(((uintptr_t*)java_ctx->sp)[1], java_ctx->sp + 16, ((uintptr_t*)java_ctx->sp)[0]);
+                } else {
+                    frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
+                }
             }
         }
     }
