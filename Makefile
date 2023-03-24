@@ -55,7 +55,6 @@ else
   PACKAGE_EXT=tar.gz
   ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
     OS_TAG=linux-musl
-    CXXFLAGS += -D__musl__
   else
     OS_TAG=linux
   endif

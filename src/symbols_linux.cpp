@@ -130,14 +130,8 @@ typedef Elf32_Dyn  ElfDyn;
 #  error "Compiling on unsupported arch"
 #endif
 
-// GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
-// A tricky case is when we attach to a musl container from a glibc host.
-#ifdef __musl__
-#  define DYN_PTR(ptr)  (_base + (ptr))
-#else
-#  define DYN_PTR(ptr)  ((char*)(ptr) >= _base ? (char*)(ptr) : _base + (ptr))
-#endif // __musl__
 
+static bool musl = false;
 
 class ElfParser {
   private:
@@ -173,6 +167,15 @@ class ElfParser {
 
     const char* at(ElfProgramHeader* pheader) {
         return _header->e_type == ET_EXEC ? (const char*)pheader->p_vaddr : _vaddr_diff + pheader->p_vaddr;
+    }
+
+    char* dyn_ptr(ElfDyn* dyn) {
+        // GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't
+        if ((char*)dyn->d_un.d_ptr >= _base && !musl) {
+            return (char*)dyn->d_un.d_ptr;
+        } else {
+            return (char*)_base + dyn->d_un.d_ptr;
+        }
     }
 
     ElfSection* findSection(uint32_t type, const char* name);
@@ -289,14 +292,14 @@ void ElfParser::parseDynamicSection() {
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
                 case DT_PLTGOT:
-                    got_start = (void**)DYN_PTR(dyn->d_un.d_ptr) + 3;
+                    got_start = (void**)dyn_ptr(dyn) + 3;
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;
                     break;
                 case DT_RELA:
                 case DT_REL:
-                    rel = (char*)DYN_PTR(dyn->d_un.d_ptr);
+                    rel = dyn_ptr(dyn);
                     break;
                 case DT_RELASZ:
                 case DT_RELSZ:
@@ -552,6 +555,11 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
+
+    if (array->count() == 0) {
+        // _CS_GNU_LIBC_VERSION is not defined on musl
+        musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
+    }
 
     if (kernel_symbols && !haveKernelSymbols()) {
         CodeCache* cc = new CodeCache("[kernel]");
