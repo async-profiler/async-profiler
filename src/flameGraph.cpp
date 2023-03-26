@@ -15,6 +15,7 @@
  */
 
 #include <algorithm>
+#include <queue>
 #include <vector>
 #include <stdio.h>
 #include <string.h>
@@ -84,7 +85,6 @@ class Node {
         return _trie->_total > other._trie->_total;
     }
 };
-
 
 void FlameGraph::dump(std::ostream& out, bool tree) {
     _mintotal = _minwidth == 0 && tree ? _root._total / 1000 : (u64)(_root._total * _minwidth / 100);
@@ -233,4 +233,57 @@ int FlameGraph::frameType(std::string& name, const Trie& f) {
     } else {
         return FRAME_NATIVE;
     }
+}
+
+static auto less_is_more = [](const Trie* left, const Trie* right) { 
+        return left->_total > right->_total;
+};
+
+typedef std::priority_queue<const Trie*, std::vector<const Trie*>, decltype(less_is_more)> PRIQ;
+
+
+static void addLeaves(const Trie& trie, PRIQ& leaves) {
+    trie._n = trie._children.size();
+    if(trie._n == 0) {
+        leaves.push(&trie);
+    } else {
+      for (std::map<std::string, Trie>::const_iterator it = trie._children.begin(); it != trie._children.end(); ++it) {
+        addLeaves(it->second, leaves);
+      }
+    }
+}
+
+void FlameGraph::prune(int n) {
+    PRIQ leaves(less_is_more);
+    addLeaves(_root, leaves);
+    while(leaves.size() > n) {
+        const Trie* leaf = leaves.top();
+        leaves.pop();
+        leaf->_n = -1;  // will never be printed
+        if(!(--leaf->_parent->_n))
+          leaves.push(leaf->_parent);
+    }
+}
+
+static void dumpTraverse(std::ostream& out, const std::string& name, const Trie& f, const std::string **path, int depth) {
+    if(f._n == 0) {
+        for(int i=1; i< depth; i++) {
+           out << *path[i] << ";";
+        }
+        out << name << " " << f._total << std::endl;
+        return;
+    }
+
+    if(f._n > 0 && depth < 1000) {
+      path[depth++] = &name;
+
+      for (std::map<std::string, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
+         dumpTraverse(out, it->first, it->second, path, depth);
+       }
+    }
+}
+
+void FlameGraph::dumpCollapsed(std::ostream& out) {
+    const std::string* buf[1000];
+    dumpTraverse(out, std::string("root"), _root, buf, 0);
 }

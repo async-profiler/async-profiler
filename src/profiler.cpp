@@ -46,7 +46,7 @@
 #include "vmStructs.h"
 
 
-// The instance is not deleted on purpose, since profiler structures
+// The instance is deliberately not deleted, since profiler structures
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
 
@@ -63,7 +63,6 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
-
 
 // Stack recovery techniques used to workaround AsyncGetCallTrace flaws.
 // Can be disabled with 'safemode' option.
@@ -1240,6 +1239,10 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
     FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
 
+    FlameGraph* flamegraph = args._pruned <= 0 ? NULL :
+            new FlameGraph ("na", args._counter, args._minwidth, args._reverse);
+    Trie *f;
+
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 
@@ -1249,13 +1252,26 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
 
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
         if (counter == 0) continue;
-
+        if (flamegraph) f = flamegraph->root();
         for (int j = trace->num_frames - 1; j >= 0; j--) {
             const char* frame_name = fn.name(trace->frames[j]);
-            out << frame_name << (j == 0 ? ' ' : ';');
+            if (flamegraph)
+                f = f->addChild(frame_name, counter);
+            else
+                out << frame_name << (j == 0 ? ' ' : ';');
         }
-        // Beware of locale-sensitive conversion
-        out.write(buf, sprintf(buf, "%llu\n", counter));
+        if(flamegraph)
+           f->addLeaf(counter);
+        else {
+          // Beware of locale-sensitive conversion
+          out.write(buf, sprintf(buf, "%llu\n", counter));
+        }
+    }
+
+    if (flamegraph) {
+        flamegraph->prune(args._pruned);
+        flamegraph->dumpCollapsed(out);
+        delete flamegraph;
     }
 
     if (!out.good()) {

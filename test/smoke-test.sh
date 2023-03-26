@@ -21,7 +21,7 @@ fi
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../build/bin/asprof -f $FILENAME -o collapsed -d 5 $JAVAPID
+  ../build/bin/asprof -f $FILENAME -d 5 -o collapsed --prune 10 $JAVAPID
 
   kill $JAVAPID
 
@@ -30,6 +30,11 @@ fi
       exit 1
     fi
   }
+
+  if [ $(wc -l < $FILENAME) != 10 ]; then
+     echo "Wrong number of collapsed stacks in $FILENAME"
+     exit 1
+  fi
 
   assert_string "Target.main;Target.method1 "
   assert_string "Target.main;Target.method2 "

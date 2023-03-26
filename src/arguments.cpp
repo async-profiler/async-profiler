@@ -163,6 +163,11 @@ Error Arguments::parse(const char* args) {
             CASE("collapsed")
                 _output = OUTPUT_COLLAPSED;
 
+            CASE("prune")
+                _output = OUTPUT_COLLAPSED;
+                if(value == NULL || (_pruned = atoi(value)) <= 0)
+                  msg = "Invalid pruning";
+
             CASE("flamegraph")
                 _output = OUTPUT_FLAMEGRAPH;
 

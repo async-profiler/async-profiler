@@ -31,13 +31,18 @@ class Trie {
     u64 _total;
     u64 _self;
     u64 _inlined, _c1_compiled, _interpreted;
+    mutable int _n;
+    mutable Trie* _parent;
 
-    Trie() : _children(), _total(0), _self(0), _inlined(0), _c1_compiled(0), _interpreted(0) {
+    Trie() : _children(), _total(0), _self(0), _inlined(0), _c1_compiled(0), _interpreted(0), _n(0), _parent(0) {
     }
 
     Trie* addChild(const std::string& key, u64 value) {
         _total += value;
-        return &_children[key];
+        _n = _children.size() + 1;
+        Trie *ret = &_children[key];
+        ret->_parent = this;
+        return ret;
     }
 
     void addLeaf(u64 value) {
@@ -100,6 +105,10 @@ class FlameGraph {
     }
 
     void dump(std::ostream& out, bool tree);
+
+    void dumpCollapsed(std::ostream& out);
+
+    void prune(int n);
 };
 
 #endif // _FLAMEGRAPH_H

@@ -73,6 +73,7 @@ static const char USAGE_STRING[] =
     "\n"
     "  --loop time       run profiler in a loop\n"
     "  --alloc bytes     allocation profiling interval in bytes\n"
+    "  --prune num       prune to number of collapsed stacks\n"
     "  --live            build allocation profile from live objects only\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
@@ -430,6 +431,9 @@ int main(int argc, const char** argv) {
         } else if (arg == "--alloc" || arg == "--lock" || arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
+
+        } else if (arg == "--prune") {
+            format << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
             params << ",begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";

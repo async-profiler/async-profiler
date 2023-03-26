@@ -169,6 +169,7 @@ class Arguments {
     CStack _cstack;
     Clock _clock;
     Output _output;
+    int _pruned;
     long _chunk_size;
     long _chunk_time;
     const char* _jfr_sync;
@@ -216,6 +217,7 @@ class Arguments {
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
+        _pruned(0),
         _chunk_size(100 * 1024 * 1024),
         _chunk_time(3600),
         _jfr_sync(NULL),
