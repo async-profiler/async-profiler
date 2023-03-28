@@ -383,7 +383,13 @@ int main(int argc, const char** argv) {
             output = args.next();
 
         } else if (arg == "-e" || arg == "--event") {
-            params << ",event=" << args.next();
+            const char* event = args.next();
+            if (strchr(event, ',') != NULL && event[strlen(event) - 1] == '/') {
+                // PMU event, e.g.: cpu/umask=0x1,event=0xd3/
+                params << ",event=" << String(event).replace(',', ":");
+            } else {
+                params << ",event=" << event;
+            }
 
         } else if (arg == "-i" || arg == "--interval") {
             params << ",interval=" << args.next();
