@@ -37,6 +37,7 @@ class VMStructs {
     static int _symbol_length_offset;
     static int _symbol_length_and_refcount_offset;
     static int _symbol_body_offset;
+    static int _oop_klass_offset;
     static int _class_loader_data_offset;
     static int _class_loader_data_next_offset;
     static int _methods_offset;
@@ -79,6 +80,10 @@ class VMStructs {
     static const void** _code_heap_low_addr;
     static const void** _code_heap_high_addr;
     static int* _klass_offset_addr;
+    static char** _narrow_klass_base_addr;
+    static char* _narrow_klass_base;
+    static int* _narrow_klass_shift_addr;
+    static int _narrow_klass_shift;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -208,6 +213,15 @@ class VMKlass : VMStructs {
             return (VMKlass*)(*(uintptr_t**)handle + 2);
         } else {
             return (VMKlass*)handle;
+        }
+    }
+
+    static VMKlass* fromOop(uintptr_t oop) {
+        uintptr_t ptr = oop + _oop_klass_offset;
+        if (_narrow_klass_shift >= 0) {
+            return (VMKlass*)(_narrow_klass_base + ((uintptr_t)*(unsigned int*)ptr << _narrow_klass_shift));
+        } else {
+            return *(VMKlass**)ptr;
         }
     }
 

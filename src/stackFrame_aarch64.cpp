@@ -61,6 +61,10 @@ uintptr_t StackFrame::arg3() {
     return (uintptr_t)REG(regs[3], x[3]);
 }
 
+uintptr_t StackFrame::jarg0() {
+    return arg1();
+}
+
 void StackFrame::ret() {
     pc() = REG(regs[30], lr);
 }

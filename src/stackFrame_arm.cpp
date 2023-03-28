@@ -53,6 +53,11 @@ uintptr_t StackFrame::arg3() {
     return (uintptr_t)_ucontext->uc_mcontext.arm_r3;
 }
 
+uintptr_t StackFrame::jarg0() {
+    // Unimplemented
+    return 0;
+}
+
 void StackFrame::ret() {
     _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
 }

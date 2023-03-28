@@ -228,6 +228,16 @@ class Lookup {
         mi->_type = FRAME_INTERPRETED;
     }
 
+    void fillJavaClassInfo(MethodInfo* mi, u32 class_id) {
+        mi->_class = class_id;
+        mi->_name = _symbols.lookup("");
+        mi->_sig = _symbols.lookup("()L;");
+        mi->_modifiers = 0;
+        mi->_line_number_table_size = 0;
+        mi->_line_number_table = NULL;
+        mi->_type = FRAME_INLINED;
+    }
+
   public:
     Lookup(MethodMap* method_map, Dictionary* classes) :
         _method_map(method_map), _classes(classes), _packages(), _symbols() {
@@ -246,13 +256,15 @@ class Lookup {
             mi->_mark = true;
             if (method == NULL) {
                 fillNativeMethodInfo(mi, "unknown", NULL);
-            } else if (frame.bci == BCI_ERROR) {
-                fillNativeMethodInfo(mi, (const char*)method, NULL);
+            } else if (frame.bci > BCI_NATIVE_FRAME) {
+                fillJavaMethodInfo(mi, method, first_time);
             } else if (frame.bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
                 fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
+            } else if (frame.bci == BCI_ERROR) {
+                fillNativeMethodInfo(mi, (const char*)method, NULL);
             } else {
-                fillJavaMethodInfo(mi, method, first_time);
+                fillJavaClassInfo(mi, (uintptr_t)method);
             }
         }
 
@@ -1011,7 +1023,7 @@ class Recording {
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
                 buf->putVar32(mi->_key);
-                if (mi->_type < FRAME_NATIVE) {
+                if (mi->_type == FRAME_INTERPRETED) {
                     jint bci = trace->frames[i].bci;
                     FrameTypeId type = FrameType::decode(bci);
                     bci = (bci & 0x10000) ? 0 : (bci & 0xffff);

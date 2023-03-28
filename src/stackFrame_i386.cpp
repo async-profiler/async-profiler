@@ -53,6 +53,11 @@ uintptr_t StackFrame::arg3() {
     return stackAt(4);
 }
 
+uintptr_t StackFrame::jarg0() {
+    // Unimplemented
+    return 0;
+}
+
 void StackFrame::ret() {
     pc() = stackAt(0);
     sp() += 4;

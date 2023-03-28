@@ -58,6 +58,7 @@ class StackFrame {
     uintptr_t arg1();
     uintptr_t arg2();
     uintptr_t arg3();
+    uintptr_t jarg0();
 
     void ret();
 

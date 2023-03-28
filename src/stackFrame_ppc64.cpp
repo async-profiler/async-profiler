@@ -55,6 +55,11 @@ uintptr_t StackFrame::arg3() {
     return (uintptr_t)_ucontext->uc_mcontext.regs->gpr[6];
 }
 
+uintptr_t StackFrame::jarg0() {
+    // Unimplemented
+    return 0;
+}
+
 void StackFrame::ret() {
     _ucontext->uc_mcontext.regs->nip = _ucontext->uc_mcontext.regs->link;
 }

@@ -164,7 +164,7 @@ public class jfr2flame {
             } else {
                 String classStr = toJavaClassName(className, 0, args.dot);
                 String methodStr = new String(methodName, StandardCharsets.UTF_8);
-                result = classStr + '.' + methodStr;
+                result = methodStr.isEmpty() ? classStr : classStr + '.' + methodStr;
             }
         }
 

@@ -61,6 +61,10 @@ uintptr_t StackFrame::arg3() {
     return (uintptr_t)REG(RCX, rcx);
 }
 
+uintptr_t StackFrame::jarg0() {
+    return arg1();
+}
+
 void StackFrame::ret() {
     pc() = stackAt(0);
     sp() += 8;

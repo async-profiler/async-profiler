@@ -34,6 +34,7 @@ int VMStructs::_klass_name_offset = -1;
 int VMStructs::_symbol_length_offset = -1;
 int VMStructs::_symbol_length_and_refcount_offset = -1;
 int VMStructs::_symbol_body_offset = -1;
+int VMStructs::_oop_klass_offset = -1;
 int VMStructs::_class_loader_data_offset = -1;
 int VMStructs::_class_loader_data_next_offset = -1;
 int VMStructs::_methods_offset = -1;
@@ -76,6 +77,10 @@ char** VMStructs::_code_heap_addr = NULL;
 const void** VMStructs::_code_heap_low_addr = NULL;
 const void** VMStructs::_code_heap_high_addr = NULL;
 int* VMStructs::_klass_offset_addr = NULL;
+char** VMStructs::_narrow_klass_base_addr = NULL;
+char* VMStructs::_narrow_klass_base = NULL;
+int* VMStructs::_narrow_klass_shift_addr = NULL;
+int VMStructs::_narrow_klass_shift = -1;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -144,6 +149,16 @@ void VMStructs::initOffsets() {
                 _symbol_length_and_refcount_offset = *(int*)(entry + offset_offset);
             } else if (strcmp(field, "_body") == 0) {
                 _symbol_body_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "oopDesc") == 0) {
+            if (strcmp(field, "_metadata._klass") == 0) {
+                _oop_klass_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "Universe") == 0 || strcmp(type, "CompressedKlassPointers") == 0) {
+            if (strcmp(field, "_narrow_klass._base") == 0) {
+                _narrow_klass_base_addr = *(char***)(entry + address_offset);
+            } else if (strcmp(field, "_narrow_klass._shift") == 0) {
+                _narrow_klass_shift_addr = *(int**)(entry + address_offset);
             }
         } else if (strcmp(type, "CompiledMethod") == 0 || strcmp(type, "nmethod") == 0) {
             if (strcmp(field, "_method") == 0) {
@@ -287,7 +302,14 @@ void VMStructs::resolveOffsets() {
         _klass = (jfieldID)(uintptr_t)(*_klass_offset_addr << 2 | 2);
     }
 
+    char* ccp = (char*)JVMFlag::find("UseCompressedClassPointers");
+    if (ccp != NULL && *ccp && _narrow_klass_base_addr != NULL && _narrow_klass_shift_addr != NULL) {
+        _narrow_klass_base = *_narrow_klass_base_addr;
+        _narrow_klass_shift = *_narrow_klass_shift_addr;
+    }
+
     _has_class_names = _klass_name_offset >= 0
+            && _oop_klass_offset >= 0
             && (_symbol_length_offset >= 0 || _symbol_length_and_refcount_offset >= 0)
             && _symbol_body_offset >= 0
             && _klass != NULL;

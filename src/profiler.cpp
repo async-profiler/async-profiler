@@ -74,6 +74,7 @@ enum StackRecovery {
     UNWIND_NATIVE = 0x8,
     LAST_JAVA_PC  = 0x10,
     GC_TRACES     = 0x20,
+    VTABLE_TARGET = 0x40,
     PROBE_SP      = 0x100,
 };
 
@@ -399,6 +400,14 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
         if (stub != NULL) {
             if (_cstack != CSTACK_NO) {
+                if (!(_safe_mode & VTABLE_TARGET) && stub->_name[0] && strcmp(stub->_name + 1, "table stub") == 0) {
+                    uintptr_t receiver = frame.jarg0();
+                    if (receiver != 0 && VMStructs::hasClassNames()) {
+                        VMSymbol* symbol = VMKlass::fromOop(receiver)->name();
+                        u32 class_id = classMap()->lookup(symbol->body(), symbol->length());
+                        max_depth -= makeFrame(trace.frames++, BCI_ALLOC, class_id);
+                    }
+                }
                 max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, stub->_name);
             }
             if (!(_safe_mode & POP_STUB) && frame.popStub((instruction_t*)stub->_start, stub->_name)
