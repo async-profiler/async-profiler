@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package one.converter;
+
 import one.jfr.ClassRef;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;

@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package one.converter;
+
 /**
  * Main entry point of jar.
  * Lists available converters.

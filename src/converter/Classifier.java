@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+package one.converter;
+
 import one.jfr.Dictionary;
 import one.jfr.StackTrace;
 
