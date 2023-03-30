@@ -1461,7 +1461,7 @@ void Profiler::startTimer() {
             if (VM::jvmti()->RunAgentThread(thread_obj, timerThreadEntry, _timer_id, JVMTI_THREAD_NORM_PRIORITY) == 0) {
                 return;
             }
-            _timer_id = 0;
+            _timer_id = NULL;
         }
     }
 
@@ -1481,12 +1481,15 @@ void Profiler::timerLoop(void* timer_id) {
     u64 stop_micros = _stop_time * 1000000ULL;
     u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
 
-    MutexLocker ml(_timer_lock);
-    while (_timer_id == timer_id) {
-        while (!_timer_lock.waitUntil(sleep_until) && _timer_id == timer_id) {
-            // timeout not reached
+    while (true) {
+        {
+            // Release _timer_lock after sleep to avoid deadlock with Profiler::stop
+            MutexLocker ml(_timer_lock);
+            while (_timer_id == timer_id && !_timer_lock.waitUntil(sleep_until)) {
+                // timeout not reached
+            }
+            if (_timer_id != timer_id) return;
         }
-        if (_timer_id != timer_id) return;
 
         if ((current_micros = OS::micros()) >= stop_micros) {
             VM::restartProfiler();
