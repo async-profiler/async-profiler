@@ -51,6 +51,7 @@ const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
+const int MAX_VARINT_LENGTH = 10;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
@@ -997,7 +998,9 @@ class Recording {
             }
 
             buf->putVar32(threads[i]);
-            buf->putUtf8(thread_name);
+            int length = strlen(thread_name);
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - length);
+            buf->putUtf8(thread_name, length);
             buf->putVar32(threads[i]);
             if (thread_id == 0) {
                 buf->put8(0);
@@ -1105,9 +1108,10 @@ class Recording {
         buf->putVar32(T_SYMBOL);
         buf->putVar32(symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+            int length = strlen(it->second);
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - length - MAX_VARINT_LENGTH);
             buf->putVar64(it->first | _base_id);
-            buf->putUtf8(it->second);
-            flushIfNeeded(buf);
+            buf->putUtf8(it->second, length);
         }
     }
 
