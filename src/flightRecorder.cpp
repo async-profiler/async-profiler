@@ -795,6 +795,7 @@ class Recording {
     }
 
     void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
+        flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
         int start = buf->skip(5);
         buf->put8(T_ACTIVE_SETTING);
         buf->putVar64(_start_ticks);
@@ -805,7 +806,6 @@ class Recording {
         buf->putUtf8(key);
         buf->putUtf8(value);
         buf->putVar32(start, buf->offset() - start);
-        flushIfNeeded(buf);
     }
 
     void writeBoolSetting(Buffer* buf, int category, const char* key, bool value) {
@@ -996,6 +996,7 @@ class Recording {
                 thread_id = 0;
             }
 
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - 2 * MAX_STRING_LENGTH);
             buf->putVar32(threads[i]);
             buf->putUtf8(thread_name);
             buf->putVar32(threads[i]);
@@ -1005,7 +1006,6 @@ class Recording {
                 buf->putUtf8(thread_name);
             }
             buf->putVar64(thread_id);
-            flushIfNeeded(buf);
         }
     }
 
@@ -1105,9 +1105,9 @@ class Recording {
         buf->putVar32(T_SYMBOL);
         buf->putVar32(symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
             buf->putVar64(it->first | _base_id);
             buf->putUtf8(it->second);
-            flushIfNeeded(buf);
         }
     }
 
