@@ -148,6 +148,7 @@ class Arguments {
     long _interval;
     long _alloc;
     long _lock;
+    long _wall;
     int  _jstackdepth;
     int _safe_mode;
     const char* _file;
@@ -195,6 +196,7 @@ class Arguments {
         _interval(0),
         _alloc(-1),
         _lock(-1),
+        _wall(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _safe_mode(0),
         _file(NULL),

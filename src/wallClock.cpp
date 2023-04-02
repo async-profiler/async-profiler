@@ -59,8 +59,8 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     ExecutionEvent event;
-    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_RUNNING;
-    Profiler::instance()->recordSample(ucontext, _interval, 0, &event);
+    event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_UNKNOWN;
+    Profiler::instance()->recordSample(ucontext, _interval, EXECUTION_SAMPLE, &event);
 }
 
 long WallClock::adjustInterval(long interval, int thread_count) {
@@ -71,14 +71,13 @@ long WallClock::adjustInterval(long interval, int thread_count) {
 }
 
 Error WallClock::start(Arguments& args) {
-    if (args._interval < 0) {
-        return Error("interval must be positive");
+    _sample_idle_threads = args._wall >= 0 || strcmp(args._event, EVENT_WALL) == 0;
+
+    _interval = args._wall >= 0 ? args._wall : args._interval;
+    if (_interval == 0) {
+        // Increase default interval for wall clock mode due to larger number of sampled threads
+        _interval = _sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL;
     }
-
-    _sample_idle_threads = strcmp(args._event, EVENT_WALL) == 0;
-
-    // Increase default interval for wall clock mode due to larger number of sampled threads
-    _interval = args._interval ? args._interval : (_sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL);
 
     OS::installSignalHandler(SIGVTALRM, signalHandler);
 

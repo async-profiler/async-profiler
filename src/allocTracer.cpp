@@ -31,7 +31,7 @@ volatile u64 AllocTracer::_allocated_bytes;
 // Called whenever our breakpoint trap is hit
 void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
-    int event_type;
+    EventType event_type;
     uintptr_t total_size;
     uintptr_t instance_size;
 
@@ -39,13 +39,13 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (_in_new_tlab.covers(frame.pc())) {
         // send_allocation_in_new_tlab(Klass* klass, HeapWord* obj, size_t tlab_size, size_t alloc_size, Thread* thread)
         // send_allocation_in_new_tlab_event(KlassHandle klass, size_t tlab_size, size_t alloc_size)
-        event_type = BCI_ALLOC;
+        event_type = ALLOC_SAMPLE;
         total_size = _trap_kind == 1 ? frame.arg2() : frame.arg1();
         instance_size = _trap_kind == 1 ? frame.arg3() : frame.arg2();
     } else if (_outside_tlab.covers(frame.pc())) {
         // send_allocation_outside_tlab(Klass* klass, HeapWord* obj, size_t alloc_size, Thread* thread)
         // send_allocation_outside_tlab_event(KlassHandle klass, size_t alloc_size);
-        event_type = BCI_ALLOC_OUTSIDE_TLAB;
+        event_type = ALLOC_OUTSIDE_TLAB;
         total_size = _trap_kind == 1 ? frame.arg2() : frame.arg1();
         instance_size = 0;
     } else {
@@ -63,7 +63,7 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 }
 
-void AllocTracer::recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
+void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
     AllocEvent event;
     event._class_id = 0;

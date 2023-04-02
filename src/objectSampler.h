@@ -20,6 +20,7 @@
 #include <jvmti.h>
 #include "arch.h"
 #include "engine.h"
+#include "event.h"
 
 
 class ObjectSampler : public Engine {
@@ -31,7 +32,7 @@ class ObjectSampler : public Engine {
     static void initLiveRefs(bool live);
     static void dumpLiveRefs();
 
-    static void recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_type,
+    static void recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType event_type,
                                  jobject object, jclass object_klass, jlong size);
 
   public:

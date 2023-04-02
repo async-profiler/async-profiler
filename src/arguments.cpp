@@ -61,11 +61,12 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     status           - print profiling status (inactive / running for X seconds)
 //     meminfo          - print profiler memory stats
 //     list             - show the list of available profiling events
-//     version[=full]   - display the agent version
+//     version          - display the agent version
 //     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
 //     alloc[=BYTES]    - profile allocations with BYTES interval
 //     live             - build allocation profile from live objects only
 //     lock[=DURATION]  - profile contended locks longer than DURATION ns
+//     wall[=NS]        - run wall clock profiling together with CPU profiling
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
 //     tree             - produce call tree in HTML format
@@ -235,6 +236,9 @@ Error Arguments::parse(const char* args) {
             CASE("lock")
                 _lock = value == NULL ? 0 : parseUnits(value, NANOS);
 
+            CASE("wall")
+                _wall = value == NULL ? 0 : parseUnits(value, NANOS);
+
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
                     msg = "Invalid interval";
@@ -370,7 +374,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0) {
         _event = EVENT_CPU;
     }
 

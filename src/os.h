@@ -31,7 +31,7 @@ typedef void (*TimerCallback)(void*);
 const int WAKEUP_SIGNAL = SIGIO;
 
 enum ThreadState {
-    THREAD_INVALID,
+    THREAD_UNKNOWN,
     THREAD_RUNNING,
     THREAD_SLEEPING
 };

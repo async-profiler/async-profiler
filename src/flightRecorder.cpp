@@ -777,6 +777,9 @@ class Recording {
         if (args._event != NULL) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
         }
+        if (args._wall >= 0) {
+            writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
+        }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
@@ -964,7 +967,8 @@ class Recording {
 
     void writeThreadStates(Buffer* buf) {
         buf->putVar32(T_THREAD_STATE);
-        buf->putVar32(2);
+        buf->putVar32(3);
+        buf->putVar32(THREAD_UNKNOWN);     buf->putUtf8("STATE_DEFAULT");
         buf->putVar32(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
         buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
@@ -1364,26 +1368,28 @@ void FlightRecorder::stopMasterRecording() {
 }
 
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
-                                 int event_type, Event* event) {
+                                 EventType event_type, Event* event) {
     if (_rec != NULL) {
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
-            case 0:
+            case PERF_SAMPLE:
+            case EXECUTION_SAMPLE:
+            case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
                 break;
-            case BCI_ALLOC:
+            case ALLOC_SAMPLE:
                 _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
                 break;
-            case BCI_ALLOC_OUTSIDE_TLAB:
+            case ALLOC_OUTSIDE_TLAB:
                 _rec->recordAllocationOutsideTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
                 break;
-            case BCI_LIVE_OBJECT:
+            case LIVE_OBJECT:
                 _rec->recordLiveObject(buf, tid, call_trace_id, (LiveObject*)event);
                 break;
-            case BCI_LOCK:
+            case LOCK_SAMPLE:
                 _rec->recordMonitorBlocked(buf, tid, call_trace_id, (LockEvent*)event);
                 break;
-            case BCI_PARK:
+            case PARK_SAMPLE:
                 _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
                 break;
         }

@@ -83,7 +83,8 @@ enum StackRecovery {
 enum EventMask {
     EM_CPU   = 1,
     EM_ALLOC = 2,
-    EM_LOCK  = 4
+    EM_LOCK  = 4,
+    EM_WALL  = 8
 };
 
 
@@ -296,16 +297,16 @@ bool Profiler::isAddressInCode(uintptr_t addr) {
     }
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int event_type, int tid, StackContext* java_ctx) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
-    if (_cstack == CSTACK_NO || (event_type != 0 && _cstack == CSTACK_DEFAULT)) {
+    if (_cstack == CSTACK_NO || (event_type > EXECUTION_SAMPLE && _cstack == CSTACK_DEFAULT)) {
         return 0;
     }
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
-    if (event_type == 0 && _engine == &perf_events) {
+    if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
@@ -369,7 +370,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         if (state == 8 || state == 9) {
             if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
                 // call_stub is unsafe to walk
-                frames->bci = BCI_NATIVE_FRAME;
+                frames->bci = BCI_ERROR;
                 frames->method_id = (jmethodID)"call_stub";
                 return 1;
             }
@@ -588,7 +589,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
-u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* event) {
+u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
@@ -600,7 +601,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
-        if (event_type == 0 && _engine == &perf_events) {
+        if (event_type == PERF_SAMPLE) {
             // Need to reset PerfEvents ring buffer, even though we discard the collected trace
             PerfEvents::resetBuffer(tid);
         }
@@ -611,14 +612,16 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
-    if (_add_event_frame && event_type <= BCI_ALLOC && event_type >= BCI_PARK && event->id()) {
-        num_frames = makeFrame(frames, event_type, event->id());
+    if (_add_event_frame && event_type >= ALLOC_SAMPLE && event->id()) {
+        // Convert event_type to frame_type, e.g. ALLOC_SAMPLE -> BCI_ALLOC
+        jint frame_type = BCI_ALLOC - (event_type - ALLOC_SAMPLE);
+        num_frames = makeFrame(frames, frame_type, event->id());
     }
 
     StackContext java_ctx = {0};
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
 
-    if (event_type == 0) {
+    if (event_type <= EXECUTION_SAMPLE) {
         // Async events
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -628,7 +631,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
             }
         }
         num_frames += java_frames;
-    } else if (event_type >= BCI_ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
+    } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
         if (VMStructs::_get_stack_trace != NULL) {
             // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
             // but not directly, since the thread is in_vm rather than in_native
@@ -639,7 +642,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
-        int start_depth = event_type == BCI_INSTRUMENT ? 1 : 0;
+        int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
     }
 
@@ -661,7 +664,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, jint event_type, Event* 
     return (u64)tid << 32 | call_trace_id;
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
+void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, int num_frames, ASGCT_CallFrame* frames) {
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
@@ -688,7 +691,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, jint event_type, Event* event, u32 call_trace_id) {
+void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, u32 call_trace_id) {
     _call_trace_storage.add(call_trace_id, counter);
 
     u32 lock_index = getLockIndex(tid);
@@ -915,6 +918,8 @@ Engine* Profiler::activeEngine() {
             return _alloc_engine;
         case EM_LOCK:
             return &lock_tracer;
+        case EM_WALL:
+            return &wall_clock;
         default:
             return _engine;
     }
@@ -956,7 +961,8 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _event_mask = (args._event != NULL ? EM_CPU : 0) |
                   (args._alloc >= 0 ? EM_ALLOC : 0) |
-                  (args._lock >= 0 ? EM_LOCK : 0);
+                  (args._lock >= 0 ? EM_LOCK : 0) |
+                  (args._wall >= 0 ? EM_WALL : 0);
     if (_event_mask == 0) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
@@ -1015,6 +1021,10 @@ Error Profiler::start(Arguments& args, bool reset) {
     _thread_filter.init(args._filter);
 
     _engine = selectEngine(args._event);
+    if (_engine == &wall_clock && args._wall >= 0) {
+        return Error("Cannot start wall clock with the selected event");
+    }
+
     _cstack = args._cstack;
     if (_cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
         return Error("DWARF unwinding is not supported on this platform");
@@ -1059,6 +1069,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error3;
         }
     }
+    if (_event_mask & EM_WALL) {
+        error = wall_clock.start(args);
+        if (error) {
+            goto error4;
+        }
+    }
 
     switchThreadEvents(JVMTI_ENABLE);
 
@@ -1072,6 +1088,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     return Error::OK;
+
+error4:
+    if (_event_mask & EM_LOCK) lock_tracer.stop();
 
 error3:
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
@@ -1099,6 +1118,7 @@ Error Profiler::stop() {
 
     uninstallTraps();
 
+    if (_event_mask & EM_WALL) wall_clock.stop();
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
 
@@ -1140,6 +1160,9 @@ Error Profiler::check(Arguments& args) {
     }
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
+    }
+    if (!error && args._wall >= 0 && _engine == &wall_clock) {
+        return Error("Cannot start wall clock with the selected event");
     }
 
     return error;

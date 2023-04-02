@@ -125,7 +125,7 @@ class LiveRefs {
 
                     int tid = _values[i].trace >> 32;
                     u32 call_trace_id = (u32)_values[i].trace;
-                    profiler->recordExternalSample(event._alloc_size, tid, BCI_LIVE_OBJECT, &event, call_trace_id);
+                    profiler->recordExternalSample(event._alloc_size, tid, LIVE_OBJECT, &event, call_trace_id);
                 }
                 jni->DeleteWeakGlobalRef(w);
             }
@@ -141,7 +141,7 @@ static LiveRefs live_refs;
 void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                        jobject object, jclass object_klass, jlong size) {
     if (_enabled) {
-        recordAllocation(jvmti, jni, BCI_ALLOC, object, object_klass, size);
+        recordAllocation(jvmti, jni, ALLOC_SAMPLE, object, object_klass, size);
     }
 }
 
@@ -149,7 +149,7 @@ void ObjectSampler::GarbageCollectionStart(jvmtiEnv* jvmti) {
     live_refs.gc();
 }
 
-void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, int event_type,
+void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType event_type,
                                      jobject object, jclass object_klass, jlong size) {
     AllocEvent event;
     event._total_size = size > _interval ? size : _interval;

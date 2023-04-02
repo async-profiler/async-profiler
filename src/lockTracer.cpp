@@ -113,7 +113,7 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     // Time is meaningless if lock attempt has started before profiling
     if (_enabled && entered_time - enter_time >= _threshold && enter_time >= _start_time) {
         char* lock_name = getLockName(jvmti, env, object);
-        recordContendedLock(BCI_LOCK, enter_time, entered_time, lock_name, object, 0);
+        recordContendedLock(LOCK_SAMPLE, enter_time, entered_time, lock_name, object, 0);
         jvmti->Deallocate((unsigned char*)lock_name);
     }
 }
@@ -147,7 +147,7 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
         if (park_end_time - park_start_time >= _threshold) {
             char* lock_name = getLockName(jvmti, env, park_blocker);
             if (lock_name == NULL || isConcurrentLock(lock_name)) {
-                recordContendedLock(BCI_PARK, park_start_time, park_end_time, lock_name, park_blocker, time);
+                recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);
             }
             jvmti->Deallocate((unsigned char*)lock_name);
         }
@@ -179,7 +179,7 @@ bool LockTracer::isConcurrentLock(const char* lock_name) {
            strncmp(lock_name, "Ljava/util/concurrent/Semaphore", 31) == 0;
 }
 
-void LockTracer::recordContendedLock(int event_type, u64 start_time, u64 end_time,
+void LockTracer::recordContendedLock(EventType event_type, u64 start_time, u64 end_time,
                                      const char* lock_name, jobject lock, jlong timeout) {
     LockEvent event;
     event._class_id = 0;

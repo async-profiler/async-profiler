@@ -75,6 +75,7 @@ static const char USAGE_STRING[] =
     "  --alloc bytes     allocation profiling interval in bytes\n"
     "  --live            build allocation profile from live objects only\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
+    "  --wall interval   wall clock profiling interval\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
     "  --all-user        only include user-mode events\n"
     "  --sched           group threads by scheduling policy\n"
@@ -433,7 +434,8 @@ int main(int argc, const char** argv) {
         } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--lock" || arg == "--chunksize" || arg == "--chunktime" ||
+        } else if (arg == "--alloc" || arg == "--lock" || arg == "--wall" ||
+                   arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 

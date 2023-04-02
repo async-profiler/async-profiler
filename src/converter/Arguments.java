@@ -24,12 +24,12 @@ import java.util.regex.Pattern;
 class Arguments {
     String title = "Flame Graph";
     String highlight;
+    String state;
     Pattern include;
     Pattern exclude;
     double minwidth;
     int skip;
     boolean reverse;
-    boolean cpu;
     boolean alloc;
     boolean live;
     boolean lock;

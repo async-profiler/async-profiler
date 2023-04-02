@@ -21,6 +21,18 @@
 #include "os.h"
 
 
+// The order is important: look for event_type comparison
+enum EventType {
+    PERF_SAMPLE,
+    EXECUTION_SAMPLE,
+    INSTRUMENTED_METHOD,
+    ALLOC_SAMPLE,
+    ALLOC_OUTSIDE_TLAB,
+    LIVE_OBJECT,
+    LOCK_SAMPLE,
+    PARK_SAMPLE,
+};
+
 class Event {
   public:
     u32 id() {
@@ -32,7 +44,7 @@ class ExecutionEvent : public Event {
   public:
     ThreadState _thread_state;
 
-    ExecutionEvent() : _thread_state(THREAD_RUNNING) {
+    ExecutionEvent() : _thread_state(THREAD_UNKNOWN) {
     }
 };
 

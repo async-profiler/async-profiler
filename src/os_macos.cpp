@@ -191,7 +191,7 @@ ThreadState OS::threadState(int thread_id) {
     struct thread_basic_info info;
     mach_msg_type_number_t size = sizeof(info);
     if (thread_info((thread_act_t)thread_id, THREAD_BASIC_INFO, (thread_info_t)&info, &size) != 0) {
-        return THREAD_INVALID;
+        return THREAD_UNKNOWN;
     }
     return info.run_state == TH_STATE_RUNNING ? THREAD_RUNNING : THREAD_SLEEPING;
 }

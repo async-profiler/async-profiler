@@ -48,14 +48,21 @@ public class jfr2flame {
                 args.live ? LiveObject.class :
                         args.alloc ? AllocationSample.class :
                                 args.lock ? ContendedLock.class : ExecutionSample.class;
-        int threadState = args.cpu ? getMapKey(jfr.threadStates, "STATE_RUNNABLE") : -1;
+
+        long threadStates = 0;
+        if (args.state != null) {
+            for (String state : args.state.split(",")) {
+                int key = getMapKey(jfr.threadStates, "STATE_" + state.toUpperCase());
+                if (key >= 0) threadStates |= 1L << key;
+            }
+        }
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadState < 0 || ((ExecutionSample) event).threadState == threadState) {
+                if (threadStates == 0 || (threadStates & (1L << ((ExecutionSample) event).threadState)) != 0) {
                     agg.collect(event);
                 }
             }
@@ -242,20 +249,20 @@ public class jfr2flame {
             System.out.println("Usage: java " + jfr2flame.class.getName() + " [options] input.jfr [output.html]");
             System.out.println();
             System.out.println("options include all supported FlameGraph options, plus the following:");
-            System.out.println("  --cpu        CPU Flame Graph");
-            System.out.println("  --alloc      Allocation Flame Graph");
-            System.out.println("  --live       Include only live objects in allocation profile");
-            System.out.println("  --lock       Lock contention Flame Graph");
-            System.out.println("  --threads    Split profile by threads");
-            System.out.println("  --classify   Classify samples into predefined categories");
-            System.out.println("  --total      Accumulate the total value (time, bytes, etc.)");
-            System.out.println("  --lines      Show line numbers");
-            System.out.println("  --bci        Show bytecode indices");
-            System.out.println("  --simple     Simple class names instead of FQN");
-            System.out.println("  --dot        Dotted class names");
-            System.out.println("  --from TIME  Start time in ms (absolute or relative)");
-            System.out.println("  --to TIME    End time in ms (absolute or relative)");
-            System.out.println("  --collapsed  Use collapsed stacks output format");
+            System.out.println("  --alloc       Allocation Flame Graph");
+            System.out.println("  --live        Include only live objects in allocation profile");
+            System.out.println("  --lock        Lock contention Flame Graph");
+            System.out.println("  --threads     Split profile by threads");
+            System.out.println("  --state LIST  Filter samples by thread states: RUNNABLE, SLEEPING, etc.");
+            System.out.println("  --classify    Classify samples into predefined categories");
+            System.out.println("  --total       Accumulate the total value (time, bytes, etc.)");
+            System.out.println("  --lines       Show line numbers");
+            System.out.println("  --bci         Show bytecode indices");
+            System.out.println("  --simple      Simple class names instead of FQN");
+            System.out.println("  --dot         Dotted class names");
+            System.out.println("  --from TIME   Start time in ms (absolute or relative)");
+            System.out.println("  --to TIME     End time in ms (absolute or relative)");
+            System.out.println("  --collapsed   Use collapsed stacks output format");
             System.exit(1);
         }
 

@@ -59,7 +59,6 @@ enum ASGCT_CallFrameType {
     BCI_PARK                = -15,  // class name of the park() blocker
     BCI_THREAD_ID           = -16,  // method_id designates a thread
     BCI_ERROR               = -17,  // method_id is an error string
-    BCI_INSTRUMENT          = -18,  // synthetic method_id that should not appear in the call stack
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

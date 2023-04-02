@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include "engine.h"
+#include "event.h"
 #include "trap.h"
 
 
@@ -32,7 +33,7 @@ class AllocTracer : public Engine {
     static u64 _interval;
     static volatile u64 _allocated_bytes;
 
-    static void recordAllocation(void* ucontext, int event_type, uintptr_t rklass,
+    static void recordAllocation(void* ucontext, EventType event_type, uintptr_t rklass,
                                  uintptr_t total_size, uintptr_t instance_size);
 
   public:

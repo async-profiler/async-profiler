@@ -214,10 +214,10 @@ ThreadState OS::threadState(int thread_id) {
     sprintf(buf, "/proc/self/task/%d/stat", thread_id);
     int fd = open(buf, O_RDONLY);
     if (fd == -1) {
-        return THREAD_INVALID;
+        return THREAD_UNKNOWN;
     }
 
-    ThreadState state = THREAD_INVALID;
+    ThreadState state = THREAD_UNKNOWN;
     if (read(fd, buf, sizeof(buf)) > 0) {
         char* s = strchr(buf, ')');
         state = s != NULL && (s[2] == 'R' || s[2] == 'D') ? THREAD_RUNNING : THREAD_SLEEPING;
