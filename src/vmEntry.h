@@ -98,6 +98,8 @@ typedef struct {
 
 typedef VMManagement* (*JVM_GetManagement)(jint);
 
+typedef jlong (*JVM_MemoryFunc)();
+
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -130,6 +132,8 @@ class VM {
     static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
     static JVM_GetManagement _getManagement;
+    static JVM_MemoryFunc _totalMemory;
+    static JVM_MemoryFunc _freeMemory;
 
     static bool init(JavaVM* vm, bool attach);
 

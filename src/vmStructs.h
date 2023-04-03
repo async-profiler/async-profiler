@@ -84,6 +84,11 @@ class VMStructs {
     static char* _narrow_klass_base;
     static int* _narrow_klass_shift_addr;
     static int _narrow_klass_shift;
+    static char** _collected_heap_addr;
+    static char* _collected_heap;
+    static int _collected_heap_reserved_offset;
+    static int _region_start_offset;
+    static int _region_size_offset;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -378,6 +383,21 @@ class CodeHeap : VMStructs {
         if (contains(_code_heap[1], pc)) return findNMethod(_code_heap[1], pc);
         if (contains(_code_heap[2], pc)) return findNMethod(_code_heap[2], pc);
         return NULL;
+    }
+};
+
+class CollectedHeap : VMStructs {
+  public:
+    static CollectedHeap* heap() {
+        return (CollectedHeap*)_collected_heap;
+    }
+
+    uintptr_t start() {
+        return *(uintptr_t*) at(_region_start_offset);
+    }
+
+    uintptr_t size() {
+        return (*(uintptr_t*) at(_region_size_offset)) * sizeof(uintptr_t);
     }
 };
 

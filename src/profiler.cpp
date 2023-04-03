@@ -151,6 +151,11 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     updateThreadName(jvmti, jni, thread);
 }
 
+void Profiler::onGarbageCollectionFinish() {
+    // Called during GC pause, do not use JNI
+    __sync_fetch_and_add(&_gc_id, 1);
+}
+
 const char* Profiler::asgctError(int code) {
     switch (code) {
         case ticks_no_Java_frame:
@@ -1519,7 +1524,7 @@ void Profiler::timerLoop(void* timer_id) {
             return;
         }
 
-        bool need_switch_chunk = _jfr.timerTick(current_micros);
+        bool need_switch_chunk = _jfr.timerTick(current_micros, _gc_id);
         if (need_switch_chunk) {
             // Flush under profiler state lock
             flushJfr();

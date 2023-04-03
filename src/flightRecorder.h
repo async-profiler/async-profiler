@@ -39,7 +39,7 @@ class FlightRecorder {
     void stop();
     void flush();
     size_t usedMemory();
-    bool timerTick(u64 wall_time);
+    bool timerTick(u64 wall_time, u32 gc_id);
 
     bool active() const {
         return _rec != NULL;

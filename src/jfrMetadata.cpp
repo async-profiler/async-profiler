@@ -76,11 +76,21 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("modifiers", T_INT, "Access Modifiers")
                 << field("hidden", T_BOOLEAN, "Hidden"))
 
+            << (type("jdk.types.VirtualSpace", T_VIRTUAL_SPACE)
+                << field("start", T_LONG, "Start Address", F_ADDRESS)
+                << field("committedEnd", T_LONG, "Committed End Address", F_ADDRESS)
+                << field("committedSize", T_LONG, "Committed Size", F_BYTES)
+                << field("reservedEnd", T_LONG, "Reserved End Address", F_ADDRESS)
+                << field("reservedSize", T_LONG, "Reserved Size", F_BYTES))
+
             << (type("jdk.types.Package", T_PACKAGE, "Package")
                 << field("name", T_SYMBOL, "Name", F_CPOOL))
 
             << (type("jdk.types.Symbol", T_SYMBOL, "Symbol", true)
                 << field("string", T_STRING, "String"))
+
+            << (type("jdk.types.GCWhen", T_GC_WHEN, "GC When", true)
+                << field("when", T_STRING, "When"))
 
             << (type("profiler.types.LogLevel", T_LOG_LEVEL, "Log Level", true)
                 << field("name", T_STRING, "Name"))
@@ -197,6 +207,14 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("name", T_STRING, "Name")
                 << field("baseAddress", T_LONG, "Base Address", F_ADDRESS)
                 << field("topAddress", T_LONG, "Top Address", F_ADDRESS))
+
+            << (type("jdk.GCHeapSummary", T_GC_HEAP_SUMMARY, "Heap Summary")
+                << category("Java Virtual Machine", "GC", "Heap")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("gcId", T_INT, "GC Identifier", F_UNSIGNED)
+                << field("when", T_GC_WHEN, "When", F_CPOOL)
+                << field("heapSpace", T_VIRTUAL_SPACE, "VirtualSpace")
+                << field("heapUsed", T_LONG, "Heap Used", F_BYTES))
 
             << (type("profiler.Log", T_LOG, "Log Message")
                 << category("Profiler")

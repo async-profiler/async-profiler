@@ -80,6 +80,7 @@ class Profiler {
     time_t _start_time;
     time_t _stop_time;
     int _epoch;
+    u32 _gc_id;
     WaitableMutex _timer_lock;
     void* _timer_id;
 
@@ -116,6 +117,7 @@ class Profiler {
 
     void onThreadStart(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
     void onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
+    void onGarbageCollectionFinish();
 
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
@@ -162,6 +164,7 @@ class Profiler {
         _jfr(),
         _start_time(0),
         _epoch(0),
+        _gc_id(0),
         _timer_id(NULL),
         _max_stack_depth(0),
         _safe_mode(0),
@@ -237,6 +240,10 @@ class Profiler {
 
     static void JNICALL ThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
         instance()->onThreadEnd(jvmti, jni, thread);
+    }
+
+    static void JNICALL GarbageCollectionFinish(jvmtiEnv* jvmti) {
+        instance()->onGarbageCollectionFinish();
     }
 
     friend class Recording;

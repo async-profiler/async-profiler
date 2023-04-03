@@ -46,9 +46,11 @@ enum JfrType {
     T_STACK_TRACE = 26,
     T_STACK_FRAME = 27,
     T_METHOD = 28,
-    T_PACKAGE = 29,
-    T_SYMBOL = 30,
-    T_LOG_LEVEL = 31,
+    T_VIRTUAL_SPACE = 29,
+    T_PACKAGE = 30,
+    T_SYMBOL = 31,
+    T_GC_WHEN = 32,
+    T_LOG_LEVEL = 33,
 
     T_EVENT = 100,
     T_EXECUTION_SAMPLE = 101,
@@ -64,8 +66,9 @@ enum JfrType {
     T_JVM_INFORMATION = 111,
     T_INITIAL_SYSTEM_PROPERTY = 112,
     T_NATIVE_LIBRARY = 113,
-    T_LOG = 114,
-    T_LIVE_OBJECT = 115,
+    T_GC_HEAP_SUMMARY = 114,
+    T_LOG = 115,
+    T_LIVE_OBJECT = 116,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,
@@ -211,11 +214,14 @@ class JfrMetadata : Element {
         return e;
     }
 
-    static Element& category(const char* value0, const char* value1 = NULL) {
+    static Element& category(const char* value0, const char* value1 = NULL, const char* value2 = NULL) {
         Element& e = annotation(T_CATEGORY);
         e.attribute("value-0", value0);
         if (value1 != NULL) {
             e.attribute("value-1", value1);
+            if (value2 != NULL) {
+                e.attribute("value-2", value2);
+            }
         }
         return e;
     }

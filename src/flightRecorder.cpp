@@ -54,6 +54,11 @@ const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
+enum GCWhen {
+    BEFORE_GC,
+    AFTER_GC
+};
+
 
 static SpinLock _rec_lock(1);
 
@@ -455,8 +460,10 @@ class Recording {
     int _recorded_lib_count;
 
     bool _cpu_monitor_enabled;
-    SmallBuffer _cpu_monitor_buf;
+    bool _heap_monitor_enabled;
+    u32 _last_gc_id;
     CpuTimes _last_times;
+    SmallBuffer _monitor_buf;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -501,6 +508,9 @@ class Recording {
             _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
             _last_times.total.real = OS::getTotalCpuTime(&_last_times.total.user, &_last_times.total.system);
         }
+
+        _heap_monitor_enabled = !args.hasOption(NO_HEAP_SUMMARY) && VM::_totalMemory != NULL && VM::_freeMemory != NULL;
+        _last_gc_id = 0;
     }
 
     ~Recording() {
@@ -515,7 +525,7 @@ class Recording {
     }
 
     off_t finishChunk() {
-        flush(&_cpu_monitor_buf);
+        flush(&_monitor_buf);
 
         writeNativeLibraries(_buf);
 
@@ -605,10 +615,19 @@ class Recording {
             }
         }
 
-        recordCpuLoad(&_cpu_monitor_buf, proc_user, proc_system, machine_total);
-        flushIfNeeded(&_cpu_monitor_buf, SMALL_BUFFER_LIMIT);
+        recordCpuLoad(&_monitor_buf, proc_user, proc_system, machine_total);
+        flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_times = times;
+    }
+
+    void heapMonitorCycle(u32 gc_id) {
+        if (!_heap_monitor_enabled || gc_id == _last_gc_id) return;
+
+        recordHeapSummary(&_monitor_buf, gc_id, AFTER_GC, VM::_totalMemory(), VM::_freeMemory());
+        flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
+
+        _last_gc_id = gc_id;
     }
 
     bool hasMasterRecording() const {
@@ -939,11 +958,12 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(9);
+        buf->putVar32(10);
 
         Lookup lookup(&_method_map, Profiler::instance()->classMap());
         writeFrameTypes(buf);
         writeThreadStates(buf);
+        writeGCWhen(buf);
         writeThreads(buf);
         writeStackTraces(buf, &lookup);
         writeMethods(buf, &lookup);
@@ -971,6 +991,13 @@ class Recording {
         buf->putVar32(THREAD_UNKNOWN);     buf->putUtf8("STATE_DEFAULT");
         buf->putVar32(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
         buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
+    }
+
+    void writeGCWhen(Buffer* buf) {
+        buf->putVar32(T_GC_WHEN);
+        buf->putVar32(2);
+        buf->putVar32(BEFORE_GC);          buf->putUtf8("Before GC");
+        buf->putVar32(AFTER_GC);           buf->putUtf8("After GC");
     }
 
     void writeThreads(Buffer* buf) {
@@ -1206,6 +1233,25 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordHeapSummary(Buffer* buf, u32 id, GCWhen when, u64 total_memory, u64 free_memory) {
+        CollectedHeap* heap = CollectedHeap::heap();
+        u64 heap_start = heap != NULL ? heap->start() : 0;
+        u64 heap_size = heap != NULL ? heap->size() : total_memory;
+
+        int start = buf->skip(1);
+        buf->put8(T_GC_HEAP_SUMMARY);
+        buf->putVar64(TSC::ticks());
+        buf->putVar32(id);
+        buf->putVar32(when);
+        buf->putVar64(heap_start);
+        buf->putVar64(heap_start + total_memory);
+        buf->putVar64(total_memory);
+        buf->putVar64(heap_start + heap_size);
+        buf->putVar64(heap_size);
+        buf->putVar64(total_memory - free_memory);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void addThread(int tid) {
         if (!_thread_set.accept(tid)) {
             _thread_set.add(tid);
@@ -1252,6 +1298,8 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         free(filename_tmp);
     }
 
+    VM::jvmti()->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_FINISH, NULL);
+
     _rec = new Recording(fd, master_recording_file, args);
     _rec_lock.unlock();
     return Error::OK;
@@ -1264,6 +1312,8 @@ void FlightRecorder::stop() {
         if (_rec->hasMasterRecording()) {
             stopMasterRecording();
         }
+
+        VM::jvmti()->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_FINISH, NULL);
 
         delete _rec;
         _rec = NULL;
@@ -1288,13 +1338,14 @@ size_t FlightRecorder::usedMemory() {
     return bytes;
 }
 
-bool FlightRecorder::timerTick(u64 wall_time) {
+bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
     if (!_rec_lock.tryLockShared()) {
         // No active recording
         return false;
     }
 
     _rec->cpuMonitorCycle();
+    _rec->heapMonitorCycle(gc_id);
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 
     _rec_lock.unlockShared();

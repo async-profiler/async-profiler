@@ -106,6 +106,9 @@ class JfrSync implements FlightRecorderListener {
         if ((eventMask & 0x80) != 0) {
             recording.disable("jdk.CPULoad");
         }
+        if ((eventMask & 0x100) != 0) {
+            recording.disable("jdk.GCHeapSummary");
+        }
     }
 
     private static native void stopProfiler();

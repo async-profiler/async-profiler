@@ -81,6 +81,11 @@ char** VMStructs::_narrow_klass_base_addr = NULL;
 char* VMStructs::_narrow_klass_base = NULL;
 int* VMStructs::_narrow_klass_shift_addr = NULL;
 int VMStructs::_narrow_klass_shift = -1;
+char** VMStructs::_collected_heap_addr = NULL;
+char* VMStructs::_collected_heap = NULL;
+int VMStructs::_collected_heap_reserved_offset = -1;
+int VMStructs::_region_start_offset = -1;
+int VMStructs::_region_size_offset = -1;
 
 jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
@@ -159,6 +164,18 @@ void VMStructs::initOffsets() {
                 _narrow_klass_base_addr = *(char***)(entry + address_offset);
             } else if (strcmp(field, "_narrow_klass._shift") == 0) {
                 _narrow_klass_shift_addr = *(int**)(entry + address_offset);
+            } else if (strcmp(field, "_collectedHeap") == 0) {
+                _collected_heap_addr = *(char***)(entry + address_offset);
+            }
+        } else if (strcmp(type, "CollectedHeap") == 0) {
+            if (strcmp(field, "_reserved") == 0) {
+                _collected_heap_reserved_offset = *(int*)(entry + offset_offset);
+            }
+        } else if (strcmp(type, "MemRegion") == 0) {
+            if (strcmp(field, "_start") == 0) {
+                _region_start_offset = *(int*)(entry + offset_offset);
+            } else if (strcmp(field, "_word_size") == 0) {
+                _region_size_offset = *(int*)(entry + offset_offset);
             }
         } else if (strcmp(type, "CompiledMethod") == 0 || strcmp(type, "nmethod") == 0) {
             if (strcmp(field, "_method") == 0) {
@@ -352,6 +369,11 @@ void VMStructs::resolveOffsets() {
     if (_code_heap_memory_offset < 0 || _code_heap_segmap_offset < 0 ||
         _code_heap_segment_shift < 0 || _code_heap_segment_shift > 16) {
         memset(_code_heap, 0, sizeof(_code_heap));
+    }
+
+    if (_collected_heap_addr != NULL && _collected_heap_reserved_offset >= 0 &&
+        _region_start_offset >= 0 && _region_size_offset >= 0) {
+        _collected_heap = *_collected_heap_addr + _collected_heap_reserved_offset;
     }
 }
 

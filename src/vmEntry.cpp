@@ -52,6 +52,8 @@ void* VM::_libjvm;
 void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
+JVM_MemoryFunc VM::_totalMemory;
+JVM_MemoryFunc VM::_freeMemory;
 
 
 static void wakeupHandler(int signo) {
@@ -132,6 +134,8 @@ bool VM::init(JavaVM* vm, bool attach) {
     _libjvm = getLibraryHandle("libjvm.so");
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
     _getManagement = (JVM_GetManagement)dlsym(_libjvm, "JVM_GetManagement");
+    _totalMemory = (JVM_MemoryFunc)dlsym(_libjvm, "JVM_TotalMemory");
+    _freeMemory = (JVM_MemoryFunc)dlsym(_libjvm, "JVM_FreeMemory");
 
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
@@ -204,6 +208,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     callbacks.VMObjectAlloc = J9ObjectSampler::VMObjectAlloc;
     callbacks.SampledObjectAlloc = ObjectSampler::SampledObjectAlloc;
     callbacks.GarbageCollectionStart = ObjectSampler::GarbageCollectionStart;
+    callbacks.GarbageCollectionFinish = Profiler::GarbageCollectionFinish;
     _jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks));
 
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL);
