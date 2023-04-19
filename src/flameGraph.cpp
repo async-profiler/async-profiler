@@ -26,8 +26,8 @@
 // Browsers refuse to draw on canvas larger than 32767 px
 const int MAX_CANVAS_HEIGHT = 32767;
 
-INCBIN(FLAMEGRAPH_TEMPLATE, "flame.html")
-INCBIN(TREE_TEMPLATE, "tree.html")
+INCBIN(FLAMEGRAPH_TEMPLATE, "src/res/flame.html")
+INCBIN(TREE_TEMPLATE, "src/res/tree.html")
 
 
 class StringUtils {
