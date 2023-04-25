@@ -36,7 +36,7 @@ class SafeAccess {
     }
 
     static uintptr_t skipFaultInstruction(uintptr_t pc) {
-        if (pc - (uintptr_t)load < 16) {
+        if (pc - (uintptr_t)(load) < 16) {
 #if defined(__x86_64__)
             return *(u16*)pc == 0x8b48 ? 3 : 0;  // mov rax, [reg]
 #elif defined(__i386__)
