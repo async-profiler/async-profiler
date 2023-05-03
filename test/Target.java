@@ -14,7 +14,8 @@ class Target {
     }
 
     private static void method3() throws Exception {
-        for (int i = 0; i < 1000; ++i) {
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < 10) {
             for (String s : new File("/tmp").list()) {
                 value += s.hashCode();
             }
