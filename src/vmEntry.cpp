@@ -119,11 +119,11 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     if (is_hotspot && _jvmti->GetSystemProperty("java.vm.version", &prop) == 0) {
-        if (strncmp(prop, "25.", 3) == 0) {
+        if (strncmp(prop, "25.", 3) == 0 && prop[3] > '0') {
             _hotspot_version = 8;
-        } else if (strncmp(prop, "24.", 3) == 0) {
+        } else if (strncmp(prop, "24.", 3) == 0 && prop[3] > '0') {
             _hotspot_version = 7;
-        } else if (strncmp(prop, "20.", 3) == 0) {
+        } else if (strncmp(prop, "20.", 3) == 0 && prop[3] > '0') {
             _hotspot_version = 6;
         } else if ((_hotspot_version = atoi(prop)) < 9) {
             _hotspot_version = 9;
