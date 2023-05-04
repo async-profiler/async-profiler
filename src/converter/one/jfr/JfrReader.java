@@ -71,6 +71,7 @@ public class JfrReader implements Closeable {
     private int liveObject;
     private int monitorEnter;
     private int threadPark;
+    private int gcHeapSummary;
     private int activeSetting;
     private boolean activeSettingHasStack;
 
@@ -159,6 +160,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == gcHeapSummary) {
+                if (cls == null || cls == GCHeapSummary.class) return (E) readGCHeapSummary();
             } else if (type == activeSetting) {
                 readActiveSetting();
             }
@@ -208,6 +211,19 @@ public class JfrReader implements Closeable {
         long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
+    }
+
+    private GCHeapSummary readGCHeapSummary() {
+        long time = getVarlong();
+        int gcId = getVarint();
+        int when = getVarint();
+        long start = getVarlong();
+        long committedEnd = getVarlong();
+        long committedSize = getVarlong();
+        long reservedEnd = getVarlong();
+        long reservedSize = getVarlong();
+        long used = getVarlong();
+        return new GCHeapSummary(time, gcId, committedSize, reservedSize, used);
     }
 
     private void readActiveSetting() {
@@ -483,6 +499,7 @@ public class JfrReader implements Closeable {
         liveObject = getTypeId("profiler.LiveObject");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
+        gcHeapSummary = getTypeId("jdk.GCHeapSummary");
         activeSetting = getTypeId("jdk.ActiveSetting");
         activeSettingHasStack = activeSetting >= 0 && typesByName.get("jdk.ActiveSetting").field("stackTrace") != null;
     }
