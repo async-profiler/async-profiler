@@ -142,6 +142,8 @@ Wall-clock profiler is most useful in per-thread mode: `-t`.
 
 Example: `./profiler.sh -e wall -t -i 5ms -f result.html 8983`
 
+Some viewers(specifically IDEA) don't display Wall profile correctly if it is started without explicit `-i` option.
+
 ## Java method profiling
 
 `-e ClassName.methodName` option instruments the given Java method
