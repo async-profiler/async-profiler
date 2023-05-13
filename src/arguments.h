@@ -243,7 +243,7 @@ class Arguments {
 
     bool hasOutputFile() const {
         return _file != NULL &&
-            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_STATUS);
+            (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_CHECK);
     }
 
     bool hasOption(JfrOption option) const {
