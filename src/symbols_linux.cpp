@@ -387,7 +387,7 @@ loaded:
             reltab = findSection(SHT_REL, ".rel.plt");
         }
         if (plt != NULL && reltab != NULL) {
-            addRelocationSymbols(reltab, _base + plt->sh_offset + PLT_HEADER_SIZE);
+            addRelocationSymbols(reltab, _base + plt->sh_addr + PLT_HEADER_SIZE);
         }
     }
 }
@@ -578,8 +578,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         return;
     }
 
-    const char* last_readable_base = NULL;
-    const char* image_end = NULL;
+    const char* image_base = NULL;
+    u64 last_inode = 0;
     char* str = NULL;
     size_t str_size = 0;
     ssize_t len;
@@ -592,43 +592,50 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             continue;
         }
 
-        const char* image_base = map.addr();
-        if (image_base != image_end) last_readable_base = image_base;
-        image_end = map.end();
+        const char* map_start = map.addr();
+        unsigned long map_offs = map.offs();
 
-        if (map.isExecutable()) {
-            if (!_parsed_libraries.insert(image_base).second) {
-                continue;  // the library was already parsed
-            }
-
-            int count = array->count();
-            if (count >= MAX_NATIVE_LIBS) {
-                break;
-            }
-
-            CodeCache* cc = new CodeCache(map.file(), count, image_base, image_end);
-
-            // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
-            if (strchr(map.file(), ':') == NULL) {
-                unsigned long inode = map.inode();
-                if (inode != 0) {
-                    // Do not parse the same executable twice, e.g. on Alpine Linux
-                    if (_parsed_inodes.insert(u64(map.dev()) << 32 | inode).second) {
-                        // Be careful: executable file is not always ELF, e.g. classes.jsa
-                        unsigned long offs = map.offs();
-                        if ((unsigned long)image_base > offs && (image_base -= offs) >= last_readable_base) {
-                            ElfParser::parseProgramHeaders(cc, image_base, image_end);
-                        }
-                        ElfParser::parseFile(cc, image_base, map.file(), true);
-                    }
-                } else if (strcmp(map.file(), "[vdso]") == 0) {
-                    ElfParser::parseMem(cc, image_base);
-                }
-            }
-
-            cc->sort();
-            array->add(cc);
+        if (map_offs == 0) {
+            image_base = map_start;
+            last_inode = u64(map.dev()) << 32 | map.inode();
         }
+
+        if (!map.isExecutable() || !_parsed_libraries.insert(map_start).second) {
+            // Not an executable segment or it has been already parsed
+            continue;
+        }
+
+        int count = array->count();
+        if (count >= MAX_NATIVE_LIBS) {
+            break;
+        }
+
+        const char* map_end = map.end();
+        CodeCache* cc = new CodeCache(map.file(), count, map_start, map_end);
+
+        // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
+        if (strchr(map.file(), ':') == NULL) {
+            u64 inode = u64(map.dev()) << 32 | map.inode();
+            if (inode != 0) {
+                // Do not parse the same executable twice, e.g. on Alpine Linux
+                if (_parsed_inodes.insert(inode).second) {
+                    if (inode == last_inode) {
+                        // If last_inode is set, image_base is known to be valid and readable
+                        ElfParser::parseProgramHeaders(cc, image_base, map_end);
+                        ElfParser::parseFile(cc, image_base, map.file(), true);
+                    } else if ((unsigned long)map_start > map_offs) {
+                        // Unlikely case when image_base has not been found.
+                        // Be careful: executable file is not always ELF, e.g. classes.jsa
+                        ElfParser::parseFile(cc, map_start - map_offs, map.file(), true);
+                    }
+                }
+            } else if (strcmp(map.file(), "[vdso]") == 0) {
+                ElfParser::parseMem(cc, map_start);
+            }
+        }
+
+        cc->sort();
+        array->add(cc);
     }
 
     free(str);
