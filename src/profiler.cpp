@@ -399,8 +399,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     if ((trace.num_frames == ticks_unknown_Java || trace.num_frames == ticks_not_walkable_Java) && !(_safe_mode & UNKNOWN_JAVA) && ucontext != NULL) {
         CodeBlob* stub = NULL;
         _stubs_lock.lockShared();
-        if (_runtime_stubs.contains(java_ctx->pc)) {
-            stub = _runtime_stubs.find(java_ctx->pc);
+        if (_runtime_stubs.contains((const void*)frame.pc())) {
+            stub = _runtime_stubs.find((const void*)frame.pc());
         }
         _stubs_lock.unlockShared();
 
