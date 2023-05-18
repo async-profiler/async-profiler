@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.text.ParseException;
+import java.util.StringTokenizer;
 
 /**
  * Synchronize async-profiler recording with an existing JFR recording.
@@ -49,17 +50,22 @@ class JfrSync implements FlightRecorderListener {
     }
 
     public static void start(String fileName, String settings, int eventMask) throws IOException, ParseException {
-        Configuration config;
-        try {
-            config = Configuration.getConfiguration(settings);
-        } catch (NoSuchFileException e) {
-            config = Configuration.create(Paths.get(settings));
+        Recording recording;
+        if (settings.startsWith("+")) {
+            recording = new Recording();
+            for (StringTokenizer st = new StringTokenizer(settings, "+"); st.hasMoreTokens(); ) {
+                recording.enable(st.nextToken());
+            }
+        } else {
+            try {
+                recording = new Recording(Configuration.getConfiguration(settings));
+            } catch (NoSuchFileException e) {
+                recording = new Recording(Configuration.create(Paths.get(settings)));
+            }
+            disableBuiltinEvents(recording, eventMask);
         }
 
-        Recording recording = new Recording(config);
         masterRecording = recording;
-
-        disableBuiltinEvents(recording, eventMask);
 
         recording.setDestination(Paths.get(fileName));
         recording.setToDisk(true);

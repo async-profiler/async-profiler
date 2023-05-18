@@ -465,7 +465,8 @@ The following is a complete list of the command-line options accepted by
   synchronously with the profiler. The output .jfr file will include all regular
   JFR events, except that execution samples will be obtained from async-profiler.
   This option implies `-o jfr`.
-    - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc).
+    - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc)
+               or a list of JFR events started with `+`
 
   Example: `./profiler.sh -e cpu --jfrsync profile -f combined.jfr 8983`
 
