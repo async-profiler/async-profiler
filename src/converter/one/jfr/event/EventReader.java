@@ -16,19 +16,9 @@
 
 package one.jfr.event;
 
-public class GCHeapSummary extends Event {
-    public final int gcId;
-    public final boolean afterGC;
-    public final long committed;
-    public final long reserved;
-    public final long used;
+import one.jfr.JfrReader;
 
-    public GCHeapSummary(long time, int gcId, boolean afterGC, long committed, long reserved, long used) {
-        super(time, 0, 0);
-        this.gcId = gcId;
-        this.afterGC = afterGC;
-        this.committed = committed;
-        this.reserved = reserved;
-        this.used = used;
-    }
+public interface EventReader<E extends Event> {
+
+    E read(JfrReader jfr);
 }

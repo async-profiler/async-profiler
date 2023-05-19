@@ -14,21 +14,17 @@
  * limitations under the License.
  */
 
-package one.jfr.event;
+package one.jfr;
 
-public class GCHeapSummary extends Event {
-    public final int gcId;
-    public final boolean afterGC;
-    public final long committed;
-    public final long reserved;
-    public final long used;
+import one.jfr.event.Event;
+import one.jfr.event.EventReader;
 
-    public GCHeapSummary(long time, int gcId, boolean afterGC, long committed, long reserved, long used) {
-        super(time, 0, 0);
-        this.gcId = gcId;
-        this.afterGC = afterGC;
-        this.committed = committed;
-        this.reserved = reserved;
-        this.used = used;
+class CustomEvent<E extends Event> {
+    final Class<E> eventClass;
+    final EventReader<E> reader;
+
+    CustomEvent(Class<E> eventClass, EventReader<E> reader) {
+        this.eventClass = eventClass;
+        this.reader = reader;
     }
 }

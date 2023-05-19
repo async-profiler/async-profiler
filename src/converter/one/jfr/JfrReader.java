@@ -59,9 +59,10 @@ public class JfrReader implements Closeable {
     public final Dictionary<byte[]> symbols = new Dictionary<>();
     public final Dictionary<MethodRef> methods = new Dictionary<>();
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
-    public final Map<Integer, String> frameTypes = new HashMap<>();
-    public final Map<Integer, String> threadStates = new HashMap<>();
     public final Map<String, String> settings = new HashMap<>();
+    public final Map<String, Map<Integer, String>> enums = new HashMap<>();
+
+    private final Dictionary<CustomEvent<?>> customEvents = new Dictionary<>();
 
     private int executionSample;
     private int nativeMethodSample;
@@ -117,6 +118,13 @@ public class JfrReader implements Closeable {
         return (long) ((nanos - startNanos) * (ticksPerSec / 1e9)) + startTicks;
     }
 
+    public <E extends Event> void registerEvent(String name, Class<E> eventClass, EventReader<E> reader) {
+        JfrClass type = typesByName.get(name);
+        if (type != null) {
+            customEvents.put(type.id, new CustomEvent<>(eventClass, reader));
+        }
+    }
+
     public List<Event> readAllEvents() throws IOException {
         return readAllEvents(null);
     }
@@ -164,6 +172,11 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == GCHeapSummary.class) return (E) readGCHeapSummary();
             } else if (type == activeSetting) {
                 readActiveSetting();
+            } else {
+                CustomEvent<?> customEvent = customEvents.get(type);
+                if (customEvent != null && (cls == null || cls == customEvent.eventClass)) {
+                    return (E) customEvent.reader.read(this);
+                }
             }
 
             seek(filePosition + pos + size);
@@ -216,14 +229,14 @@ public class JfrReader implements Closeable {
     private GCHeapSummary readGCHeapSummary() {
         long time = getVarlong();
         int gcId = getVarint();
-        int when = getVarint();
+        boolean afterGC = getVarint() > 0;
         long start = getVarlong();
         long committedEnd = getVarlong();
         long committedSize = getVarlong();
         long reservedEnd = getVarlong();
         long reservedSize = getVarlong();
         long used = getVarlong();
-        return new GCHeapSummary(time, gcId, committedSize, reservedSize, used);
+        return new GCHeapSummary(time, gcId, afterGC, committedSize, reservedSize, used);
     }
 
     private void readActiveSetting() {
@@ -365,14 +378,12 @@ public class JfrReader implements Closeable {
             case "jdk.types.StackTrace":
                 readStackTraces();
                 break;
-            case "jdk.types.FrameType":
-                readMap(frameTypes);
-                break;
-            case "jdk.types.ThreadState":
-                readMap(threadStates);
-                break;
             default:
-                readOtherConstants(type.fields);
+                if (type.simpleType && type.fields.size() == 1) {
+                    readEnumValues(type.name);
+                } else {
+                    readOtherConstants(type.fields);
+                }
         }
     }
 
@@ -451,11 +462,13 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private void readMap(Map<Integer, String> map) {
+    private void readEnumValues(String typeName) {
+        HashMap<Integer, String> map = new HashMap<>();
         int count = getVarint();
         for (int i = 0; i < count; i++) {
             map.put(getVarint(), getString());
         }
+        enums.put(typeName, map);
     }
 
     private void readOtherConstants(List<JfrField> fields) {
@@ -509,7 +522,23 @@ public class JfrReader implements Closeable {
         return type != null ? type.id : -1;
     }
 
-    private int getVarint() {
+    public int getEnumKey(String typeName, String value) {
+        Map<Integer, String> enumValues = enums.get(typeName);
+        if (enumValues != null) {
+            for (Map.Entry<Integer, String> entry : enumValues.entrySet()) {
+                if (value.equals(entry.getValue())) {
+                    return entry.getKey();
+                }
+            }
+        }
+        return -1;
+    }
+
+    public String getEnumValue(String typeName, int key) {
+        return enums.get(typeName).get(key);
+    }
+
+    public int getVarint() {
         int result = 0;
         for (int shift = 0; ; shift += 7) {
             byte b = buf.get();
@@ -520,7 +549,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private long getVarlong() {
+    public long getVarlong() {
         long result = 0;
         for (int shift = 0; shift < 56; shift += 7) {
             byte b = buf.get();
@@ -532,7 +561,7 @@ public class JfrReader implements Closeable {
         return result | (buf.get() & 0xffL) << 56;
     }
 
-    private String getString() {
+    public String getString() {
         switch (buf.get()) {
             case 0:
                 return null;
@@ -554,7 +583,7 @@ public class JfrReader implements Closeable {
         }
     }
 
-    private byte[] getBytes() {
+    public byte[] getBytes() {
         byte[] bytes = new byte[getVarint()];
         buf.get(bytes);
         return bytes;

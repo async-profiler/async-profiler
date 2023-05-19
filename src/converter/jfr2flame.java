@@ -23,7 +23,6 @@ import one.jfr.event.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 /**
  * Converts .jfr output produced by async-profiler to HTML Flame Graph.
@@ -52,7 +51,7 @@ public class jfr2flame {
         long threadStates = 0;
         if (args.state != null) {
             for (String state : args.state.split(",")) {
-                int key = getMapKey(jfr.threadStates, "STATE_" + state.toUpperCase());
+                int key = jfr.getEnumKey("jdk.types.ThreadState", "STATE_" + state.toUpperCase());
                 if (key >= 0) threadStates |= 1L << key;
             }
         }
@@ -180,8 +179,9 @@ public class jfr2flame {
     }
 
     private boolean isNativeFrame(byte methodType) {
-        return methodType >= FlameGraph.FRAME_NATIVE && methodType <= FlameGraph.FRAME_KERNEL
-                && jfr.frameTypes.size() > FlameGraph.FRAME_NATIVE + 1;
+        return methodType == FlameGraph.FRAME_NATIVE && jfr.getEnumValue("jdk.types.FrameType", FlameGraph.FRAME_KERNEL) != null
+                || methodType == FlameGraph.FRAME_CPP
+                || methodType == FlameGraph.FRAME_KERNEL;
     }
 
     private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
@@ -232,15 +232,6 @@ public class jfr2flame {
             nanos += jfr.startNanos;
         }
         return jfr.nanosToTicks(nanos);
-    }
-
-    private static int getMapKey(Map<Integer, String> map, String value) {
-        for (Map.Entry<Integer, String> entry : map.entrySet()) {
-            if (value.equals(entry.getValue())) {
-                return entry.getKey();
-            }
-        }
-        return -1;
     }
 
     public static void main(String[] cmdline) throws Exception {

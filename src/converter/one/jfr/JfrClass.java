@@ -22,11 +22,13 @@ import java.util.Map;
 
 class JfrClass extends Element {
     final int id;
+    final boolean simpleType;
     final String name;
     final List<JfrField> fields;
 
     JfrClass(Map<String, String> attributes) {
         this.id = Integer.parseInt(attributes.get("id"));
+        this.simpleType = "true".equals(attributes.get("simpleType"));
         this.name = attributes.get("name");
         this.fields = new ArrayList<>(2);
     }
