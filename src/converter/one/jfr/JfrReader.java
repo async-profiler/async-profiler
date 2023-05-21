@@ -20,6 +20,7 @@ import one.jfr.event.*;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
@@ -62,7 +63,7 @@ public class JfrReader implements Closeable {
     public final Map<String, String> settings = new HashMap<>();
     public final Map<String, Map<Integer, String>> enums = new HashMap<>();
 
-    private final Dictionary<CustomEvent<?>> customEvents = new Dictionary<>();
+    private final Dictionary<Constructor<? extends Event>> customEvents = new Dictionary<>();
 
     private int executionSample;
     private int nativeMethodSample;
@@ -72,7 +73,6 @@ public class JfrReader implements Closeable {
     private int liveObject;
     private int monitorEnter;
     private int threadPark;
-    private int gcHeapSummary;
     private int activeSetting;
     private boolean activeSettingHasStack;
 
@@ -118,10 +118,14 @@ public class JfrReader implements Closeable {
         return (long) ((nanos - startNanos) * (ticksPerSec / 1e9)) + startTicks;
     }
 
-    public <E extends Event> void registerEvent(String name, Class<E> eventClass, EventReader<E> reader) {
+    public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
         JfrClass type = typesByName.get(name);
         if (type != null) {
-            customEvents.put(type.id, new CustomEvent<>(eventClass, reader));
+            try {
+                customEvents.put(type.id, eventClass.getConstructor(JfrReader.class));
+            } catch (NoSuchMethodException e) {
+                throw new IllegalArgumentException("No suitable constructor found");
+            }
         }
     }
 
@@ -168,14 +172,16 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
-            } else if (type == gcHeapSummary) {
-                if (cls == null || cls == GCHeapSummary.class) return (E) readGCHeapSummary();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
-                CustomEvent<?> customEvent = customEvents.get(type);
-                if (customEvent != null && (cls == null || cls == customEvent.eventClass)) {
-                    return (E) customEvent.reader.read(this);
+                Constructor<? extends Event> customEvent = customEvents.get(type);
+                if (customEvent != null && (cls == null || cls == customEvent.getDeclaringClass())) {
+                    try {
+                        return (E) customEvent.newInstance(this);
+                    } catch (ReflectiveOperationException e) {
+                        throw new IllegalStateException(e);
+                    }
                 }
             }
 
@@ -224,19 +230,6 @@ public class JfrReader implements Closeable {
         long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
-    }
-
-    private GCHeapSummary readGCHeapSummary() {
-        long time = getVarlong();
-        int gcId = getVarint();
-        boolean afterGC = getVarint() > 0;
-        long start = getVarlong();
-        long committedEnd = getVarlong();
-        long committedSize = getVarlong();
-        long reservedEnd = getVarlong();
-        long reservedSize = getVarlong();
-        long used = getVarlong();
-        return new GCHeapSummary(time, gcId, afterGC, committedSize, reservedSize, used);
     }
 
     private void readActiveSetting() {
@@ -466,7 +459,7 @@ public class JfrReader implements Closeable {
         HashMap<Integer, String> map = new HashMap<>();
         int count = getVarint();
         for (int i = 0; i < count; i++) {
-            map.put(getVarint(), getString());
+            map.put((int) getVarlong(), getString());
         }
         enums.put(typeName, map);
     }
@@ -512,9 +505,13 @@ public class JfrReader implements Closeable {
         liveObject = getTypeId("profiler.LiveObject");
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
-        gcHeapSummary = getTypeId("jdk.GCHeapSummary");
         activeSetting = getTypeId("jdk.ActiveSetting");
         activeSettingHasStack = activeSetting >= 0 && typesByName.get("jdk.ActiveSetting").field("stackTrace") != null;
+
+        registerEvent("jdk.CPULoad", CPULoad.class);
+        registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
+        registerEvent("jdk.ObjectCount", ObjectCount.class);
+        registerEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
     }
 
     private int getTypeId(String typeName) {
@@ -559,6 +556,14 @@ public class JfrReader implements Closeable {
             }
         }
         return result | (buf.get() & 0xffL) << 56;
+    }
+
+    public float getFloat() {
+        return buf.getFloat();
+    }
+
+    public double getDouble() {
+        return buf.getDouble();
     }
 
     public String getString() {

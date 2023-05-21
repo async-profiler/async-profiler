@@ -16,6 +16,8 @@
 
 package one.jfr.event;
 
+import java.lang.reflect.Field;
+
 public abstract class Event implements Comparable<Event> {
     public final long time;
     public final int tid;
@@ -35,6 +37,22 @@ public abstract class Event implements Comparable<Event> {
     @Override
     public int hashCode() {
         return stackTraceId;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(getClass().getSimpleName())
+                .append("{time=").append(time)
+                .append(",tid=").append(tid)
+                .append(",stackTraceId=").append(stackTraceId);
+        for (Field f : getClass().getDeclaredFields()) {
+            try {
+                sb.append(',').append(f.getName()).append('=').append(f.get(this));
+            } catch (ReflectiveOperationException e) {
+                break;
+            }
+        }
+        return sb.append('}').toString();
     }
 
     public boolean sameGroup(Event o) {

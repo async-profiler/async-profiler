@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
-package one.jfr;
+package one.jfr.event;
 
-import one.jfr.event.Event;
-import one.jfr.event.EventReader;
+import one.jfr.JfrReader;
 
-class CustomEvent<E extends Event> {
-    final Class<E> eventClass;
-    final EventReader<E> reader;
+public class CPULoad extends Event {
+    public final float jvmUser;
+    public final float jvmSystem;
+    public final float machineTotal;
 
-    CustomEvent(Class<E> eventClass, EventReader<E> reader) {
-        this.eventClass = eventClass;
-        this.reader = reader;
+    public CPULoad(JfrReader jfr) {
+        super(jfr.getVarlong(), 0, 0);
+        this.jvmUser = jfr.getFloat();
+        this.jvmSystem = jfr.getFloat();
+        this.machineTotal = jfr.getFloat();
     }
 }

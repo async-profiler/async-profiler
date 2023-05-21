@@ -16,6 +16,8 @@
 
 package one.jfr.event;
 
+import one.jfr.JfrReader;
+
 public class GCHeapSummary extends Event {
     public final int gcId;
     public final boolean afterGC;
@@ -23,12 +25,15 @@ public class GCHeapSummary extends Event {
     public final long reserved;
     public final long used;
 
-    public GCHeapSummary(long time, int gcId, boolean afterGC, long committed, long reserved, long used) {
-        super(time, 0, 0);
-        this.gcId = gcId;
-        this.afterGC = afterGC;
-        this.committed = committed;
-        this.reserved = reserved;
-        this.used = used;
+    public GCHeapSummary(JfrReader jfr) {
+        super(jfr.getVarlong(), 0, 0);
+        this.gcId = jfr.getVarint();
+        this.afterGC = jfr.getVarint() > 0;
+        long start = jfr.getVarlong();
+        long committedEnd = jfr.getVarlong();
+        this.committed = jfr.getVarlong();
+        long reservedEnd = jfr.getVarlong();
+        this.reserved = jfr.getVarlong();
+        this.used = jfr.getVarlong();
     }
 }
