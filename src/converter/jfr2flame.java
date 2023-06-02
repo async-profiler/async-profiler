@@ -114,7 +114,8 @@ public class jfr2flame {
 
     private String getThreadFrame(int tid) {
         String threadName = jfr.threads.get(tid);
-        return threadName == null ? "[tid=" + tid + ']' : '[' + threadName + " tid=" + tid + ']';
+        return threadName == null ? "[tid=" + tid + ']' :
+                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
     private String getClassFrame(Event event) {
