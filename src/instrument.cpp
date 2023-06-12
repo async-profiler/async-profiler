@@ -511,6 +511,10 @@ volatile bool Instrument::_running;
 
 Error Instrument::check(Arguments& args) {
     if (!_instrument_class_loaded) {
+        if (!VM::loaded()) {
+            return Error("Profiling event is not supported with non-Java processes");
+        }
+
         JNIEnv* jni = VM::jni();
         const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
 

@@ -981,6 +981,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
         return Error("Only JFR output supports multiple events");
+    } else if (!VM::loaded() && (_event_mask & (EM_ALLOC | EM_LOCK))) {
+        return Error("Profiling event is not supported with non-Java processes");
     }
 
     if (args._fdtransfer) {
