@@ -18,6 +18,7 @@
 #include <sstream>
 #include <errno.h>
 #include <string.h>
+#include "asprof.h"
 #include "incbin.h"
 #include "javaApi.h"
 #include "os.h"

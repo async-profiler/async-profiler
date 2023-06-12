@@ -268,6 +268,12 @@ bool OS::getCpuDescription(char* buf, size_t size) {
     return sysctlbyname("machdep.cpu.brand_string", buf, &size, NULL, 0) == 0;
 }
 
+int OS::getCpuCount() {
+    int cpu_count;
+    size_t size = sizeof(cpu_count);
+    return sysctlbyname("hw.logicalcpu", &cpu_count, &size, NULL, 0) == 0 ? cpu_count : 1;
+}
+
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
     struct tms buf;
     clock_t real = times(&buf);

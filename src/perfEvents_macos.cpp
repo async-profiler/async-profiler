@@ -26,6 +26,7 @@ long PerfEvents::_interval;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_use_mmap_page;
+bool PerfEvents::_running;
 
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
     return 0;

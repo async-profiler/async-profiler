@@ -729,8 +729,10 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
 }
 
 void Profiler::switchLibraryTrap(bool enable) {
-    void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
-    __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
+    if (_dlopen_entry != NULL) {
+        void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
+        __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
+    }
 }
 
 Error Profiler::installTraps(const char* begin, const char* end) {
@@ -801,15 +803,22 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     orig_segvHandler(signo, siginfo, ucontext);
 }
 
+void Profiler::wakeupHandler(int signo) {
+    // Dummy handler for interrupting syscalls
+}
+
 void Profiler::setupSignalHandlers() {
     orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
     if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
         orig_trapHandler = NULL;
     }
+
     if (VM::hotspot_version() > 0) {
         // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
         orig_segvHandler = OS::replaceCrashHandler(segvHandler);
     }
+
+    OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
 }
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
@@ -832,7 +841,7 @@ void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 }
 
 void Profiler::updateJavaThreadNames() {
-    if (_update_thread_names) {
+    if (_update_thread_names && VM::loaded()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint thread_count;
         jthread* thread_objects;
@@ -929,23 +938,25 @@ Engine* Profiler::activeEngine() {
 }
 
 Error Profiler::checkJvmCapabilities() {
-    if (!VMStructs::hasJavaThreadId()) {
-        return Error("Could not find Thread ID field. Unsupported JVM?");
-    }
-
-    if (VMThread::key() < 0) {
-        return Error("Could not find VMThread bridge. Unsupported JVM?");
-    }
-
-    if (_dlopen_entry == NULL) {
-        CodeCache* lib = findJvmLibrary("libj9prt");
-        if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
-            return Error("Could not set dlopen hook. Unsupported JVM?");
+    if (VM::loaded()) {
+        if (!VMStructs::hasJavaThreadId()) {
+            return Error("Could not find Thread ID field. Unsupported JVM?");
         }
-    }
 
-    if (!VMStructs::libjvm()->hasDebugSymbols()) {
-        Log::warn("Install JVM debug symbols to improve profile accuracy");
+        if (VMThread::key() < 0) {
+            return Error("Could not find VMThread bridge. Unsupported JVM?");
+        }
+
+        if (_dlopen_entry == NULL) {
+            CodeCache* lib = findJvmLibrary("libj9prt");
+            if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
+                return Error("Could not set dlopen hook. Unsupported JVM?");
+            }
+        }
+
+        if (!VMStructs::libjvm()->hasDebugSymbols()) {
+            Log::warn("Install JVM debug symbols to improve profile accuracy");
+        }
     }
 
     return Error::OK;
@@ -983,7 +994,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _total_samples = 0;
         memset(_failures, 0, sizeof(_failures));
 
-        // Reset dicrionaries and bitmaps
+        // Reset dictionaries and bitmaps
         lockAll();
         _class_map.clear();
         _thread_filter.clear();
@@ -1258,7 +1269,7 @@ void Profiler::unlockAll() {
 }
 
 void Profiler::switchThreadEvents(jvmtiEventMode mode) {
-    if (_thread_events_state != mode) {
+    if (_thread_events_state != mode && VM::loaded()) {
         jvmtiEnv* jvmti = VM::jvmti();
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_START, NULL);
         jvmti->SetEventNotificationMode(mode, JVMTI_EVENT_THREAD_END, NULL);
@@ -1472,26 +1483,38 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
 }
 
 void Profiler::startTimer() {
-    JNIEnv* jni = VM::jni();
-    jclass Thread = jni->FindClass("java/lang/Thread");
-    jmethodID init = jni->GetMethodID(Thread, "<init>", "(Ljava/lang/String;)V");
-    jmethodID setDaemon = jni->GetMethodID(Thread, "setDaemon", "(Z)V");
+    if (VM::loaded()) {
+        JNIEnv* jni = VM::jni();
+        jclass Thread = jni->FindClass("java/lang/Thread");
+        jmethodID init = jni->GetMethodID(Thread, "<init>", "(Ljava/lang/String;)V");
+        jmethodID setDaemon = jni->GetMethodID(Thread, "setDaemon", "(Z)V");
 
-    jstring name = jni->NewStringUTF("Async-profiler Timer");
-    if (name != NULL && init != NULL && setDaemon != NULL) {
-        jthread thread_obj = jni->NewObject(Thread, init, name);
-        if (thread_obj != NULL) {
-            jni->CallVoidMethod(thread_obj, setDaemon, JNI_TRUE);
-            MutexLocker ml(_timer_lock);
-            _timer_id = (void*)(intptr_t)(0x80000000 | _epoch);
-            if (VM::jvmti()->RunAgentThread(thread_obj, timerThreadEntry, _timer_id, JVMTI_THREAD_NORM_PRIORITY) == 0) {
-                return;
+        jstring name = jni->NewStringUTF("Async-profiler Timer");
+        if (name != NULL && init != NULL && setDaemon != NULL) {
+            jthread thread_obj = jni->NewObject(Thread, init, name);
+            if (thread_obj != NULL) {
+                jni->CallVoidMethod(thread_obj, setDaemon, JNI_TRUE);
+                MutexLocker ml(_timer_lock);
+                _timer_id = (void*)(intptr_t)(0x80000000 | _epoch);
+                if (VM::jvmti()->RunAgentThread(thread_obj, jvmtiTimerEntry, _timer_id, JVMTI_THREAD_NORM_PRIORITY) == 0) {
+                    return;
+                }
+                _timer_id = NULL;
             }
-            _timer_id = NULL;
         }
-    }
 
-    jni->ExceptionDescribe();
+        jni->ExceptionDescribe();
+    } else {
+        // If profiling a native app, start a raw pthread instead of a JVM thread
+        MutexLocker ml(_timer_lock);
+        _timer_id = (void*)(intptr_t)(0x80000000 | _epoch);
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, pthreadTimerEntry, _timer_id) == 0) {
+            pthread_detach(thread);
+            return;
+        }
+        _timer_id = NULL;
+    }
 }
 
 void Profiler::stopTimer() {
@@ -1530,10 +1553,6 @@ void Profiler::timerLoop(void* timer_id) {
 
         sleep_until = current_micros + 1000000;
     }
-}
-
-void Profiler::timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
-    instance()->timerLoop(arg);
 }
 
 Error Profiler::runInternal(Arguments& args, std::ostream& out) {

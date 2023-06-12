@@ -143,7 +143,15 @@ class Profiler {
     void startTimer();
     void stopTimer();
     void timerLoop(void* timer_id);
-    static void timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg);
+
+    static void jvmtiTimerEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
+        instance()->timerLoop(arg);
+    }
+
+    static void* pthreadTimerEntry(void* arg) {
+        instance()->timerLoop(arg);
+        return NULL;
+    }
 
     void lockAll();
     void unlockAll();
@@ -190,6 +198,7 @@ class Profiler {
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
+    CodeCacheArray* nativeLibs() { return &_native_libs; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, std::ostream& out);
@@ -219,6 +228,7 @@ class Profiler {
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void wakeupHandler(int signo);
     static void setupSignalHandlers();
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default

@@ -35,6 +35,7 @@ class PerfEvents : public Engine {
     static Ring _ring;
     static CStack _cstack;
     static bool _use_mmap_page;
+    static bool _running;
 
     static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);

@@ -20,6 +20,7 @@
 #include <sys/mman.h>
 #include "vmEntry.h"
 #include "arguments.h"
+#include "asprof.h"
 #include "j9Ext.h"
 #include "j9ObjectSampler.h"
 #include "javaApi.h"
@@ -55,10 +56,6 @@ JVM_GetManagement VM::_getManagement;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
-
-static void wakeupHandler(int signo) {
-    // Dummy handler for interrupting syscalls
-}
 
 static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
@@ -99,7 +96,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     Dl_info dl_info;
-    if (dladdr((const void*)wakeupHandler, &dl_info) && dl_info.dli_fname != NULL) {
+    if (dladdr((const void*)resolveMethodId, &dl_info) && dl_info.dli_fname != NULL) {
         // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
         // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
         dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
@@ -215,6 +212,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, NULL);
     _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_DYNAMIC_CODE_GENERATED, NULL);
+    _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_GARBAGE_COLLECTION_FINISH, NULL);
 
     if (hotspot_version() == 0 || !CodeHeap::available()) {
         // Workaround for JDK-8173361: avoid CompiledMethodLoad events when possible
@@ -235,8 +233,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     } else {
         _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     }
-
-    OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);
 
     return true;
 }

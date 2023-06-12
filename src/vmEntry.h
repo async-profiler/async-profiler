@@ -20,13 +20,6 @@
 #include <jvmti.h>
 
 
-#ifdef __clang__
-#  define DLLEXPORT __attribute__((visibility("default")))
-#else
-#  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
-#endif
-
-
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
     FRAME_JIT_COMPILED = 1,
@@ -138,6 +131,10 @@ class VM {
     static bool init(JavaVM* vm, bool attach);
 
     static void restartProfiler();
+
+    static bool loaded() {
+        return _jvmti != NULL;
+    }
 
     static jvmtiEnv* jvmti() {
         return _jvmti;

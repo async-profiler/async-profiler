@@ -29,7 +29,7 @@ const char* const Log::LEVEL_NAME[] = {
 };
 
 FILE* Log::_file = stdout;
-LogLevel Log::_level = LOG_TRACE;
+LogLevel Log::_level = LOG_INFO;
 
 
 void Log::open(Arguments& args) {
@@ -54,7 +54,7 @@ void Log::open(const char* file_name, const char* level) {
         warn("Could not open log file: %s", file_name);
     }
 
-    LogLevel l = LOG_TRACE;
+    LogLevel l = LOG_INFO;
     if (level != NULL) {
         for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
             if (strcasecmp(LEVEL_NAME[i], level) == 0) {

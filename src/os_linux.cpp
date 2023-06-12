@@ -301,6 +301,10 @@ bool OS::getCpuDescription(char* buf, size_t size) {
     return true;
 }
 
+int OS::getCpuCount() {
+    return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
 u64 OS::getProcessCpuTime(u64* utime, u64* stime) {
     struct tms buf;
     clock_t real = times(&buf);

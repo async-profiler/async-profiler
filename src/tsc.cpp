@@ -27,7 +27,7 @@ u64 TSC::_frequency = NANOTIME_FREQ;
 
 
 void TSC::enable(Clock clock) {
-    if (!TSC_SUPPORTED || clock == CLK_MONOTONIC) {
+    if (!TSC_SUPPORTED || clock == CLK_MONOTONIC || !VM::loaded()) {
         _enabled = false;
         return;
     }
