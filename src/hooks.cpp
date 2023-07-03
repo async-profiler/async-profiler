@@ -192,17 +192,8 @@ void Hooks::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        cc->makeGotPatchable();
-
-        for (void** entry = cc->gotStart(); entry < cc->gotEnd(); entry++) {
-            const char* sym = cc->binarySearch(*entry);
-            if (*entry == (void*)_orig_pthread_create || strcmp(sym, "pthread_create@plt") == 0) {
-                *entry = (void*)pthread_create_hook;
-            } else if (*entry == (void*)_orig_pthread_exit || strcmp(sym, "pthread_exit@plt") == 0) {
-                *entry = (void*)pthread_exit_hook;
-            } else if (*entry == (void*)_orig_dlopen || strcmp(sym, "dlopen@plt") == 0) {
-                *entry = (void*)dlopen_hook;
-            }
-        }
+        cc->patchImport(im_dlopen, (void*)dlopen_hook);
+        cc->patchImport(im_pthread_create, (void*)pthread_create_hook);
+        cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
     }
 }

@@ -29,6 +29,15 @@ const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 const int MAX_NATIVE_LIBS = 2048;
 
 
+enum ImportId {
+    im_dlopen,
+    im_pthread_create,
+    im_pthread_exit,
+    im_pthread_setspecific,
+    NUM_IMPORTS
+};
+
+
 class NativeFunc {
   private:
     short _lib_index;
@@ -85,16 +94,15 @@ class CodeBlob {
 class FrameDesc;
 
 class CodeCache {
-  protected:
+  private:
     char* _name;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
     const char* _text_base;
 
-    void** _got_start;
-    void** _got_end;
-    bool _got_patchable;
+    void** _imports[NUM_IMPORTS];
+    bool _imports_patchable;
     bool _debug_symbols;
 
     FrameDesc* _dwarf_table;
@@ -105,10 +113,12 @@ class CodeCache {
     CodeBlob* _blobs;
 
     void expand();
+    void makeImportsPatchable();
 
   public:
     CodeCache(const char* name,
               short lib_index = -1,
+              bool imports_patchable = false,
               const void* min_address = NO_MIN_ADDRESS,
               const void* max_address = NO_MAX_ADDRESS);
 
@@ -134,14 +144,6 @@ class CodeCache {
         _text_base = text_base;
     }
 
-    void** gotStart() const {
-        return _got_start;
-    }
-
-    void** gotEnd() const {
-        return _got_end;
-    }
-
     bool hasDebugSymbols() const {
         return _debug_symbols;
     }
@@ -155,15 +157,15 @@ class CodeCache {
     void sort();
     void mark(NamePredicate predicate);
 
+    void addImport(void** entry, const char* name);
+    void** findImport(ImportId id);
+    void patchImport(ImportId, void* hook_func);
+
     CodeBlob* find(const void* address);
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
-
-    void setGlobalOffsetTable(void** start, void** end, bool patchable);
-    void** findGlobalOffsetEntry(void* address);
-    void makeGotPatchable();
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);

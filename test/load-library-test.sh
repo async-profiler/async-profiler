@@ -15,7 +15,7 @@ fi
      ${JAVA_HOME}/bin/javac LoadLibraryTest.java
   fi
 
-  ${JAVA_HOME}/bin/java -agentpath:../build/lib/libasyncProfiler.so LoadLibraryTest &
+  ${JAVA_HOME}/bin/java -agentpath:$(ls ../build/lib/libasyncProfiler.*) LoadLibraryTest &
 
   FILENAME=/tmp/java.trace
   JAVAPID=$!

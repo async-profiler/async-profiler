@@ -949,7 +949,7 @@ Error Profiler::checkJvmCapabilities() {
 
         if (_dlopen_entry == NULL) {
             CodeCache* lib = findJvmLibrary("libj9prt");
-            if (lib == NULL || (_dlopen_entry = lib->findGlobalOffsetEntry((void*)dlopen)) == NULL) {
+            if (lib == NULL || (_dlopen_entry = lib->findImport(im_dlopen)) == NULL) {
                 return Error("Could not set dlopen hook. Unsupported JVM?");
             }
         }

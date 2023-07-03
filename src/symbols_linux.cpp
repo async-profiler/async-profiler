@@ -184,16 +184,16 @@ class ElfParser {
     void calcVirtualLoadAddress();
     void parseDynamicSection();
     void parseDwarfInfo();
+    uint32_t getSymbolCount(uint32_t* gnu_hash);
     void loadSymbols(bool use_debug);
     bool loadSymbolsUsingBuildId();
     bool loadSymbolsUsingDebugLink();
-    void loadSymbolTable(ElfSection* symtab);
+    void loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings);
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
 
   public:
     static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end);
     static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
-    static void parseMem(CodeCache* cc, const char* base);
 };
 
 
@@ -247,13 +247,6 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
     return true;
 }
 
-void ElfParser::parseMem(CodeCache* cc, const char* base) {
-    ElfParser elf(cc, base, base);
-    if (elf.validHeader()) {
-        elf.loadSymbols(false);
-    }
-}
-
 void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base, const char* end) {
     ElfParser elf(cc, base, base);
     if (elf.validHeader() && base + elf._header->e_phoff < end) {
@@ -280,19 +273,40 @@ void ElfParser::calcVirtualLoadAddress() {
 void ElfParser::parseDynamicSection() {
     ElfProgramHeader* dynamic = findProgramHeader(PT_DYNAMIC);
     if (dynamic != NULL) {
-        void** got_start = NULL;
-        size_t pltrelsz = 0;
+        const char* symtab = NULL;
+        const char* strtab = NULL;
+        char* jmprel = NULL;
         char* rel = NULL;
+        size_t pltrelsz = 0;
         size_t relsz = 0;
         size_t relent = 0;
         size_t relcount = 0;
+        size_t syment = 0;
+        uint32_t nsyms = 0;
 
         const char* dyn_start = at(dynamic);
         const char* dyn_end = dyn_start + dynamic->p_memsz;
         for (ElfDyn* dyn = (ElfDyn*)dyn_start; dyn < (ElfDyn*)dyn_end; dyn++) {
             switch (dyn->d_tag) {
-                case DT_PLTGOT:
-                    got_start = (void**)dyn_ptr(dyn) + 3;
+                case DT_SYMTAB:
+                    symtab = dyn_ptr(dyn);
+                    break;
+                case DT_STRTAB:
+                    strtab = dyn_ptr(dyn);
+                    break;
+                case DT_SYMENT:
+                    syment = dyn->d_un.d_val;
+                    break;
+                case DT_HASH:
+                    nsyms = ((uint32_t*)dyn_ptr(dyn))[1];
+                    break;
+                case DT_GNU_HASH:
+                    if (nsyms == 0) {
+                        nsyms = getSymbolCount((uint32_t*)dyn_ptr(dyn));
+                    }
+                    break;
+                case DT_JMPREL:
+                    jmprel = dyn_ptr(dyn);
                     break;
                 case DT_PLTRELSZ:
                     pltrelsz = dyn->d_un.d_val;
@@ -316,31 +330,34 @@ void ElfParser::parseDynamicSection() {
             }
         }
 
-        if (relent != 0) {
-            if (pltrelsz != 0 && got_start != NULL) {
-                // The number of entries in .got.plt section matches the number of entries in .rela.plt
-                _cc->setGlobalOffsetTable(got_start, got_start + pltrelsz / relent, false);
-            } else if (rel != NULL && relsz != 0) {
-                // RELRO technique: .got.plt has been merged into .got and made read-only.
-                // Find .got end from the highest relocation address.
-                void** min_addr = (void**)-1;
-                void** max_addr = (void**)0;
-                for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
-                    ElfRelocation* r = (ElfRelocation*)(rel + offs);
-                    if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
-                        void** addr = (void**)(_base + r->r_offset);
-                        if (addr < min_addr) min_addr = addr;
-                        if (addr > max_addr) max_addr = addr;
+        if (symtab == NULL || strtab == NULL || syment == 0 || nsyms == 0 || relent == 0) {
+            return;
+        }
+
+        if (!_cc->hasDebugSymbols()) {
+            loadSymbolTable(symtab, syment * nsyms, syment, strtab);
+        }
+
+        if (jmprel != NULL && pltrelsz != 0) {
+            // Parse .rela.plt table
+            for (size_t offs = 0; offs < pltrelsz; offs += relent) {
+                ElfRelocation* r = (ElfRelocation*)(jmprel + offs);
+                ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
+                if (sym->st_name != 0) {
+                    _cc->addImport((void**)(_base + r->r_offset), strtab + sym->st_name);
+                }
+            }
+        } else if (rel != NULL && relsz != 0) {
+            // Shared library was built without PLT (-fno-plt)
+            // Relocation entries have been moved from .rela.plt to .rela.dyn
+            for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
+                    ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
+                    if (sym->st_name != 0) {
+                        _cc->addImport((void**)(_base + r->r_offset), strtab + sym->st_name);
                     }
-                }
-
-                if (got_start == NULL) {
-                    got_start = (void**)min_addr;
-                }
-
-                if (max_addr >= got_start) {
-                    _cc->setGlobalOffsetTable(got_start, max_addr + 1, false);
-                }
+               }
             }
         }
     }
@@ -356,29 +373,34 @@ void ElfParser::parseDwarfInfo() {
     }
 }
 
+uint32_t ElfParser::getSymbolCount(uint32_t* gnu_hash) {
+    uint32_t nbuckets = gnu_hash[0];
+    uint32_t* buckets = &gnu_hash[4] + gnu_hash[2] * (sizeof(size_t) / 4);
+
+    uint32_t nsyms = 0;
+    for (uint32_t i = 0; i < nbuckets; i++) {
+        if (buckets[i] > nsyms) nsyms = buckets[i];
+    }
+
+    if (nsyms > 0) {
+        uint32_t* chain = &buckets[nbuckets] - gnu_hash[1];
+        while (!(chain[nsyms++] & 1));
+    }
+    return nsyms;
+}
+
 void ElfParser::loadSymbols(bool use_debug) {
-    // Look for debug symbols in the original .so
-    ElfSection* section = findSection(SHT_SYMTAB, ".symtab");
-    if (section != NULL) {
-        loadSymbolTable(section);
+    ElfSection* symtab = findSection(SHT_SYMTAB, ".symtab");
+    if (symtab != NULL) {
+        // Parse debug symbols from the original .so
+        ElfSection* strtab = section(symtab->sh_link);
+        loadSymbolTable(at(symtab), symtab->sh_size, symtab->sh_entsize, at(strtab));
         _cc->setDebugSymbols(true);
-        goto loaded;
+    } else if (use_debug) {
+        // Try to load symbols from an external debuginfo library
+        loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink();
     }
 
-    // Try to load symbols from an external debuginfo library
-    if (use_debug) {
-        if (loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink()) {
-            goto loaded;
-        }
-    }
-
-    // If everything else fails, load only exported symbols
-    section = findSection(SHT_DYNSYM, ".dynsym");
-    if (section != NULL) {
-        loadSymbolTable(section);
-    }
-
-loaded:
     if (use_debug) {
         // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
@@ -458,13 +480,8 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
     return result;
 }
 
-void ElfParser::loadSymbolTable(ElfSection* symtab) {
-    ElfSection* strtab = section(symtab->sh_link);
-    const char* strings = at(strtab);
-
-    const char* symbols = at(symtab);
-    const char* symbols_end = symbols + symtab->sh_size;
-    for (; symbols < symbols_end; symbols += symtab->sh_entsize) {
+void ElfParser::loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings) {
+    for (const char* symbols_end = symbols + total_size; symbols < symbols_end; symbols += ent_size) {
         ElfSymbol* sym = (ElfSymbol*)symbols;
         if (sym->st_name != 0 && sym->st_value != 0) {
             // Skip special AArch64 mapping symbols: $x and $d
@@ -611,7 +628,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
 
         const char* map_end = map.end();
-        CodeCache* cc = new CodeCache(map.file(), count, map_start, map_end);
+        CodeCache* cc = new CodeCache(map.file(), count, false, map_start, map_end);
 
         // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
         if (strchr(map.file(), ':') == NULL) {
@@ -621,8 +638,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                 if (_parsed_inodes.insert(inode).second) {
                     if (inode == last_inode) {
                         // If last_inode is set, image_base is known to be valid and readable
-                        ElfParser::parseProgramHeaders(cc, image_base, map_end);
                         ElfParser::parseFile(cc, image_base, map.file(), true);
+                        ElfParser::parseProgramHeaders(cc, image_base, map_end);
                     } else if ((unsigned long)map_start > map_offs) {
                         // Unlikely case when image_base has not been found.
                         // Be careful: executable file is not always ELF, e.g. classes.jsa
@@ -630,7 +647,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                     }
                 }
             } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseMem(cc, map_start);
+                ElfParser::parseProgramHeaders(cc, map_start, map_end);
             }
         }
 
