@@ -82,6 +82,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     loop=TIME        - run profiler in a loop (continuous profiling)
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
+//     signal=N         - use alternative signal for cpu or wall clock profiling
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
@@ -247,6 +248,14 @@ Error Arguments::parse(const char* args) {
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
                     msg = "jstackdepth must be > 0";
+                }
+
+            CASE("signal")
+                if (value == NULL || (_signal = atoi(value)) <= 0) {
+                    msg = "signal must be > 0";
+                } else if ((value = strchr(value, '/')) != NULL) {
+                    // Two signals were specified: one for CPU profiling, another for wall clock
+                    _signal |= atoi(value + 1) << 8;
                 }
 
             CASE("safemode")

@@ -448,6 +448,9 @@ The following is a complete list of the command-line options accepted by
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
 
+* `--signal NUM` - use alternative signal for cpu or wall clock profiling.
+  To change both signals, specify two numbers separated by a slash: `--signal SIGCPU/SIGWALL`.
+
 * `--clock SOURCE` - clock source for JFR timestamps: `tsc` (default)
   or `monotonic` (equivalent for `CLOCK_MONOTONIC`).
 

@@ -40,11 +40,19 @@ static pthread_create_t _orig_pthread_create = NULL;
 typedef void (*pthread_exit_t)(void*);
 static pthread_exit_t _orig_pthread_exit = NULL;
 
+static Arguments _preload_args(true);
+
 static void unblock_signals() {
     sigset_t set;
     sigemptyset(&set);
-    sigaddset(&set, SIGPROF);
-    sigaddset(&set, SIGVTALRM);
+    if (_preload_args._signal == 0) {
+        sigaddset(&set, SIGPROF);
+        sigaddset(&set, SIGVTALRM);
+    } else {
+        for (int s = _preload_args._signal; s > 0; s >>= 8) {
+            sigaddset(&set, s & 0xff);
+        }
+    }
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
@@ -137,8 +145,6 @@ void* dlopen(const char* filename, int flags) {
     return dlopen_hook_impl(filename, flags, false);
 }
 
-
-static Arguments _preload_args(true);
 
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;

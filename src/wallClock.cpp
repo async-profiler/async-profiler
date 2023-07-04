@@ -34,6 +34,7 @@ const long MIN_INTERVAL = 100000;
 
 
 long WallClock::_interval;
+int WallClock::_signal;
 bool WallClock::_sample_idle_threads;
 
 ThreadState WallClock::getThreadState(void* ucontext) {
@@ -79,7 +80,8 @@ Error WallClock::start(Arguments& args) {
         _interval = _sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL;
     }
 
-    OS::installSignalHandler(SIGVTALRM, signalHandler);
+    _signal = args._signal == 0 ? SIGVTALRM : ((args._signal >> 8) > 0 ? args._signal >> 8 : args._signal);
+    OS::installSignalHandler(_signal, signalHandler);
 
     _running = true;
 
@@ -129,7 +131,7 @@ void WallClock::timerLoop() {
             }
 
             if (sample_idle_threads || OS::threadState(thread_id) == THREAD_RUNNING) {
-                if (OS::sendSignalToThread(thread_id, SIGVTALRM)) {
+                if (OS::sendSignalToThread(thread_id, _signal)) {
                     count++;
                 }
             }

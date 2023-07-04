@@ -547,6 +547,7 @@ int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 long PerfEvents::_interval;
+int PerfEvents::_signal;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_use_mmap_page;
@@ -641,7 +642,7 @@ int PerfEvents::createForThread(int tid) {
     ex.pid = tid;
 
     int err;
-    if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, SIGPROF) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
+    if (fcntl(fd, F_SETFL, O_ASYNC) < 0 || fcntl(fd, F_SETSIG, _signal) < 0 || fcntl(fd, F_SETOWN_EX, &ex) < 0) {
         err = errno;
         Log::warn("perf_event fcntl failed: %s", strerror(err));
     } else if (ioctl(fd, PERF_EVENT_IOC_RESET, 0) < 0 || ioctl(fd, PERF_EVENT_IOC_REFRESH, 1) < 0) {
@@ -839,15 +840,17 @@ Error PerfEvents::start(Arguments& args) {
         _max_events = max_events;
     }
 
+    _signal = args._signal == 0 ? SIGPROF : args._signal & 0xff;
+
     if (VM::isOpenJ9()) {
         if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;
-        OS::installSignalHandler(SIGPROF, signalHandlerJ9);
+        OS::installSignalHandler(_signal, signalHandlerJ9);
         Error error = J9StackTraces::start(args);
         if (error) {
             return error;
         }
     } else {
-        OS::installSignalHandler(SIGPROF, signalHandler);
+        OS::installSignalHandler(_signal, signalHandler);
     }
 
     // Enable pthread hook before traversing currently running threads
