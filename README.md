@@ -358,7 +358,7 @@ The following is a complete list of the command-line options accepted by
 * `-i N` - sets the profiling interval in nanoseconds or in other units,
   if N is followed by `ms` (for milliseconds), `us` (for microseconds),
   or `s` (for seconds). Only CPU active time is counted. No samples
-  are collected while CPU is idle. The default is 10000000 (10ms).  
+  are collected while CPU is idle. By default, the profiler samples ~99 times a second.
   Example: `./profiler.sh -i 500us 8983`
 
 * `--alloc N` - allocation profiling interval in bytes or in other units,

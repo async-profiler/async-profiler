@@ -19,8 +19,9 @@
 
 #include <stddef.h>
 
-
-const long DEFAULT_INTERVAL = 10000000;      // 10 ms
+const long DEFAULT_FREQUENCY_HZ = 99;
+const long NS_IN_SEC = 1000000000;
+const long DEFAULT_INTERVAL = NS_IN_SEC / DEFAULT_FREQUENCY_HZ; // = 10101010[.101]ns
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const int DEFAULT_JSTACKDEPTH = 2048;
 
