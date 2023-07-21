@@ -65,6 +65,7 @@ static const char USAGE_STRING[] =
     "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr\n"
     "  -I include        output only stack traces containing the specified pattern\n"
     "  -X exclude        exclude stack traces with the specified pattern\n"
+    "  -L level          log level: debug|info|warn|error|none\n"
     "  -v, --version     display version string\n"
     "\n"
     "  --title string    FlameGraph title\n"
@@ -419,6 +420,9 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "-X" || arg == "--exclude") {
             format << ",exclude=" << args.next();
+
+        } else if (arg == "-L" || arg == "--log") {
+            format << ",loglevel=" << args.next();
 
         } else if (arg == "--filter") {
             format << ",filter=" << String(args.next()).replace(',', ";");

@@ -418,6 +418,8 @@ The following is a complete list of the command-line options accepted by
   a star `*` that denotes any (possibly empty) sequence of characters.  
   Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
 
+* `-L level` - log level: `debug`, `info`, `warn`, `error` or `none`.
+
 * `--title TITLE`, `--minwidth PERCENT`, `--reverse` - FlameGraph parameters.  
   Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
 

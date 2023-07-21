@@ -21,7 +21,7 @@ fi
   JAVAPID=$!
 
   sleep 1     # allow the Java runtime to initialize
-  ../build/bin/asprof -f $FILENAME -o collapsed -d 5 -i 1ms $JAVAPID
+  ../build/bin/asprof -f $FILENAME -o collapsed -d 5 -i 1ms -L error $JAVAPID
 
   kill $JAVAPID
 
