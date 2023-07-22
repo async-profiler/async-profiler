@@ -73,12 +73,15 @@ enum JfrType {
     T_ANNOTATION = 200,
     T_LABEL = 201,
     T_CATEGORY = 202,
-    T_TIMESTAMP = 203,
-    T_TIMESPAN = 204,
-    T_DATA_AMOUNT = 205,
-    T_MEMORY_ADDRESS = 206,
-    T_UNSIGNED = 207,
-    T_PERCENTAGE = 208,
+    T_CONTENT_TYPE = 203,
+    T_FIRST_CONTENT_TYPE = 204,
+    T_TIMESTAMP = 204,
+    T_TIMESPAN = 205,
+    T_DATA_AMOUNT = 206,
+    T_MEMORY_ADDRESS = 207,
+    T_UNSIGNED = 208,
+    T_PERCENTAGE = 209,
+    T_LAST_CONTENT_TYPE = 209,
 };
 
 
@@ -166,6 +169,9 @@ class JfrMetadata : Element {
         }
         if (label != NULL) {
             e << annotation(T_LABEL, label);
+        }
+        if (id >= T_FIRST_CONTENT_TYPE && id <= T_LAST_CONTENT_TYPE) {
+            e << annotation(T_CONTENT_TYPE);
         }
         return e;
     }
