@@ -160,9 +160,9 @@ void VMStructs::initOffsets() {
                     _oop_klass_offset = *(int*)(entry + offset_offset);
                 }
             } else if (strcmp(type, "Universe") == 0 || strcmp(type, "CompressedKlassPointers") == 0) {
-                if (strcmp(field, "_narrow_klass._base") == 0) {
+                if (strcmp(field, "_narrow_klass._base") == 0 || strcmp(field, "_base") == 0) {
                     _narrow_klass_base_addr = *(char***)(entry + address_offset);
-                } else if (strcmp(field, "_narrow_klass._shift") == 0) {
+                } else if (strcmp(field, "_narrow_klass._shift") == 0 || strcmp(field, "_shift") == 0) {
                     _narrow_klass_shift_addr = *(int**)(entry + address_offset);
                 } else if (strcmp(field, "_collectedHeap") == 0) {
                     _collected_heap_addr = *(char***)(entry + address_offset);
