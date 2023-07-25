@@ -345,6 +345,24 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
             return depth;
         }
 
+        // FIXME: optimize
+        if (current_method_name != NULL && strncmp(current_method_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0) {
+            if ((_safe_mode & COMPILE_TASK) && VMStructs::hasCompilerStructs()) {
+                VMThread* vm_thread = VMThread::current();
+                if (vm_thread != NULL) {
+                    VMMethod* method = vm_thread->compiledMethod();
+                    if (method != NULL) {
+                        jmethodID method_id = method->id();
+                        if (method_id != NULL) {
+                            frames[depth].bci = 0;
+                            frames[depth].method_id = method_id;
+                            depth++;
+                        }
+                    }
+                }
+            }
+        }
+
         jmethodID current_method = (jmethodID)current_method_name;
         if (current_method == prev_method && _cstack == CSTACK_LBR) {
             // Skip duplicates in LBR stack, where branch_stack[N].from == branch_stack[N+1].to
@@ -468,21 +486,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     } else if (trace.num_frames == ticks_unknown_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
         uintptr_t& sp = vm_thread->lastJavaSP();
         uintptr_t& pc = vm_thread->lastJavaPC();
-        if (sp == 0) {
-            // JavaThread with no Java frames - this is typically a CompilerThread
-            if ((_safe_mode & COMPILE_TASK) && VMStructs::hasCompilerStructs()) {
-                char name[64];
-                if (OS::threadName(name, sizeof(name)) && isCompilerThread(name)) {
-                    VMMethod* method = vm_thread->compiledMethod();
-                    if (method != NULL) {
-                        jmethodID method_id = method->id();
-                        if (method_id != NULL) {
-                            trace.num_frames = makeFrame(trace.frames, FrameType::encode(FRAME_INLINED, 0), method_id);
-                        }
-                    }
-                }
-            }
-        } else if (pc == 0) {
+        if (sp != 0 && pc == 0) {
             // We have the last Java frame anchor, but it is not marked as walkable.
             // Make it walkable here
             pc = ((uintptr_t*)sp)[-1];
