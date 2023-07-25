@@ -182,6 +182,10 @@ const char* OS::schedPolicy(int thread_id) {
     return "SCHED_OTHER";
 }
 
+bool OS::threadName(char* name_buf, size_t name_len) {
+    return pthread_getname_np(pthread_self(), name_buf, name_len) == 0 && name_buf[0] != 0;
+}
+
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
     pthread_t thread = pthread_from_mach_thread_np(thread_id);
     return thread && pthread_getname_np(thread, name_buf, name_len) == 0 && name_buf[0] != 0;

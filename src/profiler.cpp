@@ -76,6 +76,7 @@ enum StackRecovery {
     GC_TRACES     = 0x20,
     VTABLE_TARGET = 0x40,
     PROBE_SP      = 0x100,
+    COMPILE_TASK  = 0x200,
 };
 
 
@@ -102,6 +103,16 @@ typedef std::pair<std::string, MethodSample> NamedMethodSample;
 
 static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b) {
     return a.second.counter > b.second.counter;
+}
+
+
+static inline bool isVTableStub(const char* name) {
+    return name[0] && strcmp(name + 1, "table stub") == 0;
+}
+
+static inline bool isCompilerThread(const char* name) {
+    return name[0] == 'C' && (name[1] == '1' || name[1] == '2') &&
+           strncmp(name + 2, " CompilerThre", 13) == 0;
 }
 
 
@@ -406,9 +417,9 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
         if (stub != NULL) {
             if (_cstack != CSTACK_NO) {
-                if (!(_safe_mode & VTABLE_TARGET) && stub->_name[0] && strcmp(stub->_name + 1, "table stub") == 0) {
+                if (!(_safe_mode & VTABLE_TARGET) && isVTableStub(stub->_name) && VMStructs::hasClassNames()) {
                     uintptr_t receiver = frame.jarg0();
-                    if (receiver != 0 && VMStructs::hasClassNames()) {
+                    if (receiver != 0) {
                         VMSymbol* symbol = VMKlass::fromOop(receiver)->name();
                         u32 class_id = classMap()->lookup(symbol->body(), symbol->length());
                         max_depth -= makeFrame(trace.frames++, BCI_ALLOC, class_id);
@@ -457,7 +468,21 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     } else if (trace.num_frames == ticks_unknown_not_Java && !(_safe_mode & LAST_JAVA_PC)) {
         uintptr_t& sp = vm_thread->lastJavaSP();
         uintptr_t& pc = vm_thread->lastJavaPC();
-        if (sp != 0 && pc == 0) {
+        if (sp == 0) {
+            // JavaThread with no Java frames - this is typically a CompilerThread
+            if ((_safe_mode & COMPILE_TASK) && VMStructs::hasCompilerStructs()) {
+                char name[64];
+                if (OS::threadName(name, sizeof(name)) && isCompilerThread(name)) {
+                    VMMethod* method = vm_thread->compiledMethod();
+                    if (method != NULL) {
+                        jmethodID method_id = method->id();
+                        if (method_id != NULL) {
+                            trace.num_frames = makeFrame(trace.frames, FrameType::encode(FRAME_INLINED, 0), method_id);
+                        }
+                    }
+                }
+            }
+        } else if (pc == 0) {
             // We have the last Java frame anchor, but it is not marked as walkable.
             // Make it walkable here
             pc = ((uintptr_t*)sp)[-1];

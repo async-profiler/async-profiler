@@ -26,6 +26,7 @@ CodeCache* VMStructs::_libjvm = NULL;
 
 bool VMStructs::_has_class_names = false;
 bool VMStructs::_has_method_structs = false;
+bool VMStructs::_has_compiler_structs = false;
 bool VMStructs::_has_class_loader_data = false;
 bool VMStructs::_has_native_thread_id = false;
 bool VMStructs::_has_perm_gen = false;
@@ -43,6 +44,9 @@ int VMStructs::_jmethod_ids_offset = -1;
 int VMStructs::_thread_osthread_offset = -1;
 int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_thread_state_offset = -1;
+int VMStructs::_comp_env_offset = -1;
+int VMStructs::_comp_task_offset = -1;
+int VMStructs::_comp_method_offset = -1;
 int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
@@ -231,6 +235,18 @@ void VMStructs::initOffsets() {
                 if (strcmp(field, "_thread_id") == 0) {
                     _osthread_id_offset = *(int*)(entry + offset_offset);
                 }
+            } else if (strcmp(type, "CompilerThread") == 0) {
+                if (strcmp(field, "_env") == 0) {
+                    _comp_env_offset = *(int*)(entry + offset_offset);
+                }
+            } else if (strcmp(type, "ciEnv") == 0) {
+                if (strcmp(field, "_task") == 0) {
+                    _comp_task_offset = *(int*)(entry + offset_offset);
+                }
+            } else if (strcmp(type, "CompileTask") == 0) {
+                if (strcmp(field, "_method") == 0) {
+                    _comp_method_offset = *(int*)(entry + offset_offset);
+                }
             } else if (strcmp(type, "JavaFrameAnchor") == 0) {
                 if (strcmp(field, "_last_Java_sp") == 0) {
                     _anchor_sp_offset = *(int*)(entry + offset_offset);
@@ -367,6 +383,10 @@ void VMStructs::resolveOffsets() {
             && _constmethod_constants_offset >= 0
             && _constmethod_idnum_offset >= 0
             && _pool_holder_offset >= 0;
+
+    _has_compiler_structs = _comp_env_offset >= 0
+            && _comp_task_offset >= 0
+            && _comp_method_offset >= 0;
 
     _has_class_loader_data = _class_loader_data_offset >= 0
         && _class_loader_data_next_offset == sizeof(uintptr_t) * 8 + 8
