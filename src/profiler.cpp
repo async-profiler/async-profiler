@@ -74,9 +74,7 @@ enum StackRecovery {
     UNWIND_NATIVE = 0x8,
     LAST_JAVA_PC  = 0x10,
     GC_TRACES     = 0x20,
-    VTABLE_TARGET = 0x40,
     PROBE_SP      = 0x100,
-    COMPILE_TASK  = 0x200,
 };
 
 
@@ -339,26 +337,19 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
 
     for (int i = 0; i < native_frames; i++) {
         const char* current_method_name = findNativeMethod(callchain[i]);
-        if (current_method_name != NULL && NativeFunc::isMarked(current_method_name)) {
-            // This is C++ interpreter frame, this and later frames should be reported
-            // as Java frames returned by AGCT. Terminate the scan here.
-            return depth;
-        }
-
-        // FIXME: optimize
-        if (current_method_name != NULL && strncmp(current_method_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0) {
-            if ((_safe_mode & COMPILE_TASK) && VMStructs::hasCompilerStructs()) {
-                VMThread* vm_thread = VMThread::current();
-                if (vm_thread != NULL) {
-                    VMMethod* method = vm_thread->compiledMethod();
-                    if (method != NULL) {
-                        jmethodID method_id = method->id();
-                        if (method_id != NULL) {
-                            frames[depth].bci = 0;
-                            frames[depth].method_id = method_id;
-                            depth++;
-                        }
-                    }
+        char mark;
+        if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
+            if (mark == MARK_INTERPRETER) {
+                // This is C++ interpreter frame, this and later frames should be reported
+                // as Java frames returned by AGCT. Terminate the scan here.
+                return depth;
+            } else if (mark == MARK_COMPILER_ENTRY && (_extras & EXTRA_COMP_TASK)) {
+                // Insert current compile task as a pseudo Java frame
+                jmethodID compile_task = getCurrentCompileTask();
+                if (compile_task != NULL) {
+                    frames[depth].bci = 0;
+                    frames[depth].method_id = compile_task;
+                    depth++;
                 }
             }
         }
@@ -375,6 +366,17 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
     }
 
     return depth;
+}
+
+int Profiler::getCurrentCompileTask() {
+    VMThread* vm_thread = VMThread::current();
+    if (vm_thread != NULL) {
+        VMMethod* method = vm_thread->compiledMethod();
+        if (method != NULL) {
+            return method->id();
+        }
+    }
+    return NULL;
 }
 
 int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx) {
@@ -435,7 +437,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
         if (stub != NULL) {
             if (_cstack != CSTACK_NO) {
-                if (!(_safe_mode & VTABLE_TARGET) && isVTableStub(stub->_name) && VMStructs::hasClassNames()) {
+                if ((_extras & VTABLE) && isVTableStub(stub->_name)) {
                     uintptr_t receiver = frame.jarg0();
                     if (receiver != 0) {
                         VMSymbol* symbol = VMKlass::fromOop(receiver)->name();

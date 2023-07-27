@@ -787,6 +787,7 @@ class Recording {
         writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
         writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
+        writeIntSetting(buf, T_ACTIVE_RECORDING, "extras", args._extras);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "safemode", args._safe_mode);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);

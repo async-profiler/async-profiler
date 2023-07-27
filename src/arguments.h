@@ -89,6 +89,11 @@ enum SHORT_ENUM Output {
     OUTPUT_JFR
 };
 
+enum Extras {
+    EXTRA_VTABLE,
+    EXTRA_COMP_TASK
+};
+
 enum JfrOption {
     NO_SYSTEM_INFO  = 0x1,
     NO_SYSTEM_PROPS = 0x2,
@@ -152,6 +157,7 @@ class Arguments {
     long _wall;
     int _jstackdepth;
     int _signal;
+    int _extras;
     int _safe_mode;
     const char* _file;
     const char* _log;
@@ -201,6 +207,7 @@ class Arguments {
         _wall(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),
+        _extras(0),
         _safe_mode(0),
         _file(NULL),
         _log(NULL),

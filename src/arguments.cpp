@@ -258,6 +258,12 @@ Error Arguments::parse(const char* args) {
                     _signal |= atoi(value + 1) << 8;
                 }
 
+            CASE("extras")
+                if (value != NULL) {
+                    if (strstr(value, "vtable"))   _extras |= EXTRA_VTABLE;
+                    if (strstr(value, "comptask")) _extras |= EXTRA_COMP_TASK;
+                }
+
             CASE("safemode")
                 _safe_mode = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
 
