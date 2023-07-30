@@ -95,12 +95,6 @@ static inline bool isVTableStub(const char* name) {
     return name[0] && strcmp(name + 1, "table stub") == 0;
 }
 
-static inline bool isCompilerThread(const char* name) {
-    return name[0] == 'C' && (name[1] == '1' || name[1] == '2') &&
-           strncmp(name + 2, " CompilerThre", 13) == 0;
-}
-
-
 static inline int makeFrame(ASGCT_CallFrame* frames, jint type, jmethodID id) {
     frames[0].bci = type;
     frames[0].method_id = id;
