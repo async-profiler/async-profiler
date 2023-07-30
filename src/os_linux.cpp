@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/prctl.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -190,10 +189,6 @@ const char* OS::schedPolicy(int thread_id) {
         return sched_policy >= SCHED_IDLE ? "SCHED_IDLE" : "SCHED_BATCH"; 
     }
     return "SCHED_OTHER";
-}
-
-bool OS::threadName(char* name_buf, size_t name_len) {
-    return prctl(PR_GET_NAME, name_buf) == 0 && name_buf[0] != 0;
 }
 
 bool OS::threadName(int thread_id, char* name_buf, size_t name_len) {
