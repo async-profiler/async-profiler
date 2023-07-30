@@ -101,18 +101,22 @@ enum JfrOption {
 
 struct StackWalkFeatures {
     // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
-    unsigned int unknown_java  : 1;
-    unsigned int pop_stub      : 1;
-    unsigned int pop_method    : 1;
-    unsigned int unwind_native : 1;
-    unsigned int java_anchor   : 1;
-    unsigned int gc_traces     : 1;
+    unsigned short unknown_java  : 1;
+    unsigned short pop_stub      : 1;
+    unsigned short pop_method    : 1;
+    unsigned short unwind_native : 1;
+    unsigned short java_anchor   : 1;
+    unsigned short gc_traces     : 1;
 
     // Additional HotSpot-specific features
-    unsigned int probe_sp      : 1;
-    unsigned int vtable_target : 1;
-    unsigned int comp_task     : 1;
-    unsigned int _reserved     : 23;
+    unsigned short probe_sp      : 1;
+    unsigned short vtable_target : 1;
+    unsigned short comp_task     : 1;
+    unsigned short _reserved     : 7;
+
+    StackWalkFeatures() : unknown_java(1), pop_stub(1), pop_method(1), unwind_native(1), java_anchor(1), gc_traces(1),
+                          probe_sp(0), vtable_target(0), comp_task(0), _reserved(0) {
+    }
 };
 
 
@@ -233,7 +237,7 @@ class Arguments {
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),
-        _features({1, 1, 1, 1, 1, 1}),
+        _features(),
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
