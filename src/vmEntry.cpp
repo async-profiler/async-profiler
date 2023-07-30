@@ -79,6 +79,10 @@ static bool isOpenJ9JitStub(const char* blob_name) {
     return false;
 }
 
+static bool isCompilerEntry(const char* blob_name) {
+    return strncmp(blob_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0;
+}
+
 static void* resolveMethodId(void** mid) {
     return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
 }
@@ -149,13 +153,15 @@ bool VM::init(JavaVM* vm, bool attach) {
 
     VMStructs::init(lib);
     if (is_zero_vm) {
-        lib->mark(isZeroInterpreterMethod);
+        lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
     } else if (isOpenJ9()) {
-        lib->mark(isOpenJ9InterpreterMethod);
+        lib->mark(isOpenJ9InterpreterMethod, MARK_INTERPRETER);
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
-            libjit->mark(isOpenJ9JitStub);
+            libjit->mark(isOpenJ9JitStub, MARK_INTERPRETER);
         }
+    } else {
+        lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
     }
 
     if (!attach && hotspot_version() == 8 && OS::isLinux()) {

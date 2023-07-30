@@ -115,11 +115,11 @@ void CodeCache::sort() {
     if (_max_address == NO_MAX_ADDRESS) _max_address = _blobs[_count - 1]._end;
 }
 
-void CodeCache::mark(NamePredicate predicate) {
+void CodeCache::mark(NamePredicate predicate, char value) {
     for (int i = 0; i < _count; i++) {
         const char* blob_name = _blobs[i]._name;
         if (blob_name != NULL && predicate(blob_name)) {
-            NativeFunc::mark(blob_name);
+            NativeFunc::mark(blob_name, value);
         }
     }
 }

@@ -37,6 +37,11 @@ enum ImportId {
     NUM_IMPORTS
 };
 
+enum Mark {
+    MARK_INTERPRETER = 1,
+    MARK_COMPILER_ENTRY = 2
+};
+
 
 class NativeFunc {
   private:
@@ -59,12 +64,12 @@ class NativeFunc {
         return from(name)->_lib_index;
     }
 
-    static bool isMarked(const char* name) {
-        return from(name)->_mark != 0;
+    static char mark(const char* name) {
+        return from(name)->_mark;
     }
 
-    static void mark(const char* name) {
-        from(name)->_mark = 1;
+    static void mark(const char* name, char value) {
+        from(name)->_mark = value;
     }
 };
 
@@ -155,7 +160,7 @@ class CodeCache {
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void updateBounds(const void* start, const void* end);
     void sort();
-    void mark(NamePredicate predicate);
+    void mark(NamePredicate predicate, char value);
 
     void addImport(void** entry, const char* name);
     void** findImport(ImportId id);

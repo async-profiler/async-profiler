@@ -90,7 +90,7 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     int _max_stack_depth;
-    int _safe_mode;
+    StackWalkFeatures _features;
     CStack _cstack;
     bool _add_event_frame;
     bool _add_thread_frame;
@@ -122,6 +122,7 @@ class Profiler {
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
     bool isAddressInCode(uintptr_t addr);
+    jmethodID getCurrentCompileTask();
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
@@ -175,7 +176,6 @@ class Profiler {
         _gc_id(0),
         _timer_id(NULL),
         _max_stack_depth(0),
-        _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
         _stubs_lock(),
         _runtime_stubs("[stubs]"),

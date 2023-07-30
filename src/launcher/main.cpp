@@ -66,6 +66,7 @@ static const char USAGE_STRING[] =
     "  -I include        output only stack traces containing the specified pattern\n"
     "  -X exclude        exclude stack traces with the specified pattern\n"
     "  -L level          log level: debug|info|warn|error|none\n"
+    "  -F features       advanced stack trace features: vtable, comptask\n"
     "  -v, --version     display version string\n"
     "\n"
     "  --title string    FlameGraph title\n"
@@ -423,6 +424,9 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "-L" || arg == "--log") {
             format << ",loglevel=" << args.next();
+
+        } else if (arg == "-F" || arg == "--features") {
+            format << ",features=" << String(args.next()).replace(',', "+");
 
         } else if (arg == "--filter") {
             format << ",filter=" << String(args.next()).replace(',', ";");

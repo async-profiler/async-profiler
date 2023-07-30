@@ -420,6 +420,13 @@ The following is a complete list of the command-line options accepted by
 
 * `-L level` - log level: `debug`, `info`, `warn`, `error` or `none`.
 
+* `-F features` - comma separated list of HotSpot-specific features
+  to include in stack traces. Supported features are:
+  - `vtable` - display targets of megamorphic virtual calls as an extra frame
+    on top of `vtable stub` or `itable stub`.
+  - `comptask` - display current compilation task (a Java method being compiled)
+    in a JIT compiler stack trace.
+
 * `--title TITLE`, `--minwidth PERCENT`, `--reverse` - FlameGraph parameters.  
   Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
 

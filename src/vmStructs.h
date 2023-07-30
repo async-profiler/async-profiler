@@ -31,6 +31,7 @@ class VMStructs {
 
     static bool _has_class_names;
     static bool _has_method_structs;
+    static bool _has_compiler_structs;
     static bool _has_class_loader_data;
     static bool _has_native_thread_id;
     static bool _has_perm_gen;
@@ -49,6 +50,9 @@ class VMStructs {
     static int _thread_anchor_offset;
     static int _thread_state_offset;
     static int _osthread_id_offset;
+    static int _comp_env_offset;
+    static int _comp_task_offset;
+    static int _comp_method_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
@@ -133,6 +137,10 @@ class VMStructs {
         return _has_method_structs;
     }
 
+    static bool hasCompilerStructs() {
+        return _has_compiler_structs;
+    }
+
     static bool hasClassLoaderData() {
         return _has_class_loader_data;
     }
@@ -168,6 +176,7 @@ class MethodList {
 
 
 class NMethod;
+class VMMethod;
 
 class VMSymbol : VMStructs {
   public:
@@ -299,6 +308,17 @@ class VMThread : VMStructs {
 
     uintptr_t& lastJavaPC() {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
+    }
+
+    VMMethod* compiledMethod() {
+        const char* env = *(const char**) at(_comp_env_offset);
+        if (env != NULL) {
+            const char* task = *(const char**) (env + _comp_task_offset);
+            if (task != NULL) {
+                return *(VMMethod**) (task + _comp_method_offset);
+            }
+        }
+        return NULL;
     }
 };
 
