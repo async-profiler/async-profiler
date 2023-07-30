@@ -83,6 +83,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
 //     signal=N         - use alternative signal for cpu or wall clock profiling
+//     features=LIST    - advanced stack trace features (vtable, comptask)"
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
@@ -258,14 +259,23 @@ Error Arguments::parse(const char* args) {
                     _signal |= atoi(value + 1) << 8;
                 }
 
-            CASE("extras")
+            CASE("features")
                 if (value != NULL) {
-                    if (strstr(value, "vtable"))   _extras |= EXTRA_VTABLE;
-                    if (strstr(value, "comptask")) _extras |= EXTRA_COMP_TASK;
+                    if (strstr(value, "probesp"))  _features.probe_sp = 1;
+                    if (strstr(value, "vtable"))   _features.vtable_target = 1;
+                    if (strstr(value, "comptask")) _features.comp_task = 1;
                 }
 
-            CASE("safemode")
-                _safe_mode = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
+            CASE("safemode") {
+                // Left for compatibility purpose; will be eventually migrated to 'features'
+                int bits = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
+                _features.unknown_java  = (bits & 1) ? 0 : 1;
+                _features.pop_stub      = (bits & 2) ? 0 : 1;
+                _features.pop_method    = (bits & 4) ? 0 : 1;
+                _features.unwind_native = (bits & 8) ? 0 : 1;
+                _features.java_anchor   = (bits & 16) ? 0 : 1;
+                _features.gc_traces     = (bits & 32) ? 0 : 1;
+            }
 
             CASE("file")
                 if (value == NULL || value[0] == 0) {

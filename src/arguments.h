@@ -89,11 +89,6 @@ enum SHORT_ENUM Output {
     OUTPUT_JFR
 };
 
-enum Extras {
-    EXTRA_VTABLE,
-    EXTRA_COMP_TASK
-};
-
 enum JfrOption {
     NO_SYSTEM_INFO  = 0x1,
     NO_SYSTEM_PROPS = 0x2,
@@ -102,6 +97,22 @@ enum JfrOption {
     NO_HEAP_SUMMARY = 0x10,
 
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | NO_HEAP_SUMMARY
+};
+
+struct StackWalkFeatures {
+    // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
+    unsigned int unknown_java  : 1;
+    unsigned int pop_stub      : 1;
+    unsigned int pop_method    : 1;
+    unsigned int unwind_native : 1;
+    unsigned int java_anchor   : 1;
+    unsigned int gc_traces     : 1;
+
+    // Additional HotSpot-specific features
+    unsigned int probe_sp      : 1;
+    unsigned int vtable_target : 1;
+    unsigned int comp_task     : 1;
+    unsigned int _reserved     : 23;
 };
 
 
@@ -157,8 +168,6 @@ class Arguments {
     long _wall;
     int _jstackdepth;
     int _signal;
-    int _extras;
-    int _safe_mode;
     const char* _file;
     const char* _log;
     const char* _loglevel;
@@ -175,6 +184,7 @@ class Arguments {
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
+    StackWalkFeatures _features;
     CStack _cstack;
     Clock _clock;
     Output _output;
@@ -207,8 +217,6 @@ class Arguments {
         _wall(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),
-        _extras(0),
-        _safe_mode(0),
         _file(NULL),
         _log(NULL),
         _loglevel(NULL),
@@ -225,6 +233,7 @@ class Arguments {
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),
+        _features({1, 1, 1, 1, 1, 1}),
         _cstack(CSTACK_DEFAULT),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
