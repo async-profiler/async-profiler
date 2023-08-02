@@ -800,11 +800,19 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
 
-    uintptr_t length = SafeAccess::skipFaultInstruction(frame.pc());
+    uintptr_t length = SafeAccess::skipLoad(frame.pc());
     if (length > 0) {
         // Skip the fault instruction, as if it successfully loaded NULL
         frame.pc() += length;
         frame.retval() = 0;
+        return;
+    }
+
+    length = SafeAccess::skipLoad32(frame.pc());
+    if (length > 0) {
+        // Act as if the load returned default_value argument
+        frame.pc() += length;
+        frame.retval() = frame.arg1();
         return;
     }
 
