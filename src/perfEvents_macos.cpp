@@ -23,6 +23,7 @@ int PerfEvents::_max_events;
 PerfEvent* PerfEvents::_events;
 PerfEventType* PerfEvents::_event_type;
 long PerfEvents::_interval;
+int PerfEvents::_signal;
 Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_use_mmap_page;

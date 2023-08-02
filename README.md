@@ -417,6 +417,15 @@ The following is a complete list of the command-line options accepted by
   a star `*` that denotes any (possibly empty) sequence of characters.  
   Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
 
+* `-L level` - log level: `debug`, `info`, `warn`, `error` or `none`.
+
+* `-F features` - comma separated list of HotSpot-specific features
+  to include in stack traces. Supported features are:
+  - `vtable` - display targets of megamorphic virtual calls as an extra frame
+    on top of `vtable stub` or `itable stub`.
+  - `comptask` - display current compilation task (a Java method being compiled)
+    in a JIT compiler stack trace.
+
 * `--title TITLE`, `--minwidth PERCENT`, `--reverse` - FlameGraph parameters.  
   Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
 
@@ -449,6 +458,9 @@ The following is a complete list of the command-line options accepted by
 
 * `--cdepth DEPTH` - set native stack depth. The default is 128.
   Example: `./profiler.sh --cdepth 64 8983`
+
+* `--signal NUM` - use alternative signal for cpu or wall clock profiling.
+  To change both signals, specify two numbers separated by a slash: `--signal SIGCPU/SIGWALL`.
 
 * `--clock SOURCE` - clock source for JFR timestamps: `tsc` (default)
   or `monotonic` (equivalent for `CLOCK_MONOTONIC`).

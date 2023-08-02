@@ -25,13 +25,17 @@
 
 class VMStructs {
   protected:
+    enum { MONITOR_BIT = 2 };
+
     static CodeCache* _libjvm;
 
     static bool _has_class_names;
     static bool _has_method_structs;
+    static bool _has_compiler_structs;
     static bool _has_class_loader_data;
     static bool _has_native_thread_id;
     static bool _has_perm_gen;
+    static bool _compact_object_headers;
 
     static int _klass_name_offset;
     static int _symbol_length_offset;
@@ -46,6 +50,9 @@ class VMStructs {
     static int _thread_anchor_offset;
     static int _thread_state_offset;
     static int _osthread_id_offset;
+    static int _comp_env_offset;
+    static int _comp_task_offset;
+    static int _comp_method_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
     static int _frame_size_offset;
@@ -89,6 +96,8 @@ class VMStructs {
     static int _collected_heap_reserved_offset;
     static int _region_start_offset;
     static int _region_size_offset;
+    static int _markword_klass_shift;
+    static int _markword_monitor_value;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -128,6 +137,10 @@ class VMStructs {
         return _has_method_structs;
     }
 
+    static bool hasCompilerStructs() {
+        return _has_compiler_structs;
+    }
+
     static bool hasClassLoaderData() {
         return _has_class_loader_data;
     }
@@ -163,6 +176,7 @@ class MethodList {
 
 
 class NMethod;
+class VMMethod;
 
 class VMSymbol : VMStructs {
   public:
@@ -222,11 +236,20 @@ class VMKlass : VMStructs {
     }
 
     static VMKlass* fromOop(uintptr_t oop) {
-        uintptr_t ptr = oop + _oop_klass_offset;
         if (_narrow_klass_shift >= 0) {
-            return (VMKlass*)(_narrow_klass_base + ((uintptr_t)*(unsigned int*)ptr << _narrow_klass_shift));
+            uintptr_t narrow_klass;
+            if (_compact_object_headers) {
+                uintptr_t mark = *(uintptr_t*)oop;
+                if (mark & MONITOR_BIT) {
+                    mark = *(uintptr_t*)(mark ^ MONITOR_BIT);
+                }
+                narrow_klass = mark >> _markword_klass_shift;
+            } else {
+                narrow_klass = *(unsigned int*)(oop + _oop_klass_offset);
+            }
+            return (VMKlass*)(_narrow_klass_base + (narrow_klass << _narrow_klass_shift));
         } else {
-            return *(VMKlass**)ptr;
+            return *(VMKlass**)(oop + _oop_klass_offset);
         }
     }
 
@@ -285,6 +308,17 @@ class VMThread : VMStructs {
 
     uintptr_t& lastJavaPC() {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
+    }
+
+    VMMethod* compiledMethod() {
+        const char* env = *(const char**) at(_comp_env_offset);
+        if (env != NULL) {
+            const char* task = *(const char**) (env + _comp_task_offset);
+            if (task != NULL) {
+                return *(VMMethod**) (task + _comp_method_offset);
+            }
+        }
+        return NULL;
     }
 };
 

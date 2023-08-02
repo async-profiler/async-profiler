@@ -27,6 +27,7 @@
 class WallClock : public Engine {
   private:
     static long _interval;
+    static int _signal;
     static bool _sample_idle_threads;
 
     volatile bool _running;

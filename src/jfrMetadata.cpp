@@ -237,6 +237,8 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << (type("jdk.jfr.Category", T_CATEGORY, NULL)
                 << field("value", T_STRING, NULL, F_ARRAY))
 
+            << type("jdk.jfr.ContentType", T_CONTENT_TYPE, "Content Type")
+
             << (type("jdk.jfr.Timestamp", T_TIMESTAMP, "Timestamp")
                 << field("value", T_STRING))
 

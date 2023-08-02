@@ -32,6 +32,7 @@ class PerfEvents : public Engine {
     static PerfEvent* _events;
     static PerfEventType* _event_type;
     static long _interval;
+    static int _signal;
     static Ring _ring;
     static CStack _cstack;
     static bool _use_mmap_page;

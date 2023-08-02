@@ -40,11 +40,19 @@ static pthread_create_t _orig_pthread_create = NULL;
 typedef void (*pthread_exit_t)(void*);
 static pthread_exit_t _orig_pthread_exit = NULL;
 
+static Arguments _preload_args(true);
+
 static void unblock_signals() {
     sigset_t set;
     sigemptyset(&set);
-    sigaddset(&set, SIGPROF);
-    sigaddset(&set, SIGVTALRM);
+    if (_preload_args._signal == 0) {
+        sigaddset(&set, SIGPROF);
+        sigaddset(&set, SIGVTALRM);
+    } else {
+        for (int s = _preload_args._signal; s > 0; s >>= 8) {
+            sigaddset(&set, s & 0xff);
+        }
+    }
     pthread_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
@@ -138,8 +146,6 @@ void* dlopen(const char* filename, int flags) {
 }
 
 
-static Arguments _preload_args(true);
-
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;
 bool Hooks::_initialized = false;
@@ -192,17 +198,8 @@ void Hooks::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        cc->makeGotPatchable();
-
-        for (void** entry = cc->gotStart(); entry < cc->gotEnd(); entry++) {
-            const char* sym = cc->binarySearch(*entry);
-            if (*entry == (void*)_orig_pthread_create || strcmp(sym, "pthread_create@plt") == 0) {
-                *entry = (void*)pthread_create_hook;
-            } else if (*entry == (void*)_orig_pthread_exit || strcmp(sym, "pthread_exit@plt") == 0) {
-                *entry = (void*)pthread_exit_hook;
-            } else if (*entry == (void*)_orig_dlopen || strcmp(sym, "dlopen@plt") == 0) {
-                *entry = (void*)dlopen_hook;
-            }
-        }
+        cc->patchImport(im_dlopen, (void*)dlopen_hook);
+        cc->patchImport(im_pthread_create, (void*)pthread_create_hook);
+        cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
     }
 }

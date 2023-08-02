@@ -100,6 +100,26 @@ enum JfrOption {
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | NO_HEAP_SUMMARY
 };
 
+struct StackWalkFeatures {
+    // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
+    unsigned short unknown_java  : 1;
+    unsigned short pop_stub      : 1;
+    unsigned short pop_method    : 1;
+    unsigned short unwind_native : 1;
+    unsigned short java_anchor   : 1;
+    unsigned short gc_traces     : 1;
+
+    // Additional HotSpot-specific features
+    unsigned short probe_sp      : 1;
+    unsigned short vtable_target : 1;
+    unsigned short comp_task     : 1;
+    unsigned short _reserved     : 7;
+
+    StackWalkFeatures() : unknown_java(1), pop_stub(1), pop_method(1), unwind_native(1), java_anchor(1), gc_traces(1),
+                          probe_sp(0), vtable_target(0), comp_task(0), _reserved(0) {
+    }
+};
+
 
 struct Multiplier {
     char symbol;
@@ -151,8 +171,8 @@ class Arguments {
     long _alloc;
     long _lock;
     long _wall;
-    int  _jstackdepth;
-    int _safe_mode;
+    int _jstackdepth;
+    int _signal;
     const char* _file;
     const char* _log;
     const char* _loglevel;
@@ -169,6 +189,7 @@ class Arguments {
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
+    StackWalkFeatures _features;
     CStack _cstack;
     int _cdepth;
     Clock _clock;
@@ -201,7 +222,7 @@ class Arguments {
         _lock(-1),
         _wall(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
-        _safe_mode(0),
+        _signal(0),
         _file(NULL),
         _log(NULL),
         _loglevel(NULL),
@@ -218,6 +239,7 @@ class Arguments {
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),
+        _features(),
         _cstack(CSTACK_DEFAULT),
         _cdepth(DEFAULT_CDEPTH),
         _clock(CLK_DEFAULT),

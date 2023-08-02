@@ -698,6 +698,20 @@ class Recording {
         return true;
     }
 
+    const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s",
+                 f.unknown_java  ? "unknown_java"  : "-",
+                 f.pop_stub      ? "pop_stub"      : "-",
+                 f.pop_method    ? "pop_method"    : "-",
+                 f.unwind_native ? "unwind_native" : "-",
+                 f.java_anchor   ? "java_anchor"   : "-",
+                 f.gc_traces     ? "gc_traces"     : "-",
+                 f.probe_sp      ? "probesp"       : "-",
+                 f.vtable_target ? "vtable"        : "-",
+                 f.comp_task     ? "comptask"      : "-");
+        return str;
+    }
+
     void flush(Buffer* buf) {
         ssize_t result = write(_fd, buf->data(), buf->offset());
         if (result > 0) {
@@ -787,10 +801,12 @@ class Recording {
         writeListSetting(buf, T_ACTIVE_RECORDING, "include", args._buf, args._include);
         writeListSetting(buf, T_ACTIVE_RECORDING, "exclude", args._buf, args._exclude);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jstackdepth", args._jstackdepth);
-        writeIntSetting(buf, T_ACTIVE_RECORDING, "safemode", args._safe_mode);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "jfropts", args._jfr_options);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunksize", args._chunk_size);
         writeIntSetting(buf, T_ACTIVE_RECORDING, "chunktime", args._chunk_time);
+
+        char str[256];
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "features", getFeaturesString(str, sizeof(str), args._features));
 
         writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
         if (args._event != NULL) {
