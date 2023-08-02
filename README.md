@@ -372,8 +372,7 @@ The following is a complete list of the command-line options accepted by
   In lock profiling mode, record contended locks that the JVM has waited for
   longer than the specified duration.
 
-* `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater
-  than default 2048.  
+* `-j N` - sets the Java stack profiling depth. The default is 2048.  
   Example: `./profiler.sh -j 30 8983`
 
 * `-t` - profile threads separately. Each stack trace will end with a frame
@@ -447,6 +446,9 @@ The following is a complete list of the command-line options accepted by
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
+
+* `--cdepth DEPTH` - set native stack depth. The default is 128.
+  Example: `./profiler.sh --cdepth 64 8983`
 
 * `--clock SOURCE` - clock source for JFR timestamps: `tsc` (default)
   or `monotonic` (equivalent for `CLOCK_MONOTONIC`).

@@ -26,6 +26,7 @@ class J9WallClock : public Engine {
     static long _interval;
 
     int _max_stack_depth;
+    int _max_native_stack_depth;
     volatile bool _running;
     pthread_t _thread;
 

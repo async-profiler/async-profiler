@@ -303,7 +303,7 @@ bool Profiler::isAddressInCode(uintptr_t addr) {
 }
 
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
-    const void* callchain[MAX_NATIVE_FRAMES];
+    const void* callchain[_max_native_stack_depth];
     int native_frames;
 
     if (_cstack == CSTACK_NO || (event_type > EXECUTION_SAMPLE && _cstack == CSTACK_DEFAULT)) {
@@ -312,11 +312,11 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
-        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, _max_native_stack_depth, java_ctx);
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, _max_native_stack_depth, java_ctx);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkFP(ucontext, callchain, _max_native_stack_depth, java_ctx);
     }
 
     return convertNativeTrace(native_frames, callchain, frames);
@@ -1014,16 +1014,18 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // (Re-)allocate calltrace buffers
-    if (_max_stack_depth != args._jstackdepth) {
+    if (_max_stack_depth != args._jstackdepth || _max_native_stack_depth != args._cdepth) {
         _max_stack_depth = args._jstackdepth;
-        size_t buffer_size = (_max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
+        _max_native_stack_depth = args._cdepth;
+        size_t buffer_size = (_max_stack_depth + _max_native_stack_depth + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             free(_calltrace_buffer[i]);
             _calltrace_buffer[i] = (CallTraceBuffer*)malloc(buffer_size);
             if (_calltrace_buffer[i] == NULL) {
                 _max_stack_depth = 0;
-                return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth)");
+                _max_native_stack_depth = 0;
+                return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth or cdepth)");
             }
         }
     }

@@ -36,7 +36,6 @@
 #include "vmEntry.h"
 
 
-const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;
 const int CONCURRENCY_LEVEL = 16;
 
@@ -90,6 +89,7 @@ class Profiler {
     SpinLock _locks[CONCURRENCY_LEVEL];
     CallTraceBuffer* _calltrace_buffer[CONCURRENCY_LEVEL];
     int _max_stack_depth;
+    int _max_native_stack_depth;
     int _safe_mode;
     CStack _cstack;
     bool _add_event_frame;
@@ -175,6 +175,7 @@ class Profiler {
         _gc_id(0),
         _timer_id(NULL),
         _max_stack_depth(0),
+        _max_native_stack_depth(0),
         _safe_mode(0),
         _thread_events_state(JVMTI_DISABLE),
         _stubs_lock(),

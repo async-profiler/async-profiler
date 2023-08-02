@@ -23,6 +23,7 @@
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const int DEFAULT_JSTACKDEPTH = 2048;
+const int DEFAULT_CDEPTH = 128;
 
 const char* const EVENT_CPU    = "cpu";
 const char* const EVENT_ALLOC  = "alloc";
@@ -169,6 +170,7 @@ class Arguments {
     const char* _fdtransfer_path;
     int _style;
     CStack _cstack;
+    int _cdepth;
     Clock _clock;
     Output _output;
     long _chunk_size;
@@ -217,6 +219,7 @@ class Arguments {
         _fdtransfer_path(NULL),
         _style(0),
         _cstack(CSTACK_DEFAULT),
+        _cdepth(DEFAULT_CDEPTH),
         _clock(CLK_DEFAULT),
         _output(OUTPUT_NONE),
         _chunk_size(100 * 1024 * 1024),

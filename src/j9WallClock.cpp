@@ -25,6 +25,7 @@ long J9WallClock::_interval;
 Error J9WallClock::start(Arguments& args) {
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL * 5;
     _max_stack_depth = args._jstackdepth;
+    _max_native_stack_depth = args._cdepth;
 
     _running = true;
 
@@ -45,7 +46,7 @@ void J9WallClock::timerLoop() {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
     jvmtiEnv* jvmti = VM::jvmti();
 
-    int max_frames = _max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES;
+    int max_frames = _max_stack_depth + _max_native_stack_depth + RESERVED_FRAMES;
     ASGCT_CallFrame* frames = (ASGCT_CallFrame*)malloc(max_frames * sizeof(ASGCT_CallFrame));
 
     while (_running) {
