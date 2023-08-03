@@ -22,14 +22,12 @@
 #include "arguments.h"
 
 
-const int MAX_J9_NATIVE_FRAMES = 128;
-
 struct J9StackTraceNotification {
     void* env;
     u64 counter;
     int num_frames;
     int reserved;
-    const void* addr[MAX_J9_NATIVE_FRAMES];
+    const void **addr;
 
     size_t size() {
         return sizeof(*this) - sizeof(this->addr) + num_frames * sizeof(const void*);
@@ -41,6 +39,7 @@ class J9StackTraces {
   private:
     static pthread_t _thread;
     static int _max_stack_depth;
+    static int _max_native_stack_depth;
     static int _pipe[2];
 
     static void* threadEntry(void* unused) {

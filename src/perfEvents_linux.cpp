@@ -552,6 +552,7 @@ Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_use_mmap_page;
 bool PerfEvents::_running = false;
+int PerfEvents::_max_native_stack_depth;
 
 int PerfEvents::createForThread(int tid) {
     if (!__atomic_load_n(&_running, __ATOMIC_ACQUIRE)) {
@@ -722,8 +723,10 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
     if (_enabled) {
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
+        const void *buff[_max_native_stack_depth]; // automatic storage is safe in signal handler
+        notif.addr = buff;
         StackContext java_ctx;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx);
+        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, &java_ctx);
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -831,6 +834,7 @@ Error PerfEvents::start(Arguments& args) {
         _ring = RING_USER;
     }
     _cstack = args._cstack;
+    _max_native_stack_depth = args._cdepth;
     _use_mmap_page = _cstack != CSTACK_NO && (_ring != RING_USER || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR);
 
     int max_events = OS::getMaxThreadId();
@@ -890,7 +894,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, StackContext* java_ctx) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -914,7 +918,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
                     u64 ip = ring.next();
                     if (ip < PERF_CONTEXT_MAX) {
                         const void* iptr = (const void*)ip;
-                        if (CodeHeap::contains(iptr) || depth >= max_depth) {
+                        if (CodeHeap::contains(iptr) || depth >= _max_native_stack_depth) {
                             // Stop at the first Java frame
                             java_ctx->pc = iptr;
                             goto stack_complete;
@@ -928,7 +932,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
                     // Last userspace PC is stored right after branch stack
                     const void* pc = (const void*)ring.peek(bnr * 3 + 2);
-                    if (CodeHeap::contains(pc) || depth >= max_depth) {
+                    if (CodeHeap::contains(pc) || depth >= _max_native_stack_depth) {
                         java_ctx->pc = pc;
                         goto stack_complete;
                     }
@@ -939,13 +943,13 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
                         const void* to = (const void*)ring.next();
                         ring.next();
 
-                        if (CodeHeap::contains(to) || depth >= max_depth) {
+                        if (CodeHeap::contains(to) || depth >= _max_native_stack_depth) {
                             java_ctx->pc = to;
                             goto stack_complete;
                         }
                         callchain[depth++] = to;
 
-                        if (CodeHeap::contains(from) || depth >= max_depth) {
+                        if (CodeHeap::contains(from) || depth >= _max_native_stack_depth) {
                             java_ctx->pc = from;
                             goto stack_complete;
                         }
@@ -965,9 +969,9 @@ stack_complete:
     event->unlock();
 
     if (_cstack == CSTACK_FP) {
-        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkFP(ucontext, callchain + depth, _max_native_stack_depth - depth, java_ctx);
     } else if (_cstack == CSTACK_DWARF) {
-        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkDwarf(ucontext, callchain + depth, _max_native_stack_depth - depth, java_ctx);
     }
 
     return depth;

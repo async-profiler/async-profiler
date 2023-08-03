@@ -37,6 +37,7 @@ class PerfEvents : public Engine {
     static CStack _cstack;
     static bool _use_mmap_page;
     static bool _running;
+    static int _max_native_stack_depth;
 
     static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
@@ -50,7 +51,7 @@ class PerfEvents : public Engine {
     const char* title();
     const char* units();
 
-    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
+    static int walk(int tid, void* ucontext, const void** callchain, StackContext* java_ctx);
     static void resetBuffer(int tid);
 
     static bool supported();

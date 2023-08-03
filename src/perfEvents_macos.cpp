@@ -28,6 +28,7 @@ Ring PerfEvents::_ring;
 CStack PerfEvents::_cstack;
 bool PerfEvents::_use_mmap_page;
 bool PerfEvents::_running;
+int PerfEvents::_max_native_stack_depth;
 
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
     return 0;
@@ -58,7 +59,7 @@ Error PerfEvents::start(Arguments& args) {
 void PerfEvents::stop() {
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, StackContext* java_ctx) {
     return 0;
 }
 

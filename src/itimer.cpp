@@ -24,7 +24,7 @@
 
 long ITimer::_interval;
 CStack ITimer::_cstack;
-
+int ITimer::_max_native_stack_depth;
 
 void ITimer::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
@@ -37,10 +37,12 @@ void ITimer::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     J9StackTraceNotification notif;
+    const void *buff[_max_native_stack_depth]; // automatic storage is safe in signal handler
+    notif.addr = buff;
     StackContext java_ctx;
     notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
-        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx)
-        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx);
+        ? StackWalker::walkDwarf(ucontext, notif.addr, _max_native_stack_depth, &java_ctx)
+        : StackWalker::walkFP(ucontext, notif.addr, _max_native_stack_depth, &java_ctx);
     J9StackTraces::checkpoint(_interval, &notif);
 }
 
@@ -64,6 +66,7 @@ Error ITimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
     _cstack = args._cstack;
+    _max_native_stack_depth = args._cdepth;
 
     if (VM::isOpenJ9()) {
         if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;

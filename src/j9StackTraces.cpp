@@ -55,13 +55,15 @@ class J9VMThread {
 
 pthread_t J9StackTraces::_thread = 0;
 int J9StackTraces::_max_stack_depth;
+int J9StackTraces::_max_native_stack_depth;
 int J9StackTraces::_pipe[2];
 
 static JNIEnv* _self_env = NULL;
 
 
 Error J9StackTraces::start(Arguments& args) {
-    _max_stack_depth = args._jstackdepth; 
+    _max_stack_depth = args._jstackdepth;
+    _max_native_stack_depth = args._cdepth;
 
     if (pipe(_pipe) != 0) {
         return Error("Failed to create pipe");
@@ -96,7 +98,7 @@ void J9StackTraces::timerLoop() {
     char notification_buf[65536];
     std::map<void*, jthread> known_threads;
 
-    int max_frames = _max_stack_depth + MAX_J9_NATIVE_FRAMES + RESERVED_FRAMES;
+    int max_frames = _max_stack_depth + _max_native_stack_depth + RESERVED_FRAMES;
     ASGCT_CallFrame* frames = (ASGCT_CallFrame*)malloc(max_frames * sizeof(ASGCT_CallFrame));
     jvmtiFrameInfoExtended* jvmti_frames = (jvmtiFrameInfoExtended*)malloc(max_frames * sizeof(jvmtiFrameInfoExtended));
 
