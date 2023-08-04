@@ -834,7 +834,7 @@ Error PerfEvents::start(Arguments& args) {
         _ring = RING_USER;
     }
     _cstack = args._cstack;
-    _max_native_stack_depth = args._cdepth;
+    _max_native_stack_depth = args._cstackdepth;
     _use_mmap_page = _cstack != CSTACK_NO && (_ring != RING_USER || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR);
 
     int max_events = OS::getMaxThreadId();

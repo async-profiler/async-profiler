@@ -94,7 +94,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     sched            - group threads by scheduling policy
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
-//     cdepth=DEPTH     - maximum native stack depth (default: 128)
+//     cstackdepth=DEPTH     - maximum native stack depth (default: 128)
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
@@ -346,9 +346,9 @@ Error Arguments::parse(const char* args) {
                     }
                 }
 
-            CASE("cdepth")
-                if (value == NULL || (_cdepth = atoi(value)) <= 0) {
-                    msg = "cdepth must be > 0";
+            CASE("cstackdepth")
+                if (value == NULL || (_cstackdepth = atoi(value)) <= 0) {
+                    msg = "cstackdepth must be > 0";
                 }
 
             CASE("clock")

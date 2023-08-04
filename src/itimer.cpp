@@ -66,7 +66,7 @@ Error ITimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
     _cstack = args._cstack;
-    _max_native_stack_depth = args._cdepth;
+    _max_native_stack_depth = args._cstackdepth;
 
     if (VM::isOpenJ9()) {
         if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;

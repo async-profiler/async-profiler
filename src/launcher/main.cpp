@@ -82,7 +82,7 @@ static const char USAGE_STRING[] =
     "  --all-user        only include user-mode events\n"
     "  --sched           group threads by scheduling policy\n"
     "  --cstack mode     how to traverse C stack: fp|dwarf|lbr|no\n"
-    "  --cdepth depth    maximum native stack depth\n"
+    "  --cstackdepth depth    maximum native stack depth\n"
     "  --signal num      use alternative signal for cpu or wall clock profiling\n"
     "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
@@ -446,7 +446,7 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--alloc" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
-                   arg == "--cstack" || arg == "--cdepth" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
+                   arg == "--cstack" || arg == "--cstackdepth" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {

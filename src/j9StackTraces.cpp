@@ -63,7 +63,7 @@ static JNIEnv* _self_env = NULL;
 
 Error J9StackTraces::start(Arguments& args) {
     _max_stack_depth = args._jstackdepth;
-    _max_native_stack_depth = args._cdepth;
+    _max_native_stack_depth = args._cstackdepth;
 
     if (pipe(_pipe) != 0) {
         return Error("Failed to create pipe");

@@ -456,8 +456,8 @@ The following is a complete list of the command-line options accepted by
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
 
-* `--cdepth DEPTH` - set native stack depth. The default is 128.
-  Example: `./profiler.sh --cdepth 64 8983`
+* `--cstackdepth DEPTH` - set native stack depth. The default is 128.
+  Example: `./profiler.sh --cstackdepth 64 8983`
 
 * `--signal NUM` - use alternative signal for cpu or wall clock profiling.
   To change both signals, specify two numbers separated by a slash: `--signal SIGCPU/SIGWALL`.

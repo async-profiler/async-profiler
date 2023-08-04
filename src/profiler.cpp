@@ -1034,9 +1034,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // (Re-)allocate calltrace buffers
-    if (_max_stack_depth != args._jstackdepth || _max_native_stack_depth != args._cdepth) {
+    if (_max_stack_depth != args._jstackdepth || _max_native_stack_depth != args._cstackdepth) {
         _max_stack_depth = args._jstackdepth;
-        _max_native_stack_depth = args._cdepth;
+        _max_native_stack_depth = args._cstackdepth;
         size_t buffer_size = (_max_stack_depth + _max_native_stack_depth + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
@@ -1045,7 +1045,7 @@ Error Profiler::start(Arguments& args, bool reset) {
             if (_calltrace_buffer[i] == NULL) {
                 _max_stack_depth = 0;
                 _max_native_stack_depth = 0;
-                return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth or cdepth)");
+                return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth or cstackdepth)");
             }
         }
     }

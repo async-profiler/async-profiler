@@ -25,7 +25,7 @@ long J9WallClock::_interval;
 Error J9WallClock::start(Arguments& args) {
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL * 5;
     _max_stack_depth = args._jstackdepth;
-    _max_native_stack_depth = args._cdepth;
+    _max_native_stack_depth = args._cstackdepth;
 
     _running = true;
 
