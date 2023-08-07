@@ -149,7 +149,7 @@ void J9StackTraces::timerLoop() {
             ExecutionEvent event;
             Profiler::instance()->recordExternalSample(notif->counter, tid, EXECUTION_SAMPLE, &event, num_frames, frames);
 
-            ptr += notif->size();
+            ptr += sizeof(*notif);
         }
     }
 
@@ -178,7 +178,7 @@ void J9StackTraces::checkpoint(u64 counter, J9StackTraceNotification* notif) {
             vm_thread->setOverflowMark();
             notif->env = env;
             notif->counter = counter;
-            if (write(_pipe[1], notif, notif->size()) > 0) {
+            if (write(_pipe[1], notif, sizeof(*notif)) > 0) {
                 return;
             }
         }

@@ -28,10 +28,6 @@ struct J9StackTraceNotification {
     int num_frames;
     int reserved;
     const void **addr;
-
-    size_t size() {
-        return sizeof(*this) - sizeof(this->addr) + num_frames * sizeof(const void*);
-    }
 };
 
 
