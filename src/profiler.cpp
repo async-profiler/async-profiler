@@ -1330,7 +1330,7 @@ void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
             out << frame_name << (j == 0 ? ' ' : ';');
         }
         // Beware of locale-sensitive conversion
-        out.write(buf, sprintf(buf, "%llu\n", counter));
+        out.write(buf, snprintf(buf, sizeof(buf), "%llu\n", counter));
     }
 
     if (!out.good()) {
@@ -1345,7 +1345,7 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
         if (args._counter == COUNTER_SAMPLES) {
             strcpy(title, active_engine->title());
         } else {
-            sprintf(title, "%s (%s)", active_engine->title(), active_engine->units());
+            snprintf(title, sizeof(title), "%s (%s)", active_engine->title(), active_engine->units());
         }
     }
 
