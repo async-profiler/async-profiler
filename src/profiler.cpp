@@ -283,8 +283,11 @@ const char* Profiler::findNativeMethod(const void* address) {
     return lib == NULL ? NULL : lib->binarySearch(address);
 }
 
-bool Profiler::isAddressInCode(uintptr_t addr) {
-    const void* pc = (const void*)addr;
+CodeBlob* Profiler::findRuntimeStub(const void* address) {
+    return _runtime_stubs.find(address);
+}
+
+bool Profiler::isAddressInCode(const void* pc) {
     if (CodeHeap::contains(pc)) {
         return CodeHeap::findNMethod(pc) != NULL && !(pc >= _call_stub_begin && pc < _call_stub_end);
     } else {
@@ -314,6 +317,8 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+    } else if (_cstack == CSTACK_VM) {
+        return 0;
     } else if (_cstack == CSTACK_DWARF) {
         native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
     } else {
@@ -382,20 +387,17 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         saved_fp = frame.fp();
     }
 
-    if (_features.unwind_native) {
-        int state = vm_thread->state();
-        if (state == 8 || state == 9) {
-            if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
-                // call_stub is unsafe to walk
-                frames->bci = BCI_ERROR;
-                frames->method_id = (jmethodID)"call_stub";
-                return 1;
-            }
-            if (DWARF_SUPPORTED && java_ctx->sp != 0) {
-                // If a thread is in Java state, unwind manually to the last known Java frame,
-                // since JVM does not always correctly unwind native frames
-                frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
-            }
+    if (_features.unwind_native && vm_thread->inJava()) {
+        if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
+            // call_stub is unsafe to walk
+            frames->bci = BCI_ERROR;
+            frames->method_id = (jmethodID)"call_stub";
+            return 1;
+        }
+        if (DWARF_SUPPORTED && java_ctx->sp != 0) {
+            // If a thread is in Java state, unwind manually to the last known Java frame,
+            // since JVM does not always correctly unwind native frames
+            frame.restore((uintptr_t)java_ctx->pc, java_ctx->sp, java_ctx->fp);
         }
     }
 
@@ -428,8 +430,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
                 max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, stub->_name);
             }
-            if (_features.pop_stub && frame.popStub((instruction_t*)stub->_start, stub->_name)
-                    && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+            if (_features.unwind_stub && frame.unwindStub((instruction_t*)stub->_start, stub->_name)
+                    && isAddressInCode((const void*)frame.pc())) {
                 java_ctx->pc = (const void*)frame.pc();
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
@@ -442,8 +444,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     if (method_id != NULL) {
                         max_depth -= makeFrame(trace.frames++, 0, method_id);
                     }
-                    if (_features.pop_method && frame.popMethod((instruction_t*)nmethod->entry())
-                            && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                    if (_features.unwind_comp && frame.unwindCompiled((instruction_t*)nmethod->entry())
+                            && isAddressInCode((const void*)frame.pc())) {
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                     }
                     if (_features.probe_sp && trace.num_frames < 0) {
@@ -460,8 +462,8 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 if (_cstack != CSTACK_NO) {
                     max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, nmethod->name());
                 }
-                if (_features.pop_stub && frame.popStub(NULL, nmethod->name())
-                        && isAddressInCode(frame.pc() -= ADJUST_RET)) {
+                if (_features.unwind_stub && frame.unwindStub(NULL, nmethod->name())
+                        && isAddressInCode((const void*)frame.pc())) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             }
@@ -638,7 +640,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     StackContext java_ctx = {0};
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
 
-    if (event_type <= EXECUTION_SAMPLE) {
+    if (_cstack == CSTACK_VM) {
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth);
+    } else if (event_type <= EXECUTION_SAMPLE) {
         // Async events
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -815,6 +819,8 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         frame.retval() = frame.arg1();
         return;
     }
+
+    StackWalker::checkFault();
 
     if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
         return;
@@ -1073,6 +1079,11 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("DWARF unwinding is not supported on this platform");
     } else if (_cstack == CSTACK_LBR && _engine != &perf_events) {
         return Error("Branch stack is supported only with PMU events");
+    } else if (_cstack == CSTACK_VM) {
+        if (!VMStructs::hasStackStructs()) {
+            return Error("VMStructs stack walking is not supported on this JVM/platform");
+        }
+        Log::info("cstack=vm is an experimental option, use with care");
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
@@ -1204,8 +1215,19 @@ Error Profiler::check(Arguments& args) {
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
     }
-    if (!error && args._wall >= 0 && _engine == &wall_clock) {
-        return Error("Cannot start wall clock with the selected event");
+
+    if (!error) {
+        if (args._wall >= 0 && _engine == &wall_clock) {
+            return Error("Cannot start wall clock with the selected event");
+        }
+
+        if (args._cstack == CSTACK_DWARF && !DWARF_SUPPORTED) {
+            return Error("DWARF unwinding is not supported on this platform");
+        } else if (args._cstack == CSTACK_LBR && _engine != &perf_events) {
+            return Error("Branch stack is supported only with PMU events");
+        } else if (args._cstack == CSTACK_VM && !VMStructs::hasStackStructs()) {
+            return Error("VMStructs stack walking is not supported on this JVM/platform");
+        }
     }
 
     return error;

@@ -37,6 +37,10 @@ uintptr_t& StackFrame::retval() {
     return (uintptr_t&)_ucontext->uc_mcontext.arm_r0;
 }
 
+uintptr_t StackFrame::link() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_lr;
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)_ucontext->uc_mcontext.arm_r0;
 }
@@ -58,42 +62,51 @@ uintptr_t StackFrame::jarg0() {
     return 0;
 }
 
-void StackFrame::ret() {
-    _ucontext->uc_mcontext.arm_pc = _ucontext->uc_mcontext.arm_lr;
+uintptr_t StackFrame::method() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r9;
 }
 
-bool StackFrame::popStub(instruction_t* entry, const char* name) {
-    instruction_t* ip = (instruction_t*)pc();
+uintptr_t StackFrame::senderSP() {
+    return (uintptr_t)_ucontext->uc_mcontext.arm_r4;
+}
+
+void StackFrame::ret() {
+    pc() = link();
+}
+
+
+bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
     if (ip == entry || *ip == 0xe12fff1e
         || strncmp(name, "itable", 6) == 0
         || strncmp(name, "vtable", 6) == 0
         || strcmp(name, "InlineCacheBuffer") == 0)
     {
-        ret();
+        pc = link();
         return true;
     }
     return false;
 }
 
-bool StackFrame::popMethod(instruction_t* entry) {
-    instruction_t* ip = (instruction_t*)pc();
+bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
     if (ip > entry && ip <= entry + 4 && (*ip & 0xffffff00) == 0xe24dd000) {
         //    push  {r11, lr}
         //    mov   r11, sp (optional)
         // -> sub   sp, sp, #offs
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 8;
+        fp = ((uintptr_t*)sp)[0];
+        pc = ((uintptr_t*)sp)[1];
+        sp += 8;
         return true;
     } else if (*ip == 0xe8bd4800) {
         //    add   sp, sp, #offs
         // -> pop   {r11, lr}
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 8;
+        fp = ((uintptr_t*)sp)[0];
+        pc = ((uintptr_t*)sp)[1];
+        sp += 8;
         return true;
     }
-    ret();
+    pc = link();
     return true;
 }
 

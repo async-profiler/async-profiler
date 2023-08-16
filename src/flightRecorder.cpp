@@ -701,8 +701,8 @@ class Recording {
     const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
         snprintf(str, size, "%s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
-                 f.pop_stub      ? "pop_stub"      : "-",
-                 f.pop_method    ? "pop_method"    : "-",
+                 f.unwind_stub   ? "unwind_stub"   : "-",
+                 f.unwind_comp   ? "unwind_comp"   : "-",
                  f.unwind_native ? "unwind_native" : "-",
                  f.java_anchor   ? "java_anchor"   : "-",
                  f.gc_traces     ? "gc_traces"     : "-",

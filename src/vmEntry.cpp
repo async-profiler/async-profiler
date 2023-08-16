@@ -245,19 +245,11 @@ bool VM::init(JavaVM* vm, bool attach) {
 
 // Run late initialization when JVM is ready
 void VM::ready() {
+    Profiler::setupSignalHandlers();
+
     {
         JitWriteProtection jit(true);
         VMStructs::ready();
-    }
-
-    Profiler::setupSignalHandlers();
-
-    if (WX_MEMORY && hotspot_version() == 17) {
-        // Workaround for JDK-8307549
-        void** entry = (void**)VMStructs::libjvm()->findSymbol("_ZN12StubRoutines18_safefetch32_entryE");
-        if (entry != NULL) {
-            *entry = (void*)SafeAccess::load32;
-        }
     }
 
     _libjava = getLibraryHandle("libjava.so");

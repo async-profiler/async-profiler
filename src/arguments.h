@@ -70,7 +70,8 @@ enum SHORT_ENUM CStack {
     CSTACK_NO,
     CSTACK_FP,
     CSTACK_DWARF,
-    CSTACK_LBR
+    CSTACK_LBR,
+    CSTACK_VM
 };
 
 enum SHORT_ENUM Clock {
@@ -102,8 +103,8 @@ enum JfrOption {
 struct StackWalkFeatures {
     // Stack recovery techniques used to workaround AsyncGetCallTrace flaws
     unsigned short unknown_java  : 1;
-    unsigned short pop_stub      : 1;
-    unsigned short pop_method    : 1;
+    unsigned short unwind_stub   : 1;
+    unsigned short unwind_comp   : 1;
     unsigned short unwind_native : 1;
     unsigned short java_anchor   : 1;
     unsigned short gc_traces     : 1;
@@ -114,7 +115,7 @@ struct StackWalkFeatures {
     unsigned short comp_task     : 1;
     unsigned short _reserved     : 7;
 
-    StackWalkFeatures() : unknown_java(1), pop_stub(1), pop_method(1), unwind_native(1), java_anchor(1), gc_traces(1),
+    StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
                           probe_sp(0), vtable_target(0), comp_task(0), _reserved(0) {
     }
 };

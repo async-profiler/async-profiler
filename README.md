@@ -452,7 +452,7 @@ The following is a complete list of the command-line options accepted by
 * `--cstack MODE` - how to walk native frames (C stack). Possible modes are
   `fp` (Frame Pointer), `dwarf` (DWARF unwind info),
   `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
-  and `no` (do not collect C stack).
+  `vm` (HotSpot VM Structs) and `no` (do not collect C stack).
 
   By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.

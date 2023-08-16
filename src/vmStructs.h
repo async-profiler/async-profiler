@@ -32,6 +32,7 @@ class VMStructs {
     static bool _has_class_names;
     static bool _has_method_structs;
     static bool _has_compiler_structs;
+    static bool _has_stack_structs;
     static bool _has_class_loader_data;
     static bool _has_native_thread_id;
     static bool _has_perm_gen;
@@ -49,23 +50,32 @@ class VMStructs {
     static int _thread_osthread_offset;
     static int _thread_anchor_offset;
     static int _thread_state_offset;
+    static int _thread_vframe_offset;
+    static int _thread_exception_offset;
     static int _osthread_id_offset;
     static int _comp_env_offset;
     static int _comp_task_offset;
     static int _comp_method_offset;
     static int _anchor_sp_offset;
     static int _anchor_pc_offset;
+    static int _anchor_fp_offset;
     static int _frame_size_offset;
     static int _frame_complete_offset;
+    static int _code_begin_offset;
+    static int _scopes_begin_offset;
     static int _nmethod_name_offset;
     static int _nmethod_method_offset;
     static int _nmethod_entry_offset;
     static int _nmethod_state_offset;
     static int _nmethod_level_offset;
+    static int _nmethod_metadata_offset;
+    static int _nmethod_pcs_begin_offset;
+    static int _nmethod_pcs_end_offset;
     static int _method_constmethod_offset;
     static int _method_code_offset;
     static int _constmethod_constants_offset;
     static int _constmethod_idnum_offset;
+    static int _constmethod_size;
     static int _pool_holder_offset;
     static int _array_data_offset;
     static int _code_heap_memory_offset;
@@ -98,6 +108,10 @@ class VMStructs {
     static int _region_size_offset;
     static int _markword_klass_shift;
     static int _markword_monitor_value;
+    static int _interpreter_frame_bcp_offset;
+    static unsigned char _unsigned5_base;
+    static const void** _call_stub_return_addr;
+    static const void* _call_stub_return;
 
     static jfieldID _eetop;
     static jfieldID _tid;
@@ -112,6 +126,7 @@ class VMStructs {
     static uintptr_t readSymbol(const char* symbol_name);
     static void initOffsets();
     static void resolveOffsets();
+    static void patchSafeFetch();
     static void initJvmFunctions();
     static void initTLS(void* vm_thread);
     static void initThreadBridge(JNIEnv* env);
@@ -119,6 +134,10 @@ class VMStructs {
 
     const char* at(int offset) {
         return (const char*)this + offset;
+    }
+
+    static bool aligned(const void* ptr) {
+        return ((uintptr_t)ptr & (sizeof(uintptr_t) - 1)) == 0;
     }
 
   public:
@@ -139,6 +158,10 @@ class VMStructs {
 
     static bool hasCompilerStructs() {
         return _has_compiler_structs;
+    }
+
+    static bool hasStackStructs() {
+        return _has_stack_structs;
     }
 
     static bool hasClassLoaderData() {
@@ -302,12 +325,28 @@ class VMThread : VMStructs {
         return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
     }
 
+    bool inJava() {
+        return state() == 8;
+    }
+
+    bool inDeopt() {
+        return *(void**) at(_thread_vframe_offset) != NULL;
+    }
+
+    void*& exception() {
+        return *(void**) at(_thread_exception_offset);
+    }
+
     uintptr_t& lastJavaSP() {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_sp_offset);
     }
 
     uintptr_t& lastJavaPC() {
         return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
+    }
+
+    uintptr_t& lastJavaFP() {
+        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_fp_offset);
     }
 
     VMMethod* compiledMethod() {
@@ -330,6 +369,10 @@ class VMMethod : VMStructs {
 
     jmethodID id();
 
+    const char* bytecode() {
+        return *(const char**) at(_method_constmethod_offset) + _constmethod_size;
+    }
+
     NMethod* code() {
         return *(NMethod**) at(_method_code_offset);
     }
@@ -347,6 +390,30 @@ class NMethod : VMStructs {
 
     void setFrameCompleteOffset(int offset) {
         *(int*) at(_frame_complete_offset) = offset;
+    }
+
+    const char* code() {
+        if (_code_begin_offset >= 0) {
+            return *(const char**) at(_code_begin_offset);
+        } else {
+            return at(*(int*) at(-_code_begin_offset));
+        }
+    }
+
+    const char* scopes() {
+        if (_scopes_begin_offset >= 0) {
+            return *(const char**) at(_scopes_begin_offset);
+        } else {
+            return at(*(int*) at(-_scopes_begin_offset));
+        }
+    }
+
+    bool isFrameCompleteAt(const void* pc) {
+        return pc >= code() + frameCompleteOffset();
+    }
+
+    bool isEntryFrame(const void* pc) {
+        return pc == _call_stub_return;
     }
 
     const char* name() {
@@ -382,6 +449,12 @@ class NMethod : VMStructs {
     int level() {
         return _nmethod_level_offset >= 0 ? *(int*) at(_nmethod_level_offset) : 0;
     }
+
+    VMMethod** metadata() {
+        return (VMMethod**) at(*(int*) at(_nmethod_metadata_offset));
+    }
+
+    int findScopeOffset(const void* pc);
 };
 
 class CodeHeap : VMStructs {
@@ -445,6 +518,56 @@ class JVMFlag : VMStructs {
 
     void* addr() {
         return *(void**) at(_flag_addr_offset);
+    }
+};
+
+class PcDesc {
+  public:
+    int _pc;
+    int _scope_offset;
+    int _obj_offset;
+    int _flags;
+};
+
+class ScopeDesc : VMStructs {
+  private:
+    NMethod* _nm;
+    const unsigned char* _stream;
+    int _method_offset;
+    int _bci;
+
+    int readInt();
+
+  public:
+    ScopeDesc(NMethod* nm) : _nm(nm) {
+    }
+
+    int decode(int offset) {
+        _stream = (const unsigned char*)_nm->scopes() + offset;
+        int sender_offset = readInt();
+        _method_offset = readInt();
+        _bci = readInt() - 1;
+        return sender_offset;
+    }
+
+    VMMethod* method() {
+        return _method_offset > 0 ? _nm->metadata()[_method_offset - 1] : NULL;
+    }
+
+    int bci() {
+        return _bci;
+    }
+};
+
+class InterpreterFrame : VMStructs {
+  public:
+    enum {
+        sender_sp_offset = -1,
+        method_offset = -3
+    };
+
+    static int bcp_offset() {
+        return _interpreter_frame_bcp_offset;
     }
 };
 

@@ -21,6 +21,14 @@
 #include "arch.h"
 
 
+const int DW_REG_PLT = 128;      // denotes special rule for PLT entries
+const int DW_REG_INVALID = 255;  // denotes unsupported configuration
+
+const int DW_PC_OFFSET = 1;
+const int DW_SAME_FP = 0x80000000;
+const int DW_STACK_SLOT = sizeof(void*);
+
+
 #if defined(__x86_64__)
 
 #define DWARF_SUPPORTED true
@@ -28,6 +36,8 @@
 const int DW_REG_FP = 6;
 const int DW_REG_SP = 7;
 const int DW_REG_PC = 16;
+const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
+const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
 
 #elif defined(__i386__)
 
@@ -36,6 +46,18 @@ const int DW_REG_PC = 16;
 const int DW_REG_FP = 5;
 const int DW_REG_SP = 4;
 const int DW_REG_PC = 8;
+const int EMPTY_FRAME_SIZE = DW_STACK_SLOT;
+const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
+
+#elif defined(__aarch64__)
+
+#define DWARF_SUPPORTED true
+
+const int DW_REG_FP = 29;
+const int DW_REG_SP = 31;
+const int DW_REG_PC = 30;
+const int EMPTY_FRAME_SIZE = 0;
+const int LINKED_FRAME_SIZE = 0;
 
 #else
 
@@ -44,15 +66,10 @@ const int DW_REG_PC = 8;
 const int DW_REG_FP = 0;
 const int DW_REG_SP = 1;
 const int DW_REG_PC = 2;
+const int EMPTY_FRAME_SIZE = 0;
+const int LINKED_FRAME_SIZE = 0;
 
 #endif
-
-const int DW_REG_PLT = 128;      // denotes special rule for PLT entries
-const int DW_REG_INVALID = 255;  // denotes unsupported configuration
-
-const int DW_PC_OFFSET = 1;
-const int DW_SAME_FP = 0x80000000;
-const int DW_STACK_SLOT = sizeof(void*);
 
 
 struct FrameDesc {

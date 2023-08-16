@@ -45,6 +45,11 @@ uintptr_t& StackFrame::retval() {
     return (uintptr_t&)REG(RAX, rax);
 }
 
+uintptr_t StackFrame::link() {
+    // No link register on x86
+    return 0;
+}
+
 uintptr_t StackFrame::arg0() {
     return (uintptr_t)REG(RDI, rdi);
 }
@@ -65,64 +70,76 @@ uintptr_t StackFrame::jarg0() {
     return arg1();
 }
 
+uintptr_t StackFrame::method() {
+    return (uintptr_t)REG(RBX, rbx);
+}
+
+uintptr_t StackFrame::senderSP() {
+    return (uintptr_t)REG(R13, r13);
+}
+
 void StackFrame::ret() {
     pc() = stackAt(0);
     sp() += 8;
 }
 
 
-bool StackFrame::popStub(instruction_t* entry, const char* name) {
-    instruction_t* ip = (instruction_t*)pc();
+bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
     if (ip == entry || *ip == 0xc3
         || strncmp(name, "itable", 6) == 0
         || strncmp(name, "vtable", 6) == 0
         || strcmp(name, "InlineCacheBuffer") == 0)
     {
-        pc() = stackAt(0);
-        sp() += 8;
+        pc = ((uintptr_t*)sp)[0] - 1;
+        sp += 8;
         return true;
     } else if (entry != NULL && *(unsigned int*)entry == 0xec8b4855) {
         // The stub begins with
         //   push rbp
         //   mov  rbp, rsp
         if (ip == entry + 1) {
-            pc() = stackAt(1);
-            sp() += 16;
+            pc = ((uintptr_t*)sp)[1] - 1;
+            sp += 16;
             return true;
-        } else if (withinCurrentStack(fp())) {
-            sp() = fp() + 16;
-            fp() = stackAt(-2);
-            pc() = stackAt(-1);
+        } else if (withinCurrentStack(fp)) {
+            sp = fp + 16;
+            fp = ((uintptr_t*)sp)[-2];
+            pc = ((uintptr_t*)sp)[-1] - 1;
             return true;
         }
     }
     return false;
 }
 
-bool StackFrame::popMethod(instruction_t* entry) {
-    instruction_t* ip = (instruction_t*)pc();
-    if (ip <= entry || *ip == 0xc3 || *ip == 0x55                               // ret or push rbp
-        || (((uintptr_t)ip & 0xfff) && ip[-1] == 0x5d)                          // after pop rbp
+bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
+    if (ip <= entry
+        || *ip == 0xc3                                                          // ret
+        || *ip == 0x55                                                          // push rbp
+        || ip[-1] == 0x5d                                                       // after pop rbp
         || (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3))  // poll return
     {
-        pc() = stackAt(0);
-        sp() += 8;
+        // Subtract 1 for PC to point to the call instruction,
+        // otherwise it may be attributed to a wrong bytecode
+        pc = ((uintptr_t*)sp)[0] - 1;
+        sp += 8;
         return true;
     } else if (*ip == 0x5d) {
         // pop rbp
-        fp() = stackAt(0);
-        pc() = stackAt(1);
-        sp() += 16;
+        fp = ((uintptr_t*)sp)[0];
+        pc = ((uintptr_t*)sp)[1] - 1;
+        sp += 16;
         return true;
     } else if (ip <= entry + 15 && ((uintptr_t)ip & 0xfff) && ip[-1] == 0x55) {
         // push rbp
-        pc() = stackAt(1);
-        sp() += 16;
+        pc = ((uintptr_t*)sp)[1] - 1;
+        sp += 16;
         return true;
     } else if (ip <= entry + 7 && ip[0] == 0x48 && ip[1] == 0x89 && ip[2] == 0x6c && ip[3] == 0x24) {
         // mov [rsp + #off], rbp
-        sp() += ip[4] + 16;
-        pc() = stackAt(-1);
+        sp += ip[4] + 16;
+        pc = ((uintptr_t*)sp)[-1] - 1;
         return true;
     }
     return false;

@@ -93,7 +93,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
-//                        MODE is 'fp' (Frame Pointer), 'dwarf', 'lbr' (Last Branch Record) or 'no'
+//                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
@@ -270,8 +270,8 @@ Error Arguments::parse(const char* args) {
                 // Left for compatibility purpose; will be eventually migrated to 'features'
                 int bits = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
                 _features.unknown_java  = (bits & 1) ? 0 : 1;
-                _features.pop_stub      = (bits & 2) ? 0 : 1;
-                _features.pop_method    = (bits & 4) ? 0 : 1;
+                _features.unwind_stub   = (bits & 2) ? 0 : 1;
+                _features.unwind_comp   = (bits & 4) ? 0 : 1;
                 _features.unwind_native = (bits & 8) ? 0 : 1;
                 _features.java_anchor   = (bits & 16) ? 0 : 1;
                 _features.gc_traces     = (bits & 32) ? 0 : 1;
@@ -334,14 +334,12 @@ Error Arguments::parse(const char* args) {
 
             CASE("cstack")
                 if (value != NULL) {
-                    if (value[0] == 'n') {
-                        _cstack = CSTACK_NO;
-                    } else if (value[0] == 'd') {
-                        _cstack = CSTACK_DWARF;
-                    } else if (value[0] == 'l') {
-                        _cstack = CSTACK_LBR;
-                    } else {
-                        _cstack = CSTACK_FP;
+                    switch (value[0]) {
+                        case 'n': _cstack = CSTACK_NO;    break;
+                        case 'd': _cstack = CSTACK_DWARF; break;
+                        case 'l': _cstack = CSTACK_LBR;   break;
+                        case 'v': _cstack = CSTACK_VM;    break;
+                        default:  _cstack = CSTACK_FP;
                     }
                 }
 

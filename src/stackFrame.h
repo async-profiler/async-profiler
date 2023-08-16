@@ -54,16 +54,27 @@ class StackFrame {
     uintptr_t& fp();
 
     uintptr_t& retval();
+    uintptr_t link();
     uintptr_t arg0();
     uintptr_t arg1();
     uintptr_t arg2();
     uintptr_t arg3();
     uintptr_t jarg0();
+    uintptr_t method();
+    uintptr_t senderSP();
 
     void ret();
 
-    bool popStub(instruction_t* entry, const char* name);
-    bool popMethod(instruction_t* entry);
+    bool unwindStub(instruction_t* entry, const char* name) {
+        return unwindStub(entry, name, pc(), sp(), fp());
+    }
+
+    bool unwindCompiled(instruction_t* entry) {
+        return unwindCompiled(entry, pc(), sp(), fp());
+    }
+
+    bool unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
+    bool unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
 
     bool checkInterruptedSyscall();
 

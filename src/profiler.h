@@ -121,7 +121,6 @@ class Profiler {
 
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
-    bool isAddressInCode(uintptr_t addr);
     jmethodID getCurrentCompileTask();
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
@@ -225,6 +224,8 @@ class Profiler {
     CodeCache* findLibraryByName(const char* lib_name);
     CodeCache* findLibraryByAddress(const void* address);
     const char* findNativeMethod(const void* address);
+    CodeBlob* findRuntimeStub(const void* address);
+    bool isAddressInCode(const void* pc);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);

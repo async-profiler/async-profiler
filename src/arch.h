@@ -48,7 +48,6 @@ const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = 2;
 const int FRAME_PC_SLOT = 1;
-const int ADJUST_RET = 1;
 const int PROBE_SP_LIMIT = 4;
 const int PLT_HEADER_SIZE = 16;
 const int PLT_ENTRY_SIZE = 16;
@@ -67,7 +66,6 @@ const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 1;
-const int ADJUST_RET = 0;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 20;
 const int PLT_ENTRY_SIZE = 12;
@@ -85,7 +83,6 @@ const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 1;
-const int ADJUST_RET = 0;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
@@ -105,7 +102,6 @@ const int BREAKPOINT_OFFSET = 8;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 2;
-const int ADJUST_RET = 0;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 24;
 const int PLT_ENTRY_SIZE = 24;

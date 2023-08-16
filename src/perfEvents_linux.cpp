@@ -598,7 +598,7 @@ int PerfEvents::createForThread(int tid) {
         attr.exclude_user = 1;
     }
 
-    if (_cstack == CSTACK_FP || _cstack == CSTACK_DWARF) {
+    if (_cstack >= CSTACK_FP) {
         attr.exclude_callchain_user = 1;
     }
 
@@ -607,7 +607,6 @@ int PerfEvents::createForThread(int tid) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
-        attr.exclude_callchain_user = 1;
     }
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
@@ -784,7 +783,7 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_kernel = Symbols::haveKernelSymbols() ? 0 : 1;
     }
 
-    if (_cstack == CSTACK_FP || _cstack == CSTACK_DWARF) {
+    if (args._cstack >= CSTACK_FP) {
         attr.exclude_callchain_user = 1;
     }
 
@@ -793,7 +792,6 @@ Error PerfEvents::check(Arguments& args) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
-        attr.exclude_callchain_user = 1;
     }
 #endif
 

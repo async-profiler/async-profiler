@@ -65,7 +65,7 @@ enum {
 };
 
 
-FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | (2 * DW_STACK_SLOT) << 8, -2 * DW_STACK_SLOT};
+FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE};
 
 
 DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
@@ -135,7 +135,7 @@ void DwarfParser::parseFde() {
     u32 range_len = get32();
     _ptr += getLeb();
     parseInstructions(range_start, fde_start + fde_len);
-    addRecord(range_start + range_len, DW_REG_FP, 2 * DW_STACK_SLOT, -2 * DW_STACK_SLOT);
+    addRecord(range_start + range_len, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE);
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end) {
@@ -143,14 +143,12 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
     const int data_align = _data_align;
 
     u32 cfa_reg = DW_REG_SP;
-    int cfa_off = DW_STACK_SLOT;
+    int cfa_off = EMPTY_FRAME_SIZE;
     int fp_off = DW_SAME_FP;
-    int pc_off = -DW_STACK_SLOT;
 
     u32 rem_cfa_reg;
     int rem_cfa_off;
     int rem_fp_off;
-    int rem_pc_off;
 
     while (_ptr < end) {
         u8 op = get8();
@@ -174,16 +172,18 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         loc += get32() * code_align;
                         break;
                     case DW_CFA_offset_extended:
-                        switch (getLeb()) {
-                            case DW_REG_FP: fp_off = getLeb() * data_align; break;
-                            case DW_REG_PC: pc_off = getLeb() * data_align; break;
-                            default: skipLeb();
+                        if (getLeb() == DW_REG_FP) {
+                            fp_off = getLeb() * data_align;
+                        } else {
+                            skipLeb();
                         }
                         break;
                     case DW_CFA_restore_extended:
                     case DW_CFA_undefined:
                     case DW_CFA_same_value:
-                        skipLeb();
+                        if (getLeb() == DW_REG_FP) {
+                            fp_off = DW_SAME_FP;
+                        }
                         break;
                     case DW_CFA_register:
                         skipLeb();
@@ -193,13 +193,11 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         rem_cfa_reg = cfa_reg;
                         rem_cfa_off = cfa_off;
                         rem_fp_off = fp_off;
-                        rem_pc_off = pc_off;
                         break;
                     case DW_CFA_restore_state:
                         cfa_reg = rem_cfa_reg;
                         cfa_off = rem_cfa_off;
                         fp_off = rem_fp_off;
-                        pc_off = rem_pc_off;
                         break;
                     case DW_CFA_def_cfa:
                         cfa_reg = getLeb();
@@ -223,10 +221,10 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                         _ptr += getLeb();
                         break;
                     case DW_CFA_offset_extended_sf:
-                        switch (getLeb()) {
-                            case DW_REG_FP: fp_off = getSLeb() * data_align; break;
-                            case DW_REG_PC: pc_off = getSLeb() * data_align; break;
-                            default: skipLeb();
+                        if (getLeb() == DW_REG_FP) {
+                            fp_off = getSLeb() * data_align;
+                        } else {
+                            skipLeb();
                         }
                         break;
                     case DW_CFA_def_cfa_sf:
@@ -264,13 +262,16 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
                 loc += (op & 0x3f) * code_align;
                 break;
             case DW_CFA_offset:
-                switch (op & 0x3f) {
-                    case DW_REG_FP: fp_off = getLeb() * data_align; break;
-                    case DW_REG_PC: pc_off = getLeb() * data_align; break;
-                    default: skipLeb();
+                if ((op & 0x3f) == DW_REG_FP) {
+                    fp_off = getLeb() * data_align;
+                } else {
+                    skipLeb();
                 }
                 break;
             case DW_CFA_restore:
+                if ((op & 0x3f) == DW_REG_FP) {
+                    fp_off = DW_SAME_FP;
+                }
                 break;
         }
     }
