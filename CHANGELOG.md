@@ -1,5 +1,42 @@
 # Changelog
 
+## [3.0] - Early Access
+
+### Features
+ - #724: Binary launcher `asprof`
+ - #751: Profile non-Java processes
+ - #795: AsyncGetCallTrace replacement
+ - #719: Classify execution samples into categories in JFR converter
+ - #740: Profile CPU + Wall clock together
+ - #736: Show targets of vtable/itable calls
+ - #777: Show JIT compilation task
+
+### Improvements
+ - #733: Make the same `libasyncProfiler` work with both glibc and musl
+ - #734: Support raw PMU event descriptors
+ - #759: Configure alternative profiling signal
+ - #761: Parse dynamic linking structures
+ - #723: `--clock` option to select JFR timestamp source
+ - #750: `--jfrsync` may specify a list of JFR events
+ - Better demangling of C++ and Rust symbols
+ - DWARF unwinding for ARM64
+ - `JfrReader` can parse in-memory buffer
+ - Support custom events in `JfrReader`
+ - An option to read JFR file by chunks
+ - Record `GCHeapSummary` events in JFR
+
+### Bug fixes
+ - Workaround macOS crash JDK-8307549
+ - Support `UseCompressedObjectHeaders` aka Lilliput
+ - Fixed allocation profiling on JDK 20.0.x
+ - Fixed context-switches profiling
+ - Prefer ObjectSampler to TLAB hooks for allocation profiling
+ - Make Flame Graph status line and search results always visible
+ - Calculate ELF base address correctly
+ - Do not dump redundant threads in a JFR chunk
+ - `check` action prints result to a file
+ - Annotate JFR unit types with `@ContentType`
+
 ## [2.9] - 2022-11-27
 
 ### Features
