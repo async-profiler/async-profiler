@@ -139,7 +139,25 @@ bool StackFrame::checkInterruptedSyscall() {
         return retval() == (uintptr_t)-EINTR; 
     }
 #else
-    return retval() == (uintptr_t)-EINTR;
+    if (retval() == (uintptr_t)-EINTR) {
+        // Workaround for JDK-8237858: restart the interrupted poll() manually.
+        // Check if the syscall number is SYS_ppoll with NULL timespec argument
+        if ((uintptr_t)REG(regs[8], x[8]) == SYS_ppoll && arg2() == 0) {
+            // Try to restore the original value of x0 saved in another register
+            for (uintptr_t prev_pc = pc() - 4; (prev_pc & 0xfff) < 0xffc && (pc() - prev_pc) <= 24; prev_pc -= 4) {
+                instruction_t insn = *(instruction_t*)prev_pc;
+                unsigned int reg = (insn >> 16) & 31;
+                if ((insn & 0xffe0ffff) == 0xaa0003e0 && reg >= 6) {
+                    // mov x0, reg
+                    REG(regs[0], x[0]) = REG(regs[reg], x[reg]);
+                    pc() -= sizeof(instruction_t);
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+    return false;
 #endif
 }
 
