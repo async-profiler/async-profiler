@@ -16,7 +16,7 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
-JAVA_TARGET=7
+JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 SOURCES := $(wildcard src/*.cpp)
@@ -93,6 +93,8 @@ endif
 .PHONY: all release test native clean
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(LAUNCHER) build/$(API_JAR) build/$(CONVERTER_JAR)
+
+release: JAVA_TARGET=7
 
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
