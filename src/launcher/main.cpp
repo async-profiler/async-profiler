@@ -25,7 +25,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "fdtransferServer.h"
-#include "../jattach/psutil.h"
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -225,26 +224,35 @@ static unsigned long long time_micros() {
 }
 
 static void setup_output_files(int pid) {
-    char current_dir[MAX_PATH];
+    char current_dir[1024];
     int self_pid = getpid();
-    get_tmp_path(pid);
 
     if (file == "") {
-        file = String(tmp_path) << "/async-profiler." << self_pid << "." << pid;
+        file = String("/tmp/async-profiler.") << self_pid << "." << pid;
         use_tmp_file = true;
     } else if (file.str()[0] != '/' && getcwd(current_dir, sizeof(current_dir)) != NULL) {
         file = String(current_dir) << "/" << file;
     }
-    logfile = String(tmp_path) << "/async-profiler-log." << self_pid << "." << pid;
+    logfile = String("/tmp/async-profiler-log.") << self_pid << "." << pid;
 }
 
 static void setup_lib_path() {
+    char buf[1024];
+
 #ifdef __linux__
     const char* lib = "../lib/libasyncProfiler.so";
     char* exe = realpath("/proc/self/exe", NULL);
+    if (exe == NULL) {
+        // realpath() may fail for a path like /proc/[pid]/root/bin/asprof
+        // In this case, resolve the link as is and do not check for .so existence
+        ssize_t size = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (size >= 0) {
+            buf[size] = 0;
+            exe = buf;
+        }
+    }
 #elif defined(__APPLE__)
     const char* lib = "../lib/libasyncProfiler.dylib";
-    char buf[MAX_PATH];
     uint32_t size = sizeof(buf);
     char* exe = _NSGetExecutablePath(buf, &size) == 0 ? realpath(buf, NULL) : NULL;
 #endif
@@ -254,11 +262,13 @@ static void setup_lib_path() {
         slash[1] = 0;
         libpath = String(exe) << lib;
     }
-    free(exe);
 
-    struct stat statbuf;
-    if (stat(libpath.str(), &statbuf) != 0 || !S_ISREG(statbuf.st_mode)) {
-        libpath = "asyncProfiler";
+    if (exe != buf) {
+        free(exe);
+        struct stat statbuf;
+        if (stat(libpath.str(), &statbuf) != 0 || !S_ISREG(statbuf.st_mode)) {
+            libpath = "asyncProfiler";
+        }
     }
 }
 
