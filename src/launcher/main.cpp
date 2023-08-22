@@ -228,12 +228,14 @@ static void setup_output_files(int pid) {
     int self_pid = getpid();
 
     if (file == "") {
-        file = String("/tmp/async-profiler.") << self_pid << "." << pid;
+        file = String("/tmp/asprof.") << self_pid << "." << pid;
         use_tmp_file = true;
     } else if (file.str()[0] != '/' && getcwd(current_dir, sizeof(current_dir)) != NULL) {
         file = String(current_dir) << "/" << file;
     }
-    logfile = String("/tmp/async-profiler-log.") << self_pid << "." << pid;
+
+    // The agent recognizes temporary log name, see Arguments::hasTemporaryLog()
+    logfile = String("/tmp/asprof-log.") << self_pid << "." << pid;
 }
 
 static void setup_lib_path() {
@@ -477,7 +479,7 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--fdtransfer") {
             char buf[64];
-            snprintf(buf, sizeof(buf), "@async-profiler-%d-%08x", getpid(), (unsigned int)time_micros());
+            snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
             fdtransfer = buf;
             params << ",fdtransfer=" << fdtransfer;
 

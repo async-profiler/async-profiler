@@ -424,6 +424,11 @@ const char* Arguments::file() {
     return _file;
 }
 
+// Returns true if the log file is a temporary file of asprof launcher
+bool Arguments::hasTemporaryLog() const {
+    return _log != NULL && strncmp(_log, "/tmp/asprof-log.", 16) == 0;
+}
+
 // The linked list of string offsets is embedded right into _buf array
 void Arguments::appendToEmbeddedList(int& list, char* value) {
     ((int*)value)[-1] = list;

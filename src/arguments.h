@@ -264,6 +264,8 @@ class Arguments {
 
     const char* file();
 
+    bool hasTemporaryLog() const;
+
     bool hasOutputFile() const {
         return _file != NULL &&
             (_action == ACTION_STOP || _action == ACTION_DUMP ? _output != OUTPUT_JFR : _action >= ACTION_CHECK);
