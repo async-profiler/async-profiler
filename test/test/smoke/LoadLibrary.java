@@ -1,12 +1,12 @@
+package test.smoke;
+
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.ManagementFactory;
 
-class LoadLibraryTest {
+public class LoadLibrary {
 
     public static void main(String[] args) throws Exception {
-        for (int i = 0; i < 200; i++) {
-            Thread.sleep(10);
-        }
+        Thread.sleep(2000);
 
         // Late load of libmanagement.so
         ClassLoadingMXBean bean = ManagementFactory.getClassLoadingMXBean();

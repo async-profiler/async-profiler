@@ -1,4 +1,4 @@
-PROFILER_VERSION=3.0-ea
+PROFILER_VERSION=2.10
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -7,6 +7,7 @@ LAUNCHER=bin/asprof
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=lib/async-profiler.jar
 CONVERTER_JAR=lib/converter.jar
+TEST_JAR=test.jar
 
 CFLAGS=-O3 -fno-exceptions
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
@@ -16,6 +17,7 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
@@ -25,6 +27,8 @@ RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
+TEST_SOURCES := $(shell find test -name '*.java')
+TESTS=$(shell ls test/test)
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -94,8 +98,6 @@ endif
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(LAUNCHER) build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: JAVA_TARGET=7
-
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
@@ -146,19 +148,22 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -g:none $^
 
-test: all
-	test/smoke-test.sh
-	test/thread-smoke-test.sh
-	test/alloc-smoke-test.sh
-	test/load-library-test.sh
-	test/fdtransfer-smoke-test.sh
-	echo "All tests passed"
+test: all build/$(TEST_JAR)
+	echo "here"
+	echo $(LIB_PROFILER)
+	echo $(SOEXT)
+	$(JAVA) -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+build/$(TEST_JAR): $(TEST_SOURCES)  build/$(CONVERTER_JAR)
+	mkdir -p build/test
+	$(JAVAC) -source 8 -target 8 -cp "build/lib/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAR) cf $@ -C build/test .
 
 native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
-	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/lib/libasyncProfiler.dylib > native/linux-x64/lib/libasyncProfiler.dylib
+	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/lib/libasyncProfiler.dylib > native/linux-arm64/lib/libasyncProfiler.dylib
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/lib/libasyncProfiler.dylib > native/macos/lib/libasyncProfiler.dylib
 
 clean:
 	$(RM) -r build
