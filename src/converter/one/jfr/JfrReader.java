@@ -99,7 +99,9 @@ public class JfrReader implements Closeable {
 
     @Override
     public void close() throws IOException {
-        ch.close();
+        if (ch != null) {
+            ch.close();
+        }
     }
 
     public boolean eof() {
