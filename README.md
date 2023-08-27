@@ -140,7 +140,7 @@ For instance, this can be helpful when profiling application start-up time.
 
 Wall-clock profiler is most useful in per-thread mode: `-t`.
 
-Example: `./profiler.sh -e wall -t -i 5ms -f result.html 8983`
+Example: `asprof -e wall -t -i 5ms -f result.html 8983`
 
 ## Java method profiling
 
@@ -186,11 +186,14 @@ sysctl or as follows:
 # sysctl kernel.kptr_restrict=0
 ```
 
-To run the agent and pass commands to it, the helper script `profiler.sh`
-is provided. A typical workflow would be to launch your Java application,
-attach the agent and start profiling, exercise your performance scenario, and
+async-profiler works in the context of the target Java application,
+i.e. it runs as an agent in the process being profiled.
+`asprof` is a tool to attach and control the agent. 
+
+A typical workflow would be to launch your Java application, attach
+the agent and start profiling, exercise your performance scenario, and
 then stop profiling. The agent's output, including the profiling results, will
-be displayed in the Java application's standard output.
+be displayed on the console where you've started `asprof`.
 
 Example:
 
@@ -198,8 +201,8 @@ Example:
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh start 8983
-$ ./profiler.sh stop 8983
+$ asprof start 8983
+$ asprof stop 8983
 ```
 
 The following may be used in lieu of the `pid` (8983):
@@ -211,7 +214,7 @@ Alternatively, you may specify `-d` (duration) argument to profile
 the application for a fixed period of time with a single command.
 
 ```
-$ ./profiler.sh -d 30 8983
+$ asprof -d 30 8983
 ```
 
 By default, the profiling frequency is 100Hz (every 10ms of CPU time).
@@ -244,7 +247,7 @@ call stack leading to it comes from `Primes.primesThread`.
 
 ## Launching as an Agent
 
-If you need to profile some code as soon as the JVM starts up, instead of using the `profiler.sh` script,
+If you need to profile some code as soon as the JVM starts up, instead of using the `asprof`,
 it is possible to attach async-profiler as an agent on the command line. For example:
 
 ```
@@ -254,11 +257,11 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
 [in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.9/src/arguments.cpp#L52).
-The `profiler.sh` script actually converts command line arguments to that format.
+`asprof` actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
 is converted to `file=profile.html`, and so on. However, some arguments are processed
-directly by `profiler.sh` script. E.g. `-d 5` results in 3 actions:
+directly by `asprof`. E.g. `-d 5` results in 3 actions:
 attaching profiler agent with start command, sleeping for 5 seconds,
 and then attaching the agent again with stop command.
 
@@ -278,11 +281,11 @@ The recording will contain the following event types:
 
 To start profiling cpu + allocations + locks together, specify
 ```
-./profiler.sh -e cpu,alloc,lock -f profile.jfr ...
+asprof -e cpu,alloc,lock -f profile.jfr ...
 ```
 or use `--alloc` and `--lock` parameters with the desired threshold:
 ```
-./profiler.sh -e cpu --alloc 2m --lock 10ms -f profile.jfr ...
+asprof -e cpu --alloc 2m --lock 10ms -f profile.jfr ...
 ```
 The same, when starting profiler as an agent:
 ```
@@ -299,15 +302,14 @@ Also, Flame Graph output format will be chosen automatically if the target filen
 $ jps
 9234 Jps
 8983 Computey
-$ ./profiler.sh -d 30 -f /tmp/flamegraph.html 8983
+$ asprof -d 30 -f /tmp/flamegraph.html 8983
 ```
 
 [![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.html)
 
 ## Profiler Options
 
-The following is a complete list of the command-line options accepted by
-`profiler.sh` script.
+`asprof` command-line options.
 
 * `start` - starts profiling in semi-automatic mode, i.e. profiler will run
   until `stop` command is explicitly called.
@@ -333,7 +335,7 @@ The following is a complete list of the command-line options accepted by
 * `-d N` - the profiling duration, in seconds. If no `start`, `resume`, `stop`
   or `status` option is given, the profiler will run for the specified period
   of time and then automatically stop.  
-  Example: `./profiler.sh -d 30 8983`
+  Example: `asprof -d 30 8983`
 
 * `-e event` - the profiling event: `cpu`, `alloc`, `lock`, `cache-misses` etc.
   Use `list` to see the complete list of available events.
@@ -359,7 +361,7 @@ The following is a complete list of the command-line options accepted by
   if N is followed by `ms` (for milliseconds), `us` (for microseconds),
   or `s` (for seconds). Only CPU active time is counted. No samples
   are collected while CPU is idle. The default is 10000000 (10ms).  
-  Example: `./profiler.sh -i 500us 8983`
+  Example: `asprof -i 500us 8983`
 
 * `--alloc N` - allocation profiling interval in bytes or in other units,
   if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (gigabytes).
@@ -374,11 +376,11 @@ The following is a complete list of the command-line options accepted by
 
 * `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater
   than default 2048.  
-  Example: `./profiler.sh -j 30 8983`
+  Example: `asprof -j 30 8983`
 
 * `-t` - profile threads separately. Each stack trace will end with a frame
   that denotes a single thread.  
-  Example: `./profiler.sh -t 8983`
+  Example: `asprof -t 8983`
 
 * `-s` - print simple class names instead of FQN.
 
@@ -409,14 +411,14 @@ The following is a complete list of the command-line options accepted by
 * `--chunksize N`, `--chunktime N` - approximate size and time limits for a single JFR chunk.
   A new chunk will be started whenever either limit is reached.
   The default `chunksize` is 100MB, and the default `chunktime` is 1 hour.  
-  Example: `./profiler.sh -f profile.jfr --chunksize 100m --chunktime 1h 8983`
+  Example: `asprof -f profile.jfr --chunksize 100m --chunktime 1h 8983`
 
 * `-I include`, `-X exclude` - filter stack traces by the given pattern(s).
   `-I` defines the name pattern that *must* be present in the stack traces,
   while `-X` is the pattern that *must not* occur in any of stack traces in the output.
   `-I` and `-X` options can be specified multiple times. A pattern may begin or end with
   a star `*` that denotes any (possibly empty) sequence of characters.  
-  Example: `./profiler.sh -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
+  Example: `asprof -I 'Primes.*' -I 'java/*' -X '*Unsafe.park*' 8983`
 
 * `-L level` - log level: `debug`, `info`, `warn`, `error` or `none`.
 
@@ -428,21 +430,21 @@ The following is a complete list of the command-line options accepted by
     in a JIT compiler stack trace.
 
 * `--title TITLE`, `--minwidth PERCENT`, `--reverse` - FlameGraph parameters.  
-  Example: `./profiler.sh -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
+  Example: `asprof -f profile.html --title "Sample CPU profile" --minwidth 0.5 8983`
 
 * `-f FILENAME` - the file name to dump the profile information to.  
   `%p` in the file name is expanded to the PID of the target JVM;  
   `%t` - to the timestamp;  
   `%n{MAX}` - to the sequence number;  
   `%{ENV}` - to the value of the given environment variable.  
-  Example: `./profiler.sh -o collapsed -f /tmp/traces-%t.txt 8983`
+  Example: `asprof -o collapsed -f /tmp/traces-%t.txt 8983`
 
 * `--loop TIME` - run profiler in a loop (continuous profiling).
   The argument is either a clock time (`hh:mm:ss`) or
   a loop duration in `s`econds, `m`inutes, `h`ours, or `d`ays.
   Make sure the filename includes a timestamp pattern, or the output
   will be overwritten on each iteration.  
-  Example: `./profiler.sh --loop 1h -f /var/log/profile-%t.jfr 8983`
+  Example: `asprof --loop 1h -f /var/log/profile-%t.jfr 8983`
 
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
   is restricted by `perf_event_paranoid` settings.  
@@ -480,7 +482,7 @@ The following is a complete list of the command-line options accepted by
     - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc)
                or a list of JFR events started with `+`
 
-  Example: `./profiler.sh -e cpu --jfrsync profile -f combined.jfr 8983`
+  Example: `asprof -e cpu --jfrsync profile -f combined.jfr 8983`
 
 * `--fdtransfer` - runs "fdtransfer" alongside, which is a small program providing an interface
   for the profiler to access `perf_event_open` even while this syscall is unavailable for the
