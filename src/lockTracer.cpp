@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <pthread.h>
 #include <string.h>
 #include "lockTracer.h"
 #include "profiler.h"
@@ -29,6 +30,8 @@ jmethodID LockTracer::_getBlocker = NULL;
 RegisterNativesFunc LockTracer::_orig_RegisterNatives = NULL;
 UnsafeParkFunc LockTracer::_orig_Unsafe_park = NULL;
 bool LockTracer::_initialized = false;
+
+static pthread_key_t lock_tracer_tls = (pthread_key_t)0;
 
 Error LockTracer::start(Arguments& args) {
     _ticks_to_nanos = 1e9 / TSC::frequency();
@@ -65,6 +68,11 @@ void LockTracer::stop() {
 }
 
 void LockTracer::initialize() {
+    // On 64-bit platforms, we can store lock time in a pthread local
+    if (sizeof(void*) >= sizeof(jlong)) {
+        pthread_key_create(&lock_tracer_tls, NULL);
+    }
+
     jvmtiEnv* jvmti = VM::jvmti();
     JNIEnv* env = VM::jni();
 
@@ -102,13 +110,21 @@ void LockTracer::initialize() {
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
     jlong enter_time = TSC::ticks();
-    jvmti->SetTag(thread, enter_time);
+    if (sizeof(void*) >= sizeof(jlong) && lock_tracer_tls) {
+        pthread_setspecific(lock_tracer_tls, (void*)enter_time);
+    } else {
+        jvmti->SetTag(thread, enter_time);
+    }
 }
 
 void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
     jlong entered_time = TSC::ticks();
     jlong enter_time;
-    jvmti->GetTag(thread, &enter_time);
+    if (sizeof(void*) >= sizeof(jlong) && lock_tracer_tls) {
+        enter_time = (jlong)pthread_getspecific(lock_tracer_tls);
+    } else {
+        jvmti->GetTag(thread, &enter_time);
+    }
 
     // Time is meaningless if lock attempt has started before profiling
     if (_enabled && entered_time - enter_time >= _threshold && enter_time >= _start_time) {

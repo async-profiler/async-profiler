@@ -168,6 +168,10 @@ class VMStructs {
         return _has_class_loader_data;
     }
 
+    static bool hasNativeThreadId() {
+        return _has_native_thread_id;
+    }
+
     static bool hasJavaThreadId() {
         return _tid != NULL;
     }
