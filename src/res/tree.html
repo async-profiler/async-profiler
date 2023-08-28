@@ -227,81 +227,79 @@
         }
       }
     </style>
-    <script>
-      function treeView(opt) {
-        var tree = document.querySelectorAll("ul.tree div:not(:last-child)");
-        for (var i = 0; i < tree.length; i++) {
-          var parent = tree[i].parentElement;
-          var classList = parent.classList;
-          if (opt == 0) {
-            classList.add("open");
-          } else {
-            classList.remove("open");
-          }
-        }
-      }
-      function openParent(p, t) {
-        if (p.parentElement.classList.contains("tree")) {
-          return;
-        }
-        p.parentElement.classList.add("open");
-        openParent(p.parentElement, t);
-      }
-      function search() {
-        var tree = document.querySelectorAll("ul.tree span");
-        var check = document.getElementById("check");
-        for (var i = 0; i < tree.length; i++) {
-          tree[i].classList.remove("sc");
-          if (
-            tree[i].innerHTML.includes(document.getElementById("search").value)
-          ) {
-            tree[i].classList.add("sc");
-            openParent(tree[i].parentElement, tree);
-          }
-        }
-      }
-      function openUL(n) {
-        var children = n.children;
-        if (children.length == 1) {
-          openNode(children[0]);
-        }
-      }
-      function openNode(n) {
-        var children = n.children;
-        for (var i = 0; i < children.length; i++) {
-          if (children[i].nodeName == "UL") {
-            n.classList.add("open");
-            openUL(children[i]);
-          }
-        }
-      }
-      function addClickActions() {
-        var tree = document.querySelectorAll("ul.tree div:not(:last-child)");
-        for (var i = 0; i < tree.length; i++) {
-          tree[i].addEventListener("click", function (e) {
-            var parent = e.target.parentElement;
-            var classList = parent.classList;
-            if (classList.contains("open")) {
-              classList.remove("open");
-              var opensubs = parent.querySelectorAll(":scope .open");
-              for (var i = 0; i < opensubs.length; i++) {
-                opensubs[i].classList.remove("open");
-              }
-            } else {
-              if (e.altKey) {
-                classList.add("open");
-                var opensubs = parent.querySelectorAll("li");
-                for (var i = 0; i < opensubs.length; i++) {
-                  opensubs[i].classList.add("open");
-                }
-              } else {
-                openNode(parent);
-              }
-            }
-          });
-        }
-      }
-    </script>
+<script>
+function treeView(opt) {
+	var tree = document.querySelectorAll('ul.tree div:not(:last-child)');
+	for(var i = 0; i < tree.length; i++){
+		var parent = tree[i].parentElement;
+		var classList = parent.classList;
+		if(opt == 0) {
+			classList.add('open');
+		} else {
+			classList.remove('open');
+		}
+	}
+}
+function openParent(p,t) {
+	if(p.parentElement.classList.contains('tree')) {
+		return;
+	}
+	p.parentElement.classList.add('open');
+	openParent(p.parentElement,t);
+}
+function search() {
+	var tree = document.querySelectorAll('ul.tree span');
+	var check = document.getElementById('check');
+	for(var i = 0; i < tree.length; i++){
+		tree[i].classList.remove('sc');
+		if(tree[i].innerHTML.includes(document.getElementById('search').value)) {
+			tree[i].classList.add('sc');
+			openParent(tree[i].parentElement,tree);
+		}
+	}
+}
+function openUL(n) {
+	var children = n.children;
+	if(children.length == 1) {
+		openNode(children[0]);
+	}
+}
+function openNode(n) {
+	var children = n.children;
+	for(var i = 0; i < children.length; i++){
+		if(children[i].nodeName == 'UL') {
+			n.classList.add('open');
+			openUL(children[i]);
+		}
+	}
+}
+function addClickActions() {
+var tree = document.querySelectorAll('ul.tree div:not(:last-child)');
+for(var i = 0; i < tree.length; i++){
+	tree[i].addEventListener('click', function(e) {
+		var parent = e.target.parentElement;
+		var classList = parent.classList;
+		if(classList.contains('open')) {
+			classList.remove('open');
+			var opensubs = parent.querySelectorAll(':scope .open');
+			for(var i = 0; i < opensubs.length; i++){
+				opensubs[i].classList.remove('open');
+			}
+		} else {
+			if(e.altKey) {
+				classList.add('open');
+				var opensubs = parent.querySelectorAll('li');
+				for(var i = 0; i < opensubs.length; i++){
+					opensubs[i].classList.add('open');
+				}
+			} else {
+				openNode(parent);
+			}
+		}
+	});
+}
+}
+</script>
   </head>
   <body>
     <div class="header">
