@@ -117,7 +117,6 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
-    uintptr_t prev_sp;
     uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
 
     StackFrame frame(ucontext);
@@ -142,7 +141,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
          }
 
         callchain[depth++] = pc;
-        prev_sp = sp;
+
+        uintptr_t prev_sp = sp;
+        if (prev_sp == 0) {
+            // Reached the initial frame
+            break;
+        }
 
         FrameDesc* f;
         CodeCache* cc = profiler->findLibraryByAddress(pc);
@@ -344,13 +348,17 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
             fillFrame(frames[depth++], BCI_NATIVE_FRAME, profiler->findNativeMethod(pc));
         }
 
+        uintptr_t prev_sp = sp;
+        if (prev_sp == 0) {
+            // Reached the initial frame
+            break;
+        }
+
         FrameDesc* f;
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         if (cc == NULL || (f = cc->findFrameDesc(pc)) == NULL) {
             f = &FrameDesc::default_frame;
         }
-
-        uintptr_t prev_sp = sp;
 
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
