@@ -225,7 +225,8 @@ static int create_attach_socket(int* port) {
     // Try IPv6 socket first, then fall back to IPv4
     int s = socket(AF_INET6, SOCK_STREAM, 0);
     if (s != -1) {
-        struct sockaddr_in6 addr = {AF_INET6, 0};
+        struct sockaddr_in6 addr = {0};
+        addr.sin6_family = AF_INET6;
         socklen_t addrlen = sizeof(addr);
         if (bind(s, (struct sockaddr*)&addr, addrlen) == 0 && listen(s, 0) == 0
                 && getsockname(s, (struct sockaddr*)&addr, &addrlen) == 0) {
@@ -233,7 +234,8 @@ static int create_attach_socket(int* port) {
             return s;
         }
     } else if ((s = socket(AF_INET, SOCK_STREAM, 0)) != -1) {
-        struct sockaddr_in addr = {AF_INET, 0};
+        struct sockaddr_in addr = {0};
+        addr.sin_family = AF_INET;
         socklen_t addrlen = sizeof(addr);
         if (bind(s, (struct sockaddr*)&addr, addrlen) == 0 && listen(s, 0) == 0
                 && getsockname(s, (struct sockaddr*)&addr, &addrlen) == 0) {
