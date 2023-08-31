@@ -172,17 +172,17 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level) {
         StringUtils::replace(name, '<', "&lt;", 4);
         StringUtils::replace(name, '>', "&gt;", 4);
 
+        const char* div_class = trie->_children.empty() ? " class=\"o\"" : "";
+        
         if (_reverse) {
             snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div>[%d] %.2f%% %s</div><span class=\"t%d\"> %s</span>\n",
-                     level,
-                     trie->_total * pct, Format().thousands(trie->_total),
+                     "<li><div%s>%.2f%% [%s]</div> <span class=\"t%d\">%s</span>\n",
+                     div_class, trie->_total * pct, Format().thousands(trie->_total),
                      type, name.c_str());
         } else {
             snprintf(_buf, sizeof(_buf) - 1,
-                     "<li><div>[%d] %.2f%% %s self: %.2f%% %s</div><span class=\"t%d\"> %s</span>\n",
-                     level,
-                     trie->_total * pct, Format().thousands(trie->_total),
+                     "<li><div%s>%.2f%% [%s] &#8226; self: %.2f%% [%s]</div> <span class=\"t%d\">%s</span>\n",
+                     div_class, trie->_total * pct, Format().thousands(trie->_total),
                      trie->_self * pct, Format().thousands(trie->_self),
                      type, name.c_str());
         }
