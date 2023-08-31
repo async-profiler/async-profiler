@@ -89,12 +89,23 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
         || strncmp(name, "vtable", 6) == 0
         || strncmp(name, "compare_long_string_", 20) == 0
         || strcmp(name, "zero_blocks") == 0
-        || strcmp(name, "forward_copy_longs") == 0
-        || strcmp(name, "backward_copy_longs") == 0
         || strcmp(name, "atomic entry points") == 0
         || strcmp(name, "InlineCacheBuffer") == 0)
     {
         pc = link();
+        return true;
+    } else if (strcmp(name, "forward_copy_longs") == 0
+            || strcmp(name, "backward_copy_longs") == 0) {
+        // These are called from arraycopy stub that maintains the regular frame link
+        if (&pc == &this->pc() && withinCurrentStack(fp)) {
+            // Unwind both stub frames for AsyncGetCallTrace
+            sp = fp + 16;
+            fp = ((uintptr_t*)sp)[-2];
+            pc = ((uintptr_t*)sp)[-1] - sizeof(instruction_t);
+        } else {
+            // When cstack=vm, unwind stub frames one by one
+            pc = link();
+        }
         return true;
     } else if (entry != NULL && entry[0] == 0xa9bf7bfd) {
         // The stub begins with
