@@ -125,6 +125,10 @@ bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& 
     return false;
 }
 
+bool StackFrame::skipFaultInstruction() {
+    return false;
+}
+
 bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
 }

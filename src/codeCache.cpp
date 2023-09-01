@@ -124,7 +124,17 @@ void CodeCache::mark(NamePredicate predicate, char value) {
     }
 }
 
-CodeBlob* CodeCache::find(const void* address) {
+CodeBlob* CodeCache::findBlob(const char* name) {
+    for (int i = 0; i < _count; i++) {
+        const char* blob_name = _blobs[i]._name;
+        if (blob_name != NULL && strcmp(blob_name, name) == 0) {
+            return &_blobs[i];
+        }
+    }
+    return NULL;
+}
+
+CodeBlob* CodeCache::findBlobByAddress(const void* address) {
     for (int i = 0; i < _count; i++) {
         if (address >= _blobs[i]._start && address < _blobs[i]._end) {
             return &_blobs[i];
@@ -157,13 +167,8 @@ const char* CodeCache::binarySearch(const void* address) {
 }
 
 const void* CodeCache::findSymbol(const char* name) {
-    for (int i = 0; i < _count; i++) {
-        const char* blob_name = _blobs[i]._name;
-        if (blob_name != NULL && strcmp(blob_name, name) == 0) {
-            return _blobs[i]._start;
-        }
-    }
-    return NULL;
+    CodeBlob* blob = findBlob(name);
+    return blob == NULL ? NULL : blob->_start;
 }
 
 const void* CodeCache::findSymbolByPrefix(const char* prefix) {

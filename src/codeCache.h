@@ -166,7 +166,8 @@ class CodeCache {
     void** findImport(ImportId id);
     void patchImport(ImportId, void* hook_func);
 
-    CodeBlob* find(const void* address);
+    CodeBlob* findBlob(const char* name);
+    CodeBlob* findBlobByAddress(const void* address);
     const char* binarySearch(const void* address);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);

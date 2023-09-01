@@ -294,7 +294,7 @@ const char* Profiler::findNativeMethod(const void* address) {
 }
 
 CodeBlob* Profiler::findRuntimeStub(const void* address) {
-    return _runtime_stubs.find(address);
+    return _runtime_stubs.findBlobByAddress(address);
 }
 
 bool Profiler::isAddressInCode(const void* pc) {
@@ -424,7 +424,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         CodeBlob* stub = NULL;
         _stubs_lock.lockShared();
         if (_runtime_stubs.contains((const void*)frame.pc())) {
-            stub = _runtime_stubs.find((const void*)frame.pc());
+            stub = findRuntimeStub((const void*)frame.pc());
         }
         _stubs_lock.unlockShared();
 
@@ -813,8 +813,9 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
+    uintptr_t pc = frame.pc();
 
-    uintptr_t length = SafeAccess::skipLoad(frame.pc());
+    uintptr_t length = SafeAccess::skipLoad(pc);
     if (length > 0) {
         // Skip the fault instruction, as if it successfully loaded NULL
         frame.pc() += length;
@@ -822,7 +823,7 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    length = SafeAccess::skipLoad32(frame.pc());
+    length = SafeAccess::skipLoad32(pc);
     if (length > 0) {
         // Act as if the load returned default_value argument
         frame.pc() += length;
@@ -832,7 +833,12 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     StackWalker::checkFault();
 
-    if (WX_MEMORY && Trap::isFaultInstruction(frame.pc())) {
+    // Workaround for JDK-8313796. Setting cstack=dwarf also helps
+    if (VMStructs::isInterpretedFrameValidFunc((const void*)pc) && frame.skipFaultInstruction()) {
+        return;
+    }
+
+    if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
         return;
     }
 

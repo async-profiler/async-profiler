@@ -137,6 +137,10 @@ bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& 
     return true;
 }
 
+bool StackFrame::skipFaultInstruction() {
+    return false;
+}
+
 bool StackFrame::checkInterruptedSyscall() {
 #ifdef __APPLE__
     // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap
