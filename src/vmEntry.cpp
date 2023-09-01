@@ -232,6 +232,15 @@ bool VM::init(JavaVM* vm, bool attach) {
         }
     }
 
+    if (_can_sample_objects) {
+        // SetHeapSamplingInterval does not have immediate effect, so apply the configuration
+        // as early as possible to allow profiling all startup allocations
+        char* use_tlab = (char*)JVMFlag::find("UseTLAB");
+        if (use_tlab != NULL && *use_tlab == 0) {
+            _jvmti->SetHeapSamplingInterval(0);
+        }
+    }
+
     if (attach) {
         loadAllMethodIDs(jvmti(), jni());
         _jvmti->GenerateEvents(JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
