@@ -95,7 +95,9 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
         pc = link();
         return true;
     } else if (strcmp(name, "forward_copy_longs") == 0
-            || strcmp(name, "backward_copy_longs") == 0) {
+            || strcmp(name, "backward_copy_longs") == 0
+            // There is a typo in JDK 8
+            || strcmp(name, "foward_copy_longs") == 0) {
         // These are called from arraycopy stub that maintains the regular frame link
         if (&pc == &this->pc() && withinCurrentStack(fp)) {
             // Unwind both stub frames for AsyncGetCallTrace
