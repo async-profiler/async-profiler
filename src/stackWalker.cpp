@@ -417,6 +417,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
 }
 
 void StackWalker::checkFault() {
+    if (VMThread::key() < 0) {
+        // JVM has not been loaded or VMStructs have not been initialized yet
+        return;
+    }
+
     VMThread* vm_thread = VMThread::current();
     if (vm_thread != NULL && sameStack(vm_thread->exception(), &vm_thread)) {
         longjmp(*(jmp_buf*)vm_thread->exception(), 1);
