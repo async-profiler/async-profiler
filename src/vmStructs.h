@@ -328,7 +328,7 @@ class VMThread : VMStructs {
 
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);
-        return *(int*)(osthread + _osthread_id_offset);
+        return osthread != NULL ? *(int*)(osthread + _osthread_id_offset) : -1;
     }
 
     int state() {

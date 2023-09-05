@@ -114,7 +114,10 @@ static inline int makeFrame(ASGCT_CallFrame* frames, jint type, const char* id) 
 static inline int fastThreadId() {
     VMThread* vm_thread;
     if (VMStructs::hasNativeThreadId() && (vm_thread = VMThread::current()) != NULL) {
-        return vm_thread->osThreadId();
+        int thread_id = vm_thread->osThreadId();
+        if (thread_id > 0) {
+            return thread_id;
+        }
     }
     return OS::threadId();
 }
