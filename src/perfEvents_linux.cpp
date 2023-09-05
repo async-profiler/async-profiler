@@ -464,6 +464,13 @@ struct PerfEventType {
 #define LOAD_MISS(perf_hw_cache_id) \
     ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
 
+// Hardware breakpoint with interval=1 causes an infinite loop on ARM64
+#ifdef __aarch64__
+#  define BKPT_INTERVAL 2
+#else
+#  define BKPT_INTERVAL 1
+#endif
+
 PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"cpu",          DEFAULT_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
     {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
@@ -484,7 +491,7 @@ PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
     {"rNNN",                     1000, PERF_TYPE_RAW, 0}, /* IDX_RAW */
     {"pmu/event-descriptor/",    1000, PERF_TYPE_RAW, 0}, /* IDX_PMU */
 
-    {"mem:breakpoint",              1, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
+    {"mem:breakpoint",  BKPT_INTERVAL, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
     {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0}, /* IDX_TRACEPOINT */
 
     {"kprobe:func",                 1, 0, 0}, /* IDX_KPROBE */
