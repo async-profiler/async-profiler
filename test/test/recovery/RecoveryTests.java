@@ -4,11 +4,11 @@ import one.profiler.test.Output;
 import one.profiler.test.Assert;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
-import one.profiler.test.ArchType;
+import one.profiler.test.Arch;
 
 public class RecoveryTests {
 
-    @Test(mainClass = StringBuilderTest.class, jvmArgs = "-XX:UseAVX=2", arch = {ArchType.X64, ArchType.X86}, debugNonSafepoints = true)
+    @Test(mainClass = StringBuilderTest.class, jvmArgs = "-XX:UseAVX=2", arch = {Arch.X64, Arch.X86}, debugNonSafepoints = true)
     public void stringBuilder(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
 
@@ -21,7 +21,7 @@ public class RecoveryTests {
         Assert.ratioGreater(out, "unknown_Java", 0.5);
     }
 
-    @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {ArchType.ARM64, ArchType.ARM32})
+    @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.ARM32})
     public void stringBuilderArm(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
         Assert.ratioGreater(out, "(forward|foward|backward)_copy_longs", 0.9); //there's a typo on some JDK versions

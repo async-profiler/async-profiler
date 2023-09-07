@@ -1,17 +1,6 @@
 /*
- * Copyright 2021 Andrei Pangin
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package one.profiler.test;
@@ -202,10 +191,10 @@ public class TestProcess implements Closeable {
 
             File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
             moveLog(outDirectory, directory, "stdout");
-            
+
             File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
             errDirectory.renameTo(new File(directory, "stderr")); // no extension fixing
-            
+
             File profileDirectory = tmpFiles.get("%f");
             if (profileDirectory != null) {
                 moveLog(profileDirectory, directory, "profile");
@@ -219,7 +208,7 @@ public class TestProcess implements Closeable {
     @Override
     public void close() {
         p.destroy();
-        
+
         try {
             waitForExit(p, 20);
         } catch (TimeoutException e) {
@@ -267,11 +256,11 @@ public class TestProcess implements Closeable {
         addArgs(cmd, args);
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
-        
+
         Process p = new ProcessBuilder(cmd)
-                    .redirectOutput(createTempFile("%pout"))
-                    .redirectError(createTempFile("%perr"))
-                    .start();
+                .redirectOutput(createTempFile("%pout"))
+                .redirectError(createTempFile("%perr"))
+                .start();
 
         waitForExit(p,10);
         int exitCode = p.waitFor();
@@ -289,11 +278,6 @@ public class TestProcess implements Closeable {
         } catch (IOException e) {
             return new Output(new String[0]);
         }
-    }
-
-    public JfrOutput readJfr(File jfrFile) throws IOException {
-        JfrReader readerObj = new JfrReader(jfrFile.getCanonicalPath());
-        return new JfrOutput(readerObj);
     }
 
     public Output readPOut() throws IOException {
