@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8'>
+<style>
+	body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
+	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
+	header {margin: -24px 0 5px 0; line-height: 24px}
+	button {font: 12px sans-serif; cursor: pointer}
+	p {position: fixed; bottom: 0; margin: 0; padding: 2px 3px 2px 3px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
+	a {color: #0366d6}
+	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
+	#hl span {padding: 0 3px 0 3px}
+	#status {left: 0}
+	#match {right: 0}
+	#reset {cursor: pointer}
+	#canvas {width: 100%; height: 480px}
+</style>
+</head>
+<body style='font: 12px Verdana, sans-serif'>
+<h1>CPU profile</h1>
+<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: right'>Produced by <a href='https://github.com/jvm-profiling-tools/async-profiler'>async-profiler</a></header>
+<canvas id='canvas'></canvas>
+<div id='hl'><span></span></div>
+<p id='status'></p>
+<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+<script>
+	// Copyright 2020 Andrei Pangin
+	// Licensed under the Apache License, Version 2.0.
+	'use strict';
+	var root, rootLevel, px, pattern;
+	var reverse = false;
+	const levels = Array(30);
+	for (let h = 0; h < levels.length; h++) {
+		levels[h] = [];
+	}
+
+	const canvas = document.getElementById('canvas');
+	const c = canvas.getContext('2d');
+	const hl = document.getElementById('hl');
+	const status = document.getElementById('status');
+
+	const canvasWidth = canvas.offsetWidth;
+	const canvasHeight = canvas.offsetHeight;
+	canvas.style.width = canvasWidth + 'px';
+	canvas.width = canvasWidth * (devicePixelRatio || 1);
+	canvas.height = canvasHeight * (devicePixelRatio || 1);
+	if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
+	c.font = document.body.style.font;
+
+	const palette = [
+		[0xb2e1b2, 20, 20, 20],
+		[0x50e150, 30, 30, 30],
+		[0x50cccc, 30, 30, 30],
+		[0xe15a5a, 30, 40, 40],
+		[0xc8c83c, 30, 30, 10],
+		[0xe17d00, 30, 30,  0],
+		[0xcce880, 20, 20, 20],
+	];
+
+	function getColor(p) {
+		const v = Math.random();
+		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
+	}
+
+	function f(level, left, width, type, title, inln, c1, int) {
+		levels[level].push({left: left, width: width, color: getColor(palette[type]), title: title,
+			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
+		});
+	}
+
+	function samples(n) {
+		return n === 1 ? '1 sample' : n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' samples';
+	}
+
+	function pct(a, b) {
+		return a >= b ? '100' : (100 * a / b).toFixed(2);
+	}
+
+	function findFrame(frames, x) {
+		let left = 0;
+		let right = frames.length - 1;
+
+		while (left <= right) {
+			const mid = (left + right) >>> 1;
+			const f = frames[mid];
+
+			if (f.left > x) {
+				right = mid - 1;
+			} else if (f.left + f.width <= x) {
+				left = mid + 1;
+			} else {
+				return f;
+			}
+		}
+
+		if (frames[left] && (frames[left].left - x) * px < 0.5) return frames[left];
+		if (frames[right] && (x - (frames[right].left + frames[right].width)) * px < 0.5) return frames[right];
+
+		return null;
+	}
+
+	function search(r) {
+		if (r === true && (r = prompt('Enter regexp to search:', '')) === null) {
+			return;
+		}
+
+		pattern = r ? RegExp(r) : undefined;
+		const matched = render(root, rootLevel);
+		document.getElementById('matchval').textContent = pct(matched, root.width) + '%';
+		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
+	}
+
+	function render(newRoot, newLevel) {
+		if (root) {
+			c.fillStyle = '#ffffff';
+			c.fillRect(0, 0, canvasWidth, canvasHeight);
+		}
+
+		root = newRoot || levels[0][0];
+		rootLevel = newLevel || 0;
+		px = canvasWidth / root.width;
+
+		const x0 = root.left;
+		const x1 = x0 + root.width;
+		const marked = [];
+
+		function mark(f) {
+			return marked[f.left] >= f.width || (marked[f.left] = f.width);
+		}
+
+		function totalMarked() {
+			let total = 0;
+			let left = 0;
+			Object.keys(marked).sort(function(a, b) { return a - b; }).forEach(function(x) {
+				if (+x >= left) {
+					total += marked[x];
+					left = +x + marked[x];
+				}
+			});
+			return total;
+		}
+
+		function drawFrame(f, y, alpha) {
+			if (f.left < x1 && f.left + f.width > x0) {
+				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;
+				c.fillRect((f.left - x0) * px, y, f.width * px, 15);
+
+				if (f.width * px >= 21) {
+					const chars = Math.floor(f.width * px / 7);
+					const title = f.title.length <= chars ? f.title : f.title.substring(0, chars - 2) + '..';
+					c.fillStyle = '#000000';
+					c.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);
+				}
+
+				if (alpha) {
+					c.fillStyle = 'rgba(255, 255, 255, 0.5)';
+					c.fillRect((f.left - x0) * px, y, f.width * px, 15);
+				}
+			}
+		}
+
+		for (let h = 0; h < levels.length; h++) {
+			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
+			const frames = levels[h];
+			for (let i = 0; i < frames.length; i++) {
+				drawFrame(frames[i], y, h < rootLevel);
+			}
+		}
+
+		return totalMarked();
+	}
+
+	canvas.onmousemove = function() {
+		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+		if (h >= 0 && h < levels.length) {
+			const f = findFrame(levels[h], event.offsetX / px + root.left);
+			if (f) {
+				if (f != root) getSelection().removeAllRanges();
+				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
+				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
+				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
+				hl.firstChild.textContent = f.title;
+				hl.style.display = 'block';
+				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
+				canvas.style.cursor = 'pointer';
+				canvas.onclick = function() {
+					if (f != root) {
+						render(f, h);
+						canvas.onmousemove();
+					}
+				};
+				status.textContent = 'Function: ' + canvas.title;
+				status.style.display = 'inline-block';
+				return;
+			}
+		}
+		canvas.onmouseout();
+	}
+
+	canvas.onmouseout = function() {
+		hl.style.display = 'none';
+		status.style.display = 'none';
+		canvas.title = '';
+		canvas.style.cursor = '';
+		canvas.onclick = '';
+	}
+
+	canvas.ondblclick = function() {
+		getSelection().selectAllChildren(hl);
+	}
+
+	document.getElementById('reverse').onclick = function() {
+		reverse = !reverse;
+		render();
+	}
+
+	document.getElementById('search').onclick = function() {
+		search(true);
+	}
+
+	document.getElementById('reset').onclick = function() {
+		search(false);
+	}
+
+	window.onkeydown = function() {
+		if (event.ctrlKey && event.keyCode === 70) {
+			event.preventDefault();
+			search(true);
+		} else if (event.keyCode === 27) {
+			search(false);
+		}
+	}
+
+f(0,0,2951,3,'all')
+f(1,0,2949,1,'test/kernel/ListFiles.main',0,0,4)
+f(2,4,2945,1,'test/kernel/ListFiles.listFiles')
+f(3,45,3,2,'java/io/File.<init>',2,0,0)
+f(4,47,1,1,'java/io/UnixFileSystem.normalize')
+f(5,47,1,2,'java/lang/String.endsWith',1,0,0)
+f(6,47,1,2,'java/lang/String.length',1,0,0)
+f(3,48,2794,1,'java/io/File.list')
+f(4,48,2794,1,'java/io/File.normalizedList')
+f(5,48,2794,1,'java/io/UnixFileSystem.list',4,0,0)
+f(6,51,2790,1,'java/io/UnixFileSystem.list0')
+f(7,52,1,3,'JNU_GetStringPlatformChars')
+f(7,53,1,3,'JNU_NewStringPlatform')
+f(7,54,2755,3,'Java_java_io_UnixFileSystem_list0')
+f(8,66,1,4,'InstanceKlass::array_klass(int, JavaThread*)')
+f(8,67,3,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(8,70,817,3,'JNU_CopyObjectArray')
+f(9,90,2,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<2383974ul, G1BarrierSet>, (AccessInternal::BarrierType)1, 2383974ul>::oop_access_barrier(oopDesc*, long, oopDesc*)')
+f(9,92,3,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<2383974ul, G1BarrierSet>, (AccessInternal::BarrierType)3, 2383974ul>::oop_access_barrier(oopDesc*, long)')
+f(9,95,2,4,'HandleMark::pop_and_restore()')
+f(9,97,6,4,'JNIHandles::make_local(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(9,103,15,4,'JavaFrameAnchor::make_walkable()')
+f(10,117,1,5,'el0t_64_irq_handler')
+f(11,117,1,5,'__el0_irq_handler_common')
+f(12,117,1,5,'el0_interrupt')
+f(13,117,1,5,'irq_exit_rcu')
+f(14,117,1,5,'__irq_exit_rcu')
+f(15,117,1,5,'do_softirq_own_stack')
+f(16,117,1,5,'call_on_irq_stack')
+f(17,117,1,5,'____do_softirq')
+f(18,117,1,5,'__softirqentry_text_start')
+f(19,117,1,5,'update_blocked_averages')
+f(9,118,35,4,'JavaThread::thread_from_jni_environment(JNIEnv_*)')
+f(9,153,21,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(9,174,201,3,'jni_DeleteLocalRef')
+f(10,287,88,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(9,375,3,3,'jni_EnsureLocalCapacity')
+f(9,378,278,3,'jni_GetObjectArrayElement')
+f(10,499,29,4,'HandleMark::pop_and_restore()')
+f(10,528,51,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(10,579,77,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(9,656,219,3,'jni_SetObjectArrayElement')
+f(10,705,17,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<2383974ul, G1BarrierSet>, (AccessInternal::BarrierType)1, 2383974ul>::oop_access_barrier(oopDesc*, long, oopDesc*)')
+f(10,722,9,4,'HandleMark::pop_and_restore()')
+f(10,731,15,4,'JavaFrameAnchor::make_walkable()')
+f(10,746,77,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(10,823,52,4,'ThreadStateTransition::transition_from_vm(JavaThread*, JavaThreadState, bool) [clone .part.0] [clone .constprop.0]')
+f(9,875,12,4,'oopDesc* JNIHandles::resolve_impl<0ul, false>(_jobject*)')
+f(8,887,67,3,'JNU_NewStringPlatform')
+f(8,954,1,4,'JavaFrameAnchor::make_walkable()')
+f(8,955,27,4,'JavaThread::thread_from_jni_environment(JNIEnv_*)')
+f(8,982,1,4,'ObjArrayKlass::initialize(JavaThread*)')
+f(8,983,11,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(8,994,448,3,'__GI___getdents64')
+f(9,995,447,5,'el0t_64_sync_handler')
+f(10,995,447,5,'el0_svc')
+f(11,995,446,5,'do_el0_svc')
+f(12,995,446,5,'el0_svc_common.constprop.0')
+f(13,999,442,5,'invoke_syscall')
+f(14,1000,440,5,'__arm64_sys_getdents64')
+f(15,1000,5,5,'__fdget_pos')
+f(16,1000,5,5,'__fget_light')
+f(15,1005,433,5,'iterate_dir')
+f(16,1009,417,5,'dcache_readdir')
+f(17,1015,21,5,'__arch_copy_to_user')
+f(17,1036,4,5,'__check_object_size')
+f(17,1040,230,5,'filldir64')
+f(18,1125,3,5,'__check_object_size.part.0')
+f(18,1128,123,5,'__check_object_size')
+f(19,1129,109,5,'__check_object_size.part.0')
+f(20,1141,2,5,'__check_heap_object')
+f(20,1143,84,5,'check_heap_object')
+f(21,1181,24,5,'__check_heap_object')
+f(21,1205,3,5,'find_vmap_area')
+f(21,1208,19,5,'memblock_is_map_memory')
+f(20,1227,1,5,'is_vmalloc_addr')
+f(20,1228,10,5,'pfn_is_map_memory')
+f(19,1238,1,5,'check_heap_object')
+f(19,1239,12,5,'check_stack_object')
+f(18,1251,19,5,'memchr')
+f(17,1270,119,5,'scan_positives')
+f(18,1346,41,5,'dput')
+f(19,1350,37,5,'lockref_put_or_lock')
+f(18,1387,2,5,'lockref_put_or_lock')
+f(17,1389,16,5,'uaccess_ttbr0_disable.isra.0')
+f(17,1405,16,5,'uaccess_ttbr0_enable.isra.0')
+f(17,1421,5,5,'verify_dirent_name')
+f(16,1426,3,5,'filldir64')
+f(16,1429,1,5,'rwsem_read_trylock')
+f(16,1430,5,5,'security_file_permission')
+f(17,1432,1,5,'avc_policy_seqno')
+f(17,1433,1,5,'fsnotify_perm.part.0')
+f(17,1434,1,5,'selinux_file_permission')
+f(16,1435,3,5,'touch_atime')
+f(17,1436,2,5,'atime_needs_update')
+f(18,1437,1,5,'ktime_get_coarse_real_ts64')
+f(15,1438,2,5,'up_read')
+f(14,1440,1,5,'__f_unlock_pos')
+f(11,1441,1,5,'do_notify_resume')
+f(8,1442,39,3,'__GI___memset_generic')
+f(8,1481,3,3,'__closedir')
+f(9,1481,3,3,'free')
+f(10,1482,2,3,'_int_free')
+f(8,1484,61,3,'__opendir')
+f(9,1484,61,3,'__open_nocancel')
+f(10,1484,61,5,'el0t_64_sync_handler')
+f(11,1484,61,5,'el0_svc')
+f(12,1484,61,5,'do_el0_svc')
+f(13,1484,61,5,'el0_svc_common.constprop.0')
+f(14,1486,59,5,'invoke_syscall')
+f(15,1486,59,5,'__arm64_sys_openat')
+f(16,1487,58,5,'do_sys_openat2')
+f(17,1487,47,5,'do_filp_open')
+f(18,1488,46,5,'path_openat')
+f(19,1489,1,5,'__alloc_file')
+f(19,1490,10,5,'alloc_empty_file')
+f(20,1490,10,5,'__alloc_file')
+f(21,1490,10,5,'kmem_cache_alloc')
+f(22,1492,2,5,'___slab_alloc')
+f(23,1493,1,5,'new_slab')
+f(24,1493,1,5,'allocate_slab')
+f(25,1493,1,5,'memcg_alloc_slab_cgroups')
+f(26,1493,1,5,'__kmalloc_node')
+f(27,1493,1,5,'__kmem_cache_alloc_node')
+f(22,1494,1,5,'arch_local_irq_restore')
+f(22,1495,4,5,'memcg_slab_post_alloc_hook')
+f(23,1498,1,5,'arch_local_irq_restore')
+f(22,1499,1,5,'obj_cgroup_charge')
+f(23,1499,1,5,'arch_local_irq_restore')
+f(19,1500,24,5,'do_open')
+f(20,1500,3,5,'complete_walk')
+f(21,1500,1,5,'__legitimize_path')
+f(21,1501,2,5,'try_to_unlazy')
+f(22,1501,2,5,'__legitimize_path')
+f(23,1501,1,5,'__legitimize_mnt')
+f(23,1502,1,5,'lockref_get_not_dead')
+f(20,1503,5,5,'may_open')
+f(21,1503,5,5,'inode_permission')
+f(22,1504,4,5,'security_inode_permission')
+f(23,1505,3,5,'selinux_inode_permission')
+f(20,1508,16,5,'vfs_open')
+f(21,1508,16,5,'do_dentry_open')
+f(22,1508,12,5,'dcache_dir_open')
+f(23,1508,12,5,'d_alloc_cursor')
+f(24,1508,5,5,'__d_alloc')
+f(25,1508,5,5,'kmem_cache_alloc_lru')
+f(26,1508,1,5,'should_failslab')
+f(26,1509,4,5,'slab_pre_alloc_hook.constprop.0')
+f(27,1509,1,5,'__get_obj_cgroup_from_memcg')
+f(27,1510,1,5,'arch_local_irq_restore')
+f(27,1511,1,5,'memcg_list_lru_alloc')
+f(28,1511,1,5,'xa_load')
+f(29,1511,1,5,'xas_load')
+f(27,1512,1,5,'obj_cgroup_charge')
+f(28,1512,1,5,'arch_local_irq_restore')
+f(24,1513,6,5,'d_set_d_op')
+f(24,1519,1,5,'lockref_get')
+f(22,1520,1,5,'file_ra_state_init')
+f(22,1521,1,5,'path_get')
+f(22,1522,1,5,'security_file_open')
+f(22,1523,1,5,'try_module_get')
+f(19,1524,4,5,'link_path_walk.part.0.constprop.0')
+f(20,1525,3,5,'inode_permission')
+f(21,1525,3,5,'security_inode_permission')
+f(22,1525,3,5,'selinux_inode_permission')
+f(23,1526,1,5,'avc_has_perm_noaudit')
+f(23,1527,1,5,'avc_lookup')
+f(19,1528,4,5,'open_last_lookups')
+f(20,1529,3,5,'__lookup_mnt')
+f(19,1532,2,5,'path_init')
+f(20,1533,1,5,'nd_jump_root')
+f(21,1533,1,5,'set_root')
+f(17,1534,7,5,'getname')
+f(18,1534,7,5,'getname_flags.part.0')
+f(19,1535,3,5,'kmem_cache_alloc')
+f(19,1538,3,5,'strncpy_from_user')
+f(20,1538,3,5,'__check_object_size')
+f(21,1538,3,5,'__check_object_size.part.0')
+f(22,1538,3,5,'check_heap_object')
+f(23,1538,3,5,'memblock_is_map_memory')
+f(17,1541,4,5,'putname')
+f(18,1543,2,5,'kmem_cache_free')
+f(19,1544,1,5,'cache_from_obj')
+f(8,1545,30,3,'fstatat64')
+f(9,1546,29,5,'el0t_64_sync_handler')
+f(10,1546,29,5,'el0_svc')
+f(11,1546,29,5,'do_el0_svc')
+f(12,1546,29,5,'el0_svc_common.constprop.0')
+f(13,1553,22,5,'invoke_syscall')
+f(14,1554,21,5,'__arm64_sys_newfstatat')
+f(15,1554,20,5,'__do_sys_newfstatat')
+f(16,1554,1,5,'__arch_copy_to_user')
+f(16,1555,2,5,'cp_new_stat')
+f(17,1556,1,5,'from_kuid_munged')
+f(18,1556,1,5,'map_id_up')
+f(16,1557,2,5,'from_kuid_munged')
+f(16,1559,15,5,'vfs_fstatat')
+f(17,1559,5,5,'getname_flags')
+f(18,1560,4,5,'getname_flags.part.0')
+f(19,1560,4,5,'strncpy_from_user')
+f(20,1561,3,5,'__check_object_size')
+f(21,1561,3,5,'__check_object_size.part.0')
+f(22,1561,3,5,'check_heap_object')
+f(23,1561,1,5,'__check_heap_object')
+f(23,1562,2,5,'memblock_is_map_memory')
+f(17,1564,10,5,'vfs_statx')
+f(18,1565,3,5,'filename_lookup')
+f(19,1566,2,5,'path_lookupat')
+f(20,1566,2,5,'path_init')
+f(21,1567,1,5,'__fdget_raw')
+f(22,1567,1,5,'__fget_light')
+f(18,1568,1,5,'security_inode_getattr')
+f(19,1568,1,5,'selinux_inode_getattr')
+f(20,1568,1,5,'inode_has_perm')
+f(21,1568,1,5,'avc_has_perm')
+f(18,1569,5,5,'vfs_getattr_nosec')
+f(19,1572,2,5,'shmem_getattr')
+f(15,1574,1,5,'cp_new_stat')
+f(8,1575,5,3,'getStringPlatformChars0')
+f(9,1576,1,3,'jni_GetArrayLength')
+f(9,1577,2,3,'jni_GetObjectField')
+f(10,1578,1,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(9,1579,1,3,'jni_ReleasePrimitiveArrayCritical')
+f(8,1580,68,3,'jni_DeleteLocalRef')
+f(9,1625,23,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(8,1648,3,3,'jni_EnsureLocalCapacity')
+f(8,1651,3,3,'jni_GetObjectArrayElement')
+f(8,1654,1,3,'jni_GetObjectField')
+f(8,1655,41,3,'jni_NewObjectArray')
+f(9,1664,3,4,'HandleMark::pop_and_restore()')
+f(9,1667,1,4,'InstanceKlass::array_klass(int, JavaThread*)')
+f(10,1667,1,4,'ObjArrayKlass::array_klass(int, JavaThread*)')
+f(9,1668,1,4,'InstanceKlass::initialize(JavaThread*)')
+f(9,1669,6,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(9,1675,1,4,'MemAllocator::allocate() const')
+f(9,1676,19,4,'ObjArrayKlass::allocate(int, JavaThread*)')
+f(10,1680,2,4,'Klass::check_array_allocation_length(int, int, JavaThread*)')
+f(10,1682,12,4,'MemAllocator::allocate() const')
+f(11,1687,1,4,'MemAllocator::Allocation::notify_allocation_jvmti_sampler()')
+f(11,1688,4,4,'ObjArrayAllocator::initialize(HeapWordImpl**) const')
+f(11,1692,2,3,'__GI___memset_generic')
+f(10,1694,1,4,'ObjArrayAllocator::initialize(HeapWordImpl**) const')
+f(9,1695,1,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(8,1696,2,3,'jni_NewString')
+f(8,1698,109,3,'jni_SetObjectArrayElement')
+f(9,1731,6,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<2383974ul, G1BarrierSet>, (AccessInternal::BarrierType)1, 2383974ul>::oop_access_barrier(oopDesc*, long, oopDesc*)')
+f(9,1737,7,4,'HandleMark::pop_and_restore()')
+f(9,1744,7,4,'JavaFrameAnchor::make_walkable()')
+f(9,1751,34,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(9,1785,22,4,'ThreadStateTransition::transition_from_vm(JavaThread*, JavaThreadState, bool) [clone .part.0] [clone .constprop.0]')
+f(8,1807,5,3,'memset@plt')
+f(8,1812,909,3,'newSizedString8859_1')
+f(9,1865,2,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(9,1867,1,4,'JNIHandles::make_local(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(9,1868,4,4,'JavaFrameAnchor::make_walkable()')
+f(9,1872,5,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(9,1877,1,4,'java_lang_String::create_oop_from_unicode(unsigned short const*, int, JavaThread*)')
+f(9,1878,18,3,'jni_EnsureLocalCapacity')
+f(9,1896,825,3,'jni_NewString')
+f(10,1955,53,4,'JNIHandleBlock::allocate_handle(JavaThread*, oopDesc*, AllocFailStrategy::AllocFailEnum)')
+f(10,2008,41,4,'ThreadStateTransition::transition_from_native(JavaThread*, JavaThreadState, bool) [clone .constprop.0]')
+f(10,2049,6,4,'java_lang_String::create_from_unicode(unsigned short const*, int, JavaThread*)')
+f(10,2055,666,4,'java_lang_String::create_oop_from_unicode(unsigned short const*, int, JavaThread*)')
+f(11,2056,27,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<286822ul, G1BarrierSet>, (AccessInternal::BarrierType)3, 286822ul>::oop_access_barrier(oopDesc*, long)')
+f(12,2082,1,5,'el0t_64_irq_handler')
+f(13,2082,1,5,'__el0_irq_handler_common')
+f(14,2082,1,5,'el0_interrupt')
+f(15,2082,1,5,'irq_exit_rcu')
+f(16,2082,1,5,'__irq_exit_rcu')
+f(17,2082,1,5,'do_softirq_own_stack')
+f(18,2082,1,5,'call_on_irq_stack')
+f(19,2082,1,5,'____do_softirq')
+f(20,2082,1,5,'__softirqentry_text_start')
+f(21,2082,1,5,'rcu_core_si')
+f(22,2082,1,5,'rcu_core')
+f(23,2082,1,5,'rcu_do_batch')
+f(24,2082,1,5,'__d_free')
+f(25,2082,1,5,'kmem_cache_free')
+f(26,2082,1,5,'arch_local_irq_restore')
+f(11,2083,101,4,'UNICODE::is_latin1(unsigned short const*, int)')
+f(11,2184,2,4,'java_lang_String::basic_create(int, bool, JavaThread*)')
+f(11,2186,535,4,'java_lang_String::create_from_unicode(unsigned short const*, int, JavaThread*)')
+f(12,2393,2,4,'HandleArea::real_allocate_handle(oopDesc*)')
+f(12,2395,2,4,'InstanceKlass::allocate_instance(JavaThread*)')
+f(12,2397,4,4,'TypeArrayKlass::allocate_common(int, bool, JavaThread*)')
+f(12,2401,318,4,'java_lang_String::basic_create(int, bool, JavaThread*)')
+f(13,2419,33,4,'AccessInternal::PostRuntimeDispatch<G1BarrierSet::AccessBarrier<286822ul, G1BarrierSet>, (AccessInternal::BarrierType)1, 286822ul>::oop_access_barrier(oopDesc*, long, oopDesc*)')
+f(13,2452,13,4,'HandleArea::real_allocate_handle(oopDesc*)')
+f(13,2465,96,4,'InstanceKlass::allocate_instance(JavaThread*)')
+f(14,2474,1,4,'MemAllocator::Allocation::check_out_of_memory()')
+f(14,2475,2,4,'MemAllocator::Allocation::notify_allocation_jfr_sampler()')
+f(14,2477,81,4,'MemAllocator::allocate() const')
+f(15,2513,14,4,'MemAllocator::Allocation::check_out_of_memory()')
+f(15,2527,9,4,'MemAllocator::Allocation::notify_allocation_jvmti_sampler()')
+f(15,2536,15,4,'ObjAllocator::initialize(HeapWordImpl**) const')
+f(15,2551,5,3,'__GI___memset_generic')
+f(16,2555,1,5,'el0t_64_sync_handler')
+f(17,2555,1,5,'el0_da')
+f(18,2555,1,5,'do_mem_abort')
+f(19,2555,1,5,'do_translation_fault')
+f(20,2555,1,5,'do_page_fault')
+f(21,2555,1,5,'handle_mm_fault')
+f(22,2555,1,5,'__handle_mm_fault')
+f(23,2555,1,5,'handle_pte_fault')
+f(24,2555,1,5,'lru_cache_add_inactive_or_unevictable')
+f(15,2556,2,3,'memset@plt')
+f(14,2558,2,4,'ObjAllocator::initialize(HeapWordImpl**) const')
+f(14,2560,1,3,'_dl_tlsdesc_return')
+f(13,2561,3,4,'MemAllocator::allocate() const')
+f(13,2564,155,4,'TypeArrayKlass::allocate_common(int, bool, JavaThread*)')
+f(14,2603,12,4,'Klass::check_array_allocation_length(int, int, JavaThread*)')
+f(14,2615,1,4,'MemAllocator::Allocation::check_out_of_memory()')
+f(14,2616,4,4,'MemAllocator::Allocation::notify_allocation_jfr_sampler()')
+f(14,2620,96,4,'MemAllocator::allocate() const')
+f(15,2640,12,4,'MemAllocator::Allocation::check_out_of_memory()')
+f(15,2652,16,4,'MemAllocator::Allocation::notify_allocation_jvmti_sampler()')
+f(15,2668,2,4,'MemAllocator::mem_allocate_inside_tlab_slow(MemAllocator::Allocation&) const')
+f(16,2668,1,4,'G1CollectedHeap::allocate_new_tlab(unsigned long, unsigned long, unsigned long*)')
+f(17,2668,1,4,'G1CollectedHeap::attempt_allocation_slow(unsigned long)')
+f(18,2668,1,4,'MutatorAllocRegion::retire(bool)')
+f(19,2668,1,4,'G1CollectionSet::add_eden_region(HeapRegion*)')
+f(16,2669,1,4,'G1NUMA::index_of_current_thread() const')
+f(15,2670,35,4,'ObjArrayAllocator::initialize(HeapWordImpl**) const')
+f(15,2705,10,3,'__GI___memset_generic')
+f(16,2713,2,5,'el0t_64_sync_handler')
+f(17,2713,2,5,'el0_da')
+f(18,2713,2,5,'do_mem_abort')
+f(19,2713,2,5,'do_translation_fault')
+f(20,2713,2,5,'do_page_fault')
+f(21,2713,2,5,'handle_mm_fault')
+f(22,2713,2,5,'__handle_mm_fault')
+f(23,2713,2,5,'handle_pte_fault')
+f(24,2713,2,5,'do_anonymous_page')
+f(25,2713,2,5,'alloc_zeroed_user_highpage_movable')
+f(26,2713,2,5,'vma_alloc_folio')
+f(27,2713,2,5,'__folio_alloc')
+f(28,2713,2,5,'__alloc_pages')
+f(29,2713,1,5,'__pi_clear_page')
+f(29,2714,1,5,'get_page_from_freelist')
+f(15,2715,1,3,'memset@plt')
+f(14,2716,3,3,'_dl_tlsdesc_return')
+f(12,2719,2,4,'oopFactory::new_byteArray(int, JavaThread*)')
+f(8,2721,4,4,'oopDesc* JNIHandles::resolve_impl<0ul, false>(_jobject*)')
+f(8,2725,2,3,'opendir_tail')
+f(9,2725,2,3,'malloc')
+f(10,2726,1,3,'alloc_perturb')
+f(8,2727,82,3,'readdir')
+f(7,2809,26,3,'__GI___close_nocancel')
+f(8,2809,26,5,'el0t_64_sync_handler')
+f(9,2809,26,5,'el0_svc')
+f(10,2809,7,5,'do_el0_svc')
+f(11,2809,7,5,'el0_svc_common.constprop.0')
+f(12,2811,5,5,'invoke_syscall')
+f(13,2812,4,5,'__arm64_sys_close')
+f(14,2812,4,5,'close_fd')
+f(15,2813,3,5,'filp_close')
+f(16,2813,1,5,'dnotify_flush')
+f(17,2813,1,5,'fsnotify_find_mark')
+f(18,2813,1,5,'__srcu_read_lock')
+f(16,2814,2,5,'fput')
+f(17,2814,2,5,'task_work_add')
+f(10,2816,19,5,'do_notify_resume')
+f(11,2817,1,5,'__cond_resched')
+f(11,2818,3,5,'__rseq_handle_notify_resume')
+f(12,2819,1,5,'rseq_update_cpu_id')
+f(12,2820,1,5,'uaccess_ttbr0_enable')
+f(11,2821,14,5,'task_work_run')
+f(12,2822,13,5,'____fput')
+f(13,2822,12,5,'__fput')
+f(14,2822,3,5,'dcache_dir_close')
+f(15,2822,3,5,'dput')
+f(16,2823,2,5,'dentry_kill')
+f(17,2823,1,5,'__dentry_kill')
+f(18,2823,1,5,'dentry_free')
+f(19,2823,1,5,'arch_local_irq_restore')
+f(17,2824,1,5,'dentry_free')
+f(14,2825,1,5,'ima_file_free')
+f(14,2826,1,5,'mntput')
+f(15,2826,1,5,'mntput_no_expire')
+f(14,2827,1,5,'percpu_counter_add_batch')
+f(14,2828,6,5,'security_file_free')
+f(15,2828,1,5,'__cmpxchg_double')
+f(15,2829,1,5,'__kern_my_cpu_offset')
+f(15,2830,4,5,'kmem_cache_free')
+f(16,2832,2,5,'cache_from_obj')
+f(13,2834,1,5,'ima_file_free')
+f(7,2835,2,3,'newSizedString8859_1')
+f(7,2837,4,3,'readdir')
+f(6,2841,1,2,'jdk/internal/misc/Blocker.begin',1,0,0)
+f(3,2842,107,2,'java/lang/String.hashCode',107,0,0)
+f(4,2842,107,2,'java/lang/StringLatin1.hashCode',107,0,0)
+f(5,2842,107,2,'jdk/internal/util/ArraysSupport.vectorizedHashCode',107,0,0)
+f(6,2842,107,2,'jdk/internal/util/ArraysSupport.signedHashCode',107,0,0)
+f(1,2949,2,3,'thread_start')
+f(2,2949,2,3,'start_thread')
+f(3,2949,2,3,'thread_native_entry(Thread*)')
+f(4,2949,2,4,'Thread::call_run()')
+f(5,2949,1,4,'VMThread::run()')
+f(6,2949,1,3,'__GI___pthread_mutex_unlock_usercnt')
+f(5,2950,1,4,'WatcherThread::run()')
+f(6,2950,1,4,'WatcherThread::sleep() const')
+f(7,2950,1,3,'__GI___lll_lock_wake')
+f(8,2950,1,5,'el0t_64_sync_handler')
+f(9,2950,1,5,'el0_svc')
+f(10,2950,1,5,'do_el0_svc')
+f(11,2950,1,5,'el0_svc_common.constprop.0')
+f(12,2950,1,5,'invoke_syscall')
+f(13,2950,1,5,'__arm64_sys_futex')
+f(14,2950,1,5,'do_futex')
+f(15,2950,1,5,'get_futex_key')
+
+search();
+</script></body></html>
