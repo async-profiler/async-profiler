@@ -1,6 +1,17 @@
 /*
- * Copyright The async-profiler authors
- * SPDX-License-Identifier: Apache-2.0
+ * Copyright 2021 Andrei Pangin
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package one.profiler.test;
@@ -8,8 +19,6 @@ package one.profiler.test;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.io.Closeable;
-import java.io.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -30,7 +39,7 @@ import java.util.stream.Stream;
 
 import one.jfr.JfrReader;
 
-public class TestProcess implements Closeable {
+public class TestProcess implements AutoCloseable {
     private static final Logger log = Logger.getLogger(TestProcess.class.getName());
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
@@ -58,12 +67,6 @@ public class TestProcess implements Closeable {
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
-    private String testName = null;
-
-    public TestProcess(Test test, String libExt, String testName) throws Exception {
-        this(test, libExt);
-        this.testName = testName; // if testName is not null then we retain the logs into that folder
-    }
 
     public TestProcess(Test test, String libExt) throws Exception {
         List<String> cmd = new ArrayList<>();
@@ -83,38 +86,12 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Running " + cmd);
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
         if (test.output()) {
-            pb.redirectOutput(createTempFile("%out"));
+            pb.redirectOutput(createTempFile("%out", null));
         }
         if (test.error()) {
-            pb.redirectError(createTempFile("%err"));
+            pb.redirectError(createTempFile("%err", null));
         }
-        if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
-            pb.redirectOutput(createTempFile("%pout"));
-            pb.redirectError(createTempFile("%perr"));
-        }
-
         this.p = pb.start();
-        // Give the JVM some time to initialize
-        Thread.sleep(700);
-    }
-
-    private String getExtFromFile(File file) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String firstLine = reader.readLine();
-
-            if (firstLine == null) {
-                return "";
-            } else if (firstLine.contains("<!DOCTYPE html>")) {
-                return ".html";
-            } else if (firstLine.startsWith("FLR")) {
-                return ".jfr";
-            } else {
-                return "";
-            }
-        } catch (IOException e) {
-            log.log(Level.WARNING, "Error reading the file: " + e.getMessage());
-            throw e;
-        }
     }
 
     private void addArgs(List<String> cmd, String args) {
@@ -131,9 +108,10 @@ public class TestProcess implements Closeable {
         if (!m.find()) {
             return s;
         }
+
         StringBuffer sb = new StringBuffer();
         do {
-            File f = createTempFile(m.group(1));
+            File f = createTempFile(m.group(1), m.group(2));
             m.appendReplacement(sb, f.toString());
         } while (m.find());
 
@@ -141,27 +119,9 @@ public class TestProcess implements Closeable {
         return sb.toString();
     }
 
-    private void addFlameGraph(File file) {
+    private File createTempFile(String fileId, String suffix) {
         try {
-            List<String> cmd = new ArrayList<>();
-            cmd.add(System.getProperty("java.home") + "/bin/java");
-            cmd.add("-cp");
-            cmd.add(System.getProperty("java.class.path"));
-            cmd.add("FlameGraph");
-
-            // Get CannonicalPath/AbsolutePath misses symbolic links
-            String realPath = "build/test/logs/" + file.getParentFile().getName() + "/" + file.getName();
-            cmd.add(realPath);
-            cmd.add(realPath + ".html");
-            new ProcessBuilder(cmd).start();
-        } catch (IOException e) {
-            log.log(Level.INFO, "FlameGraph Conversion Failed");
-        }
-    }
-
-    private File createTempFile(String fileId) {
-        try {
-            File f = File.createTempFile("ap-" + fileId.substring(1), null);
+            File f = File.createTempFile("ap-" + fileId.substring(1), suffix);
             tmpFiles.put(fileId, f);
             return f;
         } catch (IOException e) {
@@ -175,40 +135,10 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private void moveLog(File file, File targetDirectory, String name) throws IOException {
-        String fileExtension = getExtFromFile(file);
-        file.renameTo(new File(targetDirectory, name + fileExtension));
-        if (fileExtension.equals("")) {
-            addFlameGraph(new File(targetDirectory, "stdout"));
-        }
-    }
-
-    private void moveLogs() {
-        try {
-            String workingDirectory = System.getProperty("user.dir");
-            File directory = new File(workingDirectory + "/build/test/logs/" + testName);
-            directory.mkdirs();
-
-            File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-            moveLog(outDirectory, directory, "stdout");
-
-            File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
-            errDirectory.renameTo(new File(directory, "stderr")); // no extension fixing
-
-            File profileDirectory = tmpFiles.get("%f");
-            if (profileDirectory != null) {
-                moveLog(profileDirectory, directory, "profile");
-            }
-
-        } catch (Throwable e) {
-            log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e);
-        }
-    }
-
     @Override
     public void close() {
         p.destroy();
-
+        
         try {
             waitForExit(p, 20);
         } catch (TimeoutException e) {
@@ -216,9 +146,6 @@ public class TestProcess implements Closeable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            if (testName != null) {
-                moveLogs();
-            }
             clearTempFiles();
         }
     }
@@ -231,7 +158,7 @@ public class TestProcess implements Closeable {
         }
     }
 
-    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException, IOException {
+    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
         waitForExit(p, timeout);
         return readFile(fileId);
     }
@@ -243,11 +170,14 @@ public class TestProcess implements Closeable {
         }
     }
 
-    public Output profile(String args) throws IOException, TimeoutException, InterruptedException {
+    public Output profile(String args) throws IOException, TimeoutException, InterruptedException, CommandFail {
         return profile(args, false);
     }
 
-    public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
+    public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException, CommandFail {
+        // Give JVM process some time to initialize
+        Thread.sleep(2000);
+
         List<String> cmd = new ArrayList<>();
         if (sudo) {
             cmd.add("/usr/bin/sudo");
@@ -256,19 +186,19 @@ public class TestProcess implements Closeable {
         addArgs(cmd, args);
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
-
+        
         Process p = new ProcessBuilder(cmd)
-                .redirectOutput(createTempFile("%pout"))
-                .redirectError(createTempFile("%perr"))
+                .redirectOutput(createTempFile("%pout", null))
+                .redirectError(createTempFile("%perr", null))
                 .start();
 
         waitForExit(p,10);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
-            throw new IOException("Profiling call failed " + readPOut().toString() + readPErr().toString());
+            throw new CommandFail("Profiling call failed " + readFile("%pout").toString() + readFile("%perr").toString(), readFile("%perr"));
         }
 
-        return readPOut();
+        return readFile("%pout");
     }
 
     public Output readFile(String fileId) {
@@ -280,23 +210,4 @@ public class TestProcess implements Closeable {
         }
     }
 
-    public Output readPOut() throws IOException {
-        return readFile("%pout");
-    }
-
-    public Output readPErr() throws IOException {
-        return readFile("%perr");
-    }
-
-    public Output readOut() throws IOException {
-        return readFile("%out");
-    }
-
-    public Output readErr() throws IOException {
-        return readFile("%err");
-    }
-
-    public Output readF() throws IOException {
-        return readFile("%f");
-    }
 }

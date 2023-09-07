@@ -16,6 +16,5 @@ public class StopResume extends BusyLoops {
         }
 
         String profile = AsyncProfiler.getInstance().dumpTraces(100);
-        System.out.println(profile);
     }
 }
