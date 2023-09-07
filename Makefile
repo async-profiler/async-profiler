@@ -7,6 +7,7 @@ LAUNCHER=bin/asprof
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=lib/async-profiler.jar
 CONVERTER_JAR=lib/converter.jar
+TEST_JAR=test.jar
 
 CFLAGS=-O3 -fno-exceptions
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
@@ -16,6 +17,7 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
@@ -25,6 +27,9 @@ RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
+TEST_SOURCES := $(shell find test -name '*.java')
+TEST_DIRNAMES :=$(wildcard test/test/*/)
+TESTS := $(notdir $(patsubst %/,%,$(TEST_DIRNAMES)))
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -146,20 +151,23 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -g:none $^
 
-test: all
-	test/smoke-test.sh
-	test/thread-smoke-test.sh
-	test/alloc-smoke-test.sh
-	test/load-library-test.sh
-	test/fdtransfer-smoke-test.sh
-	echo "All tests passed"
+test: all build/$(TEST_JAR)
+	echo "Building all tests $(LIB_PROFILER)"
 
+testrun: all build/$(TEST_JAR)
+	echo "Running tests against $(LIB_PROFILER)"
+	$(JAVA) -ea -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+build/$(TEST_JAR): $(TEST_SOURCES)  build/$(CONVERTER_JAR)
+	mkdir -p build/test
+	$(JAVAC) --release 8 -cp "build/lib/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAR) cf $@ -C build/test .
 
 native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
-	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
 
 clean:
 	$(RM) -r build

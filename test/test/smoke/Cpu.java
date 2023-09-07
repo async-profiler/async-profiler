@@ -1,16 +1,20 @@
+package test.smoke;
+
 import java.io.File;
 
-class Target {
+public class Cpu {
     private static volatile int value;
 
     private static void method1() {
-        for (int i = 0; i < 1000000; ++i)
-            ++value;
+        for (int i = 0; i < 1000000; i++) {
+            value++;
+        }
     }
 
     private static void method2() {
-        for (int i = 0; i < 1000000; ++i)
-            ++value;
+        for (int i = 0; i < 1000000; i++) {
+            value++;
+        }
     }
 
     private static void method3() throws Exception {
