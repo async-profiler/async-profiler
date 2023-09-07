@@ -157,6 +157,7 @@ test: all
 	test/fdtransfer-smoke-test.sh
 	echo "All tests passed"
 
+
 native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
