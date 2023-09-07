@@ -11,9 +11,9 @@ public class WallTests {
     public void cpuWall(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
         Thread.sleep(5000);
-        assert out.ratio("test/wall/SocketTest.main") > 0.25;
-        assert out.ratio("test/wall/BusyClient.run") > 0.25;
-        assert out.ratio("test/wall/IdleClient.run") < 0.05;
+        out.assertRatioGreater("test/wall/SocketTest.main", 0.25);
+        out.assertRatioGreater("test/wall/BusyClient.run", 0.25);
+        out.assertRatioLess("test/wall/IdleClient.run", 0.05);
 
         out = p.profile("-e wall -d 3 -o collapsed");
         long s1 = out.samples("test/wall/SocketTest.main");
