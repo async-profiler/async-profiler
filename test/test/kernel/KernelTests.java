@@ -20,7 +20,7 @@ public class KernelTests {
         out.assertContains("sys_getdents");
 
         out = p.profile("stop -o flamegraph", true);
-        out.assertContains("f\\(\\d+,\\d+,\\d+,\\d,'java/io/File.list'\\)");
+        out.assertContains("f\\(\\d+,\\d+,\\d+,\\d,'java/io/File.list'(,1,0,0)?\\)");
         out.assertContains("sys_getdents");
     }
 
