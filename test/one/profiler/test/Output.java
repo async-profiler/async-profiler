@@ -41,15 +41,29 @@ public class Output {
         return Arrays.stream(lines).filter(s -> pattern.matcher(s).find());
     }
 
-    public boolean contains(String regex) {
+    private boolean contains(String regex) {
         return stream(regex).findAny().isPresent();
+    }
+
+    public void assertContains(String regex) throws AssertionError {
+        if (!contains(regex)) {
+            throw new AssertionError("Expected: " + regex + "\ngot Stdout: " + toString());
+        }
+        return;
+    }
+
+    public void assertNotContains(String regex) throws AssertionError {
+        if (contains(regex)) {
+            throw new AssertionError("Expected not: " + regex + "\ngot Stdout: " + toString());
+        }
+        return;
     }
 
     public long samples(String regex) {
         return stream(regex).mapToLong(Output::extractSamples).sum();
     }
 
-    public double ratio(String regex) {
+    private double ratio(String regex) {
         long total = 0;
         long matched = 0;
         Pattern pattern = Pattern.compile(regex);
@@ -60,6 +74,22 @@ public class Output {
             matched += pattern.matcher(s).find() ? samples : 0;
         }
         return (double) matched / total;
+    }
+
+    public void assertRatioGreater(String regex, double threshold) {
+        double num = ratio(regex);
+        if (num < threshold){
+            throw new AssertionError("Expected " + regex + "ratio > " + threshold + "\ngot: " + num + " Stdout: " + toString());
+        }
+        return;
+    }
+
+    public void assertRatioLess(String regex, double threshold) {
+        double num = ratio(regex);
+        if (num > threshold){
+            throw new AssertionError("Expected " + regex + "ratio < " + threshold + "\ngot: " + num + " Stdout: " + toString());
+        }
+        return;
     }
 
     private static long extractSamples(String s) {

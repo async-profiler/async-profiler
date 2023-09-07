@@ -6,20 +6,19 @@ import one.profiler.test.TestProcess;
 
 public class ApiTests {
 
-    // Perf events enabled
-    @Test(mainClass = DumpCollapsed.class, enabled = false, jvmArgs = "-Djava.library.path=build/lib", output = true)
+    @Test(mainClass = DumpCollapsed.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void flat(TestProcess p) throws Exception {
         Output out = p.waitForExit("%out");
-        assert out.contains("BusyLoops.method1;");
-        assert out.contains("BusyLoops.method2;");
-        assert out.contains("BusyLoops.method3;");
+        out.assertContains("BusyLoops.method1;");
+        out.assertContains("BusyLoops.method2;");
+        out.assertContains("BusyLoops.method3;");
     }
 
-    @Test(mainClass = StopResume.class, enabled = false, jvmArgs = "-Djava.library.path=build/lib", output = true)
+    @Test(mainClass = StopResume.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void stopResume(TestProcess p) throws Exception {
         Output out = p.waitForExit("%out");
-        assert !out.contains("BusyLoops.method1");
-        assert out.contains("BusyLoops.method2");
-        assert !out.contains("BusyLoops.method3");
+        out.assertNotContains("BusyLoops.method1");
+        out.assertContains("BusyLoops.method2");
+        out.assertNotContains("BusyLoops.method3");
     }
 }

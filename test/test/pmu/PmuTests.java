@@ -13,8 +13,8 @@ public class PmuTests {
     public void cycles(TestProcess p) throws Exception {
         p.profile("-e cycles -d 3 -o collapsed -f %f");
         Output out = p.readFile("%f");
-        assert out.ratio("test/pmu/Dictionary.test128K") > 0.4;
-        assert out.ratio("test/pmu/Dictionary.test8M") > 0.4;
+        out.assertRatioGreater("test/pmu/Dictionary.test128K", 0.4);
+        out.assertRatioGreater("test/pmu/Dictionary.test8M", 0.4);
     }
 
     @Test(mainClass = Dictionary.class, enabled = false, os = {OsType.LINUX})
@@ -22,8 +22,8 @@ public class PmuTests {
         p.profile("-e cache-misses -d 3 -o collapsed -f %f");
         
         Output out = p.readFile("%f");
-        assert out.ratio("test/pmu/Dictionary.test128K") < 0.2;
-        assert out.ratio("test/pmu/Dictionary.test8M") > 0.8;
+        out.assertRatioLess("test/pmu/Dictionary.test128K", 0.2);
+        out.assertRatioGreater("test/pmu/Dictionary.test8M", 0.8);
     }
 
     @Test(mainClass = Dictionary.class, os = {OsType.MACOS, OsType.WINDOWS})
@@ -31,7 +31,7 @@ public class PmuTests {
          try{
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
         } catch(CommandFail e){
-            assert e.getStderr().contains("PerfEvents are unsupported on macOS");
+            e.getStderr().assertContains("PerfEvents are unsupported on macOS");
         }
     }
 }
