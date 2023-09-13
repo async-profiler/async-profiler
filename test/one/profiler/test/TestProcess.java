@@ -109,7 +109,7 @@ public class TestProcess implements Closeable {
 
         this.p = pb.start();
         // Give the JVM some time to initialize
-        Thread.sleep(1000);
+        Thread.sleep(1500);
     }
 
     private void addArgs(List<String> cmd, String args) {
@@ -233,10 +233,10 @@ public class TestProcess implements Closeable {
         waitForExit(p,10);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
-            throw new IOException("Profiling call failed " + readFile("%pout").toString() + readFile("%perr").toString());
+            throw new IOException("Profiling call failed " + readPOut().toString() + readPErr().toString());
         }
 
-        return readFile("%pout");
+        return readPOut();
     }
 
     public Output readFile(String fileId) {
@@ -248,4 +248,19 @@ public class TestProcess implements Closeable {
         }
     }
 
+    public Output readPOut() {
+        return readFile("%pout");
+    }
+
+    public Output readPErr() {
+        return readFile("%perr");
+    }
+
+    public Output readOut() {
+        return readFile("%out");
+    }
+
+    public Output readErr() {
+        return readFile("%err");
+    }
 }
