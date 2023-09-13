@@ -189,7 +189,8 @@ public class Runner {
                 m.invoke(holder, p);
                 log.info("OK");
             } catch (Throwable e) {
-                log.log(Level.WARNING, "Test failed " + e.getMessage(), e.getStackTrace());
+                System.out.println(e.getCause());
+                log.log(Level.WARNING, "Test failed " + e.getCause().getMessage(), e.getCause().getStackTrace());
             } finally {
                 try {
                     p.close();
