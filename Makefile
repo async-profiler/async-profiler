@@ -1,5 +1,8 @@
 PROFILER_VERSION=3.0
 
+LOGLEVEL ?= INFO
+RETAIN_PROFILES ?= true
+
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
@@ -154,14 +157,14 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
+testcompile: all build/$(TEST_JAR)
+	echo "Successfully built all tests $(LIB_PROFILER)"
+
 test: all build/$(TEST_JAR)
-	echo "Building all tests $(LIB_PROFILER)"
-
-testrun: all build/$(TEST_JAR)
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) -ea -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(TESTS)
+	$(JAVA) -ea -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(LOGLEVEL) $(RETAIN_PROFILES) $(TESTS)
 
-build/$(TEST_JAR): $(TEST_SOURCES)  build/$(CONVERTER_JAR)
+build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
 	$(JAVAC) --release 8 -cp "build/lib/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .

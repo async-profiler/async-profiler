@@ -11,7 +11,7 @@ public class ListFiles {
         }
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         while (true) {
             listFiles();
         }
