@@ -1,10 +1,10 @@
 package test.kernel;
 
 import one.profiler.test.Output;
+import one.profiler.test.OAssert;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 import one.profiler.test.OsType;
-import one.profiler.test.CommandFail;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -13,32 +13,36 @@ import java.io.IOException;
 
 public class KernelTests {
 
-    @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
+    @Test(mainClass = ListFiles.class, enabled = true, os = {OsType.LINUX})
     public void kernel(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed --fdtransfer", true);
-        out.assertContains("test/kernel/ListFiles.listFiles;java/io/File");
-        out.assertContains("sys_getdents");
-
-        out = p.profile("stop -o flamegraph", true);
-        out.assertContains("f\\(\\d+,\\d+,\\d+,\\d,'java/io/File.list'(,\\d+,\\d+,\\d+)?\\)");
-        out.assertContains("sys_getdents");
+        Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
+        Output stderr = p.readFile("%perr");
+        OAssert.contains(out, "test/kernel/ListFiles.listFiles;java/io/File");
+        if (!stderr.contains("Kernel symbols are unavailable")) {
+            OAssert.contains(stderr, "sys_getdents");
+        }
+        out = p.profile("stop -o flamegraph");
+        OAssert.contains(out, "f\\(\\d+,\\d+,\\d+,\\d,'java/io/File.list'(,\\d+,\\d+,\\d+)?\\)");
+        if (!stderr.contains("Kernel symbols are unavailable")) {
+            OAssert.contains(out, "sys_getdents");
+        }
     }
 
     @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
     public void fdtransfer(TestProcess p) throws Exception {
         p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
         Output out = p.readFile("%f");
-        out.assertContains("test/kernel/ListFiles.listFiles;java/io/File");
-        out.assertContains("sys_getdents");
+        OAssert.contains(out, "test/kernel/ListFiles.listFiles;java/io/File");
+        OAssert.contains(out, "sys_getdents");
     }
 
     @Test(mainClass = ListFiles.class,  jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {OsType.MACOS, OsType.WINDOWS})
     public void noLinuxKernel(TestProcess p) throws Exception {
-        Thread.sleep(1000);
         try {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
-        } catch (CommandFail e) {
-            e.getStderr().assertContains("Failed to initialize FdTransferClient");
+            throw new AssertionError("Somehow initialized FdTransferClient with no Linux Kernel???");
+        } catch (IOException e) {
+            OAssert.contains(p.readFile("%perr"), "Failed to initialize FdTransferClient");
         }
     }
 }
