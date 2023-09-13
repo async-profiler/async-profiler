@@ -9,7 +9,9 @@ public class ApiTests {
 
     @Test(mainClass = DumpCollapsed.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void flat(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%out");
+        Thread.sleep(1000);
+        Output out = p.waitForExit("%pout");
+        Thread.sleep(1000);
         OAssert.contains(out, "BusyLoops.method1;");
         OAssert.contains(out, "BusyLoops.method2;");
         OAssert.contains(out, "BusyLoops.method3;");
@@ -17,7 +19,9 @@ public class ApiTests {
 
     @Test(mainClass = StopResume.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void stopResume(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%out");
+        Thread.sleep(1000);
+        Output out = p.waitForExit("%pout");
+        Thread.sleep(1000);
         OAssert.notContains(out, "BusyLoops.method1");
         OAssert.contains(out, "BusyLoops.method2");
         OAssert.notContains(out, "BusyLoops.method3");

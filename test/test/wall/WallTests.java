@@ -11,7 +11,6 @@ public class WallTests {
     @Test(mainClass = SocketTest.class)
     public void cpuWall(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
-        Thread.sleep(5000);
         OAssert.ratioGreater(out, "test/wall/SocketTest.main", 0.25);
         OAssert.ratioGreater(out, "test/wall/BusyClient.run", 0.25);
         OAssert.ratioLess(out, "test/wall/IdleClient.run", 0.05);

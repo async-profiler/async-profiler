@@ -13,10 +13,10 @@ import java.io.IOException;
 
 public class KernelTests {
 
-    @Test(mainClass = ListFiles.class, enabled = true, os = {OsType.LINUX})
+    @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
     public void kernel(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
-        Output stderr = p.readFile("%perr");
+        Output stderr = p.readPErr();
         OAssert.contains(out, "test/kernel/ListFiles.listFiles;java/io/File");
         if (!stderr.contains("Kernel symbols are unavailable")) {
             OAssert.contains(stderr, "sys_getdents");
@@ -42,7 +42,7 @@ public class KernelTests {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
             throw new AssertionError("Somehow initialized FdTransferClient with no Linux Kernel???");
         } catch (IOException e) {
-            OAssert.contains(p.readFile("%perr"), "Failed to initialize FdTransferClient");
+            OAssert.contains(p.readPErr(), "Failed to initialize FdTransferClient");
         }
     }
 }

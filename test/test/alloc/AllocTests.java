@@ -46,7 +46,6 @@ public class AllocTests {
 
     @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = {OsType.LINUX})
     public void humongous(TestProcess p) throws Exception {
-        Thread.sleep(2000);
         Output out = p.profile("stop -o collapsed");
         OAssert.contains(out, "java/io/ByteArrayOutputStream.toByteArray;");
         OAssert.contains(out, "G1CollectedHeap::humongous_obj_allocate");
