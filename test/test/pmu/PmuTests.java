@@ -35,7 +35,7 @@ public class PmuTests {
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
             throw new AssertionError("Somehow accessed PerfEvents on macOS???");
         } catch(IOException e) {
-            OAssert.contains(p.readFile("%perr"), "PerfEvents are unsupported on macOS");
+            OAssert.contains(p.readPErr(), "PerfEvents are unsupported on macOS");
         }
     }
 }
