@@ -19,6 +19,7 @@ package one.profiler.test;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.Closeable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -38,8 +39,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import one.jfr.JfrReader;
+import one.jfr.event.EventAggregator;
+import one.jfr.event.Event;
 
-public class TestProcess implements AutoCloseable {
+public class TestProcess implements Closeable {
     private static final Logger log = Logger.getLogger(TestProcess.class.getName());
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
@@ -67,8 +70,16 @@ public class TestProcess implements AutoCloseable {
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
+    private boolean retainLog = false;
+    private final String testName;
+
+    public TestProcess(Test test, String libExt, Boolean retainLog) throws Exception {
+        this(test, libExt);
+        this.retainLog = retainLog;
+    }
 
     public TestProcess(Test test, String libExt) throws Exception {
+        this.testName = test.mainClass().getName();
         List<String> cmd = new ArrayList<>();
         cmd.add(System.getProperty("java.home") + "/bin/java");
         cmd.add("-cp");
@@ -91,7 +102,14 @@ public class TestProcess implements AutoCloseable {
         if (test.error()) {
             pb.redirectError(createTempFile("%err", null));
         }
+        if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
+            pb.redirectOutput(createTempFile("%pout", null));
+            pb.redirectError(createTempFile("%perr", null));
+        }
+
         this.p = pb.start();
+        // Give the JVM some time to initialize
+        Thread.sleep(1000);
     }
 
     private void addArgs(List<String> cmd, String args) {
@@ -146,7 +164,30 @@ public class TestProcess implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            clearTempFiles();
+            try {
+                if (retainLog == true) {
+                    String workingDirectory = System.getProperty("user.dir");
+                    File directory = new File(workingDirectory + "/build/test/logs/" + testName);
+                    directory.mkdirs();
+                    File sourceDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
+                    File destinationDirectory = new File(directory, "stdout");
+                    sourceDirectory.renameTo(destinationDirectory);   
+                    
+                    sourceDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
+                    destinationDirectory = new File(directory, "stderr");
+                    sourceDirectory.renameTo(destinationDirectory);
+                    
+                    File profile = tmpFiles.get("%f");
+                    if (!(profile == null)) {
+                        destinationDirectory = new File(directory, "profile");
+                        profile.renameTo(destinationDirectory);
+                    }
+                }
+            } catch (Throwable e) {
+                log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e.getStackTrace());
+            } finally {
+                clearTempFiles();
+            }
         }
     }
 
@@ -170,14 +211,11 @@ public class TestProcess implements AutoCloseable {
         }
     }
 
-    public Output profile(String args) throws IOException, TimeoutException, InterruptedException, CommandFail {
+    public Output profile(String args) throws IOException, TimeoutException, InterruptedException {
         return profile(args, false);
     }
 
-    public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException, CommandFail {
-        // Give JVM process some time to initialize
-        Thread.sleep(2000);
-
+    public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
         if (sudo) {
             cmd.add("/usr/bin/sudo");
@@ -195,7 +233,7 @@ public class TestProcess implements AutoCloseable {
         waitForExit(p,10);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
-            throw new CommandFail("Profiling call failed " + readFile("%pout").toString() + readFile("%perr").toString(), readFile("%perr"));
+            throw new IOException("Profiling call failed " + readFile("%pout").toString() + readFile("%perr").toString());
         }
 
         return readFile("%pout");
