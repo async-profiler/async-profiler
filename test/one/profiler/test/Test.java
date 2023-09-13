@@ -43,6 +43,8 @@ public @interface Test {
 
     OsType[] os() default {};
 
+    int[] jdkVersion() default {};
+
     JvmType[] jvm() default {};
 
     ArchType[] arch() default {};
