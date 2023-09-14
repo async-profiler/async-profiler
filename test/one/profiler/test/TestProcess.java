@@ -70,16 +70,14 @@ public class TestProcess implements Closeable {
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
-    private boolean retainLog = false;
-    private final String testName;
+    private String testName = null;
 
-    public TestProcess(Test test, String libExt, Boolean retainLog) throws Exception {
+    public TestProcess(Test test, String libExt, String testName) throws Exception {
         this(test, libExt);
-        this.retainLog = retainLog;
+        this.testName = testName; // if testName is not null then we retain the logs into that folder
     }
 
     public TestProcess(Test test, String libExt) throws Exception {
-        this.testName = test.mainClass().getName();
         List<String> cmd = new ArrayList<>();
         cmd.add(System.getProperty("java.home") + "/bin/java");
         cmd.add("-cp");
@@ -153,6 +151,27 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private void moveLogs() {
+        try {
+            String workingDirectory = System.getProperty("user.dir");
+            File directory = new File(workingDirectory + "/build/test/logs/" + testName);
+            directory.mkdirs();
+
+            File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
+            outDirectory.renameTo(new File(directory, "stdout"));   
+            
+            File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
+            errDirectory.renameTo(new File(directory, "stderr"));
+            
+            File profileDirectory = tmpFiles.get("%f");
+            if (profileDirectory != null) {
+                profileDirectory.renameTo(new File(directory, "profile"));
+            }
+        } catch (Throwable e) {
+            log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e.getStackTrace());
+        }
+    }
+
     @Override
     public void close() {
         p.destroy();
@@ -164,30 +183,10 @@ public class TestProcess implements Closeable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            try {
-                if (retainLog == true) {
-                    String workingDirectory = System.getProperty("user.dir");
-                    File directory = new File(workingDirectory + "/build/test/logs/" + testName);
-                    directory.mkdirs();
-                    File sourceDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-                    File destinationDirectory = new File(directory, "stdout");
-                    sourceDirectory.renameTo(destinationDirectory);   
-                    
-                    sourceDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
-                    destinationDirectory = new File(directory, "stderr");
-                    sourceDirectory.renameTo(destinationDirectory);
-                    
-                    File profile = tmpFiles.get("%f");
-                    if (!(profile == null)) {
-                        destinationDirectory = new File(directory, "profile");
-                        profile.renameTo(destinationDirectory);
-                    }
-                }
-            } catch (Throwable e) {
-                log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e.getStackTrace());
-            } finally {
-                clearTempFiles();
+            if (testName != null) {
+                moveLogs();
             }
+            clearTempFiles();
         }
     }
 
