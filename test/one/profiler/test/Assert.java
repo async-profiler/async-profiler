@@ -20,35 +20,31 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-public class OAssert {
+public class Assert {
 
     public static void contains(Output out, String regex) throws AssertionError {
         if (!out.contains(regex)) {
-            throw new AssertionError("Expected: " + regex + "\ngot Stdout: " + out.toString());
+            throw new AssertionError("Expected: " + regex + "\n Received out may be available in build/test/logs.");
         }
-        return;
     }
 
     public static void notContains(Output out, String regex) throws AssertionError {
         if (out.contains(regex)) {
-            throw new AssertionError("Expected not: " + regex + "\ngot Stdout: " + out.toString());
+            throw new AssertionError("Expected not: " + regex + "\n Received out may be available in build/test/logs.");
         }
-        return;
     }
 
     public static void ratioGreater(Output out, String regex, double threshold) {
         double num = out.ratio(regex);
         if (num < threshold) {
-            throw new AssertionError("Expected " + regex + "ratio > " + threshold + "\ngot: " + num + " Stdout: " + out.toString());
+            throw new AssertionError("Expected " + regex + "ratio > " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
         }
-        return;
     }
 
     public static void ratioLess(Output out, String regex, double threshold) {
         double num = out.ratio(regex);
         if (num > threshold) {
-            throw new AssertionError("Expected " + regex + "ratio < " + threshold + "\ngot: " + num + " Stdout: " + out.toString());
+            throw new AssertionError("Expected " + regex + "ratio < " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
         }
-        return;
     }
 }
