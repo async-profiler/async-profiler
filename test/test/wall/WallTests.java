@@ -1,7 +1,7 @@
 package test.wall;
 
 import one.profiler.test.Output;
-import one.profiler.test.OAssert;
+import one.profiler.test.Assert;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 import java.time.LocalTime;
@@ -11,9 +11,9 @@ public class WallTests {
     @Test(mainClass = SocketTest.class)
     public void cpuWall(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
-        OAssert.ratioGreater(out, "test/wall/SocketTest.main", 0.25);
-        OAssert.ratioGreater(out, "test/wall/BusyClient.run", 0.25);
-        OAssert.ratioLess(out, "test/wall/IdleClient.run", 0.05);
+        Assert.ratioGreater(out, "test/wall/SocketTest.main", 0.25);
+        Assert.ratioGreater(out, "test/wall/BusyClient.run", 0.25);
+        Assert.ratioLess(out, "test/wall/IdleClient.run", 0.05);
 
         out = p.profile("-e wall -d 3 -o collapsed");
         long s1 = out.samples("test/wall/SocketTest.main");
