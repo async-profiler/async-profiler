@@ -95,6 +95,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+<<<<<<< HEAD
 DFlags=
 ifneq ($(LOG_LEVEL),)
 	DFlags += -DlogLevel=$(LOG_LEVEL)
@@ -106,6 +107,8 @@ ifneq ($(SKIP),)
 	DFlags += -Dskip=$(SKIP)
 endif
 
+=======
+>>>>>>> dea37d6 (fix test naming, remove runner arg, add jvmversion detect, fix jvm detect)
 .PHONY: all jar release build-test test native clean
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
