@@ -33,7 +33,6 @@ public class jfr2flame {
 
     private final JfrReader jfr;
     private final Arguments args;
-    private final Dictionary<String> methodNames = new Dictionary<>();
 
     public jfr2flame(JfrReader jfr, Arguments args) {
         this.jfr = jfr;
@@ -69,7 +68,7 @@ public class jfr2flame {
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
         final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
-        final Classifier classifier = new Classifier(methodNames);
+        final Classifier classifier = new Classifier(this.jfr.methodNames);
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -153,30 +152,7 @@ public class jfr2flame {
     }
 
     private String getMethodName(long methodId, byte methodType) {
-        String result = methodNames.get(methodId);
-        if (result != null) {
-            return result;
-        }
-
-        MethodRef method = jfr.methods.get(methodId);
-        if (method == null) {
-            result = "unknown";
-        } else {
-            ClassRef cls = jfr.classes.get(method.cls);
-            byte[] className = jfr.symbols.get(cls.name);
-            byte[] methodName = jfr.symbols.get(method.name);
-
-            if (className == null || className.length == 0 || isNativeFrame(methodType)) {
-                result = new String(methodName, StandardCharsets.UTF_8);
-            } else {
-                String classStr = toJavaClassName(className, 0, args.dot);
-                String methodStr = new String(methodName, StandardCharsets.UTF_8);
-                result = methodStr.isEmpty() ? classStr : classStr + '.' + methodStr;
-            }
-        }
-
-        methodNames.put(methodId, result);
-        return result;
+        return this.jfr.getMethodName(methodId, methodType, this.args.dot);
     }
 
     private boolean isNativeFrame(byte methodType) {
@@ -186,42 +162,7 @@ public class jfr2flame {
     }
 
     private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
-        int end = symbol.length;
-        if (start > 0) {
-            switch (symbol[start]) {
-                case 'B':
-                    return "byte";
-                case 'C':
-                    return "char";
-                case 'S':
-                    return "short";
-                case 'I':
-                    return "int";
-                case 'J':
-                    return "long";
-                case 'Z':
-                    return "boolean";
-                case 'F':
-                    return "float";
-                case 'D':
-                    return "double";
-                case 'L':
-                    start++;
-                    end--;
-            }
-        }
-
-        if (args.simple) {
-            for (int i = end - 2; i >= start; i--) {
-                if (symbol[i] == '/' && (symbol[i + 1] < '0' || symbol[i + 1] > '9')) {
-                    start = i + 1;
-                    break;
-                }
-            }
-        }
-
-        String s = new String(symbol, start, end - start, StandardCharsets.UTF_8);
-        return dotted ? s.replace('/', '.') : s;
+        return this.jfr.toJavaClassName(symbol, start, dotted, this.args.simple);
     }
 
     // millis can be an absolute timestamp or an offset from the beginning/end of the recording
