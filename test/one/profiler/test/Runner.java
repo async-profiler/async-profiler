@@ -156,7 +156,7 @@ public class Runner {
         return true;
     }
 
-    public static Boolean run(Method m, Boolean retainLog) throws Exception{
+    public static Boolean run(Method m, Boolean retainlogs) throws Exception{
         Boolean passedAll = true;
         for (Test test : m.getAnnotationsByType(Test.class)) {
             if (!enabled(test)) {
@@ -164,7 +164,7 @@ public class Runner {
                 continue;
             }
             String testName = null;
-            if (retainLog) {
+            if (retainlogs) {
                 testName = m.getDeclaringClass().getName() + '.' + m.getName();
             }
 
@@ -183,10 +183,10 @@ public class Runner {
         return passedAll;
     }
 
-    public static Boolean run(Class<?> cls, Boolean retainLog) throws Exception{
+    public static Boolean run(Class<?> cls, Boolean retainlogs) throws Exception{
         Boolean passedAll = true;
         for (Method m : cls.getMethods()) {
-            Boolean success = run(m, retainLog);
+            Boolean success = run(m, retainlogs);
             if (!success) {
                 passedAll = false;
             }
@@ -216,7 +216,7 @@ public class Runner {
         }
 
         configureLogging();
-        Boolean retainLogs = !"false".equals(System.getProperty("retainProfiles"));
+        Boolean retainlogs = !"false".equals(System.getProperty("retainProfiles"));
 
         Boolean passedAll = true;
         for (int i = 0; i < args.length; i++) {
@@ -225,12 +225,12 @@ public class Runner {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            Boolean success = run(Class.forName(testName), retainLogs);
+            Boolean success = run(Class.forName(testName), retainlogs);
             if (!success) {
                 passedAll = false;
             }
         }
-        if (retainLogs) {
+        if (retainlogs) {
             log.log(Level.INFO, "Test/profile stderr stdout and profile are available in build/test/logs where applicable.");
         }
         if (!passedAll) {

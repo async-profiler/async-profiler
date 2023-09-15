@@ -81,11 +81,11 @@ public class JfrOutput {
     }
 
     private String getMethodName(long method, byte type){
-        return this.jfr.getMethodName(method, type);
+        return jfr.getMethodName(method, type);
     }
 
     private StackTrace getStackTrace(int stackTraceId){
-        return this.jfr.stackTraces.get(stackTraceId);
+        return jfr.stackTraces.get(stackTraceId);
     }
 
     private int countMethod(EventAggregator aggregation, String method) { //counts STraces containing method

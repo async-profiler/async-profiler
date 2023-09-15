@@ -117,7 +117,7 @@ public class TestProcess implements Closeable {
         } else if (args.contains("jfrsync") || args.contains(".jfr")) {
             return ".jfr";
         } else {
-            return ".tmp";
+            return "";
         }
     }
 
@@ -147,7 +147,7 @@ public class TestProcess implements Closeable {
         return sb.toString();
     }
 
-    private void toFlameGraph(File file) {
+    private void addFlameGraph(File file) {
         try {
             List<String> cmd = new ArrayList<>();
             cmd.add(System.getenv("JAVA_HOME") + "/bin/java");
@@ -190,13 +190,9 @@ public class TestProcess implements Closeable {
             File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
             String outName = outDirectory.getName();
             String outExtension = (outName.lastIndexOf('.') != -1) ? outName.substring(outName.lastIndexOf('.')) : "";
-            if (!outExtension.equals(".tmp")) {
-                outDirectory.renameTo(new File(directory, "stdout" + outExtension));
-            } else {
-                outDirectory.renameTo(new File(directory, "stdout"));
-            }
-            if (outExtension.equals(".tmp")) {
-                toFlameGraph(new File(directory, "stdout"));
+            outDirectory.renameTo(new File(directory, "stdout" + outExtension));
+            if (outExtension.equals("")) {
+                addFlameGraph(new File(directory, "stdout"));
             }
             
             File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
@@ -207,13 +203,8 @@ public class TestProcess implements Closeable {
                 String profileName = profileDirectory.getName();
                 String profileExtension = (profileName.lastIndexOf('.') != -1) ? profileName.substring(profileName.lastIndexOf('.')) : "";
                 profileDirectory.renameTo(new File(directory, "profile" + profileExtension));
-                if (!profileExtension.equals(".tmp")) {
-                    profileDirectory.renameTo(new File(directory, "profile" + profileExtension));
-                } else {
-                    profileDirectory.renameTo(new File(directory, "profile"));
-                }
-                if (profileExtension.equals(".tmp")) {
-                    toFlameGraph(new File(directory, "profile"));
+                if (profileExtension.equals("")) {
+                    addFlameGraph(new File(directory, "profile"));
                 }
             }
         } catch (Throwable e) {

@@ -68,7 +68,7 @@ public class jfr2flame {
 
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
         final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
-        final Classifier classifier = new Classifier(this.jfr.methodNames);
+        final Classifier classifier = new Classifier(jfr.methodNames);
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -152,7 +152,7 @@ public class jfr2flame {
     }
 
     private String getMethodName(long methodId, byte methodType) {
-        return this.jfr.getMethodName(methodId, methodType, this.args.dot);
+        return jfr.getMethodName(methodId, methodType, this.args.dot);
     }
 
     private boolean isNativeFrame(byte methodType) {
@@ -162,7 +162,7 @@ public class jfr2flame {
     }
 
     private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
-        return this.jfr.toJavaClassName(symbol, start, dotted, this.args.simple);
+        return jfr.toJavaClassName(symbol, start, dotted, this.args.simple);
     }
 
     // millis can be an absolute timestamp or an offset from the beginning/end of the recording
