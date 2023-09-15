@@ -7,7 +7,7 @@ import one.profiler.test.TestProcess;
 
 public class LockTests {
 
-    @Test(mainClass = DatagramTest.class, enabled = true, debugNonSafepoints = true) // Fails on Alpine
+    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true) // Fails on Alpine
     public void datagramSocketLock(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed --cstack dwarf");
         try {
