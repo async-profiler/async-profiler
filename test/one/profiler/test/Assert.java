@@ -37,14 +37,14 @@ public class Assert {
     public static void ratioGreater(Output out, String regex, double threshold) {
         double num = out.ratio(regex);
         if (num < threshold) {
-            throw new AssertionError("Expected " + regex + "ratio > " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
+            throw new AssertionError("Expected " + regex + " ratio > " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
         }
     }
 
     public static void ratioLess(Output out, String regex, double threshold) {
         double num = out.ratio(regex);
         if (num > threshold) {
-            throw new AssertionError("Expected " + regex + "ratio < " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
+            throw new AssertionError("Expected " + regex + " ratio < " + threshold + "\ngot: " + num + "\n Received out may be available in build/test/logs.");
         }
     }
 }

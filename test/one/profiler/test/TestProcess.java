@@ -101,13 +101,24 @@ public class TestProcess implements Closeable {
             pb.redirectError(createTempFile("%err", null));
         }
         if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
-            pb.redirectOutput(createTempFile("%pout", null));
+            String extension = getExtFromArgs(test.agentArgs());
+            pb.redirectOutput(createTempFile("%pout", extension));
             pb.redirectError(createTempFile("%perr", null));
         }
 
         this.p = pb.start();
         // Give the JVM some time to initialize
         Thread.sleep(1500);
+    }
+
+    private String getExtFromArgs(String args) {
+        if (args.contains("flamegraph") || args.contains(".html")) {
+           return ".html";
+        } else if (args.contains("jfrsync") || args.contains(".jfr")) {
+            return ".jfr";
+        } else {
+            return ".tmp";
+        }
     }
 
     private void addArgs(List<String> cmd, String args) {
@@ -124,15 +135,34 @@ public class TestProcess implements Closeable {
         if (!m.find()) {
             return s;
         }
+        String extension = (m.group(2) == null) ? m.group(2) : getExtFromArgs(s);
 
         StringBuffer sb = new StringBuffer();
         do {
-            File f = createTempFile(m.group(1), m.group(2));
+            File f = createTempFile(m.group(1), extension);
             m.appendReplacement(sb, f.toString());
         } while (m.find());
 
         m.appendTail(sb);
         return sb.toString();
+    }
+
+    private void toFlameGraph(File file) {
+        try {
+            List<String> cmd = new ArrayList<>();
+            cmd.add(System.getenv("JAVA_HOME") + "/bin/java");
+            cmd.add("-cp");
+            cmd.add(System.getProperty("java.class.path"));
+            cmd.add("FlameGraph");
+
+            // Get CannonicalPath/AbsolutePath misses symbolic links
+            String realPath = "build/test/logs/" + file.getParentFile().getName() + "/" + file.getName();
+            cmd.add(realPath);
+            cmd.add(realPath + ".html");
+            Process p = new ProcessBuilder(cmd).start();
+        } catch (IOException e) {
+            log.log(Level.INFO, "FlameGraph Conversion Failed");
+        }
     }
 
     private File createTempFile(String fileId, String suffix) {
@@ -158,17 +188,36 @@ public class TestProcess implements Closeable {
             directory.mkdirs();
 
             File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-            outDirectory.renameTo(new File(directory, "stdout"));   
+            String outName = outDirectory.getName();
+            String outExtension = (outName.lastIndexOf('.') != -1) ? outName.substring(outName.lastIndexOf('.')) : "";
+            if (!outExtension.equals(".tmp")) {
+                outDirectory.renameTo(new File(directory, "stdout" + outExtension));
+            } else {
+                outDirectory.renameTo(new File(directory, "stdout"));
+            }
+            if (outExtension.equals(".tmp")) {
+                toFlameGraph(new File(directory, "stdout"));
+            }
             
             File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
             errDirectory.renameTo(new File(directory, "stderr"));
             
             File profileDirectory = tmpFiles.get("%f");
             if (profileDirectory != null) {
-                profileDirectory.renameTo(new File(directory, "profile"));
+                String profileName = profileDirectory.getName();
+                String profileExtension = (profileName.lastIndexOf('.') != -1) ? profileName.substring(profileName.lastIndexOf('.')) : "";
+                profileDirectory.renameTo(new File(directory, "profile" + profileExtension));
+                if (!profileExtension.equals(".tmp")) {
+                    profileDirectory.renameTo(new File(directory, "profile" + profileExtension));
+                } else {
+                    profileDirectory.renameTo(new File(directory, "profile"));
+                }
+                if (profileExtension.equals(".tmp")) {
+                    toFlameGraph(new File(directory, "profile"));
+                }
             }
         } catch (Throwable e) {
-            log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e.getStackTrace());
+            log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e);
         }
     }
 
@@ -224,10 +273,11 @@ public class TestProcess implements Closeable {
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
         
+        String extension = getExtFromArgs(args);
         Process p = new ProcessBuilder(cmd)
-                .redirectOutput(createTempFile("%pout", null))
-                .redirectError(createTempFile("%perr", null))
-                .start();
+                    .redirectOutput(createTempFile("%pout", extension))
+                    .redirectError(createTempFile("%perr", null))
+                    .start();
 
         waitForExit(p,10);
         int exitCode = p.waitFor();

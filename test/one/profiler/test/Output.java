@@ -22,9 +22,16 @@ import java.util.stream.Stream;
 
 public class Output {
     private final String[] lines;
+    public final JfrOutput jfrOut;
 
     public Output(String[] lines) {
         this.lines = lines;
+        this.jfrOut = null;
+    }
+
+    public Output(JfrOutput jfrOut) {
+        this.jfrOut = jfrOut;
+        this.lines = null;
     }
 
     @Override
@@ -42,6 +49,9 @@ public class Output {
     }
 
     public boolean contains(String regex) {
+        if (this.jfrOut != null) {
+            return this.jfrOut.contains(regex);
+        }
         return stream(regex).findAny().isPresent();
     }
 
@@ -50,6 +60,10 @@ public class Output {
     }
 
     public double ratio(String regex) {
+        if (jfrOut != null) {
+            return (double) jfrOut.countMethod(regex) / jfrOut.countMethod();
+        }
+
         long total = 0;
         long matched = 0;
         Pattern pattern = Pattern.compile(regex);
