@@ -24,6 +24,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -156,16 +158,20 @@ public class Runner {
         return true;
     }
 
-    public static Boolean run(Method m, Boolean retainlogs) throws Exception{
+    public static Boolean run(Method m, Map skipMap, Boolean retainlogs) throws Exception{
         Boolean passedAll = true;
         for (Test test : m.getAnnotationsByType(Test.class)) {
-            if (!enabled(test)) {
+            String fullDeclaringClass = m.getDeclaringClass().getName();
+            String className = fullDeclaringClass.substring(fullDeclaringClass.lastIndexOf('.') + 1);
+
+            if (!enabled(test) || skipMap.containsKey(m.getName().toLowerCase()) || skipMap.containsKey(className.toLowerCase())) {
                 log.log(Level.FINE, "Skipped " + m.getDeclaringClass().getName() + '.' + m.getName());
                 continue;
             }
+
             String testName = null;
             if (retainlogs) {
-                testName = m.getDeclaringClass().getName() + '.' + m.getName();
+                testName = className + '.' + m.getName();
             }
 
             log.log(Level.INFO, "Running " + m.getDeclaringClass().getName() + '.' + m.getName() + "...");
@@ -183,10 +189,10 @@ public class Runner {
         return passedAll;
     }
 
-    public static Boolean run(Class<?> cls, Boolean retainlogs) throws Exception{
+    public static Boolean run(Class<?> cls, Map skipMap, Boolean retainlogs) throws Exception{
         Boolean passedAll = true;
         for (Method m : cls.getMethods()) {
-            Boolean success = run(m, retainlogs);
+            Boolean success = run(m, skipMap, retainlogs);
             if (!success) {
                 passedAll = false;
             }
@@ -215,8 +221,14 @@ public class Runner {
             System.exit(1);
         }
 
-        configureLogging();
-        Boolean retainlogs = !"false".equals(System.getProperty("retainProfiles"));
+        configureLogging(); 
+        Boolean retainlogs = !"false".equals(System.getProperty("retainLogs"));
+
+        String[] skips = System.getProperty("skip") != null ? System.getProperty("skip").split(",") : new String[0];
+        Map<String, String> skipMap = new HashMap<>();
+        for (String skip : skips) {
+            skipMap.put(skip.toLowerCase(), null);
+        }
 
         Boolean passedAll = true;
         for (int i = 0; i < args.length; i++) {
@@ -225,7 +237,7 @@ public class Runner {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            Boolean success = run(Class.forName(testName), retainlogs);
+            Boolean success = run(Class.forName(testName), skipMap, retainlogs);
             if (!success) {
                 passedAll = false;
             }
