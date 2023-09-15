@@ -181,6 +181,16 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private void moveLog(File file, File targetDirectory) {
+        String fileName = file.getName();
+        String fileExtension = (fileName.lastIndexOf('.') != -1) ? fileName.substring(fileName.lastIndexOf('.')) : "";
+        fileExtension = (fileExtension == ".tmp") ? fileExtension : ""; // Shave off .tmp
+        file.renameTo(new File(targetDirectory, "stdout" + fileExtension));
+        if (fileExtension.equals("")) {
+            addFlameGraph(new File(targetDirectory, "stdout"));
+        }
+    }
+
     private void moveLogs() {
         try {
             String workingDirectory = System.getProperty("user.dir");
@@ -188,25 +198,16 @@ public class TestProcess implements Closeable {
             directory.mkdirs();
 
             File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-            String outName = outDirectory.getName();
-            String outExtension = (outName.lastIndexOf('.') != -1) ? outName.substring(outName.lastIndexOf('.')) : "";
-            outDirectory.renameTo(new File(directory, "stdout" + outExtension));
-            if (outExtension.equals("")) {
-                addFlameGraph(new File(directory, "stdout"));
-            }
+            moveLog(outDirectory, directory);
             
             File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
             errDirectory.renameTo(new File(directory, "stderr"));
             
             File profileDirectory = tmpFiles.get("%f");
             if (profileDirectory != null) {
-                String profileName = profileDirectory.getName();
-                String profileExtension = (profileName.lastIndexOf('.') != -1) ? profileName.substring(profileName.lastIndexOf('.')) : "";
-                profileDirectory.renameTo(new File(directory, "profile" + profileExtension));
-                if (profileExtension.equals("")) {
-                    addFlameGraph(new File(directory, "profile"));
-                }
+                moveLog(profileDirectory, directory);
             }
+
         } catch (Throwable e) {
             log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e);
         }
