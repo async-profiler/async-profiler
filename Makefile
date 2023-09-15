@@ -93,6 +93,16 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+DFlags=
+ifneq ($(LOG_LEVEL),)
+	DFlags += -DlogLevel=$(LOG_LEVEL)
+endif
+ifneq ($(RETAIN_LOGS),)
+	DFlags += -DretainLogs=$(RETAIN_LOGS)
+endif
+ifneq ($(SKIP),)
+	DFlags += -Dskip=$(SKIP)
+endif
 
 .PHONY: all release build-test test native clean
 
@@ -159,7 +169,7 @@ build-test: all build/$(TEST_JAR)
 
 test: all build/$(TEST_JAR)
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) -ea -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(TESTS)
+	$(JAVA) $(DFlags) -ea -cp "build/test.jar:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
