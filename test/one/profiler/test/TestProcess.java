@@ -184,7 +184,7 @@ public class TestProcess implements Closeable {
     private void moveLog(File file, File targetDirectory) {
         String fileName = file.getName();
         String fileExtension = (fileName.lastIndexOf('.') != -1) ? fileName.substring(fileName.lastIndexOf('.')) : "";
-        fileExtension = (fileExtension == ".tmp") ? fileExtension : ""; // Shave off .tmp
+        fileExtension = (fileExtension == ".tmp") ? "": fileExtension; // Shave off .tmp
         file.renameTo(new File(targetDirectory, "stdout" + fileExtension));
         if (fileExtension.equals("")) {
             addFlameGraph(new File(targetDirectory, "stdout"));
