@@ -53,94 +53,53 @@ public class Runner {
         throw new IllegalStateException("Unknown OS type");
     }
 
-    private static boolean searchForMatch(File directory, Pattern pattern) {
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (pattern.matcher(file.getName()).matches()) {
-                    return true;
-                }
+    private static int detectJvmVersion() { // Not sure if this works for zing 
+        String prop = System.getProperty("java.vm.version");
+        
+        if (prop.startsWith("25.") && prop.charAt(3) > '0') {
+            return 8;
+        } else if (prop.startsWith("24.") && prop.charAt(3) > '0') {
+            return 7;
+        } else if (prop.startsWith("20.") && prop.charAt(3) > '0') {
+            return 6;
+        } else {
+            String substring = prop.substring(0, prop.indexOf('.'));
+            int possibleVersion = Integer.parseInt(substring);
+            if (possibleVersion < 9) {
+                return 9;
             }
+            return possibleVersion;
         }
-        return false;
-    }
-
-    private static int detectJvmVersion() throws RuntimeException { // Not sure if this works for zing 
-            String prop = System.getProperty("java.vm.version");
-            int jvmVersion;
-            
-            if (prop != null) {
-                if (prop.startsWith("25.") && prop.charAt(3) > '0') {
-                    jvmVersion = 8;
-                } else if (prop.startsWith("24.") && prop.charAt(3) > '0') {
-                    jvmVersion = 7;
-                } else if (prop.startsWith("20.") && prop.charAt(3) > '0') {
-                    jvmVersion = 6;
-                } else {
-                    try {
-                        jvmVersion = Integer.parseInt(prop);
-                    } catch (NumberFormatException e) {
-                        jvmVersion = 9;
-                    }
-                }
-            } else {
-                throw new RuntimeException();
-            }
-            return jvmVersion;
     }
 
     private static JvmType detectJvm() throws RuntimeException{
-        // This is here in case user installs java in weird place. Example parentDirectory: /usr/lib/jvm
-        File parentDirectory = new File(System.getProperty("java.home")).getParentFile();
+        // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
+        File javaHome = new File(System.getProperty("java.home"));
 
-        // Workaround for java.home including /jre in JDK 8
-        if (currentJvmVersion == 8) {
-            parentDirectory = parentDirectory.getParentFile();
-        }
-    
-        // J9 Check
-        File directory;
-        if (currentOs == OsType.MACOS) {
-            // Example lib default dir: /Library/Java/JavaVirtualMachines/amazon-corretto-21.jdk/Contents/Home/lib/default
-            directory = new File(parentDirectory, "Home/lib/default");
-        } else {
-            // Example lib default dir: /usr/lib/jvm/j9jdk/jre/lib/(x64|amd64|i486|..)/default
-            String archDirectory;
-            switch (currentArch) {
-                case X64:
-                    archDirectory = "amd64";
-                    break;
-                case X86:
-                    archDirectory = "i386";
-                    break;
-                case ARM64:
-                    archDirectory = "aarch64";
-                    break;
-                case ARM32:
-                    archDirectory = "arm";
-                    break;
-                case PPC64LE:
-                    archDirectory = "ppc64le";
-                    break;
-                default: // This should never be reached but is here to quiet the compiler
-                    throw new RuntimeException();
-            }
-            directory = new File(parentDirectory, "jre/lib" + "/" + archDirectory);
-        }
-
-        String libj9String = "libj9thr\\d+\\." + libExt;
-        Pattern libj9Pattern = Pattern.compile(libj9String);
-        File[] files = directory.listFiles();
+        // J9 Check which relies on JDK 8 JRE file dir differences
+        File libDirectory = new File(javaHome, "lib");
+        Pattern j9IndicatorFilePattern = Pattern.compile("J9TraceFormat.dat");
+        File[] files = libDirectory.listFiles();
         if (files != null) {
             for (File file : files) {
-                if (libj9Pattern.matcher(file.getName()).matches()) {
+                if (j9IndicatorFilePattern.matcher(file.getName()).matches()) {
                     return JvmType.J9;
                 }
             }
         }
-    
+
         // Zing check
-        File etcDirectory = new File(parentDirectory, "etc"); // zing
+
+        // Workaround for java.home including /jre in JDK 8
+        if (currentJvmVersion == 8) {
+            javaHome = javaHome.getParentFile();
+        }
+
+        // Workaround for contents/home on mac
+        if (currentOs == OsType.MACOS) {
+            javaHome = javaHome.getParentFile();
+        }
+        File etcDirectory = new File(javaHome, "etc");
         File zing = new File(etcDirectory, "zing");
         if (zing.exists()) {
             return JvmType.ZING;
@@ -161,7 +120,7 @@ public class Runner {
             return ArchType.ARM32;
         } else if (architecture.contains("ppc64le")) {
             return ArchType.PPC64LE;
-        } else if (architecture.matches(".*86$") || architecture.contains("i386") || architecture.contains("i486") || architecture.contains("i586") || architecture.contains("i686")) {
+        } else if (architecture.endsWith("86")) {
             return ArchType.X86;
         } else {
             throw new RuntimeException("Unable to detect the OS used by the host.\nOS may be unsupported.");
@@ -197,7 +156,8 @@ public class Runner {
         return true;
     }
 
-    public static void run(Method m, Boolean retainLog) throws Exception{
+    public static Boolean run(Method m, Boolean retainLog) throws Exception{
+        Boolean passedAll = true;
         for (Test test : m.getAnnotationsByType(Test.class)) {
             if (!enabled(test)) {
                 log.log(Level.FINE, "Skipped " + m.getDeclaringClass().getName() + '.' + m.getName());
@@ -215,19 +175,26 @@ public class Runner {
                 m.invoke(holder, p);
                 log.info("OK");
             } catch (Throwable e) {
-                System.out.println(e.getCause());
-                log.log(Level.WARNING, "Test failed " + e.getCause().getMessage(), e.getCause().getStackTrace());
+                log.log(Level.FINE, e.getMessage());
+                log.log(Level.WARNING, "Test failed " + e.getCause().getMessage());
+                passedAll = false;
             }
         }
+        return passedAll;
     }
 
-    public static void run(Class<?> cls, Boolean retainLog) throws Exception{
+    public static Boolean run(Class<?> cls, Boolean retainLog) throws Exception{
+        Boolean passedAll = true;
         for (Method m : cls.getMethods()) {
-            run(m, retainLog);
+            Boolean success = run(m, retainLog);
+            if (!success) {
+                passedAll = false;
+            }
         }
+        return passedAll;
     }
 
-    private static boolean configureLogging(String[] args) {
+    private static void configureLogging() {
         if (System.getProperty("java.util.logging.ConsoleHandler.formatter") == null) {
             System.setProperty("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
         }
@@ -236,28 +203,9 @@ public class Runner {
         }
 
         String logLevelProperty = System.getProperty("logLevel");
-        if (logLevelProperty != null) {
-            Level logLevel =  Level.parse(logLevelProperty);
-            if (logLevel != null){
-                Logger.getLogger("").setLevel(logLevel);
-            } else {
-                Logger.getLogger("").setLevel(Level.INFO);
-            }
-        } else {
-            Logger.getLogger("").setLevel(Level.INFO);
-        }
-
-        String retainProfilesProperty = System.getProperty("retainProfiles");
-        if (retainProfilesProperty != null) {
-            if (retainProfilesProperty.equals("true")) {
-                return true;
-            } else if (retainProfilesProperty.equals("false")) {
-                return false;
-            } else {
-                return true;
-            }
-        } else {
-            return true;
+        if (logLevelProperty != null){
+            Level logLevel = Level.parse(logLevelProperty);
+            Logger.getLogger("").setLevel(logLevel);
         }
     }
 
@@ -267,18 +215,26 @@ public class Runner {
             System.exit(1);
         }
 
-        Boolean retainLogs = configureLogging(args);
+        configureLogging();
+        Boolean retainLogs = !"false".equals(System.getProperty("retainProfiles"));
 
+        Boolean passedAll = true;
         for (int i = 0; i < args.length; i++) {
             String testName = args[i];
             if (args[i].indexOf('.') < 0 && Character.isLowerCase(args[i].charAt(0))) {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            run(Class.forName(testName), retainLogs);
+            Boolean success = run(Class.forName(testName), retainLogs);
+            if (!success) {
+                passedAll = false;
+            }
         }
         if (retainLogs) {
             log.log(Level.INFO, "Test/profile stderr stdout and profile are available in build/test/logs where applicable.");
+        }
+        if (!passedAll) {
+            throw new RuntimeException("Failed one or more tests.");
         }
     }
 }
