@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Closeable;
+import java.io.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -94,14 +95,17 @@ public class TestProcess implements Closeable {
         addArgs(cmd, test.args());
         log.log(Level.FINE, "Running " + cmd);
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
+        String extension = getExtFromArgs(test.agentArgs());
+        if (test.agentArgs().contains("%f")) {
+            extension = "";
+        }
         if (test.output()) {
-            pb.redirectOutput(createTempFile("%out", null));
+            pb.redirectOutput(createTempFile("%out", extension));
         }
         if (test.error()) {
             pb.redirectError(createTempFile("%err", null));
         }
         if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
-            String extension = getExtFromArgs(test.agentArgs());
             pb.redirectOutput(createTempFile("%pout", extension));
             pb.redirectError(createTempFile("%perr", null));
         }
@@ -136,7 +140,6 @@ public class TestProcess implements Closeable {
             return s;
         }
         String extension = (m.group(2) == null) ? m.group(2) : getExtFromArgs(s);
-
         StringBuffer sb = new StringBuffer();
         do {
             File f = createTempFile(m.group(1), extension);
@@ -181,11 +184,11 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private void moveLog(File file, File targetDirectory) {
+    private void moveLog(File file, File targetDirectory, String name) {
         String fileName = file.getName();
         String fileExtension = (fileName.lastIndexOf('.') != -1) ? fileName.substring(fileName.lastIndexOf('.')) : "";
         fileExtension = (fileExtension == ".tmp") ? "": fileExtension; // Shave off .tmp
-        file.renameTo(new File(targetDirectory, "stdout" + fileExtension));
+        file.renameTo(new File(targetDirectory, name + fileExtension));
         if (fileExtension.equals("")) {
             addFlameGraph(new File(targetDirectory, "stdout"));
         }
@@ -198,14 +201,14 @@ public class TestProcess implements Closeable {
             directory.mkdirs();
 
             File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-            moveLog(outDirectory, directory);
+            moveLog(outDirectory, directory, "stdout");
             
             File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
-            errDirectory.renameTo(new File(directory, "stderr"));
+            errDirectory.renameTo(new File(directory, "stderr")); // no extension fixing
             
             File profileDirectory = tmpFiles.get("%f");
             if (profileDirectory != null) {
-                moveLog(profileDirectory, directory);
+                moveLog(profileDirectory, directory, "profile");
             }
 
         } catch (Throwable e) {
@@ -239,7 +242,7 @@ public class TestProcess implements Closeable {
         }
     }
 
-    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
+    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException, IOException {
         waitForExit(p, timeout);
         return readFile(fileId);
     }
@@ -266,6 +269,9 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Profiling " + cmd);
         
         String extension = getExtFromArgs(args);
+        if (args.contains("%f")) {
+            extension = "";
+        }
         Process p = new ProcessBuilder(cmd)
                     .redirectOutput(createTempFile("%pout", extension))
                     .redirectError(createTempFile("%perr", null))
@@ -280,28 +286,82 @@ public class TestProcess implements Closeable {
         return readPOut();
     }
 
-    public Output readFile(String fileId) {
+    public Output readFile(String fileId) throws IOException {
         File f = tmpFiles.get(fileId);
-        try (Stream<String> stream = Files.lines(f.toPath())) {
+        String fileExtension = f.getName().replaceAll(".*\\.(\\w+)$", "$1");
+        if (fileExtension.equals("jfr")) {
+            return readJfr(f);
+        } else {
+            return readFile(f);
+        }
+    }
+
+    public Output readFile(File file) {
+        try (Stream<String> stream = Files.lines(file.toPath())) {
             return new Output(stream.toArray(String[]::new));
         } catch (IOException e) {
             return new Output(new String[0]);
         }
     }
 
-    public Output readPOut() {
+    public Output readJfr(File jfrFile) throws IOException {
+        JfrReader readerObj = new JfrReader(jfrFile.getCanonicalPath());
+
+        if (readerObj == null) {
+            throw new IOException();
+        }
+
+        EventAggregator executionSampleAgg = new EventAggregator(false, false);
+        EventAggregator allocationSampleAgg = new EventAggregator(false, false);
+        EventAggregator liveObjectAgg = new EventAggregator(false, false);
+        EventAggregator contendedLockAgg = new EventAggregator(false, false);
+        EventAggregator customAgg = new EventAggregator(false, false);
+
+        for (Event event; (event = readerObj.readEvent(null)) != null; ) {
+            switch (event.getClass().getSimpleName()) {
+                case "ExecutionSample":
+                    executionSampleAgg.collect(event);
+                    break;
+                case "AllocationSample":
+                    allocationSampleAgg.collect(event);
+                    break;
+                case "LiveObject":
+                    liveObjectAgg.collect(event);
+                    break;
+                case "ContendedLock":
+                    contendedLockAgg.collect(event);
+                    break;
+                default: //customEvent case
+                    customAgg.collect(event);
+                    break;
+            }
+
+        }
+
+        JfrOutput jfrOut = new JfrOutput(readerObj, executionSampleAgg, allocationSampleAgg, liveObjectAgg, contendedLockAgg, customAgg); 
+        if (jfrOut == null) {
+            throw new IOException();
+        }
+        return new Output(jfrOut);
+    }
+
+    public Output readPOut() throws IOException {
         return readFile("%pout");
     }
 
-    public Output readPErr() {
+    public Output readPErr() throws IOException {
         return readFile("%perr");
     }
 
-    public Output readOut() {
+    public Output readOut() throws IOException {
         return readFile("%out");
     }
 
-    public Output readErr() {
+    public Output readErr() throws IOException {
         return readFile("%err");
+    }
+
+    public Output readF() throws IOException {
+        return readFile("%f");
     }
 }
