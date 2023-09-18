@@ -26,6 +26,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -183,6 +184,8 @@ public class Runner {
             } catch (Throwable e) {
                 log.log(Level.FINE, e.getMessage());
                 log.log(Level.WARNING, "Test failed " + e.getCause().getMessage());
+                e.printStackTrace();
+                e.getCause().printStackTrace();
                 passedAll = false;
             }
         }
@@ -211,7 +214,13 @@ public class Runner {
         String logLevelProperty = System.getProperty("logLevel");
         if (logLevelProperty != null){
             Level logLevel = Level.parse(logLevelProperty);
-            Logger.getLogger("").setLevel(logLevel);
+            System.out.println("setting logLevel to " + logLevel);
+            Logger logger = Logger.getLogger("");
+            logger.setLevel(logLevel);
+            for (Handler handler : logger.getHandlers()) {
+                handler.setLevel(logLevel);
+            }
+
         }
     }
 
