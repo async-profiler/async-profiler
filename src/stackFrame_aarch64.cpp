@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
+#include "safeAccess.h"
 
 
 #ifdef __APPLE__
