@@ -58,9 +58,11 @@ class SafeAccess {
     }
 
     static uintptr_t skipLoad32(uintptr_t pc) {
-        if (WX_MEMORY && (pc - (uintptr_t)load32) < 16) {
+#if defined(__aarch64__)
+        if ((pc - (uintptr_t)load32) < 16) {
             return 4;
         }
+#endif
         return 0;
     }
 };
