@@ -157,11 +157,16 @@ bool StackFrame::checkInterruptedSyscall() {
     }
 #else
     if (retval() == (uintptr_t)-EINTR) {
-        // Workaround for JDK-8237858: restart the interrupted poll() manually.
-        // Check if the syscall number is SYS_ppoll with NULL timespec argument
-        if ((uintptr_t)REG(regs[8], x[8]) == SYS_ppoll && arg2() == 0) {
+        // Workaround for JDK-8237858: restart the interrupted poll / epoll_wait manually
+        uintptr_t nr = (uintptr_t)REG(regs[8], x[8]);
+        if (nr == SYS_ppoll || (nr == SYS_epoll_pwait && (int)arg3() == -1)) {
+            // Check against unreadable page for the loop below
+            const uintptr_t max_distance = 24;
+            if ((pc() & 0xfff) < max_distance && SafeAccess::load32((u32*)(pc() - max_distance), 0) == 0) {
+                return true;
+            }
             // Try to restore the original value of x0 saved in another register
-            for (uintptr_t prev_pc = pc() - 4; (prev_pc & 0xfff) < 0xffc && (pc() - prev_pc) <= 24; prev_pc -= 4) {
+            for (uintptr_t prev_pc = pc() - 4; pc() - prev_pc <= max_distance; prev_pc -= 4) {
                 instruction_t insn = *(instruction_t*)prev_pc;
                 unsigned int reg = (insn >> 16) & 31;
                 if ((insn & 0xffe0ffff) == 0xaa0003e0 && reg >= 6) {
