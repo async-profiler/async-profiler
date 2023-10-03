@@ -29,11 +29,13 @@ import one.jfr.event.Event;
 public class JfrOutput {
     private final JfrReader jfr;
     private final List<Event> eventList = new ArrayList<>();
+    final double nanosToTicks;
 
     public JfrOutput(
             JfrReader jfr
     ) throws IOException {
         this.jfr = jfr;
+        this.nanosToTicks = jfr.ticksPerSec / 1e9;
         for (Event event; (event = jfr.readEvent(null)) != null; ) {
             eventList.add(event);
         }
@@ -53,6 +55,8 @@ public class JfrOutput {
     }
 
     private List<Event> filterByTime(int low, int high) {
+        low = (int) (low * nanosToTicks);
+        high = (int) (high * nanosToTicks);
         int left = 0;
         int right = eventList.size() - 1;
         int result = -1;
