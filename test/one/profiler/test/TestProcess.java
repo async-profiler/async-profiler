@@ -40,8 +40,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import one.jfr.JfrReader;
-import one.jfr.event.EventAggregator;
-import one.jfr.event.Event;
 
 public class TestProcess implements Closeable {
     private static final Logger log = Logger.getLogger(TestProcess.class.getName());
