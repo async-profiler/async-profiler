@@ -95,33 +95,38 @@ public class TestProcess implements Closeable {
         addArgs(cmd, test.args());
         log.log(Level.FINE, "Running " + cmd);
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
-        String extension = getExtFromArgs(test.agentArgs());
-        if (test.agentArgs().contains("%f")) {
-            extension = "";
-        }
         if (test.output()) {
-            pb.redirectOutput(createTempFile("%out", extension));
+            pb.redirectOutput(createTempFile("%out"));
         }
         if (test.error()) {
-            pb.redirectError(createTempFile("%err", null));
+            pb.redirectError(createTempFile("%err"));
         }
         if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
-            pb.redirectOutput(createTempFile("%pout", extension));
-            pb.redirectError(createTempFile("%perr", null));
+            pb.redirectOutput(createTempFile("%pout"));
+            pb.redirectError(createTempFile("%perr"));
         }
 
         this.p = pb.start();
         // Give the JVM some time to initialize
-        Thread.sleep(1500);
+        Thread.sleep(700);
     }
 
-    private String getExtFromArgs(String args) {
-        if (args.contains("flamegraph") || args.contains(".html")) {
-           return ".html";
-        } else if (args.contains("jfrsync") || args.contains(".jfr")) {
-            return ".jfr";
-        } else {
-            return "";
+    private String getExtFromFile(File file) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String firstLine = reader.readLine();
+
+            if (firstLine == null) {
+                return "";
+            } else if (firstLine.contains("<!DOCTYPE html>")) {
+                return ".html";
+            } else if (firstLine.startsWith("FLR")) {
+                return ".jfr";
+            } else {
+                return "";
+            }
+        } catch (IOException e) {
+            log.log(Level.WARNING, "Error reading the file: " + e.getMessage());
+            throw e;
         }
     }
 
@@ -139,10 +144,9 @@ public class TestProcess implements Closeable {
         if (!m.find()) {
             return s;
         }
-        String extension = (m.group(2) == null) ? m.group(2) : getExtFromArgs(s);
         StringBuffer sb = new StringBuffer();
         do {
-            File f = createTempFile(m.group(1), extension);
+            File f = createTempFile(m.group(1));
             m.appendReplacement(sb, f.toString());
         } while (m.find());
 
@@ -153,7 +157,7 @@ public class TestProcess implements Closeable {
     private void addFlameGraph(File file) {
         try {
             List<String> cmd = new ArrayList<>();
-            cmd.add(System.getenv("JAVA_HOME") + "/bin/java");
+            cmd.add(System.getProperty("java.home") + "/bin/java");
             cmd.add("-cp");
             cmd.add(System.getProperty("java.class.path"));
             cmd.add("FlameGraph");
@@ -168,9 +172,9 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private File createTempFile(String fileId, String suffix) {
+    private File createTempFile(String fileId) {
         try {
-            File f = File.createTempFile("ap-" + fileId.substring(1), suffix);
+            File f = File.createTempFile("ap-" + fileId.substring(1), null);
             tmpFiles.put(fileId, f);
             return f;
         } catch (IOException e) {
@@ -184,10 +188,8 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private void moveLog(File file, File targetDirectory, String name) {
-        String fileName = file.getName();
-        String fileExtension = (fileName.lastIndexOf('.') != -1) ? fileName.substring(fileName.lastIndexOf('.')) : "";
-        fileExtension = (fileExtension == ".tmp") ? "": fileExtension; // Shave off .tmp
+    private void moveLog(File file, File targetDirectory, String name) throws IOException {
+        String fileExtension = getExtFromFile(file);
         file.renameTo(new File(targetDirectory, name + fileExtension));
         if (fileExtension.equals("")) {
             addFlameGraph(new File(targetDirectory, "stdout"));
@@ -268,13 +270,9 @@ public class TestProcess implements Closeable {
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
         
-        String extension = getExtFromArgs(args);
-        if (args.contains("%f")) {
-            extension = "";
-        }
         Process p = new ProcessBuilder(cmd)
-                    .redirectOutput(createTempFile("%pout", extension))
-                    .redirectError(createTempFile("%perr", null))
+                    .redirectOutput(createTempFile("%pout"))
+                    .redirectError(createTempFile("%perr"))
                     .start();
 
         waitForExit(p,10);
@@ -286,63 +284,18 @@ public class TestProcess implements Closeable {
         return readPOut();
     }
 
-    public Output readFile(String fileId) throws IOException {
+    public Output readFile(String fileId) {
         File f = tmpFiles.get(fileId);
-        String fileExtension = f.getName().replaceAll(".*\\.(\\w+)$", "$1");
-        if (fileExtension.equals("jfr")) {
-            return readJfr(f);
-        } else {
-            return readFile(f);
-        }
-    }
-
-    public Output readFile(File file) {
-        try (Stream<String> stream = Files.lines(file.toPath())) {
+        try (Stream<String> stream = Files.lines(f.toPath())) {
             return new Output(stream.toArray(String[]::new));
         } catch (IOException e) {
             return new Output(new String[0]);
         }
     }
 
-    public Output readJfr(File jfrFile) throws IOException {
+    public JfrOutput readJfr(File jfrFile) throws IOException {
         JfrReader readerObj = new JfrReader(jfrFile.getCanonicalPath());
-
-        if (readerObj == null) {
-            throw new IOException();
-        }
-
-        EventAggregator executionSampleAgg = new EventAggregator(false, false);
-        EventAggregator allocationSampleAgg = new EventAggregator(false, false);
-        EventAggregator liveObjectAgg = new EventAggregator(false, false);
-        EventAggregator contendedLockAgg = new EventAggregator(false, false);
-        EventAggregator customAgg = new EventAggregator(false, false);
-
-        for (Event event; (event = readerObj.readEvent(null)) != null; ) {
-            switch (event.getClass().getSimpleName()) {
-                case "ExecutionSample":
-                    executionSampleAgg.collect(event);
-                    break;
-                case "AllocationSample":
-                    allocationSampleAgg.collect(event);
-                    break;
-                case "LiveObject":
-                    liveObjectAgg.collect(event);
-                    break;
-                case "ContendedLock":
-                    contendedLockAgg.collect(event);
-                    break;
-                default: //customEvent case
-                    customAgg.collect(event);
-                    break;
-            }
-
-        }
-
-        JfrOutput jfrOut = new JfrOutput(readerObj, executionSampleAgg, allocationSampleAgg, liveObjectAgg, contendedLockAgg, customAgg); 
-        if (jfrOut == null) {
-            throw new IOException();
-        }
-        return new Output(jfrOut);
+        return new JfrOutput(readerObj);
     }
 
     public Output readPOut() throws IOException {
