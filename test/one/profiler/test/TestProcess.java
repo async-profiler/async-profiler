@@ -164,7 +164,7 @@ public class TestProcess implements Closeable {
             String realPath = "build/test/logs/" + file.getParentFile().getName() + "/" + file.getName();
             cmd.add(realPath);
             cmd.add(realPath + ".html");
-            Process p = new ProcessBuilder(cmd).start();
+            new ProcessBuilder(cmd).start();
         } catch (IOException e) {
             log.log(Level.INFO, "FlameGraph Conversion Failed");
         }
