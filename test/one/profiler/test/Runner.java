@@ -23,9 +23,7 @@ import java.nio.file.Paths;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -159,13 +157,13 @@ public class Runner {
         return true;
     }
 
-    public static Boolean run(Method m, Map skipMap, Boolean retainlogs) throws Exception{
-        Boolean passedAll = true;
+    public static boolean run(Method m, Set skipSet, boolean retainlogs) throws Exception{
+        boolean passedAll = true;
         for (Test test : m.getAnnotationsByType(Test.class)) {
             String fullDeclaringClass = m.getDeclaringClass().getName();
             String className = fullDeclaringClass.substring(fullDeclaringClass.lastIndexOf('.') + 1);
 
-            if (!enabled(test) || skipMap.containsKey(m.getName().toLowerCase()) || skipMap.containsKey(className.toLowerCase())) {
+            if (!enabled(test) || skipSet.contains(m.getName().toLowerCase()) || skipSet.contains(className.toLowerCase())) {
                 log.log(Level.FINE, "Skipped " + m.getDeclaringClass().getName() + '.' + m.getName());
                 continue;
             }
@@ -180,25 +178,22 @@ public class Runner {
             try (final TestProcess p = new TestProcess(test, libExt, testName);) {
                 Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ? m.getDeclaringClass().newInstance() : null;
                 m.invoke(holder, p);
-                log.info("OK");
-            } catch (Throwable e) {
-                log.log(Level.FINE, e.getMessage());
+                log.info("OK"); }
+            catch (InvocationTargetException e) {
                 log.log(Level.WARNING, "Test failed " + e.getCause().getMessage());
-                e.printStackTrace();
-                e.getCause().printStackTrace();
+                passedAll = false;
+            } catch (Throwable e) {
+                log.log(Level.WARNING, "Test failed " + e.getMessage());
                 passedAll = false;
             }
         }
         return passedAll;
     }
 
-    public static Boolean run(Class<?> cls, Map skipMap, Boolean retainlogs) throws Exception{
-        Boolean passedAll = true;
+    public static boolean run(Class<?> cls, Set skipSet, boolean retainlogs) throws Exception{
+        boolean passedAll = true;
         for (Method m : cls.getMethods()) {
-            Boolean success = run(m, skipMap, retainlogs);
-            if (!success) {
-                passedAll = false;
-            }
+            passedAll &= run(m, skipSet, retainlogs);
         }
         return passedAll;
     }
@@ -214,7 +209,6 @@ public class Runner {
         String logLevelProperty = System.getProperty("logLevel");
         if (logLevelProperty != null){
             Level logLevel = Level.parse(logLevelProperty);
-            System.out.println("setting logLevel to " + logLevel);
             Logger logger = Logger.getLogger("");
             logger.setLevel(logLevel);
             for (Handler handler : logger.getHandlers()) {
@@ -231,22 +225,22 @@ public class Runner {
         }
 
         configureLogging(); 
-        Boolean retainlogs = !"false".equals(System.getProperty("retainLogs"));
+        boolean retainlogs = !"false".equals(System.getProperty("retainLogs"));
 
         String[] skips = System.getProperty("skip") != null ? System.getProperty("skip").split(",") : new String[0];
-        Map<String, String> skipMap = new HashMap<>();
+        Set<String> skipSet = new HashSet<>();
         for (String skip : skips) {
-            skipMap.put(skip.toLowerCase(), null);
+            skipSet.add(skip.toLowerCase());
         }
 
-        Boolean passedAll = true;
+        boolean passedAll = true;
         for (int i = 0; i < args.length; i++) {
             String testName = args[i];
             if (args[i].indexOf('.') < 0 && Character.isLowerCase(args[i].charAt(0))) {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            Boolean success = run(Class.forName(testName), skipMap, retainlogs);
+            boolean success = run(Class.forName(testName), skipSet, retainlogs);
             if (!success) {
                 passedAll = false;
             }

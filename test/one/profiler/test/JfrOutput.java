@@ -16,125 +16,114 @@
 
 package one.profiler.test;
 
-import java.util.Arrays;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
-import one.jfr.event.EventAggregator;
 
 public class JfrOutput {
     private final JfrReader jfr;
-    private final EventAggregator executionSampleAgg;
-    private final EventAggregator allocationSampleAgg;
-    private final EventAggregator liveObjectAgg;
-    private final EventAggregator contendedLockAgg;
-    private final EventAggregator customAgg;
+    private final List<Event> eventList = new ArrayList<>();
 
     public JfrOutput(
-        JfrReader jfr,
-        EventAggregator executionSampleAgg,
-        EventAggregator allocationSampleAgg,
-        EventAggregator liveObjectAgg,
-        EventAggregator contendedLockAgg,
-        EventAggregator customAgg
-    ) {
+            JfrReader jfr
+    ) throws IOException {
         this.jfr = jfr;
-        this.executionSampleAgg = executionSampleAgg;
-        this.allocationSampleAgg = allocationSampleAgg;
-        this.liveObjectAgg = liveObjectAgg;
-        this.contendedLockAgg = contendedLockAgg;
-        this.customAgg = customAgg;
-    }
-
-    private boolean contains(EventAggregator aggregation, String method) {
-        int seen = countMethod(aggregation, method);
-        if (seen == 0) {
-            return false;
+        for (Event event; (event = jfr.readEvent(null)) != null; ) {
+            eventList.add(event);
         }
-        return true;
+        Collections.sort(eventList);
     }
 
     public boolean contains(String method) {
-        return contains(executionSampleAgg, method) ||
-            contains(allocationSampleAgg, method) ||
-            contains(liveObjectAgg, method) ||
-            contains(contendedLockAgg, method) ||
-            contains(customAgg, method);
+        return countMethod(method) > 0;
     }
 
-    public boolean contains(String method, String eventType) {
-        switch (eventType) {
-            case "ExecutionSample":
-                return contains(executionSampleAgg, method);
-            case "AllocationSample":
-                return contains(allocationSampleAgg, method);
-            case "LiveObject":
-                return contains(liveObjectAgg, method);
-            case "ContendedLock":
-                return contains(contendedLockAgg, method);
-            default: //customEvent case
-                return contains(customAgg, method);
-        }
-    }
-
-    private String getMethodName(long method, byte type){
+    private String getMethodName(long method, byte type) {
         return jfr.getMethodName(method, type);
     }
 
-    private StackTrace getStackTrace(int stackTraceId){
+    private StackTrace getStackTrace(int stackTraceId) {
         return jfr.stackTraces.get(stackTraceId);
     }
 
-    private int countMethod(EventAggregator aggregation, String method) { //counts STraces containing method
-        final int[] counter = {0};
-        Pattern pattern = Pattern.compile(method);
-        aggregation.forEach(new EventAggregator.Visitor() {
-            @Override
-            public void visit(Event event, long value) {
-                StackTrace stackTrace = getStackTrace(event.stackTraceId);
-                if (stackTrace != null) {
-                    long[] methods = stackTrace.methods;
-                    byte[] types = stackTrace.types;
-                    for (int i = 0; i < methods.length; i++) {
-                        String methodName = getMethodName(methods[i], types[i]); //here
-                        if (pattern.matcher(methodName).find()) {
-                            counter[0]++;
-                            break;
-                        }
-                    }
+    private List<Event> filterByTime(int low, int high) {
+        int left = 0;
+        int right = eventList.size() - 1;
+        int result = -1;
+
+        // Binary search for a time within the bounds
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            if (eventList.get(mid).time >= low && eventList.get(mid).time <= high) {
+                result = mid;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }
+
+        // If no events found, return null
+        // Else iterate on either side of the discovered event to find all events within the bounds
+        if (result == -1) {
+            return null;
+        } else {
+            int i = result;
+            int j = result +1;
+            for (; i >= 0; i--) {
+                if (eventList.get(i).time < low) {
+                    break;
                 }
             }
-        });
-        return counter[0];
-    }
-
-    public int countMethod() {
-        return countMethod("");
-    }
-
-    public int countMethod(String method) {
-        return countMethod(executionSampleAgg, method) + countMethod(allocationSampleAgg, method) + countMethod(liveObjectAgg, method) + countMethod(contendedLockAgg, method) + countMethod(customAgg, method);
-    }
-
-    public int countMethod(String method, String eventType) {
-        switch (eventType) {
-            case "ExecutionSample":
-                return countMethod(executionSampleAgg, method);
-            case "AllocationSample":
-                return countMethod(allocationSampleAgg, method);
-            case "LiveObject":
-                return countMethod(liveObjectAgg, method);
-            case "ContendedLock":
-                return countMethod(contendedLockAgg, method);
-            default: //customEvent case
-                return countMethod(customAgg, method);
+            for (; j < eventList.size(); j++) {
+                if (eventList.get(j).time > high) {
+                    break;
+                }
+            }
+            return eventList.subList(i + 1, j);
         }
     }
 
-    public int countSTraces() {
-        return countMethod("");
+    private int countMethod(String method) {
+        return countMethod(method, eventList);
+    }
+
+    private int countMethod(String method, int low, int high) {
+        List<Event> filteredList = filterByTime(low, high);
+        return countMethod(method, filteredList);
+    }
+    private int countMethod(String method, List<Event> eventList) { //counts STraces containing method
+        Pattern pattern = Pattern.compile(method);
+        int appearances = 0;
+
+        for (Event event : eventList) {
+            StackTrace stackTrace = getStackTrace(event.stackTraceId);
+            if (stackTrace != null) {
+                long[] methods = stackTrace.methods;
+                byte[] types = stackTrace.types;
+                for (int i = 0; i < methods.length; i++) {
+                    String methodName = getMethodName(methods[i], types[i]); //here
+                    if (pattern.matcher(methodName).find()) {
+                        appearances++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return appearances;
+    }
+
+    private int countEvents() {
+        return eventList.size();
+    }
+
+    public double ratio(String method, int low, int high) {
+        return (double) countMethod(method, low, high) / countEvents();
     }
 }
