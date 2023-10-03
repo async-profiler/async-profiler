@@ -144,7 +144,7 @@ public class jfr2flame {
             arrayDepth++;
         }
 
-        StringBuilder sb = new StringBuilder(toJavaClassName(className, arrayDepth, true));
+        StringBuilder sb = new StringBuilder(toJavaClassName(className, arrayDepth));
         while (arrayDepth-- > 0) {
             sb.append("[]");
         }
@@ -160,9 +160,8 @@ public class jfr2flame {
                 || methodType == FlameGraph.FRAME_CPP
                 || methodType == FlameGraph.FRAME_KERNEL;
     }
-
-    private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
-        return jfr.toJavaClassName(symbol, start, dotted, this.args.simple);
+    private String toJavaClassName(byte[] symbol, int start) {
+        return jfr.toJavaClassName(symbol, start, true, this.args.simple);
     }
 
     // millis can be an absolute timestamp or an offset from the beginning/end of the recording

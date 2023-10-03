@@ -34,6 +34,9 @@ public class JfrReader implements Closeable {
     private static final byte STATE_READING = 1;
     private static final byte STATE_EOF = 2;
     private static final byte STATE_INCOMPLETE = 3;
+    private static final int FRAME_NATIVE = 3;
+    private static final int FRAME_CPP = 4;
+    private static final int FRAME_KERNEL = 5;
 
     private final FileChannel ch;
     private ByteBuffer buf;
@@ -694,9 +697,9 @@ public class JfrReader implements Closeable {
     }
 
     private boolean isNativeFrame(byte methodType) {
-        return methodType == 3 && this.getEnumValue("jdk.types.FrameType", 5) != null
-                || methodType == 4
-                || methodType == 5;
+        return methodType == FRAME_NATIVE && getEnumValue("jdk.types.FrameType", FRAME_KERNEL) != null
+                || methodType == FRAME_CPP
+                || methodType == FRAME_KERNEL;
     }
 
     public String toJavaClassName(byte[] symbol, int start, boolean dotted) {
