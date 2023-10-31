@@ -858,7 +858,7 @@ void Profiler::setupSignalHandlers() {
         orig_trapHandler = NULL;
     }
 
-    if (VM::hotspot_version() > 0) {
+    if (VM::hotspot_version() > 0 || !VM::loaded()) {
         // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
         orig_segvHandler = OS::replaceCrashHandler(segvHandler);
     }

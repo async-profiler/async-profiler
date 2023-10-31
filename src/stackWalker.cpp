@@ -182,15 +182,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = (uintptr_t)SafeAccess::load((void**)(sp + f->fp_off));
             }
-            if (EMPTY_FRAME_SIZE > 0) {
-                // x86
-                pc = stripPointer(SafeAccess::load((void**)sp - 1));
-            } else if (cfa_off != 0) {
-                // AArch64
-                pc = stripPointer(SafeAccess::load((void**)(sp + f->fp_off + DW_STACK_SLOT)));
+            if (EMPTY_FRAME_SIZE > 0 || cfa_off != 0) {
+                // x86 or AArch64 non-default frame
+                pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
             } else if (f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
-                pc = stripPointer(SafeAccess::load((void**)(sp + f->fp_off + DW_STACK_SLOT)));
+                pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
                 sp = fp;
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
@@ -388,15 +385,12 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
             if (f->fp_off != DW_SAME_FP && f->fp_off < MAX_FRAME_SIZE && f->fp_off > -MAX_FRAME_SIZE) {
                 fp = *(uintptr_t*)(sp + f->fp_off);
             }
-            if (EMPTY_FRAME_SIZE > 0) {
-                // x86
-                pc = stripPointer(((void**)sp)[-1]);
-            } else if (cfa_off != 0) {
-                // AArch64
-                pc = stripPointer(((void**)(sp + f->fp_off))[1]);
+            if (EMPTY_FRAME_SIZE > 0 || cfa_off != 0) {
+                // x86 or AArch64 non-default frame
+                pc = stripPointer(*(void**)(sp + f->pc_off));
             } else if (f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
-                pc = stripPointer(((void**)(sp + f->fp_off))[1]);
+                pc = stripPointer(*(void**)(sp + f->pc_off));
                 sp = fp;
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
