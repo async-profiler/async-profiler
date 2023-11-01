@@ -22,9 +22,10 @@ class Demangle {
   private:
     static char* demangleCpp(const char* s);
     static char* demangleRust(const char* s, const char* e);
+    static void cutArguments(char* s);
 
   public:
-    static char* demangle(const char* s);
+    static char* demangle(const char* s, bool full_signature);
 };
 
 #endif // _DEMANGLE_H

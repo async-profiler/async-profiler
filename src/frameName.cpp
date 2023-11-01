@@ -130,7 +130,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
 
     if (name[0] == '_' && name[1] == 'Z') {
-        char* demangled = Demangle::demangle(name);
+        char* demangled = Demangle::demangle(name, _style & STYLE_SIGNATURES);
         if (demangled != NULL) {
             if (lib_name != NULL) {
                 _str.assign(lib_name).append("`").append(demangled);

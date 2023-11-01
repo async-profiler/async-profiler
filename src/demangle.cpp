@@ -112,7 +112,22 @@ char* Demangle::demangleRust(const char* s, const char* e) {
     return result;
 }
 
-char* Demangle::demangle(const char* s) {
+void Demangle::cutArguments(char* s) {
+    char* p = strrchr(s, ')');
+    if (p == NULL) return;
+
+    int balance = 1;
+    while (--p > s) {
+        if (*p == '(' && --balance == 0) {
+            *p = 0;
+            return;
+        } else if (*p == ')') {
+            balance++;
+        }
+    }
+}
+
+char* Demangle::demangle(const char* s, bool full_signature) {
     // Check if the mangled symbol ends with a Rust hash "17h<hex>E"
     const char* e = strrchr(s, 'E');
     if (e != NULL && e - s > 22 && e[-19] == '1' && e[-18] == '7' && e[-17] == 'h') {
@@ -123,5 +138,9 @@ char* Demangle::demangle(const char* s) {
         }
     }
 
-    return demangleCpp(s);
+    char* result = demangleCpp(s);
+    if (result != NULL && !full_signature) {
+        cutArguments(result);
+    }
+    return result;
 }
