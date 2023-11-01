@@ -1158,6 +1158,7 @@ class Recording {
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
+        buf->putVar64(Profiler::instance()->getContextId());
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1170,6 +1171,7 @@ class Recording {
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_instance_size);
         buf->putVar64(event->_total_size);
+        buf->putVar64(Profiler::instance()->getContextId());
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1181,6 +1183,7 @@ class Recording {
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
         buf->putVar64(event->_total_size);
+        buf->putVar64(Profiler::instance()->getContextId());
         buf->put8(start, buf->offset() - start);
     }
 
@@ -1206,6 +1209,7 @@ class Recording {
         buf->putVar32(event->_class_id);
         buf->put8(0);
         buf->putVar64(event->_address);
+        buf->putVar64(Profiler::instance()->getContextId());
         buf->put8(start, buf->offset() - start);
     }
 

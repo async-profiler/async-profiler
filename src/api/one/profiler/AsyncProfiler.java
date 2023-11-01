@@ -276,6 +276,24 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    /**
+     * Passing context identifier to a profiler. This ID is thread-local and is dumped in
+     * the JFR output only. 0 is a reserved value for "no-context". The context functionality
+     * is available for 64bit Java only.
+     *
+     * @param contextId Context identifier that should be stored for current thread
+     */
+    public void setContextId(long contextId) {
+        setContextId0(contextId);
+    }
+
+    /**
+     * Clears context identifier for current thread.
+     */
+    public void clearContextId() {
+        setContextId0(0);
+    }
+
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
     private native void stop0() throws IllegalStateException;
@@ -283,4 +301,5 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
+    private native void setContextId0(long contextId);
 }

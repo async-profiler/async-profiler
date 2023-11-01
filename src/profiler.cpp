@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <sys/param.h>
 #include "profiler.h"
 #include "perfEvents.h"
@@ -45,6 +46,7 @@
 #include "symbols.h"
 #include "vmStructs.h"
 
+void __attribute__((constructor)) createContextId();
 
 // The instance is not deleted on purpose, since profiler structures
 // can be still accessed concurrently during VM termination
@@ -64,6 +66,11 @@ static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
+static pthread_key_t local_context_id_key;
+
+void createContextId() {
+    pthread_key_create(&local_context_id_key, NULL);
+}
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -1181,6 +1188,19 @@ error1:
 
     FdTransferClient::closePeer();
     return error;
+}
+
+Error Profiler::setContextId(u64 contextId) {
+    if (sizeof(uintptr_t) < sizeof(u64)) {
+        return Error("Setting contextId is supported on 64bit Java only");
+    }
+    pthread_setspecific(local_context_id_key, (void *) contextId);
+    return Error::OK;
+}
+
+u64 Profiler::getContextId() {
+    void* value = pthread_getspecific(local_context_id_key);
+    return (u64) value;
 }
 
 Error Profiler::stop() {

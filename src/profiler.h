@@ -68,6 +68,7 @@ class Profiler {
     // TODO: single map?
     std::map<int, std::string> _thread_names;
     std::map<int, jlong> _thread_ids;
+
     Dictionary _class_map;
     Dictionary _symbol_map;
     ThreadFilter _thread_filter;
@@ -205,6 +206,8 @@ class Profiler {
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
+    Error setContextId(u64 contextId);
+    u64 getContextId();
     Error stop();
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
