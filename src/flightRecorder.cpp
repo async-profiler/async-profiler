@@ -1223,6 +1223,15 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordWindow(Buffer* buf, int tid, ProfilingWindow* event) {
+        int start = buf->skip(1);
+        buf->put8(T_WINDOW);
+        buf->putVar64(event->_start_time);
+        buf->putVar64(event->_end_time - event->_start_time);
+        buf->putVar32(tid);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
         int start = buf->skip(1);
         buf->put8(T_CPU_LOAD);
@@ -1438,6 +1447,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case PARK_SAMPLE:
                 _rec->recordThreadPark(buf, tid, call_trace_id, (LockEvent*)event);
+                break;
+            case PROFILING_WINDOW:
+                _rec->recordWindow(buf, tid, (ProfilingWindow*)event);
                 break;
         }
         _rec->flushIfNeeded(buf);

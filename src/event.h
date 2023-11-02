@@ -31,6 +31,7 @@ enum EventType {
     LIVE_OBJECT,
     LOCK_SAMPLE,
     PARK_SAMPLE,
+    PROFILING_WINDOW,
 };
 
 class Event {
@@ -69,6 +70,12 @@ class LiveObject : public Event {
     u32 _class_id;
     u64 _alloc_size;
     u64 _alloc_time;
+};
+
+class ProfilingWindow : public Event {
+  public:
+    u64 _start_time;
+    u64 _end_time;
 };
 
 #endif // _EVENT_H

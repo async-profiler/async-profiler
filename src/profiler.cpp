@@ -43,6 +43,7 @@
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
+#include "tsc.h"
 #include "vmStructs.h"
 
 
@@ -63,6 +64,8 @@ static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
+
+static ProfilingWindow profiling_window = {};
 
 
 // The same constants are used in JfrSync
@@ -741,6 +744,25 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     _locks[lock_index].unlock();
 }
 
+void Profiler::recordEventOnly(EventType event_type, Event* event) {
+    if (!_jfr.active()) {
+        return;
+    }
+
+    int tid = fastThreadId();
+    u32 lock_index = getLockIndex(tid);
+    if (!_locks[lock_index].tryLock() &&
+        !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
+    {
+        return;
+    }
+
+    _jfr.recordEvent(lock_index, tid, 0, event_type, event);
+
+    _locks[lock_index].unlock();
+}
+
 void Profiler::writeLog(LogLevel level, const char* message) {
     _jfr.recordLog(level, message, strlen(message));
 }
@@ -800,6 +822,7 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
 
     if (_begin_trap.covers(frame.pc())) {
+        profiling_window._start_time = TSC::ticks();
         _engine->enableEvents(true);
         _begin_trap.uninstall();
         _end_trap.install();
@@ -807,6 +830,8 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     } else if (_end_trap.covers(frame.pc())) {
         _engine->enableEvents(false);
         _end_trap.uninstall();
+        profiling_window._end_time = TSC::ticks();
+        recordEventOnly(PROFILING_WINDOW, &profiling_window);
         _begin_trap.install();
         frame.pc() = _end_trap.entry();
     } else if (orig_trapHandler != NULL) {

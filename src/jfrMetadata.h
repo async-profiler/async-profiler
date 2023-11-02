@@ -68,7 +68,8 @@ enum JfrType {
     T_NATIVE_LIBRARY = 113,
     T_GC_HEAP_SUMMARY = 114,
     T_LOG = 115,
-    T_LIVE_OBJECT = 116,
+    T_WINDOW = 116,
+    T_LIVE_OBJECT = 117,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,

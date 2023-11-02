@@ -222,6 +222,12 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("level", T_LOG_LEVEL, "Level", F_CPOOL)
                 << field("message", T_STRING, "Message"))
 
+            << (type("profiler.Window", T_WINDOW, "Profiling Window")
+                << category("Profiler")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("duration", T_LONG, "Duration", F_DURATION_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL))
+
             << (type("profiler.LiveObject", T_LIVE_OBJECT, "Live Object")
                 << category("Java Application")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
