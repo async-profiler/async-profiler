@@ -569,22 +569,27 @@ void VMStructs::initLogging(JNIEnv* env) {
     if (VM::hotspot_version() >= 15) {
         VMManagement* management = VM::management();
         if (management != NULL) {
-            jstring log_config = management->ExecuteDiagnosticCommand(env, env->NewStringUTF("VM.log list"));
-            if (log_config != NULL) {
-                char cmd[128] = "VM.log what=jni+resolve=error decorators=";
-                const char* s = env->GetStringUTFChars(log_config, NULL);
-                if (s != NULL) {
-                    const char* p = strstr(s, "#0: ");
-                    if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL) {
-                        const char* q = p + 1;  // start of decorators
-                        while (*q > ' ') q++;
-                        if (q - p < sizeof(cmd) - 41) {
-                            memcpy(cmd + 41, p + 1, q - p - 1);
+            jstring vm_log_str = env->NewStringUTF("VM.log list");
+            if (vm_log_str != NULL) {
+                jstring log_config = management->ExecuteDiagnosticCommand(env, vm_log_str);
+                if (log_config != NULL) {
+                    char cmd[128] = "VM.log what=jni+resolve=error decorators=";
+                    const char* s = env->GetStringUTFChars(log_config, NULL);
+                    if (s != NULL) {
+                        const char* p = strstr(s, "#0: ");
+                        if (p != NULL && (p = strchr(p + 4, ' ')) != NULL && (p = strchr(p + 1, ' ')) != NULL) {
+                            const char* q = p + 1;  // start of decorators
+                            while (*q > ' ') q++;
+                            if (q - p < sizeof(cmd) - 41) {
+                                memcpy(cmd + 41, p + 1, q - p - 1);
+                            }
                         }
+                        env->ReleaseStringUTFChars(log_config, s);
                     }
-                    env->ReleaseStringUTFChars(log_config, s);
+                    if ((vm_log_str = env->NewStringUTF(cmd)) != NULL) {
+                        management->ExecuteDiagnosticCommand(env, vm_log_str);
+                    }
                 }
-                management->ExecuteDiagnosticCommand(env, env->NewStringUTF(cmd));
             }
         }
         env->ExceptionClear();
