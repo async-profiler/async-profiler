@@ -65,7 +65,7 @@ static J9WallClock j9_wall_clock;
 static ITimer itimer;
 static Instrument instrument;
 
-static ProfilingWindow profiling_window = {};
+static ProfilingWindow profiling_window;
 
 
 // The same constants are used in JfrSync
