@@ -213,7 +213,7 @@ static int duration = 60;
 static int pid = 0;
 static volatile unsigned long long end_time;
 
-static void sigint_handler(int sig) {
+static void interrupt_handler(int sig) {
     end_time = 0;
 }
 
@@ -515,7 +515,10 @@ int main(int argc, const char** argv) {
 
         fprintf(stderr, "Profiling for %d seconds\n", duration);
         end_time = time_micros() + duration * 1000000ULL;
-        signal(SIGINT, sigint_handler);
+
+        struct sigaction sa = {interrupt_handler};
+        sigaction(SIGINT, &sa, NULL);
+        sigaction(SIGTERM, &sa, NULL);
 
         while (time_micros() < end_time) {
             if (kill(pid, 0) != 0) {
@@ -527,6 +530,8 @@ int main(int argc, const char** argv) {
         }
 
         signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+
         fprintf(stderr, "Done\n");
 
         run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
