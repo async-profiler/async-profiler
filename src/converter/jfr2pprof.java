@@ -19,6 +19,8 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
+import one.jfr.event.AllocationSample;
+import one.jfr.event.Event;
 import one.jfr.event.ExecutionSample;
 import one.proto.Proto;
 
@@ -95,8 +97,18 @@ public class jfr2pprof {
         this.reader = reader;
     }
 
-    // `Proto` instances are mutable, careful with reordering
+
+
     public void dump(final OutputStream out) throws Exception {
+        dump(out, null);
+    }
+
+    // `Proto` instances are mutable, careful with reordering
+    public void dump(final OutputStream out, Class<? extends Event> eventClass) throws Exception {
+        if ((eventClass != ExecutionSample.class && eventClass != AllocationSample.class)) {
+            // Fallback to execution sample event
+            eventClass = ExecutionSample.class;
+        }
         // Mutable IDs, need to start at 1
         int functionId = 1;
         int locationId = 1;
@@ -116,26 +128,38 @@ public class jfr2pprof {
 
         final Proto sampleType = new Proto(100);
 
-        profile.field(PROFILE_STRING_TABLE, "cpu".getBytes(StandardCharsets.UTF_8));
-        sampleType.field(VALUETYPE_TYPE, stringId++);
-
-        profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
-        sampleType.field(VALUETYPE_UNIT, stringId++);
+        if (eventClass == AllocationSample.class) {
+            profile.field(PROFILE_STRING_TABLE, "alloc_space".getBytes(StandardCharsets.UTF_8));
+            sampleType.field(VALUETYPE_TYPE, stringId++);
+            profile.field(PROFILE_STRING_TABLE, "bytes".getBytes(StandardCharsets.UTF_8));
+            sampleType.field(VALUETYPE_UNIT, stringId++);
+        } else {
+            profile.field(PROFILE_STRING_TABLE, "cpu".getBytes(StandardCharsets.UTF_8));
+            sampleType.field(VALUETYPE_TYPE, stringId++);
+            profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
+            sampleType.field(VALUETYPE_UNIT, stringId++);
+        }
 
         profile.field(PROFILE_SAMPLE_TYPE, sampleType);
 
-        final List<ExecutionSample> jfrSamples = reader.readAllEvents(ExecutionSample.class);
+        final List<? extends Event> jfrSamples = reader.readAllEvents(eventClass);
         final Dictionary<StackTrace> stackTraces = reader.stackTraces;
         long previousTime = reader.startTicks; // Mutate this to keep track of time deltas
 
         // Iterate over samples
-        for (final ExecutionSample jfrSample : jfrSamples) {
+        for (final Event jfrSample : jfrSamples) {
             final StackTrace stackTrace = stackTraces.get(jfrSample.stackTraceId);
             final long[] methods = stackTrace.methods;
             final byte[] types = stackTrace.types;
 
-            final long nanosSinceLastSample = (jfrSample.time - previousTime) * 1_000_000_000 / reader.ticksPerSec;
-            final Proto sample = new Proto(1_000).field(SAMPLE_VALUE, nanosSinceLastSample);
+            final Proto sample = new Proto(1_000);
+            if (eventClass == AllocationSample.class) {
+                final long allocationSize = jfrSample.value();
+                sample.field(SAMPLE_VALUE, allocationSize);
+            } else {
+                final long nanosSinceLastSample = (jfrSample.time - previousTime) * 1_000_000_000 / reader.ticksPerSec;
+                sample.field(SAMPLE_VALUE, nanosSinceLastSample);
+            }
 
             for (int current = 0; current < methods.length; current++) {
                 final byte methodType = types[current];
@@ -214,6 +238,11 @@ public class jfr2pprof {
             System.exit(1);
         }
 
+        String event = "cpu";
+        if (args.length > 2) {
+            event = args[2];
+        }
+
         File dst = new File(args[1]);
         if (dst.isDirectory()) {
             dst = new File(dst, new File(args[0]).getName().replace(".jfr", ".pprof"));
@@ -221,7 +250,7 @@ public class jfr2pprof {
 
         try (final JfrReader jfr = new JfrReader(args[0]);
              final FileOutputStream out = new FileOutputStream(dst)) {
-            new jfr2pprof(jfr).dump(out);
+            new jfr2pprof(jfr).dump(out, Event.of(event));
         }
     }
 }
