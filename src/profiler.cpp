@@ -1211,7 +1211,7 @@ error1:
     return error;
 }
 
-Error Profiler::stop() {
+Error Profiler::stop(bool restart) {
     MutexLocker ml(_state_lock);
     if (_state != RUNNING) {
         return Error("Profiler is not active");
@@ -1238,7 +1238,10 @@ Error Profiler::stop() {
     _jfr.stop();
     unlockAll();
 
-    FdTransferClient::closePeer();
+    if (!restart) {
+        FdTransferClient::closePeer();
+    }
+
     _state = IDLE;
     return Error::OK;
 }
@@ -1755,7 +1758,7 @@ Error Profiler::run(Arguments& args) {
 Error Profiler::restart(Arguments& args) {
     MutexLocker ml(_state_lock);
 
-    Error error = stop();
+    Error error = stop(args._loop);
     if (error) {
         return error;
     }
@@ -1773,6 +1776,7 @@ Error Profiler::restart(Arguments& args) {
     }
 
     if (args._loop) {
+        args._fdtransfer = false;  // keep the previous connection
         args._file_num++;
         return start(args, true);
     }

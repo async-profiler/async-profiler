@@ -205,7 +205,7 @@ class Profiler {
     void shutdown(Arguments& args);
     Error check(Arguments& args);
     Error start(Arguments& args, bool reset);
-    Error stop();
+    Error stop(bool restart = false);
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
     void printUsedMemory(std::ostream& out);
