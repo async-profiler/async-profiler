@@ -36,8 +36,6 @@
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
 
-static Arguments _agent_args(true);
-
 JavaVM* VM::_vm;
 jvmtiEnv* VM::_jvmti = NULL;
 
@@ -329,32 +327,28 @@ void VM::loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni) {
     }
 }
 
-void VM::restartProfiler() {
-    Profiler::instance()->restart(_agent_args);
-}
-
 void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     ready();
     loadAllMethodIDs(jvmti, jni);
 
     // Allow profiler server only at JVM startup
-    if (_agent_args._server != NULL) {
-        if (JavaAPI::startHttpServer(jvmti, jni, _agent_args._server)) {
-            Log::info("Profiler server started at %s", _agent_args._server);
+    if (_global_args._server != NULL) {
+        if (JavaAPI::startHttpServer(jvmti, jni, _global_args._server)) {
+            Log::info("Profiler server started at %s", _global_args._server);
         } else {
             Log::error("Failed to start profiler server");
         }
     }
 
     // Delayed start of profiler if agent has been loaded at VM bootstrap
-    Error error = Profiler::instance()->run(_agent_args);
+    Error error = Profiler::instance()->run(_global_args);
     if (error) {
         Log::error("%s", error.message());
     }
 }
 
 void JNICALL VM::VMDeath(jvmtiEnv* jvmti, JNIEnv* jni) {
-    Profiler::instance()->shutdown(_agent_args);
+    Profiler::instance()->shutdown(_global_args);
 }
 
 jvmtiError VM::RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions) {
@@ -392,9 +386,9 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    Error error = _agent_args.parse(options);
+    Error error = _global_args.parse(options);
 
-    Log::open(_agent_args);
+    Log::open(_global_args);
 
     if (error) {
         Log::error("%s", error.message());
@@ -411,7 +405,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
-    Arguments args(true);
+    Arguments args;
     Error error = args.parse(options);
 
     Log::open(args);
@@ -424,11 +418,6 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     if (!VM::init(vm, true)) {
         Log::error("JVM does not support Tool Interface");
         return COMMAND_ERROR;
-    }
-
-    // Save the arguments in case of shutdown
-    if (args._action == ACTION_START || args._action == ACTION_RESUME) {
-        _agent_args.save(args);
     }
 
     error = Profiler::instance()->run(args);

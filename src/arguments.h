@@ -151,7 +151,6 @@ class Arguments {
   private:
     char* _buf;
     bool _shared;
-    bool _persistent;
 
     void appendToEmbeddedList(int& list, char* value);
     const char* expandFilePattern(const char* pattern);
@@ -207,10 +206,9 @@ class Arguments {
     double _minwidth;
     bool _reverse;
 
-    Arguments(bool persistent = false) :
+    Arguments() :
         _buf(NULL),
         _shared(false),
-        _persistent(persistent),
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
         _ring(RING_ANY),
@@ -258,7 +256,7 @@ class Arguments {
 
     ~Arguments();
 
-    void save(Arguments& other);
+    void save();
 
     Error parse(const char* args);
 
@@ -278,5 +276,7 @@ class Arguments {
     friend class FrameName;
     friend class Recording;
 };
+
+extern Arguments _global_args;
 
 #endif // _ARGUMENTS_H

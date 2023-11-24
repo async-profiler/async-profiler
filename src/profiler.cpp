@@ -1061,6 +1061,9 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    // Save the arguments for shutdown or restart
+    args.save();
+
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
@@ -1636,7 +1639,7 @@ void Profiler::timerLoop(void* timer_id) {
         }
 
         if ((current_micros = OS::micros()) >= stop_micros) {
-            VM::restartProfiler();
+            restart(_global_args);
             return;
         }
 

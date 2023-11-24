@@ -40,16 +40,14 @@ static pthread_create_t _orig_pthread_create = NULL;
 typedef void (*pthread_exit_t)(void*);
 static pthread_exit_t _orig_pthread_exit = NULL;
 
-static Arguments _preload_args(true);
-
 static void unblock_signals() {
     sigset_t set;
     sigemptyset(&set);
-    if (_preload_args._signal == 0) {
+    if (_global_args._signal == 0) {
         sigaddset(&set, SIGPROF);
         sigaddset(&set, SIGVTALRM);
     } else {
-        for (int s = _preload_args._signal; s > 0; s >>= 8) {
+        for (int s = _global_args._signal; s > 0; s >>= 8) {
             sigaddset(&set, s & 0xff);
         }
     }
@@ -177,17 +175,17 @@ void Hooks::startProfiler() {
         return;
     }
 
-    Error error = _preload_args.parse(command);
+    Error error = _global_args.parse(command);
 
-    Log::open(_preload_args);
+    Log::open(_global_args);
 
-    if (error || (error = Profiler::instance()->run(_preload_args))) {
+    if (error || (error = Profiler::instance()->run(_global_args))) {
         Log::error("%s", error.message());
     }
 }
 
 void Hooks::shutdown() {
-    Profiler::instance()->shutdown(_preload_args);
+    Profiler::instance()->shutdown(_global_args);
 }
 
 void Hooks::patchLibraries() {

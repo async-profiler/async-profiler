@@ -24,6 +24,9 @@
 #include "arguments.h"
 
 
+// Arguments of the last start/resume command; reused for shutdown and restart
+Arguments _global_args;
+
 // Predefined value that denotes successful operation
 const Error Error::OK(NULL);
 
@@ -222,13 +225,13 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("timeout")
-                if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
+                if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
                     msg = "Invalid timeout";
                 }
 
             CASE("loop")
                 _loop = true;
-                if (value == NULL || (_timeout = parseTimeout(value)) == -1 || !_persistent) {
+                if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
                     msg = "Invalid loop duration";
                 }
 
@@ -557,8 +560,10 @@ Arguments::~Arguments() {
     if (!_shared) free(_buf);
 }
 
-void Arguments::save(Arguments& other) {
-    if (!_shared) free(_buf);
-    *this = other;
-    other._shared = true;
+void Arguments::save() {
+    if (this != &_global_args) {
+        free(_global_args._buf);
+        _global_args = *this;
+        _shared = true;
+    }
 }

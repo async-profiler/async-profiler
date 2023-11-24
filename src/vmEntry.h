@@ -130,8 +130,6 @@ class VM {
 
     static bool init(JavaVM* vm, bool attach);
 
-    static void restartProfiler();
-
     static bool loaded() {
         return _jvmti != NULL;
     }
