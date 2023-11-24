@@ -25,8 +25,9 @@ public class Main {
     public static void main(String[] args) throws Exception {
         if (args.length < 1) {
             usage();
-            System.exit(1);
+            return;
         }
+
         String[] converterArgs = Arrays.copyOfRange(args, 1, args.length);
         switch (args[0]) {
             case "FlameGraph":
@@ -42,8 +43,8 @@ public class Main {
                 jfr2pprof.main(converterArgs);
                 break;
             default:
+                System.out.println("Unknown converter: " + args[0] + "\n");
                 usage();
-                System.err.println("\nUnknown converter: " + args[0]);
                 System.exit(1);
         }
     }
