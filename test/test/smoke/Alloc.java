@@ -1,16 +1,19 @@
-import java.util.Random;
+package test.smoke;
 
-public class AllocatingTarget implements Runnable {
-    public static volatile Object sink;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
+
+public class Alloc implements Runnable {
+    static volatile Object sink;
 
     public static void main(String[] args) {
-        new Thread(new AllocatingTarget(), "AllocThread-1").start();
-        new Thread(new AllocatingTarget(), "AllocThread-2").start();
+        new Thread(new Alloc(), "AllocThread-1").start();
+        new Thread(new Alloc(), "AllocThread-2").start();
     }
 
     @Override
     public void run() {
-        Random random = new Random();
+        Random random = ThreadLocalRandom.current();
         while (true) {
             allocate(random);
         }
