@@ -123,7 +123,6 @@ const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 1;    // return address is at -1 from FP
-const int ADJUST_RET = 0;       // No need for adjustments
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 24; // Best guess from examining readelf
 const int PLT_ENTRY_SIZE = 24;  // ...same...

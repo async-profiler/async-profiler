@@ -129,7 +129,7 @@ typedef Elf32_Dyn  ElfDyn;
 #elif defined(__riscv) && (__riscv_xlen == 64)
 // RISC-V does not have GLOB_DAT relocation, use something neutral,
 // like the impossible relocation number.
-#define R_GLOB_DAT -1
+#  define R_GLOB_DAT -1
 #else
 #  error "Compiling on unsupported arch"
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Andrei Pangin
+ * Copyright 2023 Andrei Pangin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,11 @@ uintptr_t& StackFrame::fp() {
 }
 
 uintptr_t& StackFrame::retval() {
-    return (uintptr_t&)REG(REG_RA);
+    return (uintptr_t&)REG(REG_A0);
+}
+
+uintptr_t StackFrame::link() {
+    return (uintptr_t)REG(REG_RA);
 }
 
 uintptr_t StackFrame::arg0() {
@@ -57,17 +61,41 @@ uintptr_t StackFrame::arg3() {
     return (uintptr_t)REG(REG_A0 + 3);
 }
 
-void StackFrame::ret() {
-    pc() = REG(REG_RA);
+uintptr_t StackFrame::jarg0() {
+    return arg1();
 }
 
-bool StackFrame::popStub(instruction_t* entry, const char* name) {
-    // Not implemented yet.
+uintptr_t StackFrame::method() {
+    return (uintptr_t)REG(31);
+}
+
+uintptr_t StackFrame::senderSP() {
+    return (uintptr_t)REG(19);
+}
+
+void StackFrame::ret() {
+    pc() = link();
+}
+
+bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
+    if (ip == entry
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        pc = link();
+        return true;
+    }
     return false;
 }
 
-bool StackFrame::popMethod(instruction_t* entry) {
-    // Not implemented yet.
+bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // Not yet implemented
+    return false;
+}
+
+bool StackFrame::skipFaultInstruction() {
     return false;
 }
 

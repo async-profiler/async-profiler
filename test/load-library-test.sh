@@ -20,7 +20,7 @@ fi
   FILENAME=/tmp/java.trace
   JAVAPID=$!
 
-  sleep 1     # allow the Java runtime to initialize
+  sleep 2     # allow the Java runtime to initialize
   ../build/bin/asprof -f $FILENAME -o collapsed -d 5 -i 1ms -L error $JAVAPID
 
   kill $JAVAPID
