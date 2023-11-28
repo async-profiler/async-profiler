@@ -400,7 +400,7 @@ struct PerfEventType {
 
     static PerfEventType* forName(const char* name) {
         // Look through the table of predefined perf events
-        for (int i = 0; i < IDX_PREDEFINED; i++) {
+        for (int i = 0; i <= IDX_PREDEFINED; i++) {
             if (strcmp(name, AVAILABLE_EVENTS[i].name) == 0) {
                 return &AVAILABLE_EVENTS[i];
             }

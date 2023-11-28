@@ -17,10 +17,11 @@
 #ifndef _PERFEVENTS_H
 #define _PERFEVENTS_H
 
+#ifdef __linux__
+
 #include <signal.h>
 #include "arch.h"
 #include "engine.h"
-
 
 class PerfEvent;
 class PerfEventType;
@@ -59,5 +60,46 @@ class PerfEvents : public Engine {
     static int createForThread(int tid);
     static void destroyForThread(int tid);
 };
+
+#else
+
+#include "engine.h"
+
+class StackContext;
+
+class PerfEvents : public Engine {
+  public:
+    Error check(Arguments& args) {
+        return Error("PerfEvents are unsupported on this platform");
+    }
+
+    Error start(Arguments& args) {
+        return Error("PerfEvents are unsupported on this platform");
+    }
+
+    static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+        return 0;
+    }
+
+    static void resetBuffer(int tid) {
+    }
+
+    static bool supported() {
+        return false;
+    }
+
+    static const char* getEventName(int event_id) {
+        return NULL;
+    }
+
+    static int createForThread(int tid) {
+        return -1;
+    }
+
+    static void destroyForThread(int tid) {
+    }
+};
+
+#endif // __linux__
 
 #endif // _PERFEVENTS_H
