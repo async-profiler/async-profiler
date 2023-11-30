@@ -36,7 +36,11 @@ uintptr_t& StackFrame::fp() {
 }
 
 uintptr_t& StackFrame::retval() {
-    return (uintptr_t&)REG(LARCH_REG_RA);
+    return (uintptr_t&)REG(LARCH_REG_A0);
+}
+
+uintptr_t StackFrame::link() {
+    return (uintptr_t)REG(LARCH_REG_RA);
 }
 
 uintptr_t StackFrame::arg0() {
@@ -56,21 +60,40 @@ uintptr_t StackFrame::arg3() {
 }
 
 uintptr_t StackFrame::jarg0() {
-    // Unimplemented
-    return 0;
+    return arg1();
+}
+
+uintptr_t StackFrame::method() {
+    return (uintptr_t)REG(20);
+}
+
+uintptr_t StackFrame::senderSP() {
+    return (uintptr_t)REG(26);
 }
 
 void StackFrame::ret() {
-    pc() = REG(LARCH_REG_RA);
+    pc() = link();
 }
 
-bool StackFrame::popStub(instruction_t* entry, const char* name) {
-    // Not implemented yet.
+bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    instruction_t* ip = (instruction_t*)pc;
+    if (ip == entry
+        || strncmp(name, "itable", 6) == 0
+        || strncmp(name, "vtable", 6) == 0
+        || strcmp(name, "InlineCacheBuffer") == 0)
+    {
+        pc = link();
+        return true;
+    }
     return false;
 }
 
-bool StackFrame::popMethod(instruction_t* entry) {
-    // Not implemented yet.
+bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // Not yet implemented
+    return false;
+}
+
+bool StackFrame::skipFaultInstruction() {
     return false;
 }
 
