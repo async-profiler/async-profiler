@@ -130,6 +130,10 @@ typedef Elf32_Dyn  ElfDyn;
 // RISC-V does not have GLOB_DAT relocation, use something neutral,
 // like the impossible relocation number.
 #  define R_GLOB_DAT -1
+#elif defined(__loongarch_lp64)
+// LOONGARCH does not have GLOB_DAT relocation, use something neutral,
+// like the impossible relocation number.
+#  define R_GLOB_DAT -1
 #else
 #  error "Compiling on unsupported arch"
 #endif

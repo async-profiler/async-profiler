@@ -76,6 +76,8 @@ else
     ARCH_TAG=ppc64le
   else ifeq ($(ARCH),riscv64)
     ARCH_TAG=riscv64
+  else ifeq ($(ARCH),loongarch64)
+    ARCH_TAG=loongarch64
   else
     ARCH_TAG=x86
   endif
@@ -84,7 +86,9 @@ endif
 ifneq ($(ARCH),ppc64le)
   ifneq ($(ARCH_TAG),arm32)
     ifneq ($(ARCH_TAG),riscv64)
-      CXXFLAGS += -momit-leaf-frame-pointer
+      ifneq ($(ARCH_TAG),loongarch64)
+        CXXFLAGS += -momit-leaf-frame-pointer
+      endif
     endif
   endif
 endif
