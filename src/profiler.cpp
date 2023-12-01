@@ -25,6 +25,7 @@
 #include <sys/param.h>
 #include "profiler.h"
 #include "perfEvents.h"
+#include "ctimer.h"
 #include "allocTracer.h"
 #include "lockTracer.h"
 #include "wallClock.h"
@@ -62,6 +63,7 @@ static ObjectSampler object_sampler;
 static J9ObjectSampler j9_object_sampler;
 static WallClock wall_clock;
 static J9WallClock j9_wall_clock;
+static CTimer ctimer;
 static ITimer itimer;
 static Instrument instrument;
 
@@ -975,6 +977,8 @@ Engine* Profiler::selectEngine(const char* event_name) {
         return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
         return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
+    } else if (strcmp(event_name, EVENT_CTIMER) == 0) {
+        return &ctimer;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
         return &itimer;
     } else if (strchr(event_name, '.') != NULL && strchr(event_name, ':') == NULL) {
@@ -1714,6 +1718,9 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
             out << "  " << EVENT_LOCK << "\n";
             out << "  " << EVENT_WALL << "\n";
             out << "  " << EVENT_ITIMER << "\n";
+            if (CTimer::supported()) {
+                out << "  " << EVENT_CTIMER << "\n";
+            }
 
             out << "Java method calls:\n";
             out << "  ClassName.methodName\n";

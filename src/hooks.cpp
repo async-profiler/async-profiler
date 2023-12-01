@@ -22,8 +22,7 @@
 #include <string.h>
 #include "hooks.h"
 #include "asprof.h"
-#include "os.h"
-#include "perfEvents.h"
+#include "cpuEngine.h"
 #include "profiler.h"
 
 
@@ -62,14 +61,15 @@ static void* thread_start_wrapper(void* e) {
 
     unblock_signals();
 
-    int threadId = OS::threadId();
-    PerfEvents::createForThread(threadId);
-    Log::debug("thread_start: %d", threadId);
+    unsigned long current_thread = (unsigned long)(uintptr_t)pthread_self();
+    Log::debug("thread_start: 0x%lx", current_thread);
+    CpuEngine::onThreadStart();
 
     void* result = start_routine(arg);
 
-    PerfEvents::destroyForThread(threadId);
-    Log::debug("thread_end: %d", threadId);
+    Log::debug("thread_end: 0x%lx", current_thread);
+    CpuEngine::onThreadEnd();
+
     return result;
 }
 
@@ -86,9 +86,8 @@ static int pthread_create_hook(pthread_t* thread, const pthread_attr_t* attr, Th
 }
 
 static void pthread_exit_hook(void* retval) {
-    int threadId = OS::threadId();
-    PerfEvents::destroyForThread(threadId);
-    Log::debug("thread_exit: %d", threadId);
+    Log::debug("thread_exit: 0x%lx", (unsigned long)(uintptr_t)pthread_self());
+    CpuEngine::onThreadEnd();
 
     _orig_pthread_exit(retval);
 }
