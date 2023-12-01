@@ -64,11 +64,11 @@ uintptr_t StackFrame::jarg0() {
 }
 
 uintptr_t StackFrame::method() {
-    return (uintptr_t)REG(20);
+    return (uintptr_t)REG(26);
 }
 
 uintptr_t StackFrame::senderSP() {
-    return (uintptr_t)REG(26);
+    return (uintptr_t)REG(27);
 }
 
 void StackFrame::ret() {
