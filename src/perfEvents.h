@@ -17,31 +17,29 @@
 #ifndef _PERFEVENTS_H
 #define _PERFEVENTS_H
 
-#ifdef __linux__
-
-#include <signal.h>
 #include "arch.h"
-#include "engine.h"
+#include "cpuEngine.h"
+
+#ifdef __linux__
 
 class PerfEvent;
 class PerfEventType;
 class StackContext;
 
-class PerfEvents : public Engine {
+class PerfEvents : public CpuEngine {
   private:
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
-    static long _interval;
-    static int _signal;
     static Ring _ring;
-    static CStack _cstack;
     static bool _use_mmap_page;
-    static bool _running;
 
     static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
+
+    int createForThread(int tid);
+    void destroyForThread(int tid);
 
   public:
     Error check(Arguments& args);
@@ -56,25 +54,20 @@ class PerfEvents : public Engine {
 
     static bool supported();
     static const char* getEventName(int event_id);
-
-    static int createForThread(int tid);
-    static void destroyForThread(int tid);
 };
 
 #else
 
-#include "engine.h"
-
 class StackContext;
 
-class PerfEvents : public Engine {
+class PerfEvents : public CpuEngine {
   public:
     Error check(Arguments& args) {
-        return Error("PerfEvents are unsupported on this platform");
+        return Error("PerfEvents are not supported on this platform");
     }
 
     Error start(Arguments& args) {
-        return Error("PerfEvents are unsupported on this platform");
+        return Error("PerfEvents are not supported on this platform");
     }
 
     static int walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
@@ -90,13 +83,6 @@ class PerfEvents : public Engine {
 
     static const char* getEventName(int event_id) {
         return NULL;
-    }
-
-    static int createForThread(int tid) {
-        return -1;
-    }
-
-    static void destroyForThread(int tid) {
     }
 };
 

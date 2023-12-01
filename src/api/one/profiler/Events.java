@@ -24,5 +24,6 @@ public class Events {
     public static final String ALLOC  = "alloc";
     public static final String LOCK   = "lock";
     public static final String WALL   = "wall";
+    public static final String CTIMER = "ctimer";
     public static final String ITIMER = "itimer";
 }
