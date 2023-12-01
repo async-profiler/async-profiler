@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Convert a JFR file to pprof
@@ -86,6 +87,12 @@ public class jfr2pprof {
     // Line IDs
     public static final int LINE_FUNCTION_ID = 1;
     public static final int LINE_LINE = 2;
+    public static final int SAMPLE_LABEL = 3;
+
+    // Label IDs
+    public static final int LABEL_KEY = 1;
+    public static final int LABEL_NUM = 3;
+    public static final int LABEL_NUM_UNIT = 4;
 
     // Function IDs
     public static final int FUNCTION_ID = 1;
@@ -96,8 +103,6 @@ public class jfr2pprof {
     public jfr2pprof(final JfrReader reader) {
         this.reader = reader;
     }
-
-
 
     public void dump(final OutputStream out) throws Exception {
         dump(out, null);
@@ -131,7 +136,7 @@ public class jfr2pprof {
         if (eventClass == AllocationSample.class) {
             profile.field(PROFILE_STRING_TABLE, "alloc_space".getBytes(StandardCharsets.UTF_8));
             sampleType.field(VALUETYPE_TYPE, stringId++);
-            profile.field(PROFILE_STRING_TABLE, "bytes".getBytes(StandardCharsets.UTF_8));
+            profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
             sampleType.field(VALUETYPE_UNIT, stringId++);
         } else {
             profile.field(PROFILE_STRING_TABLE, "cpu".getBytes(StandardCharsets.UTF_8));
@@ -139,6 +144,11 @@ public class jfr2pprof {
             profile.field(PROFILE_STRING_TABLE, "nanoseconds".getBytes(StandardCharsets.UTF_8));
             sampleType.field(VALUETYPE_UNIT, stringId++);
         }
+
+        profile.field(PROFILE_STRING_TABLE, "allocation_size".getBytes(StandardCharsets.UTF_8));
+        final int allocationSizeKeyId = stringId++;
+        profile.field(PROFILE_STRING_TABLE, "bytes".getBytes(StandardCharsets.UTF_8));
+        final int allocationSizeUnitId = stringId++;
 
         profile.field(PROFILE_SAMPLE_TYPE, sampleType);
 
@@ -153,12 +163,15 @@ public class jfr2pprof {
             final byte[] types = stackTrace.types;
 
             final Proto sample = new Proto(1_000);
+            final long nanosSinceLastSample = (jfrSample.time - previousTime) * 1_000_000_000 / reader.ticksPerSec;
+            sample.field(SAMPLE_VALUE, nanosSinceLastSample);
             if (eventClass == AllocationSample.class) {
                 final long allocationSize = jfrSample.value();
-                sample.field(SAMPLE_VALUE, allocationSize);
-            } else {
-                final long nanosSinceLastSample = (jfrSample.time - previousTime) * 1_000_000_000 / reader.ticksPerSec;
-                sample.field(SAMPLE_VALUE, nanosSinceLastSample);
+                final Proto label = new Proto(16)
+                        .field(LABEL_KEY, allocationSizeKeyId)
+                        .field(LABEL_NUM, allocationSize)
+                        .field(LABEL_NUM_UNIT, allocationSizeUnitId);
+                sample.field(SAMPLE_LABEL, label);
             }
 
             for (int current = 0; current < methods.length; current++) {
@@ -232,25 +245,28 @@ public class jfr2pprof {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        if (args.length < 2) {
-            System.out.println("Usage: java " + jfr2pprof.class.getName() + " input.jfr output.pprof");
+    public static void main(String[] cmdline) throws Exception {
+        Arguments args = new Arguments(cmdline);
+        if (args.input == null) {
+            System.out.println("Usage: java " + jfr2pprof.class.getName() + " [options] input.jfr [output.pprof]");
+            System.out.println();
+            System.out.println("options support one of the following events:");
+            System.out.println("  --cpu         CPU events (default)");
+            System.out.println("  --alloc       Allocation events");
             System.exit(1);
         }
 
-        String event = "cpu";
-        if (args.length > 2) {
-            event = args[2];
-        }
+        Class<? extends Event> eventClass = args.alloc ? AllocationSample.class : ExecutionSample.class;
 
-        File dst = new File(args[1]);
+        String output = Optional.ofNullable(args.output).orElse(args.input).replace(".jfr", ".pprof");
+        File dst = new File(output);
         if (dst.isDirectory()) {
-            dst = new File(dst, new File(args[0]).getName().replace(".jfr", ".pprof"));
+            dst = new File(dst, new File(args.input).getName().replace(".jfr", ".pprof"));
         }
 
-        try (final JfrReader jfr = new JfrReader(args[0]);
+        try (final JfrReader jfr = new JfrReader(args.input);
              final FileOutputStream out = new FileOutputStream(dst)) {
-            new jfr2pprof(jfr).dump(out, Event.of(event));
+            new jfr2pprof(jfr).dump(out, eventClass);
         }
     }
 }

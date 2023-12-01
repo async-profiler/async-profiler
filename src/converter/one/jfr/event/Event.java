@@ -16,24 +16,12 @@
 
 package one.jfr.event;
 
-import one.profiler.Events;
-
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
 
 public abstract class Event implements Comparable<Event> {
     public final long time;
     public final int tid;
     public final int stackTraceId;
-
-    private static final Map<String, Class<? extends Event>> eventClassMap;
-
-    static {
-        eventClassMap = new HashMap<>();
-        eventClassMap.put(Events.CPU, ExecutionSample.class);
-        eventClassMap.put(Events.ALLOC, AllocationSample.class);
-    }
 
     protected Event(long time, int tid, int stackTraceId) {
         this.time = time;
@@ -73,9 +61,5 @@ public abstract class Event implements Comparable<Event> {
 
     public long value() {
         return 1;
-    }
-
-    public static Class<? extends Event> of(String eventType) {
-        return eventClassMap.getOrDefault(eventType, ExecutionSample.class);
     }
 }

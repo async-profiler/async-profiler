@@ -30,6 +30,7 @@ class Arguments {
     double minwidth;
     int skip;
     boolean reverse;
+    boolean cpu;
     boolean alloc;
     boolean live;
     boolean lock;
