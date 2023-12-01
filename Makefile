@@ -83,14 +83,8 @@ else
   endif
 endif
 
-ifneq ($(ARCH),ppc64le)
-  ifneq ($(ARCH_TAG),arm32)
-    ifneq ($(ARCH_TAG),riscv64)
-      ifneq ($(ARCH_TAG),loongarch64)
-        CXXFLAGS += -momit-leaf-frame-pointer
-      endif
-    endif
-  endif
+ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
+  CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
 

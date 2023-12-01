@@ -140,7 +140,6 @@ const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
 const int FRAME_PC_SLOT = 1;
-const int ADJUST_RET = 0;       // No need for adjustments
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
