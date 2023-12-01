@@ -517,11 +517,16 @@ void VMStructs::initJvmFunctions() {
 }
 
 void VMStructs::patchSafeFetch() {
-    // Workaround for JDK-8307549
+    // Workarounds for JDK-8307549 and JDK-8321116
     if (WX_MEMORY && VM::hotspot_version() == 17) {
         void** entry = (void**)_libjvm->findSymbol("_ZN12StubRoutines18_safefetch32_entryE");
         if (entry != NULL) {
             *entry = (void*)SafeAccess::load32;
+        }
+    } else if (WX_MEMORY && VM::hotspot_version() == 11) {
+        void** entry = (void**)_libjvm->findSymbol("_ZN12StubRoutines17_safefetchN_entryE");
+        if (entry != NULL) {
+            *entry = (void*)SafeAccess::loadPtr;
         }
     }
 }
