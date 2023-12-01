@@ -60,7 +60,7 @@ uintptr_t StackFrame::arg3() {
 }
 
 uintptr_t StackFrame::jarg0() {
-    return arg1();
+    return (uintptr_t&)REG(12);
 }
 
 uintptr_t StackFrame::method() {
