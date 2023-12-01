@@ -132,6 +132,23 @@ const int PERF_REG_PC = 0;      // PERF_REG_RISCV_PC
 #define rmb()             asm volatile ("fence" : : : "memory")
 #define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
+#elif defined(__loongarch_lp64)
+
+typedef unsigned int instruction_t;
+const instruction_t BREAKPOINT = 0x002a0005; // EBREAK
+const int BREAKPOINT_OFFSET = 0;
+
+const int SYSCALL_SIZE = sizeof(instruction_t);
+const int FRAME_PC_SLOT = 1;
+const int PROBE_SP_LIMIT = 0;
+const int PLT_HEADER_SIZE = 32;
+const int PLT_ENTRY_SIZE = 16;
+const int PERF_REG_PC = 0;      // PERF_REG_LOONGARCH_PC
+
+#define spinPause()       asm volatile("ibar 0x0")
+#define rmb()             asm volatile("dbar 0x0" : : : "memory")
+#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+
 #else
 
 #error "Compiling on unsupported arch"
