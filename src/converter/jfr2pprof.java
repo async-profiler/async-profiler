@@ -156,6 +156,10 @@ public class jfr2pprof {
         final Dictionary<StackTrace> stackTraces = reader.stackTraces;
         long previousTime = reader.startTicks; // Mutate this to keep track of time deltas
 
+        final Proto allocationLabel = new Proto(16)
+                .field(LABEL_KEY, allocationSizeKeyId)
+                .field(LABEL_NUM_UNIT, allocationSizeUnitId);
+
         // Iterate over samples
         for (final Event jfrSample : jfrSamples) {
             final StackTrace stackTrace = stackTraces.get(jfrSample.stackTraceId);
@@ -166,12 +170,7 @@ public class jfr2pprof {
             final long nanosSinceLastSample = (jfrSample.time - previousTime) * 1_000_000_000 / reader.ticksPerSec;
             sample.field(SAMPLE_VALUE, nanosSinceLastSample);
             if (eventClass == AllocationSample.class) {
-                final long allocationSize = jfrSample.value();
-                final Proto label = new Proto(16)
-                        .field(LABEL_KEY, allocationSizeKeyId)
-                        .field(LABEL_NUM, allocationSize)
-                        .field(LABEL_NUM_UNIT, allocationSizeUnitId);
-                sample.field(SAMPLE_LABEL, label);
+                sample.field(SAMPLE_LABEL, allocationLabel.field(LABEL_NUM, jfrSample.value()));
             }
 
             for (int current = 0; current < methods.length; current++) {
