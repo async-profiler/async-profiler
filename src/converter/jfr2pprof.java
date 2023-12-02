@@ -110,7 +110,7 @@ public class jfr2pprof {
 
     // `Proto` instances are mutable, careful with reordering
     public void dump(final OutputStream out, Class<? extends Event> eventClass) throws Exception {
-        if ((eventClass != ExecutionSample.class && eventClass != AllocationSample.class)) {
+        if (eventClass != ExecutionSample.class && eventClass != AllocationSample.class) {
             // Fallback to execution sample event
             eventClass = ExecutionSample.class;
         }
@@ -258,7 +258,7 @@ public class jfr2pprof {
 
         Class<? extends Event> eventClass = args.alloc ? AllocationSample.class : ExecutionSample.class;
 
-        String output = Optional.ofNullable(args.output).orElse(args.input).replace(".jfr", ".pprof");
+        String output = Optional.ofNullable(args.output).orElse(args.input.replace(".jfr", ".pprof"));
         File dst = new File(output);
         if (dst.isDirectory()) {
             dst = new File(dst, new File(args.input).getName().replace(".jfr", ".pprof"));
