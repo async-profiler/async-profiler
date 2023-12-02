@@ -79,6 +79,7 @@ public class jfr2pprof {
     // Sample IDs
     public static final int SAMPLE_LOCATION_ID = 1;
     public static final int SAMPLE_VALUE = 2;
+    public static final int SAMPLE_LABEL = 3;
 
     // Location IDs
     public static final int LOCATION_ID = 1;
@@ -87,7 +88,6 @@ public class jfr2pprof {
     // Line IDs
     public static final int LINE_FUNCTION_ID = 1;
     public static final int LINE_LINE = 2;
-    public static final int SAMPLE_LABEL = 3;
 
     // Label IDs
     public static final int LABEL_KEY = 1;
