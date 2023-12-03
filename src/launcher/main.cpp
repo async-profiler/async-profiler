@@ -516,6 +516,7 @@ int main(int argc, const char** argv) {
         fprintf(stderr, "Profiling for %d seconds\n", duration);
         end_time = time_micros() + duration * 1000000ULL;
         signal(SIGINT, sigint_handler);
+        signal(SIGTERM, sigint_handler);
 
         while (time_micros() < end_time) {
             if (kill(pid, 0) != 0) {
@@ -526,8 +527,9 @@ int main(int argc, const char** argv) {
             sleep(1);
         }
 
+        fprintf(stderr, end_time != 0 ? "Done\n" : "Interrupted\n");
         signal(SIGINT, SIG_DFL);
-        fprintf(stderr, "Done\n");
+        // Do not reset SIGTERM handler to allow graceful shutdown
 
         run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
     } else {
