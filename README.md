@@ -384,6 +384,8 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
 * `-s` - print simple class names instead of FQN.
 
+* `-n` - normalize names of hidden classes / lambdas.
+
 * `-g` - print method signatures.
 
 * `-a` - annotate JIT compiled methods with `_[j]`, inlined methods with `_[i]`, interpreted methods with `_[0]` and C1 compiled methods with `_[1]`.

@@ -103,6 +103,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
+//     norm             - normalize names of hidden classes / lambdas
 //     sig              - print method signatures
 //     ann              - annotate Java methods
 //     lib              - prepend library names
@@ -361,6 +362,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("dot")
                 _style |= STYLE_DOTTED;
+
+            CASE("norm")
+                _style |= STYLE_NORMALIZE;
 
             CASE("sig")
                 _style |= STYLE_SIGNATURES;

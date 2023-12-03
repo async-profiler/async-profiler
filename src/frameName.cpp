@@ -223,6 +223,18 @@ void FrameName::javaClassName(const char* symbol, size_t length, int style) {
         } while (--array_dimension > 0);
     }
 
+    if (style & STYLE_NORMALIZE) {
+        size_t size = _str.size();
+        for (ssize_t i = size - 2; i > 0; i--) {
+            if (_str[i] == '/' || _str[i] == '.') {
+                if (isDigit(_str[i + 1])) {
+                    _str.resize(i);
+                }
+                break;
+            }
+        }
+    }
+
     if (style & STYLE_SIMPLE) {
         size_t start = 0;
         size_t size = _str.size();

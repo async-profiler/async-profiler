@@ -58,12 +58,13 @@ enum SHORT_ENUM Ring {
 };
 
 enum Style {
-    STYLE_SIMPLE       = 1,
-    STYLE_DOTTED       = 2,
-    STYLE_SIGNATURES   = 4,
-    STYLE_ANNOTATE     = 8,
-    STYLE_LIB_NAMES    = 16,
-    STYLE_NO_SEMICOLON = 32
+    STYLE_SIMPLE       = 0x1,
+    STYLE_DOTTED       = 0x2,
+    STYLE_NORMALIZE    = 0x4,
+    STYLE_SIGNATURES   = 0x8,
+    STYLE_ANNOTATE     = 0x10,
+    STYLE_LIB_NAMES    = 0x20,
+    STYLE_NO_SEMICOLON = 0x40
 };
 
 enum SHORT_ENUM CStack {

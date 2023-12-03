@@ -58,6 +58,7 @@ static const char USAGE_STRING[] =
     "  -j jstackdepth    maximum Java stack depth\n"
     "  -t, --threads     profile different threads separately\n"
     "  -s, --simple      simple class names instead of FQN\n"
+    "  -n, --norm        normalize names of hidden classes / lambdas\n"
     "  -g, --sig         print method signatures\n"
     "  -a, --ann         annotate Java methods\n"
     "  -l, --lib         prepend library names\n"
@@ -414,10 +415,13 @@ int main(int argc, const char** argv) {
             params << ",jstackdepth=" << args.next();
 
         } else if (arg == "-t" || arg == "--threads") {
-            params << ",threads=";
+            params << ",threads";
 
         } else if (arg == "-s" || arg == "--simple") {
             format << ",simple";
+
+        } else if (arg == "-n" || arg == "--norm") {
+            format << ",norm";
 
         } else if (arg == "-g" || arg == "--sig") {
             format << ",sig";
