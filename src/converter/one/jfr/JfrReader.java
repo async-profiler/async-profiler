@@ -78,7 +78,6 @@ public class JfrReader implements Closeable {
     private int monitorEnter;
     private int threadPark;
     private int activeSetting;
-    private boolean activeSettingHasStack;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -242,11 +241,12 @@ public class JfrReader implements Closeable {
     }
 
     private void readActiveSetting() {
-        long time = getVarlong();
-        long duration = getVarlong();
-        int tid = getVarint();
-        if (activeSettingHasStack) getVarint();
-        long id = getVarlong();
+        for (JfrField field : typesByName.get("jdk.ActiveSetting").fields) {
+            getVarlong();
+            if ("id".equals(field.name)) {
+                break;
+            }
+        }
         String name = getString();
         String value = getString();
         settings.put(name, value);
@@ -516,7 +516,6 @@ public class JfrReader implements Closeable {
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
         activeSetting = getTypeId("jdk.ActiveSetting");
-        activeSettingHasStack = activeSetting >= 0 && typesByName.get("jdk.ActiveSetting").field("stackTrace") != null;
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);

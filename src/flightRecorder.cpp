@@ -439,7 +439,6 @@ class Recording {
     u64 _chunk_size;
     u64 _chunk_time;
 
-    int _tid;
     int _available_processors;
     int _recorded_lib_count;
 
@@ -465,7 +464,6 @@ class Recording {
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
 
-        _tid = OS::threadId();
         _available_processors = OS::getCpuCount();
 
         writeHeader(_buf);
@@ -761,8 +759,6 @@ class Recording {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
         buf->putVar64(_start_ticks);
-        buf->putVar32(0);
-        buf->putVar32(_tid);
         buf->putVar32(1);
         buf->putUtf8("async-profiler " PROFILER_VERSION);
         buf->putUtf8("async-profiler.jfr");
@@ -821,9 +817,6 @@ class Recording {
         int start = buf->skip(5);
         buf->put8(T_ACTIVE_SETTING);
         buf->putVar64(_start_ticks);
-        buf->putVar32(0);
-        buf->putVar32(_tid);
-        buf->putVar32(0);
         buf->putVar32(category);
         buf->putUtf8(key);
         buf->putUtf8(value);
@@ -1001,7 +994,6 @@ class Recording {
     }
 
     void writeThreads(Buffer* buf) {
-        addThread(_tid);
         std::vector<int> threads;
         _thread_set.collect(threads);
         _thread_set.clear();
