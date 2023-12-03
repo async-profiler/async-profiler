@@ -40,6 +40,7 @@ class Arguments {
     boolean bci;
     boolean simple;
     boolean dot;
+    boolean norm;
     boolean collapsed;
     long from;
     long to;

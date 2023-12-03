@@ -219,6 +219,17 @@ public class jfr2flame {
             }
         }
 
+        if (args.norm) {
+            for (int i = end - 2; i >= start; i--) {
+                if (symbol[i] == '/' || symbol[i] == '.') {
+                    if (symbol[i + 1] >= '0' && symbol[i + 1] <= '9') {
+                        end = i;
+                    }
+                    break;
+                }
+            }
+        }
+
         if (args.simple) {
             for (int i = end - 2; i >= start; i--) {
                 if (symbol[i] == '/' && (symbol[i + 1] < '0' || symbol[i + 1] > '9')) {
@@ -260,6 +271,7 @@ public class jfr2flame {
             System.out.println("  --bci         Show bytecode indices");
             System.out.println("  --simple      Simple class names instead of FQN");
             System.out.println("  --dot         Dotted class names");
+            System.out.println("  --norm        Normalize names of hidden classes / lambdas");
             System.out.println("  --from TIME   Start time in ms (absolute or relative)");
             System.out.println("  --to TIME     End time in ms (absolute or relative)");
             System.out.println("  --collapsed   Use collapsed stacks output format");
