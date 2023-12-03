@@ -41,11 +41,15 @@ public class JfrReader implements Closeable {
     private static final int CHUNK_HEADER_SIZE = 68;
     private static final int CHUNK_SIGNATURE = 0x464c5200;
 
+    private static final byte STATE_NEW_CHUNK = 0;
+    private static final byte STATE_READING = 1;
+    private static final byte STATE_EOF = 2;
+    private static final byte STATE_INCOMPLETE = 3;
+
     private final FileChannel ch;
     private ByteBuffer buf;
     private long filePosition;
-    private boolean eof;
-    private boolean incomplete;
+    private byte state;
 
     public long startNanos = Long.MAX_VALUE;
     public long endNanos = Long.MIN_VALUE;
@@ -105,11 +109,11 @@ public class JfrReader implements Closeable {
     }
 
     public boolean eof() {
-        return eof;
+        return state >= STATE_EOF;
     }
 
     public boolean incomplete() {
-        return incomplete;
+        return state == STATE_INCOMPLETE;
     }
 
     public long durationNanos() {
@@ -156,7 +160,10 @@ public class JfrReader implements Closeable {
             int type = getVarint();
 
             if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
-                if (readChunk(pos) && !stopAtNewChunk) {
+                if (state != STATE_NEW_CHUNK && stopAtNewChunk) {
+                    buf.position(pos);
+                    state = STATE_NEW_CHUNK;
+                } else if (readChunk(pos)) {
                     continue;
                 }
                 return null;
@@ -190,7 +197,7 @@ public class JfrReader implements Closeable {
             seek(filePosition + pos + size);
         }
 
-        eof = true;
+        state = STATE_EOF;
         return null;
     }
 
@@ -258,7 +265,7 @@ public class JfrReader implements Closeable {
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
         if (cpOffset == 0 || metaOffset == 0) {
-            eof = incomplete = true;
+            state = STATE_INCOMPLETE;
             return false;
         }
 
@@ -276,6 +283,7 @@ public class JfrReader implements Closeable {
         cacheEventTypes();
 
         seek(chunkStart + CHUNK_HEADER_SIZE);
+        state = STATE_READING;
         return true;
     }
 

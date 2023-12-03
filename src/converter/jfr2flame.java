@@ -33,20 +33,26 @@ public class jfr2flame {
 
     private final JfrReader jfr;
     private final Arguments args;
-    private final Dictionary<String> methodNames = new Dictionary<>();
 
     public jfr2flame(JfrReader jfr, Arguments args) {
         this.jfr = jfr;
         this.args = args;
     }
 
-    public void convert(final FlameGraph fg) throws IOException {
-        EventAggregator agg = new EventAggregator(args.threads, args.total);
-
+    public void convert(FlameGraph fg) throws IOException {
         Class<? extends Event> eventClass =
                 args.live ? LiveObject.class :
                         args.alloc ? AllocationSample.class :
                                 args.lock ? ContendedLock.class : ExecutionSample.class;
+
+        jfr.stopAtNewChunk = true;
+        while (!jfr.eof()) {
+            convertChunk(fg, eventClass);
+        }
+    }
+
+    public void convertChunk(final FlameGraph fg, Class<? extends Event> eventClass) throws IOException {
+        EventAggregator agg = new EventAggregator(args.threads, args.total);
 
         long threadStates = 0;
         if (args.state != null) {
@@ -67,9 +73,11 @@ public class jfr2flame {
             }
         }
 
+        final Dictionary<String> methodNames = new Dictionary<>();
+        final Classifier classifier = new Classifier(methodNames);
+
         final double ticksToNanos = 1e9 / jfr.ticksPerSec;
         final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
-        final Classifier classifier = new Classifier(methodNames);
 
         // Don't use lambda for faster startup
         agg.forEach(new EventAggregator.Visitor() {
@@ -94,7 +102,7 @@ public class jfr2flame {
                         trace[--idx] = classFrame;
                     }
                     for (int i = 0; i < methods.length; i++) {
-                        String methodName = getMethodName(methods[i], types[i]);
+                        String methodName = getMethodName(methodNames, methods[i], types[i]);
                         int location;
                         if (args.lines && (location = locations[i] >>> 16) != 0) {
                             methodName += ":" + location;
@@ -152,7 +160,7 @@ public class jfr2flame {
         return sb.append(suffix).toString();
     }
 
-    private String getMethodName(long methodId, byte methodType) {
+    private String getMethodName(Dictionary<String> methodNames, long methodId, byte methodType) {
         String result = methodNames.get(methodId);
         if (result != null) {
             return result;
