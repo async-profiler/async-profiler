@@ -29,19 +29,15 @@ Current release (2.9):
 
 [Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
 
-Note: async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.
+async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.  
 For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-and-allocation-profiling-basic-concepts.html).
 
 ## Supported platforms
 
- - **Linux** / x64 / x86 / arm64 / arm32 / ppc64le
- - **macOS** / x64 / arm64
-
-### Community supported builds
-
- - **Windows** / x64 - <img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/IntelliJ_IDEA_Icon.svg" width="16" height="16"/> [IntelliJ IDEA](https://www.jetbrains.com/idea/) 2021.2 and later
- - [**ap-loader**](https://github.com/jvm-profiling-tools/ap-loader) -
-   all-in-one JAR for using async-profiler in Java programs and as a CLI tool
+|           | Officially maintained builds | Other available ports                     |
+|-----------|------------------------------|-------------------------------------------|
+| **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
+| **macOS** | x64, arm64                   |                                           |
 
 ## CPU profiling
 
