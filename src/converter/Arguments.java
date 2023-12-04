@@ -21,7 +21,7 @@ import java.util.GregorianCalendar;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
-class Arguments {
+public class Arguments {
     String title = "Flame Graph";
     String highlight;
     String state;
@@ -47,7 +47,7 @@ class Arguments {
     String input;
     String output;
 
-    Arguments(String... args) {
+    public Arguments(String... args) {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if (arg.startsWith("--")) {
