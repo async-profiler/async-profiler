@@ -181,7 +181,15 @@ class Lookup {
         }
     }
 
-    void fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
+    bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
+        if (VMStructs::hasMethodStructs()) {
+            // Workaround for JDK-8313816
+            VMMethod* vm_method = VMMethod::fromMethodID(method);
+            if (vm_method == NULL || vm_method->id() == NULL) {
+                return false;
+            }
+        }
+
         jvmtiEnv* jvmti = VM::jvmti();
 
         jclass method_class;
@@ -215,6 +223,7 @@ class Lookup {
         }
 
         mi->_type = FRAME_INTERPRETED;
+        return true;
     }
 
     void fillJavaClassInfo(MethodInfo* mi, u32 class_id) {
@@ -246,7 +255,9 @@ class Lookup {
             if (method == NULL) {
                 fillNativeMethodInfo(mi, "unknown", NULL);
             } else if (frame.bci > BCI_NATIVE_FRAME) {
-                fillJavaMethodInfo(mi, method, first_time);
+                if (!fillJavaMethodInfo(mi, method, first_time)) {
+                    fillNativeMethodInfo(mi, "stale_jmethodID", NULL);
+                }
             } else if (frame.bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
                 fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));

@@ -138,8 +138,8 @@ class VMStructs {
         return (const char*)this + offset;
     }
 
-    static bool aligned(const void* ptr) {
-        return ((uintptr_t)ptr & (sizeof(uintptr_t) - 1)) == 0;
+    static bool goodPtr(const void* ptr) {
+        return (uintptr_t)ptr >= 0x1000 && ((uintptr_t)ptr & (sizeof(uintptr_t) - 1)) == 0;
     }
 
   public:

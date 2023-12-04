@@ -616,15 +616,15 @@ int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
 jmethodID VMMethod::id() {
     // We may find a bogus NMethod during stack walking, it does not always point to a valid VMMethod
     const char* const_method = (const char*) SafeAccess::load((void**) at(_method_constmethod_offset));
-    if (const_method == NULL || !aligned(const_method)) {
+    if (!goodPtr(const_method)) {
         return NULL;
     }
 
     const char* cpool = *(const char**) (const_method + _constmethod_constants_offset);
     unsigned short num = *(unsigned short*) (const_method + _constmethod_idnum_offset);
-    if (cpool != NULL && aligned(cpool)) {
+    if (goodPtr(cpool)) {
         VMKlass* holder = *(VMKlass**)(cpool + _pool_holder_offset);
-        if (holder != NULL && aligned(holder)) {
+        if (goodPtr(holder)) {
             jmethodID* ids = holder->jmethodIDs();
             if (ids != NULL && num < (size_t)ids[0]) {
                 return ids[num + 1];
