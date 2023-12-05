@@ -67,6 +67,7 @@ enum Style {
     STYLE_NO_SEMICOLON = 0x40
 };
 
+// Whenever enum changes, update SETTING_CSTACK in FlightRecorder
 enum SHORT_ENUM CStack {
     CSTACK_DEFAULT,
     CSTACK_NO,

@@ -68,7 +68,7 @@ static jmethodID _stop_method;
 static jmethodID _box_method;
 
 static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
 
