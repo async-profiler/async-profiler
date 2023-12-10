@@ -102,23 +102,37 @@ static int connect_socket(int pid) {
 
 // Send command with arguments to socket
 static int write_command(int fd, int argc, char** argv) {
+    char buf[8192];
+    const char* const limit = buf + sizeof(buf);
+
+    // jcmd has 2 arguments maximum; merge excessive arguments into one
+    int cmd_args = argc >= 2 && strcmp(argv[0], "jcmd") == 0 ? 2 : argc >= 4 ? 4 : argc;
+
     // Protocol version
-    if (write(fd, "1", 2) <= 0) {
-        return -1;
-    }
+    char* p = stpncpy(buf, "1", sizeof(buf)) + 1;
 
     int i;
-    for (i = 0; i < 4; i++) {
-        const char* arg = i < argc ? argv[i] : "";
-        if (write(fd, arg, strlen(arg) + 1) <= 0) {
+    for (i = 0; i < argc && p < limit; i++) {
+        if (i >= cmd_args) p[-1] = ' ';
+        p = stpncpy(p, argv[i], limit - p) + 1;
+    }
+    for (i = cmd_args; i < 4 && p < limit; i++) {
+        *p++ = 0;
+    }
+
+    const char* q = p < limit ? p : limit;
+    for (p = buf; p < q; ) {
+        ssize_t bytes = write(fd, p, q - p);
+        if (bytes <= 0) {
             return -1;
         }
+        p += (size_t)bytes;
     }
     return 0;
 }
 
 // Mirror response from remote JVM to stdout
-static int read_response(int fd, int argc, char** argv) {
+static int read_response(int fd, int argc, char** argv, int print_output) {
     char buf[8192];
     ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
     if (bytes == 0) {
@@ -146,20 +160,20 @@ static int read_response(int fd, int argc, char** argv) {
         result = atoi(strncmp(buf + 2, "return code: ", 13) == 0 ? buf + 15 : buf + 2);
     }
 
-#ifndef SUPPRESS_OUTPUT
-    // Mirror JVM response to stdout
-    printf("JVM response code = ");
-    do {
-        fwrite(buf, 1, bytes, stdout);
-        bytes = read(fd, buf, sizeof(buf));
-    } while (bytes > 0);
-    printf("\n");
-#endif
+    if (print_output) {
+        // Mirror JVM response to stdout
+        printf("JVM response code = ");
+        do {
+            fwrite(buf, 1, bytes, stdout);
+            bytes = read(fd, buf, sizeof(buf));
+        } while (bytes > 0);
+        printf("\n");
+    }
 
     return result;
 }
 
-int jattach_hotspot(int pid, int nspid, int argc, char** argv) {
+int jattach_hotspot(int pid, int nspid, int argc, char** argv, int print_output) {
     if (check_socket(nspid) != 0 && start_attach_mechanism(pid, nspid) != 0) {
         perror("Could not start attach mechanism");
         return 1;
@@ -171,9 +185,9 @@ int jattach_hotspot(int pid, int nspid, int argc, char** argv) {
         return 1;
     }
 
-#ifndef SUPPRESS_OUTPUT
-    printf("Connected to remote JVM\n");
-#endif
+    if (print_output) {
+        printf("Connected to remote JVM\n");
+    }
 
     if (write_command(fd, argc, argv) != 0) {
         perror("Error writing to socket");
@@ -181,7 +195,7 @@ int jattach_hotspot(int pid, int nspid, int argc, char** argv) {
         return 1;
     }
 
-    int result = read_response(fd, argc, argv);
+    int result = read_response(fd, argc, argv, print_output);
     close(fd);
 
     return result;

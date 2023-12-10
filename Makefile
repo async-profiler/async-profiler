@@ -118,7 +118,7 @@ build/%:
 	mkdir -p $@
 
 build/$(LAUNCHER): src/launcher/* src/jattach/* src/fdtransfer.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -DSUPPRESS_OUTPUT -o $@ src/launcher/*.cpp src/jattach/*.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp src/jattach/*.c
 	strip $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -48,6 +49,8 @@ static const char USAGE_STRING[] =
     "  status            print profiling status\n"
     "  meminfo           print profiler memory stats\n"
     "  list              list profiling events supported by the target JVM\n"
+    "  load              load agent library (jattach action)\n"
+    "  jcmd              run JVM diagnostic command (jattach action)\n"
     "  collect           collect profile for the specified period of time\n"
     "                    and then stop (default action)\n"
     "Options:\n"
@@ -101,7 +104,7 @@ static const char USAGE_STRING[] =
     "         " APP_BINARY " -d 5 -e alloc MyAppName\n";
 
 
-extern "C" int jattach(int pid, int argc, const char** argv);
+extern "C" int jattach(int pid, int argc, const char** argv, int print_output);
 
 static void error(const char* msg) {
     fprintf(stderr, "%s\n", msg);
@@ -123,12 +126,12 @@ class Args {
     Args(int argc, const char** argv) : _argc(argc - 1), _argv(argv) {
     }
 
-    bool hasNext() const {
-        return _argc > 0;
-    }
+    int count() const { return _argc; }
+
+    const char** array() const { return _argv + 1; }
 
     const char* next() {
-        if (!hasNext()) {
+        if (count() <= 0) {
             error("Missing required parameter");
         }
         _argc--;
@@ -209,6 +212,7 @@ class String {
 
 static String action = "collect";
 static String file, logfile, output, params, format, fdtransfer, libpath;
+static bool jattach_action = false;
 static bool use_tmp_file = false;
 static int duration = 60;
 static int pid = 0;
@@ -356,7 +360,7 @@ static void run_jattach(int pid, String& cmd) {
 
     if (child == 0) {
         const char* argv[] = {"load", libpath.str(), libpath.str()[0] == '/' ? "true" : "false", cmd.str()};
-        exit(jattach(pid, 4, argv));
+        exit(jattach(pid, 4, argv, 0));
     } else {
         int ret = wait_for_exit(child);
         if (ret != 0) {
@@ -375,12 +379,16 @@ static void run_jattach(int pid, String& cmd) {
 
 int main(int argc, const char** argv) {
     Args args(argc, argv);
-    while (args.hasNext()) {
+    while (args.count() > 0 && !(jattach_action && pid)) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
             arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
             action = arg;
+
+        } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
+            action = arg;
+            jattach_action = true;
 
         } else if (arg == "-h" || arg == "--help") {
             printf(USAGE_STRING);
@@ -495,7 +503,7 @@ int main(int argc, const char** argv) {
             // -XX:+PerfDisableSharedMem prevents jps from appearing in its own list
             pid = jps("pgrep -n java || jps -q -J-XX:+PerfDisableSharedMem");
 
-        } else if (arg.str()[0] != '-' && !args.hasNext() && pid == 0) {
+        } else if (arg.str()[0] != '-' && args.count() == 0 && pid == 0) {
             // The last argument is the application name as it would appear in the jps tool
             pid = jps("jps -J-XX:+PerfDisableSharedMem", arg.str());
 
@@ -508,6 +516,14 @@ int main(int argc, const char** argv) {
     if (pid == 0) {
         printf(USAGE_STRING);
         return 1;
+    }
+
+    if (jattach_action) {
+        argc = args.count() + 1;
+        argv = (const char**)alloca(argc * sizeof(char*));
+        argv[0] = action.str();
+        memcpy(&argv[1], args.array(), (argc - 1) * sizeof(char*));
+        return jattach(pid, argc, argv, 1);
     }
 
     setup_output_files(pid);

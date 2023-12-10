@@ -22,12 +22,12 @@
 
 
 extern int is_openj9_process(int pid);
-extern int jattach_openj9(int pid, int nspid, int argc, char** argv);
-extern int jattach_hotspot(int pid, int nspid, int argc, char** argv);
+extern int jattach_openj9(int pid, int nspid, int argc, char** argv, int print_output);
+extern int jattach_hotspot(int pid, int nspid, int argc, char** argv, int print_output);
 
 
 __attribute__((visibility("default")))
-int jattach(int pid, int argc, char** argv) {
+int jattach(int pid, int argc, char** argv, int print_output) {
     uid_t my_uid = geteuid();
     gid_t my_gid = getegid();
     uid_t target_uid = my_uid;
@@ -58,9 +58,9 @@ int jattach(int pid, int argc, char** argv) {
     signal(SIGPIPE, SIG_IGN);
 
     if (is_openj9_process(nspid)) {
-        return jattach_openj9(pid, nspid, argc, argv);
+        return jattach_openj9(pid, nspid, argc, argv, print_output);
     } else {
-        return jattach_hotspot(pid, nspid, argc, argv);
+        return jattach_hotspot(pid, nspid, argc, argv, print_output);
     }
 }
 
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    return jattach(pid, argc - 2, argv + 2);
+    return jattach(pid, argc - 2, argv + 2, 1);
 }
 
 #endif // JATTACH_VERSION
