@@ -87,6 +87,7 @@ class FrameName {
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
+    FrameTypeId type(ASGCT_CallFrame& frame);
 
     bool hasIncludeList() { return !_include.empty(); }
     bool hasExcludeList() { return !_exclude.empty(); }

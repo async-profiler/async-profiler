@@ -65,7 +65,7 @@
 	}
 
 	function f(level, left, width, type, title, inln, c1, int) {
-		levels[level].push({left: left, width: width, color: getColor(palette[type]), title: title,
+		levels[level].push({left: left, width: width, color: getColor(palette[type]), title: cpool[title],
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
@@ -232,6 +232,10 @@
 			search(false);
 		}
 	}
+
+const cpool = [
+/*cpool:*/
+];
 
 /*frames:*/
 search(/*highlight:*/);

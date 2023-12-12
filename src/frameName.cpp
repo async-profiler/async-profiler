@@ -324,6 +324,41 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
     }
 }
 
+FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
+    if (frame.method_id == NULL) {
+        return FRAME_NATIVE;
+    }
+
+    switch (frame.bci) {
+        case BCI_NATIVE_FRAME: {
+            const char* name = (const char*)frame.method_id;
+            if ((name[0] == '_' && name[1] == 'Z') ||
+                (name[0] == '+' && name[1] == '[') ||
+                (name[0] == '-' && name[1] == '[')) {
+                return FRAME_CPP;
+            } else {
+                size_t len = strlen(name);
+                return len > 4 && strcmp(name + len - 4, "_[k]") == 0 ? FRAME_KERNEL : FRAME_NATIVE;
+            }
+        }
+
+        case BCI_ALLOC:
+        case BCI_LOCK:
+        case BCI_PARK:
+            return FRAME_INLINED;
+
+        case BCI_ALLOC_OUTSIDE_TLAB:
+            return FRAME_KERNEL;
+
+        case BCI_THREAD_ID:
+        case BCI_ERROR:
+            return FRAME_NATIVE;
+
+        default:
+            return FrameType::decode(frame.bci);
+    }
+}
+
 bool FrameName::include(const char* frame_name) {
     for (int i = 0; i < _include.size(); i++) {
         if (_include[i].matches(frame_name)) {
@@ -341,4 +376,3 @@ bool FrameName::exclude(const char* frame_name) {
     }
     return false;
 }
-

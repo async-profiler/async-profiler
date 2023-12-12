@@ -1426,45 +1426,49 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
-    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
-    std::vector<CallTraceSample*> samples;
-    _call_trace_storage.collectSamples(samples);
+    {
+        FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
-    for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
-        CallTrace* trace = (*it)->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace)) continue;
+        std::vector<CallTraceSample*> samples;
+        _call_trace_storage.collectSamples(samples);
 
-        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (counter == 0) continue;
+        for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+            CallTrace* trace = (*it)->acquireTrace();
+            if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        int num_frames = trace->num_frames;
+            u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+            if (counter == 0) continue;
 
-        Trie* f = flamegraph.root();
-        if (args._reverse) {
-            // Thread frames always come first
-            if (_add_sched_frame) {
-                const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, counter);
+            int num_frames = trace->num_frames;
+
+            Trie* f = flamegraph.root();
+            if (args._reverse) {
+                // Thread frames always come first
+                if (_add_sched_frame) {
+                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
+                }
+                if (_add_thread_frame) {
+                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
+                }
+
+                for (int j = 0; j < num_frames; j++) {
+                    const char* frame_name = fn.name(trace->frames[j]);
+                    FrameTypeId frame_type = fn.type(trace->frames[j]);
+                    f = flamegraph.addChild(f, frame_name, frame_type, counter);
+                }
+            } else {
+                for (int j = num_frames - 1; j >= 0; j--) {
+                    const char* frame_name = fn.name(trace->frames[j]);
+                    FrameTypeId frame_type = fn.type(trace->frames[j]);
+                    f = flamegraph.addChild(f, frame_name, frame_type, counter);
+                }
             }
-            if (_add_thread_frame) {
-                const char* frame_name = fn.name(trace->frames[--num_frames]);
-                f = f->addChild(frame_name, counter);
-            }
-
-            for (int j = 0; j < num_frames; j++) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
-            }
-        } else {
-            for (int j = num_frames - 1; j >= 0; j--) {
-                const char* frame_name = fn.name(trace->frames[j]);
-                f = f->addChild(frame_name, counter);
-                f->addCompilationDetails(trace->frames[j].bci, counter);
-            }
+            f->_total += counter;
+            f->_self += counter;
         }
-        f->addLeaf(counter);
     }
 
     flamegraph.dump(out, tree);

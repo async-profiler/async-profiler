@@ -16,6 +16,7 @@
 
 #ifdef __linux__
 
+#include <stdlib.h>
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
