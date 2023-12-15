@@ -224,6 +224,11 @@ public class jfr2flame {
                 if (symbol[i] == '/' || symbol[i] == '.') {
                     if (symbol[i + 1] >= '0' && symbol[i + 1] <= '9') {
                         end = i;
+                        if (i > start + 19 && symbol[i - 19] == '+' && symbol[i - 18] == '0') {
+                            // Original JFR transforms lambda names to something like
+                            // pkg.ClassName$$Lambda+0x00007f8177090218/543846639
+                            end = i - 19;
+                        }
                     }
                     break;
                 }
