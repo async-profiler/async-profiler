@@ -457,7 +457,7 @@ class NMethod : VMStructs {
     }
 
     int level() {
-        return _nmethod_level_offset >= 0 ? *(int*) at(_nmethod_level_offset) : 0;
+        return _nmethod_level_offset >= 0 ? *(signed char*) at(_nmethod_level_offset) : 0;
     }
 
     VMMethod** metadata() {
