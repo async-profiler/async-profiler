@@ -271,8 +271,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
                     fp = ((uintptr_t*)sp)[-FRAME_PC_SLOT - 1];
                     pc = ((const void**)sp)[-FRAME_PC_SLOT];
                     continue;
-                } else if (frame.unwindCompiled((instruction_t*)nm->entry(), (uintptr_t&)pc, sp, fp)
-                               && profiler->isAddressInCode(pc)) {
+                } else if (frame.unwindCompiled(nm, (uintptr_t&)pc, sp, fp) && profiler->isAddressInCode(pc)) {
                     continue;
                 }
 

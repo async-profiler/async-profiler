@@ -462,7 +462,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     if (method_id != NULL) {
                         max_depth -= makeFrame(trace.frames++, 0, method_id);
                     }
-                    if (_features.unwind_comp && frame.unwindCompiled((instruction_t*)nmethod->entry())
+                    if (_features.unwind_comp && frame.unwindCompiled(nmethod)
                             && isAddressInCode((const void*)frame.pc())) {
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                     }

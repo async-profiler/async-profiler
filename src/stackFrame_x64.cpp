@@ -20,6 +20,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include "stackFrame.h"
+#include "vmStructs.h"
 
 
 #ifdef __APPLE__
@@ -112,8 +113,9 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
     return false;
 }
 
-bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
+    instruction_t* entry = (instruction_t*)nm->entry();
     if (ip <= entry
         || *ip == 0xc3                                                          // ret
         || *ip == 0x55                                                          // push rbp
@@ -140,6 +142,14 @@ bool StackFrame::unwindCompiled(instruction_t* entry, uintptr_t& pc, uintptr_t& 
         // mov [rsp + #off], rbp
         sp += ip[4] + 16;
         pc = ((uintptr_t*)sp)[-1] - 1;
+        return true;
+    } else if ((ip[0] == 0x41 && ip[1] == 0x81 && ip[2] == 0x7f && *(u32*)(ip + 4) == 1) ||
+               (ip >= entry + 8 && ip[-8] == 0x41 && ip[-7] == 0x81 && ip[-6] == 0x7f && *(u32*)(ip - 4) == 1)) {
+        // cmp [r15 + #off], 1
+        // nmethod_entry_barrier: frame is fully constructed here
+        sp += nm->frameSize() * sizeof(void*);
+        fp = ((uintptr_t*)sp)[-2];
+        pc = ((uintptr_t*)sp)[-1];
         return true;
     }
     return false;
