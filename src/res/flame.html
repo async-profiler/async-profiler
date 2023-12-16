@@ -29,8 +29,9 @@
 	// Copyright 2020 Andrei Pangin
 	// Licensed under the Apache License, Version 2.0.
 	'use strict';
-	var root, rootLevel, px, pattern;
-	var reverse = /*reverse:*/false;
+	let root, rootLevel, px, pattern;
+	let level0 = 0, left0 = 0, width0 = 0;
+	let reverse = /*reverse:*/false;
 	const levels = Array(/*depth:*/0);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
@@ -64,10 +65,19 @@
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
-	function f(level, left, width, type, title, inln, c1, int) {
-		levels[level].push({left: left, width: width, color: getColor(palette[type]), title: cpool[title],
+	function f(key, level, left, width, inln, c1, int) {
+		levels[level0 = level].push({left: left0 += left, width: width0 = width || width0,
+			color: getColor(palette[key & 7]), title: cpool[key >>> 3],
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
+	}
+
+	function u(key, width, inln, c1, int) {
+		f(key, level0 + 1, 0, width, inln, c1, int)
+	}
+
+	function n(key, width, inln, c1, int) {
+		f(key, level0, width0, width, inln, c1, int)
 	}
 
 	function samples(n) {
@@ -172,12 +182,18 @@
 		return totalMarked();
 	}
 
+	function unpack(cpool) {
+		for (let i = 1; i < cpool.length; i++) {
+			cpool[i] = cpool[i - 1].substring(0, cpool[i].charCodeAt(0) - 32) + cpool[i].substring(1);
+		}
+	}
+
 	canvas.onmousemove = function() {
 		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
 		if (h >= 0 && h < levels.length) {
 			const f = findFrame(levels[h], event.offsetX / px + root.left);
 			if (f) {
-				if (f != root) getSelection().removeAllRanges();
+				if (f !== root) getSelection().removeAllRanges();
 				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
 				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
@@ -186,7 +202,7 @@
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (f != root) {
+					if (f !== root) {
 						render(f, h);
 						canvas.onmousemove();
 					}
@@ -204,7 +220,7 @@
 		status.style.display = 'none';
 		canvas.title = '';
 		canvas.style.cursor = '';
-		canvas.onclick = '';
+		canvas.onclick = null;
 	}
 
 	canvas.ondblclick = function() {
@@ -236,6 +252,7 @@
 const cpool = [
 /*cpool:*/
 ];
+unpack(cpool);
 
 /*frames:*/
 search(/*highlight:*/);

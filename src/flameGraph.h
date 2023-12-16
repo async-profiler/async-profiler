@@ -82,6 +82,10 @@ class FlameGraph {
     double _minwidth;
     bool _reverse;
 
+    int _last_level;
+    u64 _last_x;
+    u64 _last_total;
+
     void printFrame(std::ostream& out, u32 key, const Trie& f, int level, u64 x);
     void printTreeFrame(std::ostream& out, const Trie& f, int level, const char** names);
     void printCpool(std::ostream& out);
@@ -94,7 +98,10 @@ class FlameGraph {
         _title(title),
         _counter(counter),
         _minwidth(minwidth),
-        _reverse(reverse) {
+        _reverse(reverse),
+        _last_level(0),
+        _last_x(0),
+        _last_total(0) {
         _buf[sizeof(_buf) - 1] = 0;
     }
 

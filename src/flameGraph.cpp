@@ -36,6 +36,16 @@ class StringUtils {
             s.replace(i, 1, replacement, rlen);
         }
     }
+
+    static size_t getCommonPrefix(const std::string& a, const std::string& b) {
+        size_t length = a.size() < b.size() ? a.size() : b.size();
+        for (size_t i = 0; i < length; i++) {
+            if (a[i] != b[i] || a[i] > 127) {
+                return i;
+            }
+        }
+        return length;
+    }
 };
 
 
@@ -169,17 +179,32 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
 }
 
 void FlameGraph::printFrame(std::ostream& out, u32 key, const Trie& f, int level, u64 x) {
-    FrameTypeId type = f.type(key);
-    u32 name_index = _name_order[f.nameIndex(key)];
+    u32 name_and_type = _name_order[f.nameIndex(key)] << 3 | f.type(key);
+    bool has_extra_types = (f._inlined | f._c1_compiled | f._interpreted) &&
+                           f._inlined < f._total && f._interpreted < f._total;
 
-    if (f._inlined | f._c1_compiled | f._interpreted) {
-        snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%u,%u,%llu,%llu,%llu)\n",
-                 level, x, f._total, type, name_index, f._inlined, f._c1_compiled, f._interpreted);
+    char* p = _buf;
+    if (level == _last_level + 1 && x == _last_x) {
+        p += snprintf(p, 100, "u(%u", name_and_type);
+    } else if (level == _last_level && x == _last_x + _last_total) {
+        p += snprintf(p, 100, "n(%u", name_and_type);
     } else {
-        snprintf(_buf, sizeof(_buf) - 1, "f(%d,%llu,%llu,%u,%u)\n",
-                 level, x, f._total, type, name_index);
+        p += snprintf(p, 100, "f(%u,%d,%llu", name_and_type, level, x - _last_x);
     }
+
+    if (f._total != _last_total || has_extra_types) {
+        p += snprintf(p, 100, ",%llu", f._total);
+        if (has_extra_types) {
+            p += snprintf(p, 100, ",%llu,%llu,%llu", f._inlined, f._c1_compiled, f._interpreted);
+        }
+    }
+
+    strcpy(p, ")\n");
     out << _buf;
+
+    _last_level = level;
+    _last_x = x;
+    _last_total = f._total;
 
     if (f._children.empty()) {
         return;
@@ -252,19 +277,23 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level, con
 
 void FlameGraph::printCpool(std::ostream& out) {
     out << "'all'";
+
+    std::string prev;
     u32 index = 0;
     for (std::map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
         if (_name_order[it->second]) {
             _name_order[it->second] = ++index;
-            if (it->first.find('\'') == std::string::npos && it->first.find('\\') == std::string::npos) {
-                // Common case: no replacement needed
-                out << ",\n'" << it->first << "'";
-            } else {
-                std::string s = it->first;
-                StringUtils::replace(s, '\'', "\\'", 2);
-                StringUtils::replace(s, '\\', "\\\\", 2);
-                out << ",\n'" << s << "'";
-            }
+
+            size_t prefix_len = StringUtils::getCommonPrefix(prev, it->first);
+            prev = it->first;
+
+            if (prefix_len > 95) prefix_len = 95;
+            std::string s(1, (char)(prefix_len + ' '));
+            s.append(it->first, prefix_len, std::string::npos);
+
+            StringUtils::replace(s, '\\', "\\\\", 2);
+            StringUtils::replace(s, '\'', "\\'", 2);
+            out << ",\n'" << s << "'";
         }
     }
 

@@ -45,6 +45,9 @@ public class FlameGraph implements Comparator<FlameGraph.Frame> {
     private final Frame root = new Frame(getFrameKey("", FRAME_NATIVE));
     private int[] order;
     private int depth;
+    private int lastLevel;
+    private long lastX;
+    private long lastTotal;
     private long mintotal;
 
     public FlameGraph(Arguments args) {
@@ -146,9 +149,11 @@ public class FlameGraph implements Comparator<FlameGraph.Frame> {
         out.print("'all'");
 
         order = new int[strings.length];
+        String s = "";
         for (int i = 1; i < strings.length; i++) {
-            order[cpool.get(strings[i])] = i;
-            out.print(",\n'" + escape(strings[i]) + "'");
+            int prefixLen = Math.min(getCommonPrefix(s, s = strings[i]), 95);
+            out.print(",\n'" + escape((char) (prefixLen + ' ') + s.substring(prefixLen)) + "'");
+            order[cpool.get(s)] = i;
         }
 
         // cpool is not used beyond this point
@@ -156,15 +161,33 @@ public class FlameGraph implements Comparator<FlameGraph.Frame> {
     }
 
     private void printFrame(PrintStream out, Frame frame, int level, long x) {
-        int type = frame.getType();
-        int titleIndex = order[frame.getTitleIndex()];
+        int nameAndType = order[frame.getTitleIndex()] << 3 | frame.getType();
+        boolean hasExtraTypes = (frame.inlined | frame.c1 | frame.interpreted) != 0 &&
+                frame.inlined < frame.total && frame.interpreted < frame.total;
 
-        if ((frame.inlined | frame.c1 | frame.interpreted) != 0 && frame.inlined < frame.total && frame.interpreted < frame.total) {
-            out.println("f(" + level + "," + x + "," + frame.total + "," + type + "," + titleIndex + "," +
-                    frame.inlined + "," + frame.c1 + "," + frame.interpreted + ")");
-        } else {
-            out.println("f(" + level + "," + x + "," + frame.total + "," + type + "," + titleIndex + ")");
+        char func = 'f';
+        if (level == lastLevel + 1 && x == lastX) {
+            func = 'u';
+        } else if (level == lastLevel && x == lastX + lastTotal) {
+            func = 'n';
         }
+
+        StringBuilder sb = new StringBuilder(24).append(func).append('(').append(nameAndType);
+        if (func == 'f') {
+            sb.append(',').append(level).append(',').append(x - lastX);
+        }
+        if (frame.total != lastTotal || hasExtraTypes) {
+            sb.append(',').append(frame.total);
+            if (hasExtraTypes) {
+                sb.append(',').append(frame.inlined).append(',').append(frame.c1).append(',').append(frame.interpreted);
+            }
+        }
+        sb.append(')');
+        out.println(sb.toString());
+
+        lastLevel = level;
+        lastX = x;
+        lastTotal = frame.total;
 
         Frame[] children = frame.values().toArray(Frame.EMPTY_ARRAY);
         Arrays.sort(children, this);
@@ -241,6 +264,16 @@ public class FlameGraph implements Comparator<FlameGraph.Frame> {
             child = getChild(frame, title, FRAME_NATIVE);
         }
         return child;
+    }
+
+    static int getCommonPrefix(String a, String b) {
+        int length = Math.min(a.length(), b.length());
+        for (int i = 0; i < length; i++) {
+            if (a.charAt(i) != b.charAt(i) || a.charAt(i) > 127) {
+                return i;
+            }
+        }
+        return length;
     }
 
     static String stripSuffix(String title) {
