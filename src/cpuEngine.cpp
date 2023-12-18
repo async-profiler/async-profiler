@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <errno.h>
 #include <pthread.h>
 #include "cpuEngine.h"
 #include "j9StackTraces.h"
@@ -97,13 +98,22 @@ void CpuEngine::disableThreadHook() {
     __atomic_store_n(&_current, NULL, __ATOMIC_RELEASE);
 }
 
+bool CpuEngine::isResourceLimit(int err) {
+    return err == EMFILE || err == ENOMEM;
+}
+
 int CpuEngine::createForAllThreads() {
-    int result = 1;
+    int result = EPERM;
 
     ThreadList* thread_list = OS::listThreads();
     for (int tid; (tid = thread_list->next()) != -1; ) {
         int err = createForThread(tid);
-        if (result != 0) result = err;
+        if (isResourceLimit(err)) {
+            result = err;
+            break;
+        } else if (result != 0) {
+            result = err;
+        }
     }
     delete thread_list;
 

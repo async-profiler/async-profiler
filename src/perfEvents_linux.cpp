@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <linux/perf_event.h>
@@ -147,6 +148,16 @@ static bool setPmuConfig(const char* device, const char* param, __u64* config, _
         }
     }
     return false;
+}
+
+// Perf events consume one file descriptor per thread.
+// Make sure the current limit is the highest possible.
+static void adjustFDLimit() {
+    struct rlimit rlim;
+    if (getrlimit(RLIMIT_NOFILE, &rlim) == 0 && rlim.rlim_cur < rlim.rlim_max) {
+        rlim.rlim_cur = rlim.rlim_max;
+        setrlimit(RLIMIT_NOFILE, &rlim);
+    }
 }
 
 
@@ -577,6 +588,10 @@ int PerfEvents::createForThread(int tid) {
         int err = errno;
         Log::warn("perf_event_open for TID %d failed: %s", tid, strerror(err));
         _events[tid]._fd = 0;
+        if (isResourceLimit(err) && _current != NULL) {
+            // Emergency shutdown
+            stop();
+        }
         return err;
     }
 
@@ -786,6 +801,8 @@ Error PerfEvents::start(Arguments& args) {
     }
     _use_mmap_page = _cstack != CSTACK_NO && (_ring != RING_USER || _cstack == CSTACK_DEFAULT || _cstack == CSTACK_LBR);
 
+    adjustFDLimit();
+
     int max_events = OS::getMaxThreadId();
     if (max_events != _max_events) {
         free(_events);
@@ -810,10 +827,11 @@ Error PerfEvents::start(Arguments& args) {
     // Create perf_events for all existing threads
     int err = createForAllThreads();
     if (err) {
-        disableThreadHook();
-        J9StackTraces::stop();
+        stop();
         if (err == EACCES || err == EPERM) {
             return Error("No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'");
+        } else if (isResourceLimit(err)) {
+            return Error("Perf events resource limit. Check 'ulimit -n'");
         } else {
             return Error("Perf events unavailable");
         }

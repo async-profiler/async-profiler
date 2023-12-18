@@ -39,6 +39,8 @@ class CpuEngine : public Engine {
     void enableThreadHook();
     void disableThreadHook();
 
+    bool isResourceLimit(int err);
+
     int createForAllThreads();
 
     virtual int createForThread(int tid) { return -1; }
