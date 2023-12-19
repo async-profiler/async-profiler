@@ -84,7 +84,7 @@ static const char USAGE_STRING[] =
     "  --total           accumulate the total value (time, bytes, etc.)\n"
     "  --all-user        only include user-mode events\n"
     "  --sched           group threads by scheduling policy\n"
-    "  --cstack mode     how to traverse C stack: fp|dwarf|lbr|no\n"
+    "  --cstack mode     how to traverse C stack: fp|dwarf|lbr|vm|no\n"
     "  --signal num      use alternative signal for cpu or wall clock profiling\n"
     "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
