@@ -119,9 +119,11 @@ extern "C" DLLEXPORT
 int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
     if (_orig_pthread_create == NULL) {
         _orig_pthread_create = (pthread_create_t)dlsym(RTLD_NEXT, "pthread_create");
-        Hooks::init(false);
     }
-    return pthread_create_hook(thread, attr, start_routine, arg);
+    if (Hooks::initialized()) {
+        return pthread_create_hook(thread, attr, start_routine, arg);
+    }
+    return _orig_pthread_create(thread, attr, start_routine, arg);
 }
 
 extern "C" DLLEXPORT
@@ -129,7 +131,11 @@ void pthread_exit(void* retval) {
     if (_orig_pthread_exit == NULL) {
         _orig_pthread_exit = (pthread_exit_t)dlsym(RTLD_NEXT, "pthread_exit");
     }
-    pthread_exit_hook(retval);
+    if (Hooks::initialized()) {
+        pthread_exit_hook(retval);
+    } else {
+        _orig_pthread_exit(retval);
+    }
     abort();  // to suppress gcc warning
 }
 
@@ -137,9 +143,11 @@ extern "C" DLLEXPORT
 void* dlopen(const char* filename, int flags) {
     if (_orig_dlopen == NULL) {
         _orig_dlopen = (dlopen_t)dlsym(RTLD_NEXT, "dlopen");
-        Hooks::init(false);
     }
-    return dlopen_hook_impl(filename, flags, false);
+    if (Hooks::initialized()) {
+        return dlopen_hook_impl(filename, flags, false);
+    }
+    return _orig_dlopen(filename, flags);
 }
 
 
@@ -147,40 +155,24 @@ Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;
 bool Hooks::_initialized = false;
 
-void Hooks::init(bool attach) {
+bool Hooks::init(bool attach) {
     if (!__sync_bool_compare_and_swap(&_initialized, false, true)) {
-        return;
+        return false;
     }
 
-    Profiler* profiler = Profiler::instance();
-    profiler->updateSymbols(false);
+    Profiler::instance()->updateSymbols(false);
     Profiler::setupSignalHandlers();
-
-    atexit(shutdown);
 
     if (attach) {
         _orig_pthread_create = pthread_create;
         _orig_pthread_exit = pthread_exit;
         _orig_dlopen = dlopen;
         patchLibraries();
-    } else {
-        startProfiler();
-    }
-}
-
-void Hooks::startProfiler() {
-    const char* command = getenv("ASPROF_COMMAND");
-    if (command == NULL) {
-        return;
     }
 
-    Error error = _global_args.parse(command);
+    atexit(shutdown);
 
-    Log::open(_global_args);
-
-    if (error || (error = Profiler::instance()->run(_global_args))) {
-        Log::error("%s", error.message());
-    }
+    return true;
 }
 
 void Hooks::shutdown() {

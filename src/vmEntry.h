@@ -116,13 +116,10 @@ class VM {
 
     static void ready();
     static void applyPatch(char* func, const char* patch, const char* end_patch);
-    static void* getLibraryHandle(const char* name);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
 
   public:
-    static void* _libjvm;
-    static void* _libjava;
     static AsyncGetCallTrace _asyncGetCallTrace;
     static JVM_GetManagement _getManagement;
     static JVM_MemoryFunc _totalMemory;

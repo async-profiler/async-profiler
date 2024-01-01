@@ -26,12 +26,14 @@ class Hooks {
     static int _patched_libs;
     static bool _initialized;
 
-    static void startProfiler();
-
   public:
-    static void init(bool attach);
+    static bool init(bool attach);
     static void shutdown();
     static void patchLibraries();
+
+    static bool initialized() {
+        return _initialized;
+    }
 };
 
 #endif // _HOOKS_H

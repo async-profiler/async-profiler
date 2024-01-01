@@ -47,8 +47,6 @@ bool VM::_can_sample_objects = false;
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
-void* VM::_libjvm;
-void* VM::_libjava;
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_GetManagement VM::_getManagement;
 JVM_MemoryFunc VM::_totalMemory;
@@ -130,11 +128,16 @@ bool VM::init(JavaVM* vm, bool attach) {
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
-    _libjvm = getLibraryHandle("libjvm.so");
-    _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(_libjvm, "AsyncGetCallTrace");
-    _getManagement = (JVM_GetManagement)dlsym(_libjvm, "JVM_GetManagement");
-    _totalMemory = (JVM_MemoryFunc)dlsym(_libjvm, "JVM_TotalMemory");
-    _freeMemory = (JVM_MemoryFunc)dlsym(_libjvm, "JVM_FreeMemory");
+    // JVM symbols are globally visible on macOS
+    void* libjvm = RTLD_DEFAULT;
+    if (OS::isLinux() && (libjvm = dlopen("libjvm.so", RTLD_LAZY)) == NULL) {
+        Log::warn("Failed to load libjvm.so: %s", dlerror());
+        libjvm = RTLD_DEFAULT;
+    }
+    _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm, "AsyncGetCallTrace");
+    _getManagement = (JVM_GetManagement)dlsym(libjvm, "JVM_GetManagement");
+    _totalMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_TotalMemory");
+    _freeMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_FreeMemory");
 
     Profiler* profiler = Profiler::instance();
     profiler->updateSymbols(false);
@@ -259,8 +262,6 @@ void VM::ready() {
         VMStructs::ready();
     }
 
-    _libjava = getLibraryHandle("libjava.so");
-
     // Make sure we reload method IDs upon class retransformation
     JVMTIFunctions* functions = *(JVMTIFunctions**)_jvmti;
     _orig_RedefineClasses = functions->RedefineClasses;
@@ -279,18 +280,6 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
         __builtin___clear_cache(func, func + size);
         mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
     }
-}
-
-void* VM::getLibraryHandle(const char* name) {
-    if (OS::isLinux()) {
-        void* handle = dlopen(name, RTLD_LAZY);
-        if (handle != NULL) {
-            return handle;
-        }
-        Log::warn("Failed to load %s: %s", name, dlerror());
-    }
-    // JVM symbols are globally visible on macOS
-    return RTLD_DEFAULT;
 }
 
 void VM::loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
