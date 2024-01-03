@@ -185,6 +185,7 @@ class Arguments {
     int _exclude;
     unsigned char _mcache;
     bool _loop;
+    bool _preloaded;
     bool _threads;
     bool _sched;
     bool _live;
@@ -233,6 +234,7 @@ class Arguments {
         _exclude(0),
         _mcache(0),
         _loop(false),
+        _preloaded(false),
         _threads(false),
         _sched(false),
         _live(false),

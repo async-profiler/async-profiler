@@ -43,6 +43,7 @@ class LateInitializer {
 
     void startProfiler(const char* command) {
         Error error = _global_args.parse(command);
+        _global_args._preloaded = true;
 
         Log::open(_global_args);
 

@@ -52,8 +52,8 @@
 // can be still accessed concurrently during VM termination
 Profiler* const Profiler::_instance = new Profiler();
 
-static void (*orig_trapHandler)(int signo, siginfo_t* siginfo, void* ucontext);
-static void (*orig_segvHandler)(int signo, siginfo_t* siginfo, void* ucontext);
+static SigAction orig_trapHandler = NULL;
+static SigAction orig_segvHandler = NULL;
 
 static Engine noop_engine;
 static PerfEvents perf_events;
@@ -880,9 +880,12 @@ void Profiler::wakeupHandler(int signo) {
 }
 
 void Profiler::setupSignalHandlers() {
-    orig_trapHandler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
-    if (orig_trapHandler == (void*)SIG_DFL || orig_trapHandler == (void*)SIG_IGN) {
-        orig_trapHandler = NULL;
+    SigAction prev_handler = OS::installSignalHandler(SIGTRAP, AllocTracer::trapHandler);
+    if (prev_handler == AllocTracer::trapHandler) {
+        // Handlers already configured
+        return;
+    } else if (prev_handler != (void*)SIG_DFL && prev_handler != (void*)SIG_IGN) {
+        orig_trapHandler = prev_handler;
     }
 
     if (VM::hotspot_version() > 0 || !VM::loaded()) {

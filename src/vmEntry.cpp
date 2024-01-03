@@ -330,9 +330,11 @@ void JNICALL VM::VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     }
 
     // Delayed start of profiler if agent has been loaded at VM bootstrap
-    Error error = Profiler::instance()->run(_global_args);
-    if (error) {
-        Log::error("%s", error.message());
+    if (!_global_args._preloaded) {
+        Error error = Profiler::instance()->run(_global_args);
+        if (error) {
+            Log::error("%s", error.message());
+        }
     }
 }
 
@@ -375,13 +377,15 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
-    Error error = _global_args.parse(options);
+    if (!_global_args._preloaded) {
+        Error error = _global_args.parse(options);
 
-    Log::open(_global_args);
+        Log::open(_global_args);
 
-    if (error) {
-        Log::error("%s", error.message());
-        return ARGUMENTS_ERROR;
+        if (error) {
+            Log::error("%s", error.message());
+            return ARGUMENTS_ERROR;
+        }
     }
 
     if (!VM::init(vm, false)) {
