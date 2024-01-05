@@ -160,7 +160,7 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
         u64 trace = Profiler::instance()->recordSample(NULL, 0, event_type, &event);
         live_refs.add(jni, object, size, trace);
     } else {
-        Profiler::instance()->recordSample(NULL, size, event_type, &event);
+        Profiler::instance()->recordSample(NULL, event._total_size, event_type, &event);
     }
 }
 
