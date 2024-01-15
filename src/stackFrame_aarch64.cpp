@@ -162,6 +162,22 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     return true;
 }
 
+void StackFrame::adjustCompiled(NMethod* nm, const void* pc, uintptr_t& sp) {
+    instruction_t* ip = (instruction_t*)pc;
+    instruction_t* entry = (instruction_t*)nm->entry();
+    if (ip > entry && (ip[-1] == 0xa9bf27ff || (ip[-1] == 0xd63f0100 && ip[-2] == 0xa9bf27ff))) {
+        // When calling a leaf native from Java, JVM puts a dummy frame link onto the stack,
+        // thus breaking the invariant: sender_sp == current_sp + frame_size.
+        // Since JDK 21, there are more instructions between `blr` and `add`,
+        // ignore them now for the sake of simplicity.
+        //   stp  xzr, x9, [sp, #-16]!
+        //   blr  x8
+        //   ...
+        //   add  sp, sp, #0x10
+        sp += 16;
+    }
+}
+
 bool StackFrame::skipFaultInstruction() {
     return false;
 }

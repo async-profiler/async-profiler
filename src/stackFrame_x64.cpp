@@ -155,6 +155,10 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
     return false;
 }
 
+void StackFrame::adjustCompiled(NMethod* nm, const void* pc, uintptr_t& sp) {
+    // Not needed
+}
+
 // Skip failed MOV instruction by writing 0 to destination register
 bool StackFrame::skipFaultInstruction() {
     unsigned int insn = *(unsigned int*)pc();

@@ -47,6 +47,9 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
     _max_address = max_address;
     _text_base = NULL;
 
+    _plt_offset = 0;
+    _plt_size = 0;
+
     memset(_imports, 0, sizeof(_imports));
     _imports_patchable = imports_patchable;
     _debug_symbols = false;
@@ -255,7 +258,13 @@ FrameDesc* CodeCache::findFrameDesc(const void* pc) {
         }
     }
 
-    return low > 0 ? &_dwarf_table[low - 1] : NULL;
+    if (low > 0) {
+        return &_dwarf_table[low - 1];
+    } else if (target_loc - _plt_offset < _plt_size) {
+        return &FrameDesc::empty_frame;
+    } else {
+        return &FrameDesc::default_frame;
+    }
 }
 
 size_t CodeCache::usedMemory() {

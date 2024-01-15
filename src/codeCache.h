@@ -106,6 +106,9 @@ class CodeCache {
     const void* _max_address;
     const char* _text_base;
 
+    unsigned int _plt_offset;
+    unsigned int _plt_size;
+
     void** _imports[NUM_IMPORTS];
     bool _imports_patchable;
     bool _debug_symbols;
@@ -147,6 +150,11 @@ class CodeCache {
 
     void setTextBase(const char* text_base) {
         _text_base = text_base;
+    }
+
+    void setPlt(unsigned int plt_offset, unsigned int plt_size) {
+        _plt_offset = plt_offset;
+        _plt_size = plt_size;
     }
 
     bool hasDebugSymbols() const {

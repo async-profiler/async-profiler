@@ -78,6 +78,7 @@ struct FrameDesc {
     int fp_off;
     int pc_off;
 
+    static FrameDesc empty_frame;
     static FrameDesc default_frame;
 
     static int comparator(const void* p1, const void* p2) {

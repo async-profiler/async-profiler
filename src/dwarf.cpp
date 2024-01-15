@@ -66,6 +66,7 @@ enum {
 };
 
 
+FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAME_FP, -EMPTY_FRAME_SIZE};
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT};
 
 

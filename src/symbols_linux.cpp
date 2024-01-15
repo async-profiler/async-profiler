@@ -415,12 +415,12 @@ void ElfParser::loadSymbols(bool use_debug) {
     if (use_debug) {
         // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
-        ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
-        if (reltab == NULL) {
-            reltab = findSection(SHT_REL, ".rel.plt");
-        }
-        if (plt != NULL && reltab != NULL) {
-            addRelocationSymbols(reltab, _base + plt->sh_addr + PLT_HEADER_SIZE);
+        if (plt != NULL) {
+            _cc->setPlt(plt->sh_addr, plt->sh_size);
+            ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
+            if (reltab != NULL || (reltab = findSection(SHT_REL, ".rel.plt")) != NULL) {
+                addRelocationSymbols(reltab, _base + plt->sh_addr + PLT_HEADER_SIZE);
+            }
         }
     }
 }
@@ -650,6 +650,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                     if (inode == last_inode) {
                         // If last_inode is set, image_base is known to be valid and readable
                         ElfParser::parseFile(cc, image_base, map.file(), true);
+                        // Parse program headers after the file to ensure debug symbols are parsed first
                         ElfParser::parseProgramHeaders(cc, image_base, map_end, musl);
                     } else if ((unsigned long)map_start > map_offs) {
                         // Unlikely case when image_base has not been found.
