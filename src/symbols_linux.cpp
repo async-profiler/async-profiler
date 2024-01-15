@@ -378,9 +378,15 @@ void ElfParser::parseDwarfInfo() {
     if (!DWARF_SUPPORTED) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
-    if (eh_frame_hdr != NULL && eh_frame_hdr->p_vaddr != 0) {
-        DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
-        _cc->setDwarfTable(dwarf.table(), dwarf.count());
+    if (eh_frame_hdr != NULL) {
+        if (eh_frame_hdr->p_vaddr != 0) {
+            DwarfParser dwarf(_cc->name(), _base, at(eh_frame_hdr));
+            _cc->setDwarfTable(dwarf.table(), dwarf.count());
+        } else if (strcmp(_cc->name(), "[vdso]") == 0) {
+            FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
+            *table = FrameDesc::empty_frame;
+            _cc->setDwarfTable(table, 1);
+        }
     }
 }
 
