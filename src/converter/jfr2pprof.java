@@ -19,7 +19,6 @@ import one.jfr.Dictionary;
 import one.jfr.JfrReader;
 import one.jfr.MethodRef;
 import one.jfr.StackTrace;
-import one.jfr.event.Event;
 import one.jfr.event.ExecutionSample;
 import one.proto.Proto;
 
@@ -30,7 +29,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Convert a JFR file to pprof
@@ -70,13 +68,18 @@ public class jfr2pprof {
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
+
             Location location = (Location) o;
-            return line == location.line && Objects.equals(method, location.method);
+
+            if (line != location.line) return false;
+            return method.equals(location.method);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(method, line);
+            int result = method.hashCode();
+            result = 31 * result + line;
+            return result;
         }
     }
 
