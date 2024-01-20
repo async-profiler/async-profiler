@@ -14,7 +14,7 @@
 #include "instrument.h"
 
 
-INCBIN(INSTRUMENT_CLASS, "one/profiler/Instrument.class")
+INCBIN(INSTRUMENT_CLASS, "src/helper/one/profiler/Instrument.class")
 
 
 enum ConstantTag {

@@ -28,7 +28,7 @@
 #include "vmStructs.h"
 
 
-INCBIN(JFR_SYNC_CLASS, "one/profiler/JfrSync.class")
+INCBIN(JFR_SYNC_CLASS, "src/helper/one/profiler/JfrSync.class")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();

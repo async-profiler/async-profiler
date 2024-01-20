@@ -15,7 +15,7 @@
 #include "vmStructs.h"
 
 
-INCBIN(SERVER_CLASS, "one/profiler/Server.class")
+INCBIN(SERVER_CLASS, "src/helper/one/profiler/Server.class")
 
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
