@@ -1,17 +1,6 @@
 /*
- * Copyright 2021 Andrei Pangin
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright The jattach authors
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <stdio.h>
@@ -26,6 +15,8 @@
 #include <unistd.h>
 #include "psutil.h"
 
+
+extern int mnt_changed;
 
 // Check if remote JVM has already opened socket for Dynamic Attach
 static int check_socket(int pid) {
@@ -46,7 +37,7 @@ static uid_t get_file_owner(const char* path) {
 // HotSpot will start Attach listener in response to SIGQUIT if it sees .attach_pid file
 static int start_attach_mechanism(int pid, int nspid) {
     char path[MAX_PATH];
-    snprintf(path, sizeof(path), "/proc/%d/cwd/.attach_pid%d", nspid, nspid);
+    snprintf(path, sizeof(path), "/proc/%d/cwd/.attach_pid%d", mnt_changed > 0 ? nspid : pid, nspid);
 
     int fd = creat(path, 0660);
     if (fd == -1 || (close(fd) == 0 && get_file_owner(path) != geteuid())) {
