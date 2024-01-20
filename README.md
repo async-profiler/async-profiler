@@ -18,14 +18,13 @@ to learn about all features.
 
 ## Download
 
-Current release (2.9):
+Current release (3.0):
 
- - Linux x64 (glibc): [async-profiler-2.9-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.9-linux-musl-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.9-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.9-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v2.9/converter.jar)  
-   (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
+ - Linux x64: [async-profiler-3.0-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz)
+ - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)  
+   (JFR to Flame Graph, JFR to pprof, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/async-profiler/async-profiler/releases)
 
@@ -236,7 +235,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/async-profiler/async-profiler/blob/v2.9/src/arguments.cpp#L52).
+[in the source code](https://github.com/async-profiler/async-profiler/blob/v3.0/src/arguments.cpp#L44).
 `asprof` actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`

@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.0] - Early Access
+## [3.0] - 2024-01-20
 
 ### Features
  - #724: Binary launcher `asprof`
