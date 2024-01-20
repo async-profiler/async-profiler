@@ -24,6 +24,7 @@
  - #849: Parse concatenated multi-chunk JFRs
  - #833: Time-to-safepoint JFR event
  - #832: Normalize names of hidden classes / lambdas
+ - #864: Reduce size of HTML Flame Graph
  - #783: Shutdown asprof gracefully on SIGTERM
  - Better demangling of C++ and Rust symbols
  - DWARF unwinding for ARM64
@@ -34,14 +35,17 @@
 
 ### Bug fixes
  - Workaround macOS crashes in SafeFetch
+ - Fixed attach to OpenJ9 on macOS
  - Support `UseCompressedObjectHeaders` aka Lilliput
  - Fixed allocation profiling on JDK 20.0.x
  - Fixed context-switches profiling
  - Prefer ObjectSampler to TLAB hooks for allocation profiling
+ - Improved accuracy of ObjectSampler in `--total` mode
  - Make Flame Graph status line and search results always visible
  - `loop` and `timeout` options did not work in some modes
  - Restart interrupted poll/epoll_wait syscalls
- - Fixed arraycopy stack walking on ARM
+ - Fixed stack unwinding issues on ARM64
+ - Workaround for stale jmethodIDs
  - Calculate ELF base address correctly
  - Do not dump redundant threads in a JFR chunk
  - `check` action prints result to a file

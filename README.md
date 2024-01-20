@@ -4,7 +4,7 @@ This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).
 It features HotSpot-specific APIs to collect stack traces
 and to track memory allocations. The profiler works with
-OpenJDK, Oracle JDK and other Java runtimes based on the HotSpot JVM.
+OpenJDK and other Java runtimes based on the HotSpot JVM.
 
 async-profiler can trace the following kinds of events:
  - CPU cycles
@@ -54,26 +54,23 @@ where `AsyncGetCallTrace` fails.
 This approach has the following advantages compared to using `perf_events`
 directly with a Java agent that translates addresses to Java method names:
 
-* Works on older Java versions because it doesn't require
-  `-XX:+PreserveFramePointer`, which is only available in JDK 8u60 and later.
+* Does not require `-XX:+PreserveFramePointer`, which introduces
+  performance overhead that can be sometimes as high as 10%.
 
-* Does not introduce the performance overhead from `-XX:+PreserveFramePointer`,
-  which can in rare cases be as high as 10%.
+* Does not require generating a map file for translating Java code addresses
+  to method names.
 
-* Does not require generating a map file to map Java code addresses to method
-  names.
+* Displays interpreter frames.
 
-* Works with interpreter frames.
-
-* Does not require writing out a perf.data file for further processing in
+* Does not produce large intermediate files (perf.data) for further processing in
   user space scripts.
 
 If you wish to resolve frames within `libjvm`, the [debug symbols](#installing-debug-symbols) are required.
 
 ## ALLOCATION profiling
 
-Instead of detecting CPU-consuming code, the profiler can be configured
-to collect call sites where the largest amount of heap memory is allocated.
+The profiler can be configured to collect call sites where the largest amount
+of heap memory is allocated.
 
 async-profiler does not use intrusive techniques like bytecode instrumentation
 or expensive DTrace probes which have significant performance impact.
@@ -82,34 +79,24 @@ like allocation elimination. Only actual heap allocations are measured.
 
 The profiler features TLAB-driven sampling. It relies on HotSpot-specific
 callbacks to receive two kinds of notifications:
- - when an object is allocated in a newly created TLAB (aqua frames in a Flame Graph);
- - when an object is allocated on a slow path outside TLAB (brown frames).
-
-This means not each allocation is counted, but only allocations every _N_ kB,
-where _N_ is the average size of TLAB. This makes heap sampling very cheap
-and suitable for production. On the other hand, the collected data
-may be incomplete, though in practice it will often reflect the top allocation
-sources.
+ - when an object is allocated in a newly created TLAB;
+ - when an object is allocated on a slow path outside TLAB.
 
 Sampling interval can be adjusted with `--alloc` option.
 For example, `--alloc 500k` will take one sample after 500 KB of allocated
-space on average. However, intervals less than TLAB size will not take effect.
-
-The minimum supported JDK version is 7u40 where the TLAB callbacks appeared.
+space on average. Prior to JDK 11, intervals less than TLAB size will not take effect.
 
 ### Installing Debug Symbols
 
 Prior to JDK 11, the allocation profiler required HotSpot debug symbols.
-Oracle JDK already has them embedded in `libjvm.so`, but in OpenJDK builds
-they are typically shipped in a separate package. For example, to install
+Some OpenJDK distributions (Amazon Corretto, Liberica JDK, Azul Zulu)
+already have them embedded in `libjvm.so`, other OpenJDK builds typically
+provide debug symbols in a separate package. For example, to install
 OpenJDK debug symbols on Debian / Ubuntu, run:
 ```
-# apt install openjdk-8-dbg
+# apt install openjdk-17-dbg
 ```
-or for OpenJDK 11:
-```
-# apt install openjdk-11-dbg
-```
+(replace `17` with the desired version of JDK).
 
 On CentOS, RHEL and some other RPM-based distributions, this could be done with
 [debuginfo-install](http://man7.org/linux/man-pages/man1/debuginfo-install.1.html) utility:
@@ -120,8 +107,8 @@ On CentOS, RHEL and some other RPM-based distributions, this could be done with
 On Gentoo the `icedtea` OpenJDK package can be built with the per-package setting
 `FEATURES="nostrip"` to retain symbols.
 
-The `gdb` tool can be used to verify if the debug symbols are properly installed for the `libjvm` library.
-For example on Linux:
+The `gdb` tool can be used to verify if debug symbols are properly installed for the `libjvm` library.
+For example, on Linux:
 ```
 $ gdb $JAVA_HOME/lib/server/libjvm.so -ex 'info address UseG1GC'
 ```
@@ -156,8 +143,8 @@ of all compiled methods. The subsequent instrumentation flushes only the _depend
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
 
 Here are some useful native methods that you may want to profile:
-* ```G1CollectedHeap::humongous_obj_allocate``` - trace the _humongous allocation_ of the G1 GC,
-* ```JVM_StartThread``` - trace the new thread creation,
+* ```G1CollectedHeap::humongous_obj_allocate``` - trace _humongous allocations_ of the G1 GC,
+* ```JVM_StartThread``` - trace creation of new Java threads,
 * ```Java_java_lang_ClassLoader_defineClass1``` - trace class loading.
 
 ## Building
@@ -165,11 +152,8 @@ Here are some useful native methods that you may want to profile:
 Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
 
 Make sure the `JAVA_HOME` environment variable points to your JDK installation,
-and then run `make`. GCC is required. After building, the profiler agent binary
-will be in the `build` subdirectory. Additionally, a small application `jattach`
-that can load the agent into the target process will also be compiled to the
-`build` subdirectory. If the build fails due to
-`Source option 7 is no longer supported. Use 8 or later.`, use `make JAVA_TARGET=8`.
+and then run `make`. GCC or Clang is required. After building, the profiler binaries
+will be in the `build` subdirectory.
 
 ## Basic Usage
 
@@ -264,7 +248,7 @@ and then attaching the agent again with stop command.
 ## Multiple events
 
 It is possible to profile CPU, allocations, and locks at the same time.
-Or, instead of CPU, you may choose any other execution event: wall-clock,
+Instead of CPU, you may choose any other execution event: wall-clock,
 perf event, tracepoint, Java method, etc.
 
 The only output format that supports multiple events together is JFR.
@@ -454,7 +438,7 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   `lbr` (Last Branch Record, available on Haswell since Linux 4.1),
   `vm` (HotSpot VM Structs) and `no` (do not collect C stack).
 
-  By default, C stack is shown in cpu, itimer, wall-clock and perf-events profiles.
+  By default, C stack is shown in cpu, ctimer, wall-clock and perf-events profiles.
   Java-level events like `alloc` and `lock` collect only Java stack.
 
 * `--signal NUM` - use alternative signal for cpu or wall clock profiling.
@@ -482,9 +466,9 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
   Example: `asprof -e cpu --jfrsync profile -f combined.jfr 8983`
 
-* `--fdtransfer` - runs "fdtransfer" alongside, which is a small program providing an interface
-  for the profiler to access `perf_event_open` even while this syscall is unavailable for the
-  profiled process (due to low privileges).
+* `--fdtransfer` - runs a background process that provides access to perf_events
+  to an unprivileged process. `--fdtransfer` is useful for profiling a process
+  in a container (which lacks access to perf_events) from the host.
   See [Profiling Java in a container](#profiling-java-in-a-container).
 
 * `-v`, `--version` - prints the version of profiler library. If PID is specified,
@@ -511,7 +495,7 @@ syscall. There are 3 alternatives to allow profiling in a container:
 or disable it altogether with `--security-opt seccomp=unconfined` option. In
 addition, `--cap-add SYS_ADMIN` may be required.
 2. You can use "fdtransfer": see the help for `--fdtransfer`.
-3. Last, you may fall back to `-e itimer` profiling mode, see [Troubleshooting](#troubleshooting).
+3. Last, you may fall back to `-e ctimer` profiling mode, see [Troubleshooting](#troubleshooting).
 
 ## Restrictions/Limitations
 
@@ -528,19 +512,16 @@ addition, `--cap-add SYS_ADMIN` may be required.
   Otherwise the message _"perf_event mmap failed: Operation not permitted"_
   will be printed, and no native stack traces will be collected.
 
-* There is no bullet-proof guarantee that the `perf_events` overflow signal
-  is delivered to the Java thread in a way that guarantees no other code has run,
-  which means that in some rare cases, the captured Java stack might not match
-  the captured native (user+kernel) stack.
-
 * You will not see the non-Java frames _preceding_ the Java frames on the
-  stack. For example, if `start_thread` called `JavaMain` and then your Java
+  stack, unless `--cstack vm` is specified.
+  For example, if `start_thread` called `JavaMain` and then your Java
   code started running, you will not see the first two frames in the resulting
   stack. On the other hand, you _will_ see non-Java frames (user and kernel)
   invoked by your Java code.
 
 * No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
-  or negative.
+  or negative. The exception is `--cstack vm` mode, which does not take
+  `MaxJavaStackTraceDepth` into account.
 
 * Too short profiling interval may cause continuous interruption of heavy
   system calls like `clone()`, so that it will never complete;
@@ -589,7 +570,7 @@ Usually this happens in one of the following cases:
    a thread dump and heap info in its console.
 
 ```
-Failed to inject profiler into <pid>
+Target JVM failed to load libasyncProfiler.so
 ```
 The connection with the target JVM has been established, but JVM is unable to load profiler shared library.
 Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path.
@@ -611,10 +592,10 @@ Typical reasons include:
 4. perf_event_open API is not supported on this system, e.g. WSL.
 
 For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
-as a privileged user will allow using perf_events.
+as a privileged user may solve the issue.
 
 If changing the configuration is not possible, you may fall back to
-`-e itimer` profiling mode. It is similar to `cpu` mode, but does not
+`-e ctimer` profiling mode. It is similar to `cpu` mode, but does not
 require perf_events support. As a drawback, there will be no kernel
 stack traces.
 
