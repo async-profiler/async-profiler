@@ -12,7 +12,7 @@ async-profiler can trace the following kinds of events:
  - Allocations in Java Heap
  - Contented lock attempts, including both Java object monitors and ReentrantLocks
 
-See our [Wiki](https://github.com/jvm-profiling-tools/async-profiler/wiki) or
+See our [Wiki](https://github.com/async-profiler/async-profiler/wiki) or
 [3 hours playlist](https://www.youtube.com/playlist?list=PLNCLTEx3B8h4Yo_WvKWdLvI9mj1XpTKBr)
 to learn about all features. 
 
@@ -20,14 +20,14 @@ to learn about all features.
 
 Current release (2.9):
 
- - Linux x64 (glibc): [async-profiler-2.9-linux-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-x64.tar.gz)
- - Linux x64 (musl): [async-profiler-2.9-linux-musl-x64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-musl-x64.tar.gz)
- - Linux arm64: [async-profiler-2.9-linux-arm64.tar.gz](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-2.9-macos.zip](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/async-profiler-2.9-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/jvm-profiling-tools/async-profiler/releases/download/v2.9/converter.jar)  
+ - Linux x64 (glibc): [async-profiler-2.9-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-x64.tar.gz)
+ - Linux x64 (musl): [async-profiler-2.9-linux-musl-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-musl-x64.tar.gz)
+ - Linux arm64: [async-profiler-2.9-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-linux-arm64.tar.gz)
+ - macOS x64/arm64: [async-profiler-2.9-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v2.9/async-profiler-2.9-macos.zip)
+ - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v2.9/converter.jar)  
    (JFR to Flame Graph, JFR to FlameScope, collapsed stacks to Flame Graph)
 
-[Previous releases](https://github.com/jvm-profiling-tools/async-profiler/releases)
+[Previous releases](https://github.com/async-profiler/async-profiler/releases)
 
 async-profiler also comes bundled with IntelliJ IDEA Ultimate 2018.3 and later.  
 For more information refer to [IntelliJ IDEA documentation](https://www.jetbrains.com/help/idea/cpu-and-allocation-profiling-basic-concepts.html).
@@ -162,7 +162,7 @@ Here are some useful native methods that you may want to profile:
 
 ## Building
 
-Build status: [![Build Status](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jvm-profiling-tools/async-profiler/actions/workflows/ci.yml)
+Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
 
 Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC is required. After building, the profiler agent binary
@@ -252,7 +252,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/jvm-profiling-tools/async-profiler/blob/v2.9/src/arguments.cpp#L52).
+[in the source code](https://github.com/async-profiler/async-profiler/blob/v2.9/src/arguments.cpp#L52).
 `asprof` actually converts command line arguments to that format.
 
 For instance, `-e wall` is converted to `event=wall`, `-f profile.html`
@@ -301,7 +301,7 @@ $ jps
 $ asprof -d 30 -f /tmp/flamegraph.html 8983
 ```
 
-[![Example](https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/jvm-profiling-tools/async-profiler/blob/master/demo/flamegraph.html)
+[![Example](https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.html)
 
 ## Profiler Options
 
@@ -544,7 +544,7 @@ addition, `--cap-add SYS_ADMIN` may be required.
 
 * Too short profiling interval may cause continuous interruption of heavy
   system calls like `clone()`, so that it will never complete;
-  see [#97](https://github.com/jvm-profiling-tools/async-profiler/issues/97).
+  see [#97](https://github.com/async-profiler/async-profiler/issues/97).
   The workaround is simply to increase the interval.
 
 * When agent is not loaded at JVM startup (by using -agentpath option) it is
@@ -593,7 +593,7 @@ Failed to inject profiler into <pid>
 ```
 The connection with the target JVM has been established, but JVM is unable to load profiler shared library.
 Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path.
-For more information see [#78](https://github.com/jvm-profiling-tools/async-profiler/issues/78).
+For more information see [#78](https://github.com/async-profiler/async-profiler/issues/78).
 
 ```
 No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'
@@ -636,7 +636,7 @@ VMStructs unavailable. Unsupported JVM?
 JVM shared library does not export `gHotSpotVMStructs*` symbols -
 apparently this is not a HotSpot JVM. Sometimes the same message
 can be also caused by an incorrectly built JDK
-(see [#218](https://github.com/jvm-profiling-tools/async-profiler/issues/218)).
+(see [#218](https://github.com/async-profiler/async-profiler/issues/218)).
 In these cases installing JDK debug symbols may solve the problem.
 
 ```

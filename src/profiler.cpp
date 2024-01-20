@@ -557,7 +557,7 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
 int Profiler::getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
     // We cannot call pure JVM TI here, because it assumes _thread_in_native state,
     // but allocation events happen in _thread_in_vm state,
-    // see https://github.com/jvm-profiling-tools/async-profiler/issues/64
+    // see https://github.com/async-profiler/async-profiler/issues/64
     JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         return 0;

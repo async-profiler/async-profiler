@@ -18,9 +18,9 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/jvm-profiling-tools/async-profiler</url>
-        <connection>scm:git:git@github.com:jvm-profiling-tools/async-profiler.git</connection>
-        <developerConnection>scm:git:git@github.com:jvm-profiling-tools/async-profiler.git</developerConnection>
+        <url>https://github.com/async-profiler/async-profiler</url>
+        <connection>scm:git:git@github.com:async-profiler/async-profiler.git</connection>
+        <developerConnection>scm:git:git@github.com:async-profiler/async-profiler.git</developerConnection>
     </scm>
     <developers>
         <developer>
