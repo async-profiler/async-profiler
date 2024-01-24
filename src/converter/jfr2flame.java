@@ -35,7 +35,7 @@ public class jfr2flame {
                                 args.lock ? ContendedLock.class : ExecutionSample.class;
 
         jfr.stopAtNewChunk = true;
-        while (!jfr.eof()) {
+        while (jfr.hasMoreChunks()) {
             convertChunk(fg, eventClass);
         }
     }
@@ -245,7 +245,7 @@ public class jfr2flame {
         } else if (millis < 1500000000000L) {
             nanos += jfr.startNanos;
         }
-        return jfr.nanosToTicks(nanos);
+        return (long) ((nanos - jfr.chunkStartNanos) * (jfr.ticksPerSec / 1e9)) + jfr.chunkStartTicks;
     }
 
     public static void main(String[] cmdline) throws Exception {

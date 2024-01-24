@@ -43,6 +43,9 @@ public class JfrReader implements Closeable {
     public long startNanos = Long.MAX_VALUE;
     public long endNanos = Long.MIN_VALUE;
     public long startTicks = Long.MAX_VALUE;
+    public long chunkStartNanos;
+    public long chunkEndNanos;
+    public long chunkStartTicks;
     public long ticksPerSec;
     public boolean stopAtNewChunk;
 
@@ -108,10 +111,6 @@ public class JfrReader implements Closeable {
         return endNanos - startNanos;
     }
 
-    public long nanosToTicks(long nanos) {
-        return (long) ((nanos - startNanos) * (ticksPerSec / 1e9)) + startTicks;
-    }
-
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
         JfrClass type = typesByName.get(name);
         if (type != null) {
@@ -121,6 +120,11 @@ public class JfrReader implements Closeable {
                 throw new IllegalArgumentException("No suitable constructor found");
             }
         }
+    }
+
+    // Similar to eof(), but parses the next chunk header
+    public boolean hasMoreChunks() throws IOException {
+        return state == STATE_NEW_CHUNK ? readChunk(buf.position()) : state == STATE_READING;
     }
 
     public List<Event> readAllEvents() throws IOException {
@@ -258,10 +262,14 @@ public class JfrReader implements Closeable {
             return false;
         }
 
-        startNanos = Math.min(startNanos, buf.getLong(pos + 32));
-        endNanos = Math.max(endNanos, buf.getLong(pos + 32) + buf.getLong(pos + 40));
-        startTicks = Math.min(startTicks, buf.getLong(pos + 48));
+        chunkStartNanos = buf.getLong(pos + 32);
+        chunkEndNanos = buf.getLong(pos + 32) + buf.getLong(pos + 40);
+        chunkStartTicks = buf.getLong(pos + 48);
         ticksPerSec = buf.getLong(pos + 56);
+
+        startNanos = Math.min(startNanos, chunkStartNanos);
+        endNanos = Math.max(endNanos, chunkEndNanos);
+        startTicks = Math.min(startTicks, chunkStartTicks);
 
         types.clear();
         typesByName.clear();
