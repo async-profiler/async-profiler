@@ -111,7 +111,7 @@ Trie* FlameGraph::addChild(Trie* f, const char* name, FrameTypeId type, u64 valu
     }
 }
 
-void FlameGraph::dump(std::ostream& out, bool tree) {
+void FlameGraph::dump(Writer& out, bool tree) {
     _name_order = new u32[_cpool.size() + 1]();
     _mintotal = _minwidth == 0 && tree ? _root._total / 1000 : (u64)(_root._total * _minwidth / 100);
     int depth = _root.depth(_mintotal, _name_order);
@@ -167,7 +167,7 @@ void FlameGraph::dump(std::ostream& out, bool tree) {
     delete[] _name_order;
 }
 
-void FlameGraph::printFrame(std::ostream& out, u32 key, const Trie& f, int level, u64 x) {
+void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 x) {
     u32 name_and_type = _name_order[f.nameIndex(key)] << 3 | f.type(key);
     bool has_extra_types = (f._inlined | f._c1_compiled | f._interpreted) &&
                            f._inlined < f._total && f._interpreted < f._total;
@@ -217,7 +217,7 @@ void FlameGraph::printFrame(std::ostream& out, u32 key, const Trie& f, int level
     }
 }
 
-void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level, const char** names) {
+void FlameGraph::printTreeFrame(Writer& out, const Trie& f, int level, const char** names) {
     std::vector<Node> children;
     children.reserve(f._children.size());
     for (std::map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
@@ -264,7 +264,7 @@ void FlameGraph::printTreeFrame(std::ostream& out, const Trie& f, int level, con
     }
 }
 
-void FlameGraph::printCpool(std::ostream& out) {
+void FlameGraph::printCpool(Writer& out) {
     out << "'all'";
 
     std::string prev;
@@ -282,7 +282,9 @@ void FlameGraph::printCpool(std::ostream& out) {
 
             StringUtils::replace(s, '\\', "\\\\", 2);
             StringUtils::replace(s, '\'', "\\'", 2);
-            out << ",\n'" << s << "'";
+            out << ",\n'";
+            out.write(s.data(), s.size());
+            out << "'";
         }
     }
 
@@ -290,7 +292,7 @@ void FlameGraph::printCpool(std::ostream& out) {
     _cpool = std::map<std::string, u32>();
 }
 
-const char* FlameGraph::printTill(std::ostream& out, const char* data, const char* till) {
+const char* FlameGraph::printTill(Writer& out, const char* data, const char* till) {
     const char* pos = strstr(data, till);
     out.write(data, pos - data);
     return pos + strlen(till);
