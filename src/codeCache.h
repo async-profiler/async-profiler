@@ -23,6 +23,7 @@ enum ImportId {
     im_pthread_create,
     im_pthread_exit,
     im_pthread_setspecific,
+    im_poll,
     NUM_IMPORTS
 };
 

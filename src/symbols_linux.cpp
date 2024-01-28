@@ -23,6 +23,43 @@
 #include "log.h"
 
 
+#ifdef __x86_64__
+
+#include <poll.h>
+#include "vmEntry.h"
+
+// Workaround for JDK-8312065 on JDK 8:
+// replace poll() implementation with ppoll() which is restartable
+static int poll_hook(struct pollfd* fds, nfds_t nfds, int timeout) {
+    if (timeout >= 0) {
+        struct timespec ts;
+        ts.tv_sec = timeout / 1000;
+        ts.tv_nsec = (timeout % 1000) * 1000000;
+        return ppoll(fds, nfds, &ts, NULL);
+    } else {
+        return ppoll(fds, nfds, NULL, NULL);
+    }
+}
+
+static void applyPatch(CodeCache* cc) {
+    static bool patch_libnet = VM::hotspot_version() == 8;
+
+    if (patch_libnet) {
+        size_t len = strlen(cc->name());
+        if (len >= 10 && strcmp(cc->name() + len - 10, "/libnet.so") == 0) {
+            cc->patchImport(im_poll, (void*)poll_hook);
+            patch_libnet = false;
+        }
+    }
+}
+
+#else
+
+static void applyPatch(CodeCache* cc) {}
+
+#endif
+
+
 class SymbolDesc {
   private:
     const char* _addr;
@@ -659,6 +696,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
 
         cc->sort();
+        applyPatch(cc);
         array->add(cc);
     }
 
