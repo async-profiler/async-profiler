@@ -352,9 +352,6 @@ static void run_jattach(int pid, String& cmd) {
     } else {
         int ret = wait_for_exit(child);
         if (ret != 0) {
-            if (WEXITSTATUS(ret) == 255) {
-                fprintf(stderr, "Target JVM failed to load %s\n", libpath.str());
-            }
             print_file(logfile, STDERR_FILENO);
             exit(WEXITSTATUS(ret));
         }

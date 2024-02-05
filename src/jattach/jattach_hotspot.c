@@ -139,16 +139,38 @@ static int read_response(int fd, int argc, char** argv, int print_output) {
     int result = atoi(buf);
 
     // Special treatment of 'load' command
-    if (result == 0 && argc > 0 && strcmp(argv[0], "load") == 0) {
+    if (argc > 0 && strcmp(argv[0], "load") == 0) {
+        // Read the entire output of the 'load' command
         size_t total = bytes;
         while (total < sizeof(buf) - 1 && (bytes = read(fd, buf + total, sizeof(buf) - 1 - total)) > 0) {
             total += (size_t)bytes;
         }
         bytes = total;
-
-        // The second line is the result of 'load' command; since JDK 9 it starts from "return code: "
         buf[bytes] = 0;
-        result = atoi(strncmp(buf + 2, "return code: ", 13) == 0 ? buf + 15 : buf + 2);
+
+        // Parse the return code of Agent_OnAttach
+        if (result == 0 && bytes >= 2) {
+            if (strncmp(buf + 2, "return code: ", 13) == 0) {
+                // JDK 9+: Agent_OnAttach result comes on the second line after "return code: "
+                result = atoi(buf + 15);
+            } else if ((buf[2] >= '0' && buf[2] <= '9') || buf[2] == '-') {
+                // JDK 8: Agent_OnAttach result comes on the second line alone
+                result = atoi(buf + 2);
+            } else {
+                // JDK 21+: load command always returns 0; the rest of output is an error message
+                result = -1;
+            }
+        }
+
+        // Duplicate an error message passed from the JVM
+        if (result == -1 && !print_output) {
+            const char* cr = strchr(buf, '\n');
+            if (cr != NULL && cr[1] != 0) {
+                fprintf(stderr, "%s", cr + 1);
+            } else if (argc > 1) {
+                fprintf(stderr, "Target JVM failed to load %s\n", argv[1]);
+            }
+        }
     }
 
     if (print_output) {
