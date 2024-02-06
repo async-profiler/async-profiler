@@ -66,6 +66,7 @@ class VMStructs {
     static int _constmethod_idnum_offset;
     static int _constmethod_size;
     static int _pool_holder_offset;
+    static int _array_len_offset;
     static int _array_data_offset;
     static int _code_heap_memory_offset;
     static int _code_heap_segmap_offset;

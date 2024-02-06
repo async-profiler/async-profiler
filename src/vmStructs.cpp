@@ -61,6 +61,7 @@ int VMStructs::_constmethod_constants_offset = -1;
 int VMStructs::_constmethod_idnum_offset = -1;
 int VMStructs::_constmethod_size = -1;
 int VMStructs::_pool_holder_offset = -1;
+int VMStructs::_array_len_offset = 0;
 int VMStructs::_array_data_offset = -1;
 int VMStructs::_code_heap_memory_offset = -1;
 int VMStructs::_code_heap_segmap_offset = -1;
@@ -321,6 +322,10 @@ void VMStructs::initOffsets() {
                 if (strcmp(field, "_call_stub_return_address") == 0) {
                     _call_stub_return_addr = *(const void***)(entry + address_offset);
                 }
+            } else if (strcmp(type, "GrowableArrayBase") == 0 || strcmp(type, "GenericGrowableArray") == 0) {
+                if (strcmp(field, "_len") == 0) {
+                    _array_len_offset = *(int*)(entry + offset_offset);
+                }
             } else if (strcmp(type, "GrowableArray<int>") == 0) {
                 if (strcmp(field, "_data") == 0) {
                     _array_data_offset = *(int*)(entry + offset_offset);
@@ -458,7 +463,7 @@ void VMStructs::resolveOffsets() {
 
     if (_code_heap_addr != NULL && _code_heap_low_addr != NULL && _code_heap_high_addr != NULL) {
         char* code_heaps = *_code_heap_addr;
-        unsigned int code_heap_count = *(unsigned int*)code_heaps;
+        unsigned int code_heap_count = *(unsigned int*)(code_heaps + _array_len_offset);
         if (code_heap_count <= 3 && _array_data_offset >= 0) {
             char* code_heap_array = *(char**)(code_heaps + _array_data_offset);
             memcpy(_code_heap, code_heap_array, code_heap_count * sizeof(_code_heap[0]));
