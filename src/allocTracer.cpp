@@ -6,6 +6,7 @@
 #include "allocTracer.h"
 #include "profiler.h"
 #include "stackFrame.h"
+#include "tsc.h"
 #include "vmStructs.h"
 
 
@@ -55,6 +56,7 @@ void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr_t rklass,
                                    uintptr_t total_size, uintptr_t instance_size) {
     AllocEvent event;
+    event._start_time = TSC::ticks();
     event._class_id = 0;
     event._total_size = total_size;
     event._instance_size = instance_size;

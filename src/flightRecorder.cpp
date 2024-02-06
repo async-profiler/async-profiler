@@ -1146,7 +1146,7 @@ class Recording {
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
-        buf->putVar64(TSC::ticks());
+        buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_thread_state);
@@ -1156,7 +1156,7 @@ class Recording {
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
-        buf->putVar64(TSC::ticks());
+        buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
@@ -1168,7 +1168,7 @@ class Recording {
     void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_OUTSIDE_TLAB);
-        buf->putVar64(TSC::ticks());
+        buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);
@@ -1179,7 +1179,7 @@ class Recording {
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
-        buf->putVar64(TSC::ticks());
+        buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(call_trace_id);
         buf->putVar32(event->_class_id);

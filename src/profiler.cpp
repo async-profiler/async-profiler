@@ -637,10 +637,13 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
     int num_frames = 0;
-    if (_add_event_frame && event_type >= ALLOC_SAMPLE && event->id()) {
-        // Convert event_type to frame_type, e.g. ALLOC_SAMPLE -> BCI_ALLOC
-        jint frame_type = BCI_ALLOC - (event_type - ALLOC_SAMPLE);
-        num_frames = makeFrame(frames, frame_type, event->id());
+    if (_add_event_frame && event_type >= ALLOC_SAMPLE && event_type <= PARK_SAMPLE) {
+        u32 class_id = ((EventWithClassId*)event)->_class_id;
+        if (class_id != 0) {
+            // Convert event_type to frame_type, e.g. ALLOC_SAMPLE -> BCI_ALLOC
+            jint frame_type = BCI_ALLOC - (event_type - ALLOC_SAMPLE);
+            num_frames = makeFrame(frames, frame_type, class_id);
+        }
     }
 
     StackContext java_ctx = {0};

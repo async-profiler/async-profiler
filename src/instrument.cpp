@@ -8,8 +8,8 @@
 #include <string.h>
 #include "arch.h"
 #include "incbin.h"
-#include "os.h"
 #include "profiler.h"
+#include "tsc.h"
 #include "vmEntry.h"
 #include "instrument.h"
 
@@ -607,7 +607,7 @@ void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
-        ExecutionEvent event;
+        ExecutionEvent event(TSC::ticks());
         Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
     }
 }

@@ -108,6 +108,7 @@ class LiveRefs {
                 jobject obj = jni->NewLocalRef(w);
                 if (obj != NULL) {
                     LiveObject event;
+                    event._start_time = TSC::ticks();
                     event._alloc_size = _values[i].size;
                     event._alloc_time = _values[i].time;
                     event._class_id = lookupClassId(jvmti, jni->GetObjectClass(obj));
@@ -141,6 +142,7 @@ void ObjectSampler::GarbageCollectionStart(jvmtiEnv* jvmti) {
 void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType event_type,
                                      jobject object, jclass object_klass, jlong size) {
     AllocEvent event;
+    event._start_time = TSC::ticks();
     event._total_size = size > _interval ? size : _interval;
     event._instance_size = size;
     event._class_id = lookupClassId(jvmti, object_klass);

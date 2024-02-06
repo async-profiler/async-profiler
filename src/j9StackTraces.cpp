@@ -13,6 +13,7 @@
 #include "j9Ext.h"
 #include "profiler.h"
 #include "perfEvents.h"
+#include "tsc.h"
 
 
 enum {
@@ -101,6 +102,7 @@ void J9StackTraces::timerLoop() {
         ssize_t ptr = 0;
         while (ptr < bytes) {
             J9StackTraceNotification* notif = (J9StackTraceNotification*)(notification_buf + ptr);
+            u64 start_time = TSC::ticks();
 
             jthread thread = known_threads[notif->env];
             jint num_jvmti_frames;
@@ -133,7 +135,7 @@ void J9StackTraces::timerLoop() {
             }
 
             int tid = J9Ext::GetOSThreadID(thread);
-            ExecutionEvent event;
+            ExecutionEvent event(start_time);
             Profiler::instance()->recordExternalSample(notif->counter, tid, EXECUTION_SAMPLE, &event, num_frames, frames);
 
             ptr += notif->size();

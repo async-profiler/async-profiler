@@ -24,13 +24,13 @@
 #include "fdtransferClient.h"
 #include "j9StackTraces.h"
 #include "log.h"
-#include "os.h"
 #include "perfEvents.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
+#include "tsc.h"
 #include "vmStructs.h"
 
 
@@ -659,8 +659,8 @@ void PerfEvents::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 
     if (_enabled) {
+        ExecutionEvent event(TSC::ticks());
         u64 counter = readCounter(siginfo, ucontext);
-        ExecutionEvent event;
         Profiler::instance()->recordSample(ucontext, counter, PERF_SAMPLE, &event);
     } else {
         resetBuffer(OS::threadId());

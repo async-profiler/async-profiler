@@ -9,6 +9,7 @@
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
+#include "tsc.h"
 
 
 // Maximum number of threads sampled in one iteration. This limit serves as a throttle
@@ -48,7 +49,7 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    ExecutionEvent event;
+    ExecutionEvent event(TSC::ticks());
     event._thread_state = _sample_idle_threads ? getThreadState(ucontext) : THREAD_UNKNOWN;
     Profiler::instance()->recordSample(ucontext, _interval, EXECUTION_SAMPLE, &event);
 }

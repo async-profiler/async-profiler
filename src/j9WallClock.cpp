@@ -7,6 +7,7 @@
 #include "j9WallClock.h"
 #include "j9Ext.h"
 #include "profiler.h"
+#include "tsc.h"
 
 
 long J9WallClock::_interval;
@@ -48,6 +49,7 @@ void J9WallClock::timerLoop() {
         jvmtiStackInfoExtended* stack_infos;
         jint thread_count;
         if (J9Ext::GetAllStackTracesExtended(_max_stack_depth, (void**)&stack_infos, &thread_count) == 0) {
+            u64 start_time = TSC::ticks();
             for (int i = 0; i < thread_count; i++) {
                 jvmtiStackInfoExtended* si = &stack_infos[i];
                 for (int j = 0; j < si->frame_count; j++) {
@@ -57,7 +59,7 @@ void J9WallClock::timerLoop() {
                 }
 
                 int tid = J9Ext::GetOSThreadID(si->thread);
-                ExecutionEvent event;
+                ExecutionEvent event(start_time);
                 event._thread_state = (si->state & JVMTI_THREAD_STATE_RUNNABLE) ? THREAD_RUNNING : THREAD_SLEEPING;
                 Profiler::instance()->recordExternalSample(_interval, tid, EXECUTION_SAMPLE, &event, si->frame_count, frames);
             }
