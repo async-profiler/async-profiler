@@ -71,7 +71,7 @@ public class Proto {
         int length = n == 0 ? 1 : (38 - Integer.numberOfLeadingZeros(n)) / 7;
         ensureCapacity(length);
 
-        while (n > 0x7f) {
+        while ((n >>> 7) != 0) {
             buf[pos++] = (byte) (0x80 | (n & 0x7f));
             n >>>= 7;
         }
@@ -82,7 +82,7 @@ public class Proto {
         int length = n == 0 ? 1 : (70 - Long.numberOfLeadingZeros(n)) / 7;
         ensureCapacity(length);
 
-        while (n > 0x7f) {
+        while ((n >>> 7) != 0) {
             buf[pos++] = (byte) (0x80 | (n & 0x7f));
             n >>>= 7;
         }
