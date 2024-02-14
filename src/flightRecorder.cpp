@@ -917,6 +917,7 @@ class Recording {
                 buf->putVar32(start, buf->offset() - start);
                 jvmti->Deallocate((unsigned char*)value);
             }
+            jvmti->Deallocate((unsigned char*)key);
         }
 
         jvmti->Deallocate((unsigned char*)keys);
