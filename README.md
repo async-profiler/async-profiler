@@ -353,8 +353,7 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   In lock profiling mode, record contended locks that the JVM has waited for
   longer than the specified duration.
 
-* `-j N` - sets the Java stack profiling depth. This option will be ignored if N is greater
-  than default 2048.  
+* `-j N` - sets the maximum stack depth. The default is 2048.  
   Example: `asprof -j 30 8983`
 
 * `-t` - profile threads separately. Each stack trace will end with a frame
