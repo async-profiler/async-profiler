@@ -361,6 +361,34 @@ static void run_jattach(int pid, String& cmd) {
     }
 }
 
+// Resolve a kernel tracepoint name (e.g. syscalls:sys_enter_openat) to a numerical id
+static int get_tracepoint_id(const char* name) {
+    char buf[256];
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+        return 0;
+    }
+
+    char* p = strchr(buf, ':');
+    if (p == NULL || strchr(p + 1, ':') != NULL) {
+        return 0;
+    }
+    *p = '/';
+
+    int fd = open(buf, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    ssize_t r = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (r > 0) {
+        buf[r] = 0;
+        return atoi(buf);
+    }
+    return 0;
+}
+
 
 int main(int argc, const char** argv) {
     Args args(argc, argv);
@@ -394,9 +422,13 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "-e" || arg == "--event") {
             const char* event = args.next();
+            int tracepoint_id;
             if (strchr(event, ',') != NULL && event[strlen(event) - 1] == '/') {
                 // PMU event, e.g.: cpu/umask=0x1,event=0xd3/
                 params << ",event=" << String(event).replace(',', ":");
+            } else if (strchr(event, ':') != NULL && (tracepoint_id = get_tracepoint_id(event)) > 0) {
+                // Try to resolve tracepoint id before dropping root privileges
+                params << ",event=trace:" << tracepoint_id;
             } else {
                 params << ",event=" << event;
             }
