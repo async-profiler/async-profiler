@@ -13,7 +13,7 @@
 #include "vmStructs.h"
 
 
-INCBIN(SERVER_CLASS, "src/helper/one/profiler/Server.class")
+INCLUDE_HELPER_CLASS(SERVER_NAME, SERVER_CLASS, "one/profiler/Server")
 
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
@@ -167,7 +167,7 @@ bool JavaAPI::startHttpServer(jvmtiEnv* jvmti, JNIEnv* jni, const char* address)
     jclass handler = jni->FindClass("com/sun/net/httpserver/HttpHandler");
     jobject loader;
     if (handler != NULL && jvmti->GetClassLoader(handler, &loader) == 0) {
-        jclass cls = jni->DefineClass(NULL, loader, (const jbyte*)SERVER_CLASS, INCBIN_SIZEOF(SERVER_CLASS));
+        jclass cls = jni->DefineClass(SERVER_NAME, loader, (const jbyte*)SERVER_CLASS, INCBIN_SIZEOF(SERVER_CLASS));
         if (cls != NULL && jni->RegisterNatives(cls, execute0, 1) == 0) {
             jmethodID method = jni->GetStaticMethodID(cls, "start", "(Ljava/lang/String;)V");
             if (method != NULL) {

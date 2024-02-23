@@ -14,7 +14,7 @@
 #include "instrument.h"
 
 
-INCBIN(INSTRUMENT_CLASS, "src/helper/one/profiler/Instrument.class")
+INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
 
 enum ConstantTag {
@@ -507,7 +507,7 @@ Error Instrument::check(Arguments& args) {
         JNIEnv* jni = VM::jni();
         const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
 
-        jclass cls = jni->DefineClass(NULL, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
+        jclass cls = jni->DefineClass(INSTRUMENT_NAME, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
             jni->ExceptionDescribe();
             return Error("Could not load Instrument class");

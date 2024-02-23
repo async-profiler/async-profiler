@@ -29,4 +29,8 @@
 
 #define INCBIN_SIZEOF(NAME) (NAME##_END - NAME)
 
+#define INCLUDE_HELPER_CLASS(NAME_VAR, DATA_VAR, NAME) \
+    static const char* const NAME_VAR = NAME;\
+    INCBIN(DATA_VAR, "src/helper/" NAME ".class")
+
 #endif // _INCBIN_H
