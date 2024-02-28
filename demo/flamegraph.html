@@ -111,6 +111,22 @@
 		return null;
 	}
 
+	function removeStack(left, width) {
+		for (let h = 0; h < levels.length; h++) {
+			const frames = levels[h], newFrames = [];
+			for (let i = 0; i < frames.length; i++) {
+				const f = frames[i];
+				if (f.left >= left + width) {
+					f.left -= width;
+				} else if (f.left + f.width > left) {
+					if ((f.width -= width) <= 0 && h) continue;
+				}
+				newFrames.push(f);
+			}
+			levels[h] = newFrames;
+		}
+	}
+
 	function search(r) {
 		if (r === true && (r = prompt('Enter regexp to search:', '')) === null) {
 			return;
@@ -202,10 +218,13 @@
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (f !== root) {
+					if (event.altKey && h >= rootLevel) {
+						removeStack(f.left, f.width);
+						root.width > f.width ? render(root, rootLevel) : render();
+					} else if (f !== root) {
 						render(f, h);
-						canvas.onmousemove();
 					}
+					canvas.onmousemove();
 				};
 				status.textContent = 'Function: ' + canvas.title;
 				status.style.display = 'inline-block';
