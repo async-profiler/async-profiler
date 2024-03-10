@@ -58,12 +58,12 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
     uintptr_t sp;
     uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
 
+    StackFrame frame(ucontext);
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
         sp = (uintptr_t)__builtin_frame_address(0);
     } else {
-        StackFrame frame(ucontext);
         pc = (const void*)frame.pc();
         fp = frame.fp();
         sp = frame.sp();
@@ -73,7 +73,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc)) {
+        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
             java_ctx->set(pc, sp, fp);
             break;
         }
@@ -124,7 +124,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
-        if (CodeHeap::contains(pc)) {
+        if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
             const void* page_start = (const void*)((uintptr_t)pc & ~0xfffUL);
             frame.adjustSP(page_start, pc, sp);
             java_ctx->set(pc, sp, fp);
