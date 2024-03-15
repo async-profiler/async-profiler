@@ -638,8 +638,10 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         return;
     }
 
+    CodeCache* cc;
     const char* image_base = NULL;
     u64 last_inode = 0;
+    u64 cc_inode = 0;
     char* str = NULL;
     size_t str_size = 0;
     ssize_t len;
@@ -665,34 +667,39 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             continue;
         }
 
+        const char* map_end = map.end();
+        u64 inode = u64(map.dev()) << 32 | map.inode();
+        if (inode != 0 && !_parsed_inodes.insert(inode).second) {
+            // Do not parse the same executable twice
+            if (inode == cc_inode) {
+                cc->updateBounds(map_start, map_end);
+            }
+            continue;
+        }
+
         int count = array->count();
         if (count >= MAX_NATIVE_LIBS) {
             break;
         }
 
-        const char* map_end = map.end();
-        CodeCache* cc = new CodeCache(map.file(), count, false, map_start, map_end);
+        cc = new CodeCache(map.file(), count, false, map_start, map_end);
+        cc_inode = inode;
 
-        // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
-        if (strchr(map.file(), ':') == NULL) {
-            u64 inode = u64(map.dev()) << 32 | map.inode();
-            if (inode != 0) {
-                // Do not parse the same executable twice, e.g. on Alpine Linux
-                if (_parsed_inodes.insert(inode).second) {
-                    if (inode == last_inode) {
-                        // If last_inode is set, image_base is known to be valid and readable
-                        ElfParser::parseFile(cc, image_base, map.file(), true);
-                        // Parse program headers after the file to ensure debug symbols are parsed first
-                        ElfParser::parseProgramHeaders(cc, image_base, map_end, musl);
-                    } else if ((unsigned long)map_start > map_offs) {
-                        // Unlikely case when image_base has not been found.
-                        // Be careful: executable file is not always ELF, e.g. classes.jsa
-                        ElfParser::parseFile(cc, map_start - map_offs, map.file(), true);
-                    }
-                }
-            } else if (strcmp(map.file(), "[vdso]") == 0) {
-                ElfParser::parseProgramHeaders(cc, map_start, map_end, true);
+        if (strchr(map.file(), ':') != NULL) {
+            // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
+        } else if (inode != 0) {
+            if (inode == last_inode) {
+                // If last_inode is set, image_base is known to be valid and readable
+                ElfParser::parseFile(cc, image_base, map.file(), true);
+                // Parse program headers after the file to ensure debug symbols are parsed first
+                ElfParser::parseProgramHeaders(cc, image_base, map_end, musl);
+            } else if ((unsigned long)map_start > map_offs) {
+                // Unlikely case when image_base has not been found.
+                // Be careful: executable file is not always ELF, e.g. classes.jsa
+                ElfParser::parseFile(cc, map_start - map_offs, map.file(), true);
             }
+        } else if (strcmp(map.file(), "[vdso]") == 0) {
+            ElfParser::parseProgramHeaders(cc, map_start, map_end, true);
         }
 
         cc->sort();
