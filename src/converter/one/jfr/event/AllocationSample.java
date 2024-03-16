@@ -32,6 +32,11 @@ public class AllocationSample extends Event {
     }
 
     @Override
+    public long classId() {
+        return classId;
+    }
+
+    @Override
     public long value() {
         return tlabSize != 0 ? tlabSize : allocationSize;
     }

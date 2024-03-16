@@ -48,6 +48,10 @@ public abstract class Event implements Comparable<Event> {
         return getClass() == o.getClass();
     }
 
+    public long classId() {
+        return 0;
+    }
+
     public long value() {
         return 1;
     }

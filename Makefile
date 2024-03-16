@@ -3,10 +3,11 @@ PROFILER_VERSION=3.0
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
-LAUNCHER=bin/asprof
+ASPROF=bin/asprof
+JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
-API_JAR=lib/async-profiler.jar
-CONVERTER_JAR=lib/converter.jar
+API_JAR=jar/async-profiler.jar
+CONVERTER_JAR=jar/jfr-converter.jar
 
 CFLAGS=-O3 -fno-exceptions
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
@@ -88,11 +89,11 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all release test native clean
+.PHONY: all jar release test native clean
 
-all: build/bin build/lib build/$(LIB_PROFILER) build/$(LAUNCHER) build/$(API_JAR) build/$(CONVERTER_JAR)
+all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
-release: JAVA_TARGET=7
+jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
@@ -101,25 +102,25 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	rm -r $(PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
-	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(LAUNCHER) $(PACKAGE_DIR)/$(LIB_PROFILER)
+	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(LIB_PROFILER)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
-$(PACKAGE_DIR): build/bin build/lib \
-                build/$(LIB_PROFILER) build/$(LAUNCHER) \
-                build/$(API_JAR) build/$(CONVERTER_JAR) \
-                LICENSE *.md
+$(PACKAGE_DIR): all LICENSE *.md
 	mkdir -p $(PACKAGE_DIR)
-	cp -RP build/* LICENSE *.md $(PACKAGE_DIR)/
+	cp -RP build/bin build/lib LICENSE *.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/*.md
 
 build/%:
 	mkdir -p $@
 
-build/$(LAUNCHER): src/launcher/* src/jattach/* src/fdtransfer.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp src/jattach/*.c
+build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/main/*.cpp src/jattach/*.c
 	strip $@
+
+build/$(JFRCONV): src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
@@ -142,7 +143,7 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	$(RM) -r build/converter
 
 %.class: %.java
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -g:none $^
+	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
 test: all
 	test/smoke-test.sh

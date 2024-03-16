@@ -32,6 +32,11 @@ public class LiveObject extends Event {
     }
 
     @Override
+    public long classId() {
+        return classId;
+    }
+
+    @Override
     public long value() {
         return allocationSize;
     }

@@ -30,6 +30,11 @@ public class ContendedLock extends Event {
     }
 
     @Override
+    public long classId() {
+        return classId;
+    }
+
+    @Override
     public long value() {
         return duration;
     }
