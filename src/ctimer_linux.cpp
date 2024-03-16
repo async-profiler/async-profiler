@@ -97,7 +97,7 @@ Error CTimer::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : DEFAULT_INTERVAL;
     _cstack = args._cstack;
-    _signal = args._signal == 0 ? SIGPROF : args._signal & 0xff;
+    _signal = args._signal == 0 ? OS::getProfilingSignal(0) : args._signal & 0xff;
 
     int max_timers = OS::getMaxThreadId();
     if (max_timers != _max_timers) {

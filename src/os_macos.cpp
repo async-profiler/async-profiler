@@ -104,6 +104,8 @@ JitWriteProtection::~JitWriteProtection() {
 }
 
 
+static SigAction installed_sigaction[32];
+
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
 
@@ -204,6 +206,9 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
     } else {
         sa.sa_sigaction = action;
         sa.sa_flags = SA_SIGINFO | SA_RESTART;
+        if (signo > 0 && signo < sizeof(installed_sigaction) / sizeof(installed_sigaction[0])) {
+            installed_sigaction[signo] = action;
+        }
     }
 
     sigaction(signo, &sa, &oldsa);
@@ -217,6 +222,28 @@ SigAction OS::replaceCrashHandler(SigAction action) {
     sa.sa_sigaction = action;
     sigaction(SIGBUS, &sa, NULL);
     return old_action;
+}
+
+int OS::getProfilingSignal(int mode) {
+    static int preferred_signals[2] = {SIGPROF, SIGVTALRM};
+
+    const u64 allowed_signals =
+        1ULL << SIGPROF | 1ULL << SIGVTALRM | 1ULL << SIGEMT | 1ULL << SIGSYS;
+
+    int& signo = preferred_signals[mode];
+    int initial_signo = signo;
+    int other_signo = preferred_signals[1 - mode];
+
+    do {
+        struct sigaction sa;
+        if ((allowed_signals & (1ULL << signo)) != 0 && signo != other_signo && sigaction(signo, NULL, &sa) == 0) {
+            if (sa.sa_handler == SIG_DFL || sa.sa_handler == SIG_IGN || sa.sa_sigaction == installed_sigaction[signo]) {
+                return signo;
+            }
+        }
+    } while ((signo = (signo + 1) & 31) != initial_signo);
+
+    return signo;
 }
 
 bool OS::sendSignalToThread(int thread_id, int signo) {

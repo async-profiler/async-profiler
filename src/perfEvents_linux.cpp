@@ -779,7 +779,7 @@ Error PerfEvents::start(Arguments& args) {
     }
     _interval = args._interval ? args._interval : _event_type->default_interval;
     _cstack = args._cstack;
-    _signal = args._signal == 0 ? SIGPROF : args._signal & 0xff;
+    _signal = args._signal == 0 ? OS::getProfilingSignal(0) : args._signal & 0xff;
 
     _ring = args._ring;
     if (_ring != RING_USER && !Symbols::haveKernelSymbols()) {

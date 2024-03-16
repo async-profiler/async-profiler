@@ -72,6 +72,7 @@ class OS {
 
     static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static SigAction replaceCrashHandler(SigAction action);
+    static int getProfilingSignal(int mode);
     static bool sendSignalToThread(int thread_id, int signo);
 
     static void* safeAlloc(size_t size);

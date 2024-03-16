@@ -70,7 +70,8 @@ Error WallClock::start(Arguments& args) {
         _interval = _sample_idle_threads ? DEFAULT_INTERVAL * 5 : DEFAULT_INTERVAL;
     }
 
-    _signal = args._signal == 0 ? SIGVTALRM : ((args._signal >> 8) > 0 ? args._signal >> 8 : args._signal);
+    _signal = args._signal == 0 ? OS::getProfilingSignal(1)
+                                : ((args._signal >> 8) > 0 ? args._signal >> 8 : args._signal);
     OS::installSignalHandler(_signal, signalHandler);
 
     _running = true;
