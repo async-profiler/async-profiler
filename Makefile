@@ -120,7 +120,7 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	strip $@
 
 build/$(JFRCONV): src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp -ldl
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
