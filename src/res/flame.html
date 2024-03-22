@@ -260,7 +260,7 @@
 	}
 
 	window.onkeydown = function() {
-		if (event.ctrlKey && event.keyCode === 70) {
+		if ((event.ctrlKey || event.metaKey) && event.keyCode === 70) {
 			event.preventDefault();
 			search(true);
 		} else if (event.keyCode === 27) {
