@@ -69,6 +69,23 @@ public class Proto {
         return this;
     }
 
+    public int startField(int index) {
+        tag(index, 2);
+        ensureCapacity(3);
+        return pos += 3;
+    }
+
+    public void commitField(int mark) {
+        int length = pos - mark;
+        if (length >= 1 << (7 * 3)) {
+            throw new IllegalArgumentException("Field too large");
+        }
+
+        buf[mark - 3] = (byte) (0x80 | (length & 0x7f));
+        buf[mark - 2] = (byte) (0x80 | ((length >>> 7) & 0x7f));
+        buf[mark - 1] = (byte) (length >>> 14);
+    }
+
     public void writeInt(int n) {
         int length = n == 0 ? 1 : (38 - Integer.numberOfLeadingZeros(n)) / 7;
         ensureCapacity(length);

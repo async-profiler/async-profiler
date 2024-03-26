@@ -81,10 +81,12 @@ public class JfrToPprof extends JfrConverter {
     }
 
     private Proto sample(Proto s, Event event, long value) {
+        int packedLocations = s.startField(1);
+
         long classId = event.classId();
         if (classId != 0) {
             int function = functions.index(getClassName(classId));
-            s.field(1, locations.index((long) function << 16));
+            s.writeInt(locations.index((long) function << 16));
         }
 
         StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
@@ -95,10 +97,11 @@ public class JfrToPprof extends JfrConverter {
             for (int i = 0; i < methods.length; i++) {
                 String methodName = getMethodName(methods[i], types[i]);
                 int function = functions.index(methodName);
-                s.field(1, locations.index((long) function << 16 | lines[i] >>> 16));
+                s.writeInt(locations.index((long) function << 16 | lines[i] >>> 16));
             }
         }
 
+        s.commitField(packedLocations);
         s.field(2, value);
 
         if (args.threads && event.tid != 0) {
