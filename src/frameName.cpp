@@ -297,10 +297,11 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {
                 it->second[0] = _cache_epoch;
+                const char* name = it->second.c_str() + 1;
                 if (type_suffix != NULL) {
-                    return _str.assign(it->second, 1, std::string::npos).append(type_suffix).c_str();
+                    return _str.assign(name).append(type_suffix).c_str();
                 }
-                return it->second.c_str() + 1;
+                return name;
             }
 
             javaMethodName(frame.method_id);
