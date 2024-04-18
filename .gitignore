@@ -6,3 +6,5 @@
 /test/*.class
 .vscode
 *.iml
+#Mac filesystem mangement files
+**/.DS_Store
