@@ -234,6 +234,13 @@ Error Arguments::parse(const char* args) {
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
+            CASE("cpu")
+                if (_event != NULL) {
+                    msg = "Duplicate event argument";
+                } else {
+                    _event = EVENT_CPU;
+                }
+
             CASE("interval")
                 if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
                     msg = "Invalid interval";
