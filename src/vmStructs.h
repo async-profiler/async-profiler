@@ -77,6 +77,7 @@ class VMStructs {
     static int _vs_high_offset;
     static int _flag_name_offset;
     static int _flag_addr_offset;
+    static int _flag_origin_offset;
     static const char* _flags_addr;
     static int _flag_count;
     static int _flag_size;
@@ -510,14 +511,26 @@ class CollectedHeap : VMStructs {
 
 class JVMFlag : VMStructs {
   public:
-    static void* find(const char* name);
+    static JVMFlag* find(const char* name);
 
     const char* name() {
         return *(const char**) at(_flag_name_offset);
     }
 
-    void* addr() {
-        return *(void**) at(_flag_addr_offset);
+    char* addr() {
+        return *(char**) at(_flag_addr_offset);
+    }
+
+    char origin() {
+        return _flag_origin_offset >= 0 ? (*(char*) at(_flag_origin_offset)) & 15 : 0;
+    }
+
+    char get() {
+        return *addr();
+    }
+
+    void set(char value) {
+        *addr() = value;
     }
 };
 

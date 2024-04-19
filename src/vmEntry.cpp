@@ -216,17 +216,17 @@ bool VM::init(JavaVM* vm, bool attach) {
     } else {
         // DebugNonSafepoints is automatically enabled with CompiledMethodLoad,
         // otherwise we set the flag manually
-        char* flag_addr = (char*)JVMFlag::find("DebugNonSafepoints");
-        if (flag_addr != NULL) {
-            *flag_addr = 1;
+        JVMFlag* f = JVMFlag::find("DebugNonSafepoints");
+        if (f != NULL && f->origin() == 0) {
+            f->set(1);
         }
     }
 
     if (_can_sample_objects) {
         // SetHeapSamplingInterval does not have immediate effect, so apply the configuration
         // as early as possible to allow profiling all startup allocations
-        char* use_tlab = (char*)JVMFlag::find("UseTLAB");
-        if (use_tlab != NULL && *use_tlab == 0) {
+        JVMFlag* f = JVMFlag::find("UseTLAB");
+        if (f != NULL && !f->get()) {
             _jvmti->SetHeapSamplingInterval(0);
         }
     }

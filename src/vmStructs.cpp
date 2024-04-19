@@ -72,6 +72,7 @@ int VMStructs::_vs_low_offset = -1;
 int VMStructs::_vs_high_offset = -1;
 int VMStructs::_flag_name_offset = -1;
 int VMStructs::_flag_addr_offset = -1;
+int VMStructs::_flag_origin_offset = -1;
 const char* VMStructs::_flags_addr = NULL;
 int VMStructs::_flag_count = 0;
 int VMStructs::_flag_size = 0;
@@ -335,6 +336,8 @@ void VMStructs::initOffsets() {
                     _flag_name_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_addr") == 0 || strcmp(field, "addr") == 0) {
                     _flag_addr_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_flags") == 0 || strcmp(field, "origin") == 0) {
+                    _flag_origin_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "flags") == 0) {
                     _flags_addr = **(char***)(entry + address_offset);
                 } else if (strcmp(field, "numFlags") == 0) {
@@ -396,14 +399,14 @@ void VMStructs::resolveOffsets() {
         _klass = (jfieldID)(uintptr_t)(*_klass_offset_addr << 2 | 2);
     }
 
-    char* ccp = (char*)JVMFlag::find("UseCompressedClassPointers");
-    if (ccp != NULL && *ccp && _narrow_klass_base_addr != NULL && _narrow_klass_shift_addr != NULL) {
+    JVMFlag* ccp = JVMFlag::find("UseCompressedClassPointers");
+    if (ccp != NULL && ccp->get() && _narrow_klass_base_addr != NULL && _narrow_klass_shift_addr != NULL) {
         _narrow_klass_base = *_narrow_klass_base_addr;
         _narrow_klass_shift = *_narrow_klass_shift_addr;
     }
 
-    char* coh = (char*)JVMFlag::find("UseCompactObjectHeaders");
-    if (coh != NULL && *coh) {
+    JVMFlag* coh = JVMFlag::find("UseCompactObjectHeaders");
+    if (coh != NULL && coh->get()) {
         _compact_object_headers = true;
     }
 
@@ -644,12 +647,12 @@ NMethod* CodeHeap::findNMethod(char* heap, const void* pc) {
     return block[sizeof(size_t)] ? (NMethod*)(block + 2 * sizeof(size_t)) : NULL;
 }
 
-void* JVMFlag::find(const char* name) {
+JVMFlag* JVMFlag::find(const char* name) {
     if (_flags_addr != NULL && _flag_size > 0) {
         for (int i = 0; i < _flag_count; i++) {
             JVMFlag* f = (JVMFlag*)(_flags_addr + i * _flag_size);
-            if (f->name() != NULL && strcmp(f->name(), name) == 0) {
-                return f->addr();
+            if (f->name() != NULL && strcmp(f->name(), name) == 0 && f->addr() != NULL) {
+                return f;
             }
         }
     }
