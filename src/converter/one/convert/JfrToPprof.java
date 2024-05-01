@@ -159,7 +159,7 @@ public class JfrToPprof extends JfrConverter {
             converter.convert();
         }
         try (FileOutputStream fos = new FileOutputStream(output);
-             OutputStream out = args.output.endsWith(".gz") ? new GZIPOutputStream(fos, 4096) : fos) {
+             OutputStream out = args.output.endsWith("gz") ? new GZIPOutputStream(fos, 4096) : fos) {
             converter.dump(out);
         }
     }

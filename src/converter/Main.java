@@ -54,7 +54,7 @@ public class Main {
         if (isJfr(input)) {
             if ("html".equals(args.output)) {
                 JfrToFlame.convert(input, output, args);
-            } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith(".gz")) {
+            } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith("gz")) {
                 JfrToPprof.convert(input, output, args);
             } else {
                 throw new IllegalArgumentException("Unrecognized output format: " + args.output);
