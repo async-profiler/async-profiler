@@ -14,9 +14,13 @@
 #  define INCBIN_SYMBOL
 #endif
 
+#ifdef _WIN32
+#  define asm(unused)
+#endif
+
 #define INCBIN(NAME, FILE) \
-    extern const char NAME[];\
-    extern const char NAME##_END[];\
+    extern "C" const char NAME[];\
+    extern "C" const char NAME##_END[];\
     asm(INCBIN_SECTION "\n"\
         ".global " INCBIN_SYMBOL #NAME "\n"\
         INCBIN_SYMBOL #NAME ":\n"\

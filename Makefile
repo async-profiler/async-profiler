@@ -122,6 +122,12 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 build/$(JFRCONV): src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp -ldl
 
+build/$(JFRCONV).exe: src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
+	mkdir -p build/bin build/gensrc
+	(echo -n "const unsigned char CLASS_BYTES[] = {" && hexdump -v -e '1/1 "%u,"' src/helper/one/profiler/EmbeddedClassLoader.class && echo "}; const unsigned char CLASS_BYTES_END = {0};") > build/gensrc/CLASS_BYTES.c
+	(echo -n "const unsigned char CONVERTER_JAR[] = {" && hexdump -v -e '1/1 "%u,"' build/$(CONVERTER_JAR) && echo "}; const unsigned char CONVERTER_JAR_END = {0};") > build/gensrc/CONVERTER_JAR.c
+	cmd.exe /C cl /O2 /DPROFILER_VERSION=\"$(PROFILER_VERSION)\" src/launcher/*.cpp build/gensrc/*.c /Fo:build/gensrc/ /Fe:$@
+
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\

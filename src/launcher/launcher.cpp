@@ -4,15 +4,21 @@
  */
 
 #include <jni.h>
-#include <dirent.h>
-#include <dlfcn.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "../incbin.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#include <malloc.h>
+#else
+#include <dirent.h>
+#include <dlfcn.h>
+#include <limits.h>
+#endif
 
 
 #define APP_BINARY "jfrconv"
@@ -24,33 +30,53 @@ INCLUDE_HELPER_CLASS(EMBEDDED_CLASS_LOADER, CLASS_BYTES, "one/profiler/EmbeddedC
 INCBIN(CONVERTER_JAR, "build/jar/jfr-converter.jar")
 
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(_WIN32)
 // There is no arch subdirectory in macOS JDK bundles
-#define ARCH ""
+#  define ARCH ""
 #elif defined(__x86_64__)
-#define ARCH "amd64"
+#  define ARCH "amd64"
 #elif defined(__i386__)
-#define ARCH "i386"
+#  define ARCH "i386"
 #elif defined(__arm__) || defined(__thumb__)
-#define ARCH "arm"
+#  define ARCH "arm"
 #elif defined(__aarch64__)
-#define ARCH "aarch64"
+#  define ARCH "aarch64"
 #elif defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-#define ARCH "ppc64le"
+#  define ARCH "ppc64le"
 #elif defined(__riscv) && (__riscv_xlen == 64)
-#define ARCH "riscv64"
+#  define ARCH "riscv64"
 #elif defined(__loongarch_lp64)
-#define ARCH "loongarch64"
+#  define ARCH "loongarch64"
 #endif
 
 #if defined(__APPLE__)
-#define COMMON_JVM_DIR "/Library/Java/JavaVirtualMachines/"
-#define CONTENTS_HOME  "/Contents/Home"
-#define LIBJVM         "libjvm.dylib"
+#  define COMMON_JVM_DIR "/Library/Java/JavaVirtualMachines/"
+#  define CONTENTS_HOME  "/Contents/Home"
+#  define LIB_DIR        "lib"
+#  define LIBJVM         "libjvm.dylib"
+#  define PATH_SEP       ":"
+#  define SLASH          '/'
+#elif defined(_WIN32)
+#  define COMMON_JVM_DIR "C:\\Program Files\\Java\\"
+#  define CONTENTS_HOME  ""
+#  define LIB_DIR        "bin"
+#  define LIBJVM         "jvm.dll"
+#  define PATH_SEP       ";"
+#  define SLASH          '\\'
 #else
-#define COMMON_JVM_DIR "/usr/lib/jvm/"
-#define CONTENTS_HOME  ""
-#define LIBJVM         "libjvm.so"
+#  define COMMON_JVM_DIR "/usr/lib/jvm/"
+#  define CONTENTS_HOME  ""
+#  define LIB_DIR        "lib"
+#  define LIBJVM         "libjvm.so"
+#  define PATH_SEP       ":"
+#  define SLASH          '/'
+#endif
+
+#ifdef _WIN32
+#  define PATH_MAX            MAX_PATH
+#  define dlopen(name, _)     LoadLibrary(name)
+#  define dlsym(lib, name)    GetProcAddress((HMODULE)lib, name)
+#  define realpath(path, buf) _fullpath(buf, path, MAX_PATH)
 #endif
 
 
@@ -81,21 +107,21 @@ static void* find_libjvm_at(const char* path, const char* path1 = "", const char
         return NULL;
     }
 
-    char* p = strrchr(java_home, '/');
+    char* p = strrchr(java_home, SLASH);
     if (p != NULL) {
         *p = 0;  // strip /java
     }
-    if ((p = strrchr(java_home, '/')) != NULL) {
+    if ((p = strrchr(java_home, SLASH)) != NULL) {
         *p = 0;  // strip /bin
     }
 
     void* libjvm;
-    if ((libjvm = load_libjvm(java_home, "lib/server")) == NULL &&
-        (libjvm = load_libjvm(java_home, "lib/client")) == NULL &&
-        (libjvm = load_libjvm(java_home, "lib/" ARCH "/server")) == NULL &&
-        (libjvm = load_libjvm(java_home, "lib/" ARCH "/client")) == NULL &&
-        (libjvm = load_libjvm(java_home, "jre/lib/" ARCH "/server")) == NULL &&
-        (libjvm = load_libjvm(java_home, "jre/lib/" ARCH "/client")) == NULL) {
+    if ((libjvm = load_libjvm(java_home, LIB_DIR "/server")) == NULL &&
+        (libjvm = load_libjvm(java_home, LIB_DIR "/client")) == NULL &&
+        (libjvm = load_libjvm(java_home, LIB_DIR "/" ARCH "/server")) == NULL &&
+        (libjvm = load_libjvm(java_home, LIB_DIR "/" ARCH "/client")) == NULL &&
+        (libjvm = load_libjvm(java_home, "jre/" LIB_DIR "/" ARCH "/server")) == NULL &&
+        (libjvm = load_libjvm(java_home, "jre/" LIB_DIR "/" ARCH "/client")) == NULL) {
         // No libjvm.so found at this path
     }
 
@@ -113,7 +139,7 @@ static void* find_libjvm() {
     char* path = getenv("PATH");
     char* path_copy;
     if (path != NULL && (path_copy = strdup(path)) != NULL) {
-        for (char* java_bin = strtok(path_copy, ":"); java_bin != NULL; java_bin = strtok(NULL, ":")) {
+        for (char* java_bin = strtok(path_copy, PATH_SEP); java_bin != NULL; java_bin = strtok(NULL, PATH_SEP)) {
             if ((libjvm = find_libjvm_at(java_bin, "/java")) != NULL) {
                 free(path_copy);
                 return libjvm;
@@ -122,10 +148,27 @@ static void* find_libjvm() {
         free(path_copy);
     }
 
+#ifdef __linux__
     if ((libjvm = find_libjvm_at("/etc/alternatives/java")) != NULL) {
         return libjvm;
     }
+#endif
 
+#ifdef _WIN32
+    WIN32_FIND_DATA entry;
+    HANDLE dir = FindFirstFile(COMMON_JVM_DIR, &entry);
+    if (dir != INVALID_HANDLE_VALUE) {
+        do {
+            if (entry.cFileName[0] != '.' && (entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+                if ((libjvm = find_libjvm_at(COMMON_JVM_DIR, entry.cFileName, CONTENTS_HOME "/bin/java")) != NULL) {
+                    CloseHandle(dir);
+                    return libjvm;
+                }
+            }
+        } while (FindNextFile(dir, &entry));
+        CloseHandle(dir);
+    }
+#else
     DIR* dir = opendir(COMMON_JVM_DIR);
     if (dir != NULL) {
         struct dirent* entry;
@@ -139,6 +182,7 @@ static void* find_libjvm() {
         }
         closedir(dir);
     }
+#endif
 
     return NULL;
 }
@@ -155,7 +199,7 @@ static int run_jvm(void* libjvm, int argc, char** argv) {
         return 1;
     }
 
-    JavaVMOption options[argc + 2];
+    JavaVMOption* options = (JavaVMOption*)alloca((argc + 2) * sizeof(JavaVMOption));
     int o_count = 0;
     options[o_count++].optionString = (char*)"-Dsun.java.command=" APP_BINARY;
     options[o_count++].optionString = (char*)"-Xss2M";
@@ -173,12 +217,11 @@ static int run_jvm(void* libjvm, int argc, char** argv) {
 
     JavaVM* vm;
     JNIEnv* env;
-    JavaVMInitArgs args = {
-        .version = JNI_VERSION_1_6,
-        .nOptions = o_count,
-        .options = options,
-        .ignoreUnrecognized = JNI_TRUE
-    };
+    JavaVMInitArgs args;
+    args.version = JNI_VERSION_1_6;
+    args.nOptions = o_count;
+    args.options = options;
+    args.ignoreUnrecognized = JNI_TRUE;
 
     int res = JNI_CreateJavaVM(&vm, (void**)&env, &args);
     if (res != 0) {
