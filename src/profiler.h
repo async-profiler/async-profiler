@@ -183,7 +183,7 @@ class Profiler {
     }
 
     u64 total_samples() { return _total_samples; }
-    time_t uptime()     { return time(NULL) - _start_time; }
+    long uptime()       { return time(NULL) - _start_time; }
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }

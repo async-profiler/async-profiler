@@ -72,7 +72,8 @@ static void* resolveMethodId(void** mid) {
     return mid == NULL || *mid < (void*)4096 ? NULL : *mid;
 }
 
-static void resolveMethodIdEnd() {
+static void* resolveMethodIdEnd() {
+    return NULL;
 }
 
 

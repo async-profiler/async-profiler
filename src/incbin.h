@@ -10,7 +10,7 @@
 #  define INCBIN_SECTION ".const_data"
 #  define INCBIN_SYMBOL  "_"
 #else
-#  define INCBIN_SECTION ".section \".rodata\", \"a\", @progbits"
+#  define INCBIN_SECTION ".section \".rodata\", \"a\""
 #  define INCBIN_SYMBOL
 #endif
 
