@@ -89,6 +89,8 @@ enum JfrOption {
     NO_CPU_LOAD     = 0x8,
     NO_HEAP_SUMMARY = 0x10,
 
+    IN_MEMORY       = 0x100,
+
     JFR_SYNC_OPTS   = NO_SYSTEM_INFO | NO_SYSTEM_PROPS | NO_NATIVE_LIBS | NO_CPU_LOAD | NO_HEAP_SUMMARY
 };
 

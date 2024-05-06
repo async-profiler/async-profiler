@@ -173,7 +173,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("jfrsync")
                 _output = OUTPUT_JFR;
-                _jfr_options = JFR_SYNC_OPTS;
+                _jfr_options |= JFR_SYNC_OPTS;
                 _jfr_sync = value == NULL ? "default" : value;
 
             CASE("traces")

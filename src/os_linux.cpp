@@ -350,6 +350,10 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
     return real;
 }
 
+int OS::createMemoryFile(const char* name) {
+    return syscall(__NR_memfd_create, name, 0);
+}
+
 void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
     // copy_file_range() is probably better, but not supported on all kernels
     while (size > 0) {

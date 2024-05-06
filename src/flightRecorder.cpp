@@ -424,6 +424,7 @@ class Recording {
 
     RecordingBuffer _buf[CONCURRENCY_LEVEL];
     int _fd;
+    int _memfd;
     char* _master_recording_file;
     off_t _chunk_start;
     ThreadFilter _thread_set;
@@ -442,6 +443,7 @@ class Recording {
     int _available_processors;
     int _recorded_lib_count;
 
+    bool _in_memory;
     bool _cpu_monitor_enabled;
     bool _heap_monitor_enabled;
     u32 _last_gc_id;
@@ -460,6 +462,7 @@ class Recording {
         _start_ticks = TSC::ticks();
         _base_id = 0;
         _bytes_written = 0;
+        _in_memory = false;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -485,6 +488,10 @@ class Recording {
         }
         flush(_buf);
 
+        if (args.hasOption(IN_MEMORY) && (_memfd = OS::createMemoryFile("async-profiler-recording")) >= 0) {
+            _in_memory = true;
+        }
+
         _cpu_monitor_enabled = !args.hasOption(NO_CPU_LOAD);
         if (_cpu_monitor_enabled) {
             _last_times.proc.real = OS::getProcessCpuTime(&_last_times.proc.user, &_last_times.proc.system);
@@ -497,6 +504,10 @@ class Recording {
 
     ~Recording() {
         off_t chunk_end = finishChunk();
+
+        if (_memfd >= 0) {
+            close(_memfd);
+        }
 
         if (_master_recording_file != NULL) {
             appendRecording(_master_recording_file, chunk_end);
@@ -517,6 +528,11 @@ class Recording {
 
         _stop_time = OS::micros();
         _stop_ticks = TSC::ticks();
+
+        if (_memfd >= 0) {
+            OS::copyFile(_memfd, _fd, 0, lseek(_memfd, 0, SEEK_CUR));
+            _in_memory = false;
+        }
 
         off_t cpool_offset = lseek(_fd, 0, SEEK_CUR);
         writeCpool(_buf);
@@ -563,6 +579,11 @@ class Recording {
         writeMetadata(_buf);
         writeRecordingInfo(_buf);
         flush(_buf);
+
+        if (_memfd >= 0) {
+            while (ftruncate(_memfd, 0) < 0 && errno == EINTR);  // restart if interrupted
+            _in_memory = true;
+        }
     }
 
     bool needSwitchChunk(u64 wall_time) {
@@ -570,7 +591,8 @@ class Recording {
     }
 
     size_t usedMemory() {
-        return _method_map.usedMemory() + _thread_set.usedMemory();
+        return _method_map.usedMemory() + _thread_set.usedMemory() +
+               (_memfd >= 0 ? lseek(_memfd, 0, SEEK_CUR) : 0);
     }
 
     void cpuMonitorCycle() {
@@ -695,7 +717,7 @@ class Recording {
     }
 
     void flush(Buffer* buf) {
-        ssize_t result = write(_fd, buf->data(), buf->offset());
+        ssize_t result = write(_in_memory ? _memfd : _fd, buf->data(), buf->offset());
         if (result > 0) {
             atomicInc(_bytes_written, result);
         }
