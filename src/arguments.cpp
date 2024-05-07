@@ -63,7 +63,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     flamegraph       - produce Flame Graph in HTML format
 //     tree             - produce call tree in HTML format
 //     jfr              - dump events in Java Flight Recorder format
-//     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler 
+//     jfropts=OPTIONS  - JFR recording options: numeric bitmask or 'mem'
+//     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler
 //     traces[=N]       - dump top N call traces
 //     flat[=N]         - dump top N methods (aka flat profile)
 //     samples          - count the number of samples (default)
@@ -167,13 +168,20 @@ Error Arguments::parse(const char* args) {
 
             CASE("jfr")
                 _output = OUTPUT_JFR;
-                if (value != NULL) {
+
+            CASE("jfropts")
+                _output = OUTPUT_JFR;
+                if (value == NULL) {
+                    msg = "Invalid jfropts";
+                } else if (value[0] >= '0' && value[0] <= '9') {
                     _jfr_options = (int)strtol(value, NULL, 0);
+                } else if (strstr(value, "mem")) {
+                    _jfr_options |= IN_MEMORY;
                 }
 
             CASE("jfrsync")
                 _output = OUTPUT_JFR;
-                _jfr_options = JFR_SYNC_OPTS;
+                _jfr_options |= JFR_SYNC_OPTS;
                 _jfr_sync = value == NULL ? "default" : value;
 
             CASE("traces")

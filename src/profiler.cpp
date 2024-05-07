@@ -1337,7 +1337,8 @@ Error Profiler::dump(Writer& out, Arguments& args) {
 
 void Profiler::printUsedMemory(Writer& out) {
     size_t call_trace_storage = _call_trace_storage.usedMemory();
-    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory() + _jfr.usedMemory();
+    size_t flight_recording = _jfr.usedMemory();
+    size_t dictionaries = _class_map.usedMemory() + _symbol_map.usedMemory() + _thread_filter.usedMemory();
 
     size_t code_cache = _runtime_stubs.usedMemory();
     int native_lib_count = _native_libs.count();
@@ -1350,12 +1351,13 @@ void Profiler::printUsedMemory(Writer& out) {
     const size_t KB = 1024;
     snprintf(buf, sizeof(buf) - 1,
              "Call trace storage: %7zu KB\n"
+             "  Flight recording: %7zu KB\n"
              "      Dictionaries: %7zu KB\n"
              "        Code cache: %7zu KB\n"
              "------------------------------\n"
              "             Total: %7zu KB\n",
-             call_trace_storage / KB, dictionaries / KB, code_cache / KB,
-             (call_trace_storage + dictionaries + code_cache) / KB);
+             call_trace_storage / KB, flight_recording / KB, dictionaries / KB, code_cache / KB,
+             (call_trace_storage + flight_recording + dictionaries + code_cache) / KB);
     out << buf;
 }
 

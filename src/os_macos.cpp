@@ -326,6 +326,11 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
     return user + system + idle;
 }
 
+int OS::createMemoryFile(const char* name) {
+    // Not supported on macOS
+    return -1;
+}
+
 void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
     char* buf = (char*)mmap(NULL, size + offset, PROT_READ, MAP_PRIVATE, src_fd, 0);
     if (buf == NULL) {
