@@ -78,6 +78,7 @@ static const char USAGE_STRING[] =
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
     "  --ttsp            time-to-safepoint profiling\n"
+    "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "                    from the non-privileged target\n"

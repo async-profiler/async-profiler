@@ -455,6 +455,10 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   only events between the safepoint request and the start of the VM operation
   will be recorded.
 
+* `--jfropts OPTIONS` - comma separated list of JFR recording options. The only
+  option currently supported is `mem`: accumulate events in memory instead of
+  flushing synchronously to a file.
+
 * `--jfrsync CONFIG` - start Java Flight Recording with the given configuration
   synchronously with the profiler. The output .jfr file will include all regular
   JFR events, except that execution samples will be obtained from async-profiler.
