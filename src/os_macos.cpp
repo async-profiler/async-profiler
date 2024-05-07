@@ -16,6 +16,7 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#include <stdio.h>
 #include <time.h>
 #include <unistd.h>
 #include "os.h"
@@ -327,8 +328,13 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
 }
 
 int OS::createMemoryFile(const char* name) {
-    // TODO: Use shm_open
-    return -1;
+    char buf[128];
+    snprintf(buf, sizeof(buf), "%.100s.%d", name, processId());
+    int fd = shm_open(buf, O_RDWR | O_CREAT | O_TRUNC, 0600);
+    if (fd >= 0) {
+        shm_unlink(buf);
+    }
+    return fd;
 }
 
 void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
