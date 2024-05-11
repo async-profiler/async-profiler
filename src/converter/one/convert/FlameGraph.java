@@ -137,7 +137,7 @@ public class FlameGraph implements Comparator<Frame> {
             for (Frame child : frame.values()) {
                 stack.push(strings[child.getTitleIndex()], child.getType());
                 rebuild(child, stack, strings);
-                stack.size--;
+                stack.pop();
             }
         }
     }

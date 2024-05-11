@@ -22,6 +22,10 @@ public class CallStack {
         size++;
     }
 
+    public void pop() {
+        size--;
+    }
+
     public void clear() {
         size = 0;
     }
