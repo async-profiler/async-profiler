@@ -462,6 +462,7 @@ class Recording {
         _start_ticks = TSC::ticks();
         _base_id = 0;
         _bytes_written = 0;
+        _memfd = -1;
         _in_memory = false;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
