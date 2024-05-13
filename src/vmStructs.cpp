@@ -45,16 +45,17 @@ int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_anchor_fp_offset = -1;
 int VMStructs::_frame_size_offset = -1;
 int VMStructs::_frame_complete_offset = -1;
-int VMStructs::_code_begin_offset = -1;
-int VMStructs::_scopes_begin_offset = -1;
+int VMStructs::_code_offset = -1;
+int VMStructs::_data_offset = -1;
+int VMStructs::_scopes_pcs_offset = -1;
+int VMStructs::_scopes_data_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
 int VMStructs::_nmethod_method_offset = -1;
 int VMStructs::_nmethod_entry_offset = -1;
 int VMStructs::_nmethod_state_offset = -1;
 int VMStructs::_nmethod_level_offset = -1;
 int VMStructs::_nmethod_metadata_offset = -1;
-int VMStructs::_nmethod_pcs_begin_offset = -1;
-int VMStructs::_nmethod_pcs_end_offset = -1;
+int VMStructs::_nmethod_immutable_offset = -1;
 int VMStructs::_method_constmethod_offset = -1;
 int VMStructs::_method_code_offset = -1;
 int VMStructs::_constmethod_constants_offset = -1;
@@ -66,6 +67,7 @@ int VMStructs::_array_data_offset = -1;
 int VMStructs::_code_heap_memory_offset = -1;
 int VMStructs::_code_heap_segmap_offset = -1;
 int VMStructs::_code_heap_segment_shift = -1;
+int VMStructs::_heap_block_used_offset = -1;
 int VMStructs::_vs_low_bound_offset = -1;
 int VMStructs::_vs_high_bound_offset = -1;
 int VMStructs::_vs_low_offset = -1;
@@ -192,22 +194,24 @@ void VMStructs::initOffsets() {
             } else if (strcmp(type, "CompiledMethod") == 0 || strcmp(type, "nmethod") == 0) {
                 if (strcmp(field, "_method") == 0) {
                     _nmethod_method_offset = *(int*)(entry + offset_offset);
-                } else if (strcmp(field, "_verified_entry_point") == 0) {
+                } else if (strcmp(field, "_verified_entry_offset") == 0) {
                     _nmethod_entry_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_verified_entry_point") == 0) {
+                    _nmethod_entry_offset = - *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_state") == 0) {
                     _nmethod_state_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_comp_level") == 0) {
                     _nmethod_level_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_metadata_offset") == 0) {
                     _nmethod_metadata_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_immutable_data") == 0) {
+                    _nmethod_immutable_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_scopes_pcs_offset") == 0) {
-                    _nmethod_pcs_begin_offset = *(int*)(entry + offset_offset);
-                } else if (strcmp(field, "_dependencies_offset") == 0) {
-                    _nmethod_pcs_end_offset = *(int*)(entry + offset_offset);
-                } else if (strcmp(field, "_scopes_data_begin") == 0) {
-                    _scopes_begin_offset = *(int*)(entry + offset_offset);
+                    _scopes_pcs_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_scopes_data_offset") == 0) {
-                    _scopes_begin_offset = - *(int*)(entry + offset_offset);
+                    _scopes_data_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_scopes_data_begin") == 0) {
+                    _scopes_data_offset = - *(int*)(entry + offset_offset);
                 }
             } else if (strcmp(type, "Method") == 0) {
                 if (strcmp(field, "_constMethod") == 0) {
@@ -284,10 +288,12 @@ void VMStructs::initOffsets() {
                     _frame_size_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_frame_complete_offset") == 0) {
                     _frame_complete_offset = *(int*)(entry + offset_offset);
-                } else if (strcmp(field, "_code_begin") == 0) {
-                    _code_begin_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_code_offset") == 0) {
-                    _code_begin_offset = - *(int*)(entry + offset_offset);
+                    _code_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_code_begin") == 0) {
+                    _code_offset = - *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_data_offset") == 0) {
+                    _data_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_name") == 0) {
                     _nmethod_name_offset = *(int*)(entry + offset_offset);
                 }
@@ -308,6 +314,10 @@ void VMStructs::initOffsets() {
                     _code_heap_segmap_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_log2_segment_size") == 0) {
                     _code_heap_segment_shift = *(int*)(entry + offset_offset);
+                }
+            } else if (strcmp(type, "HeapBlock::Header") == 0) {
+                if (strcmp(field, "_used") == 0) {
+                    _heap_block_used_offset = *(int*)(entry + offset_offset);
                 }
             } else if (strcmp(type, "VirtualSpace") == 0) {
                 if (strcmp(field, "_low_boundary") == 0) {
@@ -419,7 +429,7 @@ void VMStructs::resolveOffsets() {
 
     _has_method_structs = _jmethod_ids_offset >= 0
             && _nmethod_method_offset >= 0
-            && _nmethod_entry_offset >= 0
+            && _nmethod_entry_offset != -1
             && _nmethod_state_offset >= 0
             && _method_constmethod_offset >= 0
             && _method_code_offset >= 0
@@ -455,11 +465,11 @@ void VMStructs::resolveOffsets() {
 
     _has_stack_structs = _has_method_structs
             && _interpreter_frame_bcp_offset != 0
-            && _code_begin_offset != -1
-            && _scopes_begin_offset != -1
+            && _code_offset != -1
+            && _scopes_data_offset != -1
+            && _scopes_pcs_offset >= 0
+            && _nmethod_immutable_offset < 0  // TODO: not yet supported
             && _nmethod_metadata_offset >= 0
-            && _nmethod_pcs_begin_offset >= 0
-            && _nmethod_pcs_end_offset >= 0
             && _thread_vframe_offset >= 0
             && _thread_exception_offset >= 0
             && _constmethod_size >= 0;
@@ -484,7 +494,8 @@ void VMStructs::resolveOffsets() {
         _code_heap_segment_shift = *(int*)(_code_heap[0] + _code_heap_segment_shift);
     }
     if (_code_heap_memory_offset < 0 || _code_heap_segmap_offset < 0 ||
-        _code_heap_segment_shift < 0 || _code_heap_segment_shift > 16) {
+        _code_heap_segment_shift < 0 || _code_heap_segment_shift > 16 ||
+        _heap_block_used_offset < 0) {
         memset(_code_heap, 0, sizeof(_code_heap));
     }
 
@@ -643,8 +654,8 @@ NMethod* CodeHeap::findNMethod(char* heap, const void* pc) {
         idx -= segmap[idx];
     }
 
-    unsigned char* block = heap_start + (idx << _code_heap_segment_shift);
-    return block[sizeof(size_t)] ? (NMethod*)(block + 2 * sizeof(size_t)) : NULL;
+    unsigned char* block = heap_start + (idx << _code_heap_segment_shift) + _heap_block_used_offset;
+    return *block ? align<NMethod*>(block + sizeof(uintptr_t)) : NULL;
 }
 
 JVMFlag* JVMFlag::find(const char* name) {
@@ -665,8 +676,9 @@ int NMethod::findScopeOffset(const void* pc) {
         return -1;
     }
 
-    PcDesc* pcd = (PcDesc*) at(*(int*) at(_nmethod_pcs_begin_offset));
-    PcDesc* pcd_end = (PcDesc*) at(*(int*) at(_nmethod_pcs_end_offset));
+    const int* scopes_pcs = (const int*) at(_scopes_pcs_offset);
+    PcDesc* pcd = (PcDesc*) at(scopes_pcs[0]);
+    PcDesc* pcd_end = (PcDesc*) at(scopes_pcs[1]);
     int low = 0;
     int high = (pcd_end - pcd) - 1;
 
