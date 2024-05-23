@@ -127,8 +127,10 @@ uintptr_t VMStructs::readSymbol(const char* symbol_name) {
 void VMStructs::init(CodeCache* libjvm) {
     _libjvm = libjvm;
 
-    initOffsets();
-    initJvmFunctions();
+    if (!VM::isOpenJ9() && !VM::isZing()) {
+        initOffsets();
+        initJvmFunctions();
+    }
 }
 
 // Run when VM is initialized and JNI is available
@@ -506,9 +508,7 @@ void VMStructs::resolveOffsets() {
 }
 
 void VMStructs::initJvmFunctions() {
-    if (!VM::isOpenJ9() && !VM::isZing()) {
-        _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
-    }
+    _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
 
     if (VM::hotspot_version() == 8) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
@@ -618,7 +618,7 @@ int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
         VMThread* vm_thread = fromJavaThread(jni, thread);
         return vm_thread != NULL ? vm_thread->osThreadId() : -1;
     }
-    return J9Ext::GetOSThreadID(thread);
+    return VM::isOpenJ9() ? J9Ext::GetOSThreadID(thread) : -1;
 }
 
 jmethodID VMMethod::id() {
