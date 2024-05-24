@@ -396,9 +396,20 @@ class NMethod : VMStructs {
         return *(short*) at(_frame_complete_offset);
     }
 
-    // TODO: offset is short on JDK 23+
     void setFrameCompleteOffset(int offset) {
-        *(int*) at(_frame_complete_offset) = offset;
+        if (_nmethod_immutable_offset > 0) {
+            // _frame_complete_offset is short on JDK 23+
+            *(short*) at(_frame_complete_offset) = offset;
+        } else {
+            *(int*) at(_frame_complete_offset) = offset;
+        }
+    }
+
+    const char* immutableDataAt(int offset) {
+        if (_nmethod_immutable_offset > 0) {
+            return *(const char**) at(_nmethod_immutable_offset) + offset;
+        }
+        return at(offset);
     }
 
     const char* code() {
@@ -411,7 +422,7 @@ class NMethod : VMStructs {
 
     const char* scopes() {
         if (_scopes_data_offset > 0) {
-            return at(*(int*) at(_scopes_data_offset));
+            return immutableDataAt(*(int*) at(_scopes_data_offset));
         } else {
             return *(const char**) at(-_scopes_data_offset);
         }
@@ -464,6 +475,9 @@ class NMethod : VMStructs {
     }
 
     VMMethod** metadata() {
+        if (_data_offset > 0) {
+            return (VMMethod**) at(*(int*) at(_data_offset) + *(unsigned short*) at(_nmethod_metadata_offset));
+        }
         return (VMMethod**) at(*(int*) at(_nmethod_metadata_offset));
     }
 
@@ -556,7 +570,8 @@ class PcDesc {
 
 class ScopeDesc : VMStructs {
   private:
-    NMethod* _nm;
+    const unsigned char* _scopes;
+    VMMethod** _metadata;
     const unsigned char* _stream;
     int _method_offset;
     int _bci;
@@ -564,11 +579,13 @@ class ScopeDesc : VMStructs {
     int readInt();
 
   public:
-    ScopeDesc(NMethod* nm) : _nm(nm) {
+    ScopeDesc(NMethod* nm) {
+        _scopes = (const unsigned char*)nm->scopes();
+        _metadata = nm->metadata();
     }
 
     int decode(int offset) {
-        _stream = (const unsigned char*)_nm->scopes() + offset;
+        _stream = _scopes + offset;
         int sender_offset = readInt();
         _method_offset = readInt();
         _bci = readInt() - 1;
@@ -576,7 +593,7 @@ class ScopeDesc : VMStructs {
     }
 
     VMMethod* method() {
-        return _method_offset > 0 ? _nm->metadata()[_method_offset - 1] : NULL;
+        return _method_offset > 0 ? _metadata[_method_offset - 1] : NULL;
     }
 
     int bci() {

@@ -465,12 +465,17 @@ void VMStructs::resolveOffsets() {
         _call_stub_return = *_call_stub_return_addr;
     }
 
+    // Since JDK 23, _metadata_offset is relative to _data_offset. See metadata()
+    if (_nmethod_immutable_offset < 0) {
+        _data_offset = 0;
+    }
+
     _has_stack_structs = _has_method_structs
             && _interpreter_frame_bcp_offset != 0
             && _code_offset != -1
+            && _data_offset >= 0
             && _scopes_data_offset != -1
             && _scopes_pcs_offset >= 0
-            && _nmethod_immutable_offset < 0  // TODO: not yet supported
             && _nmethod_metadata_offset >= 0
             && _thread_vframe_offset >= 0
             && _thread_exception_offset >= 0
@@ -677,8 +682,8 @@ int NMethod::findScopeOffset(const void* pc) {
     }
 
     const int* scopes_pcs = (const int*) at(_scopes_pcs_offset);
-    PcDesc* pcd = (PcDesc*) at(scopes_pcs[0]);
-    PcDesc* pcd_end = (PcDesc*) at(scopes_pcs[1]);
+    PcDesc* pcd = (PcDesc*) immutableDataAt(scopes_pcs[0]);
+    PcDesc* pcd_end = (PcDesc*) immutableDataAt(scopes_pcs[1]);
     int low = 0;
     int high = (pcd_end - pcd) - 1;
 
