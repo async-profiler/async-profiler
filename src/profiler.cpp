@@ -687,6 +687,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
 
+    if (_trace_streamer.attached()) {
+        Log::debug("Concurrency level is %d, lock index is %d", CONCURRENCY_LEVEL, lock_index);
+        _trace_streamer.streamTrace(num_frames, frames, counter, lock_index);
+    }
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
@@ -1113,6 +1117,14 @@ Error Profiler::start(Arguments& args, bool reset) {
 
     _update_thread_names = args._threads || args._output == OUTPUT_JFR;
     _thread_filter.init(args._filter);
+
+    if (args._fifo) {
+        int max_stack_depth = sizeof(_calltrace_buffer[0]) / sizeof(CallTraceBuffer);
+        const char* err = _trace_streamer.attachFrameName(args._fifo, max_stack_depth, CONCURRENCY_LEVEL, args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
+        if (err)
+            return Error(err);
+        Log::info("Attached streamer");
+    }
 
     _engine = selectEngine(args._event);
     if (_engine == &wall_clock && args._wall >= 0) {

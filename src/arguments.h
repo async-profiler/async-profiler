@@ -198,6 +198,7 @@ class Arguments {
     const char* _title;
     double _minwidth;
     bool _reverse;
+    const char* _fifo;
 
     Arguments() :
         _buf(NULL),
@@ -245,7 +246,8 @@ class Arguments {
         _end(NULL),
         _title(NULL),
         _minwidth(0),
-        _reverse(false) {
+        _reverse(false), 
+        _fifo(NULL) {
     }
 
     ~Arguments();

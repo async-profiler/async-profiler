@@ -6,6 +6,7 @@
 #include <string.h>
 #include "callTraceStorage.h"
 #include "os.h"
+#include <fcntl.h>
 
 
 static const u32 INITIAL_CAPACITY = 65536;
@@ -288,4 +289,96 @@ void CallTraceStorage::add(u32 call_trace_id, u64 counter) {
             break;
         }
     }
+}
+
+CallTraceStreamer::~CallTraceStreamer() {
+    _attached = false;
+    if (_fifo_fd >= 0)
+        close(_fifo_fd);
+    if (_read_fd >= 0)
+        close(_read_fd);
+    if (_msg_buffer) {
+        for (int i = 0; i < _concurrency_level; i++) {
+            if (_msg_buffer[i])
+                delete[] _msg_buffer[i];
+        }
+        delete[] _msg_buffer;
+    }
+}
+
+const char* CallTraceStreamer::attachFrameName(const char* fifo_name, int max_stack_depth, int concurrency_level, Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names) {
+
+    _fifo_fd = open(fifo_name, O_WRONLY | O_NONBLOCK);
+    if (_fifo_fd < 0) {
+        if (errno == ENXIO)
+            return "Fifo is not ready for reading";
+        std::string err_msg = "Failed to open fifo for writing ";
+        const char* err_desc = strerror(errno);
+        err_msg += err_desc;
+        return err_msg.c_str();
+    }
+    // we cannot afford SIGPIPE if collector dies
+    _read_fd = open(fifo_name, O_RDONLY | O_NONBLOCK);
+    if (_read_fd < 0) {
+        return "Failed to open fifo for reading";
+    }
+
+    int pages = max_stack_depth * 100 / 65536;
+    if (max_stack_depth * 100 % 65536 != 0)
+        pages++;
+    
+    int estimated_pipe_buffer = pages * 65536;
+    
+    // attempth to increase buffer
+    fcntl(_fifo_fd, F_SETPIPE_SZ, estimated_pipe_buffer);
+
+    _buffer_size = fcntl(_fifo_fd, F_GETPIPE_SZ);
+    _concurrency_level = concurrency_level;
+    //if (_msg_buffer == NULL)
+    _msg_buffer = new char*[concurrency_level];
+    for (int i = 0; i < concurrency_level; i++) {
+       //if (_msg_buffer[i])
+       //     delete[] _msg_buffer[i];
+        _msg_buffer[i] = new char[_buffer_size];
+    }
+
+    // 128 + 4 + _max_stack_depth = _max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES
+    _fn = std::make_unique<FrameName>(args, args._style | STYLE_NO_SEMICOLON, epoch, thread_names_lock, thread_names);
+
+    _attached = true;
+    return NULL;
+}
+
+bool CallTraceStreamer::attached() const {
+    return _attached;
+}
+
+int CallTraceStreamer::streamTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter, int lock_index) {
+    if (!_attached)
+        return 0;
+    // we should check overflow everywhere, but no point fo PoC
+    int curr = HEADER_OFFSET;
+    for (int i = 0; i < num_frames; i++) {
+        const char* name = _fn->name(frames[i]);
+        size_t len = strlen(name);
+        for (size_t l = 0; l < len; l++, curr++) {
+            _msg_buffer[lock_index][curr] = name[l];
+        }
+        _msg_buffer[lock_index][curr++] = ';';
+    }
+    _msg_buffer[lock_index][curr++] = '\n'; //debug mostly
+    int body_size = curr - HEADER_OFFSET;
+    _msg_buffer[lock_index][0] = body_size & 0xff;
+    _msg_buffer[lock_index][1] = (body_size>>8)  & 0xff;
+    _msg_buffer[lock_index][2] = (body_size>>16) & 0xff;
+    _msg_buffer[lock_index][3] = (body_size>>24) & 0xff;
+
+    int tries = 0;
+    ssize_t written = 0;
+    do {
+        written = write(_fifo_fd, _msg_buffer[lock_index], (size_t)curr);
+        tries++;
+    } while (written != (ssize_t)curr && tries < TRIES_LIMIT && is_eagain());
+    
+    return written;
 }

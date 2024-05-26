@@ -225,6 +225,12 @@ Error Arguments::parse(const char* args) {
                     msg = "Invalid loop duration";
                 }
 
+            CASE("fifo")
+                if (value == NULL || value[0] == 0) {
+                    msg = "fifo must not be empty";
+                }
+                _fifo = value;
+
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
 

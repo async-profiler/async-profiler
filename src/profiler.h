@@ -28,7 +28,7 @@
 
 const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;
-const int CONCURRENCY_LEVEL = 16;
+const int CONCURRENCY_LEVEL = 1;
 
 
 union CallTraceBuffer {
@@ -93,6 +93,8 @@ class Profiler {
     CodeCacheArray _native_libs;
     const void* _call_stub_begin;
     const void* _call_stub_end;
+
+    CallTraceStreamer _trace_streamer;
 
     // dlopen() hook support
     void** _dlopen_entry;

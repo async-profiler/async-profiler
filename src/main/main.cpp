@@ -433,6 +433,8 @@ int main(int argc, const char** argv) {
                 params << ",event=" << event;
             }
 
+        } else if (arg == "--fifo") {
+            params << ",fifo=" << args.next();
         } else if (arg == "-i" || arg == "--interval") {
             params << ",interval=" << args.next();
 
@@ -545,6 +547,8 @@ int main(int argc, const char** argv) {
 
     setup_output_files(pid);
     setup_lib_path();
+
+    fprintf(stderr, "params: %s\n", params.str());
 
     if (action == "collect") {
         run_fdtransfer(pid, fdtransfer);

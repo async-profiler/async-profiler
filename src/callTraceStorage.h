@@ -8,9 +8,11 @@
 
 #include <map>
 #include <vector>
+#include <memory>
 #include "arch.h"
 #include "linearAllocator.h"
 #include "vmEntry.h"
+#include "frameName.h"
 
 
 class LongHashTable;
@@ -70,6 +72,37 @@ class CallTraceStorage {
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void add(u32 call_trace_id, u64 counter);
+};
+
+class CallTraceStreamer {
+
+private:
+        static const int TRIES_LIMIT = 0;
+        static const int HEADER_OFFSET = 4;
+
+        static bool is_eagain() {
+            return errno == EAGAIN;
+        }
+
+        std::unique_ptr<FrameName> _fn;
+        int _fifo_fd = -1;
+        int _read_fd = -1;
+        int _concurrency_level = 1;
+        int _buffer_size = 0;
+        char** _msg_buffer = NULL;
+        bool _attached = false;
+
+public:
+
+    CallTraceStreamer() = default;
+    ~CallTraceStreamer();
+
+    // cannot be used with thread ids (maybe?)
+    const char* attachFrameName(const char* fifo_name, int max_stack_depth, int concurrency_level, Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
+    bool attached() const;
+    int streamTrace(int num_frames, ASGCT_CallFrame* frames, u64 counter, int lock_index);
+
+    
 };
 
 #endif // _CALLTRACESTORAGE

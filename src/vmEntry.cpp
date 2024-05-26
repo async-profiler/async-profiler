@@ -391,6 +391,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
     Error error = args.parse(options);
 
     Log::open(args);
+    Log::warn("Args are %s\n", options);
 
     if (error) {
         Log::error("%s", error.message());
