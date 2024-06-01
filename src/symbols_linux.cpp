@@ -268,7 +268,7 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
         return false;
     }
 
-    size_t length = (size_t)lseek64(fd, 0, SEEK_END);
+    size_t length = (size_t)lseek(fd, 0, SEEK_END);
     void* addr = mmap(NULL, length, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
 
