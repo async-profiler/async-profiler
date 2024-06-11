@@ -183,6 +183,8 @@ public class JfrReader implements Closeable {
                         return (E) customEvent.newInstance(this);
                     } catch (ReflectiveOperationException e) {
                         throw new IllegalStateException(e);
+                    } finally {
+                        seek(filePosition + pos + size);
                     }
                 }
             }
