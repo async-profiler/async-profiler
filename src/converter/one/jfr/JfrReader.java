@@ -53,6 +53,7 @@ public class JfrReader implements Closeable {
     public final Map<String, JfrClass> typesByName = new HashMap<>();
     public final Dictionary<String> threads = new Dictionary<>();
     public final Dictionary<ClassRef> classes = new Dictionary<>();
+    public final Dictionary<String> strings = new Dictionary<>();
     public final Dictionary<byte[]> symbols = new Dictionary<>();
     public final Dictionary<MethodRef> methods = new Dictionary<>();
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
@@ -369,6 +370,9 @@ public class JfrReader implements Closeable {
             case "java.lang.Class":
                 readClasses(type.fields.size());
                 break;
+            case "java.lang.String":
+                readStrings();
+                break;
             case "jdk.types.Symbol":
                 readSymbols();
                 break;
@@ -449,6 +453,13 @@ public class JfrReader implements Closeable {
             types[i] = buf.get();
         }
         return new StackTrace(methods, types, locations);
+    }
+
+    private void readStrings() {
+        int count = strings.preallocate(getVarint());
+        for (int i = 0; i < count; i++) {
+            strings.put(getVarlong(), getString());
+        }
     }
 
     private void readSymbols() {
@@ -578,6 +589,8 @@ public class JfrReader implements Closeable {
                 return null;
             case 1:
                 return "";
+            case 2:
+                return strings.get(getVarlong());
             case 3:
                 return new String(getBytes(), StandardCharsets.UTF_8);
             case 4: {
