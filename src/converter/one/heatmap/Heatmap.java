@@ -366,7 +366,8 @@ public class Heatmap {
     }
 
     private void debug(String text) {
-        System.out.println(text);
+        // TODO add flag?
+        // System.out.println(text);
     }
 
     private static String printTill(HtmlOut out, String tail, String till) {
