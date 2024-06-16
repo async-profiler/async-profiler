@@ -44,6 +44,7 @@ ifeq ($(OS),Darwin)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
     MERGE=false
+    SKIP_IN_RELEASE=true
   endif
 else
   CXXFLAGS += -Wl,-z,defs
@@ -102,7 +103,8 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	rm -r $(PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
-	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(LIB_PROFILER)
+	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
+	cat build/$(CONVERTER_JAR) >> $(PACKAGE_DIR)/$(JFRCONV)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
@@ -119,14 +121,10 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/main/*.cpp src/jattach/*.c
 	strip $@
 
-build/$(JFRCONV): src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp -ldl
-
-build/$(JFRCONV).exe: src/launcher/* src/incbin.h $(JAVA_HELPER_CLASSES) build/$(CONVERTER_JAR)
-	mkdir -p build/bin build/gensrc
-	(echo -n "const unsigned char CLASS_BYTES[] = {" && hexdump -v -e '1/1 "%u,"' src/helper/one/profiler/EmbeddedClassLoader.class && echo "}; const unsigned char CLASS_BYTES_END = {0};") > build/gensrc/CLASS_BYTES.c
-	(echo -n "const unsigned char CONVERTER_JAR[] = {" && hexdump -v -e '1/1 "%u,"' build/$(CONVERTER_JAR) && echo "}; const unsigned char CONVERTER_JAR_END = {0};") > build/gensrc/CONVERTER_JAR.c
-	cmd.exe /C cl /O2 /DPROFILER_VERSION=\"$(PROFILER_VERSION)\" src/launcher/*.cpp build/gensrc/*.c /Fo:build/gensrc/ /Fe:$@
+build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp
+	strip $@
+	$(SKIP_IN_RELEASE) cat build/$(CONVERTER_JAR) >> $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
