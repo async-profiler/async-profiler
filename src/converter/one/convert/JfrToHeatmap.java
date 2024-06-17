@@ -47,8 +47,8 @@ public class JfrToHeatmap extends JfrConverter {
                     type = 5;
                 }
 
-                long nsFromStart = (event.time - jfr.chunkStartTicks) * 1_000_000_000L / jfr.ticksPerSec;
-                long timeMs = TimeUnit.NANOSECONDS.toMillis(jfr.chunkStartNanos + nsFromStart);
+                long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000L / jfr.ticksPerSec;
+                long timeMs = TimeUnit.NANOSECONDS.toMillis(jfr.chunkStartNanos) + msFromStart;
 
                 heatmap.addEvent(event.stackTraceId, extra, type, timeMs);
             }
