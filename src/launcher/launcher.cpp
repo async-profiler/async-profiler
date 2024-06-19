@@ -50,11 +50,12 @@ static bool get_exe_path() {
 }
 
 static const char* const* build_cmdline(int argc, char** argv) {
-    const char** cmd = (const char**)malloc((argc + 5) * sizeof(char*));
+    const char** cmd = (const char**)malloc((argc + 6) * sizeof(char*));
     int count = 0;
 
     cmd[count++] = JAVA_EXE;
     cmd[count++] = "-Xss2M";
+    cmd[count++] = "-Dsun.misc.URLClassPath.disableJarChecking";
 
     for (; argc > 0; argc--, argv++) {
         if ((strncmp(*argv, "-D", 2) == 0 || strncmp(*argv, "-X", 2) == 0) && (*argv)[2] ||

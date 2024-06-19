@@ -44,7 +44,6 @@ ifeq ($(OS),Darwin)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
     MERGE=false
-    SKIP_IN_RELEASE=true
   endif
 else
   CXXFLAGS += -Wl,-z,defs
@@ -103,6 +102,7 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	rm -r $(PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
+	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
 	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
 	cat build/$(CONVERTER_JAR) >> $(PACKAGE_DIR)/$(JFRCONV)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
@@ -124,7 +124,7 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp
 	strip $@
-	$(SKIP_IN_RELEASE) cat build/$(CONVERTER_JAR) >> $@
+	cat build/$(CONVERTER_JAR) >> $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
