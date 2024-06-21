@@ -37,6 +37,7 @@ public class JfrReader implements Closeable {
 
     private final FileChannel ch;
     private ByteBuffer buf;
+    private final long fileSize;
     private long filePosition;
     private byte state;
 
@@ -75,6 +76,7 @@ public class JfrReader implements Closeable {
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
+        this.fileSize = ch.size();
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
@@ -86,6 +88,7 @@ public class JfrReader implements Closeable {
     public JfrReader(ByteBuffer buf) throws IOException {
         this.ch = null;
         this.buf = buf;
+        this.fileSize = buf.limit();
 
         buf.order(ByteOrder.BIG_ENDIAN);
         if (!readChunk(0)) {
@@ -258,6 +261,13 @@ public class JfrReader implements Closeable {
             throw new IOException("Unsupported JFR version: " + (version >>> 16) + "." + (version & 0xffff));
         }
 
+        long chunkStart = filePosition + pos;
+        long chunkSize = buf.getLong(pos + 8);
+        if (chunkStart + chunkSize > fileSize) {
+            state = STATE_INCOMPLETE;
+            return false;
+        }
+
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
         if (cpOffset == 0 || metaOffset == 0) {
@@ -277,7 +287,6 @@ public class JfrReader implements Closeable {
         types.clear();
         typesByName.clear();
 
-        long chunkStart = filePosition + pos;
         readMeta(chunkStart + metaOffset);
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
