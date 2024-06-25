@@ -123,11 +123,11 @@ $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
-$(PACKAGE_DIR): all LICENSE *.md
+$(PACKAGE_DIR): all LICENSE README.md
 	mkdir -p $(PACKAGE_DIR)
-	cp -RP build/bin build/lib LICENSE *.md $(PACKAGE_DIR)/
+	cp -RP build/bin build/lib LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
-	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/*.md
+	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
 
 build/%:
 	mkdir -p $@
