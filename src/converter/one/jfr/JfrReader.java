@@ -34,9 +34,6 @@ public class JfrReader implements Closeable {
     private static final byte STATE_READING = 1;
     private static final byte STATE_EOF = 2;
     private static final byte STATE_INCOMPLETE = 3;
-    private static final int FRAME_NATIVE = 3;
-    private static final int FRAME_CPP = 4;
-    private static final int FRAME_KERNEL = 5;
 
     private final FileChannel ch;
     private ByteBuffer buf;
@@ -60,7 +57,6 @@ public class JfrReader implements Closeable {
     public final Dictionary<String> strings = new Dictionary<>();
     public final Dictionary<byte[]> symbols = new Dictionary<>();
     public final Dictionary<MethodRef> methods = new Dictionary<>();
-    public final Dictionary<String> methodNames = new Dictionary<>();
     public final Dictionary<StackTrace> stackTraces = new Dictionary<>();
     public final Map<String, String> settings = new HashMap<>();
     public final Map<String, Map<Integer, String>> enums = new HashMap<>();
@@ -663,85 +659,5 @@ public class JfrReader implements Closeable {
         }
         buf.flip();
         return buf.limit() > 0;
-    }
-
-    public String getMethodName(long methodId, byte methodType) {
-        return getMethodName(methodId, methodType, false);
-    }
-
-    public String getMethodName(long methodId, byte methodType, boolean dotted) {
-        String result = methodNames.get(methodId);
-        if (result != null) {
-            return result;
-        }
-
-        MethodRef method = methods.get(methodId);
-        if (method == null) {
-            result = "unknown";
-        } else {
-            ClassRef cls = classes.get(method.cls);
-            byte[] className = symbols.get(cls.name);
-            byte[] methodName = symbols.get(method.name);
-
-            if (className == null || className.length == 0 || isNativeFrame(methodType)) {
-                result = new String(methodName, StandardCharsets.UTF_8);
-            } else {
-                String classStr = toJavaClassName(className, 0, dotted);
-                String methodStr = new String(methodName, StandardCharsets.UTF_8);
-                result = methodStr.isEmpty() ? classStr : classStr + '.' + methodStr;
-            }
-        }
-
-        methodNames.put(methodId, result);
-        return result;
-    }
-
-    private boolean isNativeFrame(byte methodType) {
-        return methodType == FRAME_NATIVE && getEnumValue("jdk.types.FrameType", FRAME_KERNEL) != null
-                || methodType == FRAME_CPP
-                || methodType == FRAME_KERNEL;
-    }
-
-    public String toJavaClassName(byte[] symbol, int start, boolean dotted) {
-        return toJavaClassName(symbol, start, dotted, false);
-    }
-
-    public String toJavaClassName(byte[] symbol, int start, boolean dotted, boolean simple) {
-        int end = symbol.length;
-        if (start > 0) {
-            switch (symbol[start]) {
-                case 'B':
-                    return "byte";
-                case 'C':
-                    return "char";
-                case 'S':
-                    return "short";
-                case 'I':
-                    return "int";
-                case 'J':
-                    return "long";
-                case 'Z':
-                    return "boolean";
-                case 'F':
-                    return "float";
-                case 'D':
-                    return "double";
-                case 'L':
-                    start++;
-                    end--;
-            }
-        }
-
-        if (simple) {
-            for (int i = end - 2; i >= start; i--) {
-                if (symbol[i] == '/' && (symbol[i + 1] < '0' || symbol[i + 1] > '9')) {
-                    start = i + 1;
-                    break;
-                }
-            }
-        }
-
-        String s = new String(symbol, start, end - start, StandardCharsets.UTF_8);
-        return dotted ? s.replace('/', '.') : s;
     }
 }
