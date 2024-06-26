@@ -6,8 +6,8 @@ PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
-API_JAR=lib/async-profiler.jar
-CONVERTER_JAR=lib/converter.jar
+API_JAR=jar/async-profiler.jar
+CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
 CFLAGS=-O3 -fno-exceptions
@@ -137,7 +137,7 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	strip $@
 
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -o $@ src/launcher/*.cpp -ldl
 	strip $@
 	cat build/$(CONVERTER_JAR) >> $@
 
@@ -173,7 +173,7 @@ test: all build/$(TEST_JAR)
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) --release 8 -cp "build/lib/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) --release 8 -cp "build/lib/*:build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 native:

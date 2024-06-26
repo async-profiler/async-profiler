@@ -13,7 +13,7 @@ import java.io.IOException;
 
 public class KernelTests {
 
-    @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
+    @Test(mainClass = ListFiles.class, enabled = false, os = {OsType.LINUX})
     public void kernel(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
         Output stderr = p.readPErr();

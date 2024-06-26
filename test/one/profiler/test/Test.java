@@ -49,5 +49,5 @@ public @interface Test {
 
     ArchType[] arch() default {};
 
-    boolean enabled() default false;
+    boolean enabled() default true;
 }

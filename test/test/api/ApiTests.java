@@ -7,7 +7,7 @@ import one.profiler.test.TestProcess;
 
 public class ApiTests {
 
-    @Test(mainClass = DumpCollapsed.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
+    @Test(mainClass = DumpCollapsed.class, enabled = false, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void flat(TestProcess p) throws Exception {
         Output out = p.waitForExit("%pout");
         Assert.contains(out, "BusyLoops.method1;");
@@ -15,7 +15,7 @@ public class ApiTests {
         Assert.contains(out, "BusyLoops.method3;");
     }
 
-    @Test(mainClass = StopResume.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
+    @Test(mainClass = StopResume.class, enabled = false, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void stopResume(TestProcess p) throws Exception {
         Output out = p.waitForExit("%pout");
         Assert.notContains(out, "BusyLoops.method1");

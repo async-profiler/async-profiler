@@ -8,7 +8,7 @@ import one.profiler.test.ArchType;
 
 public class RecoveryTests {
 
-    @Test(mainClass = StringBuilderTest.class, arch = {ArchType.X64, ArchType.X86}, debugNonSafepoints = true)
+    @Test(mainClass = StringBuilderTest.class, jvmArgs = "-XX:UseAVX=2", arch = {ArchType.X64, ArchType.X86}, debugNonSafepoints = true)
     public void stringBuilder(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
 
