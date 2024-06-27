@@ -1,5 +1,9 @@
 PROFILER_VERSION=3.0
 
+ifeq ($(COMMIT_TAG),true)
+  PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
+endif
+
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
@@ -11,6 +15,7 @@ CONVERTER_JAR=jar/jfr-converter.jar
 
 CFLAGS=-O3 -fno-exceptions
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
+CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
@@ -54,34 +59,31 @@ else
   INCLUDES += -I$(JAVA_HOME)/include/linux
   SOEXT=so
   PACKAGE_EXT=tar.gz
-  ifeq ($(findstring musl,$(shell ldd /bin/ls)),musl)
-    OS_TAG=linux-musl
-  else
-    OS_TAG=linux
-  endif
+  OS_TAG=linux
 endif
 
 ARCH:=$(shell uname -m)
 ifeq ($(ARCH),x86_64)
   ARCH_TAG=x64
+else ifeq ($(ARCH),aarch64)
+  ARCH_TAG=arm64
+else ifeq ($(ARCH),arm64)
+  ARCH_TAG=arm64
+else ifeq ($(findstring arm,$(ARCH)),arm)
+  ARCH_TAG=arm32
+else ifeq ($(ARCH),ppc64le)
+  ARCH_TAG=ppc64le
+else ifeq ($(ARCH),riscv64)
+  ARCH_TAG=riscv64
+else ifeq ($(ARCH),loongarch64)
+  ARCH_TAG=loongarch64
 else
-  ifeq ($(findstring arm,$(ARCH)),arm)
-    ifeq ($(findstring 64,$(ARCH)),64)
-      ARCH_TAG=arm64
-    else
-      ARCH_TAG=arm32
-    endif
-  else ifeq ($(findstring aarch64,$(ARCH)),aarch64)
-    ARCH_TAG=arm64
-  else ifeq ($(ARCH),ppc64le)
-    ARCH_TAG=ppc64le
-  else ifeq ($(ARCH),riscv64)
-    ARCH_TAG=riscv64
-  else ifeq ($(ARCH),loongarch64)
-    ARCH_TAG=loongarch64
-  else
-    ARCH_TAG=x86
-  endif
+  ARCH_TAG=x86
+endif
+
+STATIC_BINARY=$(findstring musl-gcc,$(CC))
+ifneq (,$(STATIC_BINARY))
+  CFLAGS += -static
 endif
 
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
@@ -118,20 +120,20 @@ build/%:
 	mkdir -p $@
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/main/*.cpp src/jattach/*.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/main/*.cpp src/jattach/*.c
 	strip $@
 
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/launcher/*.cpp
 	strip $@
 	cat build/$(CONVERTER_JAR) >> $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
 
 build/$(API_JAR): $(API_SOURCES)
@@ -161,7 +163,7 @@ native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
-	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.so > native/macos/libasyncProfiler.so
+	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
 
 clean:
 	$(RM) -r build
