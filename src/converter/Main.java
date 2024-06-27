@@ -56,6 +56,8 @@ public class Main {
                 JfrToFlame.convert(input, output, args);
             } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith("gz")) {
                 JfrToPprof.convert(input, output, args);
+            } else if ("heatmap".equals(args.output)) {
+                JfrToHeatmap.convert(input, output, args);
             } else {
                 throw new IllegalArgumentException("Unrecognized output format: " + args.output);
             }
@@ -90,7 +92,7 @@ public class Main {
         System.out.print("Usage: jfrconv [options] <input> [<input>...] <output>\n" +
                 "\n" +
                 "Conversion options:\n" +
-                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz\n" +
+                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap\n" +
                 "\n" +
                 "JFR options:\n" +
                 "     --cpu              CPU profile\n" +
