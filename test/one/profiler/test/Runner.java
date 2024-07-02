@@ -1,17 +1,6 @@
 /*
- * Copyright 2021 Andrei Pangin
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 package one.profiler.test;
@@ -31,30 +20,30 @@ import java.util.regex.Pattern;
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
 
-    private static final OsType currentOs = detectOs();
+    private static final Os currentOs = detectOs();
     private static String libExt;
-    private static final ArchType currentArch = detectArch();
+    private static final Arch currentArch = detectArch();
     private static final int currentJvmVersion = detectJvmVersion();
-    private static final JvmType currentJvm = detectJvm();
+    private static final Jvm currentJvm = detectJvm();
 
-    private static OsType detectOs() {
+    private static Os detectOs() {
         String osName = System.getProperty("os.name").toLowerCase();
         if (osName.contains("linux")) {
             libExt = "so";
-            return OsType.LINUX;
+            return Os.LINUX;
         } else if (osName.contains("mac")) {
             libExt = "dylib";
-            return OsType.MACOS;
+            return Os.MACOS;
         } else if (osName.contains("windows")) {
             libExt = "dll";
-            return OsType.WINDOWS;
+            return Os.WINDOWS;
         }
         throw new IllegalStateException("Unknown OS type");
     }
 
-    private static int detectJvmVersion() { // Not sure if this works for zing 
+    private static int detectJvmVersion() { // Not sure if this works for zing
         String prop = System.getProperty("java.vm.version");
-        
+
         if (prop.startsWith("25.") && prop.charAt(3) > '0') {
             return 8;
         } else if (prop.startsWith("24.") && prop.charAt(3) > '0') {
@@ -71,7 +60,7 @@ public class Runner {
         }
     }
 
-    private static JvmType detectJvm() throws RuntimeException{
+    private static Jvm detectJvm() throws RuntimeException{
         // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
         File javaHome = new File(System.getProperty("java.home"));
 
@@ -82,7 +71,7 @@ public class Runner {
         if (files != null) {
             for (File file : files) {
                 if (j9IndicatorFilePattern.matcher(file.getName()).matches()) {
-                    return JvmType.J9;
+                    return Jvm.J9;
                 }
             }
         }
@@ -95,47 +84,47 @@ public class Runner {
         }
 
         // Workaround for contents/home on mac
-        if (currentOs == OsType.MACOS) {
+        if (currentOs == Os.MACOS) {
             javaHome = javaHome.getParentFile();
         }
         File etcDirectory = new File(javaHome, "etc");
         File zing = new File(etcDirectory, "zing");
         if (zing.exists()) {
-            return JvmType.ZING;
+            return Jvm.ZING;
         }
-    
+
         // Otherwise it's some variation of hotspot
-        return JvmType.HOTSPOT;
+        return Jvm.HOTSPOT;
     }
-    
-    private static ArchType detectArch() throws RuntimeException{
+
+    private static Arch detectArch() throws RuntimeException{
         String architecture = System.getProperty("os.arch");
 
         if (architecture.contains("x86_64") || architecture.contains("amd64")) {
-            return ArchType.X64;
+            return Arch.X64;
         } else if (architecture.contains("aarch64")) {
-            return ArchType.ARM64;
+            return Arch.ARM64;
         } else if (architecture.contains("arm")) {
-            return ArchType.ARM32;
+            return Arch.ARM32;
         } else if (architecture.contains("ppc64le")) {
-            return ArchType.PPC64LE;
+            return Arch.PPC64LE;
         } else if (architecture.endsWith("86")) {
-            return ArchType.X86;
+            return Arch.X86;
         } else {
             throw new RuntimeException("Unable to detect the OS used by the host.\nOS may be unsupported.");
         }
     }
 
     public static boolean enabled(Test test) {
-        OsType[] os = test.os();
+        Os[] os = test.os();
         int[] jdkVersion = test.jdkVersion();
-        JvmType[] jvm = test.jvm();
-        ArchType[] arch = test.arch();
-        
+        Jvm[] jvm = test.jvm();
+        Arch[] arch = test.arch();
+
         if (!test.enabled()) {
             return false;
         }
-    
+
         if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
             return false;
         }
@@ -222,7 +211,7 @@ public class Runner {
             System.exit(1);
         }
 
-        configureLogging(); 
+        configureLogging();
         boolean retainlogs = !"false".equals(System.getProperty("retainLogs"));
 
         String[] skips = System.getProperty("skip") != null ? System.getProperty("skip").split(",") : new String[0];

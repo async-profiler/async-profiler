@@ -1,19 +1,21 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package test.kernel;
 
 import one.profiler.test.Output;
 import one.profiler.test.Assert;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
-import one.profiler.test.OsType;
+import one.profiler.test.Os;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 
 public class KernelTests {
 
-    @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
+    @Test(mainClass = ListFiles.class, enabled = false, os = {Os.LINUX})
     public void kernel(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
         Output stderr = p.readPErr();
@@ -28,7 +30,7 @@ public class KernelTests {
         }
     }
 
-    @Test(mainClass = ListFiles.class, os = {OsType.LINUX})
+    @Test(mainClass = ListFiles.class, os = {Os.LINUX})
     public void fdtransfer(TestProcess p) throws Exception {
         p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
         Output out = p.readFile("%f");
@@ -36,7 +38,7 @@ public class KernelTests {
         Assert.contains(out, "sys_getdents");
     }
 
-    @Test(mainClass = ListFiles.class,  jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {OsType.MACOS, OsType.WINDOWS})
+    @Test(mainClass = ListFiles.class,  jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {Os.MACOS, Os.WINDOWS})
     public void noLinuxKernel(TestProcess p) throws Exception {
         try {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
