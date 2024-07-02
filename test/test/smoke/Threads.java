@@ -1,6 +1,14 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+package test.smoke;
+
 import java.math.BigInteger;
 
-public class ThreadsTarget {
+public class Threads {
+
     public static void main(String[] args) {
         new Thread(new Runnable() {
             @Override
@@ -8,6 +16,7 @@ public class ThreadsTarget {
                 methodForThreadEarlyEnd();
             }
         }, "ThreadEarlyEnd").start();
+
         new Thread(new Runnable() {
             @Override
             public void run() {
