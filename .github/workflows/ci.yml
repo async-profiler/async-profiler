@@ -14,7 +14,6 @@ jobs:
           distribution: 'corretto'
           java-version: '11'
       - run: sudo sysctl kernel.perf_event_paranoid=1
-      - run: sudo sysctl kernel.kptr_restrict=0
       - run: make -j`nproc`
       - run: make test
       - uses: actions/upload-artifact@v3
