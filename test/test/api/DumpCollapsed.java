@@ -16,5 +16,6 @@ public class DumpCollapsed extends BusyLoops {
         }
 
         String profile = AsyncProfiler.getInstance().dumpCollapsed(Counter.SAMPLES);
+        System.out.println(profile);
     }
 }
