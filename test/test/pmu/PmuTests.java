@@ -40,7 +40,7 @@ public class PmuTests {
             Assert.ratioLess(out, "test/pmu/Dictionary.test128K", 0.2);
             Assert.ratioGreater(out, "test/pmu/Dictionary.test8M", 0.8);
         } catch(Exception e) {
-            if (!p.readPErr().contains("PerfEvents are not supported on this platform")){
+            if (!p.readPErr().contains("Perf events unavailable")){
                 throw e;
             }
         }
