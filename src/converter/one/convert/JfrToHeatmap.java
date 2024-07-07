@@ -73,7 +73,7 @@ public class JfrToHeatmap extends JfrConverter {
             converter = new JfrToHeatmap(jfr, args);
             converter.convert();
         }
-        try (OutputStream out = new FileOutputStream(output)) {
+        try (OutputStream out = new BufferedOutputStream(new FileOutputStream(output))) {
             converter.dump(out);
         }
     }

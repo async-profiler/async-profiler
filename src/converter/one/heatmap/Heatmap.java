@@ -5,6 +5,7 @@
 
 package one.heatmap;
 
+import java.io.PrintStream;
 import one.convert.Arguments;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
@@ -103,7 +104,7 @@ public class Heatmap {
         out.write(String.valueOf(startMs).getBytes());
 
         tail = printTill(out, tail, "/*cpool:*/");
-        printConstantPool(out, evaluationContext);
+        printConstantPool(out.asPrintableStream(), evaluationContext);
 
         out.write(tail.getBytes());
     }
@@ -338,12 +339,13 @@ public class Heatmap {
         }
     }
 
-    private void printConstantPool(HtmlOut out, EvaluationContext evaluationContext) throws IOException {
+    private void printConstantPool(PrintStream out, EvaluationContext evaluationContext) throws IOException {
         for (byte[] symbol : evaluationContext.symbols) {
-            out.nextByte('"');
-            out.write(symbol);
-            out.nextByte('"');
-            out.nextByte(',');
+            out.print('"');
+            out.print(new String(symbol)
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\""));
+            out.print("\",");
         }
     }
 
