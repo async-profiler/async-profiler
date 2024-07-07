@@ -1,3 +1,8 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.convert;
 
 import java.io.BufferedOutputStream;
@@ -68,7 +73,7 @@ public class JfrToHeatmap extends JfrConverter {
             converter = new JfrToHeatmap(jfr, args);
             converter.convert();
         }
-        try (OutputStream out = new BufferedOutputStream(new FileOutputStream(output))) {
+        try (OutputStream out = new FileOutputStream(output)) {
             converter.dump(out);
         }
     }

@@ -1,12 +1,17 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.heatmap;
 
 import one.convert.Arguments;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
 import one.jfr.MethodRef;
-import one.util.DictionaryInt;
-import one.util.Index;
-import one.util.ResourceProcessor;
+import one.jfr.DictionaryInt;
+import one.jfr.Index;
+import one.convert.ResourceProcessor;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -24,7 +29,9 @@ public class Heatmap {
     public Heatmap(Arguments arguments) {
         this.arguments = arguments;
 
-        this.state = new State(20); // TODO arg?
+        // TODO it is probably should be an argument
+        // but there is a good chance that changing it will have some side effects
+        this.state = new State(20);
     }
 
     public void assignConstantPool(
@@ -102,8 +109,6 @@ public class Heatmap {
     }
 
     private void printHeatmap(final HtmlOut out, EvaluationContext context) throws IOException {
-        Histogram histogram = new Histogram();
-
         int veryStart = out.pos();
         int wasPos = out.pos();
 
@@ -148,8 +153,6 @@ public class Heatmap {
         out.write30(context.nodeTree.storageSize());
         out.write30(chunksCount);
         out.write30(context.sampleList.stackIds.length);
-
-        histogram.print();
     }
 
     private void writeSamples(HtmlOut out, SynonymTable synonymTable, EvaluationContext context, int[] stackChunksBuffer) throws IOException {
@@ -266,7 +269,7 @@ public class Heatmap {
                         }
 
                         int justAppendedId = context.nodeTree.nodesCount() - 1;
-                        stackBuffer[chunksIterator++] = justAppendedId;  // TODO encapsulate
+                        stackBuffer[chunksIterator++] = justAppendedId;
                         context.nodeTree.markNodeAsLastlyUsed(justAppendedId);
                     }
                 }
@@ -316,7 +319,6 @@ public class Heatmap {
         int maxBits = (int) (decodeTable[decodeTable.length - 1] >>> 56);
         out.writeVar(maxBits);
 
-        // TODO encapsulate
         for (long l : decodeTable) {
             out.writeVar(l & 0x00FF_FFFF_FFFF_FFFFL);
             out.writeVar(l >>> 56);
@@ -366,7 +368,7 @@ public class Heatmap {
     }
 
     private void debug(String text) {
-        // TODO add flag?
+        // Basically, no user will ever need that, but it will be helpful to debug broken data
         // System.out.println(text);
     }
 

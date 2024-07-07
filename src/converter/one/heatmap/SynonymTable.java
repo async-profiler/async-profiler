@@ -1,3 +1,8 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.heatmap;
 
 import java.util.Arrays;
@@ -22,7 +27,7 @@ public class SynonymTable {
         for (int i = 0; i < nodesCount; i++) {
             synonyms[i] = (long) childrenCount[i] << 32 | i;
         }
-        // TODO actually we need to select at most 61 * 61 synonyms
+
         Arrays.sort(synonyms, 0, nodesCount);
 
         synonymsCount = Math.min(61 * 61, nodesCount);

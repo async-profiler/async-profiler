@@ -1,3 +1,8 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.heatmap;
 
 import java.util.Arrays;
@@ -9,10 +14,10 @@ public class LzNodeTree {
     // hash(methodId << 32 | parentNodeId) -> methodId << 32 | parentNodeId
     private long[] keys;    // reused by SynonymTable
     // hash(methodId << 32 | parentNodeId) -> childNodeId
-    private int[] values;  // TODO can be reused after buildLz78TreeAndPrepareData
+    private int[] values;  // can be reused after buildLz78TreeAndPrepareData
 
     // (nodeId - 1) -> methodId << 32 | parentNodeId
-    private long[] outputData;              // TODO can be reused after writeTree:130!
+    private long[] outputData;              // can be reused after writeTree:130!
     // nodeId -> childrenCount
     private int[] childrenCount;    // reused by SynonymTable
     // nodeId -> parentNodeId << 32 | lengthToRoot

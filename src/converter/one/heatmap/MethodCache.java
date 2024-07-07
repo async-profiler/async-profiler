@@ -1,12 +1,16 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.heatmap;
 
+import java.util.Arrays;
+import one.convert.Frame;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
 import one.jfr.MethodRef;
-import one.util.Frames;
-import one.util.Index;
-
-import java.util.Arrays;
+import one.jfr.Index;
 
 public class MethodCache {
 
@@ -156,7 +160,7 @@ public class MethodCache {
     }
 
     private boolean isNativeFrame(byte methodType) {
-        return methodType >= Frames.FRAME_NATIVE && methodType <= Frames.FRAME_KERNEL;
+        return methodType >= Frame.TYPE_NATIVE && methodType <= Frame.TYPE_KERNEL;
     }
 
     public byte[][] orderedSymbolTable() {

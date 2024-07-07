@@ -1,6 +1,14 @@
-package one.util;
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-import java.io.*;
+package one.convert;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 
 public class ResourceProcessor {
 
@@ -11,7 +19,7 @@ public class ResourceProcessor {
             }
 
             ByteArrayOutputStream result = new ByteArrayOutputStream();
-            byte[] buffer = new byte[64 * 1024];
+            byte[] buffer = new byte[32768];
             for (int length; (length = stream.read(buffer)) != -1; ) {
                 result.write(buffer, 0, length);
             }
@@ -27,7 +35,4 @@ public class ResourceProcessor {
         return data.substring(index + till.length());
     }
 
-    public static String skipTill(String data, String till) {
-        return data.substring(data.indexOf(till) + till.length());
-    }
 }
