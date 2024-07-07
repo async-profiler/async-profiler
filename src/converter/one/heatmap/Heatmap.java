@@ -83,7 +83,7 @@ public class Heatmap {
         }
     }
 
-    public void dump(OutputStream stream) throws IOException {
+    public void dump(PrintStream stream) throws IOException {
         HtmlOut out = new HtmlOut(stream);
 
         EvaluationContext evaluationContext = evaluate();

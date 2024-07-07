@@ -11,11 +11,11 @@ import java.io.PrintStream;
 
 public class HtmlOut {
 
-    private final OutputStream out;
+    private final PrintStream out;
 
     private int pos = 0;
 
-    public HtmlOut(OutputStream out) {
+    public HtmlOut(PrintStream out) {
         this.out = out;
     }
 
@@ -92,7 +92,7 @@ public class HtmlOut {
     }
 
     public PrintStream asPrintableStream() {
-        return new PrintStream(out);
+        return out;
     }
 
 }
