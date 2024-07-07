@@ -13,9 +13,14 @@ LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
 
+CC=$(CROSS_COMPILE)gcc
+CXX=$(CROSS_COMPILE)g++
+STRIP=$(CROSS_COMPILE)strip
+
 CFLAGS=-O3 -fno-exceptions
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
-CPPFLAGS += -DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
+CPPFLAGS=
+DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
@@ -51,7 +56,7 @@ ifeq ($(OS),Darwin)
     MERGE=false
   endif
 else
-  CXXFLAGS += -Wl,-z,defs
+  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
@@ -83,7 +88,7 @@ endif
 
 STATIC_BINARY=$(findstring musl-gcc,$(CC))
 ifneq (,$(STATIC_BINARY))
-  CFLAGS += -static
+  CFLAGS += -static -fdata-sections -ffunction-sections -Wl,--gc-sections
 endif
 
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
@@ -100,6 +105,7 @@ jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
+	patchelf --remove-needed ld-linux-x86-64.so.2 --remove-needed ld-linux-aarch64.so.1 $(PACKAGE_DIR)/$(LIB_PROFILER)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
@@ -120,20 +126,20 @@ build/%:
 	mkdir -p $@
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/main/*.cpp src/jattach/*.c
-	strip $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
+	$(STRIP) $@
 
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/launcher/*.cpp
-	strip $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp
+	$(STRIP) $@
 	cat build/$(CONVERTER_JAR) >> $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
 
 build/$(API_JAR): $(API_SOURCES)
