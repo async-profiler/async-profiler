@@ -27,10 +27,10 @@ public class AllocTests {
         Assert.contains(out, "java\\.lang\\.String\\[]");
     }
 
-    @Test(mainClass = MapReaderOpt.class, enabled = false, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.ZING, Jvm.HOTSPOT})
+    @Test(mainClass = MapReaderOpt.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", jvm = {Jvm.ZING, Jvm.HOTSPOT})
     public void allocTotal(TestProcess p) throws Exception {
         Output out = p.profile("-e alloc -d 3 -o collapsed --total");
-        assert out.samples( "java.util.HashMap\\$Node\\[]") > 1_000_000;
+        assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
 
         /* Commented out as part of disabling asserting JFR output.
         out = p.profile("stop -o flamegraph --total");

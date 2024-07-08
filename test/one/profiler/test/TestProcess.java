@@ -14,7 +14,10 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +32,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import one.jfr.JfrReader;
+
+import static one.profiler.test.TestConstants.PROFILE_ERROR_FIELD;
+import static one.profiler.test.TestConstants.PROFILE_OUTPUT_FIELD;
 
 public class TestProcess implements Closeable {
     private static final Logger log = Logger.getLogger(TestProcess.class.getName());
@@ -62,7 +68,7 @@ public class TestProcess implements Closeable {
 
     public TestProcess(Test test, String libExt, String testName) throws Exception {
         this(test, libExt);
-        this.testName = testName; // if testName is not null then we retain the logs into that folder
+        this.testName = testName;
     }
 
     public TestProcess(Test test, String libExt) throws Exception {
@@ -99,8 +105,12 @@ public class TestProcess implements Closeable {
     }
 
     private String getExtFromFile(File file) throws IOException {
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String firstLine = reader.readLine();
+        try(InputStream is = Files.newInputStream(Paths.get(file.getAbsolutePath()))) {
+            byte[] bytes = new byte[15];
+            String firstLine = null;
+            while ((is.read(bytes)) != -1) {
+                firstLine = new String(bytes, StandardCharsets.UTF_8);
+            }
 
             if (firstLine == null) {
                 return "";
@@ -147,7 +157,6 @@ public class TestProcess implements Closeable {
             cmd.add(System.getProperty("java.home") + "/bin/java");
             cmd.add("-cp");
             cmd.add(System.getProperty("java.class.path"));
-            cmd.add("FlameGraph");
 
             // Get CannonicalPath/AbsolutePath misses symbolic links
             String realPath = "build/test/logs/" + file.getParentFile().getName() + "/" + file.getName();
@@ -262,13 +271,14 @@ public class TestProcess implements Closeable {
                 .redirectError(createTempFile("%perr"))
                 .start();
 
-        waitForExit(p,10);
+        waitForExit(p, 10);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
-            throw new IOException("Profiling call failed " + readPOut().toString() + readPErr().toString());
+            throw new IOException("Profiling call failed " + readFile(PROFILE_OUTPUT_FIELD).toString()
+                    + readFile(PROFILE_ERROR_FIELD).toString());
         }
 
-        return readPOut();
+        return readFile(PROFILE_OUTPUT_FIELD);
     }
 
     public Output readFile(String fileId) {
@@ -278,25 +288,5 @@ public class TestProcess implements Closeable {
         } catch (IOException e) {
             return new Output(new String[0]);
         }
-    }
-
-    public Output readPOut() throws IOException {
-        return readFile("%pout");
-    }
-
-    public Output readPErr() throws IOException {
-        return readFile("%perr");
-    }
-
-    public Output readOut() throws IOException {
-        return readFile("%out");
-    }
-
-    public Output readErr() throws IOException {
-        return readFile("%err");
-    }
-
-    public Output readF() throws IOException {
-        return readFile("%f");
     }
 }

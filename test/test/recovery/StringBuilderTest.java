@@ -9,7 +9,7 @@ package test.recovery;
  * This demo shows that most sampling profilers are misleading.
  * The given program appends 5 symbols to the end of StringBuilder
  * and deletes 5 symbols from the beginning of StringBuilder.
- *
+ * <p>
  * The real bottleneck here is delete(), since it involves moving
  * of 1 million characters. However, safepoint-based profilers
  * will display Thread.isAlive() as the hottest method.

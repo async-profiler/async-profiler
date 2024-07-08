@@ -95,15 +95,15 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
-DFlags=
+TEST_FLAGS=
 ifneq ($(LOG_LEVEL),)
-	DFlags += -DlogLevel=$(LOG_LEVEL)
+	TEST_FLAGS += -DlogLevel=$(LOG_LEVEL)
 endif
 ifneq ($(RETAIN_LOGS),)
-	DFlags += -DretainLogs=$(RETAIN_LOGS)
+	TEST_FLAGS += -DretainLogs=$(RETAIN_LOGS)
 endif
 ifneq ($(SKIP),)
-	DFlags += -Dskip=$(SKIP)
+	TEST_FLAGS += -Dskip=$(SKIP)
 endif
 
 .PHONY: all jar release build-test test native clean
@@ -171,11 +171,11 @@ build-test: all build/$(TEST_JAR)
 
 test: all build/$(TEST_JAR)
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) $(DFlags) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) --release 8 -cp "build/lib/*:build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) --release 8 -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 native:

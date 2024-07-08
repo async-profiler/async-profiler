@@ -11,7 +11,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * This demo shows the importance of hardware performance counters.
  * Two tests (test128K and test8M) execute the same number of
  * operations, however, test128K completes much quicker than test8M.
- *
+ * <p>
  * CPU profiling shows no difference between two tests,
  * but cache-misses profiling highlights test8M
  * as the problematic method.

@@ -5,35 +5,29 @@
 
 package one.profiler.test;
 
-import java.util.Arrays;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
 public class Assert {
 
     public static void contains(Output out, String regex) throws AssertionError {
         if (!out.contains(regex)) {
-            throw new AssertionError("Expected: " + regex + "\nReceived out may be available in build/test/logs.");
+            throw new AssertionError("Expected to contain: " + regex);
         }
     }
 
     public static void notContains(Output out, String regex) throws AssertionError {
         if (out.contains(regex)) {
-            throw new AssertionError("Expected not: " + regex + "\nReceived out may be available in build/test/logs.");
+            throw new AssertionError("Expected to not contain: " + regex);
         }
     }
 
-    public static void ratioGreater(Output out, String regex, double threshold) {
-        double num = out.ratio(regex);
-        if (num < threshold) {
-            throw new AssertionError("Expected " + regex + " ratio > " + threshold + "\ngot: " + num + "\nReceived out may be available in build/test/logs.");
+    public static void isGreater(double value, double threshold) {
+        if (value < threshold) {
+            throw new AssertionError("Expected ratio > " + threshold + ", but Actual: " + value);
         }
     }
 
-    public static void ratioLess(Output out, String regex, double threshold) {
-        double num = out.ratio(regex);
-        if (num > threshold) {
-            throw new AssertionError("Expected " + regex + " ratio < " + threshold + "\ngot: " + num + "\nReceived out may be available in build/test/logs.");
+    public static void isLess(double value, double threshold) {
+        if (value > threshold) {
+            throw new AssertionError("Expected ratio < " + threshold + "but Actual: " + value);
         }
     }
 }

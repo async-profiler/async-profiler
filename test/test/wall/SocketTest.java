@@ -13,7 +13,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * This test starts two similar clients. The code of the clients
  * is the same, except that BusyClient constantly receives new data,
  * while IdleClient does almost nothing but waiting for incoming data.
- *
+ * <p>
  * Most sampling profilers will not make difference between
  * BusyClient and IdleClient, because JVM does not know whether
  * a native method consumes CPU or just waits inside a blocking call.

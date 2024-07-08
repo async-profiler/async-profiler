@@ -9,7 +9,7 @@ import java.util.function.Supplier;
 
 /**
  * In this test, a large amount of time is spent inside the itable stub.
- *
+ * <p>
  * Most sampling profilers, including AsyncGetCallTrace-based,
  * fail to traverse Java stack in these cases.
  * See https://bugs.openjdk.java.net/browse/JDK-8178287

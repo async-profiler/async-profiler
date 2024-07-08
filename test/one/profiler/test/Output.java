@@ -42,7 +42,7 @@ public class Output {
         long total = 0;
         long matched = 0;
         Pattern pattern = Pattern.compile(regex);
-        
+
         for (String s : lines) {
             long samples = extractSamples(s);
             total += samples;

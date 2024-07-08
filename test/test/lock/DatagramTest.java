@@ -15,10 +15,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * This test sends UDP datagrams in 10 threads simultaneously
  * and calculates the total throughput (packets/s).
- *
+ * <p>
  * The default DatagramChannel in Java NIO demonstrates poor performance
  * because of the synchronized block inside send() method.
- *
+ * <p>
  * Use async-profiler's lock profiling mode (-e lock)
  * to find the source of lock contention.
  */
