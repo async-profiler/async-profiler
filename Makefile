@@ -12,6 +12,7 @@ JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
+TEST_JAR=test.jar
 
 CC=$(CROSS_COMPILE)gcc
 CXX=$(CROSS_COMPILE)g++
@@ -27,6 +28,7 @@ MERGE=true
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
+JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
@@ -36,6 +38,9 @@ RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
+TEST_SOURCES := $(shell find test -name '*.java')
+TEST_DIRNAMES :=$(wildcard test/test/*/)
+TESTS := $(notdir $(patsubst %/,%,$(TEST_DIRNAMES)))
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -95,8 +100,18 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+TEST_FLAGS=
+ifneq ($(LOG_LEVEL),)
+	TEST_FLAGS += -DlogLevel=$(LOG_LEVEL)
+endif
+ifneq ($(RETAIN_LOGS),)
+	TEST_FLAGS += -DretainLogs=$(RETAIN_LOGS)
+endif
+ifneq ($(SKIP),)
+	TEST_FLAGS += -Dskip=$(SKIP)
+endif
 
-.PHONY: all jar release test native clean
+.PHONY: all jar release build-test test native clean
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -157,13 +172,18 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
-test: all
-	test/smoke-test.sh
-	test/thread-smoke-test.sh
-	test/alloc-smoke-test.sh
-	test/load-library-test.sh
-	test/fdtransfer-smoke-test.sh
-	echo "All tests passed"
+build-test: all build/$(TEST_JAR)
+	echo "Successfully built all tests $(LIB_PROFILER)"
+
+test: all build/$(TEST_JAR)
+	echo "Running tests against $(LIB_PROFILER)"
+	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+	mkdir -p build/test
+	$(JAVAC) --release 8 -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAR) cf $@ -C build/test .
+
 
 native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos
