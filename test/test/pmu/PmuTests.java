@@ -5,6 +5,7 @@
 
 package test.pmu;
 
+import one.profiler.test.Arch;
 import one.profiler.test.Output;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class PmuTests {
         }
     }
 
-    @Test(mainClass = Dictionary.class, os = {Os.LINUX})
+    @Test(mainClass = Dictionary.class, os = {Os.LINUX}, arch = {Arch.X64, Arch.X86})
     public void cacheMisses(TestProcess p) throws Exception {
         try {
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
