@@ -32,11 +32,11 @@ public @interface Test {
 
     Os[] os() default {};
 
-    int[] jdkVersion() default {};
+    Arch[] arch() default {};
 
     Jvm[] jvm() default {};
 
-    Arch[] arch() default {};
+    int[] jvmVer() default {};
 
     boolean enabled() default true;
 }

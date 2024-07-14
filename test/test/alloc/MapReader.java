@@ -52,7 +52,7 @@ public class MapReader {
         return map;
     }
 
-    public void benchmark() throws IOException, InterruptedException {
+    public void benchmark() throws IOException {
         while (true) {
             long start = System.nanoTime();
             readMap(new ByteArrayInputStream(input));

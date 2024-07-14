@@ -11,4 +11,6 @@ public enum Arch {
     ARM64,
     ARM32,
     PPC64LE,
+    RISCV64,
+    LOONGARCH64
 }

@@ -8,5 +8,18 @@ package one.profiler.test;
 public enum Os {
     LINUX,
     MACOS,
-    WINDOWS
+    WINDOWS;
+
+    public String getLibExt() {
+        switch (this) {
+            case LINUX:
+                return "so";
+            case MACOS:
+                return "dylib";
+            case WINDOWS:
+                return "dll";
+            default:
+                throw new AssertionError();
+        }
+    }
 }

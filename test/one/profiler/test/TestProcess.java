@@ -5,10 +5,6 @@
 
 package one.profiler.test;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.io.Closeable;
 import java.io.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -16,13 +12,9 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.StringTokenizer;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -31,13 +23,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import one.jfr.JfrReader;
-
-import static one.profiler.test.TestConstants.PROFILE_ERROR_FIELD;
-import static one.profiler.test.TestConstants.PROFILE_OUTPUT_FIELD;
-
 public class TestProcess implements Closeable {
     private static final Logger log = Logger.getLogger(TestProcess.class.getName());
+
+    public static final String STDOUT = "%out";
+    public static final String STDERR = "%err";
+    public static final String PROFOUT = "%pout";
+    public static final String PROFERR = "%perr";
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
@@ -61,17 +53,14 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private final String logDir;
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
-    private String testName = null;
 
-    public TestProcess(Test test, String libExt, String testName) throws Exception {
-        this(test, libExt);
-        this.testName = testName;
-    }
+    public TestProcess(Test test, String logDir, String libExt) throws Exception {
+        this.logDir = logDir;
 
-    public TestProcess(Test test, String libExt) throws Exception {
         List<String> cmd = new ArrayList<>();
         cmd.add(System.getProperty("java.home") + "/bin/java");
         cmd.add("-cp");
@@ -86,44 +75,35 @@ public class TestProcess implements Closeable {
         }
         cmd.add(test.mainClass().getName());
         addArgs(cmd, test.args());
+
         log.log(Level.FINE, "Running " + cmd);
+
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
         if (test.output()) {
-            pb.redirectOutput(createTempFile("%out"));
+            pb.redirectOutput(createTempFile(STDOUT));
         }
         if (test.error()) {
-            pb.redirectError(createTempFile("%err"));
+            pb.redirectError(createTempFile(STDERR));
         }
-        if (!test.agentArgs().isEmpty() || test.jvmArgs().contains("-Djava.library.path=build/lib")) {
-            pb.redirectOutput(createTempFile("%pout"));
-            pb.redirectError(createTempFile("%perr"));
-        }
-
         this.p = pb.start();
+
         // Give the JVM some time to initialize
         Thread.sleep(700);
     }
 
-    private String getExtFromFile(File file) throws IOException {
-        try(InputStream is = Files.newInputStream(Paths.get(file.getAbsolutePath()))) {
-            byte[] bytes = new byte[15];
-            String firstLine = null;
-            while ((is.read(bytes)) != -1) {
-                firstLine = new String(bytes, StandardCharsets.UTF_8);
-            }
-
-            if (firstLine == null) {
-                return "";
-            } else if (firstLine.contains("<!DOCTYPE html>")) {
+    private String getExtFromFile(File file) {
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
+            byte[] header = new byte[16];
+            int bytes = raf.read(header);
+            String s = bytes > 0 ? new String(header, 0, bytes, StandardCharsets.ISO_8859_1) : "";
+            if (s.startsWith("<!DOCTYPE html>")) {
                 return ".html";
-            } else if (firstLine.startsWith("FLR")) {
+            } else if (s.startsWith("FLR\0")) {
                 return ".jfr";
-            } else {
-                return "";
             }
+            return "";
         } catch (IOException e) {
-            log.log(Level.WARNING, "Error reading the file: " + e.getMessage());
-            throw e;
+            return "";
         }
     }
 
@@ -141,31 +121,14 @@ public class TestProcess implements Closeable {
         if (!m.find()) {
             return s;
         }
+
         StringBuffer sb = new StringBuffer();
         do {
             File f = createTempFile(m.group(1));
-            m.appendReplacement(sb, f.toString());
+            m.appendReplacement(sb, f.getPath());
         } while (m.find());
 
-        m.appendTail(sb);
-        return sb.toString();
-    }
-
-    private void addFlameGraph(File file) {
-        try {
-            List<String> cmd = new ArrayList<>();
-            cmd.add(System.getProperty("java.home") + "/bin/java");
-            cmd.add("-cp");
-            cmd.add(System.getProperty("java.class.path"));
-
-            // Get CannonicalPath/AbsolutePath misses symbolic links
-            String realPath = "build/test/logs/" + file.getParentFile().getName() + "/" + file.getName();
-            cmd.add(realPath);
-            cmd.add(realPath + ".html");
-            new ProcessBuilder(cmd).start();
-        } catch (IOException e) {
-            log.log(Level.INFO, "FlameGraph Conversion Failed");
-        }
+        return m.appendTail(sb).toString();
     }
 
     private File createTempFile(String fileId) {
@@ -184,33 +147,31 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private void moveLog(File file, File targetDirectory, String name) throws IOException {
-        String fileExtension = getExtFromFile(file);
-        file.renameTo(new File(targetDirectory, name + fileExtension));
-        if (fileExtension.equals("")) {
-            addFlameGraph(new File(targetDirectory, "stdout"));
+    private void moveLog(File file, String name, boolean autoExtension) throws IOException {
+        if (file != null) {
+            String targetName = autoExtension ? name + getExtFromFile(file) : name;
+            Files.move(file.toPath(), Paths.get(logDir, targetName), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
     private void moveLogs() {
+        if (logDir == null) {
+            return;
+        }
+
         try {
-            String workingDirectory = System.getProperty("user.dir");
-            File directory = new File(workingDirectory + "/build/test/logs/" + testName);
-            directory.mkdirs();
+            Files.createDirectories(Paths.get(logDir));
 
-            File outDirectory = (tmpFiles.get("%pout") != null) ? tmpFiles.get("%pout") : tmpFiles.get("%out");
-            moveLog(outDirectory, directory, "stdout");
+            File stdout = tmpFiles.getOrDefault(PROFOUT, tmpFiles.get(STDOUT));
+            moveLog(stdout, "stdout", true);
 
-            File errDirectory = (tmpFiles.get("%perr") != null) ? tmpFiles.get("%perr") : tmpFiles.get("%err");
-            errDirectory.renameTo(new File(directory, "stderr")); // no extension fixing
+            File stderr = tmpFiles.getOrDefault(PROFERR, tmpFiles.get(STDERR));
+            moveLog(stderr, "stderr", false);
 
-            File profileDirectory = tmpFiles.get("%f");
-            if (profileDirectory != null) {
-                moveLog(profileDirectory, directory, "profile");
-            }
-
-        } catch (Throwable e) {
-            log.log(Level.WARNING, "Failed to retain logs: " + e.getMessage(), e);
+            File profile = tmpFiles.get("%f");
+            moveLog(profile, "profile", true);
+        } catch (IOException e) {
+            log.log(Level.WARNING, "Failed to move logs", e);
         }
     }
 
@@ -225,9 +186,7 @@ public class TestProcess implements Closeable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } finally {
-            if (testName != null) {
-                moveLogs();
-            }
+            moveLogs();
             clearTempFiles();
         }
     }
@@ -240,7 +199,7 @@ public class TestProcess implements Closeable {
         }
     }
 
-    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException, IOException {
+    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
         waitForExit(p, timeout);
         return readFile(fileId);
     }
@@ -274,11 +233,10 @@ public class TestProcess implements Closeable {
         waitForExit(p, 10);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
-            throw new IOException("Profiling call failed " + readFile(PROFILE_OUTPUT_FIELD).toString()
-                    + readFile(PROFILE_ERROR_FIELD).toString());
+            throw new IOException("Profiling call failed: " + readFile(PROFERR));
         }
 
-        return readFile(PROFILE_OUTPUT_FIELD);
+        return readFile(PROFOUT);
     }
 
     public Output readFile(String fileId) {

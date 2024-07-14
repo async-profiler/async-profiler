@@ -29,7 +29,7 @@ public class RecoveryTests {
     @Test(mainClass = StringBuilderTest.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.ARM32})
     public void stringBuilderArm(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
-        Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.9); //there's a typo on some JDK versions
+        Assert.isGreater(out.ratio("(forward|foward|backward)_copy_longs"), 0.9); // there's a typo on some JDK versions
 
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 2");
         Assert.isLess(out.ratio("StringBuilder.delete;"), 0.1);

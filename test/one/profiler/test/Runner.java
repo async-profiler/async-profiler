@@ -10,8 +10,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.Set;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,39 +21,79 @@ public class Runner {
 
     private static final Os currentOs = detectOs();
     private static final Arch currentArch = detectArch();
-    private static final int currentJvmVersion = detectJvmVersion();
     private static final Jvm currentJvm = detectJvm();
-    private static final Set<String> skipSet = new HashSet<>();
-    private static final boolean retainLogs = !"false".equals(System.getProperty("retainLogs"));
+    private static final int currentJvmVersion = detectJvmVersion();
+
+    private static final Set<String> skipTests = new HashSet<>();
+    private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("linux")) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("linux")) {
             return Os.LINUX;
-        } else if (osName.contains("mac")) {
+        } else if (os.contains("mac")) {
             return Os.MACOS;
-        } else if (osName.contains("windows")) {
+        } else if (os.contains("windows")) {
             return Os.WINDOWS;
         }
-
         throw new IllegalStateException("Unknown OS type");
     }
 
-    private static String getLibExt() {
-        if (currentOs.equals(Os.LINUX)) {
-            return  "so";
-        } else if (currentOs.equals(Os.MACOS)) {
-            return "dylib";
-        } else if (currentOs.equals(Os.WINDOWS)) {
-            return "dll";
+    private static Arch detectArch() {
+        String arch = System.getProperty("os.arch");
+        if (arch.contains("x86_64") || arch.contains("amd64")) {
+            return Arch.X64;
+        } else if (arch.contains("aarch64")) {
+            return Arch.ARM64;
+        } else if (arch.contains("arm")) {
+            return Arch.ARM32;
+        } else if (arch.contains("ppc64le")) {
+            return Arch.PPC64LE;
+        } else if (arch.contains("riscv64")) {
+            return Arch.RISCV64;
+        } else if (arch.contains("loongarch64")) {
+            return Arch.LOONGARCH64;
+        } else if (arch.endsWith("86")) {
+            return Arch.X86;
+        }
+        throw new IllegalStateException("Unknown CPU architecture");
+    }
+
+    private static Jvm detectJvm() {
+        // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
+        File javaHome = new File(System.getProperty("java.home"));
+
+        // Look for OpenJ9-specific file
+        File[] files = new File(javaHome, "lib").listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.getName().equals("J9TraceFormat.dat")) {
+                    return Jvm.OPENJ9;
+                }
+            }
         }
 
-        throw new IllegalStateException("Unknown OS type");
+        // Strip /jre from JDK 8 path
+        if (currentJvmVersion <= 8) {
+            javaHome = javaHome.getParentFile();
+        }
+
+        // Workaround for Contents/Home on macOS
+        if (currentOs == Os.MACOS) {
+            javaHome = javaHome.getParentFile();
+        }
+
+        // Look for Zing-specific file
+        if (new File(javaHome, "etc/zing").exists()) {
+            return Jvm.ZING;
+        }
+
+        // Otherwise it's some variation of HotSpot
+        return Jvm.HOTSPOT;
     }
 
-    private static int detectJvmVersion() { // Not sure if this works for zing
+    private static int detectJvmVersion() {
         String prop = System.getProperty("java.vm.version");
-
         if (prop.startsWith("25.") && prop.charAt(3) > '0') {
             return 8;
         } else if (prop.startsWith("24.") && prop.charAt(3) > '0') {
@@ -61,128 +101,71 @@ public class Runner {
         } else if (prop.startsWith("20.") && prop.charAt(3) > '0') {
             return 6;
         } else {
-            String substring = prop.substring(0, prop.indexOf('.'));
-            int possibleVersion = Integer.parseInt(substring);
-            return Math.max(possibleVersion, 9);
-        }
-    }
-
-    private static Jvm detectJvm() throws RuntimeException {
-        // Example javaHome: /usr/lib/jvm/amazon-corretto-17.0.8.7.1-linux-x64
-        File javaHome = new File(System.getProperty("java.home"));
-
-        // J9 Check which relies on JDK 8 JRE file dir differences
-        File libDirectory = new File(javaHome, "lib");
-        File[] files = libDirectory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.getName().equals("J9TraceFormat.dat")) {
-                    return Jvm.J9;
-                }
-            }
-        }
-
-        // Zing check
-
-        // Workaround for java.home including /jre in JDK 8
-        if (currentJvmVersion <= 8) {
-            javaHome = javaHome.getParentFile();
-        }
-
-        // Workaround for contents/home on mac
-        if (currentOs == Os.MACOS) {
-            javaHome = javaHome.getParentFile();
-        }
-        File etcDirectory = new File(javaHome, "etc");
-        File zing = new File(etcDirectory, "zing");
-        if (zing.exists()) {
-            return Jvm.ZING;
-        }
-
-        // Otherwise it's some variation of hotspot
-        return Jvm.HOTSPOT;
-    }
-
-    private static Arch detectArch() throws RuntimeException {
-        String architecture = System.getProperty("os.arch");
-
-        if (architecture.contains("x86_64") || architecture.contains("amd64")) {
-            return Arch.X64;
-        } else if (architecture.contains("aarch64")) {
-            return Arch.ARM64;
-        } else if (architecture.contains("arm")) {
-            return Arch.ARM32;
-        } else if (architecture.contains("ppc64le")) {
-            return Arch.PPC64LE;
-        } else if (architecture.endsWith("86")) {
-            return Arch.X86;
-        } else {
-            throw new RuntimeException("Unable to detect the architecture used by the host.");
+            return Integer.parseInt(prop.substring(0, prop.indexOf('.')));
         }
     }
 
     public static boolean enabled(Test test) {
-        Os[] os = test.os();
-        int[] jdkVersion = test.jdkVersion();
-        Jvm[] jvm = test.jvm();
-        Arch[] arch = test.arch();
-
         if (!test.enabled()) {
             return false;
         }
 
+        Os[] os = test.os();
         if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
             return false;
         }
 
-        if (jdkVersion.length > 0 && !Arrays.asList(jdkVersion).contains(currentJvmVersion)) {
+        Arch[] arch = test.arch();
+        if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
             return false;
         }
 
+        Jvm[] jvm = test.jvm();
         if (jvm.length > 0 && !Arrays.asList(jvm).contains(currentJvm)) {
             return false;
         }
 
-        if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
+        int[] jvmVer = test.jvmVer();
+        if (jvmVer.length > 0 && (currentJvmVersion < jvmVer[0] || currentJvmVersion > jvmVer[jvmVer.length - 1])) {
             return false;
         }
 
         return true;
     }
 
-    private static boolean run(Method m, boolean retainlogs) throws Exception {
+    private static boolean run(Method m) {
         boolean passedAll = true;
         for (Test test : m.getAnnotationsByType(Test.class)) {
-            String fullDeclaringClass = m.getDeclaringClass().getName();
-            String className = fullDeclaringClass.substring(fullDeclaringClass.lastIndexOf('.') + 1);
+            String className = m.getDeclaringClass().getSimpleName();
+            String testName = className + '.' + m.getName();
 
-            if (!enabled(test) || skipSet.contains(m.getName().toLowerCase()) || skipSet.contains(className.toLowerCase())) {
-                log.log(Level.FINE, "Skipped " + m.getDeclaringClass().getName() + '.' + m.getName());
+            if (!enabled(test) || skipTests.contains(className.toLowerCase()) || skipTests.contains(m.getName().toLowerCase())) {
+                log.log(Level.FINE, "Skipped " + testName);
                 continue;
             }
 
-            String testName = className + '.' + m.getName();
-            log.log(Level.INFO, "Running " + m.getDeclaringClass().getName() + '.' + m.getName() + "...");
+            log.log(Level.INFO, "Running " + testName + "...");
 
-            try (final TestProcess p = new TestProcess(test, getLibExt(), testName);) {
+            String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
+            try (TestProcess p = new TestProcess(test, testLogDir, currentOs.getLibExt())) {
                 Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ? m.getDeclaringClass().newInstance() : null;
                 m.invoke(holder, p);
                 log.info("OK");
             } catch (InvocationTargetException e) {
-                log.log(Level.WARNING, "Test failed " + e.getCause().getMessage());
+                log.log(Level.WARNING, testName + " failed", e.getTargetException());
                 passedAll = false;
             } catch (Throwable e) {
-                log.log(Level.WARNING, "Test failed " + e.getMessage());
+                log.log(Level.WARNING, testName + " failed", e);
                 passedAll = false;
             }
         }
         return passedAll;
     }
 
-    private static boolean run(Class<?> cls, boolean retainlogs) throws Exception {
+    private static boolean run(Class<?> cls) {
         boolean passedAll = true;
         for (Method m : cls.getMethods()) {
-            passedAll &= run(m, retainlogs);
+            passedAll &= run(m);
         }
         return passedAll;
     }
@@ -196,14 +179,22 @@ public class Runner {
         }
 
         String logLevelProperty = System.getProperty("logLevel");
-        if (logLevelProperty != null) {
-            Level logLevel = Level.parse(logLevelProperty);
+        if (logLevelProperty != null && !logLevelProperty.isEmpty()) {
+            Level level = Level.parse(logLevelProperty);
             Logger logger = Logger.getLogger("");
-            logger.setLevel(logLevel);
+            logger.setLevel(level);
             for (Handler handler : logger.getHandlers()) {
-                handler.setLevel(logLevel);
+                handler.setLevel(level);
             }
+        }
+    }
 
+    private static void configureSkipTests() {
+        String skipProperty = System.getProperty("skip");
+        if (skipProperty != null && !skipProperty.isEmpty()) {
+            for (String skip : skipProperty.split(",")) {
+                skipTests.add(skip.toLowerCase());
+            }
         }
     }
 
@@ -214,31 +205,24 @@ public class Runner {
         }
 
         configureLogging();
-
-        String[] skips = System.getProperty("skip") != null ? System.getProperty("skip").split(",") : new String[0];
-        for (String skip : skips) {
-            skipSet.add(skip.toLowerCase());
-        }
+        configureSkipTests();
 
         boolean passedAll = true;
-        for (int i = 0; i < args.length; i++) {
-            String testName = args[i];
-            if (args[i].indexOf('.') < 0 && Character.isLowerCase(args[i].charAt(0))) {
+        for (String arg : args) {
+            String testName = arg;
+            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            boolean success = run(Class.forName(testName), retainLogs);
-            if (!success) {
-                passedAll = false;
-            }
+            passedAll &= run(Class.forName(testName));
         }
 
-        if (retainLogs) {
-            log.log(Level.INFO, "Test/profile stderr stdout and profile are available in build/test/logs where applicable.");
+        if (!logDir.isEmpty()) {
+            log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
         }
 
         if (!passedAll) {
-            throw new RuntimeException("Failed one or more tests. Standard output and error are available in build/test/logs.");
+            throw new RuntimeException("One or more tests failed");
         }
     }
 }

@@ -15,12 +15,9 @@ import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 import one.profiler.test.Os;
 
-import static one.profiler.test.TestConstants.PROFILE_ERROR_FIELD;
-
-// Tests require perfevents to be enabled to pass
 public class PmuTests {
 
-    @Test(mainClass = Dictionary.class, os = {Os.LINUX})
+    @Test(mainClass = Dictionary.class, os = Os.LINUX)
     public void cycles(TestProcess p) throws Exception {
         try {
             p.profile("-e cycles -d 3 -o collapsed -f %f");
@@ -28,13 +25,13 @@ public class PmuTests {
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test128K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {
-            if (!p.readFile(PROFILE_ERROR_FIELD).contains("Perf events unavailable")) {
+            if (!p.readFile(TestProcess.PROFERR).contains("Perf events unavailable")) {
                 throw e;
             }
         }
     }
 
-    @Test(mainClass = Dictionary.class, os = {Os.LINUX}, arch = {Arch.X64, Arch.X86})
+    @Test(mainClass = Dictionary.class, os = Os.LINUX, arch = {Arch.X64, Arch.X86})
     public void cacheMisses(TestProcess p) throws Exception {
         try {
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
@@ -43,19 +40,19 @@ public class PmuTests {
             Assert.isLess(out.ratio("test/pmu/Dictionary.test128K"), 0.2);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.8);
         } catch (Exception e) {
-            if (!p.readFile(PROFILE_ERROR_FIELD).contains("Perf events unavailable")) {
+            if (!p.readFile(TestProcess.PROFERR).contains("Perf events unavailable")) {
                 throw e;
             }
         }
     }
 
-    @Test(mainClass = Dictionary.class, os = {Os.MACOS})
+    @Test(mainClass = Dictionary.class, os = Os.MACOS)
     public void pmuIncompatible(TestProcess p) throws Exception {
         try {
             p.profile("-e cache-misses -d 3 -o collapsed -f %f");
-            throw new AssertionError("Somehow accessed PerfEvents on macOS???");
+            throw new AssertionError("PerfEvents should succeed on Linux only");
         } catch (IOException e) {
-            Assert.contains(p.readFile(PROFILE_ERROR_FIELD), "PerfEvents are not supported on this platform");
+            assert p.readFile(TestProcess.PROFERR).contains("PerfEvents are not supported on this platform");
         }
     }
 }
