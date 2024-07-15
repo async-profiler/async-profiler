@@ -82,6 +82,7 @@ static const char USAGE_STRING[] =
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "                    from the non-privileged target\n"
+    "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -458,6 +459,9 @@ int main(int argc, const char** argv) {
         } else if (arg == "-l" || arg == "--lib") {
             format << ",lib";
 
+        } else if (arg == "--libpath") {
+            libpath = args.next();
+
         } else if (arg == "-I" || arg == "--include") {
             format << ",include=" << args.next();
 
@@ -545,7 +549,9 @@ int main(int argc, const char** argv) {
     }
 
     setup_output_files(pid);
-    setup_lib_path();
+    if (libpath == "") {
+        setup_lib_path();
+    }
 
     if (action == "collect") {
         run_fdtransfer(pid, fdtransfer);
