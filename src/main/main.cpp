@@ -80,9 +80,9 @@ static const char USAGE_STRING[] =
     "  --ttsp            time-to-safepoint profiling\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
+    "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "                    from the non-privileged target\n"
-    "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -459,9 +459,6 @@ int main(int argc, const char** argv) {
         } else if (arg == "-l" || arg == "--lib") {
             format << ",lib";
 
-        } else if (arg == "--libpath") {
-            libpath = args.next();
-
         } else if (arg == "-I" || arg == "--include") {
             format << ",include=" << args.next();
 
@@ -510,6 +507,9 @@ int main(int argc, const char** argv) {
         } else if (arg == "--timeout" || arg == "--loop") {
             params << "," << (arg.str() + 2) << "=" << args.next();
             if (action == "collect") action = "start";
+
+        } else if (arg == "--libpath") {
+            libpath = args.next();
 
         } else if (arg == "--fdtransfer") {
             char buf[64];
