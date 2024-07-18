@@ -13,6 +13,7 @@ import one.jfr.event.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.BitSet;
 import java.util.Map;
 
 import static one.convert.Frame.*;
@@ -46,15 +47,16 @@ public abstract class JfrConverter extends Classifier {
                         args.alloc ? AllocationSample.class :
                                 args.lock ? ContendedLock.class : ExecutionSample.class;
 
-        long threadStates = 0;
+        BitSet threadStates = null;
         if (args.state != null) {
+            threadStates = new BitSet();
             for (String state : args.state.toUpperCase().split(",")) {
-                threadStates |= 1L << toThreadState(state);
+                threadStates.set(toThreadState(state));
             }
         } else if (args.cpu) {
-            threadStates = 1L << toThreadState("DEFAULT");
+            threadStates = getThreadStates(true);
         } else if (args.wall) {
-            threadStates = ~(1L << toThreadState("DEFAULT"));
+            threadStates = getThreadStates(false);
         }
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
@@ -62,7 +64,7 @@ public abstract class JfrConverter extends Classifier {
 
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == 0 || (threadStates & (1L << ((ExecutionSample) event).threadState)) != 0) {
+                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
                     agg.collect(event);
                 }
             }
@@ -81,6 +83,17 @@ public abstract class JfrConverter extends Classifier {
             }
         }
         throw new IllegalArgumentException("Unknown thread state: " + name);
+    }
+
+    protected BitSet getThreadStates(boolean cpu) {
+        BitSet set = new BitSet();
+        Map<Integer, String> threadStates = jfr.enums.get("jdk.types.ThreadState");
+        if (threadStates != null) {
+            for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
+                set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == cpu);
+            }
+        }
+        return set;
     }
 
     // millis can be an absolute timestamp or an offset from the beginning/end of the recording
