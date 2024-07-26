@@ -205,6 +205,10 @@ class ElfParser {
         return _header->e_type == ET_EXEC ? (const char*)pheader->p_vaddr : _vaddr_diff + pheader->p_vaddr;
     }
 
+    const char* base() {
+        return _header->e_type == ET_EXEC ? NULL : _base;
+    }
+
     char* dyn_ptr(ElfDyn* dyn) {
         // GNU dynamic linker relocates pointers in the dynamic section, while musl doesn't.
         // Also, [vdso] is not relocated, and its vaddr may differ from the load address.
@@ -367,21 +371,22 @@ void ElfParser::parseDynamicSection() {
             }
         }
 
-        if (symtab == NULL || strtab == NULL || syment == 0 || nsyms == 0 || relent == 0) {
+        if (symtab == NULL || strtab == NULL || syment == 0 || relent == 0) {
             return;
         }
 
-        if (!_cc->hasDebugSymbols()) {
+        if (!_cc->hasDebugSymbols() && nsyms > 0) {
             loadSymbolTable(symtab, syment * nsyms, syment, strtab);
         }
 
+        const char* base = this->base();
         if (jmprel != NULL && pltrelsz != 0) {
             // Parse .rela.plt table
             for (size_t offs = 0; offs < pltrelsz; offs += relent) {
                 ElfRelocation* r = (ElfRelocation*)(jmprel + offs);
                 ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
                 if (sym->st_name != 0) {
-                    _cc->addImport((void**)(_base + r->r_offset), strtab + sym->st_name);
+                    _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
                 }
             }
         } else if (rel != NULL && relsz != 0) {
@@ -392,7 +397,7 @@ void ElfParser::parseDynamicSection() {
                 if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT) {
                     ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
                     if (sym->st_name != 0) {
-                        _cc->addImport((void**)(_base + r->r_offset), strtab + sym->st_name);
+                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
                     }
                }
             }
@@ -524,12 +529,13 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
 }
 
 void ElfParser::loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings) {
+    const char* base = this->base();
     for (const char* symbols_end = symbols + total_size; symbols < symbols_end; symbols += ent_size) {
         ElfSymbol* sym = (ElfSymbol*)symbols;
         if (sym->st_name != 0 && sym->st_value != 0) {
             // Skip special AArch64 mapping symbols: $x and $d
             if (sym->st_size != 0 || sym->st_info != 0 || strings[sym->st_name] != '$') {
-                _cc->add(_base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
+                _cc->add(base + sym->st_value, (int)sym->st_size, strings + sym->st_name);
             }
         }
     }
