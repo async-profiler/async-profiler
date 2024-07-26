@@ -147,7 +147,7 @@ public class Runner {
             log.log(Level.INFO, "Running " + testName + "...");
 
             String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
-            try (TestProcess p = new TestProcess(test, testLogDir, currentOs.getLibExt())) {
+            try (TestProcess p = new TestProcess(test, currentOs, testLogDir)) {
                 Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ? m.getDeclaringClass().newInstance() : null;
                 m.invoke(holder, p);
                 log.info("OK");

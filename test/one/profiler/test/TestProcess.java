@@ -58,24 +58,10 @@ public class TestProcess implements Closeable {
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
 
-    public TestProcess(Test test, String logDir, String libExt) throws Exception {
+    public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
         this.logDir = logDir;
 
-        List<String> cmd = new ArrayList<>();
-        cmd.add(System.getProperty("java.home") + "/bin/java");
-        cmd.add("-cp");
-        cmd.add(System.getProperty("java.class.path"));
-        if (test.debugNonSafepoints()) {
-            cmd.add("-XX:+UnlockDiagnosticVMOptions");
-            cmd.add("-XX:+DebugNonSafepoints");
-        }
-        addArgs(cmd, test.jvmArgs());
-        if (!test.agentArgs().isEmpty()) {
-            cmd.add("-agentpath:build/lib/libasyncProfiler." + libExt + "=" + substituteFiles(test.agentArgs()));
-        }
-        cmd.add(test.mainClass().getName());
-        addArgs(cmd, test.args());
-
+        List<String> cmd = buildCommandLine(test, currentOs);
         log.log(Level.FINE, "Running " + cmd);
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
@@ -87,8 +73,39 @@ public class TestProcess implements Closeable {
         }
         this.p = pb.start();
 
-        // Give the JVM some time to initialize
-        Thread.sleep(700);
+        if (cmd.get(0).endsWith("java")) {
+            // Give the JVM some time to initialize
+            Thread.sleep(700);
+        }
+    }
+
+    private List<String> buildCommandLine(Test test, Os currentOs) {
+        List<String> cmd = new ArrayList<>();
+
+        String[] sh = test.sh();
+        if (sh.length > 0) {
+            cmd.add("/bin/sh");
+            cmd.add("-e");
+            cmd.add("-c");
+            cmd.add(substituteFiles(String.join(";", sh)));
+        } else {
+            cmd.add(System.getProperty("java.home") + "/bin/java");
+            cmd.add("-cp");
+            cmd.add(System.getProperty("java.class.path"));
+            if (test.debugNonSafepoints()) {
+                cmd.add("-XX:+UnlockDiagnosticVMOptions");
+                cmd.add("-XX:+DebugNonSafepoints");
+            }
+            addArgs(cmd, test.jvmArgs());
+            if (!test.agentArgs().isEmpty()) {
+                cmd.add("-agentpath:build/lib/libasyncProfiler." + currentOs.getLibExt() + "=" +
+                        substituteFiles(test.agentArgs()));
+            }
+            cmd.add(test.mainClass().getName());
+            addArgs(cmd, test.args());
+        }
+
+        return cmd;
     }
 
     private String getExtFromFile(File file) {
@@ -124,7 +141,7 @@ public class TestProcess implements Closeable {
 
         StringBuffer sb = new StringBuffer();
         do {
-            File f = createTempFile(m.group(1));
+            File f = createTempFile(m.group(1), m.group(2));
             m.appendReplacement(sb, f.getPath());
         } while (m.find());
 
@@ -132,13 +149,17 @@ public class TestProcess implements Closeable {
     }
 
     private File createTempFile(String fileId) {
-        try {
-            File f = File.createTempFile("ap-" + fileId.substring(1), null);
-            tmpFiles.put(fileId, f);
-            return f;
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return createTempFile(fileId, null);
+    }
+
+    private File createTempFile(String fileId, String ext) {
+        return tmpFiles.computeIfAbsent(fileId, key -> {
+            try {
+                return File.createTempFile("ap-" + key.substring(1), ext);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
     }
 
     private void clearTempFiles() {
@@ -199,6 +220,10 @@ public class TestProcess implements Closeable {
         }
     }
 
+    public int exitCode() {
+        return p.exitValue();
+    }
+
     public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
         waitForExit(p, timeout);
         return readFile(fileId);
@@ -239,8 +264,12 @@ public class TestProcess implements Closeable {
         return readFile(PROFOUT);
     }
 
+    public File getFile(String fileId) {
+        return tmpFiles.get(fileId);
+    }
+
     public Output readFile(String fileId) {
-        File f = tmpFiles.get(fileId);
+        File f = getFile(fileId);
         try (Stream<String> stream = Files.lines(f.toPath())) {
             return new Output(stream.toArray(String[]::new));
         } catch (IOException e) {

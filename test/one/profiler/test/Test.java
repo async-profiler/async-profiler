@@ -16,7 +16,9 @@ import java.lang.annotation.Target;
 @Repeatable(Tests.class)
 public @interface Test {
 
-    Class<?> mainClass();
+    String[] sh() default {};
+
+    Class<?> mainClass() default Test.class;
 
     String args() default "";
 
