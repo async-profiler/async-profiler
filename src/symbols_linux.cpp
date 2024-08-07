@@ -228,13 +228,13 @@ class ElfParser {
     void parseDwarfInfo();
     uint32_t getSymbolCount(uint32_t* gnu_hash);
     void loadSymbols(bool use_debug);
+    bool loadSymbolsFromDebug(const char* build_id, const int build_id_len);
+    bool loadSymbolsFromDebuginfodCache(const char* build_id, const int build_id_len);
     bool loadSymbolsUsingBuildId();
     bool loadSymbolsUsingDebugLink();
     void loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings);
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
     const char* getDebuginfodCache();
-    bool parseFileFromDebug(char* path, const char* build_id, const int build_id_len);
-    bool parseFileFromDebuginfodCache(char* path, const char* build_id, const int build_id_len);
 
   public:
     static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn);
@@ -489,8 +489,9 @@ const char* ElfParser::getDebuginfodCache() {
     return _debuginfod_cache_buf;
 }
 
-bool ElfParser::parseFileFromDebug(char* path, const char* build_id, const int build_id_len) {
-    char* p = path + snprintf(path, PATH_MAX, "/usr/lib/debug/.build-id/%02hhx/", build_id[0]);
+bool ElfParser::loadSymbolsFromDebug(const char* build_id, const int build_id_len) {
+    char path[PATH_MAX];
+    char* p = path + snprintf(path, sizeof(path), "/usr/lib/debug/.build-id/%02hhx/", build_id[0]);
     for (int i = 1; i < build_id_len; i++) {
         p += snprintf(p, 3, "%02hhx", build_id[i]);
     }
@@ -499,25 +500,27 @@ bool ElfParser::parseFileFromDebug(char* path, const char* build_id, const int b
     return parseFile(_cc, _base, path, false);
 }
 
-bool ElfParser::parseFileFromDebuginfodCache(char* path, const char* build_id, const int build_id_len) {
+bool ElfParser::loadSymbolsFromDebuginfodCache(const char* build_id, const int build_id_len) {
     const char* debuginfod_cache = getDebuginfodCache();
-    if (debuginfod_cache && debuginfod_cache[0]) {
-        const int debuginfod_cache_len = strlen(debuginfod_cache);
-        if(debuginfod_cache_len + build_id_len + strlen("/debuginfo") >= PATH_MAX) {
-            Log::warn("Path too long, skipping loading symbols: %s", debuginfod_cache);
-            return false;
-        }
-
-        char* p = strncpy(path, debuginfod_cache, PATH_MAX);
-        p += debuginfod_cache_len;
-        for (int i = 0; i < build_id_len; i++) {
-            p += snprintf(p, 3, "%02hhx", build_id[i]);
-        }
-        strcpy(p, "/debuginfo");
-
-        return parseFile(_cc, _base, path, false);
+    if (debuginfod_cache == NULL || !debuginfod_cache[0]) {
+        return false;
     }
-    return false;
+
+    char path[PATH_MAX];
+    const int debuginfod_cache_len = strlen(debuginfod_cache);
+    if (debuginfod_cache_len + build_id_len + strlen("/debuginfo") >= sizeof(path)) {
+        Log::warn("Path too long, skipping loading symbols: %s", debuginfod_cache);
+        return false;
+    }
+
+    char* p = strcpy(path, debuginfod_cache);
+    p += debuginfod_cache_len;
+    for (int i = 0; i < build_id_len; i++) {
+        p += snprintf(p, 3, "%02hhx", build_id[i]);
+    }
+    strcpy(p, "/debuginfo");
+
+    return parseFile(_cc, _base, path, false);
 }
 
 // Load symbols from the first file that exists in the following locations, in order, where abcdef1234 is Build ID.
@@ -539,9 +542,8 @@ bool ElfParser::loadSymbolsUsingBuildId() {
     const char* build_id = (const char*)note + sizeof(*note) + 4;
     int build_id_len = note->n_descsz;
 
-    char path[PATH_MAX];
-    return parseFileFromDebug(path, build_id, build_id_len)
-        || parseFileFromDebuginfodCache(path, build_id, build_id_len);
+    return loadSymbolsFromDebug(build_id, build_id_len)
+        || loadSymbolsFromDebuginfodCache(build_id, build_id_len);
 }
 
 // Look for debuginfo file specified in .gnu_debuglink section
