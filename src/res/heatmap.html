@@ -252,8 +252,8 @@
 
 <span id='status' class="status" style="border-left: none; border-top-right-radius: 4px; display: none; left:0;">&nbsp;</span>
 <script>
-	// Copyright 2020 Andrei Pangin
-	// Licensed under the Apache License, Version 2.0.
+	// Copyright The async-profiler authors
+	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
 
 	let dR, dG, dB;
@@ -948,7 +948,7 @@
 
 		count() {
 			const timeSquaresCountInMarkBlock = this.timeSquareRowsCount * this.squaresBetweenMarks;
-			const scaledTimeSquaresCount = (this.blocksData.counts.length + this.startBlock()) / this.timeSquareScale;
+			const scaledTimeSquaresCount = Math.ceil(this.blocksData.counts.length / this.timeSquareScale) + this.startBlock();
 			return Math.ceil(scaledTimeSquaresCount / timeSquaresCountInMarkBlock) * timeSquaresCountInMarkBlock;
 		}
 
@@ -992,7 +992,8 @@
 	}
 
 	function readMethods(data) {
-		const count = (data.data.length - 2) / 13;
+		data.nextInt6();
+		const count = data.nextVarInt();
 		const names = [];
 		const colors = [];
 		const bcis = new Array(count + 1);
@@ -1000,10 +1001,9 @@
 		names.push(methodName("all", "", 0, 0, 3));
 		colors.push(getColorStable(palette[3], 0));
 
-		data.nextInt6();
 		for (let i = 0; i < count; i++) {
-			const className = data.nextInt18();
-			const name = data.nextInt18();
+			const className = data.nextVarInt();
+			const name = data.nextVarInt();
 			const bci = data.nextInt18();
 			const line = data.nextInt18();
 			const type = data.nextInt6();
@@ -1020,6 +1020,7 @@
 	let sqPx = sq;
 	let sqScale = 1;
 	const canvasScrollPadding = 200;
+	const taskMaxTimeMs = 8;
 	let canvasTimeHeight = 12;
 	let canvasTimeHeightPx = 12;
 	let startMs = /*startMs:*/0;
@@ -1041,13 +1042,10 @@
 		' 1 hr  : 1 min '
 	];
 
-	const executionsHeatmap = new HeatmapCollection(claimHtml("executionsHeatmap"));
+	const currentHeatmap = new HeatmapCollection(claimHtml("executionsHeatmap"));
 	let cpool = [/*cpool:*/];
 	const methods = readMethods(new DataBuffer(claimHtml("methods")));
 	cpool = null;
-
-	let currentHeatmap = executionsHeatmap;
-	let currentHeatmapType = 'executions';
 
 	let heatLastSample = -1;
 	let heatActiveSample1 = -1;
@@ -1069,21 +1067,11 @@
 	let heatC;
 	let prevDx = -1000000000;
 
-	const timeOptions = {
-		year: '2-digit',
-		month: '2-digit',
-		day: '2-digit',
-		timeZoneName: 'short',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		fractionalSecondDigits: 2
-	};
-
 	const timeOptionsShort = {
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
+		hourCycle: 'h23',
 		fractionalSecondDigits: 2
 	};
 
@@ -1091,8 +1079,7 @@
 		hour: '2-digit',
 		minute: '2-digit',
 		second: '2-digit',
-		hourCycle: 'h23',
-		//hour12: false
+		hourCycle: 'h23'
 	};
 
 	function getCount(counts, i) {
@@ -1152,7 +1139,7 @@
 						nextTask = 0;
 						overflow = true;
 					}
-				} while (performance.now() - start < 8);
+				} while (performance.now() - start < taskMaxTimeMs);
 
 				for (let q = 0; q < overflow ? bgTasks.length : nextTask; q++) {
 					bgTasks[q].a();
@@ -3702,7 +3689,7 @@
 			let title = new Date(ms).toLocaleTimeString(undefined, timeOptionsTiny);
 
 			let w = heatC.measureText(title).width;
-			let x = markOffset + (markPixels - w) / 2;
+			let x = markOffset + 4;
 			heatC.fillText(title, x, canvasTimeHeight - 1, markPixels);
 
 			heatC.beginPath();

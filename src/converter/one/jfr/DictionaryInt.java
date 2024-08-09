@@ -6,7 +6,7 @@
 package one.jfr;
 
 /**
- * Fast and compact long->long map.
+ * Fast and compact long->int map.
  */
 public class DictionaryInt {
     private static final int INITIAL_CAPACITY = 16;
@@ -46,28 +46,6 @@ public class DictionaryInt {
         if (++size * 2 > keys.length) {
             resize(keys.length * 2);
         }
-    }
-
-    public int putIfAbsent(long key, int value) {
-        if (key == 0) {
-            throw new IllegalArgumentException("Zero key not allowed");
-        }
-
-        int mask = keys.length - 1;
-        int i = hashCode(key) & mask;
-        while (keys[i] != 0) {
-            if (keys[i] == key) {
-                return values[i];
-            }
-            i = (i + 1) & mask;
-        }
-        keys[i] = key;
-        values[i] = value;
-
-        if (++size * 2 > keys.length) {
-            resize(keys.length * 2);
-        }
-        return value;
     }
 
     public int get(long key) {

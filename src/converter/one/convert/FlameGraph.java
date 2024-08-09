@@ -173,36 +173,30 @@ public class FlameGraph implements Comparator<Frame> {
 
         String tail = ResourceProcessor.getResource("/flame.html");
 
-        tail = printTill(out, tail, "/*height:*/300");
+        tail = ResourceProcessor.printTill(out, tail, "/*height:*/300");
         int depth = mintotal > 1 ? root.depth(mintotal) : this.depth + 1;
         out.print(Math.min(depth * 16, 32767));
 
-        tail = printTill(out, tail, "/*title:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*title:*/");
         out.print(args.title);
 
-        tail = printTill(out, tail, "/*reverse:*/false");
+        tail = ResourceProcessor.printTill(out, tail, "/*reverse:*/false");
         out.print(args.reverse);
 
-        tail = printTill(out, tail, "/*depth:*/0");
+        tail = ResourceProcessor.printTill(out, tail, "/*depth:*/0");
         out.print(depth);
 
-        tail = printTill(out, tail, "/*cpool:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*cpool:*/");
         printCpool(out);
 
-        tail = printTill(out, tail, "/*frames:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*frames:*/");
         printFrame(out, root, 0, 0);
         out.print(outbuf);
 
-        tail = printTill(out, tail, "/*highlight:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*highlight:*/");
         out.print(args.highlight != null ? "'" + escape(args.highlight) + "'" : "");
 
         out.print(tail);
-    }
-
-    private String printTill(PrintStream out, String data, String till) {
-        int index = data.indexOf(till);
-        out.print(data.substring(0, index));
-        return data.substring(index + till.length());
     }
 
     private void printCpool(PrintStream out) {

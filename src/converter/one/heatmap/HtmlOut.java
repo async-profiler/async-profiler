@@ -6,7 +6,6 @@
 package one.heatmap;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class HtmlOut {
@@ -23,7 +22,7 @@ public class HtmlOut {
         pos = 0;
     }
 
-    public void nextByte(int ch) throws IOException {
+    public void nextByte(int ch) {
         int c = ch;
         switch (ch) {
             case 0:
@@ -56,14 +55,14 @@ public class HtmlOut {
     }
 
     public void write6(int v) throws IOException {
-        if ((v & (0xFFFFFFC0)) != 0) {
+        if ((v & 0xFFFFFFC0) != 0) {
             throw new IllegalArgumentException("Value " + v + " is out of bounds");
         }
         nextByte(v);
     }
 
     public void write18(int v) throws IOException {
-        if ((v & (~0x3FFFF)) != 0) {
+        if ((v & ~0x3FFFF) != 0) {
             throw new IllegalArgumentException("Value " + v + " is out of bounds");
         }
         for (int i = 0; i < 3; i++) {
@@ -89,10 +88,6 @@ public class HtmlOut {
 
     public int pos() {
         return pos;
-    }
-
-    public PrintStream asPrintableStream() {
-        return out;
     }
 
 }

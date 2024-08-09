@@ -5,6 +5,10 @@
 
 package one.convert;
 
+import static one.convert.Frame.TYPE_INLINED;
+import static one.convert.Frame.TYPE_KERNEL;
+import static one.convert.Frame.TYPE_NATIVE;
+
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -46,10 +50,10 @@ public class JfrToHeatmap extends JfrConverter {
                 byte type = 0;
                 if (event instanceof AllocationSample) {
                     extra = ((AllocationSample) event).classId;
-                    type = ((AllocationSample) event).tlabSize == 0 ? (byte)3 : (byte)2;
+                    type = ((AllocationSample) event).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
                 } else if (event instanceof ContendedLock) {
                     extra = ((ContendedLock) event).classId;
-                    type = 5;
+                    type = TYPE_KERNEL;
                 }
 
                 long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000L / jfr.ticksPerSec;

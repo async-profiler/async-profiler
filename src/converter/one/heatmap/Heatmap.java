@@ -6,6 +6,7 @@
 package one.heatmap;
 
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import one.convert.Arguments;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
@@ -74,9 +75,10 @@ public class Heatmap {
     }
 
     private void compressMethods(HtmlOut out, Method[] methods) throws IOException {
+        out.writeVar(methods.length);
         for (Method method : methods) {
-            out.write18(method.className);
-            out.write18(method.methodName);
+            out.writeVar(method.className);
+            out.writeVar(method.methodName);
             out.write18(method.location & 0xffff);
             out.write18(method.location >>> 16);
             out.write6(method.type);
@@ -84,29 +86,29 @@ public class Heatmap {
     }
 
     public void dump(PrintStream stream) throws IOException {
-        HtmlOut out = new HtmlOut(stream);
 
         EvaluationContext evaluationContext = evaluate();
 
         String tail = ResourceProcessor.getResource("/heatmap.html");
 
-        tail = printTill(out, tail, "/*executionsHeatmap:*/");
-        out.resetPos();
+        tail = ResourceProcessor.printTill(stream, tail, "/*executionsHeatmap:*/");
+        HtmlOut out = new HtmlOut(stream);
         printHeatmap(out, evaluationContext);
 
-        tail = printTill(out, tail, "/*methods:*/");
+        tail = ResourceProcessor.printTill(stream, tail, "/*methods:*/");
+        out.resetPos();
         printMethods(out, evaluationContext);
 
-        tail = printTill(out, tail, "/*title:*/");
-        out.write((arguments.title == null ? "Heatmap" : arguments.title).getBytes());
+        tail = ResourceProcessor.printTill(stream, tail, "/*title:*/");
+        stream.print(arguments.title == null ? "Heatmap" : arguments.title);
 
-        tail = printTill(out, tail, "/*startMs:*/0");
-        out.write(String.valueOf(startMs).getBytes());
+        tail = ResourceProcessor.printTill(stream, tail, "/*startMs:*/0");
+        stream.print(startMs);
 
-        tail = printTill(out, tail, "/*cpool:*/");
-        printConstantPool(out.asPrintableStream(), evaluationContext);
+        tail = ResourceProcessor.printTill(stream, tail, "/*cpool:*/");
+        printConstantPool(stream, evaluationContext);
 
-        out.write(tail.getBytes());
+        stream.print(tail);
     }
 
     private void printHeatmap(final HtmlOut out, EvaluationContext context) throws IOException {
@@ -342,7 +344,7 @@ public class Heatmap {
     private void printConstantPool(PrintStream out, EvaluationContext evaluationContext) throws IOException {
         for (byte[] symbol : evaluationContext.symbols) {
             out.print('"');
-            out.print(new String(symbol)
+            out.print(new String(symbol, StandardCharsets.UTF_8)
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\""));
             out.print("\",");
@@ -372,10 +374,6 @@ public class Heatmap {
     private void debug(String text) {
         // Basically, no user will ever need that, but it will be helpful to debug broken data
         // System.out.println(text);
-    }
-
-    private static String printTill(HtmlOut out, String tail, String till) {
-        return ResourceProcessor.printTill(out.asPrintableStream(), tail, till);
     }
 
     private static class EvaluationContext {

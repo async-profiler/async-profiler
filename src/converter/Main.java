@@ -37,7 +37,7 @@ public class Main {
 
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
-            String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
+            String output = isDirectory ? new File(lastFile, replaceExt(input, ext(args.output))).getPath() : lastFile;
 
             System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
             System.out.flush();
@@ -74,6 +74,13 @@ public class Main {
         int slash = fileName.lastIndexOf(File.separatorChar);
         int dot = fileName.lastIndexOf('.');
         return dot > slash ? fileName.substring(slash + 1, dot + 1) + ext : fileName.substring(slash + 1) + '.' + ext;
+    }
+
+    private static String ext(String out) {
+        if (out.equals("heatmap")) {
+            return "html";
+        }
+        return out;
     }
 
     private static boolean isJfr(String fileName) throws IOException {

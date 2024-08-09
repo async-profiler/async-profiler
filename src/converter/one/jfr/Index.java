@@ -37,8 +37,7 @@ public class Index<T> {
             if (currentKey == null) {
                 break;
             }
-            //noinspection unchecked
-            if (equals((T) currentKey, key)) {
+            if (currentKey.equals(key)) {
                 return values[i];
             }
             i = (i + 1) & mask;
@@ -66,13 +65,6 @@ public class Index<T> {
         }
     }
 
-    public int preallocate(int count) {
-        if (count * 2 > keys.length) {
-            resize(Integer.highestOneBit(count * 4 - 1));
-        }
-        return count;
-    }
-
     public int size() {
         return size;
     }
@@ -97,10 +89,6 @@ public class Index<T> {
 
         keys = newKeys;
         values = newValues;
-    }
-
-    protected boolean equals(T k1, T k2) {
-        return k1.equals(k2);
     }
 
     protected int hashCode(T key) {
