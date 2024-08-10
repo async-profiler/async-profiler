@@ -6,7 +6,8 @@
 package one.heatmap;
 
 import java.util.Arrays;
-import one.convert.Frame;
+import one.convert.Arguments;
+import one.convert.JfrConverter;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
 import one.jfr.MethodRef;
@@ -19,9 +20,12 @@ public class MethodCache {
     private static final MethodRef UNKNOWN_METHOD_REF = new MethodRef(UNKNOWN_ID, UNKNOWN_ID, UNKNOWN_ID);
     private static final ClassRef UNKNOWN_CLASS_REF = new ClassRef(UNKNOWN_ID);
 
+    private final Arguments args;
+
     private Dictionary<MethodRef> methodRefs;
     private Dictionary<ClassRef> classRefs;
     private Dictionary<byte[]> symbols;
+    private boolean isAsyncProfiler;
 
     private final SymbolTable symbolTable = new SymbolTable();
     private final int emptyIndex = symbolTable.index(new byte[0]);
@@ -35,15 +39,21 @@ public class MethodCache {
     // but in most cases all methods should fit nearCache, so less code is better
     private final Dictionary<Method> farMethods = new Dictionary<>(1024 * 1024);
 
+    public MethodCache(Arguments args) {
+        this.args = args;
+    }
+
     public void assignConstantPool(
             Dictionary<MethodRef> methodRefs,
             Dictionary<ClassRef> classRefs,
-            Dictionary<byte[]> symbols
+            Dictionary<byte[]> symbols,
+            boolean isAsyncProfiler
     ) {
         clear();
         this.methodRefs = methodRefs;
         this.classRefs = classRefs;
         this.symbols = symbols;
+        this.isAsyncProfiler = isAsyncProfiler;
     }
 
     public void clear() {
@@ -112,7 +122,7 @@ public class MethodCache {
 
         ClassRef classRef = classRefs.get(extra);
         byte[] classNameBytes = this.symbols.get(classRef == null ? UNKNOWN_CLASS_REF.name : classRef.name);
-        method = new Method(methodId, symbolTable.indexWithPostTransform(classNameBytes), emptyIndex, -1, type, false);
+        method = new Method(methodId, symbolTable.indexForJavaClass(classNameBytes), emptyIndex, -1, type, false);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {
@@ -135,36 +145,16 @@ public class MethodCache {
         byte[] classNameBytes = this.symbols.get(classRef.name);
         byte[] methodNameBytes = this.symbols.get(methodRef.name);
 
-        int className = isNativeFrame(type)
+        int className = JfrConverter.isNativeFrame(type, isAsyncProfiler)
                 ? symbolTable.index(classNameBytes)
-                : symbolTable.indexWithPostTransform(transformIfNeeded(classNameBytes));
+                : symbolTable.indexForJavaClass(classNameBytes);
         int methodName = symbolTable.index(methodNameBytes);
 
         return new Method(methodId, className, methodName, location, type, firstInStack);
     }
 
-    private byte[] transformIfNeeded(byte[] className) {
-        a: for (int i = 0; i < className.length - LAMBDA.length; i++) {
-            if (className[i] == '$') {
-                i++;
-                for (int j = 0; j < LAMBDA.length; j++, i++) {
-                    if (className[i] != LAMBDA[j]) {
-                        i--;
-                        continue a;
-                    }
-                }
-                return Arrays.copyOf(className, i);
-            }
-        }
-        return className;
-    }
-
-    private boolean isNativeFrame(byte methodType) {
-        return methodType >= Frame.TYPE_NATIVE && methodType <= Frame.TYPE_KERNEL;
-    }
-
-    public byte[][] orderedSymbolTable() {
-        return symbolTable.orderedKeys();
+    public String[] orderedSymbolTable() {
+        return symbolTable.orderedKeys(args);
     }
 
     public Index<Method> methodsIndex() {

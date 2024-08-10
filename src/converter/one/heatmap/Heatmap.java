@@ -5,23 +5,23 @@
 
 package one.heatmap;
 
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import one.convert.Arguments;
-import one.jfr.ClassRef;
-import one.jfr.Dictionary;
-import one.jfr.MethodRef;
-import one.jfr.DictionaryInt;
-import one.jfr.Index;
-import one.convert.ResourceProcessor;
-
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Comparator;
+import one.convert.Arguments;
+import one.convert.ResourceProcessor;
+import one.jfr.ClassRef;
+import one.jfr.Dictionary;
+import one.jfr.DictionaryInt;
+import one.jfr.Index;
+import one.jfr.MethodRef;
 
 public class Heatmap {
 
+    // TODO it is probably should be an argument
+    // but there is a good chance that changing it will have some side effects
+    public static final int BLOCK_DURATION_MS = 20;
     private final Arguments arguments;
 
     private State state;
@@ -31,17 +31,16 @@ public class Heatmap {
     public Heatmap(Arguments arguments) {
         this.arguments = arguments;
 
-        // TODO it is probably should be an argument
-        // but there is a good chance that changing it will have some side effects
-        this.state = new State(20);
+        this.state = new State(arguments, BLOCK_DURATION_MS);
     }
 
     public void assignConstantPool(
-            Dictionary<MethodRef> methodRefs,
-            Dictionary<ClassRef> classRefs,
-            Dictionary<byte[]> symbols
+        Dictionary<MethodRef> methodRefs,
+        Dictionary<ClassRef> classRefs,
+        Dictionary<byte[]> symbols,
+        boolean isAsyncProfiler
     ) {
-        state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols);
+        state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols, isAsyncProfiler);
     }
 
     public void nextFile() {
@@ -59,7 +58,7 @@ public class Heatmap {
 
     public void finish(long startMs) {
         this.startMs = startMs;
-        assignConstantPool(null, null, null);
+        assignConstantPool(null, null, null, false);
         nextFile();
     }
 
@@ -67,10 +66,10 @@ public class Heatmap {
         State state = this.state;
         this.state = null;
         return new EvaluationContext(
-                state.sampleList.samples(),
-                state.methodsCache.methodsIndex(),
-                state.stackTracesRemap.orderedTraces(),
-                state.methodsCache.orderedSymbolTable()
+            state.sampleList.samples(),
+            state.methodsCache.methodsIndex(),
+            state.stackTracesRemap.orderedTraces(),
+            state.methodsCache.orderedSymbolTable()
         );
     }
 
@@ -158,7 +157,8 @@ public class Heatmap {
         out.write30(context.sampleList.stackIds.length);
     }
 
-    private void writeSamples(HtmlOut out, SynonymTable synonymTable, EvaluationContext context, int[] stackChunksBuffer) throws IOException {
+    private void writeSamples(HtmlOut out, SynonymTable synonymTable, EvaluationContext context,
+                              int[] stackChunksBuffer) throws IOException {
         for (int stackId : context.sampleList.stackIds) {
             int chunksStart = stackChunksBuffer[stackId * 2];
             int chunksEnd = stackChunksBuffer[stackId * 2 + 1];
@@ -170,7 +170,8 @@ public class Heatmap {
         }
     }
 
-    private int calculateSamplesSynonyms(SynonymTable synonymTable, EvaluationContext context, int[] stackChunksBuffer) {
+    private int calculateSamplesSynonyms(SynonymTable synonymTable, EvaluationContext context,
+                                         int[] stackChunksBuffer) {
         int chunksCount = 0;
         int[] childrenCount = synonymTable.reset();
 
@@ -265,7 +266,8 @@ public class Heatmap {
 
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
-                    if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
+                    if (current
+                        == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
                         context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
@@ -290,7 +292,8 @@ public class Heatmap {
             } else { // general case
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
-                    if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
+                    if (current
+                        == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
                         context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
                     }
                 }
@@ -341,12 +344,10 @@ public class Heatmap {
         }
     }
 
-    private void printConstantPool(PrintStream out, EvaluationContext evaluationContext) throws IOException {
-        for (byte[] symbol : evaluationContext.symbols) {
+    private void printConstantPool(PrintStream out, EvaluationContext evaluationContext) {
+        for (String symbol : evaluationContext.symbols) {
             out.print('"');
-            out.print(new String(symbol, StandardCharsets.UTF_8)
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\""));
+            out.print(symbol.replace("\\", "\\\\").replace("\"", "\\\""));
             out.print("\",");
         }
     }
@@ -380,13 +381,13 @@ public class Heatmap {
         final Index<Method> methods;
         final Method[] orderedMethods;
         final int[][] stackTraces;
-        final byte[][] symbols;
+        final String[] symbols;
 
         final SampleList.Result sampleList;
 
         final LzNodeTree nodeTree = new LzNodeTree();
 
-        EvaluationContext(SampleList.Result sampleList, Index<Method> methods, int[][] stackTraces, byte[][] symbols) {
+        EvaluationContext(SampleList.Result sampleList, Index<Method> methods, int[][] stackTraces, String[] symbols) {
             this.sampleList = sampleList;
             this.methods = methods;
             this.stackTraces = stackTraces;
@@ -405,13 +406,14 @@ public class Heatmap {
         final StackStorage stackTracesRemap = new StackStorage();
 
         final DictionaryInt stackTracesCache = new DictionaryInt();
-        final MethodCache methodsCache = new MethodCache();
+        final MethodCache methodsCache;
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(long blockDurationMs) {
+        State(Arguments args, long blockDurationMs) {
             sampleList = new SampleList(blockDurationMs);
+            methodsCache = new MethodCache(args);
         }
 
         public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {

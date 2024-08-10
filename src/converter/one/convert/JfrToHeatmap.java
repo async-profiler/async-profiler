@@ -35,7 +35,7 @@ public class JfrToHeatmap extends JfrConverter {
 
     @Override
     protected void convertChunk() throws IOException {
-        heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols);
+        heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols, jfr.isAsyncProfiler());
         jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
             @Override
             public void visit(long key, StackTrace value) {

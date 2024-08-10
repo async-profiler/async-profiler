@@ -5,25 +5,19 @@
 
 package one.heatmap;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import one.convert.Arguments;
+import one.convert.JfrConverter;
 
 public class SymbolTable {
 
     private static final int INITIAL_CAPACITY = 16 * 1024;
-    private static final long MARK_POST_TRANSFORM = 1L << 32;
+    private static final long MARK_JAVA_CLASS = 1L << 32;
     private static final byte[] UNKNOWN = "<Unknown>".getBytes();
 
-    private static final byte[] BYTE = "byte".getBytes();
-    private static final byte[] CHAR = "char".getBytes();
-    private static final byte[] SHORT = "short".getBytes();
-    private static final byte[] INT = "int".getBytes();
-    private static final byte[] LONG = "long".getBytes();
-    private static final byte[] BOOLEAN = "boolean".getBytes();
-    private static final byte[] FLOAT = "float".getBytes();
-    private static final byte[] DOUBLE = "double".getBytes();
-
     private byte[][] keys;
-    // highest 31 bits for index, lowest 32 bits for hash, post_transform mark between them
+    // highest 31 bits for index, lowest 32 bits for hash, mark_java_class mark between them
     private long[] meta;
 
     private int size;
@@ -41,8 +35,8 @@ public class SymbolTable {
         return index(key, 0);
     }
 
-    public int indexWithPostTransform(byte[] key) {
-        return index(key, MARK_POST_TRANSFORM);
+    public int indexForJavaClass(byte[] key) {
+        return index(key, MARK_JAVA_CLASS);
     }
 
     private int index(byte[] key, long markPostTransform) {
@@ -60,7 +54,7 @@ public class SymbolTable {
             }
 
             int hash = (int) currentMeta;
-            if (hash == hashCode && (currentMeta & MARK_POST_TRANSFORM) == markPostTransform) {
+            if (hash == hashCode && (currentMeta & MARK_JAVA_CLASS) == markPostTransform) {
                 if (Arrays.equals(keys[i], key)) {
                     return (int) (currentMeta >>> 33);
                 }
@@ -111,9 +105,9 @@ public class SymbolTable {
 
         for (int i = 0; i < limit; i += 4) {
             int k = (data[i] & 0xff) |
-                    (data[i + 1] & 0xff) << 8 |
-                    (data[i + 2] & 0xff) << 16 |
-                    data[i + 3] << 24;
+                (data[i + 1] & 0xff) << 8 |
+                (data[i + 2] & 0xff) << 16 |
+                data[i + 3] << 24;
             k *= m;
             k ^= k >>> 24;
             k *= m;
@@ -138,8 +132,8 @@ public class SymbolTable {
         return h;
     }
 
-    public byte[][] orderedKeys() {
-        byte[][] out = new byte[size][];
+    public String[] orderedKeys(Arguments args) {
+        String[] out = new String[size];
 
         for (int i = 0; i < meta.length; i++) {
             long currentMeta = meta[i];
@@ -149,81 +143,18 @@ public class SymbolTable {
 
             int index = (int) (currentMeta >>> 33);
 
-            if ((currentMeta & MARK_POST_TRANSFORM) == MARK_POST_TRANSFORM) {
-                out[index - 1] = convertClassName(keys[i]);
+            if ((currentMeta & MARK_JAVA_CLASS) == MARK_JAVA_CLASS) {
+                out[index - 1] = convertClassName(keys[i], args);
             } else {
-                out[index - 1] = keys[i];
+                out[index - 1] = new String(keys[i], StandardCharsets.UTF_8);
             }
         }
 
         return out;
     }
 
-
-    private byte[] convertClassName(byte[] className) {
-        if (className.length == 0) {
-            return className;
-        }
-        int arrayDepth = 0;
-        while (className[arrayDepth] == '[') {
-            arrayDepth++;
-        }
-
-        if (arrayDepth == 0) {
-            return replaceSlashes(className);
-        }
-
-        switch (className[arrayDepth]) {
-            case 'B':
-                return addParentheses(BYTE, arrayDepth);
-            case 'C':
-                return addParentheses(CHAR, arrayDepth);
-            case 'S':
-                return addParentheses(SHORT, arrayDepth);
-            case 'I':
-                return addParentheses(INT, arrayDepth);
-            case 'J':
-                return addParentheses(LONG, arrayDepth);
-            case 'Z':
-                return addParentheses(BOOLEAN, arrayDepth);
-            case 'F':
-                return addParentheses(FLOAT, arrayDepth);
-            case 'D':
-                return addParentheses(DOUBLE, arrayDepth);
-            case 'L':
-                return addParentheses(className, arrayDepth + 1, className.length - arrayDepth - 2, arrayDepth);
-            default:
-                return addParentheses(className, arrayDepth, className.length - arrayDepth, arrayDepth);
-        }
-    }
-
-    private byte[] addParentheses(byte[] name, int arrayDepth) {
-        return addParentheses(name, 0, name.length, arrayDepth);
-    }
-
-    private byte[] addParentheses(byte[] name, int start, int length, int arrayDepth) {
-        byte[] result = new byte[length + arrayDepth * 2];
-        for (int i = 0; i < length; i++) {
-            result[i] = replace(name[i + start]);
-        }
-        while (length < result.length) {
-            result[length++] = '[';
-            result[length++] = ']';
-        }
-        return result;
-    }
-
-    private byte replace(byte ch) {
-        return ch == (byte)'/' ? (byte) '.' : ch;
-    }
-
-    private byte[] replaceSlashes(byte[] className) {
-        for (int i = 0; i < className.length; i++) {
-            if (className[i] == (byte)'/') {
-                className[i] = '.';
-            }
-        }
-        return className;
+    private String convertClassName(byte[] className, Arguments args) {
+        return JfrConverter.convertJavaClassName(className, args);
     }
 
 }
