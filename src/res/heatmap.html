@@ -324,8 +324,6 @@
 	if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
 	c.font = document.body.style.font;
 
-	const init = typeof renderHeatmap === 'function' ? renderHeatmap : render;
-
 	let lastRenderFrom = 0;
 	let lastRenderTo = 0;
 	let lastBaseRenderFrom = 0;
@@ -690,6 +688,13 @@
 				| this.byteAt(this.pos++) << 24;
 		}
 
+		nextBase123() {
+			return (Math.imul(this.byteAt(this.pos++), 1860867)	// 123^3
+				+ Math.imul(this.byteAt(this.pos++), 15129)     // 123^2
+				+ Math.imul(this.byteAt(this.pos++), 123)       // 123^1
+				+ this.byteAt(this.pos++)) | 0;                 // 123^0
+		}
+
 		byteAt(pos) {
 			const c = this.data.charCodeAt(pos);
 			switch (c) {
@@ -782,10 +787,7 @@
 
 			let block = 0;
 			a:while (true) {
-				let bits = (Math.imul(data.nextSymbol(), 1860867)   // 123^3
-					+ Math.imul(data.nextSymbol(), 15129)           // 123^2
-					+ Math.imul(data.nextSymbol(), 123)             // 123^1
-					+ data.nextSymbol()) | 0;                       // 123^0
+				let bits = data.nextBase123();
 
 				for (let i = 0; i < 27; i++) {      // 27 bits per symbol
 					currentHuffmanCode |= bits & 1;
@@ -4271,7 +4273,7 @@
 		}
 	};
 
-	init();
+	renderHeatmap();
 	// first render of dominators
 	renderFunc = renderTraces;
 	// TODO: if we want this feature to be presented - uncomment

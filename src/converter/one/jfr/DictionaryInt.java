@@ -5,6 +5,8 @@
 
 package one.jfr;
 
+import java.util.Arrays;
+
 /**
  * Fast and compact long->int map.
  */
@@ -21,8 +23,8 @@ public class DictionaryInt {
     }
 
     public void clear() {
-        keys = new long[INITIAL_CAPACITY];
-        values = new int[INITIAL_CAPACITY];
+        Arrays.fill(keys, 0);
+        Arrays.fill(values, 0);
         size = 0;
     }
 
