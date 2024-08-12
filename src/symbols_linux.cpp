@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <link.h>
 #include <linux/limits.h>
 #include "symbols.h"
 #include "dwarf.h"
@@ -678,31 +679,13 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
-    MutexLocker ml(_parse_lock);
-
-    if (array->count() == 0) {
-        // _CS_GNU_LIBC_VERSION is not defined on musl
-        musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
-    }
-
-    if (kernel_symbols && !haveKernelSymbols()) {
-        CodeCache* cc = new CodeCache("[kernel]");
-        parseKernelSymbols(cc);
-
-        if (haveKernelSymbols()) {
-            cc->sort();
-            array->add(cc);
-        } else {
-            delete cc;
-        }
-    }
-
+static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* data) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
-        return;
+        return 1;
     }
 
+    CodeCacheArray* array = (CodeCacheArray*)data;
     CodeCache* cc;
     const char* image_base = NULL;
     u64 last_inode = 0;
@@ -774,6 +757,34 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     free(str);
     fclose(f);
+
+    return 1;
+}
+
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+    MutexLocker ml(_parse_lock);
+
+    if (array->count() == 0) {
+        // _CS_GNU_LIBC_VERSION is not defined on musl
+        musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
+    }
+
+    if (kernel_symbols && !haveKernelSymbols()) {
+        CodeCache* cc = new CodeCache("[kernel]");
+        parseKernelSymbols(cc);
+
+        if (haveKernelSymbols()) {
+            cc->sort();
+            array->add(cc);
+        } else {
+            delete cc;
+        }
+    }
+
+    // In glibc, dl_iterate_phdr() holds dl_load_write_lock, therefore preventing
+    // concurrent loading and unloading of shared libraries.
+    // Without it, we may access memory of a library that is being unloaded.
+    dl_iterate_phdr(parseLibrariesCallback, array);
 }
 
 #endif // __linux__
