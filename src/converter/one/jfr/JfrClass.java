@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-class JfrClass extends Element {
+public class JfrClass extends Element {
     final int id;
     final boolean simpleType;
     final String name;
@@ -29,7 +29,7 @@ class JfrClass extends Element {
         }
     }
 
-    JfrField field(String name) {
+    public JfrField field(String name) {
         for (JfrField field : fields) {
             if (field.name.equals(name)) {
                 return field;
