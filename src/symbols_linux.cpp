@@ -475,7 +475,7 @@ const char* ElfParser::getDebuginfodCache() {
     const char* env_vars[] = {"DEBUGINFOD_CACHE_PATH", "XDG_CACHE_HOME", "HOME"};
     const char* suffixes[] = {"/", "debuginfod_client/", ".cache/debuginfod_client/"};
 
-    for (int i = 0; i < sizeof(env_vars); ++i) {
+    for (int i = 0; i < sizeof(env_vars) / sizeof(env_vars[0]); i++) {
         const char* env_val = getenv(env_vars[i]);
         if (!env_val || !env_val[0]) {
             continue;
