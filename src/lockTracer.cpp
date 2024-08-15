@@ -9,9 +9,9 @@
 #include "profiler.h"
 #include "tsc.h"
 
-
 double LockTracer::_ticks_to_nanos;
-jlong LockTracer::_threshold;
+jlong LockTracer::_interval;
+volatile u64 LockTracer::_total_duration = 0; // for interval sampling.
 jlong LockTracer::_start_time = 0;
 jclass LockTracer::_UnsafeClass = NULL;
 jclass LockTracer::_LockSupport = NULL;
@@ -24,7 +24,7 @@ static pthread_key_t lock_tracer_tls = (pthread_key_t)0;
 
 Error LockTracer::start(Arguments& args) {
     _ticks_to_nanos = 1e9 / TSC::frequency();
-    _threshold = (jlong)(args._lock * (TSC::frequency() / 1e9));
+    _interval = (jlong)(args._lock * (TSC::frequency() / 1e9));
 
     if (!_initialized) {
         initialize();
@@ -107,7 +107,7 @@ void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jth
 }
 
 void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong entered_time = TSC::ticks();
+    const jlong entered_time = TSC::ticks();
     jlong enter_time;
     if (sizeof(void*) >= sizeof(jlong) && lock_tracer_tls) {
         enter_time = (jlong)pthread_getspecific(lock_tracer_tls);
@@ -116,7 +116,10 @@ void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, j
     }
 
     // Time is meaningless if lock attempt has started before profiling
-    if (_enabled && entered_time - enter_time >= _threshold && enter_time >= _start_time) {
+    const jlong duration = entered_time - enter_time;
+
+    // When the duration accumulator overflows _interval, the event is sampled.
+    if (_enabled && enter_time >= _start_time && updateCounter(_total_duration, duration, _interval)) {
         char* lock_name = getLockName(jvmti, env, object);
         recordContendedLock(LOCK_SAMPLE, enter_time, entered_time, lock_name, object, 0);
         jvmti->Deallocate((unsigned char*)lock_name);
@@ -149,7 +152,8 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
 
     if (park_blocker != NULL) {
         park_end_time = TSC::ticks();
-        if (park_end_time - park_start_time >= _threshold) {
+        const jlong duration = park_end_time - park_start_time;
+        if (updateCounter(_total_duration, duration, _interval)) {
             char* lock_name = getLockName(jvmti, env, park_blocker);
             if (lock_name == NULL || isConcurrentLock(lock_name)) {
                 recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);

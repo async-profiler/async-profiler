@@ -54,12 +54,14 @@ public class TestProcess implements Closeable {
     }
 
     private final String logDir;
+    private final String[] inputs;
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
 
     public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
         this.logDir = logDir;
+        this.inputs = test.inputs();
 
         List<String> cmd = buildCommandLine(test, currentOs);
         log.log(Level.FINE, "Running " + cmd);
@@ -77,6 +79,10 @@ public class TestProcess implements Closeable {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
+    }
+
+    public String[] inputs() {
+        return this.inputs;
     }
 
     private List<String> buildCommandLine(Test test, Os currentOs) {
