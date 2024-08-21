@@ -5,9 +5,18 @@
 
 package one.profiler.test;
 
+import one.convert.Arguments;
+import one.profiler.test.convert.impl.FlameToCollapsedConverter;
+
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+
+import static one.profiler.test.ProfileOutputType.COLLAPSED;
+import static one.profiler.test.ProfileOutputType.FLAMEGRAPH;
 
 public class Output {
     private final String[] lines;
@@ -49,6 +58,19 @@ public class Output {
             matched += pattern.matcher(s).find() ? samples : 0;
         }
         return (double) matched / total;
+    }
+
+    public String convert(ProfileOutputType fromOutputType, ProfileOutputType toOutputType, InputStream inputStream) {
+        try {
+            if (fromOutputType.equals(FLAMEGRAPH) && toOutputType.equals(COLLAPSED)) {
+                return new FlameToCollapsedConverter().convert(
+                        inputStream, new Arguments("-o", "collapsed"));
+            } else {
+                throw new RuntimeException("Conversion for the provided fromOutputType is not implemented!");
+            }
+        } catch (IOException e) {
+            return "";
+        }
     }
 
     private static long extractSamples(String s) {
