@@ -264,43 +264,19 @@ public class TestProcess implements Closeable {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));
         }
 
-        return readFile(PROFOUT, args.split("\\s+"));
+        return readFile(PROFOUT);
     }
 
     public File getFile(String fileId) {
         return tmpFiles.get(fileId);
     }
 
-    public Output readFile(String fileId, String... args) {
+    public Output readFile(String fileId) {
         File f = getFile(fileId);
-        String extension = getExtFromFile(f);
-        try {
-            if (extension.equals(".html")) {
-                for (int i = 0; i < args.length; i++) {
-                    args[i] = args[i].equalsIgnoreCase("flamegraph") ? "collapsed" : args[i];
-                }
-
-                return new Output(getCollapsedOutput(f.getAbsolutePath(), new Arguments(args)));
-            } else {
-                try (Stream<String> stream = Files.lines(f.toPath())) {
-                    return new Output(stream.toArray(String[]::new));
-                }
-            }
+        try (Stream<String> stream = Files.lines(f.toPath())) {
+            return new Output(stream.toArray(String[]::new));
         } catch (IOException e) {
             return new Output(new String[0]);
-        }
-    }
-
-    private String[] getCollapsedOutput(String input, Arguments args) throws IOException {
-        FlameGraph fg = new FlameGraph(args);
-        try (InputStreamReader in = new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8)) {
-            fg.parseHtml(in);
-        }
-
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-             PrintStream out = new PrintStream(outputStream)) {
-            fg.dump(out);
-            return outputStream.toString().split(System.lineSeparator());
         }
     }
 }
