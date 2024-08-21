@@ -19,15 +19,11 @@ public class KernelTests {
         Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
         Output err = p.readFile(TestProcess.PROFERR);
         assert out.contains("test/kernel/ListFiles.listFiles;java/io/File");
-        if (!err.contains("Kernel symbols are unavailable")) {
-            assert out.contains("sys_getdents");
-        }
+        assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
 
         out = p.profile("stop -o flamegraph");
-//        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java/io/File.list'(,\\d+,\\d+,\\d+)?\\)");
-//        if (!err.contains("Kernel symbols are unavailable")) {
-//            assert out.contains("sys_getdents");
-//        }
+        assert out.contains("java/io/File.list");
+        assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
     }
 
     @Test(mainClass = ListFiles.class, os = Os.LINUX)

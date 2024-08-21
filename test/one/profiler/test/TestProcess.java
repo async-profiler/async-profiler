@@ -5,6 +5,9 @@
 
 package one.profiler.test;
 
+import one.convert.Arguments;
+import one.convert.FlameGraph;
+
 import java.io.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -251,8 +254,8 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Profiling " + cmd);
 
         Process p = new ProcessBuilder(cmd)
-                .redirectOutput(createTempFile("%pout"))
-                .redirectError(createTempFile("%perr"))
+                .redirectOutput(createTempFile(PROFOUT))
+                .redirectError(createTempFile(PROFERR))
                 .start();
 
         waitForExit(p, 10);
@@ -261,19 +264,43 @@ public class TestProcess implements Closeable {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));
         }
 
-        return readFile(PROFOUT);
+        return readFile(PROFOUT, args.split("\\s+"));
     }
 
     public File getFile(String fileId) {
         return tmpFiles.get(fileId);
     }
 
-    public Output readFile(String fileId) {
+    public Output readFile(String fileId, String... args) {
         File f = getFile(fileId);
-        try (Stream<String> stream = Files.lines(f.toPath())) {
-            return new Output(stream.toArray(String[]::new));
+        String extension = getExtFromFile(f);
+        try {
+            if (extension.equals(".html")) {
+                for (int i = 0; i < args.length; i++) {
+                    args[i] = args[i].equalsIgnoreCase("flamegraph") ? "collapsed" : args[i];
+                }
+
+                return new Output(getCollapsedOutput(f.getAbsolutePath(), new Arguments(args)));
+            } else {
+                try (Stream<String> stream = Files.lines(f.toPath())) {
+                    return new Output(stream.toArray(String[]::new));
+                }
+            }
         } catch (IOException e) {
             return new Output(new String[0]);
+        }
+    }
+
+    private String[] getCollapsedOutput(String input, Arguments args) throws IOException {
+        FlameGraph fg = new FlameGraph(args);
+        try (InputStreamReader in = new InputStreamReader(new FileInputStream(input), StandardCharsets.UTF_8)) {
+            fg.parseHtml(in);
+        }
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             PrintStream out = new PrintStream(outputStream)) {
+            fg.dump(out);
+            return outputStream.toString().split(System.lineSeparator());
         }
     }
 }

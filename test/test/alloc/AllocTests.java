@@ -30,11 +30,9 @@ public class AllocTests {
         Output out = p.profile("-e alloc -d 3 -o collapsed --total");
         assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
 
-        /* Commented out as part of disabling asserting JFR output.
         out = p.profile("stop -o flamegraph --total");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java.lang.Long'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java.util.HashMap\\$Node\\[]'\\)");
-        */
+        assert out.contains("java\\.lang\\.Long");
+        assert out.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
     @Test(mainClass = Hello.class, enabled = false, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
