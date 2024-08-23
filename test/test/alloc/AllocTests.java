@@ -31,20 +31,21 @@ public class AllocTests {
         assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
 
         out = p.profile("stop -o flamegraph --total");
-        Output convertedOut = out.convertFlameToCollapsed();
-        assert convertedOut.contains("java\\.lang\\.Long");
-        assert convertedOut.contains("java\\.util\\.HashMap\\$Node\\[]");
+        out = out.convertFlameToCollapsed();
+        assert out.contains("java\\.lang\\.Long");
+        assert out.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
-    @Test(mainClass = Hello.class, enabled = false, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
     public void startup(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'JNI_CreateJavaVM'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java/lang/ClassLoader.loadClass'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java\\.lang\\.Class'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java\\.lang\\.Thread'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'java\\.lang\\.String'\\)");
-        assert out.contains("f\\(\\d+,\\d+,\\d+,\\d,'int\\[]'\\)");
+        out = out.convertFlameToCollapsed();
+        assert out.contains("JNI_CreateJavaVM");
+        assert out.contains("java/lang/ClassLoader\\.loadClass");
+        assert out.contains("java\\.lang\\.Class");
+        assert out.contains("java\\.lang\\.Thread");
+        assert out.contains("java\\.lang\\.String");
+        assert out.contains("int\\[]");
     }
 
     @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX)
