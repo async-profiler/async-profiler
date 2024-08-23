@@ -5,14 +5,11 @@
 
 package test.alloc;
 
-import one.convert.Arguments;
-import one.profiler.test.*;
-
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-
-import static one.profiler.test.ProfileOutputType.COLLAPSED;
-import static one.profiler.test.ProfileOutputType.FLAMEGRAPH;
+import one.profiler.test.Jvm;
+import one.profiler.test.Os;
+import one.profiler.test.Output;
+import one.profiler.test.Test;
+import one.profiler.test.TestProcess;
 
 public class AllocTests {
 
@@ -34,10 +31,9 @@ public class AllocTests {
         assert out.samples("java.util.HashMap\\$Node\\[]") > 1_000_000;
 
         out = p.profile("stop -o flamegraph --total");
-        String convertedOut = out.convert(
-                FLAMEGRAPH, COLLAPSED, new ByteArrayInputStream(out.toString().getBytes(StandardCharsets.UTF_8)));
-        assert convertedOut.contains("java.lang.Long");
-        assert convertedOut.contains("java.util.HashMap$Node[]");
+        Output convertedOut = out.convertFlameToCollapsed();
+        assert convertedOut.contains("java\\.lang\\.Long");
+        assert convertedOut.contains("java\\.util\\.HashMap\\$Node\\[]");
     }
 
     @Test(mainClass = Hello.class, enabled = false, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")

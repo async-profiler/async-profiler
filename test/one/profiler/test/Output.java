@@ -6,17 +6,17 @@
 package one.profiler.test;
 
 import one.convert.Arguments;
-import one.profiler.test.convert.impl.FlameToCollapsedConverter;
+import one.convert.FlameGraph;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-
-import static one.profiler.test.ProfileOutputType.COLLAPSED;
-import static one.profiler.test.ProfileOutputType.FLAMEGRAPH;
 
 public class Output {
     private final String[] lines;
@@ -60,16 +60,17 @@ public class Output {
         return (double) matched / total;
     }
 
-    public String convert(ProfileOutputType fromOutputType, ProfileOutputType toOutputType, InputStream inputStream) {
-        try {
-            if (fromOutputType.equals(FLAMEGRAPH) && toOutputType.equals(COLLAPSED)) {
-                return new FlameToCollapsedConverter().convert(
-                        inputStream, new Arguments("-o", "collapsed"));
-            } else {
-                throw new RuntimeException("Conversion for the provided fromOutputType is not implemented!");
-            }
-        } catch (IOException e) {
-            return "";
+    public Output convertFlameToCollapsed() throws IOException {
+        FlameGraph fg = new FlameGraph(new Arguments("-o", "collapsed"));
+        try (InputStreamReader in = new InputStreamReader(
+                new ByteArrayInputStream(toString().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)) {
+            fg.parseHtml(in);
+        }
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             PrintStream out = new PrintStream(outputStream)) {
+            fg.dump(out);
+            return new Output(outputStream.toString().split(System.lineSeparator()));
         }
     }
 

@@ -5,18 +5,12 @@
 
 package test.kernel;
 
-import one.convert.Arguments;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 import one.profiler.test.Os;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-
-import static one.profiler.test.ProfileOutputType.COLLAPSED;
-import static one.profiler.test.ProfileOutputType.FLAMEGRAPH;
 
 public class KernelTests {
 
@@ -28,8 +22,7 @@ public class KernelTests {
         assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
 
         out = p.profile("stop -o flamegraph");
-        String convertedOut = out.convert(
-                FLAMEGRAPH, COLLAPSED, new ByteArrayInputStream(out.toString().getBytes(StandardCharsets.UTF_8)));
+        Output convertedOut = out.convertFlameToCollapsed();
         assert convertedOut.contains("java/io/File.list");
         assert err.contains("Kernel symbols are unavailable") || convertedOut.contains("sys_getdents");
     }
