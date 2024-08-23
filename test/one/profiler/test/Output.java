@@ -5,6 +5,10 @@
 
 package one.profiler.test;
 
+import one.convert.Arguments;
+import one.convert.FlameGraph;
+
+import java.io.*;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -49,6 +53,19 @@ public class Output {
             matched += pattern.matcher(s).find() ? samples : 0;
         }
         return (double) matched / total;
+    }
+
+    public Output convertFlameToCollapsed() throws IOException {
+        FlameGraph fg = new FlameGraph(new Arguments("-o", "collapsed"));
+        try (StringReader in = new StringReader(toString())) {
+            fg.parseHtml(in);
+        }
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             PrintStream out = new PrintStream(outputStream)) {
+            fg.dump(out);
+            return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
+        }
     }
 
     private static long extractSamples(String s) {

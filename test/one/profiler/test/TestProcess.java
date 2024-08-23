@@ -251,8 +251,8 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Profiling " + cmd);
 
         Process p = new ProcessBuilder(cmd)
-                .redirectOutput(createTempFile("%pout"))
-                .redirectError(createTempFile("%perr"))
+                .redirectOutput(createTempFile(PROFOUT))
+                .redirectError(createTempFile(PROFERR))
                 .start();
 
         waitForExit(p, 10);
