@@ -8,12 +8,7 @@ package one.profiler.test;
 import one.convert.Arguments;
 import one.convert.FlameGraph;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
+import java.io.*;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -62,15 +57,14 @@ public class Output {
 
     public Output convertFlameToCollapsed() throws IOException {
         FlameGraph fg = new FlameGraph(new Arguments("-o", "collapsed"));
-        try (InputStreamReader in = new InputStreamReader(
-                new ByteArrayInputStream(toString().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)) {
+        try (StringReader in = new StringReader(toString())) {
             fg.parseHtml(in);
         }
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
              PrintStream out = new PrintStream(outputStream)) {
             fg.dump(out);
-            return new Output(outputStream.toString().split(System.lineSeparator()));
+            return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
         }
     }
 
