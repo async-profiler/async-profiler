@@ -80,7 +80,8 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     _cache_epoch((unsigned char)epoch),
     _cache_max_age(args._mcache),
     _thread_names_lock(thread_names_lock),
-    _thread_names(thread_names)
+    _thread_names(thread_names),
+    _jni(VM::jni())
 {
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
@@ -189,6 +190,9 @@ void FrameName::javaMethodName(jmethodID method) {
         _str.assign(buf);
     }
 
+    if (method_class) {
+        _jni->DeleteLocalRef(method_class);
+    }
     jvmti->Deallocate((unsigned char*)class_name);
     jvmti->Deallocate((unsigned char*)method_sig);
     jvmti->Deallocate((unsigned char*)method_name);
