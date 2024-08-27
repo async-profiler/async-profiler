@@ -44,7 +44,7 @@ JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
-TESTS := $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
+TESTS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
