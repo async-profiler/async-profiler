@@ -278,7 +278,7 @@ public class TestProcess implements Closeable {
         File f = getFile(fileId);
         try (Stream<String> stream = Files.lines(f.toPath())) {
             return new Output(stream.toArray(String[]::new));
-        } catch (IOException e) {
+        } catch (IOException | UncheckedIOException e) {
             return new Output(new String[0]);
         }
     }

@@ -7,6 +7,8 @@ package one.profiler.test;
 
 import one.convert.Arguments;
 import one.convert.FlameGraph;
+import one.convert.JfrToFlame;
+import one.jfr.JfrReader;
 
 import java.io.*;
 import java.util.Arrays;
@@ -65,6 +67,19 @@ public class Output {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
              PrintStream out = new PrintStream(outputStream)) {
             fg.dump(out);
+            return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
+        }
+    }
+
+    public Output convertJfrToCollapsed(String input, Arguments args) throws IOException {
+        JfrToFlame converter;
+        try (JfrReader jfr = new JfrReader(input)) {
+            converter = new JfrToFlame(jfr, args);
+            converter.convert();
+        }
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            converter.dump(outputStream);
             return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
         }
     }

@@ -18,7 +18,7 @@ public class Cache {
     private volatile ValueWithTime[] top;
 
     public Cache() {
-        executor.scheduleAtFixedRate(this::calculateTop, 0, 5, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(this::calculateTop, 4, 4, TimeUnit.SECONDS);
     }
 
     public void put(Long key, String value) {
