@@ -14,7 +14,7 @@ public class CpuTests {
 
     @Test(mainClass = RegularPeak.class)
     public void regularPeakLinux(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 5 -f %f.jfr");
+        Output out = p.profile("-e cpu -d 6 -f %f.jfr");
         String jfrOutPath = p.getFile("%f").getAbsolutePath();
         out = out.convertJfrToCollapsed(jfrOutPath, new Arguments("-o", "collapsed", "--to", "2500"));
         assert !out.contains("test/cpu/Cache\\.lambda\\$calculateTop\\$1");
