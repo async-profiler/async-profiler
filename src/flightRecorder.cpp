@@ -134,6 +134,8 @@ class Lookup {
     Dictionary _symbols;
 
   private:
+    JNIEnv* _jni;
+
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
             mi->_class = _classes->lookup("");
@@ -198,6 +200,9 @@ class Lookup {
             mi->_sig = _symbols.lookup("()L;");
         }
 
+        if (method_class) {
+            _jni->DeleteLocalRef(method_class);
+        }
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
@@ -227,7 +232,7 @@ class Lookup {
 
   public:
     Lookup(MethodMap* method_map, Dictionary* classes) :
-        _method_map(method_map), _classes(classes), _packages(), _symbols() {
+        _method_map(method_map), _classes(classes), _packages(), _symbols(), _jni(VM::jni()) {
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {

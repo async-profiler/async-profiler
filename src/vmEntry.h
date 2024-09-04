@@ -126,7 +126,7 @@ class VM {
 
     static JNIEnv* jni() {
         JNIEnv* jni;
-        return _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
+        return _vm && _vm->GetEnv((void**)&jni, JNI_VERSION_1_6) == 0 ? jni : NULL;
     }
 
     static JNIEnv* attachThread(const char* name) {
