@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <signal.h>
 #include <unistd.h>
 #include "psutil.h"
@@ -13,6 +14,7 @@
 extern int is_openj9_process(int pid);
 extern int jattach_openj9(int pid, int nspid, int argc, char** argv, int print_output);
 extern int jattach_hotspot(int pid, int nspid, int argc, char** argv, int print_output);
+extern int enable_dynamic_agent_loading(int pid);
 
 int mnt_changed = 0;
 
@@ -35,6 +37,10 @@ int jattach(int pid, int argc, char** argv, int print_output) {
     enter_ns(pid, "ipc");
     mnt_changed = enter_ns(pid, "mnt");
 
+    if (argc > 0 && strcmp(argv[0], "load") == 0) {
+        enable_dynamic_agent_loading(mnt_changed > 0 ? nspid : pid);
+    }
+
     // In HotSpot, dynamic attach is allowed only for the clients with the same euid/egid.
     // If we are running under root, switch to the required euid/egid automatically.
     if ((my_gid != target_gid && setegid(target_gid) != 0) ||
@@ -43,6 +49,7 @@ int jattach(int pid, int argc, char** argv, int print_output) {
         return 1;
     }
 
+    // On macOS, /tmp directory may differ depending on euid
     get_tmp_path(mnt_changed > 0 ? nspid : pid);
 
     // Make write() return EPIPE instead of abnormal process termination
