@@ -41,6 +41,7 @@ class Log {
     static void close();
 
     static void log(LogLevel level, const char* msg, va_list args);
+    static void writeRaw(LogLevel level, const char* msg, size_t len);
 
     static void ATTR_FORMAT trace(const char* msg, ...);
     static void ATTR_FORMAT debug(const char* msg, ...);

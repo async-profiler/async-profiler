@@ -99,3 +99,7 @@ void CallbackWriter::write(const char* data, size_t len) {
         _output_callback(data, len);
     }
 }
+
+void LogWriter::write(const char* data, size_t len) {
+    Log::writeRaw(_logLevel, data, len);
+}
