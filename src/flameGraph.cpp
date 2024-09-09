@@ -204,7 +204,7 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
     for (std::map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
         children.push_back(Node(it->first, _name_order[f.nameIndex(it->first)], it->second));
     }
-    std::sort(children.begin(), children.end(), Node::orderByName);
+    std::sort(children.begin(), children.end(), Node::orderByTotal);
 
     x += f._self;
     for (size_t i = 0; i < children.size(); i++) {
