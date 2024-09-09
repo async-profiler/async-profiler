@@ -350,8 +350,8 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   Useful for finding Java heap memory leaks.
 
 * `--lock N` - lock profiling threshold in nanoseconds (or other units).
-  In lock profiling mode, record contended locks that the JVM has waited for
-  longer than the specified duration.
+  In lock profiling mode, sample contended locks when total lock duration
+  overflows the threshold.
 
 * `-j N` - sets the maximum stack depth. The default is 2048.  
   Example: `asprof -j 30 8983`

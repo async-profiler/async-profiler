@@ -31,7 +31,7 @@ Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring even
     if (strcmp(event_str, EVENT_ALLOC) == 0) {
         args._alloc = interval > 0 ? interval : 0;
     } else if (strcmp(event_str, EVENT_LOCK) == 0) {
-        args._lock = interval > 0 ? interval : 0;
+        args._lock = interval >= 0 ? interval : DEFAULT_LOCK_INTERVAL;
     } else {
         args._event = event_str;
         args._interval = interval;

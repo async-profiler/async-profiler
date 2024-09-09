@@ -41,4 +41,7 @@ public @interface Test {
     int[] jvmVer() default {};
 
     boolean enabled() default true;
+
+    // Optional inputs to the test method.
+    String[] inputs() default {};
 }

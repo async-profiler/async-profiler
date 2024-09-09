@@ -11,6 +11,7 @@ import one.convert.FlameGraph;
 import java.io.*;
 import java.util.Arrays;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Output {
@@ -66,6 +67,17 @@ public class Output {
             fg.dump(out);
             return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
         }
+    }
+
+    public double ratio(String regex1, String regex2) {
+        long matched1 = samples(regex1);
+        long matched2 = samples(regex2);
+
+        return (double) matched1 / (matched1 + matched2);
+    }
+
+    public Output filter(String regex) {
+        return new Output(stream(regex).toArray(String[]::new));
     }
 
     private static long extractSamples(String s) {

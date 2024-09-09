@@ -57,7 +57,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
 //     alloc[=BYTES]    - profile allocations with BYTES interval
 //     live             - build allocation profile from live objects only
-//     lock[=DURATION]  - profile contended locks longer than DURATION ns
+//     lock[=DURATION]  - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]        - run wall clock profiling together with CPU profiling
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
@@ -215,7 +215,7 @@ Error Arguments::parse(const char* args) {
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc < 0) _alloc = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
-                    if (_lock < 0) _lock = 0;
+                    if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {

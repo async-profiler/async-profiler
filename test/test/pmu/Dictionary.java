@@ -9,8 +9,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * This demo shows the importance of hardware performance counters.
- * Two tests (test128K and test8M) execute the same number of
- * operations, however, test128K completes much quicker than test8M.
+ * Two tests (test16K and test8M) execute the same number of
+ * operations, however, test16K completes much quicker than test8M.
  * <p>
  * CPU profiling shows no difference between two tests,
  * but cache-misses profiling highlights test8M
@@ -30,18 +30,18 @@ public class Dictionary {
         System.out.printf("Time spent: %.3f\n", (endTime - startTime) / 1e9);
     }
 
-    public static void test128K() {
-        long[] array = new long[1024 * 1024];
+    public static void test16K() {
+        long[] array = new long[8 * 1024 * 1024];
         testRandomRead(array, 16384);
     }
 
     public static void test8M() {
-        long[] array = new long[1024 * 1024];
-        testRandomRead(array, 1024 * 1024);
+        long[] array = new long[8 * 1024 * 1024];
+        testRandomRead(array, 8 * 1024 * 1024);
     }
 
     public static void main(String[] args) {
-        new Thread(Dictionary::test128K).start();
+        new Thread(Dictionary::test16K).start();
         new Thread(Dictionary::test8M).start();
     }
 }
