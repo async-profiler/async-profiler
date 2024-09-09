@@ -77,7 +77,7 @@ public class Output {
     }
 
     public Output filter(String regex) {
-        return new Output(this.stream(regex).toArray(String[]::new));
+        return new Output(stream(regex).toArray(String[]::new));
     }
 
     private static long extractSamples(String s) {
