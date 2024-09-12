@@ -71,10 +71,12 @@ public class Output {
         }
     }
 
-    public Output convertJfrToCollapsed(String input, Arguments args) throws IOException {
+    public Output convertJfrToCollapsed(String input, String... args) throws IOException {
         JfrToFlame converter;
         try (JfrReader jfr = new JfrReader(input)) {
-            converter = new JfrToFlame(jfr, args);
+            Arguments arguments = new Arguments(args);
+            arguments.output = "collapsed";
+            converter = new JfrToFlame(jfr, arguments);
             converter.convert();
         }
 
