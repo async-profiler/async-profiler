@@ -654,7 +654,7 @@
 
 	class DataBuffer {
 		data;
-		pos = 0;
+		pos = 1;
 
 		constructor(encodedData) {
 			this.data = encodedData;
@@ -719,7 +719,7 @@
 		int30(pos) {
 			let p = pos * 5;
 			if (p < 0) {
-				p += this.data.length;
+				p += this.data.length - 1;
 			}
 			return this.byteAt(p++) << 0
 				| this.byteAt(p++) << 6

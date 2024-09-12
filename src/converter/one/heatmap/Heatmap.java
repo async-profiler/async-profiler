@@ -92,11 +92,15 @@ public class Heatmap {
 
         tail = ResourceProcessor.printTill(stream, tail, "/*executionsHeatmap:*/");
         HtmlOut out = new HtmlOut(stream);
+        stream.print('S');
         printHeatmap(out, evaluationContext);
+        stream.print('E');
 
         tail = ResourceProcessor.printTill(stream, tail, "/*methods:*/");
         out.resetPos();
+        stream.print('S');
         printMethods(out, evaluationContext);
+        stream.print('E');
 
         tail = ResourceProcessor.printTill(stream, tail, "/*title:*/");
         stream.print(arguments.title == null ? "Heatmap" : arguments.title);
