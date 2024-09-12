@@ -71,7 +71,7 @@ public class Output {
         }
     }
 
-    public Output convertJfrToCollapsed(String input, String... args) throws IOException {
+    public static Output convertJfrToCollapsed(String input, String... args) throws IOException {
         JfrToFlame converter;
         try (JfrReader jfr = new JfrReader(input)) {
             Arguments arguments = new Arguments(args);
