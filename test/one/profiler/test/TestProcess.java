@@ -85,6 +85,13 @@ public class TestProcess implements Closeable {
         return this.inputs;
     }
 
+    private static boolean needsDynamicAgentLoadingFlag() {
+        String version = System.getProperty("java.version");
+        String[] versionParts = version.split("\\.");
+        int majorVersion = Integer.parseInt(versionParts[0]);
+        return majorVersion >= 21;
+    }
+
     private List<String> buildCommandLine(Test test, Os currentOs) {
         List<String> cmd = new ArrayList<>();
 
@@ -96,7 +103,10 @@ public class TestProcess implements Closeable {
             cmd.add(substituteFiles(String.join(";", sh)));
         } else {
             cmd.add(System.getProperty("java.home") + "/bin/java");
-            cmd.add("-cp");
+            if (needsDynamicAgentLoadingFlag()) {
+                cmd.add("-XX:+EnableDynamicAgentLoading");
+            }
+	    cmd.add("-cp");
             cmd.add(System.getProperty("java.class.path"));
             if (test.debugNonSafepoints()) {
                 cmd.add("-XX:+UnlockDiagnosticVMOptions");
