@@ -41,7 +41,6 @@ public class KernelTests {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer");
             throw new AssertionError("FdTransferClient should succeed on Linux only");
         } catch (IOException e) {
-            System.err.println("file content: " + p.readFile(TestProcess.PROFERR));
             assert p.readFile(TestProcess.PROFERR).contains("Failed to initialize FdTransferClient");
         }
     }
