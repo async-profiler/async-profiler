@@ -101,7 +101,7 @@ public class Runner {
         } else if (prop.startsWith("20.") && prop.charAt(3) > '0') {
             return 6;
         } else {
-            return Integer.parseInt(prop.substring(0, prop.indexOf('.')));
+            return Integer.parseInt(prop.split("[.-]")[0]);
         }
     }
 
