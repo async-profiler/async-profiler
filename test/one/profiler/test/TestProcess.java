@@ -248,14 +248,16 @@ public class TestProcess implements Closeable {
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
-        if (sudo) {
+        System.err.println("Run profile with");
+	if (sudo) {
+		System.err.println("    sudo");
             cmd.add("/usr/bin/sudo");
         }
         cmd.add("build/bin/asprof");
         addArgs(cmd, args);
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
-
+System.out.println("   command " + cmd);
         Process p = new ProcessBuilder(cmd)
                 .redirectOutput(createTempFile(PROFOUT))
                 .redirectError(createTempFile(PROFERR))
