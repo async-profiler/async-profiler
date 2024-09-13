@@ -42,6 +42,14 @@ JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
 
+static bool isVmRuntimeEntry(const char* blob_name) {
+    return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
+        || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0
+        || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0
+        || strncmp(blob_name, "_ZN8Runtime1", 12) == 0
+        || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
+}
+
 static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
         || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
@@ -143,16 +151,19 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     VMStructs::init(lib);
-    if (is_zero_vm) {
-        lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
-    } else if (isOpenJ9()) {
+    if (isOpenJ9()) {
         lib->mark(isOpenJ9InterpreterMethod, MARK_INTERPRETER);
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub, MARK_INTERPRETER);
         }
     } else {
-        lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
+        lib->mark(isVmRuntimeEntry, MARK_VM_RUNTIME);
+        if (is_zero_vm) {
+            lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
+        } else {
+            lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
+        }
     }
 
     if (!attach && hotspot_version() == 8 && OS::isLinux()) {

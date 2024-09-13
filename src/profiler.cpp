@@ -84,6 +84,10 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 }
 
 
+static inline int noNativeStack(EventType event_type) {
+    return (1 << event_type) & ((1 << INSTRUMENTED_METHOD) | (1 << LOCK_SAMPLE) | (1 << PARK_SAMPLE));
+}
+
 static inline bool isVTableStub(const char* name) {
     return name[0] && strcmp(name + 1, "table stub") == 0;
 }
@@ -316,7 +320,7 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
-    if (_cstack == CSTACK_NO || (event_type > EXECUTION_SAMPLE && _cstack == CSTACK_DEFAULT)) {
+    if (_cstack == CSTACK_NO || noNativeStack(event_type)) {
         return 0;
     }
 
@@ -331,10 +335,10 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
         native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
     }
 
-    return convertNativeTrace(native_frames, callchain, frames);
+    return convertNativeTrace(native_frames, callchain, frames, event_type);
 }
 
-int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames) {
+int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type) {
     int depth = 0;
     jmethodID prev_method = NULL;
 
@@ -342,7 +346,11 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
         const char* current_method_name = findNativeMethod(callchain[i]);
         char mark;
         if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
-            if (mark == MARK_INTERPRETER) {
+            if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+                // Skip all internal frames above VM runtime entry for allocation samples
+                depth = 0;
+                continue;
+            } else if (mark == MARK_INTERPRETER) {
                 // This is C++ interpreter frame, this and later frames should be reported
                 // as Java frames returned by AGCT. Terminate the scan here.
                 return depth;

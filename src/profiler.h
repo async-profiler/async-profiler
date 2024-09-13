@@ -200,7 +200,7 @@ class Profiler {
     Error dump(Writer& out, Arguments& args);
     void printUsedMemory(Writer& out);
     void switchThreadEvents(jvmtiEventMode mode);
-    int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);
+    int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type);
     u64 recordSample(void* ucontext, u64 counter, EventType event_type, Event* event);
     void recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, int num_frames, ASGCT_CallFrame* frames);
     void recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, u32 call_trace_id);
