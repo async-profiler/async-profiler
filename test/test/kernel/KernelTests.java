@@ -38,7 +38,7 @@ public class KernelTests {
     @Test(mainClass = ListFiles.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {Os.MACOS, Os.WINDOWS})
     public void notLinux(TestProcess p) throws Exception {
         try {
-            p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", true);
+            p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer", false);
             throw new AssertionError("FdTransferClient should succeed on Linux only");
         } catch (IOException e) {
             assert p.readFile(TestProcess.PROFERR).contains("Failed to initialize FdTransferClient");
