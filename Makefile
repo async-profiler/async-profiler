@@ -164,7 +164,7 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	$(RM) -r build/converter
 
 %.class: %.java
-	$(JAVAC) -source ${TARGET_RELEASE} -target ${TARGET_RELEASE} -Xlint:-options -g:none $^
+	$(JAVAC) -source ${JAVA_TARGET} -target ${JAVA_TARGET} -Xlint:-options -g:none $^
 
 build-test: all build/$(TEST_JAR)
 	echo "Successfully built all tests $(LIB_PROFILER)"
