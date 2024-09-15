@@ -67,9 +67,22 @@ static bool isOpenJ9JitStub(const char* blob_name) {
         blob_name += 3;
         return strcmp(blob_name, "NewObject") == 0
             || strcmp(blob_name, "NewArray") == 0
-            || strcmp(blob_name, "ANewArray") == 0;
+            || strcmp(blob_name, "ANewArray") == 0
+            || strcmp(blob_name, "AMultiNewArray") == 0;
     }
     return false;
+}
+
+static bool isOpenJ9Resolve(const char* blob_name) {
+    return strncmp(blob_name, "resolve", 7) == 0;
+}
+
+static bool isOpenJ9JitAlloc(const char* blob_name) {
+    return strncmp(blob_name, "old_", 4) == 0;
+}
+
+static bool isOpenJ9GcAlloc(const char* blob_name) {
+    return strncmp(blob_name, "J9Allocate", 10) == 0;
 }
 
 static bool isCompilerEntry(const char* blob_name) {
@@ -153,9 +166,15 @@ bool VM::init(JavaVM* vm, bool attach) {
     VMStructs::init(lib);
     if (isOpenJ9()) {
         lib->mark(isOpenJ9InterpreterMethod, MARK_INTERPRETER);
+        lib->mark(isOpenJ9Resolve, MARK_VM_RUNTIME);
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub, MARK_INTERPRETER);
+            libjit->mark(isOpenJ9JitAlloc, MARK_VM_RUNTIME);
+        }
+        CodeCache* libgc = profiler->findJvmLibrary("libj9gc");
+        if (libgc != NULL) {
+            libgc->mark(isOpenJ9GcAlloc, MARK_VM_RUNTIME);
         }
     } else {
         lib->mark(isVmRuntimeEntry, MARK_VM_RUNTIME);

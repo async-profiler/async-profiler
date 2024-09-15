@@ -114,6 +114,11 @@ void CodeCache::mark(NamePredicate predicate, char value) {
             NativeFunc::mark(blob_name, value);
         }
     }
+
+    if (value == MARK_VM_RUNTIME && _name != NULL) {
+        // In case a library has no debug symbols
+        NativeFunc::mark(_name, value);
+    }
 }
 
 CodeBlob* CodeCache::findBlob(const char* name) {
