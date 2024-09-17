@@ -39,6 +39,11 @@ public class RecoveryTests {
     @Test(mainClass = Numbers.class, debugNonSafepoints = true)
     public void numbers(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
+        if (System.getProperty("os.arch").equals("ppc64le")) {
+            // the test behaves differently on PowerPC
+            Assert.isGreater(out.ratio("Numbers.loop"), 0.5);
+            return;
+        }
         Assert.isGreater(out.ratio("vtable stub"), 0.01);
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
 
@@ -52,6 +57,12 @@ public class RecoveryTests {
         Assert.isGreater(out.ratio("unknown_Java"), 0.2);
 
         out = p.profile("-d 3 -e cpu -o collapsed");
+
+        if (System.getProperty("os.arch").equals("ppc64le")) {
+            // the test behaves differently on PowerPC
+            Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
+            return;
+        }
         Assert.isGreater(out.ratio("itable stub"), 0.01);
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.6);
     }

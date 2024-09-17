@@ -15,6 +15,9 @@ public class CTests {
     // TODO: Make the test work on macOS
     @Test(sh = {"gcc -Isrc test/test/c/nativeApi.c -ldl -o%c", "%c %f.jfr"}, output = true, os = Os.LINUX)
     public void nativeApi(TestProcess p) throws Exception {
+        if (System.getProperty("os.arch").equals("ppc64le")) {
+            return; // dwarf based unwinding is not supported on PowerPC
+        }
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
         assert out.contains("Starting profiler");
