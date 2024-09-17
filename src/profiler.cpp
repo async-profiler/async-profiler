@@ -1752,7 +1752,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
 
 Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
-        FileWriter out(STDOUT_FILENO);
+        LogWriter out;
         return runInternal(args, out);
     } else {
         // Open output file under the lock to avoid races with background timer
