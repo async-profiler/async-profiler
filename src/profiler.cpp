@@ -654,6 +654,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
+    if (_features.pc_addr && event_type <= EXECUTION_SAMPLE && ucontext != NULL) {
+        num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
+    }
+
     StackContext java_ctx = {0};
     num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
 

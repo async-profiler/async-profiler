@@ -40,7 +40,8 @@ enum ASGCT_CallFrameType {
     BCI_LOCK                = -14,  // class name of the locked object
     BCI_PARK                = -15,  // class name of the park() blocker
     BCI_THREAD_ID           = -16,  // method_id designates a thread
-    BCI_ERROR               = -17,  // method_id is an error string
+    BCI_ADDRESS             = -17,  // method_id is a PC address
+    BCI_ERROR               = -18,  // method_id is an error string
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

@@ -292,6 +292,12 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             }
         }
 
+        case BCI_ADDRESS: {
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%p", frame.method_id);
+            return _str.assign(buf).c_str();
+        }
+
         case BCI_ERROR:
             return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
 
@@ -345,6 +351,7 @@ FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
             return FRAME_KERNEL;
 
         case BCI_THREAD_ID:
+        case BCI_ADDRESS:
         case BCI_ERROR:
             return FRAME_NATIVE;
 

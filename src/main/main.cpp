@@ -57,7 +57,7 @@ static const char USAGE_STRING[] =
     "  -I include        output only stack traces containing the specified pattern\n"
     "  -X exclude        exclude stack traces with the specified pattern\n"
     "  -L level          log level: debug|info|warn|error|none\n"
-    "  -F features       advanced stack trace features: vtable, comptask\n"
+    "  -F features       advanced stack trace features: vtable, comptask, pcaddr\n"
     "  -v, --version     display version string\n"
     "\n"
     "  --title string    FlameGraph title\n"
