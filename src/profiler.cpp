@@ -84,8 +84,8 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 }
 
 
-static inline int noNativeStack(EventType event_type) {
-    return (1 << event_type) & ((1 << INSTRUMENTED_METHOD) | (1 << LOCK_SAMPLE) | (1 << PARK_SAMPLE));
+static inline int hasNativeStack(EventType event_type) {
+    return (1 << event_type) & ~((1 << INSTRUMENTED_METHOD) | (1 << LOCK_SAMPLE) | (1 << PARK_SAMPLE));
 }
 
 static inline bool isVTableStub(const char* name) {
@@ -319,10 +319,6 @@ jmethodID Profiler::getCurrentCompileTask() {
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
-
-    if (_cstack == CSTACK_NO || noNativeStack(event_type)) {
-        return 0;
-    }
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
@@ -654,12 +650,15 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
-    if (_features.pc_addr && event_type <= EXECUTION_SAMPLE && ucontext != NULL) {
-        num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
-    }
-
     StackContext java_ctx = {0};
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+    if (hasNativeStack(event_type)) {
+        if (_features.pc_addr && event_type <= EXECUTION_SAMPLE) {
+            num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
+        }
+        if (_cstack != CSTACK_NO) {
+            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+        }
+    }
 
     if (_cstack == CSTACK_VM) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth);
