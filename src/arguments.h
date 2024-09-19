@@ -108,10 +108,11 @@ struct StackWalkFeatures {
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
-    unsigned short _reserved     : 7;
+    unsigned short pc_addr       : 1;
+    unsigned short _reserved     : 6;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          probe_sp(0), vtable_target(0), comp_task(0), _reserved(0) {
+                          probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 

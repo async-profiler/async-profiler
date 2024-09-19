@@ -76,7 +76,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
 //     signal=N         - use alternative signal for cpu or wall clock profiling
-//     features=LIST    - advanced stack trace features (vtable, comptask)"
+//     features=LIST    - advanced stack trace features (vtable, comptask, pcaddr)"
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
@@ -272,6 +272,7 @@ Error Arguments::parse(const char* args) {
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
+                    if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
                 }
 
             CASE("safemode") {

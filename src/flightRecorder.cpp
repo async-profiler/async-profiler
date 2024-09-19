@@ -255,6 +255,10 @@ class Lookup {
             } else if (frame.bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
                 fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
+            } else if (frame.bci == BCI_ADDRESS) {
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%p", method);
+                fillNativeMethodInfo(mi, buf, NULL);
             } else if (frame.bci == BCI_ERROR) {
                 fillNativeMethodInfo(mi, (const char*)method, NULL);
             } else {
@@ -709,7 +713,7 @@ class Recording {
     }
 
     const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
@@ -718,7 +722,8 @@ class Recording {
                  f.gc_traces     ? "gc_traces"     : "-",
                  f.probe_sp      ? "probesp"       : "-",
                  f.vtable_target ? "vtable"        : "-",
-                 f.comp_task     ? "comptask"      : "-");
+                 f.comp_task     ? "comptask"      : "-",
+                 f.pc_addr       ? "pcaddr"        : "-");
         return str;
     }
 
