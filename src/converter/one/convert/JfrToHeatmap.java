@@ -7,7 +7,6 @@ package one.convert;
 
 import static one.convert.Frame.TYPE_INLINED;
 import static one.convert.Frame.TYPE_KERNEL;
-import static one.convert.Frame.TYPE_NATIVE;
 
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
