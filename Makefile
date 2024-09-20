@@ -1,4 +1,6 @@
-PROFILER_VERSION=3.0
+ifeq ($(PROFILER_VERSION),)
+  PROFILER_VERSION=3.0
+endif
 
 ifeq ($(COMMIT_TAG),true)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
@@ -76,23 +78,25 @@ else
   OS_TAG=linux
 endif
 
-ARCH:=$(shell uname -m)
-ifeq ($(ARCH),x86_64)
-  ARCH_TAG=x64
-else ifeq ($(ARCH),aarch64)
-  ARCH_TAG=arm64
-else ifeq ($(ARCH),arm64)
-  ARCH_TAG=arm64
-else ifeq ($(findstring arm,$(ARCH)),arm)
-  ARCH_TAG=arm32
-else ifeq ($(ARCH),ppc64le)
-  ARCH_TAG=ppc64le
-else ifeq ($(ARCH),riscv64)
-  ARCH_TAG=riscv64
-else ifeq ($(ARCH),loongarch64)
-  ARCH_TAG=loongarch64
-else
-  ARCH_TAG=x86
+ifeq ($(ARCH_TAG),)
+  ARCH:=$(shell uname -m)
+  ifeq ($(ARCH),x86_64)
+    ARCH_TAG=x64
+  else ifeq ($(ARCH),aarch64)
+    ARCH_TAG=arm64
+  else ifeq ($(ARCH),arm64)
+    ARCH_TAG=arm64
+  else ifeq ($(findstring arm,$(ARCH)),arm)
+    ARCH_TAG=arm32
+  else ifeq ($(ARCH),ppc64le)
+    ARCH_TAG=ppc64le
+  else ifeq ($(ARCH),riscv64)
+    ARCH_TAG=riscv64
+  else ifeq ($(ARCH),loongarch64)
+    ARCH_TAG=loongarch64
+  else
+    ARCH_TAG=x86
+  endif
 endif
 
 STATIC_BINARY=$(findstring musl-gcc,$(CC))
