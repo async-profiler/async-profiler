@@ -62,6 +62,7 @@ public class JfrToHeatmap extends JfrConverter {
                 heatmap.addEvent(event.stackTraceId, extra, type, timeMs);
             }
         });
+        jfr.stackTraces.clear();
     }
 
     public void dump(OutputStream out) throws IOException {
