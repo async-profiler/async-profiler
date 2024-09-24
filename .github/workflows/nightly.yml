@@ -1,0 +1,67 @@
+name: Publish Nightly Builds
+
+on:
+  push:
+    branches:
+      - nightly_build
+
+jobs:
+  build-test-publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runson: macos-latest # mac
+            archive: async-profiler-3.0-macos.zip
+
+          - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }} # linux
+            archive: async-profiler-3.0-linux-x64.tar.gz
+
+          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }} # linux arm
+            archive: async-profiler-3.0-linux-arm64.tar.gz
+    runs-on: ${{ matrix.runson }}
+    container:
+      image: ${{ matrix.image }} # will be null on macos
+    steps:
+      - name: Patch node20 to use glib 2.28
+        run: |
+          if [ "${{ matrix.runson }}" != "macos-latest" ]; then # only patchelf on linux to force node20 to use glibc 2.28
+            patchelf --set-interpreter /opt/glibc-for-node20/lib/ld-2.28.so --set-rpath /opt/glibc-for-node20/lib/:/lib/$(arch)-linux-gnu/:/usr/lib/$(arch)-linux-gnu/ $CODEBUILD_SRC_DIR/actions-runner/externals/node20/bin/node
+          fi
+      - uses: actions/checkout@v4
+      - name: Build and Test
+        run: |
+          if [ "${{ matrix.runson }}" != "macos-latest" ]; then # configuration needed only for linux
+            sudo sysctl kernel.perf_event_paranoid=1 && sudo sysctl kernel.kptr_restrict=0 # allow tests to execute
+            make CC=/usr/local/musl/bin/musl-gcc release test -j
+          else
+            make FAT_BINARY=true release test
+            ls
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}-${{ github.sha }}
+          path: ${{ matrix.archive }}
+      - uses: actions/github-script@v7
+        id: delete-previous-and-upload-to-release
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs').promises;
+            const commonOptions = {
+              owner: "openorclose",
+              repo: "async-profiler",
+              release_id: 176384274,
+            };
+            const assets = await github.rest.repos.listReleaseAssets(commonOptions);
+            if (assets.status !== 200) {
+              throw new Error("Unable to get list of assets from release!");
+            }
+            await Promise.all(assets.data
+              .filter(({name}) => name === "${{ matrix.archive }}")
+              .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
+            github.rest.repos.uploadReleaseAsset({
+              ...commonOptions,
+              name: "${{ matrix.archive }}",
+              data: await fs.readFile("${{ matrix.archive }}"),
+            });
