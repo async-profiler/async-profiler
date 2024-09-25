@@ -26,14 +26,14 @@ public class EventAggregator {
         int i = hashCode(e) & mask;
         while (keys[i] != null) {
             if (sameGroup(keys[i], e)) {
-                values[i] += total ? e.value() : 1;
+                values[i] += total ? e.value() : e.samples();
                 return;
             }
             i = (i + 1) & mask;
         }
 
         keys[i] = e;
-        values[i] = total ? e.value() : 1;
+        values[i] = total ? e.value() : e.samples();
 
         if (++size * 2 > keys.length) {
             resize(keys.length * 2);

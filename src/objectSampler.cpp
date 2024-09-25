@@ -115,7 +115,7 @@ class LiveRefs {
 
                     int tid = _values[i].trace >> 32;
                     u32 call_trace_id = (u32)_values[i].trace;
-                    profiler->recordExternalSample(event._alloc_size, tid, LIVE_OBJECT, &event, call_trace_id);
+                    profiler->recordExternalSamples(1, event._alloc_size, tid, call_trace_id, LIVE_OBJECT, &event);
                 }
                 jni->DeleteWeakGlobalRef(w);
             }

@@ -15,9 +15,15 @@
 
 class WallClock : public Engine {
   private:
+    enum Mode {
+        CPU_ONLY,
+        WALL_BATCH,
+        WALL_LEGACY
+    };
+
     static long _interval;
     static int _signal;
-    static bool _sample_idle_threads;
+    static Mode _mode;
 
     volatile bool _running;
     pthread_t _thread;
@@ -33,11 +39,11 @@ class WallClock : public Engine {
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
 
-    static long adjustInterval(long interval, int thread_count);
+    static void recordWallClock(u64 start_time, ThreadState state, u32 samples, int tid, u32 call_trace_id);
 
   public:
     const char* title() {
-        return _sample_idle_threads ? "Wall clock profile" : "CPU profile";
+        return _mode == CPU_ONLY ? "CPU profile" : "Wall clock profile";
     }
 
     const char* units() {

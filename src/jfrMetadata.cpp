@@ -221,6 +221,14 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("allocationSize", T_LONG, "Allocation Size", F_BYTES)
                 << field("allocationTime", T_LONG, "Allocation Time", F_TIME_TICKS))
 
+            << (type("profiler.WallClockSample", T_WALL_CLOCK_SAMPLE, "Wall Clock Sample")
+                << category("Java Virtual Machine", "Profiling")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("sampledThread", T_THREAD, "Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
+                << field("samples", T_INT, "Samples", F_UNSIGNED))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 
