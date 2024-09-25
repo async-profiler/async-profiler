@@ -11,6 +11,8 @@ import java.util.stream.IntStream;
  * Process to simulate lock contention and allocate objects.
  */
 public class JfrMutliModeProfiling {
+    private static final Object lock = new Object();
+
     private static Object sink;
     private static int count = 0;
 
@@ -19,10 +21,13 @@ public class JfrMutliModeProfiling {
         IntStream.range(0, 100_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
         allocate();
         stop(executor);
+        System.out.println(count);
     }
 
-    private static synchronized void increment() {
-        count += 1;
+    private static void increment() {
+        synchronized (lock) {
+            count += 1;
+        }
     }
 
     private static void stop(ExecutorService executor) throws InterruptedException {
