@@ -36,7 +36,7 @@ public class JfrTests {
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = JfrCpuProfiling.class)
-    public void cpuProfiling(TestProcess p) throws Exception {
+    public void parseRecording(TestProcess p) throws Exception {
         p.profile("-d 3 -e cpu -f %f.jfr");
         StringBuilder builder = new StringBuilder();
         try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
@@ -58,8 +58,8 @@ public class JfrTests {
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
-    public void mutliModeProfiling(TestProcess p) throws Exception {
-        p.waitForExit("%f");
+    public void parseMultiModeRecording(TestProcess p) throws Exception {
+        p.waitForExit();
         Map<String, Integer> eventsCount = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
             while (recordingFile.hasMoreEvents()) {

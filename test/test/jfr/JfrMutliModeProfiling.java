@@ -8,37 +8,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 /**
- * Process to simulate lock contention.
+ * Process to simulate lock contention and allocate objects.
  */
 public class JfrMutliModeProfiling {
-    static Object sink;
-    static volatile int count = 0;
+    private static Object sink;
+    private static int count = 0;
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         IntStream.range(0, 100_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
-        stop(executor);
         allocate();
+        stop(executor);
     }
 
-    static synchronized void increment() {
+    private static synchronized void increment() {
         count += 1;
     }
 
-    static void stop(ExecutorService executor) {
-        try {
-            executor.shutdown();
-            executor.awaitTermination(10, TimeUnit.SECONDS);
-        }
-        catch (InterruptedException e) {
-            System.err.println("Termination interrupted!");
-        }
-        finally {
-            if (!executor.isTerminated()) {
-                System.err.println("Killing non-finished!");
-            }
-            executor.shutdownNow();
-        }
+    private static void stop(ExecutorService executor) throws InterruptedException {
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+        executor.shutdownNow();
     }
 
     private static void allocate() {
