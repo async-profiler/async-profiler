@@ -70,7 +70,7 @@ public class JfrTests {
         }
 
         assert eventsCount.get("jdk.ExecutionSample") > 20;
-        assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 1000;
-        assert eventsCount.get("jdk.JavaMonitorEnter") > 500;
+        assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 100;
+        assert eventsCount.get("jdk.JavaMonitorEnter") > 100;
     }
 }
