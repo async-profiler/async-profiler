@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package test.cpu;
+package test.jfr;
 
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;

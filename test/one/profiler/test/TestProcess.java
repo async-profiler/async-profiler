@@ -230,6 +230,10 @@ public class TestProcess implements Closeable {
         return p.exitValue();
     }
 
+    public void waitForExit() throws TimeoutException, InterruptedException {
+        waitForExit(p, timeout);
+    }
+
     public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
         waitForExit(p, timeout);
         return readFile(fileId);
