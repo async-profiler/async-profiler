@@ -17,8 +17,8 @@ public class JfrMutliModeProfiling {
     private static int count = 0;
 
     public static void main(String[] args) throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(3);
-        IntStream.range(0, 1_000_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        IntStream.range(0, 1_000_000_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
         allocate();
         stop(executor);
         System.out.println(count);
@@ -39,7 +39,7 @@ public class JfrMutliModeProfiling {
     private static void allocate() {
         long start = System.currentTimeMillis();
         Random random = ThreadLocalRandom.current();
-        while (System.currentTimeMillis() - start <= 1000) {
+        while (System.currentTimeMillis() - start <= 3000) {
             if (random.nextBoolean()) {
                 sink = new int[128 * 1000];
             } else {
