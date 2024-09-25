@@ -169,7 +169,6 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
 build-test: all build/$(TEST_JAR)
-	echo "Successfully built all tests $(LIB_PROFILER)"
 
 test: all build/$(TEST_JAR)
 	echo "Running tests against $(LIB_PROFILER)"
@@ -177,9 +176,8 @@ test: all build/$(TEST_JAR)
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) --release 8 -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
-
 
 native:
 	mkdir -p native/linux-x64 native/linux-arm64 native/macos

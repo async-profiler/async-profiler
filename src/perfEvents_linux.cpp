@@ -68,10 +68,11 @@ static int fetchInt(const char* file_name) {
 }
 
 // Get perf_event_attr.config numeric value of the given tracepoint name
-// by reading /sys/kernel/debug/tracing/events/<name>/id file
-static int findTracepointId(const char* name) {
+// by reading /sys/kernel/tracing/events/<name>/id (since 4.1)
+// or /sys/kernel/debug/tracing/events/<name>/id (before 4.1)
+static int findTracepointId(const char* dir, const char* name) {
     char buf[256];
-    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/%s/events/%s/id", dir, name) >= sizeof(buf)) {
         return 0;
     }
 
@@ -404,8 +405,9 @@ struct PerfEventType {
         // Kernel tracepoints defined in debugfs
         s = strchr(name, ':');
         if (s != NULL && s[1] != ':') {
-            int tracepoint_id = findTracepointId(name);
-            if (tracepoint_id > 0) {
+            int tracepoint_id;
+            if ((tracepoint_id = findTracepointId("tracing", name)) > 0 ||
+                (tracepoint_id = findTracepointId("debug/tracing", name)) > 0) {
                 return getTracepoint(tracepoint_id);
             }
         }
