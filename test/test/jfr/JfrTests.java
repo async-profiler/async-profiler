@@ -69,6 +69,7 @@ public class JfrTests {
             }
         }
 
+        eventsCount.forEach((key, value) -> System.out.println(key + ": " + value));
         assert eventsCount.get("jdk.ExecutionSample") > 20;
         assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 100;
         assert eventsCount.get("jdk.JavaMonitorEnter") > 100;
