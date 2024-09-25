@@ -18,7 +18,7 @@ public class JfrMutliModeProfiling {
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(3);
-        IntStream.range(0, 100_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
+        IntStream.range(0, 1_000_000).forEach(i -> executor.submit(JfrMutliModeProfiling::increment));
         allocate();
         stop(executor);
         System.out.println(count);
