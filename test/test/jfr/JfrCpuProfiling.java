@@ -3,19 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package test.parser;
+package test.jfr;
 
-import java.io.File;
-
-public class Cpu {
+public class JfrCpuProfiling {
     private static volatile int value;
 
-    private static void method1() throws Exception {
+    private static void method1() {
         long startTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - startTime < 10) {
-            for (String s : new File("/tmp").list()) {
-                value += s.hashCode();
-            }
+            value +=  System.getProperties().hashCode();
         }
     }
 
