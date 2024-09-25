@@ -121,7 +121,7 @@ Error Arguments::parse(const char* args) {
     }
     char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
-    const char* msg = NULL;    
+    const char* msg = NULL;
 
     for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');

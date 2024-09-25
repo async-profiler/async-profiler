@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 
     char cmd[4096];
     snprintf(cmd, sizeof(cmd), "start,event=cpu,interval=1ms,wall=10ms,cstack=dwarf,loglevel=debug,file=%s", argv[1]);
-    
+
     printf("Starting profiler\n");
     asprof_execute_t asprof_execute = dlsym(lib, "asprof_execute");
     asprof_error_t err = asprof_execute(cmd, NULL);
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
     }
 
     uninterruptible_sleep(2000);
-    
+
     printf("Stopping profiler\n");
     err = asprof_execute("stop", NULL);
     if (err != NULL) {

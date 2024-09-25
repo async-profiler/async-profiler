@@ -1388,7 +1388,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 
 /*
  * Dump stacks in FlameGraph input format:
- * 
+ *
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(Writer& out, Arguments& args) {

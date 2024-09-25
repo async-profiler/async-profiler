@@ -83,7 +83,7 @@ void LockTracer::initialize() {
         jni_functions->RegisterNatives = RegisterNativesHook;
         jvmti->SetJNIFunctionTable(jni_functions);
 
-        // Trace Unsafe.registerNatives() to find the original address of Unsafe.park() native  
+        // Trace Unsafe.registerNatives() to find the original address of Unsafe.park() native
         env->CallStaticVoidMethod(_UnsafeClass, register_natives);
 
         jni_functions->RegisterNatives = _orig_RegisterNatives;
@@ -132,7 +132,7 @@ jint JNICALL LockTracer::RegisterNativesHook(JNIEnv* env, jclass cls, const JNIN
             if (strcmp(methods[i].name, "park") == 0 && strcmp(methods[i].signature, "(ZJ)V") == 0) {
                 _orig_Unsafe_park = (UnsafeParkFunc)methods[i].fnPtr;
                 break;
-            } 
+            }
         }
         return 0;
     }

@@ -193,7 +193,7 @@ bool StackFrame::checkInterruptedSyscall() {
     if (REG(pstate, cpsr) & (1 << 29)) {
         return (retval() & 0xff) == EINTR || (retval() & 0xff) == ETIMEDOUT;
     } else {
-        return retval() == (uintptr_t)-EINTR; 
+        return retval() == (uintptr_t)-EINTR;
     }
 #else
     if (retval() == (uintptr_t)-EINTR) {
