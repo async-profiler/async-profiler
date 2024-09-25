@@ -92,7 +92,8 @@ class VM {
     static int _hotspot_version;
     static bool _openj9;
     static bool _zing;
-    static bool _can_sample_objects;
+
+    static const jvmtiCapabilities canSampleObjectsCapability;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -144,8 +145,12 @@ class VM {
         return _zing;
     }
 
-    static bool canSampleObjects() {
-        return _can_sample_objects;
+    static int addCanSampleObjectsCapability() {
+        return _jvmti->AddCapabilities(&canSampleObjectsCapability);
+    }
+
+    static int relinquishCanSampleObjectsCapability() {
+        return _jvmti->RelinquishCapabilities(&canSampleObjectsCapability);
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

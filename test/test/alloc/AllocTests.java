@@ -11,6 +11,10 @@ import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
 public class AllocTests {
 
     @Test(mainClass = MapReader.class, jvmArgs = "-XX:+UseG1GC -Xmx1g -Xms1g", jvm = Jvm.HOTSPOT)
@@ -54,5 +58,17 @@ public class AllocTests {
         Output out = p.profile("stop -o collapsed");
         assert out.contains("java/io/ByteArrayOutputStream.toByteArray;");
         assert out.contains("G1CollectedHeap::humongous_obj_allocate");
+    }
+
+    @Test(mainClass = MapReaderOpt.class, jvmVer = {11, Integer.MAX_VALUE})
+    public void objectSamplerWtihDifferentAsprofs(TestProcess p) throws Exception {
+        Thread.sleep(1000);
+        Output out = p.profile("-e alloc -d 3 -o collapsed");
+        // _[k] suffix in collapsed output corresponds to jdk.ObjectAllocationOutsideTLAB, which means alloc tracer is being used
+        assert !out.contains("_\\[k\\]"); // we are using alloc tracer instead of object sampler, should definitely not happen on first profiling call
+        Path asprofCopy = Path.of("/tmp/libasyncProfiler." + p.currentOs().getLibExt());
+        Files.copy(Path.of("build/lib/libasyncProfiler." + p.currentOs().getLibExt()), asprofCopy, StandardCopyOption.REPLACE_EXISTING);
+        Output outWithCopy = p.profile(String.format("--libpath %s -e alloc -d 3 -o collapsed", asprofCopy.toAbsolutePath()));
+        assert !outWithCopy.contains("_\\[k\\]"); // first instance of profiler has not properly relinquished the can_generate_sampled_object_alloc_events capability.
     }
 }

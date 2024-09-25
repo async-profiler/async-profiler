@@ -53,6 +53,7 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private final Os currentOs;
     private final String logDir;
     private final String[] inputs;
     private final Process p;
@@ -60,6 +61,7 @@ public class TestProcess implements Closeable {
     private final int timeout = 30;
 
     public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
+        this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
 
@@ -83,6 +85,10 @@ public class TestProcess implements Closeable {
 
     public String[] inputs() {
         return this.inputs;
+    }
+
+    public Os currentOs() {
+        return this.currentOs;
     }
 
     private List<String> buildCommandLine(Test test, Os currentOs) {
