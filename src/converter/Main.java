@@ -52,7 +52,7 @@ public class Main {
 
     public static void convert(String input, String output, Arguments args) throws IOException {
         if (isJfr(input)) {
-            if ("html".equals(args.output)) {
+            if ("html".equals(args.output) || "collapsed".equals(args.output)) {
                 JfrToFlame.convert(input, output, args);
             } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith("gz")) {
                 JfrToPprof.convert(input, output, args);
