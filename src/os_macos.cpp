@@ -25,14 +25,14 @@ class MacThreadList : public ThreadList {
   private:
     task_t _task;
     thread_array_t _thread_array;
-    unsigned int _thread_count;
-    unsigned int _thread_index;
 
-    void ensureThreadArray() {
-        if (_thread_array == NULL) {
-            _thread_count = 0;
-            _thread_index = 0;
-            task_threads(_task, &_thread_array, &_thread_count);
+    void deallocate() {
+        if (_thread_array != NULL) {
+            for (u32 i = 0; i < _count; i++) {
+                mach_port_deallocate(_task, _thread_array[i]);
+            }
+            vm_deallocate(_task, (vm_address_t)_thread_array, _count * sizeof(thread_t));
+            _thread_array = NULL;
         }
     }
 
@@ -40,33 +40,21 @@ class MacThreadList : public ThreadList {
     MacThreadList() {
         _task = mach_task_self();
         _thread_array = NULL;
+        task_threads(_task, &_thread_array, &_count);
     }
 
     ~MacThreadList() {
-        rewind();
-    }
-
-    void rewind() {
-        if (_thread_array != NULL) {
-            for (int i = 0; i < _thread_count; i++) {
-                mach_port_deallocate(_task, _thread_array[i]);
-            }
-            vm_deallocate(_task, (vm_address_t)_thread_array, _thread_count * sizeof(thread_t));
-            _thread_array = NULL;
-        }
+        deallocate();
     }
 
     int next() {
-        ensureThreadArray();
-        if (_thread_index < _thread_count) {
-            return (int)_thread_array[_thread_index++];
-        }
-        return -1;
+        return (int)_thread_array[_index++];
     }
 
-    int size() {
-        ensureThreadArray();
-        return _thread_count;
+    void update() {
+        deallocate();
+        _index = _count = 0;
+        task_threads(_task, &_thread_array, &_count);
     }
 };
 
@@ -185,6 +173,18 @@ ThreadState OS::threadState(int thread_id) {
         return THREAD_UNKNOWN;
     }
     return info.run_state == TH_STATE_RUNNING ? THREAD_RUNNING : THREAD_SLEEPING;
+}
+
+u64 OS::threadCpuTime(int thread_id) {
+    if (thread_id == 0) thread_id = threadId();
+
+    struct thread_basic_info info;
+    mach_msg_type_number_t size = sizeof(info);
+    if (thread_info((thread_act_t)thread_id, THREAD_BASIC_INFO, (thread_info_t)&info, &size) != 0) {
+        return 0;
+    }
+    return u64(info.user_time.seconds + info.system_time.seconds) * 1000000000 +
+           u64(info.user_time.microseconds + info.system_time.microseconds) * 1000;
 }
 
 ThreadList* OS::listThreads() {

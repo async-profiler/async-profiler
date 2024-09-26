@@ -27,11 +27,25 @@ enum ThreadState {
 
 
 class ThreadList {
+  protected:
+    u32 _index;
+    u32 _count;
+
+    ThreadList() : _index(0), _count(0) {
+    }
+
   public:
     virtual ~ThreadList() {}
-    virtual void rewind() = 0;
+
+    u32 index() const { return _index; }
+    u32 count() const { return _count; }
+
+    bool hasNext() const {
+        return _index < _count;
+    }
+
     virtual int next() = 0;
-    virtual int size() = 0;
+    virtual void update() = 0;
 };
 
 
@@ -66,6 +80,7 @@ class OS {
     static const char* schedPolicy(int thread_id);
     static bool threadName(int thread_id, char* name_buf, size_t name_len);
     static ThreadState threadState(int thread_id);
+    static u64 threadCpuTime(int thread_id);
     static ThreadList* listThreads();
 
     static bool isLinux();

@@ -52,6 +52,10 @@ public abstract class Event implements Comparable<Event> {
         return 0;
     }
 
+    public long samples() {
+        return 1;
+    }
+
     public long value() {
         return 1;
     }

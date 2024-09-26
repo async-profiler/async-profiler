@@ -59,6 +59,7 @@ enum JfrType {
     T_LOG = 115,
     T_WINDOW = 116,
     T_LIVE_OBJECT = 117,
+    T_WALL_CLOCK_SAMPLE = 118,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,

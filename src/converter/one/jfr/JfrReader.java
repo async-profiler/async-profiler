@@ -65,6 +65,7 @@ public class JfrReader implements Closeable {
 
     private int executionSample;
     private int nativeMethodSample;
+    private int wallClockSample;
     private int allocationInNewTLAB;
     private int allocationOutsideTLAB;
     private int allocationSample;
@@ -166,7 +167,9 @@ public class JfrReader implements Closeable {
             }
 
             if (type == executionSample || type == nativeMethodSample) {
-                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
+                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
+            } else if (type == wallClockSample) {
+                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(true);
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
@@ -199,12 +202,13 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    private ExecutionSample readExecutionSample() {
+    private ExecutionSample readExecutionSample(boolean hasSamples) {
         long time = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        return new ExecutionSample(time, tid, stackTraceId, threadState);
+        int samples = hasSamples ? getVarint() : 1;
+        return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
     private AllocationSample readAllocationSample(boolean tlab) {
@@ -528,6 +532,7 @@ public class JfrReader implements Closeable {
     private void cacheEventTypes() {
         executionSample = getTypeId("jdk.ExecutionSample");
         nativeMethodSample = getTypeId("jdk.NativeMethodSample");
+        wallClockSample = getTypeId("profiler.WallClockSample");
         allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
         allocationSample = getTypeId("jdk.ObjectAllocationSample");

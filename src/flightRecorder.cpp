@@ -827,12 +827,14 @@ class Recording {
         }
         if (args._wall >= 0) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
+            writeBoolSetting(buf, T_EXECUTION_SAMPLE, "nobatch", args._nobatch);
         }
 
         writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "enabled", args._alloc >= 0);
         writeBoolSetting(buf, T_ALLOC_OUTSIDE_TLAB, "enabled", args._alloc >= 0);
         if (args._alloc >= 0) {
             writeIntSetting(buf, T_ALLOC_IN_NEW_TLAB, "alloc", args._alloc);
+            writeBoolSetting(buf, T_ALLOC_IN_NEW_TLAB, "live", args._live);
         }
 
         writeBoolSetting(buf, T_MONITOR_ENTER, "enabled", args._lock >= 0);
@@ -1187,6 +1189,17 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordWallClockSample(Buffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(T_WALL_CLOCK_SAMPLE);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar32(event->_thread_state);
+        buf->putVar32(event->_samples);
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
@@ -1458,6 +1471,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
             case EXECUTION_SAMPLE:
             case INSTRUMENTED_METHOD:
                 _rec->recordExecutionSample(buf, tid, call_trace_id, (ExecutionEvent*)event);
+                break;
+            case WALL_CLOCK_SAMPLE:
+                _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
                 break;
             case ALLOC_SAMPLE:
                 _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);
