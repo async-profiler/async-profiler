@@ -10,9 +10,9 @@
 #include "tsc.h"
 
 double LockTracer::_ticks_to_nanos;
-jlong LockTracer::_interval;
-volatile u64 LockTracer::_total_duration = 0; // for interval sampling.
-jlong LockTracer::_start_time = 0;
+u64 LockTracer::_interval;
+volatile u64 LockTracer::_total_duration;  // for interval sampling
+u64 LockTracer::_start_time = 0;
 jclass LockTracer::_UnsafeClass = NULL;
 jclass LockTracer::_LockSupport = NULL;
 jmethodID LockTracer::_getBlocker = NULL;
@@ -20,11 +20,16 @@ RegisterNativesFunc LockTracer::_orig_RegisterNatives = NULL;
 UnsafeParkFunc LockTracer::_orig_Unsafe_park = NULL;
 bool LockTracer::_initialized = false;
 
+// On 64-bit platforms, we can store lock time in a pthread local.
+// This is faster than JVM TI SetTag/GetTag.
+#define CAN_USE_TLS (sizeof(void*) >= sizeof(u64))
+
 static pthread_key_t lock_tracer_tls = (pthread_key_t)0;
 
 Error LockTracer::start(Arguments& args) {
     _ticks_to_nanos = 1e9 / TSC::frequency();
-    _interval = (jlong)(args._lock * (TSC::frequency() / 1e9));
+    _interval = (u64)(args._lock * (TSC::frequency() / 1e9));
+    _total_duration = 0;
 
     if (!_initialized) {
         initialize();
@@ -57,8 +62,7 @@ void LockTracer::stop() {
 }
 
 void LockTracer::initialize() {
-    // On 64-bit platforms, we can store lock time in a pthread local
-    if (sizeof(void*) >= sizeof(jlong)) {
+    if (CAN_USE_TLS) {
         pthread_key_create(&lock_tracer_tls, NULL);
     }
 
@@ -88,6 +92,7 @@ void LockTracer::initialize() {
 
         jni_functions->RegisterNatives = _orig_RegisterNatives;
         jvmti->SetJNIFunctionTable(jni_functions);
+        jvmti->Deallocate((unsigned char*)jni_functions);
     }
 
     _LockSupport = (jclass)env->NewGlobalRef(env->FindClass("java/util/concurrent/locks/LockSupport"));
@@ -98,8 +103,8 @@ void LockTracer::initialize() {
 }
 
 void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    jlong enter_time = TSC::ticks();
-    if (sizeof(void*) >= sizeof(jlong) && lock_tracer_tls) {
+    const u64 enter_time = TSC::ticks();
+    if (CAN_USE_TLS && lock_tracer_tls) {
         pthread_setspecific(lock_tracer_tls, (void*)enter_time);
     } else {
         jvmti->SetTag(thread, enter_time);
@@ -107,16 +112,16 @@ void JNICALL LockTracer::MonitorContendedEnter(jvmtiEnv* jvmti, JNIEnv* env, jth
 }
 
 void JNICALL LockTracer::MonitorContendedEntered(jvmtiEnv* jvmti, JNIEnv* env, jthread thread, jobject object) {
-    const jlong entered_time = TSC::ticks();
-    jlong enter_time;
-    if (sizeof(void*) >= sizeof(jlong) && lock_tracer_tls) {
-        enter_time = (jlong)pthread_getspecific(lock_tracer_tls);
+    const u64 entered_time = TSC::ticks();
+    u64 enter_time;
+    if (CAN_USE_TLS && lock_tracer_tls) {
+        enter_time = (u64)pthread_getspecific(lock_tracer_tls);
     } else {
-        jvmti->GetTag(thread, &enter_time);
+        jvmti->GetTag(thread, (jlong*)&enter_time);
     }
 
     // Time is meaningless if lock attempt has started before profiling
-    const jlong duration = entered_time - enter_time;
+    const u64 duration = entered_time - enter_time;
 
     // When the duration accumulator overflows _interval, the event is sampled.
     if (_enabled && enter_time >= _start_time && updateCounter(_total_duration, duration, _interval)) {
@@ -142,7 +147,7 @@ jint JNICALL LockTracer::RegisterNativesHook(JNIEnv* env, jclass cls, const JNIN
 void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean isAbsolute, jlong time) {
     jvmtiEnv* jvmti = VM::jvmti();
     jobject park_blocker = _enabled ? getParkBlocker(jvmti, env) : NULL;
-    jlong park_start_time, park_end_time;
+    u64 park_start_time, park_end_time;
 
     if (park_blocker != NULL) {
         park_start_time = TSC::ticks();
@@ -152,10 +157,10 @@ void JNICALL LockTracer::UnsafeParkHook(JNIEnv* env, jobject instance, jboolean 
 
     if (park_blocker != NULL) {
         park_end_time = TSC::ticks();
-        const jlong duration = park_end_time - park_start_time;
-        if (updateCounter(_total_duration, duration, _interval)) {
-            char* lock_name = getLockName(jvmti, env, park_blocker);
-            if (lock_name == NULL || isConcurrentLock(lock_name)) {
+        char* lock_name = getLockName(jvmti, env, park_blocker);
+        if (lock_name == NULL || isConcurrentLock(lock_name)) {
+            const u64 duration = park_end_time - park_start_time;
+            if (updateCounter(_total_duration, duration, _interval)) {
                 recordContendedLock(PARK_SAMPLE, park_start_time, park_end_time, lock_name, park_blocker, time);
             }
             jvmti->Deallocate((unsigned char*)lock_name);
