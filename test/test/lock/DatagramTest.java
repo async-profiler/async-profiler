@@ -6,6 +6,7 @@
 package test.lock;
 
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.util.concurrent.Executor;
@@ -32,7 +33,7 @@ public class DatagramTest {
 
         try {
             while (true) {
-                buf.clear();
+                ((Buffer) buf).clear();
                 ch.send(buf, remoteAddr);
                 totalPackets.incrementAndGet();
             }
