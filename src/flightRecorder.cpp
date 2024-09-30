@@ -675,9 +675,9 @@ class Recording {
             jmethodID to_string = env->GetMethodID(env->FindClass("java/lang/Object"), "toString", "()Ljava/lang/String;");
             if (get_agent_props != NULL && to_string != NULL) {
                 jobject props = env->CallStaticObjectMethod(vm_support, get_agent_props);
-                if (props != NULL) {
+                if (props != NULL && !env->ExceptionCheck()) {
                     jstring str = (jstring)env->CallObjectMethod(props, to_string);
-                    if (str != NULL) {
+                    if (str != NULL && !env->ExceptionCheck()) {
                         _agent_properties = (char*)env->GetStringUTFChars(str, NULL);
                     }
                 }
@@ -1424,6 +1424,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
             jmethodID method = env->GetStaticMethodID(options_class, "setMaxChunkSize", "(J)V");
             if (method != NULL) {
                 env->CallStaticVoidMethod(options_class, method, args._chunk_size < 1024 * 1024 ? 1024 * 1024 : args._chunk_size);
+                env->ExceptionClear();
             }
         }
 
@@ -1431,7 +1432,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
             jmethodID method = env->GetStaticMethodID(options_class, "setStackDepth", "(Ljava/lang/Integer;)V");
             if (method != NULL) {
                 jobject value = env->CallStaticObjectMethod(_jfr_sync_class, _box_method, args._jstackdepth);
-                if (value != NULL) {
+                if (value != NULL && !env->ExceptionCheck()) {
                     env->CallStaticVoidMethod(options_class, method, value);
                 }
             }
