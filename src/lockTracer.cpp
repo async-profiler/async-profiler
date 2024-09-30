@@ -108,7 +108,7 @@ Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
         jvmti->SetJNIFunctionTable(jni_functions);
         jvmti->Deallocate((unsigned char*)jni_functions);
     }
-    if (_orig_unsafe_park == NULL) {
+    if (env->ExceptionCheck() || _orig_unsafe_park == NULL) {
         return Error("Unsafe_park address not found");
     }
 
