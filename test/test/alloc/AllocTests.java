@@ -50,6 +50,9 @@ public class AllocTests {
 
     @Test(mainClass = MapReaderOpt.class, agentArgs = "start,event=G1CollectedHeap::humongous_obj_allocate", jvmArgs = "-XX:+UseG1GC -XX:G1HeapRegionSize=1M -Xmx4g -Xms4g", os = Os.LINUX)
     public void humongous(TestProcess p) throws Exception {
+        if (System.getProperty("os.arch").equals("ppc64le")) {
+            return; // method hooks are not supported on PowerPC
+        }
         Thread.sleep(1000);
         Output out = p.profile("stop -o collapsed");
         assert out.contains("java/io/ByteArrayOutputStream.toByteArray;");
