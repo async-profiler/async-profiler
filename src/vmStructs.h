@@ -124,8 +124,7 @@ class VMStructs {
     static void patchSafeFetch();
     static void initJvmFunctions();
     static void initTLS(void* vm_thread);
-    static void initThreadBridge(JNIEnv* env);
-    static void initLogging(JNIEnv* env);
+    static void initThreadBridge();
 
     const char* at(int offset) {
         return (const char*)this + offset;

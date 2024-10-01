@@ -35,65 +35,51 @@
 class LinuxThreadList : public ThreadList {
   private:
     DIR* _dir;
-    int _thread_count;
+    int* _thread_array;
+    u32 _capacity;
 
-    int getThreadCount() {
-        char buf[512];
-        int fd = open("/proc/self/stat", O_RDONLY);
-        if (fd == -1) {
-            return 0;
+    void addThread(int thread_id) {
+        if (_count >= _capacity) {
+            _capacity = _count * 2;
+            _thread_array = (int*)realloc(_thread_array, _capacity * sizeof(int));
         }
+        _thread_array[_count++] = thread_id;
+    }
 
-        int thread_count = 0;
-        if (read(fd, buf, sizeof(buf)) > 0) {
-            char* s = strchr(buf, ')');
-            if (s != NULL) {
-                // Read 18th integer field after the command name
-                for (int field = 0; *s != ' ' || ++field < 18; s++) ;
-                thread_count = atoi(s + 1);
+    void fillThreadArray() {
+        if (_dir != NULL) {
+            rewinddir(_dir);
+            struct dirent* entry;
+            while ((entry = readdir(_dir)) != NULL) {
+                if (entry->d_name[0] != '.') {
+                    addThread(atoi(entry->d_name));
+                }
             }
         }
-
-        close(fd);
-        return thread_count;
     }
 
   public:
-    LinuxThreadList() {
+    LinuxThreadList() : ThreadList() {
         _dir = opendir("/proc/self/task");
-        _thread_count = -1;
+        _capacity = 128;
+        _thread_array = (int*)malloc(_capacity * sizeof(int));
+        fillThreadArray();
     }
 
     ~LinuxThreadList() {
+        free(_thread_array);
         if (_dir != NULL) {
             closedir(_dir);
         }
     }
 
-    void rewind() {
-        if (_dir != NULL) {
-            rewinddir(_dir);
-        }
-        _thread_count = -1;
-    }
-
     int next() {
-        if (_dir != NULL) {
-            struct dirent* entry;
-            while ((entry = readdir(_dir)) != NULL) {
-                if (entry->d_name[0] != '.') {
-                    return atoi(entry->d_name);
-                }
-            }
-        }
-        return -1;
+        return _thread_array[_index++];
     }
 
-    int size() {
-        if (_thread_count < 0) {
-            _thread_count = getThreadCount();
-        }
-        return _thread_count;
+    void update() {
+        _index = _count = 0;
+        fillThreadArray();
     }
 };
 
@@ -216,6 +202,21 @@ ThreadState OS::threadState(int thread_id) {
 
     close(fd);
     return state;
+}
+
+u64 OS::threadCpuTime(int thread_id) {
+    clockid_t thread_cpu_clock;
+    if (thread_id) {
+        thread_cpu_clock = ((~(unsigned int)(thread_id)) << 3) | 6;  // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK
+    } else {
+        thread_cpu_clock = CLOCK_THREAD_CPUTIME_ID;
+    }
+
+    struct timespec ts;
+    if (clock_gettime(thread_cpu_clock, &ts) == 0) {
+        return (u64)ts.tv_sec * 1000000000 + ts.tv_nsec;
+    }
+    return 0;
 }
 
 ThreadList* OS::listThreads() {

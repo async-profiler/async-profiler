@@ -85,7 +85,13 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 
 
 static inline int hasNativeStack(EventType event_type) {
-    return (1 << event_type) & ~((1 << INSTRUMENTED_METHOD) | (1 << LOCK_SAMPLE) | (1 << PARK_SAMPLE));
+    const int events_with_native_stack =
+        (1 << PERF_SAMPLE)       |
+        (1 << EXECUTION_SAMPLE)  |
+        (1 << WALL_CLOCK_SAMPLE) |
+        (1 << ALLOC_SAMPLE)      |
+        (1 << ALLOC_OUTSIDE_TLAB);
+    return (1 << event_type) & events_with_native_stack;
 }
 
 static inline bool isVTableStub(const char* name) {
@@ -153,7 +159,7 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 
 void Profiler::onGarbageCollectionFinish() {
     // Called during GC pause, do not use JNI
-    __sync_fetch_and_add(&_gc_id, 1);
+    atomicInc(_gc_id);
 }
 
 const char* Profiler::asgctError(int code) {
@@ -652,7 +658,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     StackContext java_ctx = {0};
     if (hasNativeStack(event_type)) {
-        if (_features.pc_addr && event_type <= EXECUTION_SAMPLE) {
+        if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
         if (_cstack != CSTACK_NO) {
@@ -662,7 +668,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_cstack == CSTACK_VM) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth);
-    } else if (event_type <= EXECUTION_SAMPLE) {
+    } else if (event_type <= WALL_CLOCK_SAMPLE) {
         // Async events
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -732,8 +738,8 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, u32 call_trace_id) {
-    _call_trace_storage.add(call_trace_id, counter);
+void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event) {
+    _call_trace_storage.add(call_trace_id, samples, counter);
 
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
@@ -940,7 +946,8 @@ void Profiler::updateNativeThreadNames() {
         ThreadList* thread_list = OS::listThreads();
         char name_buf[64];
 
-        for (int tid; (tid = thread_list->next()) != -1; ) {
+        while (thread_list->hasNext()) {
+            int tid = thread_list->next();
             MutexLocker ml(_thread_names_lock);
             std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
             if (it == _thread_names.end() || it->first != tid) {

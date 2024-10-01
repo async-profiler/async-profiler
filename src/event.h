@@ -14,6 +14,7 @@
 enum EventType {
     PERF_SAMPLE,
     EXECUTION_SAMPLE,
+    WALL_CLOCK_SAMPLE,
     INSTRUMENTED_METHOD,
     ALLOC_SAMPLE,
     ALLOC_OUTSIDE_TLAB,
@@ -37,6 +38,13 @@ class ExecutionEvent : public Event {
     ThreadState _thread_state;
 
     ExecutionEvent(u64 start_time) : _start_time(start_time), _thread_state(THREAD_UNKNOWN) {}
+};
+
+class WallClockEvent : public Event {
+  public:
+    u64 _start_time;
+    ThreadState _thread_state;
+    u32 _samples;
 };
 
 class AllocEvent : public EventWithClassId {

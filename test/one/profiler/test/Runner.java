@@ -93,16 +93,11 @@ public class Runner {
     }
 
     private static int detectJvmVersion() {
-        String prop = System.getProperty("java.vm.version");
-        if (prop.startsWith("25.") && prop.charAt(3) > '0') {
-            return 8;
-        } else if (prop.startsWith("24.") && prop.charAt(3) > '0') {
-            return 7;
-        } else if (prop.startsWith("20.") && prop.charAt(3) > '0') {
-            return 6;
-        } else {
-            return Integer.parseInt(prop.substring(0, prop.indexOf('.')));
+        String prop = System.getProperty("java.vm.specification.version");
+        if (prop.startsWith("1.")) {
+            prop = prop.substring(2);
         }
+        return Integer.parseInt(prop);
     }
 
     public static boolean enabled(Test test) {
@@ -148,7 +143,8 @@ public class Runner {
 
             String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
             try (TestProcess p = new TestProcess(test, currentOs, testLogDir)) {
-                Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ? m.getDeclaringClass().newInstance() : null;
+                Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ?
+                        m.getDeclaringClass().getDeclaredConstructor().newInstance() : null;
                 m.invoke(holder, p);
                 log.info("OK");
             } catch (InvocationTargetException e) {

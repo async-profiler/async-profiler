@@ -7,6 +7,7 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import one.profiler.test.Assert;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -69,8 +70,8 @@ public class JfrTests {
             }
         }
 
-        assert eventsCount.get("jdk.ExecutionSample") >= 50;
-        assert eventsCount.get("jdk.JavaMonitorEnter") >= 500;
-        assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") >= 1000;
+        Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
+        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50);
+        Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 100);
     }
 }

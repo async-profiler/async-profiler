@@ -74,13 +74,6 @@ typedef struct {
 
 typedef void (*AsyncGetCallTrace)(ASGCT_CallTrace*, jint, void*);
 
-typedef struct {
-    void* unused[38];
-    jstring (JNICALL *ExecuteDiagnosticCommand)(JNIEnv*, jstring);
-} VMManagement;
-
-typedef VMManagement* (*JVM_GetManagement)(jint);
-
 typedef jlong (*JVM_MemoryFunc)();
 
 typedef struct {
@@ -111,7 +104,6 @@ class VM {
 
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;
-    static JVM_GetManagement _getManagement;
     static JVM_MemoryFunc _totalMemory;
     static JVM_MemoryFunc _freeMemory;
 
@@ -138,10 +130,6 @@ class VM {
 
     static void detachThread() {
         _vm->DetachCurrentThread();
-    }
-
-    static VMManagement* management() {
-        return _getManagement != NULL ? _getManagement(0x20030000) : NULL;
     }
 
     static int hotspot_version() {
