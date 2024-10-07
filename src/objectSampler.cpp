@@ -100,6 +100,10 @@ class LiveRefs {
         jvmtiEnv* jvmti = VM::jvmti();
         Profiler* profiler = Profiler::instance();
 
+        // Set CallTraceStorage counters to zero, so only live objects
+        // will be reported to collapsed and flamegraph outputs.
+        profiler->resetCounters();
+
         for (u32 i = 0; i < MAX_REFS; i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);
 
@@ -147,13 +151,9 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     event._instance_size = size;
     event._class_id = lookupClassId(jvmti, object_klass);
 
-    if (_live) {
-        u64 trace = Profiler::instance()->recordSample(NULL, 0, event_type, &event);
-        if (trace != 0) {
-            live_refs.add(jni, object, size, trace);
-        }
-    } else {
-        Profiler::instance()->recordSample(NULL, event._total_size, event_type, &event);
+    u64 trace = Profiler::instance()->recordSample(NULL, event._total_size, event_type, &event);
+    if (_live && trace != 0) {
+        live_refs.add(jni, object, size, trace);
     }
 }
 
