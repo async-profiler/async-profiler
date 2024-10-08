@@ -38,7 +38,6 @@ jobs:
             make CC=/usr/local/musl/bin/musl-gcc release test -j
           else
             make FAT_BINARY=true release test
-            ls
           fi
       - uses: actions/upload-artifact@v4
         with:
