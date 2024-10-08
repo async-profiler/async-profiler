@@ -26,6 +26,10 @@ jobs:
           if [ "${{ matrix.runson }}" != "macos-latest" ]; then # only patchelf on linux to force node20 to use glibc 2.28
             patchelf --set-interpreter /opt/glibc-for-node20/lib/ld-2.28.so --set-rpath /opt/glibc-for-node20/lib/:/lib/$(arch)-linux-gnu/:/usr/lib/$(arch)-linux-gnu/ $CODEBUILD_SRC_DIR/actions-runner/externals/node20/bin/node
           fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '11'
       - uses: actions/checkout@v4
       - name: Build and Test
         run: |
