@@ -1,7 +1,8 @@
 # Copyright The async-profiler authors.
 # SPDX-License-Identifier: Apache-2.0
 
----
+name: Linter Checks
+
 on:
   - push
   - pull_request
@@ -13,3 +14,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check license Headers
         uses: apache/skywalking-eyes/header@v0.6.0
+
+  trailing-whitespaces-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check no trailing whitespaces in files
+        uses: harupy/find-trailing-whitespace@master
+
+  final-newline-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all files end in newline
+        uses: qwrtln/check-final-newline@v1.0.0
