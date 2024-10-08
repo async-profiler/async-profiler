@@ -1,0 +1,15 @@
+# Copyright The async-profiler authors.
+# SPDX-License-Identifier: Apache-2.0
+
+---
+on:
+  - push
+  - pull_request
+
+jobs:
+  license-headers-linter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check license Headers
+        uses: apache/skywalking-eyes/header@v0.6.0
