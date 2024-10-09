@@ -5,6 +5,8 @@
 
 package one.jfr;
 
+import static one.convert.Frame.TYPE_KERNEL;
+
 import one.jfr.event.*;
 
 import java.io.Closeable;
@@ -562,6 +564,10 @@ public class JfrReader implements Closeable {
             }
         }
         return -1;
+    }
+
+    public boolean isAsyncProfiler() {
+        return getEnumValue("jdk.types.FrameType", TYPE_KERNEL) != null;
     }
 
     public String getEnumValue(String typeName, int key) {

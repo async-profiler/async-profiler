@@ -8,31 +8,27 @@ package one.jfr;
 import java.util.Arrays;
 
 /**
- * Fast and compact long->Object map.
+ * Fast and compact long->int map.
  */
-public class Dictionary<T> {
+public class DictionaryInt {
     private static final int INITIAL_CAPACITY = 16;
 
     private long[] keys;
-    private Object[] values;
+    private int[] values;
     private int size;
 
-    public Dictionary() {
-        this(INITIAL_CAPACITY);
-    }
-
-    public Dictionary(int initialCapacity) {
-        this.keys = new long[initialCapacity];
-        this.values = new Object[initialCapacity];
+    public DictionaryInt() {
+        this.keys = new long[INITIAL_CAPACITY];
+        this.values = new int[INITIAL_CAPACITY];
     }
 
     public void clear() {
         Arrays.fill(keys, 0);
-        Arrays.fill(values, null);
+        Arrays.fill(values, 0);
         size = 0;
     }
 
-    public void put(long key, T value) {
+    public void put(long key, int value) {
         if (key == 0) {
             throw new IllegalArgumentException("Zero key not allowed");
         }
@@ -54,21 +50,34 @@ public class Dictionary<T> {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public T get(long key) {
+    public int get(long key) {
         int mask = keys.length - 1;
         int i = hashCode(key) & mask;
-        while (keys[i] != key && keys[i] != 0) {
+        while (keys[i] != key) {
+            if (keys[i] == 0) {
+                throw new IllegalArgumentException("No such key: " + key);
+            }
             i = (i + 1) & mask;
         }
-        return (T) values[i];
+        return values[i];
     }
 
-    @SuppressWarnings("unchecked")
-    public void forEach(Visitor<T> visitor) {
+    public int get(long key, int notFound) {
+        int mask = keys.length - 1;
+        int i = hashCode(key) & mask;
+        while (keys[i] != key) {
+            if (keys[i] == 0) {
+                return notFound;
+            }
+            i = (i + 1) & mask;
+        }
+        return values[i];
+    }
+
+    public void forEach(Visitor visitor) {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != 0) {
-                visitor.visit(keys[i], (T) values[i]);
+                visitor.visit(keys[i], values[i]);
             }
         }
     }
@@ -80,9 +89,13 @@ public class Dictionary<T> {
         return count;
     }
 
+    public int size() {
+        return size;
+    }
+
     private void resize(int newCapacity) {
         long[] newKeys = new long[newCapacity];
-        Object[] newValues = new Object[newCapacity];
+        int[] newValues = new int[newCapacity];
         int mask = newKeys.length - 1;
 
         for (int i = 0; i < keys.length; i++) {
@@ -106,7 +119,7 @@ public class Dictionary<T> {
         return (int) (key ^ (key >>> 32));
     }
 
-    public interface Visitor<T> {
-        void visit(long key, T value);
+    public interface Visitor {
+        void visit(long key, int value);
     }
 }

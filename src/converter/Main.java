@@ -37,7 +37,7 @@ public class Main {
 
         for (int i = 0; i < fileCount; i++) {
             String input = args.files.get(i);
-            String output = isDirectory ? new File(lastFile, replaceExt(input, args.output)).getPath() : lastFile;
+            String output = isDirectory ? new File(lastFile, replaceExt(input, ext(args.output))).getPath() : lastFile;
 
             System.out.print("Converting " + getFileName(input) + " -> " + getFileName(output) + " ");
             System.out.flush();
@@ -56,6 +56,8 @@ public class Main {
                 JfrToFlame.convert(input, output, args);
             } else if ("pprof".equals(args.output) || "pb".equals(args.output) || args.output.endsWith("gz")) {
                 JfrToPprof.convert(input, output, args);
+            } else if ("heatmap".equals(args.output)) {
+                JfrToHeatmap.convert(input, output, args);
             } else {
                 throw new IllegalArgumentException("Unrecognized output format: " + args.output);
             }
@@ -74,6 +76,13 @@ public class Main {
         return dot > slash ? fileName.substring(slash + 1, dot + 1) + ext : fileName.substring(slash + 1) + '.' + ext;
     }
 
+    private static String ext(String out) {
+        if (out.equals("heatmap")) {
+            return "html";
+        }
+        return out;
+    }
+
     private static boolean isJfr(String fileName) throws IOException {
         if (fileName.endsWith(".jfr")) {
             return true;
@@ -90,7 +99,7 @@ public class Main {
         System.out.print("Usage: jfrconv [options] <input> [<input>...] <output>\n" +
                 "\n" +
                 "Conversion options:\n" +
-                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz\n" +
+                "  -o --output FORMAT    Output format: html, collapsed, pprof, pb.gz, heatmap\n" +
                 "\n" +
                 "JFR options:\n" +
                 "     --cpu              CPU profile\n" +

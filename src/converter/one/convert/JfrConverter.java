@@ -41,11 +41,20 @@ public abstract class JfrConverter extends Classifier {
 
     protected EventAggregator collectEvents() throws IOException {
         EventAggregator agg = new EventAggregator(args.threads, args.total);
+        collectEvents(new EventAggregator.Visitor() {
+            @Override
+            public void visit(Event event, long value) {
+                agg.collect(event);
+            }
+        });
+        return agg;
+    }
 
+    protected void collectEvents(EventAggregator.Visitor visitor) throws IOException {
         Class<? extends Event> eventClass =
-                args.live ? LiveObject.class :
-                        args.alloc ? AllocationSample.class :
-                                args.lock ? ContendedLock.class : ExecutionSample.class;
+            args.live ? LiveObject.class :
+                args.alloc ? AllocationSample.class :
+                    args.lock ? ContendedLock.class : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -65,12 +74,10 @@ public abstract class JfrConverter extends Classifier {
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    agg.collect(event);
+                    visitor.visit(event, 1);
                 }
             }
         }
-
-        return agg;
     }
 
     protected int toThreadState(String name) {
@@ -129,7 +136,7 @@ public abstract class JfrConverter extends Classifier {
         if (className == null || className.length == 0 || isNativeFrame(methodType)) {
             return new String(methodName, StandardCharsets.UTF_8);
         } else {
-            String classStr = toJavaClassName(className, 0, args.dot);
+            String classStr = toJavaClassName(className, 0, args.dot, args);
             if (methodName == null || methodName.length == 0) {
                 return classStr;
             }
@@ -144,13 +151,16 @@ public abstract class JfrConverter extends Classifier {
             return "null";
         }
         byte[] className = jfr.symbols.get(cls.name);
+        return convertJavaClassName(className, args);
+    }
 
+    public static String convertJavaClassName(byte[] className, Arguments args) {
         int arrayDepth = 0;
         while (className[arrayDepth] == '[') {
             arrayDepth++;
         }
 
-        String name = toJavaClassName(className, arrayDepth, true);
+        String name = toJavaClassName(className, arrayDepth, true, args);
         while (arrayDepth-- > 0) {
             name = name.concat("[]");
         }
@@ -163,7 +173,7 @@ public abstract class JfrConverter extends Classifier {
                 threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
-    protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {
+    public static String toJavaClassName(byte[] symbol, int start, boolean dotted, Arguments args) {
         int end = symbol.length;
         if (start > 0) {
             switch (symbol[start]) {
@@ -219,10 +229,15 @@ public abstract class JfrConverter extends Classifier {
     }
 
     protected boolean isNativeFrame(byte methodType) {
+        return isNativeFrame(methodType, jfr.isAsyncProfiler());
+    }
+
+    public static boolean isNativeFrame(byte methodType, boolean isAsyncProfiler) {
         // In JDK Flight Recorder, TYPE_NATIVE denotes Java native methods,
         // while in async-profiler, TYPE_NATIVE is for C methods
-        return methodType == TYPE_NATIVE && jfr.getEnumValue("jdk.types.FrameType", TYPE_KERNEL) != null ||
-                methodType == TYPE_CPP ||
-                methodType == TYPE_KERNEL;
+        return methodType == TYPE_NATIVE && isAsyncProfiler ||
+            methodType == TYPE_CPP ||
+            methodType == TYPE_KERNEL;
     }
+
 }

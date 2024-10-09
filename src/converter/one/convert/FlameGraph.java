@@ -171,38 +171,32 @@ public class FlameGraph implements Comparator<Frame> {
             return;
         }
 
-        String tail = getResource("/flame.html");
+        String tail = ResourceProcessor.getResource("/flame.html");
 
-        tail = printTill(out, tail, "/*height:*/300");
+        tail = ResourceProcessor.printTill(out, tail, "/*height:*/300");
         int depth = mintotal > 1 ? root.depth(mintotal) : this.depth + 1;
         out.print(Math.min(depth * 16, 32767));
 
-        tail = printTill(out, tail, "/*title:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*title:*/");
         out.print(args.title);
 
-        tail = printTill(out, tail, "/*reverse:*/false");
+        tail = ResourceProcessor.printTill(out, tail, "/*reverse:*/false");
         out.print(args.reverse);
 
-        tail = printTill(out, tail, "/*depth:*/0");
+        tail = ResourceProcessor.printTill(out, tail, "/*depth:*/0");
         out.print(depth);
 
-        tail = printTill(out, tail, "/*cpool:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*cpool:*/");
         printCpool(out);
 
-        tail = printTill(out, tail, "/*frames:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*frames:*/");
         printFrame(out, root, 0, 0);
         out.print(outbuf);
 
-        tail = printTill(out, tail, "/*highlight:*/");
+        tail = ResourceProcessor.printTill(out, tail, "/*highlight:*/");
         out.print(args.highlight != null ? "'" + escape(args.highlight) + "'" : "");
 
         out.print(tail);
-    }
-
-    private String printTill(PrintStream out, String data, String till) {
-        int index = data.indexOf(till);
-        out.print(data.substring(0, index));
-        return data.substring(index + till.length());
     }
 
     private void printCpool(PrintStream out) {
@@ -375,23 +369,6 @@ public class FlameGraph implements Comparator<Frame> {
         if (s.indexOf('\'') >= 0) s = s.replace("\\'", "'");
         if (s.indexOf('\\') >= 0) s = s.replace("\\\\", "\\");
         return s;
-    }
-
-    private static String getResource(String name) {
-        try (InputStream stream = FlameGraph.class.getResourceAsStream(name)) {
-            if (stream == null) {
-                throw new IOException("No resource found");
-            }
-
-            ByteArrayOutputStream result = new ByteArrayOutputStream();
-            byte[] buffer = new byte[32768];
-            for (int length; (length = stream.read(buffer)) != -1; ) {
-                result.write(buffer, 0, length);
-            }
-            return result.toString("UTF-8");
-        } catch (IOException e) {
-            throw new IllegalStateException("Can't load resource with name " + name);
-        }
     }
 
     @Override
