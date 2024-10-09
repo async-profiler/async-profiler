@@ -21,9 +21,9 @@ public class RaceToLock {
     private final Random random = new Random();
     private final Lock lock1 = new ReentrantLock(true);
     private final Lock lock2 = new ReentrantLock(true);
-    private volatile long randomWaitTime = 0;
+    private volatile long randomWaitTime;
 
-    private volatile boolean exitRequested = false;
+    private volatile boolean exitRequested;
 
     private void doWork() {
         LockSupport.parkNanos(1);
@@ -65,19 +65,6 @@ public class RaceToLock {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        if (args.length != 1) {
-            System.out.println("Usage: java RaceToLock <sleep_ms>");
-            return;
-        }
-
-        int sleepDuration;
-        try {
-            sleepDuration = Integer.parseInt(args[0]);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid sleep duration: " + args[0]);
-            return;
-        }
-
         RaceToLock app = new RaceToLock();
         Thread[] threads = {
                 new Thread(null, app::runSharedCounter, "shared"),
@@ -90,7 +77,7 @@ public class RaceToLock {
             t.start();
         }
 
-        Thread.sleep(sleepDuration);
+        Thread.sleep(1000);
         app.exitRequested = true;
         for (Thread t : threads) {
             t.join();

@@ -20,9 +20,9 @@ public class LockTests {
         assert out.samples("sun/nio/ch/DatagramChannelImpl.send") > 10;
     }
 
-    @Test(mainClass = RaceToLock.class, inputs = { "0" }, args = "1000", output = true)
-    @Test(mainClass = RaceToLock.class, inputs = { "10000" }, args = "1000", output = true)
-    @Test(mainClass = RaceToLock.class, inputs = { "1000000000" }, args = "1000", output = true)
+    @Test(mainClass = RaceToLock.class, inputs = { "0" }, output = true)
+    @Test(mainClass = RaceToLock.class, inputs = { "10000" }, output = true)
+    @Test(mainClass = RaceToLock.class, inputs = { "1000000000" }, output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
 

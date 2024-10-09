@@ -9,7 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Assert {
-    private static final Logger log = Logger.getLogger(Runner.class.getName());
+    private static final Logger log = Logger.getLogger(Assert.class.getName());
 
     public static void isGreater(double value, double threshold) {
         isGreater(value, threshold, null);
