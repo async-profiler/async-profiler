@@ -7,7 +7,7 @@ package one.jfr;
 
 import java.util.Map;
 
-class JfrField extends Element {
+public class JfrField extends Element {
     final String name;
     final int type;
     final boolean constantPool;

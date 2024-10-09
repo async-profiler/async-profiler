@@ -51,7 +51,7 @@ static JNIEnv* _self_env = NULL;
 
 
 Error J9StackTraces::start(Arguments& args) {
-    _max_stack_depth = args._jstackdepth; 
+    _max_stack_depth = args._jstackdepth;
 
     if (pipe(_pipe) != 0) {
         return Error("Failed to create pipe");
@@ -126,7 +126,7 @@ void J9StackTraces::timerLoop() {
                 }
             }
 
-            int num_frames = Profiler::instance()->convertNativeTrace(notif->num_frames, notif->addr, frames);
+            int num_frames = Profiler::instance()->convertNativeTrace(notif->num_frames, notif->addr, frames, EXECUTION_SAMPLE);
 
             for (int j = 0; j < num_jvmti_frames; j++) {
                 frames[num_frames].method_id = jvmti_frames[j].method;

@@ -84,6 +84,16 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
 }
 
 
+static inline int hasNativeStack(EventType event_type) {
+    const int events_with_native_stack =
+        (1 << PERF_SAMPLE)       |
+        (1 << EXECUTION_SAMPLE)  |
+        (1 << WALL_CLOCK_SAMPLE) |
+        (1 << ALLOC_SAMPLE)      |
+        (1 << ALLOC_OUTSIDE_TLAB);
+    return (1 << event_type) & events_with_native_stack;
+}
+
 static inline bool isVTableStub(const char* name) {
     return name[0] && strcmp(name + 1, "table stub") == 0;
 }
@@ -149,7 +159,7 @@ void Profiler::onThreadEnd(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
 
 void Profiler::onGarbageCollectionFinish() {
     // Called during GC pause, do not use JNI
-    __sync_fetch_and_add(&_gc_id, 1);
+    atomicInc(_gc_id);
 }
 
 const char* Profiler::asgctError(int code) {
@@ -316,10 +326,6 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
-    if (_cstack == CSTACK_NO || (event_type > EXECUTION_SAMPLE && _cstack == CSTACK_DEFAULT)) {
-        return 0;
-    }
-
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
         native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
@@ -331,10 +337,10 @@ int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType 
         native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
     }
 
-    return convertNativeTrace(native_frames, callchain, frames);
+    return convertNativeTrace(native_frames, callchain, frames, event_type);
 }
 
-int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames) {
+int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type) {
     int depth = 0;
     jmethodID prev_method = NULL;
 
@@ -342,7 +348,11 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
         const char* current_method_name = findNativeMethod(callchain[i]);
         char mark;
         if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
-            if (mark == MARK_INTERPRETER) {
+            if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+                // Skip all internal frames above VM runtime entry for allocation samples
+                depth = 0;
+                continue;
+            } else if (mark == MARK_INTERPRETER) {
                 // This is C++ interpreter frame, this and later frames should be reported
                 // as Java frames returned by AGCT. Terminate the scan here.
                 return depth;
@@ -647,11 +657,18 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     StackContext java_ctx = {0};
-    num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+    if (hasNativeStack(event_type)) {
+        if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
+            num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
+        }
+        if (_cstack != CSTACK_NO) {
+            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+        }
+    }
 
     if (_cstack == CSTACK_VM) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth);
-    } else if (event_type <= EXECUTION_SAMPLE) {
+    } else if (event_type <= WALL_CLOCK_SAMPLE) {
         // Async events
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
@@ -721,8 +738,8 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     _locks[lock_index].unlock();
 }
 
-void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, u32 call_trace_id) {
-    _call_trace_storage.add(call_trace_id, counter);
+void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event) {
+    _call_trace_storage.add(call_trace_id, samples, counter);
 
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
@@ -929,7 +946,8 @@ void Profiler::updateNativeThreadNames() {
         ThreadList* thread_list = OS::listThreads();
         char name_buf[64];
 
-        for (int tid; (tid = thread_list->next()) != -1; ) {
+        while (thread_list->hasNext()) {
+            int tid = thread_list->next();
             MutexLocker ml(_thread_names_lock);
             std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
             if (it == _thread_names.end() || it->first != tid) {
@@ -1377,7 +1395,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 
 /*
  * Dump stacks in FlameGraph input format:
- * 
+ *
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
@@ -1744,7 +1762,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
 
 Error Profiler::run(Arguments& args) {
     if (!args.hasOutputFile()) {
-        FileWriter out(STDOUT_FILENO);
+        LogWriter out;
         return runInternal(args, out);
     } else {
         // Open output file under the lock to avoid races with background timer

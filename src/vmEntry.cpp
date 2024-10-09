@@ -37,10 +37,17 @@ jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClas
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
 AsyncGetCallTrace VM::_asyncGetCallTrace;
-JVM_GetManagement VM::_getManagement;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
+
+static bool isVmRuntimeEntry(const char* blob_name) {
+    return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
+        || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0
+        || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0
+        || strncmp(blob_name, "_ZN8Runtime1", 12) == 0
+        || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
+}
 
 static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
@@ -59,9 +66,22 @@ static bool isOpenJ9JitStub(const char* blob_name) {
         blob_name += 3;
         return strcmp(blob_name, "NewObject") == 0
             || strcmp(blob_name, "NewArray") == 0
-            || strcmp(blob_name, "ANewArray") == 0;
+            || strcmp(blob_name, "ANewArray") == 0
+            || strcmp(blob_name, "AMultiNewArray") == 0;
     }
     return false;
+}
+
+static bool isOpenJ9Resolve(const char* blob_name) {
+    return strncmp(blob_name, "resolve", 7) == 0;
+}
+
+static bool isOpenJ9JitAlloc(const char* blob_name) {
+    return strncmp(blob_name, "old_", 4) == 0;
+}
+
+static bool isOpenJ9GcAlloc(const char* blob_name) {
+    return strncmp(blob_name, "J9Allocate", 10) == 0;
 }
 
 static bool isCompilerEntry(const char* blob_name) {
@@ -125,7 +145,6 @@ bool VM::init(JavaVM* vm, bool attach) {
         libjvm = RTLD_DEFAULT;
     }
     _asyncGetCallTrace = (AsyncGetCallTrace)dlsym(libjvm, "AsyncGetCallTrace");
-    _getManagement = (JVM_GetManagement)dlsym(libjvm, "JVM_GetManagement");
     _totalMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_TotalMemory");
     _freeMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_FreeMemory");
 
@@ -143,16 +162,25 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     VMStructs::init(lib);
-    if (is_zero_vm) {
-        lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
-    } else if (isOpenJ9()) {
+    if (isOpenJ9()) {
         lib->mark(isOpenJ9InterpreterMethod, MARK_INTERPRETER);
+        lib->mark(isOpenJ9Resolve, MARK_VM_RUNTIME);
         CodeCache* libjit = profiler->findJvmLibrary("libj9jit");
         if (libjit != NULL) {
             libjit->mark(isOpenJ9JitStub, MARK_INTERPRETER);
+            libjit->mark(isOpenJ9JitAlloc, MARK_VM_RUNTIME);
+        }
+        CodeCache* libgc = profiler->findJvmLibrary("libj9gc");
+        if (libgc != NULL) {
+            libgc->mark(isOpenJ9GcAlloc, MARK_VM_RUNTIME);
         }
     } else {
-        lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
+        lib->mark(isVmRuntimeEntry, MARK_VM_RUNTIME);
+        if (is_zero_vm) {
+            lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
+        } else {
+            lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
+        }
     }
 
     if (!attach && hotspot_version() == 8 && OS::isLinux()) {

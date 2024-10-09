@@ -8,7 +8,7 @@
 #include "threadFilter.h"
 #include "os.h"
 
-    
+
 ThreadFilter::ThreadFilter() {
     memset(_bitmap, 0, sizeof(_bitmap));
     _bitmap[0] = (u32*)OS::safeAlloc(BITMAP_SIZE);

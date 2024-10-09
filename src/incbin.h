@@ -14,10 +14,6 @@
 #  define INCBIN_SYMBOL
 #endif
 
-#ifdef _WIN32
-#  define asm(unused)
-#endif
-
 #define INCBIN(NAME, FILE) \
     extern "C" const char NAME[];\
     extern "C" const char NAME##_END[];\

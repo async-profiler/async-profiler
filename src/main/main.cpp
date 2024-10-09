@@ -57,7 +57,7 @@ static const char USAGE_STRING[] =
     "  -I include        output only stack traces containing the specified pattern\n"
     "  -X exclude        exclude stack traces with the specified pattern\n"
     "  -L level          log level: debug|info|warn|error|none\n"
-    "  -F features       advanced stack trace features: vtable, comptask\n"
+    "  -F features       advanced stack trace features: vtable, comptask, pcaddr\n"
     "  -v, --version     display version string\n"
     "\n"
     "  --title string    FlameGraph title\n"
@@ -80,6 +80,7 @@ static const char USAGE_STRING[] =
     "  --ttsp            time-to-safepoint profiling\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
+    "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "                    from the non-privileged target\n"
     "\n"
@@ -363,9 +364,9 @@ static void run_jattach(int pid, String& cmd) {
 }
 
 // Resolve a kernel tracepoint name (e.g. syscalls:sys_enter_openat) to a numerical id
-static int get_tracepoint_id(const char* name) {
+static int get_tracepoint_id(const char* dir, const char* name) {
     char buf[256];
-    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/debug/tracing/events/%s/id", name) >= sizeof(buf)) {
+    if ((size_t)snprintf(buf, sizeof(buf), "/sys/kernel/%s/events/%s/id", dir, name) >= sizeof(buf)) {
         return 0;
     }
 
@@ -427,7 +428,9 @@ int main(int argc, const char** argv) {
             if (strchr(event, ',') != NULL && event[strlen(event) - 1] == '/') {
                 // PMU event, e.g.: cpu/umask=0x1,event=0xd3/
                 params << ",event=" << String(event).replace(',', ":");
-            } else if (strchr(event, ':') != NULL && (tracepoint_id = get_tracepoint_id(event)) > 0) {
+            } else if (strchr(event, ':') != NULL &&
+                       ((tracepoint_id = get_tracepoint_id("tracing", event)) > 0 ||
+                        (tracepoint_id = get_tracepoint_id("debug/tracing", event)) > 0)) {
                 // Try to resolve tracepoint id before dropping root privileges
                 params << ",event=trace:" << tracepoint_id;
             } else {
@@ -507,6 +510,9 @@ int main(int argc, const char** argv) {
             params << "," << (arg.str() + 2) << "=" << args.next();
             if (action == "collect") action = "start";
 
+        } else if (arg == "--libpath") {
+            libpath = args.next();
+
         } else if (arg == "--fdtransfer") {
             char buf[64];
             snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
@@ -545,7 +551,9 @@ int main(int argc, const char** argv) {
     }
 
     setup_output_files(pid);
-    setup_lib_path();
+    if (libpath == "") {
+        setup_lib_path();
+    }
 
     if (action == "collect") {
         run_fdtransfer(pid, fdtransfer);

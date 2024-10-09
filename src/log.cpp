@@ -62,6 +62,15 @@ void Log::close() {
     }
 }
 
+void Log::writeRaw(LogLevel level, const char* msg, size_t len) {
+    if (level < _level) {
+        return;
+    }
+
+    fwrite(msg, 1, len, _file);
+    fflush(_file);
+}
+
 void Log::log(LogLevel level, const char* msg, va_list args) {
     char buf[1024];
     size_t len = vsnprintf(buf, sizeof(buf), msg, args);

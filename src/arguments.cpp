@@ -57,8 +57,9 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     event=EVENT      - which event to trace (cpu, wall, cache-misses, etc.)
 //     alloc[=BYTES]    - profile allocations with BYTES interval
 //     live             - build allocation profile from live objects only
-//     lock[=DURATION]  - profile contended locks longer than DURATION ns
+//     lock[=DURATION]  - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]        - run wall clock profiling together with CPU profiling
+//     nobatch          - legacy wall clock sampling without batch events
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
 //     tree             - produce call tree in HTML format
@@ -76,7 +77,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     interval=N       - sampling interval in ns (default: 10'000'000, i.e. 10 ms)
 //     jstackdepth=N    - maximum Java stack depth (default: 2048)
 //     signal=N         - use alternative signal for cpu or wall clock profiling
-//     features=LIST    - advanced stack trace features (vtable, comptask)"
+//     features=LIST    - advanced stack trace features (vtable, comptask, pcaddr)"
 //     safemode=BITS    - disable stack recovery techniques (default: 0, i.e. everything enabled)
 //     file=FILENAME    - output file name for dumping
 //     log=FILENAME     - log warnings and errors to the given dedicated stream
@@ -121,7 +122,7 @@ Error Arguments::parse(const char* args) {
     }
     char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
-    const char* msg = NULL;    
+    const char* msg = NULL;
 
     for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -215,7 +216,7 @@ Error Arguments::parse(const char* args) {
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc < 0) _alloc = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
-                    if (_lock < 0) _lock = 0;
+                    if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {
@@ -272,6 +273,7 @@ Error Arguments::parse(const char* args) {
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
+                    if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
                 }
 
             CASE("safemode") {
@@ -333,6 +335,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("live")
                 _live = true;
+
+            CASE("nobatch")
+                _nobatch = true;
 
             CASE("allkernel")
                 _ring = RING_KERNEL;

@@ -11,6 +11,7 @@
 
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
+const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU    = "cpu";
@@ -107,10 +108,11 @@ struct StackWalkFeatures {
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
-    unsigned short _reserved     : 7;
+    unsigned short pc_addr       : 1;
+    unsigned short _reserved     : 6;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          probe_sp(0), vtable_target(0), comp_task(0), _reserved(0) {
+                          probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 
@@ -180,6 +182,7 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _live;
+    bool _nobatch;
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
@@ -229,6 +232,7 @@ class Arguments {
         _threads(false),
         _sched(false),
         _live(false),
+        _nobatch(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),

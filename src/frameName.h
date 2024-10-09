@@ -54,6 +54,7 @@ class FrameName {
   private:
     static JMethodCache _cache;
 
+    JNIEnv* _jni;
     ClassMap _class_names;
     std::vector<Matcher> _include;
     std::vector<Matcher> _exclude;

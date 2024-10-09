@@ -1,0 +1,52 @@
+---
+name: "🐛 Bug Report"
+description: Report a bug
+title: "(short issue description)"
+labels: [bug]
+assignees: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: What is the problem? A clear and concise description of the bug.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected vs. actual behavior
+      description: |
+        What did you expect to happen? What happened instead?
+    validations:
+      required: false
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: |
+        Step-by-step instructions how to reproduce the issue. Attach a code sample if available.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Information/Context
+      description: |
+        Anything else that might be relevant for troubleshooting this bug: profiles, screenshots, etc.
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Async-profiler version
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: |
+        OS name and version, JDK version, CPU architecture. Is an application running in a container?
+    validations:
+      required: false

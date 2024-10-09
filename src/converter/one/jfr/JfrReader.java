@@ -39,6 +39,7 @@ public class JfrReader implements Closeable {
 
     private final FileChannel ch;
     private ByteBuffer buf;
+    private final long fileSize;
     private long filePosition;
     private byte state;
 
@@ -66,6 +67,7 @@ public class JfrReader implements Closeable {
 
     private int executionSample;
     private int nativeMethodSample;
+    private int wallClockSample;
     private int allocationInNewTLAB;
     private int allocationOutsideTLAB;
     private int allocationSample;
@@ -77,6 +79,7 @@ public class JfrReader implements Closeable {
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
         this.buf = ByteBuffer.allocateDirect(BUFFER_SIZE);
+        this.fileSize = ch.size();
 
         buf.flip();
         ensureBytes(CHUNK_HEADER_SIZE);
@@ -88,6 +91,7 @@ public class JfrReader implements Closeable {
     public JfrReader(ByteBuffer buf) throws IOException {
         this.ch = null;
         this.buf = buf;
+        this.fileSize = buf.limit();
 
         buf.order(ByteOrder.BIG_ENDIAN);
         if (!readChunk(0)) {
@@ -165,7 +169,9 @@ public class JfrReader implements Closeable {
             }
 
             if (type == executionSample || type == nativeMethodSample) {
-                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample();
+                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(false);
+            } else if (type == wallClockSample) {
+                if (cls == null || cls == ExecutionSample.class) return (E) readExecutionSample(true);
             } else if (type == allocationInNewTLAB) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
@@ -198,12 +204,13 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    private ExecutionSample readExecutionSample() {
+    private ExecutionSample readExecutionSample(boolean hasSamples) {
         long time = getVarlong();
         int tid = getVarint();
         int stackTraceId = getVarint();
         int threadState = getVarint();
-        return new ExecutionSample(time, tid, stackTraceId, threadState);
+        int samples = hasSamples ? getVarint() : 1;
+        return new ExecutionSample(time, tid, stackTraceId, threadState, samples);
     }
 
     private AllocationSample readAllocationSample(boolean tlab) {
@@ -260,6 +267,13 @@ public class JfrReader implements Closeable {
             throw new IOException("Unsupported JFR version: " + (version >>> 16) + "." + (version & 0xffff));
         }
 
+        long chunkStart = filePosition + pos;
+        long chunkSize = buf.getLong(pos + 8);
+        if (chunkStart + chunkSize > fileSize) {
+            state = STATE_INCOMPLETE;
+            return false;
+        }
+
         long cpOffset = buf.getLong(pos + 16);
         long metaOffset = buf.getLong(pos + 24);
         if (cpOffset == 0 || metaOffset == 0) {
@@ -279,7 +293,6 @@ public class JfrReader implements Closeable {
         types.clear();
         typesByName.clear();
 
-        long chunkStart = filePosition + pos;
         readMeta(chunkStart + metaOffset);
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
@@ -521,6 +534,7 @@ public class JfrReader implements Closeable {
     private void cacheEventTypes() {
         executionSample = getTypeId("jdk.ExecutionSample");
         nativeMethodSample = getTypeId("jdk.NativeMethodSample");
+        wallClockSample = getTypeId("profiler.WallClockSample");
         allocationInNewTLAB = getTypeId("jdk.ObjectAllocationInNewTLAB");
         allocationOutsideTLAB = getTypeId("jdk.ObjectAllocationOutsideTLAB");
         allocationSample = getTypeId("jdk.ObjectAllocationSample");

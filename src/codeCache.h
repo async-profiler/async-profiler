@@ -28,8 +28,9 @@ enum ImportId {
 };
 
 enum Mark {
-    MARK_INTERPRETER = 1,
-    MARK_COMPILER_ENTRY = 2
+    MARK_VM_RUNTIME = 1,
+    MARK_INTERPRETER = 2,
+    MARK_COMPILER_ENTRY = 3
 };
 
 

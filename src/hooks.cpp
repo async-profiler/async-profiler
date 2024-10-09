@@ -152,9 +152,9 @@ bool Hooks::init(bool attach) {
     Profiler::setupSignalHandlers();
 
     if (attach) {
-        _orig_pthread_create = pthread_create;
-        _orig_pthread_exit = pthread_exit;
-        _orig_dlopen = dlopen;
+        _orig_pthread_create = (pthread_create_t)dlsym(RTLD_NEXT, "pthread_create");
+        _orig_pthread_exit = (pthread_exit_t)dlsym(RTLD_NEXT, "pthread_exit");
+        _orig_dlopen = (dlopen_t)dlsym(RTLD_NEXT, "dlopen");
         patchLibraries();
     }
 

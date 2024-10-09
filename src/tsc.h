@@ -19,7 +19,7 @@ const u64 NANOTIME_FREQ = 1000000000;
 
 static inline u64 rdtsc() {
     u32 lo, hi;
-    asm volatile("rdtsc" : "=a" (lo), "=d" (hi)); 
+    asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
     return ((u64)hi << 32) | lo;
 }
 

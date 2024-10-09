@@ -125,8 +125,8 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
-            const void* page_start = (const void*)((uintptr_t)pc & ~0xfffUL);
-            frame.adjustSP(page_start, pc, sp);
+            // Don't dereference pc as it may point to unreadable memory
+            // frame.adjustSP(page_start, pc, sp);
             java_ctx->set(pc, sp, fp);
             break;
         }

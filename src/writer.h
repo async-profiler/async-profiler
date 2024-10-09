@@ -7,6 +7,7 @@
 #define _WRITER_H
 
 #include "asprof.h"
+#include "log.h"
 
 
 class Writer {
@@ -46,6 +47,16 @@ class FileWriter : public Writer {
 
     bool is_open() const {
         return _fd >= 0;
+    }
+
+    virtual void write(const char* data, size_t len);
+};
+
+class LogWriter : public Writer {
+    LogLevel _logLevel;
+
+  public:
+    LogWriter(LogLevel logLevel = LOG_INFO) : _logLevel(logLevel) {
     }
 
     virtual void write(const char* data, size_t len);
