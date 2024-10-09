@@ -31,6 +31,8 @@ public class TestProcess implements Closeable {
     public static final String PROFOUT = "%pout";
     public static final String PROFERR = "%perr";
 
+    public static final String PROFILER_LIB_NAME = "libasyncProfiler";
+
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
@@ -53,6 +55,7 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private final Os currentOs;
     private final String logDir;
     private final String[] inputs;
     private final Process p;
@@ -60,6 +63,7 @@ public class TestProcess implements Closeable {
     private final int timeout = 30;
 
     public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
+        this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
 
@@ -85,6 +89,14 @@ public class TestProcess implements Closeable {
         return this.inputs;
     }
 
+    public Os currentOs() {
+        return this.currentOs;
+    }
+
+    public String profilerLibPath() {
+        return "build/lib/" + PROFILER_LIB_NAME + "." + currentOs.getLibExt();
+    }
+
     private List<String> buildCommandLine(Test test, Os currentOs) {
         List<String> cmd = new ArrayList<>();
 
@@ -104,7 +116,7 @@ public class TestProcess implements Closeable {
             }
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
-                cmd.add("-agentpath:build/lib/libasyncProfiler." + currentOs.getLibExt() + "=" +
+                cmd.add("-agentpath:" + profilerLibPath() + "=" +
                         substituteFiles(test.agentArgs()));
             }
             cmd.add(test.mainClass().getName());
