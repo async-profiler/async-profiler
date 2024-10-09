@@ -91,6 +91,10 @@ public class TestProcess implements Closeable {
         return this.currentOs;
     }
 
+    public String profilerLibPath() {
+        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
+    }
+
     private List<String> buildCommandLine(Test test, Os currentOs) {
         List<String> cmd = new ArrayList<>();
 
@@ -110,7 +114,7 @@ public class TestProcess implements Closeable {
             }
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
-                cmd.add("-agentpath:build/lib/libasyncProfiler." + currentOs.getLibExt() + "=" +
+                cmd.add("-agentpath:" + profilerLibPath() + "=" +
                         substituteFiles(test.agentArgs()));
             }
             cmd.add(test.mainClass().getName());

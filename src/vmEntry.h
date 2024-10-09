@@ -93,8 +93,6 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
-    static const jvmtiCapabilities canSampleObjectsCapability;
-
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
@@ -145,12 +143,16 @@ class VM {
         return _zing;
     }
 
-    static int addCanSampleObjectsCapability() {
-        return _jvmti->AddCapabilities(&canSampleObjectsCapability);
+    static bool addCanSampleObjectsCapability() {
+        jvmtiCapabilities capabilities = {0};
+        capabilities.can_generate_sampled_object_alloc_events = 1;
+        return _jvmti->AddCapabilities(&capabilities) == 0;
     }
 
-    static int relinquishCanSampleObjectsCapability() {
-        return _jvmti->RelinquishCapabilities(&canSampleObjectsCapability);
+    static void relinquishCanSampleObjectsCapability() {
+        jvmtiCapabilities capabilities = {0};
+        capabilities.can_generate_sampled_object_alloc_events = 1;
+        _jvmti->RelinquishCapabilities(&capabilities);
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

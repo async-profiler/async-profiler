@@ -31,7 +31,6 @@ jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
-const jvmtiCapabilities VM::canSampleObjectsCapability = {.can_generate_sampled_object_alloc_events = 1};
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -245,7 +244,7 @@ bool VM::init(JavaVM* vm, bool attach) {
         }
     }
 
-    if (VM::addCanSampleObjectsCapability() == 0) {
+    if (addCanSampleObjectsCapability()) {
         // SetHeapSamplingInterval does not have immediate effect, so apply the configuration
         // as early as possible to allow profiling all startup allocations
         JVMFlag* f = JVMFlag::find("UseTLAB");
