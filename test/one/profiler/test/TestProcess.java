@@ -55,6 +55,7 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private final Test test;
     private final Os currentOs;
     private final String logDir;
     private final String[] inputs;
@@ -66,6 +67,7 @@ public class TestProcess implements Closeable {
         this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
+        this.test = test;
 
         List<String> cmd = buildCommandLine(test, currentOs);
         log.log(Level.FINE, "Running " + cmd);
@@ -83,6 +85,10 @@ public class TestProcess implements Closeable {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
+    }
+
+    public TestProcess dup() throws Exception {
+        return new TestProcess(this.test, this.currentOs, this.logDir);
     }
 
     public String[] inputs() {
