@@ -41,7 +41,7 @@ public class JfrToHeatmap extends JfrConverter {
                 heatmap.addStack(key, value.methods, value.locations, value.types, value.methods.length);
             }
         });
-        collectEvents().forEach(new EventAggregator.Visitor() {
+        collectEvents(new EventAggregator.Visitor() {
 
             @Override
             public void visit(Event event, long value) {

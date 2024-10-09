@@ -40,11 +40,20 @@ public abstract class JfrConverter extends Classifier {
 
     protected EventAggregator collectEvents() throws IOException {
         EventAggregator agg = new EventAggregator(args.threads, args.total);
+        collectEvents(new EventAggregator.Visitor() {
+            @Override
+            public void visit(Event event, long value) {
+                agg.collect(event);
+            }
+        });
+        return agg;
+    }
 
+    protected void collectEvents(EventAggregator.Visitor visitor) throws IOException {
         Class<? extends Event> eventClass =
-                args.live ? LiveObject.class :
-                        args.alloc ? AllocationSample.class :
-                                args.lock ? ContendedLock.class : ExecutionSample.class;
+            args.live ? LiveObject.class :
+                args.alloc ? AllocationSample.class :
+                    args.lock ? ContendedLock.class : ExecutionSample.class;
 
         long threadStates = 0;
         if (args.state != null) {
@@ -63,12 +72,10 @@ public abstract class JfrConverter extends Classifier {
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == 0 || (threadStates & (1L << ((ExecutionSample) event).threadState)) != 0) {
-                    agg.collect(event);
+                    visitor.visit(event, 1);
                 }
             }
         }
-
-        return agg;
     }
 
     protected int toThreadState(String name) {
