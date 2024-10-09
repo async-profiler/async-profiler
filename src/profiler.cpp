@@ -1001,7 +1001,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
 }
 
 Engine* Profiler::selectAllocEngine(long alloc_interval, bool live) {
-    if (VM::addCanSampleObjectsCapability()) {
+    if (VM::addSampleObjectsCapability()) {
         return &object_sampler;
     } else if (VM::isOpenJ9()) {
         return &j9_object_sampler;

@@ -244,14 +244,14 @@ bool VM::init(JavaVM* vm, bool attach) {
         }
     }
 
-    if (addCanSampleObjectsCapability()) {
+    if (addSampleObjectsCapability()) {
         // SetHeapSamplingInterval does not have immediate effect, so apply the configuration
         // as early as possible to allow profiling all startup allocations
         JVMFlag* f = JVMFlag::find("UseTLAB");
         if (f != NULL && !f->get()) {
             _jvmti->SetHeapSamplingInterval(0);
         }
-        VM::relinquishCanSampleObjectsCapability();
+        VM::releaseSampleObjectsCapability();
     }
 
     if (attach) {

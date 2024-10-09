@@ -188,7 +188,7 @@ void ObjectSampler::stop() {
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
 
-    VM::relinquishCanSampleObjectsCapability();
+    VM::releaseSampleObjectsCapability();
 
     dumpLiveRefs();
 }
