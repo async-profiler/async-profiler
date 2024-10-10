@@ -31,8 +31,6 @@ public class TestProcess implements Closeable {
     public static final String PROFOUT = "%pout";
     public static final String PROFERR = "%perr";
 
-    public static final String PROFILER_LIB_NAME = "libasyncProfiler";
-
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
@@ -94,7 +92,7 @@ public class TestProcess implements Closeable {
     }
 
     public String profilerLibPath() {
-        return "build/lib/" + PROFILER_LIB_NAME + "." + currentOs.getLibExt();
+        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
     }
 
     private List<String> buildCommandLine(Test test, Os currentOs) {

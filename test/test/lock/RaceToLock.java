@@ -8,14 +8,11 @@ package test.lock;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.LockSupport;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 public class RaceToLock {
 
     private final Lock sharedLock = new ReentrantLock(true);
-    private final Object sharedObj = new Object();
     private long sharedWaitTime = 0;
 
     private final Random random = new Random();
