@@ -212,6 +212,14 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private boolean isRoot() {
+        try (Stream<String> lines = Files.lines(Paths.get("/proc/self/status"))) {
+            return lines.anyMatch(s -> s.startsWith("Uid:") && s.matches("Uid:\\s+0\\s+0.*"));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     @Override
     public void close() {
         p.destroy();
@@ -262,7 +270,7 @@ public class TestProcess implements Closeable {
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
-        if (sudo) {
+        if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
         }
         cmd.add("build/bin/asprof");
