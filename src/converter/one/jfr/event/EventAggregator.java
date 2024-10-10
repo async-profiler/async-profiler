@@ -15,6 +15,7 @@ public class EventAggregator {
     private long[] samples;
     private long[] values;
     private int size;
+    private double fraction;
 
     public EventAggregator(boolean threads, boolean total, double factor) {
         this.threads = threads;
@@ -65,6 +66,30 @@ public class EventAggregator {
                 visitor.visit(keys[i], factor == 0.0 ? samples[i] : factor == 1.0 ? values[i] : (long) (values[i] * factor));
             }
         }
+    }
+
+    public void coarsen(double grain) {
+        for (int i = 0; i < keys.length; i++) {
+            if (keys[i] != null) {
+                long s0 = samples[i];
+                long s1 = round(s0 / grain);
+                if (s1 == 0) {
+                    keys[i] = null;
+                    size--;
+                }
+                samples[i] = s1;
+                values[i] = (long) (values[i] * ((double) s1 / s0));
+            }
+        }
+    }
+
+    private long round(double d) {
+        long r = (long) d;
+        if ((fraction += d - r) >= 1.0) {
+            fraction -= 1.0;
+            r++;
+        }
+        return r;
     }
 
     private int hashCode(Event e) {
