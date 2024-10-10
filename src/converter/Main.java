@@ -113,6 +113,7 @@ public class Main {
                 "Flame Graph options:\n" +
                 "     --title STRING     Flame Graph title\n" +
                 "     --minwidth X       Skip frames smaller than X%\n" +
+                "     --grain X          Coarsen Flame Graph to the given grain size\n" +
                 "     --skip N           Skip N bottom frames\n" +
                 "  -r --reverse          Reverse stack traces (icicle graph)\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +

@@ -70,6 +70,10 @@ public abstract class JfrConverter extends Classifier {
             }
         }
 
+        if (args.grain > 0) {
+            agg.coarsen(args.grain);
+        }
+
         return agg;
     }
 
