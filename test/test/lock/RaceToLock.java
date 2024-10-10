@@ -67,17 +67,17 @@ public class RaceToLock {
     public static void main(String[] args) throws InterruptedException {
         RaceToLock app = new RaceToLock();
         Thread[] threads = {
-                new Thread(null, app::runSharedCounter, "shared"),
-                new Thread(null, app::runSharedCounter, "shared"),
+                new Thread(null, app::runSharedCounter, "shared1"),
+                new Thread(null, app::runSharedCounter, "shared2"),
 
-                new Thread(null, app::runRandomCounter, "random"),
-                new Thread(null, app::runRandomCounter, "random")
+                new Thread(null, app::runRandomCounter, "random1"),
+                new Thread(null, app::runRandomCounter, "random2")
         };
         for (Thread t : threads) {
             t.start();
         }
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         app.exitRequested = true;
         for (Thread t : threads) {
             t.join();

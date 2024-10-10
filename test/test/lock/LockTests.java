@@ -22,13 +22,23 @@ public class LockTests {
 
     @Test(mainClass = RaceToLock.class, inputs = { "0" }, output = true)
     @Test(mainClass = RaceToLock.class, inputs = { "10000" }, output = true)
-    @Test(mainClass = RaceToLock.class, inputs = { "1000000000" }, output = true)
+    @Test(mainClass = RaceToLock.class, inputs = { "1000000" }, output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
 
-        p.profile("--lock " + interval + " --threads -o collapsed");
+        Output out = p.profile("--lock " + interval + " --threads -o collapsed");
         Output stdout = p.readFile(TestProcess.STDOUT);
+        long shared1 = out.samples("\\[shared1");
+        long shared2 = out.samples("\\[shared2");
 
+        Assert.isGreater(out.samples("\\[random1"), 0, "sampled all threads 1/4");
+        Assert.isGreater(out.samples("\\[random2"), 0, "sampled all threads 2/4");
+        Assert.isGreater(shared1, 0, "sampled all threads 3/4");
+        Assert.isGreater(shared2, 0, "sampled all threads 4/4");
+
+        double sharedDiff = 1.0 * Math.abs(shared1 - shared2) / Math.max(shared1, shared2);
+
+        Assert.isLess(sharedDiff, 0.15, "sharedDiff < 0.15");
         Assert.isGreater(stdout.samples("sharedWaitTime"), stdout.samples("randomWaitTime"), "sharedWaitTime > randomWaitTime");
     }
 }
