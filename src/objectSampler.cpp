@@ -100,9 +100,10 @@ class LiveRefs {
         jvmtiEnv* jvmti = VM::jvmti();
         Profiler* profiler = Profiler::instance();
 
-        // Set CallTraceStorage counters to zero, so only live objects
-        // will be reported to collapsed and flamegraph outputs.
-        profiler->resetCounters();
+        // Reset counters only for non-JFR recording.
+        if(!profiler->jfrActive()) {
+            profiler->resetCounters();
+        }
 
         for (u32 i = 0; i < MAX_REFS; i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);
