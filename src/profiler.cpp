@@ -774,7 +774,7 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
 }
 
 void Profiler::resetCounters() {
-    _call_trace_storage.resetCounters();
+    _call_trace_storage.resetCounters(!_jfr.active());
 }
 
 void Profiler::writeLog(LogLevel level, const char* message) {

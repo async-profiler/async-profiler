@@ -290,7 +290,7 @@ void CallTraceStorage::add(u32 call_trace_id, u64 samples, u64 counter) {
     }
 }
 
-void CallTraceStorage::resetCounters() {
+void CallTraceStorage::resetCounters(bool resetSamples) {
      for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -299,7 +299,9 @@ void CallTraceStorage::resetCounters() {
         for (u32 slot = 0; slot < capacity; slot++) {
             if (keys[slot] != 0) {
                 CallTraceSample& s = values[slot];
-                storeRelease(s.samples, 0);
+                if (resetSamples) {
+                    storeRelease(s.samples, 0);
+                }
                 storeRelease(s.counter, 0);
             }
         }

@@ -8,7 +8,6 @@ package test.alloc;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
-import one.jfr.event.Event;
 import one.profiler.test.Assert;
 import one.profiler.test.Jvm;
 import one.profiler.test.Os;
@@ -20,6 +19,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 public class AllocTests {
 
@@ -80,10 +80,10 @@ public class AllocTests {
 
     // Without liveness tracking, results won't change except for the sampling
     // error.
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = { 11, Integer.MAX_VALUE }, args = "1.0", inputs = { "false" })
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = { 11, Integer.MAX_VALUE }, args = "0.0", inputs = { "true" })
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = { 11, Integer.MAX_VALUE }, args = "0.1", inputs = { "true" })
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = { 11, Integer.MAX_VALUE }, args = "1.0", inputs = { "true" })
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"false"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"true"})
     public void liveness(TestProcess p) throws Exception {
         final long TOTAL_BYTES = 50000000;
         final double tolerance = 0.10;
@@ -99,5 +99,23 @@ public class AllocTests {
 
         Assert.isLessOrEqual(lowerLimit, totalBytes);
         Assert.isGreaterOrEqual(upperLimit, totalBytes);
+    }
+
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"false"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"true"})
+    public void livenessJfrHasStacks(TestProcess p) throws Exception {
+        final boolean live = Boolean.parseBoolean(p.inputs()[0]);
+        p.profile("--alloc 1k --total -f %f.jfr" + (live ? " --live" : ""));
+        String filename = p.getFile("%f").toPath().toString();
+        try (JfrReader r = new JfrReader(filename)) {
+            List<AllocationSample> events = r.readAllEvents(AllocationSample.class);
+            assert !events.isEmpty() : "No AllocationSample events found in JFR output";
+            for (AllocationSample event : events) {
+                StackTrace trace = r.stackTraces.get(event.stackTraceId);
+                assert trace != null : "Stack trace missing for id " + event.stackTraceId;
+            }
+        }
     }
 }
