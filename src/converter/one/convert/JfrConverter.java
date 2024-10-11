@@ -40,7 +40,7 @@ public abstract class JfrConverter extends Classifier {
     protected abstract void convertChunk() throws IOException;
 
     protected EventAggregator collectEvents() throws IOException {
-        EventAggregator agg = new EventAggregator(args.threads, args.total);
+        EventAggregator agg = new EventAggregator(args.threads, args.total, args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
 
         Class<? extends Event> eventClass =
                 args.live ? LiveObject.class :
@@ -68,6 +68,10 @@ public abstract class JfrConverter extends Classifier {
                     agg.collect(event);
                 }
             }
+        }
+
+        if (args.grain > 0) {
+            agg.coarsen(args.grain);
         }
 
         return agg;

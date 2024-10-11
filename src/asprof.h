@@ -14,6 +14,8 @@
 #  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
 #endif
 
+#define WEAK __attribute__((weak))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
