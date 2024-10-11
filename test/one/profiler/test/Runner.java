@@ -9,12 +9,11 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -128,45 +127,48 @@ public class Runner {
         return true;
     }
 
-    private static boolean run(Method m) {
-        boolean passedAll = true;
-        for (Test test : m.getAnnotationsByType(Test.class)) {
-            String className = m.getDeclaringClass().getSimpleName();
-            String testName = className + '.' + m.getName();
-
-            if (!enabled(test) || skipTests.contains(className.toLowerCase()) || skipTests.contains(m.getName().toLowerCase())) {
-                log.log(Level.FINE, "Skipped " + testName);
-                continue;
-            }
-
-            log.log(Level.INFO, "Running " + testName +
-                    (!test.args().isEmpty() ? " args: " + test.args() : "") +
-                    (test.inputs().length > 0 ? " inputs: [" + String.join(" ", test.inputs()) + "]" : "") +
-                    "...");
-
-            String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
-            try (TestProcess p = new TestProcess(test, currentOs, testLogDir)) {
-                Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ?
-                        m.getDeclaringClass().getDeclaredConstructor().newInstance() : null;
-                m.invoke(holder, p);
-                log.info("OK");
-            } catch (InvocationTargetException e) {
-                log.log(Level.WARNING, testName + " failed", e.getTargetException());
-                passedAll = false;
-            } catch (Throwable e) {
-                log.log(Level.WARNING, testName + " failed", e);
-                passedAll = false;
-            }
+    private static TestResult run(RunnableTest rt) {
+        if (!enabled(rt.test()) || skipTests.contains(rt.className().toLowerCase()) || skipTests.contains(rt.method().getName().toLowerCase())) {
+            return TestResult.skip();
         }
-        return passedAll;
+
+        log.log(Level.INFO, "Running " + rt.testInfo() + "...");
+
+        String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir)) {
+            Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
+                    rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
+            rt.method().invoke(holder, p);
+        } catch (InvocationTargetException e) {
+            return TestResult.fail(e.getTargetException());
+        } catch (Throwable e) {
+            return TestResult.fail(e);
+        }
+
+        return TestResult.pass();
     }
 
-    private static boolean run(Class<?> cls) {
-        boolean passedAll = true;
+    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
+        List<RunnableTest> rts = new ArrayList<>();
         for (Method m : cls.getMethods()) {
-            passedAll &= run(m);
+            for (Test t : m.getAnnotationsByType(Test.class)) {
+                rts.add(new RunnableTest(m, t));
+            }
         }
-        return passedAll;
+        return rts;
+    }
+
+    private static List<RunnableTest> getRunnableTests(String[] args) throws ClassNotFoundException {
+        List<RunnableTest> rts = new ArrayList<>();
+        for (String arg : args) {
+            String testName = arg;
+            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
+                // Convert package name to class name
+                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
+            }
+            rts.addAll(getRunnableTests(Class.forName(testName)));
+        }
+        return rts;
     }
 
     private static void configureLogging() {
@@ -197,6 +199,31 @@ public class Runner {
         }
     }
 
+    private static String formatTestMessage(RunnableTest rt, TestResult result, int i, int testCount, long durationNs) {
+        String duration = String.format("%.1f ms", durationNs / 1e6);
+        String message = result.status().toString() + " [" + i + "/" + testCount + "] " + rt.testInfo() + " took " + duration;
+        if (result.throwable() != null) {
+            message += ": " + result.throwable();
+        }
+        return message;
+    }
+
+    private static void printSummary(Map<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
+        int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
+        if (fail > 0) {
+            System.out.println("\nFailed tests:");
+            failedTests.forEach(System.out::println);
+        }
+
+        String totalDuration = String.format("%.1f ms", totalTestDuration / 1e6);
+        System.out.println("\nTotal test duration: " + totalDuration);
+        System.out.println("Results Summary:");
+        System.out.println("PASS: " + statusCounts.getOrDefault(TestStatus.PASS, 0));
+        System.out.println("SKIP: " + statusCounts.getOrDefault(TestStatus.SKIP, 0));
+        System.out.println("FAIL: " + fail);
+        System.out.println("TOTAL: " + testCount);
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: java " + Runner.class.getName() + " TestName ...");
@@ -206,21 +233,35 @@ public class Runner {
         configureLogging();
         configureSkipTests();
 
-        boolean passedAll = true;
-        for (String arg : args) {
-            String testName = arg;
-            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
-                // Convert package name to class name
-                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
+        List<RunnableTest> allTests = getRunnableTests(args);
+        final int testCount = allTests.size();
+
+        int i = 1;
+        long totalTestDuration = 0;
+        Map<TestStatus, Integer> statusCounts = new HashMap<>();
+        List<String> failedTests = new ArrayList<>();
+        for (RunnableTest rt : allTests) {
+            long start = System.nanoTime();
+            TestResult result = run(rt);
+            long durationNs = System.nanoTime() - start;
+
+            statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+            totalTestDuration += durationNs;
+            String message = formatTestMessage(rt, result, i, testCount, durationNs);
+            if (result.status() == TestStatus.FAIL) {
+                failedTests.add(rt.testInfo());
             }
-            passedAll &= run(Class.forName(testName));
+            System.out.println(message);
+            i++;
         }
+
+        printSummary(statusCounts, failedTests, totalTestDuration, testCount);
 
         if (!logDir.isEmpty()) {
             log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
         }
 
-        if (!passedAll) {
+        if (!failedTests.isEmpty()) {
             throw new RuntimeException("One or more tests failed");
         }
     }
