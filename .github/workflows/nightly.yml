@@ -11,10 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runson: macos-latest-large # mac
+          - runson: macos-13 # mac x64
             archive: async-profiler-3.0-macos-x64.zip
 
-          - runson: macos-latest # mac
+          - runson: macos-14 # mac arm
             archive: async-profiler-3.0-macos-arm64.zip
 
           - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
