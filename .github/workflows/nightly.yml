@@ -31,11 +31,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and Test
         run: |
-          if case "${{ matrix.runson }}" in macos*) ;; *) false;; esac; then
-            make release test
-          else
-            make CC=/usr/local/musl/bin/musl-gcc release test
-          fi
+          case "${{ matrix.runson }}" in
+            macos*) make release test
+            ;;
+            *) make CC=/usr/local/musl/bin/musl-gcc release test
+            ;;
+          esac
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}-${{ github.sha }}
