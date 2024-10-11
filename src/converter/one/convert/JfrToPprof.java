@@ -43,14 +43,12 @@ public class JfrToPprof extends JfrConverter {
 
     @Override
     protected void convertChunk() throws IOException {
-        collectEvents().forEach(new EventAggregator.Visitor() {
+        collectEvents().forEach(new EventAggregator.ValueVisitor() {
             final Proto s = new Proto(100);
-            final double ticksToNanos = 1e9 / jfr.ticksPerSec;
-            final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
 
             @Override
             public void visit(Event event, long value) {
-                profile.field(2, sample(s, event, scale ? (long) (value * ticksToNanos) : value));
+                profile.field(2, sample(s, event, value));
                 s.reset();
             }
         });

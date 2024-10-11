@@ -170,19 +170,7 @@ void ObjectSampler::dumpLiveRefs() {
     }
 }
 
-Error ObjectSampler::check(Arguments& args) {
-    if (!VM::canSampleObjects()) {
-        return Error("SampledObjectAlloc is not supported on this JVM");
-    }
-    return Error::OK;
-}
-
 Error ObjectSampler::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
-    }
-
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
     initLiveRefs(args._live);
@@ -199,6 +187,8 @@ void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
+
+    VM::releaseSampleObjectsCapability();
 
     dumpLiveRefs();
 }

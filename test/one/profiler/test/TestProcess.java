@@ -54,6 +54,7 @@ public class TestProcess implements Closeable {
     }
 
     private final Test test;
+    private final Os currentOs;
     private final String logDir;
     private final String[] inputs;
     private final Process p;
@@ -62,6 +63,7 @@ public class TestProcess implements Closeable {
 
     public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
         this.test = test;
+        this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
 
@@ -91,6 +93,14 @@ public class TestProcess implements Closeable {
         return this.inputs;
     }
 
+    public Os currentOs() {
+        return this.currentOs;
+    }
+
+    public String profilerLibPath() {
+        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
+    }
+
     private List<String> buildCommandLine(Test test, Os currentOs) {
         List<String> cmd = new ArrayList<>();
 
@@ -110,7 +120,7 @@ public class TestProcess implements Closeable {
             }
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
-                cmd.add("-agentpath:build/lib/libasyncProfiler." + currentOs.getLibExt() + "=" +
+                cmd.add("-agentpath:" + profilerLibPath() + "=" +
                         substituteFiles(test.agentArgs()));
             }
             cmd.add(test.mainClass().getName());
@@ -208,6 +218,14 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private boolean isRoot() {
+        try (Stream<String> lines = Files.lines(Paths.get("/proc/self/status"))) {
+            return lines.anyMatch(s -> s.startsWith("Uid:") && s.matches("Uid:\\s+0\\s+0.*"));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     @Override
     public void close() {
         p.destroy();
@@ -258,7 +276,7 @@ public class TestProcess implements Closeable {
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
         List<String> cmd = new ArrayList<>();
-        if (sudo) {
+        if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
         }
         cmd.add("build/bin/asprof");
