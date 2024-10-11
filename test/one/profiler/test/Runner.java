@@ -140,9 +140,9 @@ public class Runner {
             }
 
             log.log(Level.INFO, "Running " + testName +
-                (test.args() != null && test.args().length() > 0 ? " args: " + test.args() : "" ) +
-                (test.inputs() != null && test.inputs().length > 0 ? " inputs: [" + String.join(" ", test.inputs()) + "]": "" ) +
-                 "...");
+                    (!test.args().isEmpty() ? " args: " + test.args() : "") +
+                    (test.inputs().length > 0 ? " inputs: [" + String.join(" ", test.inputs()) + "]" : "") +
+                    "...");
 
             String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
             try (TestProcess p = new TestProcess(test, currentOs, testLogDir)) {
