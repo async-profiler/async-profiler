@@ -11,19 +11,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runson: macos-latest # mac
-            archive: async-profiler-3.0-macos.zip
+          - runson: macos-latest-large # mac
+            archive: async-profiler-3.0-macos-x64.zip
 
-          - runson: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
+          - runson: macos-latest # mac
+            archive: async-profiler-3.0-macos-arm64.zip
+
+          - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-x64.tar.gz
 
-          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }} # linux arm
+          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
-    container:
-      image: ${{ matrix.image }} # will be null except for linux x64
-      options: --privileged # needed in order to run tests on linux 64
     steps:
       - uses: actions/setup-java@v4
         with:
@@ -35,7 +34,7 @@ jobs:
           if [ "${{ matrix.runson }}" != "macos-latest" ]; then
             make CC=/usr/local/musl/bin/musl-gcc release test -j
           else
-            make FAT_BINARY=true release test
+            make release test
           fi
       - uses: actions/upload-artifact@v4
         with:
