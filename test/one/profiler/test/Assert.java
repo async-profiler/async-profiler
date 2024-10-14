@@ -12,9 +12,6 @@ public class Assert {
     private static final Logger log = Logger.getLogger(Assert.class.getName());
 
     public static void isGreater(double value, double threshold) {
-        if (value <= threshold) {
-            throw new AssertionError("Expected " + value + " > " + threshold);
-        }
         isGreater(value, threshold, null);
     }
 
@@ -35,9 +32,6 @@ public class Assert {
     }
 
     public static void isLess(double value, double threshold) {
-        if (value >= threshold) {
-            throw new AssertionError("Expected " + value + " < " + threshold);
-        }
         isLess(value, threshold, null);
     }
 
