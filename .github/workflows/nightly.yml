@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}
-          path: ${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}
+          path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
         with:
