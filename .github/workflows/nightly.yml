@@ -38,7 +38,9 @@ jobs:
           java-version: '11'
       - uses: actions/checkout@v4
       - name: Build and Test
+        id: build
         run: |
+          echo "short-hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           case "${{ matrix.runson }}" in
             macos*) make FAT_BINARY=true release test -j
             ;;
@@ -47,8 +49,8 @@ jobs:
           esac
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}
-          path: ${{ matrix.archive }}
+          name: ${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}
+          path: ${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}
       - uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
         with:
@@ -70,10 +72,11 @@ jobs:
               throw new Error("Unable to get list of assets from release!");
             }
             await Promise.all(assets.data
-              .filter(({name}) => name === "${{ matrix.archive }}")
+              .filter(({name}) => name.startsWith("${{ matrix.archive }}"))
               .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
+            const archiveName = `${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}`;
             github.rest.repos.uploadReleaseAsset({
               ...commonOptions,
-              name: "${{ matrix.archive }}",
-              data: await fs.readFile("${{ matrix.archive }}"),
+              name: archiveName,
+              data: await fs.readFile(archiveName),
             });
