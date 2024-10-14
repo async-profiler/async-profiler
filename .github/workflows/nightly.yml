@@ -12,6 +12,7 @@ jobs:
       matrix:
         include:
           - runson: macos-13 # mac x64
+            archive: do-not-upload # this file name doesn't exist, since we only upload 1 macos binary
 
           - runson: macos-14 # mac arm
             archive: async-profiler-3.0-macos.zip
@@ -43,7 +44,7 @@ jobs:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() # we always want to upload test logs, especially when tests fail
         with:
           name: test-logs-${{ matrix.archive }}
           path: build/test/logs/
