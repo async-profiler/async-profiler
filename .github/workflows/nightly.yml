@@ -8,6 +8,8 @@ on:
 jobs:
   build-test: # binaries are uploaded by macos-14 runner, so this just tests on x86 macos-13
     runs-on: macos-13
+    outputs:
+      short-sha: ${{ steps.test.outputs.SHORT_HASH }}
     steps:
       - uses: actions/setup-java@v4
         with:
@@ -15,7 +17,9 @@ jobs:
           java-version: '11'
       - uses: actions/checkout@v4
       - name: Build and Test
+        id: test
         run: |
+          echo "SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           make test
   build-test-publish:
     strategy:
@@ -31,6 +35,7 @@ jobs:
           - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
+    needs: [build-test] # needed to get the short sha
     steps:
       - uses: actions/setup-java@v4
         with:
@@ -40,7 +45,6 @@ jobs:
       - name: Build and Test
         id: build
         run: |
-          echo "short-hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           case "${{ matrix.runson }}" in
             macos*) make FAT_BINARY=true release test -j
             ;;
@@ -49,7 +53,7 @@ jobs:
           esac
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}
+          name: ${{ matrix.archive }}-${{ needs.build-test.outputs.short-sha }}
           path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
@@ -76,6 +80,6 @@ jobs:
               .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
             github.rest.repos.uploadReleaseAsset({
               ...commonOptions,
-              name: `${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}`,
+              name: `${{ matrix.archive }}-${{ needs.build-test.outputs.short-sha }}`,
               data: await fs.readFile("${{ matrix.archive }}"),
             });
