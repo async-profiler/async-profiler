@@ -74,9 +74,8 @@ jobs:
             await Promise.all(assets.data
               .filter(({name}) => name.startsWith("${{ matrix.archive }}"))
               .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
-            const archiveName = `${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}`;
             github.rest.repos.uploadReleaseAsset({
               ...commonOptions,
-              name: archiveName,
-              data: await fs.readFile(archiveName),
+              name: `${{ matrix.archive }}-${{ steps.build.outputs.short-hash }}`,
+              data: await fs.readFile("${{ matrix.archive }}"),
             });
