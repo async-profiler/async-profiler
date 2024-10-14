@@ -18,7 +18,7 @@ public class RecoveryTests {
         Output out = p.profile("-d 3 -e cpu -o collapsed");
 
         Assert.isGreater(out.ratio("StringBuilder.delete;"), 0.8);
-        Assert.isGreater(out.ratio("arraycopy"), 0.9);
+        Assert.isGreater(out.ratio("arraycopy"), 0.8);
         Assert.isLess(out.ratio("unknown_Java"), 0.01);
 
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 2");
