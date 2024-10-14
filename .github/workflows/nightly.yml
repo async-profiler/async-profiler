@@ -6,14 +6,22 @@ on:
       - nightly_build
 
 jobs:
+  build-test: # binaries are uploaded by macos-14 runner, so this just tests on x86 macos-13
+    runs-on: macos-13
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '11'
+      - uses: actions/checkout@v4
+      - name: Build and Test
+        run: |
+          make test
   build-test-publish:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runson: macos-13 # mac x64
-            archive: do-not-upload # this file name doesn't exist, since we only upload 1 macos binary
-
           - runson: macos-14 # mac arm
             archive: async-profiler-3.0-macos.zip
 
@@ -32,9 +40,7 @@ jobs:
       - name: Build and Test
         run: |
           case "${{ matrix.runson }}" in
-            macos-14*) make FAT_BINARY=true release test -j
-            ;;
-            macos-13*) make release
+            macos*) make FAT_BINARY=true release test -j
             ;;
             *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
