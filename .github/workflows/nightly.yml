@@ -12,10 +12,9 @@ jobs:
       matrix:
         include:
           - runson: macos-13 # mac x64
-            archive: async-profiler-3.0-macos-x64.zip
 
           - runson: macos-14 # mac arm
-            archive: async-profiler-3.0-macos-arm64.zip
+            archive: async-profiler-3.0-macos.zip
 
           - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-x64.tar.gz
@@ -32,14 +31,16 @@ jobs:
       - name: Build and Test
         run: |
           case "${{ matrix.runson }}" in
-            macos*) make release test
+            macos-14*) make FAT_BINARY=true release test -j
             ;;
-            *) make CC=/usr/local/musl/bin/musl-gcc release test
+            macos-13*) make release
+            ;;
+            *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}-${{ github.sha }}
+          name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
         if: always()
