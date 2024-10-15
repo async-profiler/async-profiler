@@ -4,29 +4,27 @@ on:
   push:
     branches:
       - nightly_build
-
+env:
+  JAVA_DISTRIBUTION: 'corretto'
+  JAVA_VERSION: '11'
 jobs:
-  build-test: # binaries are uploaded by macos-14 runner, so this just tests on x86 macos-13
-    runs-on: macos-13
+  short-hash-getter:
+    runs-on: ubuntu-latest
     outputs:
-      short-sha: ${{ steps.test.outputs.SHORT_HASH }}
+      short-hash: ${{ steps.getter.outputs.SHORT_HASH }}
     steps:
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'corretto'
-          java-version: '11'
       - uses: actions/checkout@v4
-      - name: Build and Test
-        id: test
+      - name: Get Short Hash
+        id: getter
         run: |
           echo "SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          make test
   build-test-publish:
     strategy:
       fail-fast: false
       matrix:
         include:
           - runson: macos-14 # mac arm
+            extraarch: "{for_setup_java: 'x64', for_env: 'X64'}" # we test x64 also using rosetta
             archive: async-profiler-3.0-macos.zip
 
           - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
@@ -35,12 +33,19 @@ jobs:
           - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
-    needs: [build-test] # needed to get the short sha
+    needs: [short-hash-getter] # needed to get the short hash
     steps:
       - uses: actions/setup-java@v4
+        if: ${{ matrix.extraarch }}
         with:
-          distribution: 'corretto'
-          java-version: '11'
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          architecture: ${{ fromJSON(matrix.extraarch).for_setup_java }} # set up for other architecture first, as the later one will override this
+      - uses: actions/setup-java@v4 # setup java for default architecture
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          # architecture: not specifying this defaults to architecture of the runner
       - uses: actions/checkout@v4
       - name: Build and Test
         id: build
@@ -51,9 +56,12 @@ jobs:
             *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
+      - name: Test Extra Architectures
+        if: ${{ matrix.extraarch }}
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_${{ fromJSON(matrix.extraarch).for_env }} make test
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}-${{ needs.build-test.outputs.short-sha }}
+          name: ${{ matrix.archive }}-${{ needs.short-hash-getter.outputs.short-hash }}
           path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
@@ -80,6 +88,6 @@ jobs:
               .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
             github.rest.repos.uploadReleaseAsset({
               ...commonOptions,
-              name: `${{ matrix.archive }}-${{ needs.build-test.outputs.short-sha }}`,
+              name: `${{ matrix.archive }}-${{ needs.build-test.outputs.short-hash }}`,
               data: await fs.readFile("${{ matrix.archive }}"),
             });
