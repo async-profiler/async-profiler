@@ -35,13 +35,15 @@ jobs:
             archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
     steps:
-      - uses: actions/setup-java@v4
+      - name: Setup Java for additional architecture
+        uses: actions/setup-java@v4
         if: ${{ matrix.extraarch }}
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
           architecture: ${{ fromJSON(matrix.extraarch).for_setup_java }} # set up for other architecture first, as the later one will override this
-      - uses: actions/setup-java@v4 # setup java for default architecture
+      - name: Setup Java for default architecture
+        uses: actions/setup-java@v4
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
@@ -56,7 +58,8 @@ jobs:
             *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
-      - uses: actions/upload-artifact@v4
+      - name: Upload test logs for default architecture
+        uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
         with:
           name: test-logs-${{ matrix.archive }}
@@ -64,16 +67,19 @@ jobs:
       - name: Test Extra Architectures
         if: ${{ matrix.extraarch }}
         run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_${{ fromJSON(matrix.extraarch).for_env }} make test
-      - uses: actions/upload-artifact@v4
+      - name: Upload async-profiler binaries to workflow
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}-${{ needs.short-hash-getter.outputs.short-hash }}
           path: ${{ matrix.archive }}
-      - uses: actions/upload-artifact@v4
+      - name: Upload test logs for additional architecture
+        uses: actions/upload-artifact@v4
         if: ${{ matrix.extraarch }} # we always want to upload test logs, especially when tests fail
         with:
           name: test-extraarch-logs-${{ matrix.archive }}
           path: build/test/logs/
-      - uses: actions/github-script@v7
+      - name: Upload async-profiler binaries to nightly release and delete previous releases
+        uses: actions/github-script@v7
         id: delete-previous-and-upload-to-release
         with:
           result-encoding: string
