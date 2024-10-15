@@ -19,6 +19,7 @@ jobs:
         run: |
           echo "SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
   build-test-publish:
+    needs: [short-hash-getter] # needed to get the short hash
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +34,6 @@ jobs:
           - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
             archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
-    needs: [short-hash-getter] # needed to get the short hash
     steps:
       - uses: actions/setup-java@v4
         if: ${{ matrix.extraarch }}
@@ -56,6 +56,11 @@ jobs:
             *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
+      - uses: actions/upload-artifact@v4
+        if: always() # we always want to upload test logs, especially when tests fail
+        with:
+          name: test-logs-${{ matrix.archive }}
+          path: build/test/logs/
       - name: Test Extra Architectures
         if: ${{ matrix.extraarch }}
         run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_${{ fromJSON(matrix.extraarch).for_env }} make test
@@ -64,9 +69,9 @@ jobs:
           name: ${{ matrix.archive }}-${{ needs.short-hash-getter.outputs.short-hash }}
           path: ${{ matrix.archive }}
       - uses: actions/upload-artifact@v4
-        if: always() # we always want to upload test logs, especially when tests fail
+        if: ${{ matrix.extraarch }} # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.archive }}
+          name: test-extraarch-logs-${{ matrix.archive }}
           path: build/test/logs/
       - uses: actions/github-script@v7
         id: delete-previous-and-upload-to-release
