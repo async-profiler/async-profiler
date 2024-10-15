@@ -12,25 +12,24 @@ import one.profiler.test.TestProcess;
 
 public class LockTests {
 
-//    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true) // Fails on Alpine
-//    public void datagramSocketLock(TestProcess p) throws Exception {
-//        Output out = p.profile("-e cpu -d 3 -o collapsed --cstack dwarf");
-//        assert out.ratio("(PlatformEvent::.ark|PlatformEvent::.npark)") > 0.1
-//                || (out.ratio("ReentrantLock.lock") > 0.1 && out.contains("Unsafe_.ark"));
-//        out = p.profile("-e lock -d 3 -o collapsed");
-//        assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
-//    }
+   @Test(mainClass = DatagramTest.class, debugNonSafepoints = true) // Fails on Alpine
+   public void datagramSocketLock(TestProcess p) throws Exception {
+       Output out = p.profile("-e cpu -d 3 -o collapsed --cstack dwarf");
+       assert out.ratio("(PlatformEvent::.ark|PlatformEvent::.npark)") > 0.1
+               || (out.ratio("ReentrantLock.lock") > 0.1 && out.contains("Unsafe_.ark"));
+       out = p.profile("-e lock -d 3 -o collapsed");
+       assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
+   }
 
     @Test(mainClass = RaceToLock.class, inputs = "0", output = true)
     @Test(mainClass = RaceToLock.class, inputs = "10000", output = true)
     @Test(mainClass = RaceToLock.class, inputs = "1000000", output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
-        new Abc().Foo();
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
         Output stdout = p.readFile(TestProcess.STDOUT);
 
-        Assert.isGreater(out.samples("\\[random1"), 1e9, "sampled all threads 1/4");
+        Assert.isGreater(out.samples("\\[random1"), 0, "sampled all threads 1/4");
         Assert.isGreater(out.samples("\\[random2"), 0, "sampled all threads 2/4");
         Assert.isGreater(out.samples("\\[shared1"), 0, "sampled all threads 3/4");
         Assert.isGreater(out.samples("\\[shared2"), 0, "sampled all threads 4/4");
@@ -43,11 +42,5 @@ public class LockTests {
         }
 
         Assert.isGreater(stdout.samples("sharedWaitTime"), stdout.samples("randomWaitTime"), "sharedWaitTime > randomWaitTime");
-    }
-
-    class Abc {
-        public void Foo() {
-            Assert.isGreater(-1, 1);
-        }
     }
 }
