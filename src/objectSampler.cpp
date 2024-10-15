@@ -101,9 +101,7 @@ class LiveRefs {
         Profiler* profiler = Profiler::instance();
 
         // Reset counters only for non-JFR recording.
-        if(!profiler->jfrActive()) {
-            profiler->resetCounters();
-        }
+        profiler->tryResetCounters();
 
         for (u32 i = 0; i < MAX_REFS; i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);

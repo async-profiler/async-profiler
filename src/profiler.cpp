@@ -773,8 +773,10 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
     _locks[lock_index].unlock();
 }
 
-void Profiler::resetCounters() {
-    _call_trace_storage.resetCounters();
+void Profiler::tryResetCounters() {
+    if(!jfrActive()) {
+        _call_trace_storage.resetCounters();
+    }
 }
 
 void Profiler::writeLog(LogLevel level, const char* message) {

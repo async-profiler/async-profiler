@@ -19,9 +19,6 @@ public class RandomBlockRetainer {
             }
         }
 
-        // Allow test framework to find the pid.
-        Thread.sleep(1000);
-
         // Set up a list to hold large objects and keep them in memory.
         List<byte[]> rooter = new ArrayList<>();
 

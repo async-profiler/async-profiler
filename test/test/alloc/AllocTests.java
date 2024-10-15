@@ -8,12 +8,7 @@ package test.alloc;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
-import one.profiler.test.Assert;
-import one.profiler.test.Jvm;
-import one.profiler.test.Os;
-import one.profiler.test.Output;
-import one.profiler.test.Test;
-import one.profiler.test.TestProcess;
+import one.profiler.test.*;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -80,18 +75,18 @@ public class AllocTests {
 
     // Without liveness tracking, results won't change except for the sampling
     // error.
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"false"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", inputs = {"true"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", inputs = {"true"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
     public void liveness(TestProcess p) throws Exception {
         final long TOTAL_BYTES = 50000000;
         final double tolerance = 0.10;
 
-        final boolean live = Boolean.parseBoolean(p.inputs()[0]);
-        final double keepChance = live ? Double.parseDouble(p.test().args()) : 1.0;
+        // keepChance = live ? args() : 1.0, which is equal to args().
+        final double keepChance = Double.parseDouble(p.test().args());
 
-        Output out = p.profile("--alloc 1k --total -o collapsed" + (live ? " --live" : ""));
+        Output out = p.waitForExit("%f");
         long totalBytes = out.filter("RandomBlockRetainer\\.alloc").samples("byte\\[\\]");
 
         final double lowerLimit = (keepChance - tolerance) * TOTAL_BYTES;
@@ -101,13 +96,12 @@ public class AllocTests {
         Assert.isGreaterOrEqual(upperLimit, totalBytes);
     }
 
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"false"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", inputs = {"true"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", inputs = {"true"})
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", inputs = {"true"})
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
     public void livenessJfrHasStacks(TestProcess p) throws Exception {
-        final boolean live = Boolean.parseBoolean(p.inputs()[0]);
-        p.profile("--alloc 1k --total -f %f.jfr" + (live ? " --live" : ""));
+        p.waitForExit();
         String filename = p.getFile("%f").toPath().toString();
         try (JfrReader r = new JfrReader(filename)) {
             List<AllocationSample> events = r.readAllEvents(AllocationSample.class);
