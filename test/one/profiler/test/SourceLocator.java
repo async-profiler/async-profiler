@@ -1,7 +1,11 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 package one.profiler.test;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
@@ -11,26 +15,20 @@ public class SourceLocator {
 
         if (stackTrace.length > ignoreFrames) {
             StackTraceElement element = stackTrace[ignoreFrames];
-            String fileName = element.getFileName();
-            int lineNumber = element.getLineNumber();
             String className = element.getClassName();
+            String filePath = getFilePathFromClassLoader(className);
 
-            try {
-                Class<?> clazz = Class.forName(className);
-                String filePath = getFilePathFromClassLoader(fileName, clazz);
-
-                return getSourceCodeLines(filePath, lineNumber);
-            } catch (ClassNotFoundException ex) {
-                return "Error: Class not found - " + className;
-            }
+            return getSourceCodeLines(filePath, element.getLineNumber());
         }
         return "No stack trace available";
     }
 
-    private static String getFilePathFromClassLoader(String fileName, Class<?> clazz) {
-        String packagePath = clazz.getPackage().getName().replace('.', File.separatorChar);
-
-        return "test" + File.separator + packagePath + File.separator + fileName;
+    private static String getFilePathFromClassLoader(String className) {
+        int dollar = className.lastIndexOf("$");
+        if (dollar >= 0) {
+            className = className.substring(0, dollar);
+        }
+        return "test/" + className.replace('.', '/') + ".java";
     }
 
     private static String getSourceCodeLines(String filePath, int lineNumber) {
@@ -44,17 +42,12 @@ public class SourceLocator {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
             int currentLine = 1;
-            int startLine = Math.max(1, lineNumber - 1);
-            int endLine = lineNumber + 1;
 
-            // Read lines, and append the target lines (-1, 0, +1)
             while ((line = reader.readLine()) != null) {
-                if (currentLine >= startLine && currentLine <= endLine) {
+                if (currentLine == lineNumber) {
                     sourceCode.append(":").append(currentLine)
-                            .append(currentLine == lineNumber ? " 👉 " : "    ")
-                            .append(line.trim()).append("\n");
-                }
-                if (currentLine > endLine) {
+                            .append(" 👉 ")
+                            .append(line.trim());
                     break;
                 }
                 currentLine++;
@@ -63,6 +56,6 @@ public class SourceLocator {
             return "Error reading source file: " + ex.getMessage();
         }
 
-        return sourceCode.toString().trim();
+        return sourceCode.toString();
     }
 }
