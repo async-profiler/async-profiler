@@ -15,9 +15,9 @@ public class WallTests {
     @Test(mainClass = SocketTest.class)
     public void cpuWall(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed");
-        Assert.isGreater(out.ratio("test/wall/SocketTest.main"), 0.25);
-        Assert.isGreater(out.ratio("test/wall/BusyClient.run"), 0.25);
-        Assert.isLess(out.ratio("test/wall/IdleClient.run"), 0.05);
+        Assert.isGreater(out.ratio("test/wall/SocketTest.main"), 0.25, "SocketTest.main > 0.25");
+        Assert.isGreater(out.ratio("test/wall/BusyClient.run"), 0.25, "BusyClient.run > 0.25");
+        Assert.isLess(out.ratio("test/wall/IdleClient.run"), 0.05, "IdleClient.run < 0.05");
 
         out = p.profile("-e wall -d 3 -o collapsed");
         long s1 = out.samples("test/wall/SocketTest.main");
