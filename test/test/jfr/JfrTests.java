@@ -70,8 +70,8 @@ public class JfrTests {
             }
         }
 
-        Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50, "jdk.ExecutionSample > 50");
-        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50, "jdk.JavaMonitorEnter > 50");
-        Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50, "jdk.ObjectAllocationInNewTLAB > 50");
+        Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
+        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50);
+        Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 }
