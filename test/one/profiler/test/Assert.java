@@ -21,7 +21,7 @@ public class Assert {
         public final String operator;
         public final BiPredicate<Double, Double> comparator;
 
-        private Comparison(String operator, BiPredicate<Double, Double> comparator) {
+        Comparison(String operator, BiPredicate<Double, Double> comparator) {
             this.operator = operator;
             this.comparator = comparator;
         }
@@ -38,12 +38,15 @@ public class Assert {
                 + operation);
 
         if (asserted) {
-            throw new AssertionError("Expected " + operation + (message != null ? (": " + message) : ""));
+            String lines = "\n" + SourceLocator.tryGetFrom(new Exception(), 2);
+            String msg = message != null ? (": " + message + "\n" + lines) : lines;
+
+            throw new AssertionError("Expected " + operation + msg);
         }
     }
 
     public static void isEqual(double left, double right) {
-        isEqual(left, right, null);
+        assertComparison(Comparison.EQ, left, right, null);
     }
 
     public static void isEqual(double left, double right, String message) {
@@ -51,7 +54,7 @@ public class Assert {
     }
 
     public static void isNotEqual(double left, double right) {
-        isNotEqual(left, right, null);
+        assertComparison(Comparison.NE, left, right, null);
     }
 
     public static void isNotEqual(double left, double right, String message) {
@@ -59,7 +62,7 @@ public class Assert {
     }
 
     public static void isGreater(double left, double right) {
-        isGreater(left, right, null);
+        assertComparison(Comparison.GT, left, right, null);
     }
 
     public static void isGreater(double left, double right, String message) {
@@ -67,7 +70,7 @@ public class Assert {
     }
 
     public static void isGreaterOrEqual(double left, double right) {
-        isGreaterOrEqual(left, right, null);
+        assertComparison(Comparison.GTE, left, right, null);
     }
 
     public static void isGreaterOrEqual(double left, double right, String message) {
@@ -75,7 +78,7 @@ public class Assert {
     }
 
     public static void isLess(double left, double right) {
-        isLess(left, right, null);
+        assertComparison(Comparison.LT, left, right, null);
     }
 
     public static void isLess(double left, double right, String message) {
@@ -83,7 +86,7 @@ public class Assert {
     }
 
     public static void isLessOrEqual(double left, double right) {
-        isLessOrEqual(left, right, null);
+        assertComparison(Comparison.LTE, left, right, null);
     }
 
     public static void isLessOrEqual(double left, double right, String message) {
