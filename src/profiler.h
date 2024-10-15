@@ -198,7 +198,6 @@ class Profiler {
     Error stop(bool restart = false);
 
     Error flushJfr();
-    bool jfrActive() { return _jfr.active(); }
 
     Error dump(Writer& out, Arguments& args);
     void printUsedMemory(Writer& out);

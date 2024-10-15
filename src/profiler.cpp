@@ -774,7 +774,7 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
 }
 
 void Profiler::tryResetCounters() {
-    if(!jfrActive()) {
+    if(!_jfr.active()) {
         _call_trace_storage.resetCounters();
     }
 }
