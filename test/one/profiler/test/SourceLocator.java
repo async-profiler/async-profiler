@@ -45,9 +45,7 @@ public class SourceLocator {
 
             while ((line = reader.readLine()) != null) {
                 if (currentLine == lineNumber) {
-                    sourceCode.append(":").append(currentLine)
-                            .append(" 👉 ")
-                            .append(line.trim());
+                    sourceCode.append(" 👉 ").append(line.trim());
                     break;
                 }
                 currentLine++;
