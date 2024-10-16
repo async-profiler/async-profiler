@@ -60,7 +60,7 @@ jobs:
         with:
           name: ${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}
           path: ${{ steps.build.outputs.archive }}
-      - name: Upload test logs for additional architecture
+      - name: Upload test logs for macos x64
         uses: actions/upload-artifact@v4
         if: ${{ matrix.runson == 'macos-14' }}
         with:
