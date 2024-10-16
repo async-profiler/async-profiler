@@ -201,14 +201,14 @@ public class Runner {
 
     private static String formatTestMessage(RunnableTest rt, TestResult result, int i, int testCount, long durationNs) {
         String duration = String.format("%.1f ms", durationNs / 1e6);
-        String message = result.status().toString() + " [" + i + "/" + testCount + "] " + rt.testInfo() + " took " + duration;
+        String message = String.format("%s [%d/%d] %s took %s", result.status(), i, testCount, rt.testInfo(), duration);
         if (result.throwable() != null) {
             message += ": " + result.throwable();
         }
         return message;
     }
 
-    private static void printSummary(Map<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
+    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
         int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
         if (fail > 0) {
             System.out.println("\nFailed tests:");
@@ -238,7 +238,7 @@ public class Runner {
 
         int i = 1;
         long totalTestDuration = 0;
-        Map<TestStatus, Integer> statusCounts = new HashMap<>();
+        EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         List<String> failedTests = new ArrayList<>();
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
