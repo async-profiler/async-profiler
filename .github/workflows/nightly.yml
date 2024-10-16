@@ -8,40 +8,25 @@ env:
   JAVA_DISTRIBUTION: 'corretto'
   JAVA_VERSION: '11'
 jobs:
-  short-hash-getter:
-    runs-on: ubuntu-latest
-    outputs:
-      short-hash: ${{ steps.getter.outputs.SHORT_HASH }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get Short Hash
-        id: getter
-        run: |
-          echo "SHORT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
   build-test-publish:
-    needs: [short-hash-getter] # needed to get the short hash
     strategy:
       fail-fast: false
       matrix:
         include:
           - runson: macos-14 # mac arm
-            extraarch: "{for_setup_java: 'x64', for_env: 'X64'}" # we test x64 also using rosetta
-            archive: async-profiler-3.0-macos.zip
 
           - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
-            archive: async-profiler-3.0-linux-x64.tar.gz
 
           - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
-            archive: async-profiler-3.0-linux-arm64.tar.gz
     runs-on: ${{ matrix.runson }}
     steps:
       - name: Setup Java for additional architecture
         uses: actions/setup-java@v4
-        if: ${{ matrix.extraarch }}
+        if: ${{ matrix.runson == 'macos-14' }}
         with:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
-          architecture: ${{ fromJSON(matrix.extraarch).for_setup_java }} # set up for other architecture first, as the later one will override this
+          architecture: x64 # set up for x64, as the default arm one will override this later
       - name: Setup Java for default architecture
         uses: actions/setup-java@v4
         with:
@@ -58,25 +43,27 @@ jobs:
             *) make CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
+          echo "hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Upload test logs for default architecture
         uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.archive }}
+          name: test-logs-${{ matrix.runson }}
           path: build/test/logs/
       - name: Test Extra Architectures
-        if: ${{ matrix.extraarch }}
-        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_${{ fromJSON(matrix.extraarch).for_env }} make test
+        if: ${{ matrix.runson == 'macos-14' }}
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}-${{ needs.short-hash-getter.outputs.short-hash }}
-          path: ${{ matrix.archive }}
+          name: ${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}
+          path: ${{ steps.build.outputs.archive }}
       - name: Upload test logs for additional architecture
         uses: actions/upload-artifact@v4
-        if: ${{ matrix.extraarch }} # we always want to upload test logs, especially when tests fail
+        if: ${{ matrix.runson == 'macos-14' }}
         with:
-          name: test-extraarch-logs-${{ matrix.archive }}
+          name: test-extraarch-logs-macos-14-x64
           path: build/test/logs/
       - name: Upload async-profiler binaries to nightly release and delete previous releases
         uses: actions/github-script@v7
@@ -95,10 +82,10 @@ jobs:
               throw new Error("Unable to get list of assets from release!");
             }
             await Promise.all(assets.data
-              .filter(({name}) => name.startsWith("${{ matrix.archive }}"))
+              .filter(({name}) => name.startsWith("${{ steps.build.outputs.archive }}"))
               .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
             github.rest.repos.uploadReleaseAsset({
               ...commonOptions,
-              name: `${{ matrix.archive }}-${{ needs.build-test.outputs.short-hash }}`,
-              data: await fs.readFile("${{ matrix.archive }}"),
+              name: `${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}`,
+              data: await fs.readFile("${{ steps.build.outputs.archive }}"),
             });
