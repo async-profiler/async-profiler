@@ -1,0 +1,22 @@
+header:
+  - paths:
+      - 'src/jattach'
+    license:
+      content: |
+        Copyright The jattach authors
+        SPDX-License-Identifier: Apache-2.0
+
+    comment: on-failure
+
+  - paths:
+      - 'src'
+      - 'test'
+    paths-ignore:
+      - 'src/jattach'
+      - 'src/res'
+    license:
+      content: |
+        Copyright The async-profiler authors
+        SPDX-License-Identifier: Apache-2.0
+
+    comment: on-failure
