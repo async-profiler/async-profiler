@@ -100,7 +100,7 @@ class LiveRefs {
         jvmtiEnv* jvmti = VM::jvmti();
         Profiler* profiler = Profiler::instance();
 
-        // Reset counters only for non-JFR recording.
+        // Reset counters before dumping to collect live objects only.
         profiler->tryResetCounters();
 
         for (u32 i = 0; i < MAX_REFS; i++) {
