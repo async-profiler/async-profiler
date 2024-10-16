@@ -38,10 +38,9 @@ public class Assert {
                 + operation);
 
         if (asserted) {
-            String lines = "\n" + SourceLocator.tryGetFrom(new Exception(), 2);
-            String msg = message != null ? (": " + message + "\n" + lines) : lines;
-
-            throw new AssertionError("Expected " + operation + msg);
+            String lines = SourceLocator.tryGetFrom(new Exception(), 2);
+            String msg = message == null ? "" : ": " + message;
+            throw new AssertionError("Expected " + operation + msg + "\n" + lines);
         }
     }
 

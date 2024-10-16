@@ -16,28 +16,23 @@ public class SourceLocator {
         if (stackTrace.length > ignoreFrames) {
             StackTraceElement element = stackTrace[ignoreFrames];
             String className = element.getClassName();
-            String filePath = getFilePathFromClassLoader(className);
+            String filePath = getFilePath(className);
 
-            return getSourceCodeLines(filePath, element.getLineNumber());
+            return getSourceCodeAt(filePath, element.getLineNumber());
         }
         return "No stack trace available";
     }
 
-    private static String getFilePathFromClassLoader(String className) {
-        int dollar = className.lastIndexOf("$");
+    private static String getFilePath(String className) {
+        int dollar = className.lastIndexOf('$');
         if (dollar >= 0) {
             className = className.substring(0, dollar);
         }
         return "test/" + className.replace('.', '/') + ".java";
     }
 
-    private static String getSourceCodeLines(String filePath, int lineNumber) {
-        StringBuilder sourceCode = new StringBuilder();
-        sourceCode.append("at ");
-        sourceCode.append(filePath);
-        sourceCode.append(":");
-        sourceCode.append(lineNumber);
-        sourceCode.append("\n");
+    private static String getSourceCodeAt(String filePath, int lineNumber) {
+        String result = "\t👉 " + filePath + ":" + lineNumber;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -45,8 +40,7 @@ public class SourceLocator {
 
             while ((line = reader.readLine()) != null) {
                 if (currentLine == lineNumber) {
-                    sourceCode.append(" 👉 ").append(line.trim());
-                    break;
+                    return result + "\n\t👉 " + line.trim();
                 }
                 currentLine++;
             }
@@ -54,6 +48,6 @@ public class SourceLocator {
             return "Error reading source file: " + ex.getMessage();
         }
 
-        return sourceCode.toString();
+        return result;
     }
 }
