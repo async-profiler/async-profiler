@@ -1,9 +1,6 @@
-# Copyright The async-profiler authors.
-# SPDX-License-Identifier: Apache-2.0
-
 header:
   - paths:
-      - 'src/jattach/*'
+      - 'src/jattach'
     license:
       content: |
         Copyright The jattach authors
@@ -11,27 +8,16 @@ header:
 
     comment: on-failure
 
-  - path: "**"
+  - paths:
+      - 'src'
+      - 'test'
     license:
       content: |
         Copyright The async-profiler authors
         SPDX-License-Identifier: Apache-2.0
 
     paths-ignore:
-      - 'Makefile'
-      - 'src/jattach/'
-      - 'pom.xml'
-      - 'pom-converter.xml'
-      - '.gitattributes'
-      - '.gitignore'
-      - '.github/'
-      - 'demo/'
-      - 'target/'
-      - 'src/res/'
-      - '**/*.md'
-      - 'LICENSE'
-      - 'Dockerfile'
-      - 'JavaHome.class'
-      - '.licenserc.yaml'
+    - 'src/jattach'
+    - 'src/res'
 
     comment: on-failure
