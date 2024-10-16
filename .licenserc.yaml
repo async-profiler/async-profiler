@@ -11,13 +11,12 @@ header:
   - paths:
       - 'src'
       - 'test'
+    paths-ignore:
+      - 'src/jattach'
+      - 'src/res'
     license:
       content: |
         Copyright The async-profiler authors
         SPDX-License-Identifier: Apache-2.0
-
-    paths-ignore:
-    - 'src/jattach'
-    - 'src/res'
 
     comment: on-failure
