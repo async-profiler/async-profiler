@@ -5,16 +5,16 @@
 
 package test.alloc;
 
-import one.profiler.test.Jvm;
-import one.profiler.test.Os;
-import one.profiler.test.Output;
-import one.profiler.test.Test;
-import one.profiler.test.TestProcess;
+import one.jfr.JfrReader;
+import one.jfr.StackTrace;
+import one.jfr.event.AllocationSample;
+import one.profiler.test.*;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 public class AllocTests {
 
@@ -71,5 +71,45 @@ public class AllocTests {
         Files.copy(Paths.get(p.profilerLibPath()), asprofCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
         Output outWithCopy = p.profile(String.format("--libpath %s -e alloc -d 3 -o collapsed", asprofCopy.getAbsolutePath()));
         assert !outWithCopy.contains("_\\[k\\]"); // first instance of profiler has not properly relinquished the can_generate_sampled_object_alloc_events capability.
+    }
+
+    // Without liveness tracking, results won't change except for the sampling
+    // error.
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    public void liveness(TestProcess p) throws Exception {
+        final long TOTAL_BYTES = 50000000;
+        final double tolerance = 0.10;
+
+        // keepChance = live ? args() : 1.0, which is equal to args().
+        final double keepChance = Double.parseDouble(p.test().args());
+
+        Output out = p.waitForExit("%f");
+        long totalBytes = out.filter("RandomBlockRetainer\\.alloc").samples("byte\\[\\]");
+
+        final double lowerLimit = (keepChance - tolerance) * TOTAL_BYTES;
+        final double upperLimit = (keepChance + tolerance) * TOTAL_BYTES;
+
+        Assert.isLessOrEqual(lowerLimit, totalBytes);
+        Assert.isGreaterOrEqual(upperLimit, totalBytes);
+    }
+
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    public void livenessJfrHasStacks(TestProcess p) throws Exception {
+        p.waitForExit();
+        String filename = p.getFile("%f").toPath().toString();
+        try (JfrReader r = new JfrReader(filename)) {
+            List<AllocationSample> events = r.readAllEvents(AllocationSample.class);
+            assert !events.isEmpty() : "No AllocationSample events found in JFR output";
+            for (AllocationSample event : events) {
+                StackTrace trace = r.stackTraces.get(event.stackTraceId);
+                assert trace != null : "Stack trace missing for id " + event.stackTraceId;
+            }
+        }
     }
 }

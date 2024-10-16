@@ -25,6 +25,12 @@ public class Assert {
         }
     }
 
+    public static void isGreaterOrEqual(double value, double threshold) {
+        if (value < threshold) {
+            throw new AssertionError("Expected " + value + " >= " + threshold);
+        }
+    }
+
     public static void isLess(double value, double threshold) {
         isLess(value, threshold, null);
     }
@@ -36,6 +42,12 @@ public class Assert {
         if (asserted) {
             throw new AssertionError(
                     "Expected " + value + " < " + threshold + (message != null ? (": " + message) : ""));
+        }
+    }
+
+    public static void isLessOrEqual(double value, double threshold) {
+        if (value > threshold) {
+            throw new AssertionError("Expected " + value + " <= " + threshold);
         }
     }
 }
