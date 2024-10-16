@@ -1,4 +1,5 @@
-# async-profiler
+![](https://github.com/roy-soumadipta/async-profiler/blob/master/.assets/images/AsyncProfiler.png)
+## About
 
 This project is a low overhead sampling profiler for Java
 that does not suffer from [Safepoint bias problem](http://psy-lob-saw.blogspot.ru/2016/02/why-most-sampling-java-profilers-are.html).
@@ -7,24 +8,24 @@ and to track memory allocations. The profiler works with
 OpenJDK and other Java runtimes based on the HotSpot JVM.
 
 async-profiler can trace the following kinds of events:
- - CPU cycles
- - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
- - Allocations in Java Heap
- - Contented lock attempts, including both Java object monitors and ReentrantLocks
+- CPU cycles
+- Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
+- Allocations in Java Heap
+- Contented lock attempts, including both Java object monitors and ReentrantLocks
 
 See our [Wiki](https://github.com/async-profiler/async-profiler/wiki) or
 [3 hours playlist](https://www.youtube.com/playlist?list=PLNCLTEx3B8h4Yo_WvKWdLvI9mj1XpTKBr)
-to learn about all features. 
+to learn about all features.
 
 ## Download
 
 Current release (3.0):
 
- - Linux x64: [async-profiler-3.0-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz)
- - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
- - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
- - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)  
-   (JFR to Flame Graph, JFR to pprof, collapsed stacks to Flame Graph)
+- Linux x64: [async-profiler-3.0-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz)
+- Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
+- macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
+- Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)  
+  (JFR to Flame Graph, JFR to pprof, collapsed stacks to Flame Graph)
 
 [Previous releases](https://github.com/async-profiler/async-profiler/releases)
 
@@ -37,6 +38,76 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 |-----------|------------------------------|-------------------------------------------|
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
+
+## Getting started
+
+As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
+process requires setting two runtime variables. You can set them using
+sysctl or as follows:
+
+```
+# sysctl kernel.perf_event_paranoid=1
+# sysctl kernel.kptr_restrict=0
+```
+
+async-profiler works in the context of the target Java application,
+i.e. it runs as an agent in the process being profiled.
+`asprof` is a tool to attach and control the agent.
+
+A typical workflow would be to launch your Java application, attach
+the agent and start profiling, exercise your performance scenario, and
+then stop profiling. The agent's output, including the profiling results, will
+be displayed on the console where you've started `asprof`.
+
+Example:
+
+```
+$ jps
+9234 Jps
+8983 Computey
+$ asprof start 8983
+$ asprof stop 8983
+```
+
+The following may be used in lieu of the `pid` (8983):
+
+- The keyword `jps`, which will use the most recently launched Java process.
+- The application name as it appears in the `jps` output: e.g. `Computey`
+
+Alternatively, you may specify `-d` (duration) argument to profile
+the application for a fixed period of time with a single command.
+
+```
+$ asprof -d 30 8983
+```
+
+By default, the profiling frequency is 100Hz (every 10ms of CPU time).
+Here is a sample of the output printed to the Java application's terminal:
+
+```
+--- Execution profile ---
+Total samples:           687
+Unknown (native):        1 (0.15%)
+
+--- 6790000000 (98.84%) ns, 679 samples
+  [ 0] Primes.isPrime
+  [ 1] Primes.primesThread
+  [ 2] Primes.access$000
+  [ 3] Primes$1.run
+  [ 4] java.lang.Thread.run
+
+... a lot of output omitted for brevity ...
+
+          ns  percent  samples  top
+  ----------  -------  -------  ---
+  6790000000   98.84%      679  Primes.isPrime
+    40000000    0.58%        4  __do_softirq
+
+... more output omitted ...
+```
+
+This indicates that the hottest method was `Primes.isPrime`, and the hottest
+call stack leading to it comes from `Primes.primesThread`.
 
 ## CPU profiling
 
@@ -78,8 +149,8 @@ like allocation elimination. Only actual heap allocations are measured.
 
 The profiler features TLAB-driven sampling. It relies on HotSpot-specific
 callbacks to receive two kinds of notifications:
- - when an object is allocated in a newly created TLAB;
- - when an object is allocated on a slow path outside TLAB.
+- when an object is allocated in a newly created TLAB;
+- when an object is allocated on a slow path outside TLAB.
 
 Sampling interval can be adjusted with `--alloc` option.
 For example, `--alloc 500k` will take one sample after 500 KB of allocated
@@ -146,84 +217,6 @@ Here are some useful native methods that you may want to profile:
 * ```JVM_StartThread``` - trace creation of new Java threads,
 * ```Java_java_lang_ClassLoader_defineClass1``` - trace class loading.
 
-## Building
-
-Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
-
-Make sure the `JAVA_HOME` environment variable points to your JDK installation,
-and then run `make`. GCC or Clang is required. After building, the profiler binaries
-will be in the `build` subdirectory.
-
-## Basic Usage
-
-As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
-process requires setting two runtime variables. You can set them using
-sysctl or as follows:
-
-```
-# sysctl kernel.perf_event_paranoid=1
-# sysctl kernel.kptr_restrict=0
-```
-
-async-profiler works in the context of the target Java application,
-i.e. it runs as an agent in the process being profiled.
-`asprof` is a tool to attach and control the agent. 
-
-A typical workflow would be to launch your Java application, attach
-the agent and start profiling, exercise your performance scenario, and
-then stop profiling. The agent's output, including the profiling results, will
-be displayed on the console where you've started `asprof`.
-
-Example:
-
-```
-$ jps
-9234 Jps
-8983 Computey
-$ asprof start 8983
-$ asprof stop 8983
-```
-
-The following may be used in lieu of the `pid` (8983):
-
- - The keyword `jps`, which will use the most recently launched Java process.
- - The application name as it appears in the `jps` output: e.g. `Computey`
-
-Alternatively, you may specify `-d` (duration) argument to profile
-the application for a fixed period of time with a single command.
-
-```
-$ asprof -d 30 8983
-```
-
-By default, the profiling frequency is 100Hz (every 10ms of CPU time).
-Here is a sample of the output printed to the Java application's terminal:
-
-```
---- Execution profile ---
-Total samples:           687
-Unknown (native):        1 (0.15%)
-
---- 6790000000 (98.84%) ns, 679 samples
-  [ 0] Primes.isPrime
-  [ 1] Primes.primesThread
-  [ 2] Primes.access$000
-  [ 3] Primes$1.run
-  [ 4] java.lang.Thread.run
-
-... a lot of output omitted for brevity ...
-
-          ns  percent  samples  top
-  ----------  -------  -------  ---
-  6790000000   98.84%      679  Primes.isPrime
-    40000000    0.58%        4  __do_softirq
-
-... more output omitted ...
-```
-
-This indicates that the hottest method was `Primes.isPrime`, and the hottest
-call stack leading to it comes from `Primes.primesThread`.
-
 ## Launching as an Agent
 
 If you need to profile some code as soon as the JVM starts up, instead of using the `asprof`,
@@ -252,11 +245,11 @@ perf event, tracepoint, Java method, etc.
 
 The only output format that supports multiple events together is JFR.
 The recording will contain the following event types:
- - `jdk.ExecutionSample`
- - `jdk.ObjectAllocationInNewTLAB` (alloc)
- - `jdk.ObjectAllocationOutsideTLAB` (alloc)
- - `jdk.JavaMonitorEnter` (lock)
- - `jdk.ThreadPark` (lock)
+- `jdk.ExecutionSample`
+- `jdk.ObjectAllocationInNewTLAB` (alloc)
+- `jdk.ObjectAllocationOutsideTLAB` (alloc)
+- `jdk.JavaMonitorEnter` (lock)
+- `jdk.ThreadPark` (lock)
 
 To start profiling cpu + allocations + locks together, specify
 ```
@@ -328,13 +321,13 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
   Two special event types are supported on Linux: hardware breakpoints
   and kernel tracepoints:
-    - `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
-      `<func>`. The format of `mem` event is the same as in `perf-record`.
-      Execution breakpoints can be also specified by the function name,
-      e.g. `-e malloc` will trace all calls of native `malloc` function.
-    - `-e trace:<id>` sets a kernel tracepoint. It is possible to specify
-      tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
-      all `open` syscalls.
+  - `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
+    `<func>`. The format of `mem` event is the same as in `perf-record`.
+    Execution breakpoints can be also specified by the function name,
+    e.g. `-e malloc` will trace all calls of native `malloc` function.
+  - `-e trace:<id>` sets a kernel tracepoint. It is possible to specify
+    tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
+    all `open` syscalls.
 
 * `-i N` - sets the profiling interval in nanoseconds or in other units,
   if N is followed by `ms` (for milliseconds), `us` (for microseconds),
@@ -372,18 +365,18 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
 * `-o fmt` - specifies what information to dump when profiling ends.
   `fmt` can be one of the following options:
-    - `traces[=N]` - dump call traces (at most N samples);
-    - `flat[=N]` - dump flat profile (top N hot methods);  
-      can be combined with `traces`, e.g. `traces=200,flat=200`
-    - `jfr` - dump events in Java Flight Recorder format readable by Java Mission Control.
-      This *does not* require JDK commercial features to be enabled.
-    - `collapsed` - dump collapsed call traces in the format used by
-      [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
-      a collection of call stacks, where each line is a semicolon separated list
-      of frames followed by a counter.
-    - `flamegraph` - produce Flame Graph in HTML format.
-    - `tree` - produce Call Tree in HTML format.  
-      `--reverse` option will generate backtrace view.
+  - `traces[=N]` - dump call traces (at most N samples);
+  - `flat[=N]` - dump flat profile (top N hot methods);  
+    can be combined with `traces`, e.g. `traces=200,flat=200`
+  - `jfr` - dump events in Java Flight Recorder format readable by Java Mission Control.
+    This *does not* require JDK commercial features to be enabled.
+  - `collapsed` - dump collapsed call traces in the format used by
+    [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
+    a collection of call stacks, where each line is a semicolon separated list
+    of frames followed by a counter.
+  - `flamegraph` - produce Flame Graph in HTML format.
+  - `tree` - produce Call Tree in HTML format.  
+    `--reverse` option will generate backtrace view.
 
 * `--total` - count the total value of the collected metric instead of the number of samples,
   e.g. total allocation size.
@@ -427,7 +420,7 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   Example: `asprof --loop 1h -f /var/log/profile-%t.jfr 8983`
 
 * `--all-user` - include only user-mode events. This option is helpful when kernel profiling
-  is restricted by `perf_event_paranoid` settings.  
+  is restricted by `perf_event_paranoid` settings.
 
 * `--sched` - group threads by Linux-specific scheduling policy: BATCH/IDLE/OTHER.
 
@@ -464,8 +457,8 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   synchronously with the profiler. The output .jfr file will include all regular
   JFR events, except that execution samples will be obtained from async-profiler.
   This option implies `-o jfr`.
-    - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc)
-               or a list of JFR events started with `+`
+  - `CONFIG` is a predefined JFR profile or a JFR configuration file (.jfc)
+    or a list of JFR events started with `+`
 
   Example: `asprof -e cpu --jfrsync profile -f combined.jfr 8983`
 
@@ -495,10 +488,18 @@ absolute path as on the host.
 By default, Docker container restricts the access to `perf_event_open`
 syscall. There are 3 alternatives to allow profiling in a container:
 1. You can modify the [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
-or disable it altogether with `--security-opt seccomp=unconfined` option. In
-addition, `--cap-add SYS_ADMIN` may be required.
+   or disable it altogether with `--security-opt seccomp=unconfined` option. In
+   addition, `--cap-add SYS_ADMIN` may be required.
 2. You can use "fdtransfer": see the help for `--fdtransfer`.
 3. Last, you may fall back to `-e ctimer` profiling mode, see [Troubleshooting](#troubleshooting).
+
+## Building
+
+Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
+
+Make sure the `JAVA_HOME` environment variable points to your JDK installation,
+and then run `make`. GCC or Clang is required. After building, the profiler binaries
+will be in the `build` subdirectory.
 
 ## Restrictions/Limitations
 
