@@ -5,12 +5,11 @@
 
 package test.jfr;
 
+import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
 
 /**
  * Process to simulate lock contention and allocate objects.
@@ -18,26 +17,24 @@ import java.util.stream.IntStream;
 public class JfrMutliModeProfiling {
     private static final Object lock = new Object();
 
-    private static Object sink;
+    private static volatile Object sink;
     private static int count = 0;
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        IntStream.range(0, 100_000).forEach(i -> executor.submit(JfrMutliModeProfiling::cpuIntensiveIncrement));
+        for (int i = 0; i < 10; i++) {
+            executor.submit(JfrMutliModeProfiling::cpuIntensiveIncrement);
+        }
+        executor.shutdown();
         allocate();
-        stop(executor);
     }
 
     private static void cpuIntensiveIncrement() {
-        synchronized (lock) {
-            count += System.getProperties().hashCode();
+        for (int i = 0; i < 100_000; i++) {
+            synchronized (lock) {
+                count += System.getProperties().hashCode();
+            }
         }
-    }
-
-    private static void stop(ExecutorService executor) throws InterruptedException {
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
-        executor.shutdownNow();
     }
 
     private static void allocate() {
@@ -45,9 +42,9 @@ public class JfrMutliModeProfiling {
         Random random = ThreadLocalRandom.current();
         while (System.currentTimeMillis() - start <= 1000) {
             if (random.nextBoolean()) {
-                sink = new int[128 * 1000];
+                sink = new byte[65536];
             } else {
-                sink = new Integer[128 * 1000];
+                sink = String.format("some string: %s, some number: %d", new Date(), random.nextInt());
             }
         }
     }

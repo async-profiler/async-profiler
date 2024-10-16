@@ -18,6 +18,7 @@ public class Arguments {
     public Pattern include;
     public Pattern exclude;
     public double minwidth;
+    public double grain;
     public int skip;
     public boolean help;
     public boolean reverse;

@@ -582,7 +582,7 @@ void VMStructs::initThreadBridge() {
 }
 
 VMThread* VMThread::current() {
-    return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+    return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : NULL;
 }
 
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {

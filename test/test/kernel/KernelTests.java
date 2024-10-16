@@ -35,7 +35,7 @@ public class KernelTests {
         assert out.contains("sys_getdents");
     }
 
-    @Test(mainClass = ListFiles.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {Os.MACOS, Os.WINDOWS})
+    @Test(mainClass = ListFiles.class, os = {Os.MACOS, Os.WINDOWS})
     public void notLinux(TestProcess p) throws Exception {
         try {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer");

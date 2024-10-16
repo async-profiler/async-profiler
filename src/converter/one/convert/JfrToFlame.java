@@ -31,10 +31,8 @@ public class JfrToFlame extends JfrConverter {
 
     @Override
     protected void convertChunk() throws IOException {
-        collectEvents().forEach(new EventAggregator.Visitor() {
+        collectEvents().forEach(new EventAggregator.ValueVisitor() {
             final CallStack stack = new CallStack();
-            final double ticksToNanos = 1e9 / jfr.ticksPerSec;
-            final boolean scale = args.total && args.lock && ticksToNanos != 1.0;
 
             @Override
             public void visit(Event event, long value) {
@@ -68,7 +66,7 @@ public class JfrToFlame extends JfrConverter {
                                 && ((AllocationSample) event).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED);
                     }
 
-                    fg.addSample(stack, scale ? (long) (value * ticksToNanos) : value);
+                    fg.addSample(stack, value);
                     stack.clear();
                 }
             }
