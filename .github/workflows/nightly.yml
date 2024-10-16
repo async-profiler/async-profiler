@@ -52,7 +52,7 @@ jobs:
         with:
           name: test-logs-${{ matrix.runson }}
           path: build/test/logs/
-      - name: Test Extra Architectures
+      - name: Test macos x64
         if: ${{ matrix.runson == 'macos-14' }}
         run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
       - name: Upload async-profiler binaries to workflow
