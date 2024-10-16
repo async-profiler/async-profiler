@@ -5,9 +5,9 @@ on:
   - pull_request
 
 jobs:
-  license-headers-linter:
+  check-license-headers:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check license Headers
+      - name: Check license headers
         uses: apache/skywalking-eyes/header@v0.6.0
