@@ -3,7 +3,7 @@ name: Publish Nightly Builds
 on:
   push:
     branches:
-      - nightly_build // to be changed to master
+      - nightly_build # to be changed to master
 env:
   JAVA_DISTRIBUTION: 'corretto'
   JAVA_VERSION: '11'
