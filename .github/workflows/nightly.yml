@@ -16,8 +16,8 @@ jobs:
       matrix:
         include:
           - runson: macos-14 # mac arm
-          - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
-          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
     runs-on: ${{ matrix.runson }}
     steps:
       - name: Setup Java for macOS x64
