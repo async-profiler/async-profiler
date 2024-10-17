@@ -3,21 +3,23 @@ name: Publish Nightly Builds
 on:
   push:
     branches:
-      - master
+      # - master
+      - recreate_release
 
 env:
   JAVA_DISTRIBUTION: 'corretto'
   JAVA_VERSION: '11'
 
 jobs:
-  build-test-publish:
+  build-test:
     strategy:
-      fail-fast: false
       matrix:
         include:
           - runson: macos-14 # mac arm
-          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
-          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
+#          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
+#          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
     runs-on: ${{ matrix.runson }}
     steps:
       - name: Setup Java for macOS x64
@@ -67,27 +69,75 @@ jobs:
         with:
           name: test-logs-macos-14-x64
           path: build/test/logs/
-      - name: Upload async-profiler binaries to nightly release and delete previous releases
+  publish:
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Download async-profiler binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: async-profiler-*
+          merge-multiple: 'true'
+      - name: Delete previous release and publish new release
         uses: actions/github-script@v7
-        id: delete-previous-and-upload-to-release
         with:
           result-encoding: string
           script: |
             const fs = require('fs').promises;
             const commonOptions = {
-              owner: "async-profiler",
+              owner: "openorclose",
               repo: "async-profiler",
-              release_id: 175290112,
             };
-            const assets = await github.rest.repos.listReleaseAssets(commonOptions);
-            if (assets.status !== 200) {
-              throw new Error("Unable to get list of assets from release!");
+            let previousRelease = undefined;
+            try {
+              previousRelease = await github.rest.repos.getReleaseByTag({
+                ...commonOptions,
+                tag: "nightly",
+              });
+            } catch (e) {
+              console.log("No previous nightly release");
+              // ignore, there was no previous nightly release
             }
-            await Promise.all(assets.data
-              .filter(({name}) => name.startsWith("${{ steps.build.outputs.archive }}"))
-              .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
-            github.rest.repos.uploadReleaseAsset({
+            if (previousRelease !== undefined) {
+              // delete previous release and nightly tag
+              await github.rest.repos.deleteRelease({
+                ...commonOptions,
+                release_id: previousRelease.data.id,
+              });
+              await github.rest.git.deleteRef({...commonOptions, ref: "tags/nightly"});
+            }
+            // create draft release
+            const newReleaseId = (await github.rest.repos.createRelease({
               ...commonOptions,
-              name: `${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}`,
-              data: await fs.readFile("${{ steps.build.outputs.archive }}"),
+              tag_name: "nightly",
+              target_commitish: "${{ github.sha }}",
+              name: "Nightly builds",
+              body: "Async-profiler binaries published automatically from the latest sources in `master` upon a successful build.",
+              prerelease: true,
+              draft: true,
+            })).data.id;
+            // upload binaries to draft release
+            for (const archiveName of await fs.readdir(process.cwd())) {
+              let basename;
+              let extension;
+              if (archiveName.endsWith(".zip")) {
+                basename = archiveName.substring(0, archiveName.lastIndexOf(".zip"));
+                extension = ".zip";
+              } else {
+                basename = archiveName.substring(0, archiveName.lastIndexOf(".tar.gz"));
+                extension = ".tar.gz";
+              }
+              await github.rest.repos.uploadReleaseAsset({
+                ...commonOptions,
+                release_id: newReleaseId,
+                name: `${basename}-${"${{ github.sha }}".substring(0, 7)}${extension}`,
+                data: await fs.readFile(archiveName),
+              });
+            }
+            // publish release
+            await github.rest.repos.updateRelease({
+              ...commonOptions,
+              release_id: newReleaseId,
+              draft: false,
             });
+           
