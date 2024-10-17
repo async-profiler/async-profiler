@@ -99,37 +99,48 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    public static boolean enabled(Test test) {
+    public static SkipReason getSkipReason(RunnableTest rt) {
+        Test test = rt.test();
+
         if (!test.enabled()) {
-            return false;
+            return SkipReason.Disabled;
         }
 
         Os[] os = test.os();
         if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
-            return false;
+            return SkipReason.OsMismatch;
         }
 
         Arch[] arch = test.arch();
         if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
-            return false;
+            return SkipReason.ArchMismatch;
         }
 
         Jvm[] jvm = test.jvm();
         if (jvm.length > 0 && !Arrays.asList(jvm).contains(currentJvm)) {
-            return false;
+            return SkipReason.JvmMismatch;
         }
 
         int[] jvmVer = test.jvmVer();
         if (jvmVer.length > 0 && (currentJvmVersion < jvmVer[0] || currentJvmVersion > jvmVer[jvmVer.length - 1])) {
-            return false;
+            return SkipReason.JvmVersionMismatch;
         }
 
-        return true;
+        if (skipTests.contains(rt.className().toLowerCase())) {
+            return SkipReason.SkipByClassName;
+        }
+
+        if (skipTests.contains(rt.method().getName().toLowerCase())) {
+            return SkipReason.SkipByMethodName;
+        }
+
+        return null;
     }
 
     private static TestResult run(RunnableTest rt) {
-        if (!enabled(rt.test()) || skipTests.contains(rt.className().toLowerCase()) || skipTests.contains(rt.method().getName().toLowerCase())) {
-            return TestResult.skip();
+        SkipReason reason = getSkipReason(rt);
+        if (reason != null) {
+            return TestResult.skip(reason);
         }
 
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
@@ -199,28 +210,27 @@ public class Runner {
         }
     }
 
-    private static String formatTestMessage(RunnableTest rt, TestResult result, int i, int testCount, long durationNs) {
-        String message = String.format("%s [%d/%d] %s took %.1f ms", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6);
-        if (result.throwable() != null) {
-            message += ": " + result.throwable();
-        }
-        return message;
-    }
-
-    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
+    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, EnumMap<SkipReason, Integer> skipReasons, List<String> failedTests, long totalTestDuration, int testCount) {
         int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
         if (fail > 0) {
             System.out.println("\nFailed tests:");
             failedTests.forEach(System.out::println);
         }
 
+        Integer pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
         String totalDuration = String.format("%.1f ms", totalTestDuration / 1e6);
+
         System.out.println("\nTotal test duration: " + totalDuration);
         System.out.println("Results Summary:");
-        System.out.println("PASS: " + statusCounts.getOrDefault(TestStatus.PASS, 0));
+        System.out.println("PASS: " + pass);
         System.out.println("SKIP: " + statusCounts.getOrDefault(TestStatus.SKIP, 0));
+        for (Map.Entry<SkipReason, Integer> reason : skipReasons.entrySet()) {
+            if (reason.getValue() > 0) {
+                System.out.printf("\t%s: %d\n", reason.getKey(), reason.getValue());
+            }
+        }
         System.out.println("FAIL: " + fail);
-        System.out.println("TOTAL: " + testCount);
+        System.out.printf("TOTAL: %d (%.2f%% PASS)\n", testCount, 100.0 * pass / (pass + fail));
     }
 
     public static void main(String[] args) throws Exception {
@@ -237,14 +247,19 @@ public class Runner {
 
         int i = 1;
         long totalTestDuration = 0;
-        EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         List<String> failedTests = new ArrayList<>();
+        EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
+        EnumMap<SkipReason, Integer> skipReasons = new EnumMap<>(SkipReason.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
             TestResult result = run(rt);
             long durationNs = System.nanoTime() - start;
-            statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+
             totalTestDuration += durationNs;
+            statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+            if (result.status() == TestStatus.SKIP) {
+                skipReasons.put(result.skipReason(), skipReasons.getOrDefault(result.skipReason(), 0) + 1);
+            }
 
             System.out.printf("%s [%d/%d] %s took %.1f ms%s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6,
                     result.throwable() != null ? ": " + result.throwable() : "");
@@ -255,7 +270,7 @@ public class Runner {
             i++;
         }
 
-        printSummary(statusCounts, failedTests, totalTestDuration, testCount);
+        printSummary(statusCounts, skipReasons, failedTests, totalTestDuration, testCount);
 
         if (!logDir.isEmpty()) {
             log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
