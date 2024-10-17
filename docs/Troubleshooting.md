@@ -1,12 +1,15 @@
 # Troubleshooting
+
+## Not large enough perf_event_mlock_kb
 ```
 perf_event mmap failed: Operation not permitted
 ```
 Profiler allocates 8kB perf_event buffer for each thread of the target process.
 Make sure `/proc/sys/kernel/perf_event_mlock_kb` value is large enough
-(more than `8 * threads`) when running under unprivileged user. Otherwise the above message
+(more than `8 * threads`) when running under unprivileged user. Otherwise, the above message
 will be printed, and no native stack traces will be collected.
 
+## Operation not permitted
 ```
 Failed to change credentials to match the target process: Operation not permitted
 ```
@@ -16,9 +19,11 @@ If profiler is run by a different user, it will try to automatically change
 current user and group. This will likely succeed for `root`, but not for
 other users, resulting in the above error.
 
+## Unable to establish communication with the target JVM
 ```
 Could not start attach mechanism: No such file or directory
 ```
+
 The profiler cannot establish communication with the target JVM through UNIX domain socket.
 
 Usually this happens in one of the following cases:
@@ -39,6 +44,7 @@ Usually this happens in one of the following cases:
    How to check: run `kill -3 PID`. Healthy JVM process should print
    a thread dump and heap info in its console.
 
+## libasyncProfiler load failed
 ```
 Target JVM failed to load libasyncProfiler.so
 ```
@@ -46,6 +52,7 @@ The connection with the target JVM has been established, but JVM is unable to lo
 Make sure the user of JVM process has permissions to access `libasyncProfiler.so` by exactly the same absolute path.
 For more information see [#78](https://github.com/async-profiler/async-profiler/issues/78).
 
+## No access to perf event or perf events unavailable
 ```
 No access to perf events. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'
 ```
@@ -69,6 +76,7 @@ If changing the configuration is not possible, you may fall back to
 require perf_events support. As a drawback, there will be no kernel
 stack traces.
 
+## AllocTracer symbols not found
 ```
 No AllocTracer symbols found. Are JDK debug symbols installed?
 ```
@@ -81,6 +89,7 @@ will continue to display this message, since the process had loaded
 the older version of the JDK which lacked debug symbols.
 Restarting the affected Java processes should resolve the issue.
 
+## VMStructs unavailable
 ```
 VMStructs unavailable. Unsupported JVM?
 ```
@@ -90,6 +99,7 @@ can be also caused by an incorrectly built JDK
 (see [#218](https://github.com/async-profiler/async-profiler/issues/218)).
 In these cases installing JDK debug symbols may solve the problem.
 
+## Unable to parse non-Java function names
 ```
 Could not parse symbols from <libname.so>
 ```
@@ -98,6 +108,7 @@ the corrupted contents in `/proc/[pid]/maps`. The problem is known to
 occur in a container when running Ubuntu with Linux kernel 5.x.
 This is the OS bug, see https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1843018.
 
+## Unable to open output file
 ```
 Could not open output file
 ```
