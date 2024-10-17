@@ -1,0 +1,93 @@
+name: Publish Nightly Builds
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  JAVA_DISTRIBUTION: 'corretto'
+  JAVA_VERSION: '11'
+
+jobs:
+  build-test-publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runson: macos-14 # mac arm
+          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ${{ matrix.runson }}
+    steps:
+      - name: Setup Java for macOS x64
+        uses: actions/setup-java@v4
+        if: ${{ matrix.runson == 'macos-14' }}
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          architecture: x64 # set up for x64, as the default arm one will override this later
+      - name: Setup Java for default architecture
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          # architecture: not specifying this defaults to architecture of the runner
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Build and test
+        id: build
+        run: |
+          case "${{ matrix.runson }}" in
+            macos*) make FAT_BINARY=true release test -j
+            ;;
+            *) make CC=/usr/local/musl/bin/musl-gcc release test -j
+            ;;
+          esac
+          # there is no git on the codebuild runner, so it's easier to get it from github.sha
+          echo "hash=$(echo ${{ github.sha }} | cut -c-7)" >> $GITHUB_OUTPUT
+          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Upload test logs for default architecture
+        uses: actions/upload-artifact@v4
+        if: always() # we always want to upload test logs, especially when tests fail
+        with:
+          name: test-logs-${{ matrix.runson }}
+          path: build/test/logs/
+      - name: Test macOS x64
+        if: ${{ matrix.runson == 'macos-14' }}
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
+      - name: Upload async-profiler binaries to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}
+          path: ${{ steps.build.outputs.archive }}
+      - name: Upload test logs for macOS x64
+        uses: actions/upload-artifact@v4
+        if: ${{ matrix.runson == 'macos-14' }}
+        with:
+          name: test-logs-macos-14-x64
+          path: build/test/logs/
+      - name: Upload async-profiler binaries to nightly release and delete previous releases
+        uses: actions/github-script@v7
+        id: delete-previous-and-upload-to-release
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs').promises;
+            const commonOptions = {
+              owner: "async-profiler",
+              repo: "async-profiler",
+              release_id: 175290112,
+            };
+            const assets = await github.rest.repos.listReleaseAssets(commonOptions);
+            if (assets.status !== 200) {
+              throw new Error("Unable to get list of assets from release!");
+            }
+            await Promise.all(assets.data
+              .filter(({name}) => name.startsWith("${{ steps.build.outputs.archive }}"))
+              .map(({id}) => github.rest.repos.deleteReleaseAsset({...commonOptions, asset_id: id})));
+            github.rest.repos.uploadReleaseAsset({
+              ...commonOptions,
+              name: `${{ steps.build.outputs.archive }}-${{ steps.build.outputs.hash }}`,
+              data: await fs.readFile("${{ steps.build.outputs.archive }}"),
+            });
