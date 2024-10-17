@@ -29,18 +29,14 @@ public class Assert {
 
     private static final Logger log = Logger.getLogger(Assert.class.getName());
 
-    private static void assertComparison(Comparison comparison, double left, double right, String message) {
+    private static void assertComparison(Comparison comparison, double left, double right, @SuppressWarnings("unused") String message) {
         boolean asserted = !comparison.comparator.test(left, right);
-        String operation = left + " " + comparison.operator + " " + right;
 
-        log.log(Level.FINE, "isAsserted " + asserted + ", "
-                + (message == null ? "" : "'" + message + "'") + ": "
-                + operation);
-
+        // message parameter will be part of the source code line.
+        String assertionMessage = String.format("%s %s %s\n%s", left, comparison.operator, right, SourceCode.tryGet(2));
+        log.log(Level.FINE, String.format("isAsserted %s: %s", asserted, assertionMessage));
         if (asserted) {
-            String lines = SourceLocator.tryGetFrom(new Exception(), 2);
-            String msg = message == null ? "" : ": " + message;
-            throw new AssertionError("Expected " + operation + msg + "\n" + lines);
+            throw new AssertionError("Expected " + assertionMessage);
         }
     }
 

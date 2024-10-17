@@ -9,8 +9,12 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class SourceLocator {
-    public static String tryGetFrom(Throwable e, int ignoreFrames) {
+public class SourceCode {
+    public static String tryGet(int ignoreFrames) {
+        return tryGet(new Exception(), ignoreFrames + 1);
+    }
+
+    public static String tryGet(Throwable e, int ignoreFrames) {
         StackTraceElement[] stackTrace = e.getStackTrace();
 
         if (stackTrace.length > ignoreFrames) {
@@ -32,7 +36,7 @@ public class SourceLocator {
     }
 
     private static String getSourceCodeAt(String filePath, int lineNumber) {
-        String result = "\t👉 " + filePath + ":" + lineNumber;
+        String result = "\t>  " + filePath + ":" + lineNumber;
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -40,7 +44,7 @@ public class SourceLocator {
 
             while ((line = reader.readLine()) != null) {
                 if (currentLine == lineNumber) {
-                    return result + "\n\t👉 " + line.trim();
+                    return result + "\n\t>  " + line.trim();
                 }
                 currentLine++;
             }
