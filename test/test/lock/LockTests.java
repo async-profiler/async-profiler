@@ -12,7 +12,7 @@ import one.profiler.test.TestProcess;
 
 public class LockTests {
 
-    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true) // Fails on Alpine
+    @Test(mainClass = DatagramTest.class, debugNonSafepoints = true)
     public void datagramSocketLock(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 3 -o collapsed --cstack dwarf");
         assert out.ratio("(PlatformEvent::.ark|PlatformEvent::.npark)") > 0.1
@@ -26,7 +26,6 @@ public class LockTests {
     @Test(mainClass = RaceToLock.class, inputs = "1000000", output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
-
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
         Output stdout = p.readFile(TestProcess.STDOUT);
 
