@@ -200,8 +200,7 @@ public class Runner {
     }
 
     private static String formatTestMessage(RunnableTest rt, TestResult result, int i, int testCount, long durationNs) {
-        String duration = String.format("%.1f ms", durationNs / 1e6);
-        String message = String.format("%s [%d/%d] %s took %s", result.status(), i, testCount, rt.testInfo(), duration);
+        String message = String.format("%s [%d/%d] %s took %.1f ms", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6);
         if (result.throwable() != null) {
             message += ": " + result.throwable();
         }
@@ -244,14 +243,15 @@ public class Runner {
             long start = System.nanoTime();
             TestResult result = run(rt);
             long durationNs = System.nanoTime() - start;
-
             statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
             totalTestDuration += durationNs;
-            String message = formatTestMessage(rt, result, i, testCount, durationNs);
+
+            System.out.printf("%s [%d/%d] %s took %.1f ms%s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6,
+                    result.throwable() != null ? ": " + result.throwable() : "");
+
             if (result.status() == TestStatus.FAIL) {
                 failedTests.add(rt.testInfo());
             }
-            System.out.println(message);
             i++;
         }
 
