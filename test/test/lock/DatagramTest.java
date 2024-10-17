@@ -32,10 +32,13 @@ public class DatagramTest {
         final InetSocketAddress remoteAddr = new InetSocketAddress("127.0.0.1", 5556);
 
         try {
-            while (true) {
+            for (int i = 0; ; i++) {
                 ((Buffer) buf).clear();
                 ch.send(buf, remoteAddr);
                 totalPackets.incrementAndGet();
+                if ((i % 1000) == 0) {
+                    Thread.yield();  // give other threads chance to acquire a lock
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();

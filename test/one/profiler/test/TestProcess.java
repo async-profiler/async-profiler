@@ -53,6 +53,7 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private final Test test;
     private final Os currentOs;
     private final String logDir;
     private final String[] inputs;
@@ -61,6 +62,7 @@ public class TestProcess implements Closeable {
     private final int timeout = 30;
 
     public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
+        this.test = test;
         this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
@@ -81,6 +83,10 @@ public class TestProcess implements Closeable {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
+    }
+
+    public Test test() {
+        return this.test;
     }
 
     public String[] inputs() {

@@ -773,6 +773,15 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
     _locks[lock_index].unlock();
 }
 
+void Profiler::tryResetCounters() {
+    // Reset counters only for non-JFR recording, otherwise resetting may cause missing stack traces for some
+    // allocation events and skewed incorrect number of samples.
+    // In JFR recording, each sample is recorded individually, so accumulated counters are not actually used.
+    if (!_jfr.active()) {
+        _call_trace_storage.resetCounters();
+    }
+}
+
 void Profiler::writeLog(LogLevel level, const char* message) {
     _jfr.recordLog(level, message, strlen(message));
 }

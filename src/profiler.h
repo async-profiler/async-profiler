@@ -205,6 +205,7 @@ class Profiler {
     void recordExternalSample(u64 counter, int tid, EventType event_type, Event* event, int num_frames, ASGCT_CallFrame* frames);
     void recordExternalSamples(u64 samples, u64 counter, int tid, u32 call_trace_id, EventType event_type, Event* event);
     void recordEventOnly(EventType event_type, Event* event);
+    void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
