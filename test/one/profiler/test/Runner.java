@@ -9,12 +9,11 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -100,73 +99,87 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    public static boolean enabled(Test test) {
+    public static SkipReason getSkipReason(RunnableTest rt) {
+        Test test = rt.test();
+
         if (!test.enabled()) {
-            return false;
+            return SkipReason.Disabled;
         }
 
         Os[] os = test.os();
         if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
-            return false;
+            return SkipReason.OsMismatch;
         }
 
         Arch[] arch = test.arch();
         if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
-            return false;
+            return SkipReason.ArchMismatch;
         }
 
         Jvm[] jvm = test.jvm();
         if (jvm.length > 0 && !Arrays.asList(jvm).contains(currentJvm)) {
-            return false;
+            return SkipReason.JvmMismatch;
         }
 
         int[] jvmVer = test.jvmVer();
         if (jvmVer.length > 0 && (currentJvmVersion < jvmVer[0] || currentJvmVersion > jvmVer[jvmVer.length - 1])) {
-            return false;
+            return SkipReason.JvmVersionMismatch;
         }
 
-        return true;
-    }
-
-    private static boolean run(Method m) {
-        boolean passedAll = true;
-        for (Test test : m.getAnnotationsByType(Test.class)) {
-            String className = m.getDeclaringClass().getSimpleName();
-            String testName = className + '.' + m.getName();
-
-            if (!enabled(test) || skipTests.contains(className.toLowerCase()) || skipTests.contains(m.getName().toLowerCase())) {
-                log.log(Level.FINE, "Skipped " + testName);
-                continue;
-            }
-
-            log.log(Level.INFO, "Running " + testName +
-                    (!test.args().isEmpty() ? " args: " + test.args() : "") +
-                    (test.inputs().length > 0 ? " inputs: [" + String.join(" ", test.inputs()) + "]" : "") +
-                    "...");
-
-            String testLogDir = logDir.isEmpty() ? null : logDir + '/' + testName;
-            try (TestProcess p = new TestProcess(test, currentOs, testLogDir)) {
-                Object holder = (m.getModifiers() & Modifier.STATIC) == 0 ?
-                        m.getDeclaringClass().getDeclaredConstructor().newInstance() : null;
-                m.invoke(holder, p);
-                log.info("OK");
-            } catch (InvocationTargetException e) {
-                log.log(Level.WARNING, testName + " failed", e.getTargetException());
-                passedAll = false;
-            } catch (Throwable e) {
-                log.log(Level.WARNING, testName + " failed", e);
-                passedAll = false;
-            }
+        if (skipTests.contains(rt.className().toLowerCase())) {
+            return SkipReason.SkipByClassName;
         }
-        return passedAll;
+
+        if (skipTests.contains(rt.method().getName().toLowerCase())) {
+            return SkipReason.SkipByMethodName;
+        }
+
+        return null;
     }
 
-    private static boolean run(Class<?> cls) {
-        boolean passedAll = true;
+    private static TestResult run(RunnableTest rt) {
+        SkipReason reason = getSkipReason(rt);
+        if (reason != null) {
+            return TestResult.skip(reason);
+        }
+
+        log.log(Level.INFO, "Running " + rt.testInfo() + "...");
+
+        String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir)) {
+            Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
+                    rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
+            rt.method().invoke(holder, p);
+        } catch (InvocationTargetException e) {
+            return TestResult.fail(e.getTargetException());
+        } catch (Throwable e) {
+            return TestResult.fail(e);
+        }
+
+        return TestResult.pass();
+    }
+
+    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
+        List<RunnableTest> rts = new ArrayList<>();
         for (Method m : cls.getMethods()) {
-            passedAll &= run(m);
+            for (Test t : m.getAnnotationsByType(Test.class)) {
+                rts.add(new RunnableTest(m, t));
+            }
         }
-        return passedAll;
+        return rts;
+    }
+
+    private static List<RunnableTest> getRunnableTests(String[] args) throws ClassNotFoundException {
+        List<RunnableTest> rts = new ArrayList<>();
+        for (String arg : args) {
+            String testName = arg;
+            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
+                // Convert package name to class name
+                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
+            }
+            rts.addAll(getRunnableTests(Class.forName(testName)));
+        }
+        return rts;
     }
 
     private static void configureLogging() {
@@ -197,6 +210,29 @@ public class Runner {
         }
     }
 
+    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, EnumMap<SkipReason, Integer> skipReasons, List<String> failedTests, long totalTestDuration, int testCount) {
+        int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
+        if (fail > 0) {
+            System.out.println("\nFailed tests:");
+            failedTests.forEach(System.out::println);
+        }
+
+        Integer pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
+        String totalDuration = String.format("%.1f ms", totalTestDuration / 1e6);
+
+        System.out.println("\nTotal test duration: " + totalDuration);
+        System.out.println("Results Summary:");
+        System.out.println("PASS: " + pass);
+        System.out.println("SKIP: " + statusCounts.getOrDefault(TestStatus.SKIP, 0));
+        for (Map.Entry<SkipReason, Integer> reason : skipReasons.entrySet()) {
+            if (reason.getValue() > 0) {
+                System.out.printf("\t%s: %d\n", reason.getKey(), reason.getValue());
+            }
+        }
+        System.out.println("FAIL: " + fail);
+        System.out.printf("TOTAL: %d (%.2f%% PASS)\n", testCount, 100.0 * pass / (pass + fail));
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: java " + Runner.class.getName() + " TestName ...");
@@ -206,21 +242,41 @@ public class Runner {
         configureLogging();
         configureSkipTests();
 
-        boolean passedAll = true;
-        for (String arg : args) {
-            String testName = arg;
-            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
-                // Convert package name to class name
-                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
+        List<RunnableTest> allTests = getRunnableTests(args);
+        final int testCount = allTests.size();
+
+        int i = 1;
+        long totalTestDuration = 0;
+        List<String> failedTests = new ArrayList<>();
+        EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
+        EnumMap<SkipReason, Integer> skipReasons = new EnumMap<>(SkipReason.class);
+        for (RunnableTest rt : allTests) {
+            long start = System.nanoTime();
+            TestResult result = run(rt);
+            long durationNs = System.nanoTime() - start;
+
+            totalTestDuration += durationNs;
+            statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
+            if (result.status() == TestStatus.SKIP) {
+                skipReasons.put(result.skipReason(), skipReasons.getOrDefault(result.skipReason(), 0) + 1);
             }
-            passedAll &= run(Class.forName(testName));
+
+            System.out.printf("%s [%d/%d] %s took %.1f ms%s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6,
+                    result.throwable() != null ? ": " + result.throwable() : "");
+
+            if (result.status() == TestStatus.FAIL) {
+                failedTests.add(rt.testInfo());
+            }
+            i++;
         }
+
+        printSummary(statusCounts, skipReasons, failedTests, totalTestDuration, testCount);
 
         if (!logDir.isEmpty()) {
             log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
         }
 
-        if (!passedAll) {
+        if (!failedTests.isEmpty()) {
             throw new RuntimeException("One or more tests failed");
         }
     }
