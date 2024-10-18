@@ -15,7 +15,7 @@ public class TestResult {
         }
 
         this.status = status;
-        this.throwable = null;
+        this.throwable = throwable;
     }
 
     public TestStatus status() {
