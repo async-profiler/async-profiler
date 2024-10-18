@@ -99,48 +99,29 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    public static TestResult getSkipResult(RunnableTest rt) {
-        Test test = rt.test();
+    private static boolean enabled(RunnableTest rt) {
+        return rt.test().enabled() &&
+                !skipTests.contains(rt.className().toLowerCase()) &&
+                !skipTests.contains(rt.method().getName().toLowerCase());
+    }
 
-        if (!test.enabled()) {
-            return TestResult.skipDisabled();
-        }
-
-        if (skipTests.contains(rt.className().toLowerCase())) {
-            return TestResult.skipDisabled();
-        }
-
-        if (skipTests.contains(rt.method().getName().toLowerCase())) {
-            return TestResult.skipDisabled();
-        }
-
+    private static boolean applicable(Test test) {
         Os[] os = test.os();
-        if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
-            return TestResult.skipConfigMismatch();
-        }
-
         Arch[] arch = test.arch();
-        if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
-            return TestResult.skipConfigMismatch();
-        }
-
         Jvm[] jvm = test.jvm();
-        if (jvm.length > 0 && !Arrays.asList(jvm).contains(currentJvm)) {
-            return TestResult.skipConfigMismatch();
-        }
-
         int[] jvmVer = test.jvmVer();
-        if (jvmVer.length > 0 && (currentJvmVersion < jvmVer[0] || currentJvmVersion > jvmVer[jvmVer.length - 1])) {
-            return TestResult.skipConfigMismatch();
-        }
-
-        return null;
+        return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
+                (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
+                (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
+                (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
     private static TestResult run(RunnableTest rt) {
-        TestResult result = getSkipResult(rt);
-        if (result != null) {
-            return result;
+        if (!enabled(rt)) {
+            return TestResult.skipDisabled();
+        }
+        if (!applicable(rt.test())) {
+            return TestResult.skipConfigMismatch();
         }
 
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
