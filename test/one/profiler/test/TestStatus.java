@@ -8,5 +8,6 @@ package one.profiler.test;
 public enum TestStatus {
     PASS,
     FAIL,
-    SKIP,
+    SKIP_DISABLED,
+    SKIP_CONFIG_MISMATCH,
 }

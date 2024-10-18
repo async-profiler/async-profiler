@@ -99,48 +99,48 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    public static SkipReason getSkipReason(RunnableTest rt) {
+    public static TestResult getSkipResult(RunnableTest rt) {
         Test test = rt.test();
 
         if (!test.enabled()) {
-            return SkipReason.Disabled;
+            return TestResult.skipDisabled();
+        }
+
+        if (skipTests.contains(rt.className().toLowerCase())) {
+            return TestResult.skipDisabled();
+        }
+
+        if (skipTests.contains(rt.method().getName().toLowerCase())) {
+            return TestResult.skipDisabled();
         }
 
         Os[] os = test.os();
         if (os.length > 0 && !Arrays.asList(os).contains(currentOs)) {
-            return SkipReason.OsMismatch;
+            return TestResult.skipConfigMismatch();
         }
 
         Arch[] arch = test.arch();
         if (arch.length > 0 && !Arrays.asList(arch).contains(currentArch)) {
-            return SkipReason.ArchMismatch;
+            return TestResult.skipConfigMismatch();
         }
 
         Jvm[] jvm = test.jvm();
         if (jvm.length > 0 && !Arrays.asList(jvm).contains(currentJvm)) {
-            return SkipReason.JvmMismatch;
+            return TestResult.skipConfigMismatch();
         }
 
         int[] jvmVer = test.jvmVer();
         if (jvmVer.length > 0 && (currentJvmVersion < jvmVer[0] || currentJvmVersion > jvmVer[jvmVer.length - 1])) {
-            return SkipReason.JvmVersionMismatch;
-        }
-
-        if (skipTests.contains(rt.className().toLowerCase())) {
-            return SkipReason.SkipByClassName;
-        }
-
-        if (skipTests.contains(rt.method().getName().toLowerCase())) {
-            return SkipReason.SkipByMethodName;
+            return TestResult.skipConfigMismatch();
         }
 
         return null;
     }
 
     private static TestResult run(RunnableTest rt) {
-        SkipReason reason = getSkipReason(rt);
-        if (reason != null) {
-            return TestResult.skip(reason);
+        TestResult result = getSkipResult(rt);
+        if (result != null) {
+            return result;
         }
 
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
@@ -210,7 +210,7 @@ public class Runner {
         }
     }
 
-    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, EnumMap<SkipReason, Integer> skipReasons, List<String> failedTests, long totalTestDuration, int testCount) {
+    private static void printSummary(EnumMap<TestStatus, Integer> statusCounts, List<String> failedTests, long totalTestDuration, int testCount) {
         int fail = statusCounts.getOrDefault(TestStatus.FAIL, 0);
         if (fail > 0) {
             System.out.println("\nFailed tests:");
@@ -223,12 +223,8 @@ public class Runner {
         System.out.println("\nTotal test duration: " + totalDuration);
         System.out.println("Results Summary:");
         System.out.println("PASS: " + pass);
-        System.out.println("SKIP: " + statusCounts.getOrDefault(TestStatus.SKIP, 0));
-        for (Map.Entry<SkipReason, Integer> reason : skipReasons.entrySet()) {
-            if (reason.getValue() > 0) {
-                System.out.printf("\t%s: %d\n", reason.getKey(), reason.getValue());
-            }
-        }
+        System.out.println("SKIP (disabled): " + statusCounts.getOrDefault(TestStatus.SKIP_DISABLED, 0));
+        System.out.println("SKIP (config mismatch): " + statusCounts.getOrDefault(TestStatus.SKIP_CONFIG_MISMATCH, 0));
         System.out.println("FAIL: " + fail);
         System.out.printf("TOTAL: %d (%.2f%% PASS)\n", testCount, 100.0 * pass / (pass + fail));
     }
@@ -249,7 +245,6 @@ public class Runner {
         long totalTestDuration = 0;
         List<String> failedTests = new ArrayList<>();
         EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
-        EnumMap<SkipReason, Integer> skipReasons = new EnumMap<>(SkipReason.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
             TestResult result = run(rt);
@@ -257,20 +252,16 @@ public class Runner {
 
             totalTestDuration += durationNs;
             statusCounts.put(result.status(), statusCounts.getOrDefault(result.status(), 0) + 1);
-            if (result.status() == TestStatus.SKIP) {
-                skipReasons.put(result.skipReason(), skipReasons.getOrDefault(result.skipReason(), 0) + 1);
+            if (result.status() == TestStatus.FAIL) {
+                failedTests.add(rt.testInfo());
             }
 
             System.out.printf("%s [%d/%d] %s took %.1f ms%s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6,
                     result.throwable() != null ? ": " + result.throwable() : "");
-
-            if (result.status() == TestStatus.FAIL) {
-                failedTests.add(rt.testInfo());
-            }
             i++;
         }
 
-        printSummary(statusCounts, skipReasons, failedTests, totalTestDuration, testCount);
+        printSummary(statusCounts, failedTests, totalTestDuration, testCount);
 
         if (!logDir.isEmpty()) {
             log.log(Level.INFO, "Test output and profiles are available in " + logDir + " directory");
