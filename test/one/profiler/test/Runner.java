@@ -198,7 +198,7 @@ public class Runner {
             failedTests.forEach(System.out::println);
         }
 
-        Integer pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
+        int pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
         String totalDuration = String.format("%.1f ms", totalTestDuration / 1e6);
 
         System.out.println("\nTotal test duration: " + totalDuration);

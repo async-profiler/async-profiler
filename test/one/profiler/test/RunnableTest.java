@@ -8,8 +8,8 @@ package one.profiler.test;
 import java.lang.reflect.Method;
 
 public class RunnableTest {
-    private Method m;
-    private Test test;
+    private final Method m;
+    private final Test test;
 
     RunnableTest(Method m, Test test) {
         this.m = m;
