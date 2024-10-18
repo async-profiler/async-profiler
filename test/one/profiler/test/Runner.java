@@ -222,11 +222,11 @@ public class Runner {
 
         System.out.println("\nTotal test duration: " + totalDuration);
         System.out.println("Results Summary:");
-        System.out.println("PASS: " + pass);
+        System.out.printf("PASS: %d (%.1f%%)\n", pass, 100.0 * pass / (pass + fail));
+        System.out.println("FAIL: " + fail);
         System.out.println("SKIP (disabled): " + statusCounts.getOrDefault(TestStatus.SKIP_DISABLED, 0));
         System.out.println("SKIP (config mismatch): " + statusCounts.getOrDefault(TestStatus.SKIP_CONFIG_MISMATCH, 0));
-        System.out.println("FAIL: " + fail);
-        System.out.printf("TOTAL: %d (%.2f%% PASS)\n", testCount, 100.0 * pass / (pass + fail));
+        System.out.println("TOTAL: " + testCount);
     }
 
     public static void main(String[] args) throws Exception {
