@@ -13,7 +13,6 @@ import one.jfr.JfrReader;
 import java.io.*;
 import java.util.Arrays;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Output {

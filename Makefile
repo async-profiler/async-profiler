@@ -107,9 +107,15 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean
+.PHONY: check-copyright all jar release build-test test native clean
 
-all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
+all: check-copyright build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
+
+check-copyright:
+	mkdir -p build/checkstyle
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/checkstyle "checkstyle/validator/CopyrightValidator.java"
+	$(JAVA) -cp "build/checkstyle" validator.CopyrightValidator
+	$(RM) -r build/checkstyle
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
