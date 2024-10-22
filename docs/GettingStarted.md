@@ -1,4 +1,4 @@
-# Getting started
+# Getting Started Guide
 
 ## Before we start profiling
 As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
@@ -107,4 +107,6 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
 The flame graph html can be opened in any browser of your choice for further interpretation.
 
-[Interpreting a flame graph](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
+Please refer to 
+[Interpreting a Flame Graph](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
+to understand more on how to interpret a Flame Graph.

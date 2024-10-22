@@ -43,9 +43,20 @@ For the build corresponding to a previous commit, go to the corresponding `Publi
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
-## [Getting started](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md)
+## Getting Started
+In this section, we will get acquainted with using async-profiler to profile applications and 
+analyze the profile output in the Flame Graph format. 
 
-## [Profiling modes](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md)
+For the detailed walkthrough, please refer to the 
+[Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
+
+## Profiling Modes
+The [Getting Started](#getting-started) section focused mostly on CPU usage profiling. However, 
+async-profiler provides various other profiling modes like `Allocation`, `Wall Clock`, `Java Method`
+and even a `Multiple Events` profiling mode.
+
+For the detailed explanation on all profiling modes, please refer to the
+[Profiling Modes git Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md).
 
 ## Profiler Options
 
