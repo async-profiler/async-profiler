@@ -45,10 +45,9 @@ API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
 TESTS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
-CATCH2_DIR := third_party/catch2
-CPP_TEST_SOURCES := $(CATCH2_DIR)/catch_amalgamated.cpp $(shell find test/native -name '*_test.cpp')
-CPP_TEST_HEADER := $(CATCH2_DIR)/catch_amalgamated.hpp
-CPP_TEST_INCLUDES := -Isrc -I$(CATCH2_DIR)
+CPP_TEST_SOURCES := test/native/test_runner_main.cpp test/native/test_runner.cpp $(shell find test/native -name '*_test.cpp')
+CPP_TEST_HEADER := test/native/test_runner.hpp
+CPP_TEST_INCLUDES := -Isrc -Itest/native
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -174,19 +173,24 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
-build/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
-	mkdir -p build
-	$(CXX) $(CPPFLAGS) $(filter-out -fwhole-program, $(CXXFLAGS)) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(CPP_TEST_SOURCES) $(SOURCES) $(LIBS)
+build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+	mkdir -p build/test
+ifeq ($(MERGE),true)
+	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
+	$(CXX) $(CPPFLAGS) $(filter-out -fwhole-program, $(CXXFLAGS)) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
+else
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(CPP_TEST_SOURCES) $(SOURCES) $(LIBS)
+endif
 
 build-test-java: all build/$(TEST_JAR)
 
-build-test-cpp: build/cpptests
+build-test-cpp: build/test/cpptests
 
 build-test: build-test-cpp build-test-java
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
-	build/cpptests
+	build/test/cpptests
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"

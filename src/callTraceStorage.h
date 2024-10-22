@@ -40,7 +40,7 @@ struct CallTraceSample {
         return *this;
     }
 
-    bool operator<(const CallTraceSample& other) const {
+    bool operator>(const CallTraceSample& other) const {
         return counter > other.counter;
     }
 };
