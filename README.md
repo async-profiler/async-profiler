@@ -48,7 +48,7 @@ In this section, we will get acquainted with using async-profiler to profile app
 analyze the profile output in the Flame Graph format. 
 
 For the detailed walkthrough, please refer to the 
-[Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
+[Getting Started Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
 
 ## Profiling Modes
 The [Getting Started](#getting-started) section focused mostly on CPU usage profiling. However, 
@@ -56,7 +56,7 @@ async-profiler provides various other profiling modes like `Allocation`, `Wall C
 and even a `Multiple Events` profiling mode.
 
 For the detailed explanation on all profiling modes, please refer to the
-[Profiling Modes git Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md).
+[Profiling Modes Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md).
 
 ## Profiler Options
 
