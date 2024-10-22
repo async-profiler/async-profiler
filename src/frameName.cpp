@@ -162,7 +162,7 @@ void FrameName::javaMethodName(jmethodID method) {
         }
     }
 
-    jclass method_class;
+    jclass method_class = NULL;
     char* class_name = NULL;
     char* method_name = NULL;
     char* method_sig = NULL;
