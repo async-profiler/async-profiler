@@ -183,7 +183,7 @@ class Lookup {
 
         jvmtiEnv* jvmti = VM::jvmti();
 
-        jclass method_class;
+        jclass method_class = NULL;
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
