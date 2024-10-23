@@ -76,19 +76,11 @@ Unknown (native):        1 (0.15%)
 This indicates that the hottest method was `Primes.isPrime`, and the hottest
 call stack leading to it comes from `Primes.primesThread`.
 
-## Launching as an Agent
+## Alternate ways to use async-profiler
 
-If you need to profile some code as soon as the JVM starts up, instead of using the `asprof`,
-it is possible to attach async-profiler as an agent on the command line. For example:
-
-```
-$ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html ...
-```
-
-Agent library is configured through the JVMTI argument interface.
-The format of the arguments string is described
-[in the source code](https://github.com/async-profiler/async-profiler/blob/v3.0/src/arguments.cpp#L44).
-`asprof` actually converts command line arguments to that format.
+* [Launching as an agent](https://github.com/roy-soumadipta/async-profiler/blob/restructure-readme/docs/AlternateWaysToUseAsprof.md#launching-as-an-agent)
+* [Java API](https://github.com/roy-soumadipta/async-profiler/blob/restructure-readme/docs/AlternateWaysToUseAsprof.md#using-java-api)
+* [IntelliJ IDEA]((https://github.com/roy-soumadipta/async-profiler/blob/restructure-readme/docs/AlternateWaysToUseAsprof.md#intellij-idea))
 
 ## Flame Graph visualization
 
