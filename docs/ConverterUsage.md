@@ -1,12 +1,10 @@
 # Converter Usage & Demo
 
-Async profiler provides the ability to convert `jfr` output format to `html`, `collapsed`, `pprof`
-and `pb.gz` formats and `html` output format to `collapsed` format. The output format specified can
-be only one at a time for conversion from `jfr` to any of the available formats.
-
 ## Usage
 
 `jfrconv [options] <input> [<input>...] <output>`
+
+The output format specified can be only one at a time for conversion from one format to another.
 
 ### Available arguments
 
