@@ -58,6 +58,19 @@ and even a `Multiple Events` profiling mode.
 For the detailed explanation on all profiling modes, please refer to the
 [Profiling Modes Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md).
 
+## Converter Usage & Demo
+async-profiler provides profile outputs in formats like `collapsed`, `html`, `jfr`. Further,
+async-profiler provider a converter utility to convert the profile output to other popular formats.
+
+### Supported conversions
+
+* collapsed -> html, collapsed
+* html -> html, collapsed
+* jfr -> html, collapsed, pprof, pb.gz
+
+For the detailed usage instructions and demo, please refer to
+[Converter Usage & Demo](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md).
+
 ## Profiler Options
 
 `asprof` command-line options.
