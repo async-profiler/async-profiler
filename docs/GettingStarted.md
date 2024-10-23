@@ -78,9 +78,9 @@ call stack leading to it comes from `Primes.primesThread`.
 
 ## Alternate ways to use async-profiler
 
-* [Launching as an agent](https://github.com/roy-soumadipta/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#launching-as-an-agent)
-* [Java API](https://github.com/roy-soumadipta/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#using-java-api)
-* [IntelliJ IDEA](https://github.com/roy-soumadipta/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#intellij-idea)
+* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#launching-as-an-agent)
+* [Java API](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#using-java-api)
+* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#intellij-idea)
 
 ## Flame Graph visualization
 
