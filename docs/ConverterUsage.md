@@ -13,25 +13,25 @@ Conversion options:
   -o --output FORMAT   Output format: <filename> followed by any of the extensions: html, collapsed, pprof, pb.gz
   
 JFR options:
-    --cpu              CPU profile
-    --wall             Wall clock profile
-    --alloc            Allocation profile
-    --live             Live object profile
-    --lock             Lock contention profile
+    --cpu              Generate only CPU profile during conversion
+    --wall             Generate only Wall clock profile during conversion
+    --alloc            Generate only Allocation profile during conversion
+    --live             Build allocation profile from live objects only during conversion
+    --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
  -s --state LIST       Filter thread states: runnable, sleeping
     --classify         Classify samples into predefined categories
-    --total            Accumulate total value (time, bytes, etc.)
+    --total            Accumulate total value (time, bytes, etc.) instead of samples
     --lines            Show line numbers
     --bci              Show bytecode indices
-    --simple           Simple class names instead of FQN
-    --norm             Normalize names of hidden classes / lambdas
-    --dot              Dotted class names
+    --simple           Simple class names instead of fully qualified names
+    --norm             Normalize names of hidden classes/lambdas
+    --dot              Dotted class names instead of / notation
     --from TIME        Start time in ms (absolute or relative)
     --to TIME          End time in ms (absolute or relative)
     
 Flame Graph options:
-    --title STRING     Flame Graph title
+    --title STRING     Convert to Flame Graph with provided title
     --minwidth X       Skip frames smaller than X%
     --grain X          Coarsen Flame Graph to the given grain size
     --skip N           Skip N bottom frames
@@ -87,12 +87,12 @@ These are few common use cases. Similarly, a JFR output can be converted to `col
 
 ### Example usages with `jfr-converter.jar`
 
-The usage with `convereter.jar` provided in
+The usage with `jfr-convereter.jar` provided in
 [Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)
 section is very similar to `jfrconv`.
 
 Let's look at an example usage.
 
-`java -cp /path/to/converter.jar --cpu foo.jfr --reverse --title Title`
+`java -cp /path/to/jfr-converter.jar --cpu foo.jfr --reverse --title Title`
 
 As we can see, the only difference lies in how the binary is used.
