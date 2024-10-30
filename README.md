@@ -13,8 +13,8 @@ async-profiler can trace the following kinds of events:
 - Allocations in Java Heap
 - Contented lock attempts, including both Java object monitors and ReentrantLocks
 
-[3 hours playlist](https://www.youtube.com/playlist?list=PLNCLTEx3B8h4Yo_WvKWdLvI9mj1XpTKBr)
-to learn about all features.
+See our [3 hours playlist](https://www.youtube.com/playlist?list=PLNCLTEx3B8h4Yo_WvKWdLvI9mj1XpTKBr)
+to learn about more features.
 
 ## Download
 
