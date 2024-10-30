@@ -1,7 +1,7 @@
 # Profiling Non-Java Applications
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
-programmatically from the process being profiled. Similarly to the existing
+programmatically from the process being profiled. Similar to the
 [Java API](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#using-java-api),
 there is a C API for using inside native applications.
 ```
@@ -31,9 +31,6 @@ In addition, async-profiler can be injected into a native application through LD
 LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,event=cpu,file=profile.jfr NativeApp [args]
 ```
 
-
-
 All basic functionality remains the same. Profiler can run in cpu, wall and other perf_events 
 modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
 Java-specific events.
-

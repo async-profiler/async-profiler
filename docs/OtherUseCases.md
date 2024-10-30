@@ -1,4 +1,4 @@
-# Alternate ways to use async-profiler
+# Other Use Cases
 
 ## Launching as an Agent
 
@@ -13,6 +13,8 @@ Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
 [in the source code](https://github.com/async-profiler/async-profiler/blob/v3.0/src/arguments.cpp#L44).
 `asprof` actually converts command line arguments to that format.
+
+Another important use of attaching async-profiler as an agent is for continuous profiling.
 
 ## Using Java API
 async-profiler Java API is published to maven central. Like any other dependency, we have to
@@ -36,10 +38,15 @@ The above gives us an instance of `AsyncProfiler` object which can be further us
 actual profiling.
 
 ```
-profiler.execute(String.format("start,jfr,event=cpu,file=%s", path));
+profiler.execute("start,jfr,event=cpu,file=/path/to/%p.jfr"); 
 // do some meaningful work
-profiler.execute(String.format("stop,file=%s", path));
+profiler.execute("stop");
 ```
+
+`%p` equates to the PID of the process. There are other options as well for filename which
+can be found in [Profiler Options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md).
+`file` should be specified only once, either in 
+`start` command with `jfr` output or in `stop` command with any other format.
 
 ## Intellij IDEA
 

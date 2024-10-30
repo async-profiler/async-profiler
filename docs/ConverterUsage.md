@@ -85,7 +85,7 @@ jfrconv --cpu foo.jfr --reverse --title Title
 These are few common use cases. Similarly, a JFR output can be converted to `collapsed`, `pprof` and
 `pb.gz` formats based on specific needs.
 
-### Example usages with `converter.jar`
+### Example usages with `jfr-converter.jar`
 
 The usage with `convereter.jar` provided in
 [Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)

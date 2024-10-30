@@ -11,10 +11,10 @@ sysctl or as follows:
 ```
 
 ## Find process to profile
-Common ways to find the target process include using `jps` and `ps`. The next section includes an 
-example using `jps`. `ps` can also be used along with necessary flags and subsequently using `grep` 
-with `java` for example to find all running java processes and find the target process id from the
-list.
+Common ways to find the target process include using `jps` and `pgrep`. `pgrep` can be used
+along with necessary flags for example `-l` and search for `java` to find all running java
+processes and find the target process name and id from the list `pgrep ssh -l`. The next 
+section includes an example using `jps`.
 
 ## Start profiling
 async-profiler works in the context of the target Java application,
@@ -76,11 +76,11 @@ Unknown (native):        1 (0.15%)
 This indicates that the hottest method was `Primes.isPrime`, and the hottest
 call stack leading to it comes from `Primes.primesThread`.
 
-## Alternate ways to use async-profiler
+## Other use cases
 
-* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#launching-as-an-agent)
-* [Java API](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#using-java-api)
-* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#intellij-idea)
+* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent)
+* [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#using-java-api)
+* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#intellij-idea)
 
 ## Flame Graph visualization
 
