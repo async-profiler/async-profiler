@@ -1,7 +1,7 @@
 # Profiler Options
 
 The below table lists the profiler options available with `asprof` and also when
-[launching as an agent](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#launching-as-an-agent).
+[launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent).
 Most of the options are identical and will be mentioned under `asprof` column with a `-` in the
 `Launch as agent` column. Only if an option is different for `Launch as agent`, it will be
 explicitly mentioned. The third column is for the description of the option which will always be

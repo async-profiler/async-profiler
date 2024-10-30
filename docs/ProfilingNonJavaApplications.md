@@ -2,7 +2,7 @@
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
 programmatically from the process being profiled. Similar to the
-[Java API](https://github.com/async-profiler/async-profiler/blob/restructure_readme/docs/AlternateWaysToUseAsprof.md#using-java-api),
+[Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#using-java-api),
 there is a C API for using inside native applications.
 ```
 typedef const char* asprof_error_t;
