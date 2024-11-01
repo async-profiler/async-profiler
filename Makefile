@@ -196,7 +196,8 @@ test-java: build-test-java
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: CXXFLAGS_EXTRA=-fprofile-arcs -ftest-coverage -fPIC -O0 -fprofile-abs-path --coverage
-coverage: clean-test test-cpp
+coverage: clean-coverage
+	$(MAKE) test-cpp
 	mkdir -p build/test/coverage
 	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV_EXECUTABLE)" -o coverage/index.html
 
@@ -215,8 +216,9 @@ native:
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
 	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
 
-clean-test:
-	$(RM) -r build/test
+clean-coverage:
+	$(RM) -r build/test/cpptests || :
+	$(RM) -rf build/test/coverage || :
 
 clean:
 	$(RM) -r build
