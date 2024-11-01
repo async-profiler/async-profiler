@@ -5,7 +5,9 @@
 
 #include "test_runner.hpp"
 #include <chrono>
+#include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 TestRunner* TestRunner::_instance = NULL;
 

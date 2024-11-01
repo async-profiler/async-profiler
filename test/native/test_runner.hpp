@@ -7,7 +7,9 @@
 #define _TEST_RUNNER_HPP
 
 #include <cstdio>
+#include <cstring>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -96,8 +98,8 @@ struct TestCase
         {                                                                                                              \
             printf("Assertion failed: (%s %s %s),\n\tactual values: %s = %lld (0x%llX), %s = %lld (0x%llX)\n\tat "     \
                    "%s:%d\n",                                                                                          \
-                   #val1, #op, #val2, #val1, (__u64)(val1), (__u64)(val1), #val2, (__u64)(val2), (__u64)(val2),        \
-                   __FILE__, __LINE__);                                                                                \
+                   #val1, #op, #val2, #val1, (u64)(val1), (u64)(val1), #val2, (u64)(val2), (u64)(val2), __FILE__,      \
+                   __LINE__);                                                                                          \
             __ASSERTED(isAssert)                                                                                       \
         }                                                                                                              \
         else                                                                                                           \
@@ -122,7 +124,7 @@ struct TestCase
 #define CHECK_LT(val1, val2) CHECK_OP(val1, <, val2)
 #define CHECK_LTE(val1, val2) CHECK_OP(val1, <=, val2)
 
-#define __TEST_CASE(testName, skip, only)                                                                              \
+#define __TEST_CASE(testName, precondition, only)                                                                              \
     void testName(TestCase& testCase);                                                                                 \
     void testName##Runner();                                                                                           \
     static TestRegistrar testName##Registrar(#testName, testName##Runner, only, __FILE__, __LINE__);                   \
@@ -130,7 +132,7 @@ struct TestCase
     {                                                                                                                  \
         TestCase& testCase = TestRunner::instance()->testCases().at(#testName);                                        \
         testCase.assertionCount = 0;                                                                                   \
-        if (skip)                                                                                                      \
+        if (!(precondition))                                                                                                      \
         {                                                                                                              \
             testCase.skipped = true;                                                                                   \
             return;                                                                                                    \
@@ -148,11 +150,11 @@ struct TestCase
 #define TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __TEST_CASE2, __TEST_CASE1)(__VA_ARGS__)
 #define ONLY_TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __TEST_CASE2, __TEST_CASE1)(__VA_ARGS__)
 
-#define __TEST_CASE1(testName) __TEST_CASE(testName, false, false)
-#define __TEST_CASE2(testName, skip) __TEST_CASE(testName, skip, false)
+#define __TEST_CASE1(testName) __TEST_CASE(testName, true, false)
+#define __TEST_CASE2(testName, precondition) __TEST_CASE(testName, precondition, false)
 
-#define __ONLY_TEST_CASE1(testName) __TEST_CASE(testName, false, true)
-#define __ONLY_TEST_CASE2(testName, skip) __TEST_CASE(testName, skip, true)
+#define __ONLY_TEST_CASE1(testName) __TEST_CASE(testName, true, true)
+#define __ONLY_TEST_CASE2(testName, precondition) __TEST_CASE(testName, precondition, true)
 
 struct TestRegistrar
 {

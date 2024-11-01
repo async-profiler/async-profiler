@@ -3,8 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifdef __linux__
+
 #include "callTraceStorage.h"
+#include "perfEvents.h"
 #include "test_runner.hpp"
+#include <linux/perf_event.h>
+#include <stdio.h>
 
 #define ASSERT_EVENT_TYPE(event_type, name_, type_, default_interval_, config_, config1_, config2_, counter_arg_)      \
     ASSERT_NE(event_type, NULL);                                                                                       \
@@ -256,15 +261,17 @@ TEST_CASE(ForName_symbol)
     ASSERT_BP(event_type, HW_BREAKPOINT_X, strcmp_addr, 8, 0);
 }
 
-TEST_CASE(ForName_pmu_descriptor, !fileReadable("/sys/bus/event_source/devices/cpu/events/cache-misses"))
+TEST_CASE(ForName_pmu_descriptor, fileReadable("/sys/bus/event_source/devices/cpu/events/cache-misses"))
 {
     PerfEventType* event_type = PerfEventType::forName("cpu/cache-misses/");
     ASSERT_RAW(event_type, "pmu/event-descriptor/", 0x412E);
 }
 
-TEST_CASE(ForName_kernel_tracepoint, !(fileReadable("/sys/kernel/tracing/events/oom/mark_victim/id") ||
-                                       fileReadable("/sys/kernel/debug/tracing/events/oom/mark_victim/id")))
+TEST_CASE(ForName_kernel_tracepoint, fileReadable("/sys/kernel/tracing/events/oom/mark_victim/id") ||
+                                         fileReadable("/sys/kernel/debug/tracing/events/oom/mark_victim/id"))
 {
     PerfEventType* event_type = PerfEventType::forName("oom:mark_victim");
     ASSERT_EVENT_TYPE(event_type, "trace:tracepoint", PERF_TYPE_TRACEPOINT, 1, 0x1E7, 0, 0, 0);
 }
+
+#endif // __linux__
