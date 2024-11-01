@@ -195,9 +195,8 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
-coverage: CXXFLAGS_EXTRA=-fprofile-arcs -ftest-coverage -fPIC -O0 -fprofile-abs-path --coverage
 coverage: clean-coverage
-	$(MAKE) test-cpp
+	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 -fprofile-abs-path --coverage"
 	mkdir -p build/test/coverage
 	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV_EXECUTABLE)" -o coverage/index.html
 
