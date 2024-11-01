@@ -32,15 +32,23 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           java-version: ${{ env.JAVA_VERSION }}
           # architecture: not specifying this defaults to architecture of the runner
+      - name: Install gcovr
+        run: |
+          case "${{ matrix.runson }}" in
+            macos*) brew install gcovr
+            ;;
+            *) pip install gcovr
+            ;;
+          esac
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
         id: build
         run: |
           case "${{ matrix.runson }}" in
-            macos*) make FAT_BINARY=true release test -j
+            macos*) make FAT_BINARY=true release test-ci -j
             ;;
-            *) make CC=/usr/local/musl/bin/musl-gcc release test -j
+            *) make CC=/usr/local/musl/bin/musl-gcc release test-ci -j
             ;;
           esac
           # there is no git on the codebuild runner, so it's easier to get it from github.sha
@@ -52,9 +60,15 @@ jobs:
         with:
           name: test-logs-${{ matrix.runson }}
           path: build/test/logs/
+      - name: Upload test coverage for default architecture
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-coverage-${{ matrix.runson }}
+          path: build/test/coverage/
       - name: Test macOS x64
         if: ${{ matrix.runson == 'macos-14' }}
-        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test-ci
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
         with:

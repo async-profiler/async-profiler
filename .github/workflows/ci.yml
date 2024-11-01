@@ -13,11 +13,13 @@ jobs:
         with:
           distribution: 'corretto'
           java-version: '11'
+      - run: pip install gcovr
       - run: sudo sysctl kernel.perf_event_paranoid=1
       - run: make -j`nproc`
       - run: make test-ci
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: |
             build/bin/
             build/lib/
+            build/test/coverage/
