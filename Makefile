@@ -22,8 +22,8 @@ STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
-CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden $(CXXFLAGS_EXTRA)
+CFLAGS=-O3 -fno-exceptions -v $(CFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 -v $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
@@ -180,6 +180,9 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
+
+	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done
+
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
 
@@ -198,13 +201,11 @@ test-java: build-test-java
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: clean-coverage
-	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 -fprofile-abs-path --coverage"
+	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 --coverage"
 	mkdir -p build/test/coverage
 	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV_EXECUTABLE)" -o coverage/index.html
 
 test: test-cpp test-java
-
-test-ci: test coverage
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test

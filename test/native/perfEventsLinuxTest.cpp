@@ -32,7 +32,7 @@
     CHECK_EQ(event_type->counter_arg, 0)
 
 #define ASSERT_BP(event_type, bp_type, address, bp_len, counter_arg) \
-    ASSERT_EVENT_TYPE(event_type, "mem:breakpoint", PERF_TYPE_BREAKPOINT, 1, bp_type, address, bp_len, counter_arg)
+    ASSERT_EVENT_TYPE(event_type, "mem:breakpoint", PERF_TYPE_BREAKPOINT, BKPT_INTERVAL, bp_type, address, bp_len, counter_arg)
 
 #define ASSERT_RAW(event_type, name, config) ASSERT_EVENT_TYPE(event_type, name, PERF_TYPE_RAW, 1000, config, 0, 0, 0)
 
@@ -195,42 +195,42 @@ TEST_CASE(ForName_kprobe_Invalid) {
     ASSERT_EQ(event_type, NULL);
 }
 
-TEST_CASE(ForName_kprobe) {
+TEST_CASE(ForName_kprobe, fileReadable("/sys/bus/event_source/devices/kprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("kprobe:foo");
     ASSERT_PROBE(event_type, "kprobe:func", 6, 1, 0, "foo", 0, 0);
 }
 
-TEST_CASE(ForName_kprobe_offset) {
+TEST_CASE(ForName_kprobe_offset, fileReadable("/sys/bus/event_source/devices/kprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("kprobe:foo+99");
     ASSERT_PROBE(event_type, "kprobe:func", 6, 1, 0, "foo", 99, 0);
 }
 
-TEST_CASE(ForName_uprobe) {
+TEST_CASE(ForName_uprobe, fileReadable("/sys/bus/event_source/devices/uprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("uprobe:foo");
     ASSERT_PROBE(event_type, "uprobe:path", 7, 1, 0, "foo", 0, 0);
 }
 
-TEST_CASE(ForName_uprobe_offset) {
+TEST_CASE(ForName_uprobe_offset, fileReadable("/sys/bus/event_source/devices/uprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("uprobe:foo+0x99");
     ASSERT_PROBE(event_type, "uprobe:path", 7, 1, 0, "foo", 0x99, 0);
 }
 
-TEST_CASE(ForName_kretprobe) {
+TEST_CASE(ForName_kretprobe, fileReadable("/sys/bus/event_source/devices/kprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("kretprobe:foo");
     ASSERT_PROBE(event_type, "kprobe:func", 6, 1, 1, "foo", 0, 0);
 }
 
-TEST_CASE(ForName_kretprobe_offset) {
+TEST_CASE(ForName_kretprobe_offset, fileReadable("/sys/bus/event_source/devices/kprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("kretprobe:foo+-10");
     ASSERT_PROBE(event_type, "kprobe:func", 6, 1, 1, "foo", -10, 0);
 }
 
-TEST_CASE(ForName_uretprobe) {
+TEST_CASE(ForName_uretprobe, fileReadable("/sys/bus/event_source/devices/uprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("uretprobe:foo");
     ASSERT_PROBE(event_type, "uprobe:path", 7, 1, 1, "foo", 0, 0);
 }
 
-TEST_CASE(ForName_uretprobe_offset) {
+TEST_CASE(ForName_uretprobe_offset, fileReadable("/sys/bus/event_source/devices/uprobe/type")) {
     PerfEventType* event_type = PerfEventType::forName("uretprobe:foo+066");
     ASSERT_PROBE(event_type, "uprobe:path", 7, 1, 1, "foo", 54, 0);
 }

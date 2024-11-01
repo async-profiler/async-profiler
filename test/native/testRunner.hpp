@@ -44,6 +44,9 @@ struct TestCase {
     int assertion_count = 0;
     bool has_failed_assertions = false;
     bool skipped = false;
+
+    TestCase(const std::string& name, std::function<void()> test_function, bool only, const std::string& filename, int line_no)
+        : name(name), test_function(test_function), only(only), filename(filename), line_no(line_no) {}
 };
 
 #define ASSERT(condition) ASSERT_NE(condition, NULL)
@@ -140,7 +143,7 @@ struct TestCase {
 struct TestRegistrar {
     TestRegistrar(const std::string& name, std::function<void()> test_function, bool only, const std::string& filename,
                   int line_no) {
-        TestRunner::instance()->testCases()[name] = {name, test_function, only, filename, line_no};
+        TestRunner::instance()->testCases().emplace(name, TestCase(name, test_function, only, filename, line_no));
     }
 };
 

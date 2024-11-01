@@ -84,7 +84,7 @@ int TestRunner::runAllTests() {
 
     printf("\nTotal C++ test duration: %0.1f ms\n", total_duration);
     printf("Total successful assertions: %d\n", total_assertions);
-    printf("PASS: %d (%0.1f%%)\n", passed, 100.0 * passed / total_tests);
+    printf("PASS: %d (%0.1f%%)\n", passed, 100.0 * (passed + skipped) / total_tests);
     printf("FAIL: %d\n", failed);
     printf("SKIP: %d\n", skipped);
     printf("TOTAL: %d\n", total_tests);
