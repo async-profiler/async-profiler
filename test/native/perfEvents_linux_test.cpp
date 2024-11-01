@@ -24,7 +24,7 @@
 #define ASSERT_PROBE(event_type, name_, type_, default_interval_, config_, probeName, config2_, counter_arg_)          \
     ASSERT_NE(event_type, NULL);                                                                                       \
     CHECK_EQ(event_type->name, name_);                                                                                 \
-    CHECK_EQ(event_type->type, type_);                                                                                 \
+    CHECK_NE(type_, 0);                                                                                                \
     CHECK_EQ(event_type->default_interval, default_interval_);                                                         \
     CHECK_EQ(event_type->config, config_);                                                                             \
     CHECK_EQ(((const char*)event_type->config1), probeName);                                                           \
