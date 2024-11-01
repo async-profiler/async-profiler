@@ -191,7 +191,7 @@ struct PerfEventType {
         return 0;
     }
 
-    // Breakpoint format: func[+offset][/len][:rwx][{arg}]
+    // Breakpoint format: func[+offset][/len][:r|w|x][{arg}]
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
         strncpy(buf, name, sizeof(buf) - 1);
@@ -205,7 +205,7 @@ struct PerfEventType {
             counter_arg = atoi(c);
         }
 
-        // Parse access type [:rwx]
+        // Parse access type [:r|w|x]
         c = strrchr(buf, ':');
         if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
@@ -240,6 +240,9 @@ struct PerfEventType {
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
             addr = (__u64)strtoll(buf, NULL, 0);
+        } else if (buf[0] >= '0' && buf[0] <= '9') {
+            // Only hex address is supported.
+            return NULL;
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
@@ -272,6 +275,10 @@ struct PerfEventType {
     static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
         strncpy(probe_func, name, sizeof(probe_func) - 1);
         probe_func[sizeof(probe_func) - 1] = 0;
+
+        if(probe_func[0] == 0) {
+          return NULL;
+        }
 
         if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
             return NULL;

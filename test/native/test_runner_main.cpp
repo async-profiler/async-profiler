@@ -7,6 +7,5 @@
 
 int main()
 {
-    TestRunner::instance()->runAllTests();
-    return 0;
+    return TestRunner::instance()->runAllTests();
 }

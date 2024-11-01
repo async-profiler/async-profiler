@@ -18,13 +18,16 @@ CC ?= $(CROSS_COMPILE)gcc
 CXX ?= $(CROSS_COMPILE)g++
 STRIP=$(CROSS_COMPILE)strip
 
-CFLAGS=-O3 -fno-exceptions
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
+CFLAGS_EXTRA ?=
+CXXFLAGS_EXTRA ?=
+CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
+GCOV_EXECUTABLE ?= gcov
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
@@ -196,6 +199,11 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
+coverage: CXXFLAGS_EXTRA=-fprofile-arcs -ftest-coverage -fPIC -O0 -fprofile-abs-path --coverage
+coverage: clean-test test-cpp
+	mkdir -p build/test/coverage
+	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV_EXECUTABLE)" -o coverage/index.html
+
 test: test-cpp test-java
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
@@ -208,6 +216,9 @@ native:
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
 	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
+
+clean-test:
+	$(RM) -r build/test
 
 clean:
 	$(RM) -r build
