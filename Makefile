@@ -202,6 +202,8 @@ coverage: clean-test test-cpp
 
 test: test-cpp test-java
 
+test-ci: test coverage
+
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)

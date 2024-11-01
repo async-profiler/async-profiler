@@ -124,7 +124,7 @@ struct TestCase
 #define CHECK_LT(val1, val2) CHECK_OP(val1, <, val2)
 #define CHECK_LTE(val1, val2) CHECK_OP(val1, <=, val2)
 
-#define __TEST_CASE(testName, precondition, only)                                                                              \
+#define __TEST_CASE(testName, precondition, only)                                                                      \
     void testName(TestCase& testCase);                                                                                 \
     void testName##Runner();                                                                                           \
     static TestRegistrar testName##Registrar(#testName, testName##Runner, only, __FILE__, __LINE__);                   \
@@ -132,7 +132,7 @@ struct TestCase
     {                                                                                                                  \
         TestCase& testCase = TestRunner::instance()->testCases().at(#testName);                                        \
         testCase.assertionCount = 0;                                                                                   \
-        if (!(precondition))                                                                                                      \
+        if (!(precondition))                                                                                           \
         {                                                                                                              \
             testCase.skipped = true;                                                                                   \
             return;                                                                                                    \

@@ -15,7 +15,7 @@ jobs:
           java-version: '11'
       - run: sudo sysctl kernel.perf_event_paranoid=1
       - run: make -j`nproc`
-      - run: make test
+      - run: make test-ci
       - uses: actions/upload-artifact@v3
         with:
           path: |
