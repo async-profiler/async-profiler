@@ -266,5 +266,5 @@ TEST_CASE(ForName_kernel_tracepoint, !(fileReadable("/sys/kernel/tracing/events/
                                        fileReadable("/sys/kernel/debug/tracing/events/oom/mark_victim/id")))
 {
     PerfEventType* event_type = PerfEventType::forName("oom:mark_victim");
-    ASSERT_PROBE(event_type, "trace:tracepoint", PERF_TYPE_TRACEPOINT, 1, 0x1E7, 0, 0, 0);
+    ASSERT_EVENT_TYPE(event_type, "trace:tracepoint", PERF_TYPE_TRACEPOINT, 1, 0x1E7, 0, 0, 0);
 }

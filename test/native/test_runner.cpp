@@ -40,7 +40,7 @@ int TestRunner::runAllTests()
     int skippedTests = 0;
     int totalAssertions = 0;
     int i = 1;
-    long totalDuration = 0;
+    double totalDuration = 0;
     const int totalTests = testCases().size();
 
     const bool redirected = !isatty(fileno(stdout));

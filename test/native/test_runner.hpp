@@ -80,13 +80,13 @@ struct TestCase
                     (std::string(#op) == "!=" && (str1 == str2 || (str1 && str2 && strcmp(str1, str2) == 0))))         \
                 {                                                                                                      \
                     printf("Assertion failed: (%s %s %s),\n\tactual values: %s = \"%s\", %s = \"%s\"\n\tat %s:%d\n",   \
-                           #val1, #op, #val2, #val1, (val1), #val2, (val2), __FILE__, __LINE__);                       \
+                           #val1, #op, #val2, #val1, str1, #val2, str2, __FILE__, __LINE__);                           \
                     __ASSERTED(isAssert)                                                                               \
                 }                                                                                                      \
             }                                                                                                          \
             else                                                                                                       \
             {                                                                                                          \
-                printf("Invalid assertion %s, strings can only be compared with == or !=.\n\tat %s:%s\n", #op,         \
+                printf("Invalid assertion %s, strings can only be compared with == or !=.\n\tat %s:%d\n", #op,         \
                        __FILE__, __LINE__);                                                                            \
                 testCase.hasFailedAssertions = true;                                                                   \
                 return;                                                                                                \

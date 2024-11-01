@@ -20,8 +20,8 @@ STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
-CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden $(CXXFLAGS_EXTRA)
+CFLAGS=-O3 -fno-exceptions -Wformat=2 $(CFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -Wformat=2 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
