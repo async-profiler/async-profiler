@@ -17,19 +17,19 @@ struct TestCase;
 
 class TestRunner {
 private:
-  std::map<std::string, TestCase> _testCases;
+  std::map<std::string, TestCase> _test_cases;
 
   TestRunner(const TestRunner&) = delete;
   TestRunner& operator=(const TestRunner&) = delete;
 
 public:
-  TestRunner() : _testCases() {
+  TestRunner() : _test_cases() {
   }
 
   static TestRunner* instance();
 
   inline std::map<std::string, TestCase>& testCases() {
-    return _testCases;
+    return _test_cases;
   }
 
   int runAllTests();
@@ -37,12 +37,12 @@ public:
 
 struct TestCase {
   std::string name;
-  std::function<void()> testFunction;
+  std::function<void()> test_function;
   bool only; // only run this test when true, ignore all others.
   std::string filename;
-  int lineno;
-  int assertionCount = 0;
-  bool hasFailedAssertions = false;
+  int line_no;
+  int assertion_count = 0;
+  bool has_failed_assertions = false;
   bool skipped = false;
 };
 
@@ -55,17 +55,17 @@ struct TestCase {
 
 #define CHECK_OP(val1, op, val2) __ASSERT_OR_CHECK_OP(false, val1, op, val2)
 
-#define __ASSERTED(isAssert)           \
-  testCase.hasFailedAssertions = true; \
-  if (isAssert) {                      \
-    return;                            \
+#define __ASSERTED(isAssert)              \
+  test_case.has_failed_assertions = true; \
+  if (isAssert) {                         \
+    return;                               \
   }
 
 #define __ASSERT_OR_CHECK_OP(isAssert, val1, op, val2)                                                        \
   {                                                                                                           \
-    const bool isString =                                                                                     \
+    const bool is_string =                                                                                    \
         std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val2), const char*>::value; \
-    if (isString) {                                                                                           \
+    if (is_string) {                                                                                          \
       if ((std::string(#op) == "==") || (std::string(#op) == "!=")) {                                         \
         const char* str1 = reinterpret_cast<const char*>(val1);                                               \
         const char* str2 = reinterpret_cast<const char*>(val2);                                               \
@@ -78,7 +78,7 @@ struct TestCase {
       } else {                                                                                                \
         printf("Invalid assertion %s, strings can only be compared with == or !=.\n\tat %s:%d\n", #op,        \
                __FILE__, __LINE__);                                                                           \
-        testCase.hasFailedAssertions = true;                                                                  \
+        test_case.has_failed_assertions = true;                                                               \
         return;                                                                                               \
       }                                                                                                       \
     } else if (!((val1)op(val2))) {                                                                           \
@@ -88,7 +88,7 @@ struct TestCase {
              __LINE__);                                                                                       \
       __ASSERTED(isAssert)                                                                                    \
     } else {                                                                                                  \
-      testCase.assertionCount++;                                                                              \
+      test_case.assertion_count++;                                                                            \
     }                                                                                                         \
   }
 
@@ -108,42 +108,42 @@ struct TestCase {
 #define CHECK_LT(val1, val2) CHECK_OP(val1, <, val2)
 #define CHECK_LTE(val1, val2) CHECK_OP(val1, <=, val2)
 
-#define __TEST_CASE(testName, precondition, only)                                                  \
-  void testName(TestCase& testCase);                                                               \
-  void testName##Runner();                                                                         \
-  static TestRegistrar testName##Registrar(#testName, testName##Runner, only, __FILE__, __LINE__); \
-  void testName##Runner() {                                                                        \
-    TestCase& testCase = TestRunner::instance()->testCases().at(#testName);                        \
-    testCase.assertionCount = 0;                                                                   \
-    if (!(precondition)) {                                                                         \
-      testCase.skipped = true;                                                                     \
-      return;                                                                                      \
-    }                                                                                              \
-    testName(testCase);                                                                            \
-    if (!testCase.hasFailedAssertions && testCase.assertionCount == 0) {                           \
-      printf("%s: No assertions were made.\n", #testName);                                         \
-    }                                                                                              \
-    return;                                                                                        \
-  }                                                                                                \
-  void testName(TestCase& testCase)
+#define __TEST_CASE(test_name, precondition, only)                                                      \
+  void test_name(TestCase& test_case);                                                                  \
+  void test_name##_runner();                                                                            \
+  static TestRegistrar test_name##_registrar(#test_name, test_name##_runner, only, __FILE__, __LINE__); \
+  void test_name##_runner() {                                                                           \
+    TestCase& test_case = TestRunner::instance()->testCases().at(#test_name);                           \
+    test_case.assertion_count = 0;                                                                      \
+    if (!(precondition)) {                                                                              \
+      test_case.skipped = true;                                                                         \
+      return;                                                                                           \
+    }                                                                                                   \
+    test_name(test_case);                                                                               \
+    if (!test_case.has_failed_assertions && test_case.assertion_count == 0) {                           \
+      printf("%s: No assertions were made.\n", #test_name);                                             \
+    }                                                                                                   \
+    return;                                                                                             \
+  }                                                                                                     \
+  void test_name(TestCase& test_case)
 
 #define __SELECT_IMPL(_1, _2, NAME, ...) NAME
 #define TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __TEST_CASE2, __TEST_CASE1)(__VA_ARGS__)
 #define ONLY_TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __ONLY_TEST_CASE2, __ONLY_TEST_CASE1)(__VA_ARGS__)
 
-#define __TEST_CASE1(testName) __TEST_CASE(testName, true, false)
-#define __TEST_CASE2(testName, precondition) __TEST_CASE(testName, precondition, false)
+#define __TEST_CASE1(test_name) __TEST_CASE(test_name, true, false)
+#define __TEST_CASE2(test_name, precondition) __TEST_CASE(test_name, precondition, false)
 
-#define __ONLY_TEST_CASE1(testName) __TEST_CASE(testName, true, true)
-#define __ONLY_TEST_CASE2(testName, precondition) __TEST_CASE(testName, precondition, true)
+#define __ONLY_TEST_CASE1(test_name) __TEST_CASE(test_name, true, true)
+#define __ONLY_TEST_CASE2(test_name, precondition) __TEST_CASE(test_name, precondition, true)
 
 struct TestRegistrar {
-  TestRegistrar(const std::string& name, std::function<void()> testFunction, bool only, const std::string& filename,
-                int lineno) {
-    TestRunner::instance()->testCases()[name] = {name, testFunction, only, filename, lineno};
+  TestRegistrar(const std::string& name, std::function<void()> test_function, bool only, const std::string& filename,
+                int line_no) {
+    TestRunner::instance()->testCases()[name] = {name, test_function, only, filename, line_no};
   }
 };
 
-bool fileReadable(const char* file_name);
+bool fileReadable(const char* filename);
 
 #endif // _TESTRUNNER_HPP
