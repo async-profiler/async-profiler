@@ -36,10 +36,16 @@
     CHECK_EQ(event_type->config2, config2_);                                                                           \
     CHECK_EQ(event_type->counter_arg, counter_arg_)
 
-TEST_CASE(ForName_Predefined)
+TEST_CASE(ForName_Predefined_cpu)
 {
     PerfEventType* event_type = PerfEventType::forName("cpu");
-    ASSERT_EVENT_TYPE(event_type, "cpu", PERF_TYPE_SOFTWARE, DEFAULT_INTERVAL, PERF_COUNT_SW_CPU_CLOCK, 0, 0, 0);
+    ASSERT_EVENT_TYPE(event_type, "cpu-clock", PERF_TYPE_SOFTWARE, DEFAULT_INTERVAL, PERF_COUNT_SW_CPU_CLOCK, 0, 0, 0);
+}
+
+TEST_CASE(ForName_Predefined_cpu_clock)
+{
+    PerfEventType* event_type = PerfEventType::forName("cpu-clock");
+    ASSERT_EVENT_TYPE(event_type, "cpu-clock", PERF_TYPE_SOFTWARE, DEFAULT_INTERVAL, PERF_COUNT_SW_CPU_CLOCK, 0, 0, 0);
 }
 
 TEST_CASE(ForName_Invalid_space)
