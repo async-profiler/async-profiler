@@ -66,10 +66,8 @@ Flame Graph options:
 
 ### Example usages with `jfrconv`
 
-Let's look at how we can use the binary `jfrconv` which exists in the same bin folder as `asprof` 
-binary.
-
-
+This section explains how the binary `jfrconv` can be used which exists in the same bin folder as
+`asprof`binary.
 
 The below command will generate a foo.html. If no output file is specified, it defaults to a 
 Flame Graph output. 
