@@ -26,6 +26,10 @@ class J9WallClock : public Engine {
     void timerLoop();
 
   public:
+    const char* type() {
+        return "j9_wall";
+    }
+
     const char* title() {
         return "Wall clock profile";
     }

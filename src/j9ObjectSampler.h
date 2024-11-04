@@ -11,6 +11,10 @@
 
 class J9ObjectSampler : public ObjectSampler {
   public:
+    const char* type() {
+        return "j9_object_sampler";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

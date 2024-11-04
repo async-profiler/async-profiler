@@ -41,12 +41,6 @@ enum SHORT_ENUM Counter {
     COUNTER_TOTAL
 };
 
-enum SHORT_ENUM Ring {
-    RING_ANY,
-    RING_KERNEL,
-    RING_USER
-};
-
 enum Style {
     STYLE_SIMPLE       = 0x1,
     STYLE_DOTTED       = 0x2,
@@ -159,7 +153,6 @@ class Arguments {
   public:
     Action _action;
     Counter _counter;
-    Ring _ring;
     const char* _event;
     int _timeout;
     long _interval;
@@ -183,6 +176,7 @@ class Arguments {
     bool _sched;
     bool _live;
     bool _nobatch;
+    bool _alluser;
     bool _fdtransfer;
     const char* _fdtransfer_path;
     int _style;
@@ -209,7 +203,6 @@ class Arguments {
         _shared(false),
         _action(ACTION_NONE),
         _counter(COUNTER_SAMPLES),
-        _ring(RING_ANY),
         _event(NULL),
         _timeout(0),
         _interval(0),
@@ -233,6 +226,7 @@ class Arguments {
         _sched(false),
         _live(false),
         _nobatch(false),
+        _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
         _style(0),

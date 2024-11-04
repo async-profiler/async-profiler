@@ -89,7 +89,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
-//     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     simple           - simple class names instead of FQN
@@ -339,11 +338,8 @@ Error Arguments::parse(const char* args) {
             CASE("nobatch")
                 _nobatch = true;
 
-            CASE("allkernel")
-                _ring = RING_KERNEL;
-
             CASE("alluser")
-                _ring = RING_USER;
+                _alluser = true;
 
             CASE("cstack")
                 if (value != NULL) {

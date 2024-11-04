@@ -47,6 +47,10 @@ class LockTracer : public Engine {
                                     const char* lock_name, jobject lock, jlong timeout);
 
   public:
+    const char* type() {
+        return "lock_tracer";
+    }
+
     const char* title() {
         return "Lock profile";
     }
