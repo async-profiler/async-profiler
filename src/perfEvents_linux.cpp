@@ -277,7 +277,7 @@ struct PerfEventType {
         strncpy(probe_func, name, sizeof(probe_func) - 1);
         probe_func[sizeof(probe_func) - 1] = 0;
 
-        if(probe_func[0] == 0) {
+        if (probe_func[0] == 0) {
           return NULL;
         }
 

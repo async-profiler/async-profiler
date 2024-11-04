@@ -18,8 +18,6 @@ struct TestCase;
 class TestRunner
 {
   private:
-    static TestRunner* _instance;
-
     std::map<std::string, TestCase> _testCases;
 
     TestRunner(const TestRunner&) = delete;
@@ -148,7 +146,7 @@ struct TestCase
 
 #define __SELECT_IMPL(_1, _2, NAME, ...) NAME
 #define TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __TEST_CASE2, __TEST_CASE1)(__VA_ARGS__)
-#define ONLY_TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __TEST_CASE2, __TEST_CASE1)(__VA_ARGS__)
+#define ONLY_TEST_CASE(...) __SELECT_IMPL(__VA_ARGS__, __ONLY_TEST_CASE2, __ONLY_TEST_CASE1)(__VA_ARGS__)
 
 #define __TEST_CASE1(testName) __TEST_CASE(testName, true, false)
 #define __TEST_CASE2(testName, precondition) __TEST_CASE(testName, precondition, false)

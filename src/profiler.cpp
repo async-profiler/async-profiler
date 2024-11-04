@@ -1549,7 +1549,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     // Print top call stacks
     if (args._dump_traces > 0) {
         std::sort(samples.begin(), samples.end(), [](const CallTraceSample& a, const CallTraceSample& b) {
-            return a > b;
+            return a.counter > b.counter;
         });
 
         int max_count = args._dump_traces;

@@ -21,6 +21,16 @@
     CHECK_EQ(event_type->config2, config2_);                                                                           \
     CHECK_EQ(event_type->counter_arg, counter_arg_)
 
+#define ASSERT_EVENT_TYPE_NONZERO_CONFIG(event_type, name_, type_, default_interval_)                                  \
+    ASSERT_NE(event_type, NULL);                                                                                       \
+    CHECK_EQ(event_type->name, name_);                                                                                 \
+    CHECK_EQ(event_type->type, type_);                                                                                 \
+    CHECK_EQ(event_type->default_interval, default_interval_);                                                         \
+    CHECK_NE(event_type->config, 0);                                                                                   \
+    CHECK_EQ(event_type->config1, 0);                                                                                  \
+    CHECK_EQ(event_type->config2, 0);                                                                                  \
+    CHECK_EQ(event_type->counter_arg, 0)
+
 #define ASSERT_BP(event_type, bp_type, address, bp_len, counter_arg)                                                   \
     ASSERT_EVENT_TYPE(event_type, "mem:breakpoint", PERF_TYPE_BREAKPOINT, 1, bp_type, address, bp_len, counter_arg)
 
@@ -142,6 +152,24 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Arg)
 {
     PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:x{3}");
     ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, 0x16, 3);
+}
+
+TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_RW)
+{
+    PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:rw");
+    ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
+}
+
+TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_RX)
+{
+    PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:rx");
+    ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
+}
+
+TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_WX)
+{
+    PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:wx");
+    ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Known)
@@ -270,14 +298,14 @@ TEST_CASE(ForName_symbol)
 TEST_CASE(ForName_pmu_descriptor, fileReadable("/sys/bus/event_source/devices/cpu/events/cache-misses"))
 {
     PerfEventType* event_type = PerfEventType::forName("cpu/cache-misses/");
-    ASSERT_RAW(event_type, "pmu/event-descriptor/", 0x412E);
+    ASSERT_EVENT_TYPE_NONZERO_CONFIG(event_type, "pmu/event-descriptor/", PERF_TYPE_RAW, 1000);
 }
 
 TEST_CASE(ForName_kernel_tracepoint, fileReadable("/sys/kernel/tracing/events/oom/mark_victim/id") ||
                                          fileReadable("/sys/kernel/debug/tracing/events/oom/mark_victim/id"))
 {
     PerfEventType* event_type = PerfEventType::forName("oom:mark_victim");
-    ASSERT_EVENT_TYPE(event_type, "trace:tracepoint", PERF_TYPE_TRACEPOINT, 1, 0x1E7, 0, 0, 0);
+    ASSERT_EVENT_TYPE_NONZERO_CONFIG(event_type, "trace:tracepoint", PERF_TYPE_TRACEPOINT, 1);
 }
 
 #endif // __linux__

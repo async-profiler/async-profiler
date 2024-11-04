@@ -5,20 +5,19 @@
 
 #include "test_runner.hpp"
 #include <chrono>
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <fcntl.h>
 
-TestRunner* TestRunner::_instance = NULL;
+int main()
+{
+    return TestRunner::instance()->runAllTests();
+}
 
 TestRunner* TestRunner::instance()
 {
-    if (!_instance)
-    {
-        _instance = new TestRunner();
-    }
-
-    return _instance;
+    static TestRunner instance;
+    return &instance;
 }
 
 bool fileReadable(const char* file_name)
@@ -68,7 +67,7 @@ int TestRunner::runAllTests()
         printf("Running %s @ %s:%d\n", testCase.name.c_str(), testCase.filename.c_str(), testCase.lineno);
 
         bool forceSkip = hasOnly && !testCase.only;
-        auto start = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
         if (!forceSkip)
         {
             testCase.testFunction();
