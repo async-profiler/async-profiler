@@ -48,8 +48,8 @@ API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
 TESTS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
-CPP_TEST_SOURCES := test/native/test_runner.cpp $(shell find test/native -name '*_test.cpp')
-CPP_TEST_HEADER := test/native/test_runner.hpp
+CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*_test.cpp')
+CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
 
 ifeq ($(JAVA_HOME),)
