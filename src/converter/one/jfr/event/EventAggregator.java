@@ -17,6 +17,10 @@ public class EventAggregator {
     private int size;
     private double fraction;
 
+    public EventAggregator(boolean threads, boolean total) {
+        this(threads, total, 1.0);
+    }
+
     public EventAggregator(boolean threads, boolean total, double factor) {
         this.threads = threads;
         this.total = total;
@@ -31,20 +35,24 @@ public class EventAggregator {
     }
 
     public void collect(Event e) {
+        collect(e, e.samples(), e.value());
+    }
+
+    public void collect(Event e, long samples, long value) {
         int mask = keys.length - 1;
         int i = hashCode(e) & mask;
         while (keys[i] != null) {
             if (sameGroup(keys[i], e)) {
-                samples[i] += e.samples();
-                values[i] += e.value();
+                this.samples[i] += samples;
+                this.values[i] += value;
                 return;
             }
             i = (i + 1) & mask;
         }
 
-        keys[i] = e;
-        samples[i] = e.samples();
-        values[i] = e.value();
+        this.keys[i] = e;
+        this.samples[i] = samples;
+        this.values[i] = value;
 
         if (++size * 2 > keys.length) {
             resize(keys.length * 2);

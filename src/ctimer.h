@@ -19,6 +19,10 @@ class CTimer : public CpuEngine {
     void destroyForThread(int tid);
 
   public:
+    const char* type() {
+        return "ctimer";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

@@ -26,6 +26,10 @@ class AllocTracer : public Engine {
                                  uintptr_t total_size, uintptr_t instance_size);
 
   public:
+    const char* type() {
+        return "alloc_tracer";
+    }
+
     const char* title() {
         return "Allocation profile";
     }

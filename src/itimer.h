@@ -11,6 +11,10 @@
 
 class ITimer : public CpuEngine {
   public:
+    const char* type() {
+        return "itimer";
+    }
+
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();

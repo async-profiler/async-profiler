@@ -20,8 +20,8 @@ class PerfEvents : public CpuEngine {
     static int _max_events;
     static PerfEvent* _events;
     static PerfEventType* _event_type;
-    static Ring _ring;
-    static bool _use_mmap_page;
+    static bool _alluser;
+    static bool _kernel_stack;
 
     static u64 readCounter(siginfo_t* siginfo, void* ucontext);
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
@@ -34,6 +34,10 @@ class PerfEvents : public CpuEngine {
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    const char* type() {
+        return "perf";
+    }
 
     const char* title();
     const char* units();

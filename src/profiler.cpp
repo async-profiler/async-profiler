@@ -995,9 +995,19 @@ Engine* Profiler::selectEngine(const char* event_name) {
     if (event_name == NULL) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        return PerfEvents::supported() ? (Engine*)&perf_events : (Engine*)&wall_clock;
+        if (PerfEvents::supported()) {
+            return &perf_events;
+        } else if (CTimer::supported()) {
+            return &ctimer;
+        } else {
+            return &wall_clock;
+        }
     } else if (strcmp(event_name, EVENT_WALL) == 0) {
-        return VM::isOpenJ9() ? (Engine*)&j9_wall_clock : (Engine*)&wall_clock;
+        if (VM::isOpenJ9()) {
+            return &j9_wall_clock;
+        } else {
+            return &wall_clock;
+        }
     } else if (strcmp(event_name, EVENT_CTIMER) == 0) {
         return &ctimer;
     } else if (strcmp(event_name, EVENT_ITIMER) == 0) {
@@ -1156,7 +1166,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
-    updateSymbols(_engine == &perf_events && args._ring != RING_USER);
+    updateSymbols(_engine == &perf_events && !args._alluser);
 
     error = installTraps(args._begin, args._end);
     if (error) {
@@ -1753,8 +1763,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
 
             if (PerfEvents::supported()) {
                 out << "Perf events:\n";
-                // The first perf event is "cpu" which is already printed
-                for (int event_id = 1; ; event_id++) {
+                for (int event_id = 0; ; event_id++) {
                     const char* event_name = PerfEvents::getEventName(event_id);
                     if (event_name == NULL) break;
                     out << "  " << event_name << "\n";

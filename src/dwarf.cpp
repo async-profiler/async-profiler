@@ -138,10 +138,10 @@ void DwarfParser::parseInstructions(u32 loc, const char* end) {
     int fp_off = DW_SAME_FP;
     int pc_off = -EMPTY_FRAME_SIZE;
 
-    u32 rem_cfa_reg;
-    int rem_cfa_off;
-    int rem_fp_off;
-    int rem_pc_off;
+    u32 rem_cfa_reg = DW_REG_SP;
+    int rem_cfa_off = EMPTY_FRAME_SIZE;
+    int rem_fp_off = DW_SAME_FP;
+    int rem_pc_off = -EMPTY_FRAME_SIZE;
 
     while (_ptr < end) {
         u8 op = get8();
