@@ -103,7 +103,8 @@ of all compiled methods. The subsequent instrumentation flushes only the _depend
 
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
 
-Here are some useful native methods that you may want to profile:
+### Java Native Method Profiling
+Here are some useful native methods to profile:
 * ```G1CollectedHeap::humongous_obj_allocate``` - trace _humongous allocations_ of the G1 GC,
 * ```JVM_StartThread``` - trace creation of new Java threads,
 * ```Java_java_lang_ClassLoader_defineClass1``` - trace class loading.

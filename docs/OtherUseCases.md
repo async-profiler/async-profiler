@@ -18,15 +18,9 @@ Another important use of attaching async-profiler as an agent is for continuous 
 
 ## Using Java API
 async-profiler Java API is published to maven central. Like any other dependency, we have to
-just include the below dependency.
-```
-<!-- https://mvnrepository.com/artifact/tools.profiler/async-profiler -->
-<dependency>
-    <groupId>tools.profiler</groupId>
-    <artifactId>async-profiler</artifactId>
-    <version>3.0</version>
-</dependency>
-```
+just include the 
+[dependency](https://mvnrepository.com/artifact/tools.profiler/async-profiler/latest) 
+from maven.
 
 ### Example usage with the API
 

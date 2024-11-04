@@ -1,7 +1,13 @@
 # Profiling Non-Java Applications
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
-programmatically from the process being profiled. Similar to the
+programmatically from the process being profiled and with LD_PRELOAD. It is worth noting that 
+[dynamic attach](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent) 
+which is available for Java is not supported for non-Java profiling.
+
+
+## C API
+Similar to the
 [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#using-java-api),
 there is a C API for using inside native applications.
 ```
@@ -21,10 +27,38 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
 ```
+To use it in a C/C++ application, include asprof.h. Below is an example usage showing how to use async-profiler command with the API. The :
+```
+int main() {
+    void* lib = dlopen(path/to/libasyncProfiler.so", RTLD_NOW);
+    if (lib == NULL) {
+        fail("Failed to load libasyncProfiler.so");
+    }
 
-To use it in a C/C++ application, include asprof.h. An example usage can be found in a 
-[test process](https://github.com/async-profiler/async-profiler/blob/master/test/test/c/nativeApi.c)
-in our source code package.
+    asprof_init_t asprof_init = dlsym(lib, "asprof_init");
+    asprof_init();
+
+    char cmd[2048];
+    snprintf(cmd, sizeof(cmd), "start,event=cpu,loglevel=debug,file=profile.jfr");
+
+    printf("Starting profiler\n");
+    asprof_execute_t asprof_execute = dlsym(lib, "asprof_execute");
+    asprof_error_t err = asprof_execute(cmd, NULL);
+    if (err != NULL) {
+        fail(err);
+    }
+
+    // some meaningful work
+
+    printf("Stopping profiler\n");
+    err = asprof_execute("stop", NULL);
+    if (err != NULL) {
+        fail(err);
+    }
+
+    return 0;
+}
+```
 
 In addition, async-profiler can be injected into a native application through LD_PRELOAD mechanism:
 ```

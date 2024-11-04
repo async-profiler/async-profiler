@@ -10,8 +10,23 @@ The output format specified can be only one at a time for conversion from one fo
 
 ```
 Conversion options: 
-  -o --output FORMAT   Output format: <filename> followed by any of the extensions: html, collapsed, pprof, pb.gz
+  -o --output FORMAT, -o can be omitted if the output file extension unambiguously determines the format, e.g. profile.collapsed
   
+  FORMAT can be any of the following:
+  # collapsed: This is a collection of call stacks, where each line is a  semicolon separated 
+               list of frames followed by a counter. This is used by the FlameGraph script to 
+               generate the FlameGraph visualization of the profile data.
+      
+  # flamegraph: Flamegrpah is a hierarchical representation of call traces of the profiled 
+                software in a color coded format that helps to identify a particular resource
+                usage like CPU and memory for the application.
+      
+  # pprof: pprof is a profiling visualization and analysis tool from Google. More details on 
+           pprof  on the official github page https://github.com/google/pprof.
+      
+  # pb.gz: This is a compressed version of pprof output.
+       
+       
 JFR options:
     --cpu              Generate only CPU profile during conversion
     --wall             Generate only Wall clock profile during conversion
@@ -19,25 +34,33 @@ JFR options:
     --live             Build allocation profile from live objects only during conversion
     --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
- -s --state LIST       Filter thread states: runnable, sleeping
+ -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive 
+                       and can be abbreviated, e.g. -s r
     --classify         Classify samples into predefined categories
     --total            Accumulate total value (time, bytes, etc.) instead of samples
     --lines            Show line numbers
     --bci              Show bytecode indices
     --simple           Simple class names instead of fully qualified names
-    --norm             Normalize names of hidden classes/lambdas
-    --dot              Dotted class names instead of / notation
+    --norm             Normalize names of hidden classes/lambdas, e.g. Original JFR transforms  
+                       lambda names to something like pkg.ClassName$$Lambda+0x00007f8177090218/543846639  
+                       which gets normalized to pkg.ClassName$$Lambda
+    --dot              Dotted class names, e.g. java.lang.String instead of java/lang/String
     --from TIME        Start time in ms (absolute or relative)
     --to TIME          End time in ms (absolute or relative)
-    
+                       TIME can be:
+                       # an absolute timestamp specified in millis since epoch;
+                       # an absolute time in hh:mm:ss or yyyy-MM-dd'T'hh:mm:ss format;
+                       # a relative time from the beginning of recording;
+                       # a relative time from the end of recording (a negative number).
+
 Flame Graph options:
     --title STRING     Convert to Flame Graph with provided title
     --minwidth X       Skip frames smaller than X%
     --grain X          Coarsen Flame Graph to the given grain size
     --skip N           Skip N bottom frames
  -r --reverse          Reverse stack traces (icicle graph)
- -I --include REGEX    Include only stacks with the specified frames
- -X --exclude REGEX    Exclude stacks with the specified frames
+ -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'Primes.*' -I 'java/*'
+ -X --exclude REGEX    Exclude stacks with the specified frames, e.g.  -X '*Unsafe.park*'
     --highlight REGEX  Highlight frames matching the given pattern
 ```
 
@@ -91,8 +114,8 @@ The usage with `jfr-convereter.jar` provided in
 [Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)
 section is very similar to `jfrconv`.
 
-Let's look at an example usage.
+Below is an example usage:
 
-`java -cp /path/to/jfr-converter.jar --cpu foo.jfr --reverse --title Title`
+`java -cp /path/to/jfr-converter.jar --cpu foo.jfr --reverse --title Application CPU profile`
 
 As we can see, the only difference lies in how the binary is used.

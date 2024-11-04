@@ -1,4 +1,5 @@
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AsyncProfiler.png)
+
 ## About
 
 This project is a low overhead sampling profiler for Java
