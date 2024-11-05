@@ -54,6 +54,7 @@ class Profiler {
     State _state;
     Trap _begin_trap;
     Trap _end_trap;
+    bool _start_alongside_traps;
     Mutex _thread_names_lock;
     // TODO: single map?
     std::map<int, std::string> _thread_names;
@@ -99,7 +100,7 @@ class Profiler {
     static void* dlopen_hook(const char* filename, int flags);
     void switchLibraryTrap(bool enable);
 
-    Error installTraps(const char* begin, const char* end);
+    Error installTraps(const char* begin, const char* end, bool start_alongside_traps);
     void uninstallTraps();
 
     void addJavaMethod(const void* address, int length, jmethodID method);

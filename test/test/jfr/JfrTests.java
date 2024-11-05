@@ -13,8 +13,9 @@ import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 public class JfrTests {
 
@@ -73,5 +74,81 @@ public class JfrTests {
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
         Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50);
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
+    }
+
+    /**
+     * Test to validate time to safepoint profiling
+     *
+     * @param p The test process to profile with.
+     * @throws Exception Any exception thrown during profiling JFR output parsing.
+     */
+    @Test(mainClass = Ttsp.class)
+    public void onlyttsp(TestProcess p) throws Exception {
+        p.profile("-d 5 --ttsp -f %f.jfr");
+        if (containsSamplesOutsideWindow(p)) {
+            throw new RuntimeException("Expected no samples outside of ttsp window, but found some");
+        }
+    }
+
+    /**
+     * Test to validate time to safepoint profiling (recording the window only)
+     *
+     * @param p The test process to profile with.
+     * @throws Exception Any exception thrown during profiling JFR output parsing.
+     */
+    @Test(mainClass = Ttsp.class)
+    public void includettsp(TestProcess p) throws Exception {
+        p.profile("-d 5 --includettsp -f %f.jfr");
+        if (!containsSamplesOutsideWindow(p)) {
+            throw new RuntimeException("Expected to find samples outside of ttsp window, but did not find any");
+        }
+    }
+
+    /**
+     * Test using timebetween to validate time to safepoint profiling
+     *
+     * @param p The test process to profile with.
+     * @throws Exception Any exception thrown during profiling JFR output parsing.
+     */
+    @Test(mainClass = Ttsp.class)
+    public void timebetween(TestProcess p) throws Exception {
+        p.profile("-d 5 --timebetween SafepointSynchronize::begin RuntimeService::record_safepoint_synchronized -f %f.jfr");
+        if (!containsSamplesOutsideWindow(p)) {
+            throw new RuntimeException("Expected to find samples outside of ttsp window, but did not find any");
+        }
+    }
+
+    private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
+        List<RecordedEvent> events = new ArrayList<>();
+        try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
+            while (recordingFile.hasMoreEvents()) {
+                events.add(recordingFile.readEvent());
+            }
+        }
+        List<RecordedEvent> profilerWindows = new ArrayList<>();
+        List<RecordedEvent> samples = new ArrayList<>();
+        for (RecordedEvent event : events) {
+            if (event.getEventType().getName().equals("profiler.Window")) {
+                profilerWindows.add(event);
+            } else if (event.getEventType().getName().equals("jdk.ExecutionSample")) {
+                samples.add(event);
+            }
+        }
+        profilerWindows.sort(Comparator.comparing(RecordedEvent::getStartTime));
+        RecordedEvent[] profilerWindowsSorted = profilerWindows.toArray(new RecordedEvent[0]);
+        for (RecordedEvent event : samples) {
+            int foundIndex = Arrays.binarySearch(profilerWindowsSorted, event, Comparator.comparing(RecordedEvent::getStartTime));
+            if (foundIndex >= 0) {
+                continue;
+            }
+            int insertionPoint = -(foundIndex + 1);
+            Instant previousEnd = insertionPoint == 0 ? Instant.MIN : profilerWindowsSorted[insertionPoint - 1].getEndTime().plus(10, ChronoUnit.MILLIS);
+            Instant nextStart = insertionPoint == profilerWindowsSorted.length ? Instant.MAX : profilerWindowsSorted[insertionPoint].getStartTime().minus(10, ChronoUnit.MILLIS);
+            if (!previousEnd.isAfter(event.getStartTime()) && !nextStart.isBefore(event.getStartTime())) {
+                // check that the current sample takes place during a profiling window, allowing for a 10ms buffer on each end.
+                return true;
+            }
+        }
+        return false;
     }
 }
