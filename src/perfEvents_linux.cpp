@@ -192,7 +192,7 @@ struct PerfEventType {
         return 0;
     }
 
-    // Breakpoint format: func[+offset][/len][:r|w|x][{arg}]
+    // Breakpoint format: func[+offset][/len][:rwx][{arg}]
     static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
         char buf[256];
         strncpy(buf, name, sizeof(buf) - 1);
@@ -206,11 +206,13 @@ struct PerfEventType {
             counter_arg = atoi(c);
         }
 
-        // Parse access type [:r|w|x]
+        // Parse access type [:rwx]
         c = strrchr(buf, ':');
         if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
-            if (strcmp(c, "r") == 0) {
+            if (strcmp(c, "rw") == 0 || strcmp(c, "wr") == 0) {
+                bp_type = HW_BREAKPOINT_RW;
+            } else if (strcmp(c, "r") == 0) {
                 bp_type = HW_BREAKPOINT_R;
             } else if (strcmp(c, "w") == 0) {
                 bp_type = HW_BREAKPOINT_W;
@@ -218,7 +220,7 @@ struct PerfEventType {
                 bp_type = HW_BREAKPOINT_X;
                 bp_len = sizeof(long);
             } else {
-                bp_type = HW_BREAKPOINT_RW;
+                return NULL;
             }
         }
 

@@ -122,18 +122,24 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_W) {
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X) {
-  PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:x");
-  ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, 0x16, 0);
+  char name[50];
+  snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%lx:x", sizeof(long));
+
+  PerfEventType* event_type = PerfEventType::forName(name);
+  ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, sizeof(long), 0);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_InvalidDefaultRW) {
   PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:i");
-  ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
+  ASSERT_EQ(event_type, NULL);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Arg) {
-  PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:x{3}");
-  ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, 0x16, 3);
+  char name[50];
+  snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%lx:x{3}", sizeof(long));
+
+  PerfEventType* event_type = PerfEventType::forName(name);
+  ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, sizeof(long), 3);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_RW) {
@@ -143,20 +149,23 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_RW) {
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_RX) {
   PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:rx");
-  ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
+  ASSERT_EQ(event_type, NULL);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_WX) {
   PerfEventType* event_type = PerfEventType::forName("mem:0x123+0x22000/0x16:wx");
-  ASSERT_BP(event_type, HW_BREAKPOINT_RW, 0x22123, 0x16, 0);
+  ASSERT_EQ(event_type, NULL);
 }
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Known) {
+  char name[50];
   const __u64 mmap_addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, "mmap");
-  PerfEventType* event_type = PerfEventType::forName("mem:mmap+0x22000/0x16:x");
+  snprintf(name, sizeof(name), "mem:mmap+0x22000/0x%lx:x", sizeof(long));
+
+  PerfEventType* event_type = PerfEventType::forName(name);
 
   ASSERT_NE(mmap_addr, 0);
-  ASSERT_BP(event_type, HW_BREAKPOINT_X, mmap_addr + 0x22000, 0x16, 2);
+  ASSERT_BP(event_type, HW_BREAKPOINT_X, mmap_addr + 0x22000, sizeof(long), 2);
 }
 
 TEST_CASE(ForName_Breakpoint_Symbol) {
@@ -252,7 +261,7 @@ TEST_CASE(ForName_symbol) {
   const __u64 strcmp_addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, "strcmp");
 
   ASSERT_NE(strcmp_addr, 0);
-  ASSERT_BP(event_type, HW_BREAKPOINT_X, strcmp_addr, 8, 0);
+  ASSERT_BP(event_type, HW_BREAKPOINT_X, strcmp_addr, sizeof(long), 0);
 }
 
 TEST_CASE(ForName_pmu_descriptor, fileReadable("/sys/bus/event_source/devices/cpu/events/cache-misses")) {
