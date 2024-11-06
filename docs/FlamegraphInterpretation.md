@@ -7,6 +7,15 @@ profiling results are a set of stack traces.
 Let's take the below example:
 ```
 main() {
+     // some business logic
+    func3() {
+        // some business logic
+        func7();
+    }
+
+    // some business logic
+    func4();
+
     // some business logic
     func1() {
         // some business logic
@@ -20,35 +29,31 @@ main() {
             // some business logic
             func8(); // cpu intensive work here
     }
-    
-    // some business logic
-    func3() {
-        // some business logic
-        func7();
-    }
-    
-    // some business logic
-    func4();
 }
 ```
 
 ## Profiler Sampling
-Now let's understand profiler samplings for the above program. The
-diagram below shows samplings before anyone sees the aggregated view.
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSampling.png)
+Profiling starts by taking samples x times per second. Whenever a sample is taken, the current call stack for it is saved. The diagram below shows the unsorted sampling view before the sorting and aggregation takes place. 
 
-Below are the sample numbers:
-* `func1()->func5()`: 2 samples
-* `func2()->func6()`: 1 sample
-* `func2()->func8()`: 4 samples
+![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSamplings.png)
+
+Below are the sampling numbers:
 * `func3()->func7()`: 3 samples
 * `func4()`: 1 sample
+* `func1()->func5()`: 2 samples
+* `func2()->func8()`: 4 samples
+* `func2()->func6()`: 1 sample
+
+## Sorting Samples
+Samples are then alphabetically sorted at the base level just after root(or main method) of the application.
+
+![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/SortedSamplings.png)
 
 ## Aggregated View
 For the aggregated view, the blocks for the same functions at each
 level of stack depth are stitched together to get the aggregated 
 view of the flame graph.
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/SamplingAggregation.png)
+![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AggregatedView.png)
 
 In this example, except func4() no other function actually consumes
 any resource at the base level of stack depth. func5(), func6(),

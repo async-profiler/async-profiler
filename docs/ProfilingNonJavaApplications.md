@@ -30,22 +30,39 @@ typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t 
 To use it in a C/C++ application, include asprof.h. Below is an example usage showing how to use async-profiler command with the API. The :
 ```
 int main() {
+    dlerror();
     void* lib = dlopen(path/to/libasyncProfiler.so", RTLD_NOW);
     if (lib == NULL) {
-        fail("Failed to load libasyncProfiler.so");
+        printf("%s\n", dlerror());
+        dlclose(lib);
+        exit(1);
     }
 
     asprof_init_t asprof_init = dlsym(lib, "asprof_init");
+    if(asprof_init == NULL) {
+        printf("%s\n", dlerror());
+        dlclose(lib);
+        exit(1);
+    }
+    
     asprof_init();
 
     char cmd[2048];
     snprintf(cmd, sizeof(cmd), "start,event=cpu,loglevel=debug,file=profile.jfr");
 
     printf("Starting profiler\n");
+    
     asprof_execute_t asprof_execute = dlsym(lib, "asprof_execute");
+    if(asprof_execute == NULL) {
+        printf("%s\n", dlerror());
+        dlclose(lib);
+        exit(1);
+    }
+
     asprof_error_t err = asprof_execute(cmd, NULL);
     if (err != NULL) {
-        fail(err);
+        fprintf(stderr, "%s\n", err);
+        exit(1);
     }
 
     // some meaningful work
@@ -53,7 +70,8 @@ int main() {
     printf("Stopping profiler\n");
     err = asprof_execute("stop", NULL);
     if (err != NULL) {
-        fail(err);
+        fprintf(stderr, "%s\n", err);
+        exit(1);
     }
 
     return 0;
