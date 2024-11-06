@@ -3,10 +3,10 @@ name: Test and Publish Nightly Builds
 on:
   push:
     branches:
-      - nightly_enhancements # change to master
+      - master
   pull_request:
     branches:
-      - nightly_enhancements # change to master
+      - master
 
 env:
   JAVA_DISTRIBUTION: 'corretto'
@@ -35,10 +35,8 @@ jobs:
       matrix:
         include:
           - runson: macos-14 # mac arm
-          - runson: codebuild-test-x86-${{ github.run_id }}-${{ github.run_attempt }}
-          - runson: codebuild-test-${{ github.run_id }}-${{ github.run_attempt }}
-#          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
-#          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
     runs-on: ${{ matrix.runson }}
     steps:
       - name: Setup Java for macOS x64
@@ -76,7 +74,7 @@ jobs:
           path: build/test/logs/
       - name: Test macOS x64
         if: ${{ matrix.runson == 'macos-14' }}
-        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
         with:
@@ -105,7 +103,7 @@ jobs:
           script: |
             const fs = require('fs').promises;
             const commonOptions = {
-              owner: "openorclose", // change to async-profiler
+              owner: "async-profiler",
               repo: "async-profiler",
             };
             let previousRelease = undefined;
