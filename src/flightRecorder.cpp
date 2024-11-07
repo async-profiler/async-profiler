@@ -56,7 +56,6 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
 
-static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
@@ -804,7 +803,7 @@ class Recording {
 
     void writeSettings(Buffer* buf, Arguments& args) {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", SETTING_CLOCK[args._clock]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
@@ -824,6 +823,7 @@ class Recording {
         writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
         if (args._event != NULL) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
+            writeBoolSetting(buf, T_EXECUTION_SAMPLE, "alluser", args._alluser);
         }
         if (args._wall >= 0) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);

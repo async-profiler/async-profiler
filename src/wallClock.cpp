@@ -120,11 +120,19 @@ ThreadState WallClock::getThreadState(void* ucontext) {
 }
 
 void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
-    ExecutionEvent event(TSC::ticks());
-    event._thread_state = _mode == CPU_ONLY ? THREAD_UNKNOWN : getThreadState(ucontext);
-    u64 trace = Profiler::instance()->recordSample(ucontext, _interval, EXECUTION_SAMPLE, &event);
-    if (event._thread_state == THREAD_SLEEPING) {
-        _thread_cpu_time_buf.add(trace);
+    if (_mode == WALL_BATCH) {
+        WallClockEvent event;
+        event._start_time = TSC::ticks();
+        event._thread_state = getThreadState(ucontext);
+        event._samples = 1;
+        u64 trace = Profiler::instance()->recordSample(ucontext, _interval, WALL_CLOCK_SAMPLE, &event);
+        if (event._thread_state == THREAD_SLEEPING) {
+            _thread_cpu_time_buf.add(trace);
+        }
+    } else {
+        ExecutionEvent event(TSC::ticks());
+        event._thread_state = _mode == CPU_ONLY ? THREAD_UNKNOWN : getThreadState(ucontext);
+        Profiler::instance()->recordSample(ucontext, _interval, EXECUTION_SAMPLE, &event);
     }
 }
 

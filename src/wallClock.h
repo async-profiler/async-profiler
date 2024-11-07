@@ -42,6 +42,10 @@ class WallClock : public Engine {
     static void recordWallClock(u64 start_time, ThreadState state, u32 samples, int tid, u32 call_trace_id);
 
   public:
+    const char* type() {
+        return "wall";
+    }
+
     const char* title() {
         return _mode == CPU_ONLY ? "CPU profile" : "Wall clock profile";
     }

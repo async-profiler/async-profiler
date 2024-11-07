@@ -34,6 +34,10 @@ class Engine {
     }
 
   public:
+    virtual const char* type() {
+        return "noop";
+    }
+
     virtual const char* title() {
         return "Flame Graph";
     }

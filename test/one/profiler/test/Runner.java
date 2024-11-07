@@ -199,7 +199,7 @@ public class Runner {
         }
 
         int pass = statusCounts.getOrDefault(TestStatus.PASS, 0);
-        String totalDuration = String.format("%.1f ms", totalTestDuration / 1e6);
+        String totalDuration = String.format("%.3f s", totalTestDuration / 1e9);
 
         System.out.println("\nTotal test duration: " + totalDuration);
         System.out.println("Results Summary:");
@@ -237,8 +237,10 @@ public class Runner {
                 failedTests.add(rt.testInfo());
             }
 
-            System.out.printf("%s [%d/%d] %s took %.1f ms%s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e6,
-                    result.throwable() != null ? ": " + result.throwable() : "");
+            System.out.printf("%s [%d/%d] %s took %.3f s\n", result.status(), i, testCount, rt.testInfo(), durationNs / 1e9);
+            if (result.throwable() != null) {
+                result.throwable().printStackTrace(System.out);
+            }
             i++;
         }
 
