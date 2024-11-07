@@ -50,6 +50,15 @@ analyze the profile output in the Flame Graph format.
 For the detailed walkthrough, please refer to the
 [Getting Started Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
 
+## Output formats
+
+async-profiler currently supports the below output formats:
+* `collapsed` - This is a collection of call stacks, where each line is a  semicolon separated list of frames followed by a counter. This is used by the FlameGraph script to generate the FlameGraph visualization of the profile data.
+* `flamegraph` - Flamegraph is a hierarchical representation of call traces of the profiled software in a color coded format that helps to identify a particular resource usage like CPU and memory for the application.
+* `tree` - Profile output generated in an html format showing a tree view of resource usage beginning with the call stack with highest resource usage and then showing other  call stacks in descending order of resource usage. Expanding a parent frame follows the same hierarchical representation within that frame.
+* `jfr` - Java Flight Recording(JFR) is a widely known tool for profiling Java applications. async-profiler can generate output in jfr format compatible with tools capable of viewing and analyzing `jfr` files. The `jfr` format collects data about the JVM as well as the Java application running on it. 
+* `text` -  If no output format is specified with `-o` and filename has no extension provided, profiled output is generated in text format.
+
 ## Profiling Modes
 The [Getting Started](#getting-started) section focused mostly on CPU usage profiling. However,
 async-profiler provides various other profiling modes like `Allocation`, `Wall Clock`, `Java Method`

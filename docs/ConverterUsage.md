@@ -17,7 +17,7 @@ Conversion options:
                list of frames followed by a counter. This is used by the FlameGraph script to 
                generate the FlameGraph visualization of the profile data.
       
-  # flamegraph: Flamegrpah is a hierarchical representation of call traces of the profiled 
+  # flamegraph: Flamegraph is a hierarchical representation of call traces of the profiled 
                 software in a color coded format that helps to identify a particular resource
                 usage like CPU and memory for the application.
       

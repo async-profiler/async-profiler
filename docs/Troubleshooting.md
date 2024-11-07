@@ -114,3 +114,46 @@ Could not open output file
 ```
 Output file is written by the target JVM process, not by the profiler script.
 Make sure the path specified in `-f` option is correct and is accessible by the JVM.
+
+## No Java stacks collected
+No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
+or negative. The exception is `--cstack vm` mode, which does not take
+`MaxJavaStackTraceDepth` into account.
+
+## clone() syscall infinitely restarts because of SIGPROF signals
+Too short profiling interval may cause continuous interruption of heavy
+system calls like `clone()`, so that it will never complete;
+see [#97](https://github.com/async-profiler/async-profiler/issues/97).
+The workaround is simply to increase the interval.
+
+## perf_event mmap failed: Operation not permitted
+Profiler allocates 8kB perf_event buffer for each thread of the target process.
+Make sure `/proc/sys/kernel/perf_event_mlock_kb` value is large enough
+(more than `8 * threads`) when running under unprivileged user.
+Otherwise the message _"perf_event mmap failed: Operation not permitted"_
+will be printed, and no native stack traces will be collected.
+
+## Inlined methods not appearing in the profile
+When agent is not loaded at JVM startup (by using -agentpath option) it is
+highly recommended to use `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` JVM flags.
+Without those flags the profiler will still work correctly but results might be
+less accurate. For example, without `-XX:+DebugNonSafepoints` there is a high chance
+that simple inlined methods will not appear in the profile. When the agent is attached at runtime,
+`CompiledMethodLoad` JVMTI event enables debug info, but only for methods compiled after attaching.
+
+## Call stacks limited to a maximum depth of 127 frames
+On most Linux systems, `perf_events` captures call stacks with a maximum depth
+of 127 frames. On recent Linux kernels, this can be configured using
+`sysctl kernel.perf_event_max_stack` or by writing to the
+`/proc/sys/kernel/perf_event_max_stack` file.
+
+## Non-Java frames preceding the Java frames not visible
+You will not see the non-Java frames _preceding_ the Java frames on the
+stack, unless `--cstack vm` is specified.
+For example, if `start_thread` called `JavaMain` and then your Java
+code started running, you will not see the first two frames in the resulting
+stack. On the other hand, you _will_ see non-Java frames (user and kernel)
+invoked by your Java code.
+
+## Kernel stack traces not visible on MacOs
+macOS profiling is limited to user space code only.
