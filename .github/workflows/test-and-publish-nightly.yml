@@ -1,8 +1,12 @@
 name: Test and Publish Nightly Builds
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 env:
   JAVA_DISTRIBUTION: 'corretto'
