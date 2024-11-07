@@ -794,6 +794,8 @@ Error PerfEvents::start(Arguments& args) {
                   "  sysctl kernel.perf_event_paranoid=1\n"
                   "  sysctl kernel.kptr_restrict=0");
         _kernel_stack = false;
+        // Automatically switch on alluser for non-CPU events, if kernel profiling is unavailable
+        _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
 
     adjustFDLimit();
@@ -941,6 +943,8 @@ void PerfEvents::resetBuffer(int tid) {
     event->unlock();
 }
 
+// This function determines engine selection for CPU profiling.
+// Returns true if perf_events AND kernel measurements are available.
 bool PerfEvents::supported() {
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
