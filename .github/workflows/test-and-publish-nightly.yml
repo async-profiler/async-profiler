@@ -36,9 +36,9 @@ jobs:
         include:
           - runson: macos-14
             display: macos-14-arm64
-          - runson: codebuild-async-profiler-nightly-builds-x86-test-krk-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
             display: linux-x64
-          - runson: codebuild-async-profiler-nightly-builds-krk-${{ github.run_id }}-${{ github.run_attempt }}
+          - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
             display: linux-arm64
     runs-on: ${{ matrix.runson }}
     name: "test (${{ matrix.display }})"
