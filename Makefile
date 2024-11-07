@@ -2,6 +2,8 @@ PROFILER_VERSION ?= 3.0
 
 ifeq ($(COMMIT_TAG),true)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
+else ifneq ($(COMMIT_TAG),)
+  PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)

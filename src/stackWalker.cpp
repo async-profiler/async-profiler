@@ -62,7 +62,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0);
+        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
     } else {
         pc = (const void*)frame.pc();
         fp = frame.fp();
@@ -112,7 +112,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0);
+        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
     } else {
         pc = (const void*)frame.pc();
         fp = frame.fp();
@@ -203,7 +203,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
     if (ucontext == NULL) {
         pc = __builtin_return_address(0);
         fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0);
+        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
     } else {
         pc = (const void*)frame.pc();
         fp = frame.fp();
