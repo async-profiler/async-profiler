@@ -6,9 +6,9 @@
 #ifdef __linux__
 
 #include "callTraceStorage.h"
-#include "perfEvents.h"
+#include "perfEvents_linux.h"
 #include "testRunner.hpp"
-#include <linux/perf_event.h>
+#include <dlfcn.h>
 #include <stdio.h>
 
 #define ASSERT_EVENT_TYPE(event_type, name_, type_, default_interval_, config_, config1_, config2_, counter_arg_) \

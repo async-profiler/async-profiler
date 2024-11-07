@@ -22,8 +22,8 @@ STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
-CFLAGS=-O3 -fno-exceptions -v $(CFLAGS_EXTRA)
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 -v $(CXXFLAGS_EXTRA)
+CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
@@ -181,10 +181,12 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
 
-	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done
-
+ifeq ($(MERGE),true)
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
+else
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
+endif
 
 build-test-java: all build/$(TEST_JAR)
 
