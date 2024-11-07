@@ -7,6 +7,7 @@
 
 #include "callTraceStorage.h"
 #include "perfEvents_linux.h"
+#include "profiler.h"
 #include "testRunner.hpp"
 #include <dlfcn.h>
 #include <stdio.h>
@@ -261,6 +262,18 @@ TEST_CASE(ForName_symbol) {
 
     ASSERT_NE(strcmp_addr, 0);
     ASSERT_BP(event_type, HW_BREAKPOINT_X, strcmp_addr, sizeof(long), 0);
+}
+
+TEST_CASE(ForName_symbol_private) {
+    Profiler::instance()->updateSymbols(false);
+    PerfEventType* event_type = PerfEventType::forName("asprof_execute");
+
+    const __u64 addr = (__u64)(uintptr_t)asprof_execute;
+    ASSERT_BP(event_type, HW_BREAKPOINT_X, addr, sizeof(long), 0);
+
+    const __u64 dyn_addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, "asprof_execute");
+    // This symbol is not a dynamic symbol.
+    ASSERT_EQ(dyn_addr, 0);
 }
 
 TEST_CASE(ForName_pmu_descriptor, fileReadable("/sys/bus/event_source/devices/cpu/events/cache-misses")) {
