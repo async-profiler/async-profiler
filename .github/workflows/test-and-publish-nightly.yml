@@ -113,6 +113,7 @@ jobs:
           path: build/test/logs/
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    name: publish (nightly)
     runs-on: ubuntu-latest
     needs: [build-jars, build-binaries-and-test]
     steps:
