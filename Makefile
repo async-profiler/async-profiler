@@ -205,6 +205,7 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
+coverage: override FAT_BINARY=false
 coverage: clean-coverage
 	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 --coverage"
 	mkdir -p build/test/coverage
