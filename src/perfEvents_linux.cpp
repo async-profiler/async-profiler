@@ -19,12 +19,12 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <linux/perf_event.h>
 #include "arch.h"
 #include "fdtransferClient.h"
 #include "j9StackTraces.h"
 #include "log.h"
 #include "perfEvents.h"
-#include "perfEvents_linux.h"
 #include "profiler.h"
 #include "spinLock.h"
 #include "stackFrame.h"
@@ -44,6 +44,15 @@ struct f_owner_ex {
     pid_t pid;
 };
 #endif // F_SETOWN_EX
+
+
+enum {
+    HW_BREAKPOINT_R  = 1,
+    HW_BREAKPOINT_W  = 2,
+    HW_BREAKPOINT_RW = 3,
+    HW_BREAKPOINT_X  = 4
+};
+
 
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
@@ -141,255 +150,287 @@ static void adjustFDLimit() {
     }
 }
 
-// Find which argument of a known function serves as a profiling counter,
-// e.g. the first argument of malloc() is allocation size
-int PerfEventType::findCounterArg(const char* name) {
-    for (FunctionWithCounter* func = KNOWN_FUNCTIONS; func->name != NULL; func++) {
-        if (strcmp(name, func->name) == 0) {
-            return func->counter_arg;
+
+struct FunctionWithCounter {
+    const char* name;
+    int counter_arg;
+};
+
+struct PerfEventType {
+    const char* name;
+    long default_interval;
+    __u32 type;
+    __u64 config;
+    __u64 config1;
+    __u64 config2;
+    int counter_arg;
+
+    enum {
+        IDX_CPU = 0,
+        IDX_PREDEFINED = 12,
+        IDX_RAW,
+        IDX_PMU,
+        IDX_BREAKPOINT,
+        IDX_TRACEPOINT,
+        IDX_KPROBE,
+        IDX_UPROBE,
+    };
+
+    static PerfEventType AVAILABLE_EVENTS[];
+    static FunctionWithCounter KNOWN_FUNCTIONS[];
+
+    static char probe_func[256];
+
+    // Find which argument of a known function serves as a profiling counter,
+    // e.g. the first argument of malloc() is allocation size
+    static int findCounterArg(const char* name) {
+        for (FunctionWithCounter* func = KNOWN_FUNCTIONS; func->name != NULL; func++) {
+            if (strcmp(name, func->name) == 0) {
+                return func->counter_arg;
+            }
         }
-    }
-    return 0;
-}
-
-// Breakpoint format: func[+offset][/len][:rwx][{arg}]
-PerfEventType* PerfEventType::getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
-    char buf[256];
-    strncpy(buf, name, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = 0;
-
-    // Parse counter arg [{arg}]
-    int counter_arg = 0;
-    char* c = strrchr(buf, '{');
-    if (c != NULL && c[1] >= '1' && c[1] <= '9') {
-        *c++ = 0;
-        counter_arg = atoi(c);
+        return 0;
     }
 
-    // Parse access type [:rwx]
-    c = strrchr(buf, ':');
-    if (c != NULL && c != name && c[-1] != ':') {
-        *c++ = 0;
-        if (strcmp(c, "rw") == 0 || strcmp(c, "wr") == 0) {
-            bp_type = HW_BREAKPOINT_RW;
-        } else if (strcmp(c, "r") == 0) {
-            bp_type = HW_BREAKPOINT_R;
-        } else if (strcmp(c, "w") == 0) {
-            bp_type = HW_BREAKPOINT_W;
-        } else if (strcmp(c, "x") == 0) {
-            bp_type = HW_BREAKPOINT_X;
-            bp_len = sizeof(long);
+    // Breakpoint format: func[+offset][/len][:rwx][{arg}]
+    static PerfEventType* getBreakpoint(const char* name, __u32 bp_type, __u32 bp_len) {
+        char buf[256];
+        strncpy(buf, name, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = 0;
+
+        // Parse counter arg [{arg}]
+        int counter_arg = 0;
+        char* c = strrchr(buf, '{');
+        if (c != NULL && c[1] >= '1' && c[1] <= '9') {
+            *c++ = 0;
+            counter_arg = atoi(c);
+        }
+
+        // Parse access type [:rwx]
+        c = strrchr(buf, ':');
+        if (c != NULL && c != name && c[-1] != ':') {
+            *c++ = 0;
+            if (strcmp(c, "rw") == 0 || strcmp(c, "wr") == 0) {
+                bp_type = HW_BREAKPOINT_RW;
+            } else if (strcmp(c, "r") == 0) {
+                bp_type = HW_BREAKPOINT_R;
+            } else if (strcmp(c, "w") == 0) {
+                bp_type = HW_BREAKPOINT_W;
+            } else if (strcmp(c, "x") == 0) {
+                bp_type = HW_BREAKPOINT_X;
+                bp_len = sizeof(long);
+            } else {
+                return NULL;
+            }
+        }
+
+        // Parse length [/8]
+        c = strrchr(buf, '/');
+        if (c != NULL) {
+            *c++ = 0;
+            bp_len = (__u32)strtol(c, NULL, 0);
+        }
+
+        // Parse offset [+0x1234]
+        long long offset = 0;
+        c = strrchr(buf, '+');
+        if (c != NULL) {
+            *c++ = 0;
+            offset = strtoll(c, NULL, 0);
+        }
+
+        // Parse symbol or absolute address
+        __u64 addr;
+        if (strncmp(buf, "0x", 2) == 0) {
+            addr = (__u64)strtoll(buf, NULL, 0);
+        } else if (buf[0] >= '0' && buf[0] <= '9') {
+            // Only hex address is supported.
+            return NULL;
         } else {
-            return NULL;
+            addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
+            if (addr == 0) {
+                addr = (__u64)(uintptr_t)Profiler::instance()->resolveSymbol(buf);
+            }
+            if (c == NULL) {
+                // If offset is not specified explicitly, add the default breakpoint offset
+                offset = BREAKPOINT_OFFSET;
+            }
         }
-    }
 
-    // Parse length [/8]
-    c = strrchr(buf, '/');
-    if (c != NULL) {
-        *c++ = 0;
-        bp_len = (__u32)strtol(c, NULL, 0);
-    }
-
-    // Parse offset [+0x1234]
-    long long offset = 0;
-    c = strrchr(buf, '+');
-    if (c != NULL) {
-        *c++ = 0;
-        offset = strtoll(c, NULL, 0);
-    }
-
-    // Parse symbol or absolute address
-    __u64 addr;
-    if (strncmp(buf, "0x", 2) == 0) {
-        addr = (__u64)strtoll(buf, NULL, 0);
-    } else if (buf[0] >= '0' && buf[0] <= '9') {
-        // Only hex address is supported.
-        return NULL;
-    } else {
-        addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
         if (addr == 0) {
-            addr = (__u64)(uintptr_t)Profiler::instance()->resolveSymbol(buf);
-        }
-        if (c == NULL) {
-            // If offset is not specified explicitly, add the default breakpoint offset
-            offset = BREAKPOINT_OFFSET;
-        }
-    }
-
-    if (addr == 0) {
-        return NULL;
-    }
-
-    PerfEventType* breakpoint = &AVAILABLE_EVENTS[IDX_BREAKPOINT];
-    breakpoint->config = bp_type;
-    breakpoint->config1 = addr + offset;
-    breakpoint->config2 = bp_len;
-    breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X && counter_arg == 0 ? findCounterArg(buf) : counter_arg;
-    return breakpoint;
-}
-
-PerfEventType* PerfEventType::getTracepoint(int tracepoint_id) {
-    PerfEventType* tracepoint = &AVAILABLE_EVENTS[IDX_TRACEPOINT];
-    tracepoint->config = tracepoint_id;
-    return tracepoint;
-}
-
-PerfEventType* PerfEventType::getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
-    strncpy(probe_func, name, sizeof(probe_func) - 1);
-    probe_func[sizeof(probe_func) - 1] = 0;
-
-    if (probe_func[0] == 0) {
-        return NULL;
-    }
-
-    if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
-        return NULL;
-    }
-
-    long long offset = 0;
-    char* c = strrchr(probe_func, '+');
-    if (c != NULL) {
-        *c++ = 0;
-        offset = strtoll(c, NULL, 0);
-    }
-
-    probe->config = ret;
-    probe->config1 = (__u64)(uintptr_t)probe_func;
-    probe->config2 = offset;
-    return probe;
-}
-
-PerfEventType* PerfEventType::getRawEvent(__u64 config) {
-    PerfEventType* raw = &AVAILABLE_EVENTS[IDX_RAW];
-    raw->config = config;
-    return raw;
-}
-
-PerfEventType* PerfEventType::getPmuEvent(const char* name) {
-    char buf[256];
-    strncpy(buf, name, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = 0;
-
-    char* descriptor = strchr(buf, '/');
-    *descriptor++ = 0;
-    descriptor[strlen(descriptor) - 1] = 0;
-
-    PerfEventType* raw = &AVAILABLE_EVENTS[IDX_PMU];
-    if ((raw->type = findDeviceType(buf)) == 0) {
-        return NULL;
-    }
-
-    // pmu/rNNN/
-    if (descriptor[0] == 'r' && descriptor[1] >= '0') {
-        char* end;
-        raw->config = strtoull(descriptor + 1, &end, 16);
-        if (*end == 0) {
-            return raw;
-        }
-    }
-
-    // Resolve event name to the list of parameters
-    resolvePmuEventName(buf, descriptor, sizeof(buf) - (descriptor - buf));
-
-    raw->config = 0;
-    raw->config1 = 0;
-    raw->config2 = 0;
-
-    // Parse parameters
-    while (descriptor != NULL && descriptor[0]) {
-        char* p = descriptor;
-        if ((descriptor = strchr(p, ',')) != NULL || (descriptor = strchr(p, ':')) != NULL) {
-            *descriptor++ = 0;
-        }
-
-        __u64 val = 1;
-        char* eq = strchr(p, '=');
-        if (eq != NULL) {
-            *eq++ = 0;
-            val = strtoull(eq, NULL, 0);
-        }
-
-        if (strcmp(p, "config") == 0) {
-            raw->config = val;
-        } else if (strcmp(p, "config1") == 0) {
-            raw->config1 = val;
-        } else if (strcmp(p, "config2") == 0) {
-            raw->config2 = val;
-        } else if (!setPmuConfig(buf, p, &raw->config, val)) {
             return NULL;
         }
+
+        PerfEventType* breakpoint = &AVAILABLE_EVENTS[IDX_BREAKPOINT];
+        breakpoint->config = bp_type;
+        breakpoint->config1 = addr + offset;
+        breakpoint->config2 = bp_len;
+        breakpoint->counter_arg = bp_type == HW_BREAKPOINT_X && counter_arg == 0 ? findCounterArg(buf) : counter_arg;
+        return breakpoint;
     }
 
-    return raw;
-}
-
-PerfEventType* PerfEventType::forName(const char* name) {
-    // "cpu" is an alias for "cpu-clock"
-    if (strcmp(name, EVENT_CPU) == 0) {
-        return &AVAILABLE_EVENTS[IDX_CPU];
+    static PerfEventType* getTracepoint(int tracepoint_id) {
+        PerfEventType* tracepoint = &AVAILABLE_EVENTS[IDX_TRACEPOINT];
+        tracepoint->config = tracepoint_id;
+        return tracepoint;
     }
 
-    // Look through the table of predefined perf events
-    for (int i = 0; i <= IDX_PREDEFINED; i++) {
-        if (strcmp(name, AVAILABLE_EVENTS[i].name) == 0) {
-            return &AVAILABLE_EVENTS[i];
+    static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
+        strncpy(probe_func, name, sizeof(probe_func) - 1);
+        probe_func[sizeof(probe_func) - 1] = 0;
+
+        if (probe_func[0] == 0) {
+          return NULL;
         }
-    }
 
-    // Hardware breakpoint
-    if (strncmp(name, "mem:", 4) == 0) {
-        return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
-    }
-
-    // Raw tracepoint ID
-    if (strncmp(name, "trace:", 6) == 0) {
-        int tracepoint_id = atoi(name + 6);
-        return tracepoint_id > 0 ? getTracepoint(tracepoint_id) : NULL;
-    }
-
-    // kprobe or uprobe
-    if (strncmp(name, "kprobe:", 7) == 0) {
-        return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 7, 0);
-    }
-    if (strncmp(name, "uprobe:", 7) == 0) {
-        return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 7, 0);
-    }
-    if (strncmp(name, "kretprobe:", 10) == 0) {
-        return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 10, 1);
-    }
-    if (strncmp(name, "uretprobe:", 10) == 0) {
-        return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 10, 1);
-    }
-
-    // Raw PMU register: rNNN
-    if (name[0] == 'r' && name[1] >= '0') {
-        char* end;
-        __u64 reg = strtoull(name + 1, &end, 16);
-        if (*end == 0) {
-            return getRawEvent(reg);
+        if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
+            return NULL;
         }
-    }
 
-    // Raw perf event descriptor: pmu/event-descriptor/
-    const char* s = strchr(name, '/');
-    if (s > name && s[1] != 0 && s[strlen(s) - 1] == '/') {
-        return getPmuEvent(name);
-    }
-
-    // Kernel tracepoints defined in debugfs
-    s = strchr(name, ':');
-    if (s != NULL && s[1] != ':') {
-        int tracepoint_id;
-        if ((tracepoint_id = findTracepointId("tracing", name)) > 0 ||
-            (tracepoint_id = findTracepointId("debug/tracing", name)) > 0) {
-            return getTracepoint(tracepoint_id);
+        long long offset = 0;
+        char* c = strrchr(probe_func, '+');
+        if (c != NULL) {
+            *c++ = 0;
+            offset = strtoll(c, NULL, 0);
         }
+
+        probe->config = ret;
+        probe->config1 = (__u64)(uintptr_t)probe_func;
+        probe->config2 = offset;
+        return probe;
     }
 
-    // Finally, treat event as a function name and return an execution breakpoint
-    return getBreakpoint(name, HW_BREAKPOINT_X, sizeof(long));
-}
+    static PerfEventType* getRawEvent(__u64 config) {
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_RAW];
+        raw->config = config;
+        return raw;
+    }
+
+    static PerfEventType* getPmuEvent(const char* name) {
+        char buf[256];
+        strncpy(buf, name, sizeof(buf) - 1);
+        buf[sizeof(buf) - 1] = 0;
+
+        char* descriptor = strchr(buf, '/');
+        *descriptor++ = 0;
+        descriptor[strlen(descriptor) - 1] = 0;
+
+        PerfEventType* raw = &AVAILABLE_EVENTS[IDX_PMU];
+        if ((raw->type = findDeviceType(buf)) == 0) {
+            return NULL;
+        }
+
+        // pmu/rNNN/
+        if (descriptor[0] == 'r' && descriptor[1] >= '0') {
+            char* end;
+            raw->config = strtoull(descriptor + 1, &end, 16);
+            if (*end == 0) {
+                return raw;
+            }
+        }
+
+        // Resolve event name to the list of parameters
+        resolvePmuEventName(buf, descriptor, sizeof(buf) - (descriptor - buf));
+
+        raw->config = 0;
+        raw->config1 = 0;
+        raw->config2 = 0;
+
+        // Parse parameters
+        while (descriptor != NULL && descriptor[0]) {
+            char* p = descriptor;
+            if ((descriptor = strchr(p, ',')) != NULL || (descriptor = strchr(p, ':')) != NULL) {
+                *descriptor++ = 0;
+            }
+
+            __u64 val = 1;
+            char* eq = strchr(p, '=');
+            if (eq != NULL) {
+                *eq++ = 0;
+                val = strtoull(eq, NULL, 0);
+            }
+
+            if (strcmp(p, "config") == 0) {
+                raw->config = val;
+            } else if (strcmp(p, "config1") == 0) {
+                raw->config1 = val;
+            } else if (strcmp(p, "config2") == 0) {
+                raw->config2 = val;
+            } else if (!setPmuConfig(buf, p, &raw->config, val)) {
+                return NULL;
+            }
+        }
+
+        return raw;
+    }
+
+    static PerfEventType* forName(const char* name) {
+        // "cpu" is an alias for "cpu-clock"
+        if (strcmp(name, EVENT_CPU) == 0) {
+            return &AVAILABLE_EVENTS[IDX_CPU];
+        }
+
+        // Look through the table of predefined perf events
+        for (int i = 0; i <= IDX_PREDEFINED; i++) {
+            if (strcmp(name, AVAILABLE_EVENTS[i].name) == 0) {
+                return &AVAILABLE_EVENTS[i];
+            }
+        }
+
+        // Hardware breakpoint
+        if (strncmp(name, "mem:", 4) == 0) {
+            return getBreakpoint(name + 4, HW_BREAKPOINT_RW, 1);
+        }
+
+        // Raw tracepoint ID
+        if (strncmp(name, "trace:", 6) == 0) {
+            int tracepoint_id = atoi(name + 6);
+            return tracepoint_id > 0 ? getTracepoint(tracepoint_id) : NULL;
+        }
+
+        // kprobe or uprobe
+        if (strncmp(name, "kprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 7, 0);
+        }
+        if (strncmp(name, "uprobe:", 7) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 7, 0);
+        }
+        if (strncmp(name, "kretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_KPROBE], "kprobe", name + 10, 1);
+        }
+        if (strncmp(name, "uretprobe:", 10) == 0) {
+            return getProbe(&AVAILABLE_EVENTS[IDX_UPROBE], "uprobe", name + 10, 1);
+        }
+
+        // Raw PMU register: rNNN
+        if (name[0] == 'r' && name[1] >= '0') {
+            char* end;
+            __u64 reg = strtoull(name + 1, &end, 16);
+            if (*end == 0) {
+                return getRawEvent(reg);
+            }
+        }
+
+        // Raw perf event descriptor: pmu/event-descriptor/
+        const char* s = strchr(name, '/');
+        if (s > name && s[1] != 0 && s[strlen(s) - 1] == '/') {
+            return getPmuEvent(name);
+        }
+
+        // Kernel tracepoints defined in debugfs
+        s = strchr(name, ':');
+        if (s != NULL && s[1] != ':') {
+            int tracepoint_id;
+            if ((tracepoint_id = findTracepointId("tracing", name)) > 0 ||
+                (tracepoint_id = findTracepointId("debug/tracing", name)) > 0) {
+                return getTracepoint(tracepoint_id);
+            }
+        }
+
+        // Finally, treat event as a function name and return an execution breakpoint
+        return getBreakpoint(name, HW_BREAKPOINT_X, sizeof(long));
+    }
+};
 
 // See perf_event_open(2)
 #define LOAD_MISS(perf_hw_cache_id) \

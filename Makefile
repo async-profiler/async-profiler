@@ -180,6 +180,8 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
+	@echo MERGE: $(MERGE)
+	@echo FAT_BINARY: $(FAT_BINARY)
 
 ifeq ($(MERGE),true)
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
@@ -190,6 +192,7 @@ endif
 
 build-test-java: all build/$(TEST_JAR)
 
+build-test-cpp: override FAT_BINARY=false
 build-test-cpp: build/test/cpptests
 
 build-test: build-test-cpp build-test-java

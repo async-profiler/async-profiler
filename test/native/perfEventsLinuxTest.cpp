@@ -6,7 +6,6 @@
 #ifdef __linux__
 
 #include "callTraceStorage.h"
-#include "perfEvents_linux.h"
 #include "profiler.h"
 #include "testRunner.hpp"
 #include <dlfcn.h>
