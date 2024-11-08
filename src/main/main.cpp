@@ -16,6 +16,10 @@
 #include <unistd.h>
 #include "fdtransferServer.h"
 
+#ifdef __linux__
+#include <linux/limits.h>
+#endif
+
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -234,7 +238,7 @@ static void setup_output_files(int pid) {
 }
 
 static void setup_lib_path() {
-    char buf[1024];
+    char buf[PATH_MAX];
 
 #ifdef __linux__
     const char* lib = "../lib/libasyncProfiler.so";
