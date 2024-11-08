@@ -1,19 +1,5 @@
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AsyncProfiler.png)
 
-# Table of contents
-- [About](#about)
-- [Download](#download)
-- [Supported platforms](#supported-platforms)
-- [Getting started](#getting-started)
-- [Output formats](#output-formats)
-- [Profiling modes](#profiling-modes)
-- [Converter usage & demo](#converter-usage--demo)
-- [Profiler options](#profiler-options)
-- [Profiling Java in a container](#profiling-java-in-a-container)
-- [Profiling Non-Java applications](#profiling-non-java-applications)
-- [Building](#building)
-- [Troubleshooting](#troubleshooting)
-
 # About
 
 This project is a low overhead sampling profiler for Java
