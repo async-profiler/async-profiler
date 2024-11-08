@@ -71,7 +71,9 @@ jobs:
         if: always() # we always want to upload test logs, especially when tests fail
         with:
           name: test-logs-${{ matrix.runson }}
-          path: build/test/logs/
+          path: |
+            build/test/logs/
+            hs_err*.log
       - name: Test macOS x64
         if: ${{ matrix.runson == 'macos-14' }}
         run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
@@ -85,7 +87,9 @@ jobs:
         if: matrix.runson == 'macos-14' && always()
         with:
           name: test-logs-macos-14-x64
-          path: build/test/logs/
+          path: |
+            build/test/logs/
+            hs_err*.log
   publish-only-on-push:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
