@@ -51,7 +51,7 @@ int main() {
     
     asprof_init();
 
-    char cmd[47] = "start,event=cpu,loglevel=debug,file=profile.jfr";
+    char cmd[] = "start,event=cpu,loglevel=debug,file=profile.jfr";
 
     printf("Starting profiler\n");
     
