@@ -6,6 +6,7 @@
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "fdtransferServer.h"
+
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -234,7 +236,7 @@ static void setup_output_files(int pid) {
 }
 
 static void setup_lib_path() {
-    char buf[1024];
+    char buf[PATH_MAX];
 
 #ifdef __linux__
     const char* lib = "../lib/libasyncProfiler.so";
