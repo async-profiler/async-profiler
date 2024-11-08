@@ -55,7 +55,6 @@ FROM public.ecr.aws/debian/debian:10-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         g++ \
-        g++-aarch64-linux-gnu \
         libicu-dev \
         make \
         openjdk-11-jdk-headless \
