@@ -65,7 +65,6 @@ jobs:
             *) make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
-          echo "test" > hs_err_123.log
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Upload test logs for default architecture
         uses: actions/upload-artifact@v4
@@ -77,7 +76,7 @@ jobs:
             hs_err*.log
       - name: Test macOS x64
         if: ${{ matrix.runson == 'macos-14' }}
-        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test && echo "test" > hs_err_123.log
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
         with:
