@@ -1,4 +1,4 @@
-# Converter Usage & Demo
+# Converter usage & demo
 
 ## Usage
 

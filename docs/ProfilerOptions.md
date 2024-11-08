@@ -1,4 +1,4 @@
-# Profiler Options
+# Profiler options
 
 The below tables list the profiler options available with `asprof` and also when
 [launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent). Some tables are output specific, which means some options are applicable to only one or 

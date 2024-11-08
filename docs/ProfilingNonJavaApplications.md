@@ -1,4 +1,4 @@
-# Profiling Non-Java Applications
+# Profiling Non-Java applications
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
 programmatically from the process being profiled and with LD_PRELOAD. It is worth noting that 

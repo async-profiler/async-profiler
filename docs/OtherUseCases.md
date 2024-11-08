@@ -1,6 +1,6 @@
-# Other Use Cases
+# Other use cases
 
-## Launching as an Agent
+## Launching as an agent
 
 If you need to profile some code as soon as the JVM starts up, instead of using the `asprof`,
 it is possible to attach async-profiler as an agent on the command line. For example:

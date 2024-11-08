@@ -1,4 +1,4 @@
-# Getting Started Guide
+# Getting started guide
 
 ## Before we start profiling
 As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
@@ -82,7 +82,7 @@ call stack leading to it comes from `Primes.primesThread`.
 * [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#using-java-api)
 * [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#intellij-idea)
 
-## Flame Graph visualization
+## FlameGraph visualization
 
 async-profiler provides out-of-the-box [Flame Graph](https://github.com/BrendanGregg/FlameGraph) support.
 Specify `-o flamegraph` argument to dump profiling results as an interactive HTML Flame Graph.

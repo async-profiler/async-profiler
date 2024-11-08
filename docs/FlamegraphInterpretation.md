@@ -1,4 +1,4 @@
-# Flame Graph Interpretation
+# FlameGraph interpretation
 
 To interpret a flame graph, the best way forward is to understand how they are created. Sampling
 profiling results are a set of stack traces.
@@ -32,7 +32,7 @@ main() {
 }
 ```
 
-## Profiler Sampling
+## Profiler sampling
 Profiling starts by taking samples x times per second. Whenever a sample is taken, the current call stack for it is saved. The diagram below shows the unsorted sampling view before the sorting and aggregation takes place. 
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSamplings.png)
@@ -44,12 +44,12 @@ Below are the sampling numbers:
 * `func2()->func8()`: 4 samples
 * `func2()->func6()`: 1 sample
 
-## Sorting Samples
+## Sorting samples
 Samples are then alphabetically sorted at the base level just after root(or main method) of the application.
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/SortedSamplings.png)
 
-## Aggregated View
+## Aggregated view
 For the aggregated view, the blocks for the same functions at each
 level of stack depth are stitched together to get the aggregated 
 view of the flame graph.

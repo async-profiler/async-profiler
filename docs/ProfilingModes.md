@@ -1,4 +1,4 @@
-# Profiling Modes
+# Profiling modes
 
 ## CPU profiling
 
