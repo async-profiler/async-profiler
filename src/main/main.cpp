@@ -6,6 +6,7 @@
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,13 +17,9 @@
 #include <unistd.h>
 #include "fdtransferServer.h"
 
-#ifdef __linux__
-#include <linux/limits.h>
-#endif
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
-#include <sys/syslimits.h>
 #endif
 
 
