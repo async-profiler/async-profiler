@@ -135,3 +135,18 @@ The same, when starting profiler as an agent:
 ```
 -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,alloc=2m,lock=10ms,file=profile.jfr
 ```
+
+## Continuous profiling
+Continuous profiling is a means using which an application can be profiled
+continuously and dump profile outputs after a specified amount of time duration. 
+It is a very effective technique in finding performance degradations proactively 
+and efficiently. Continuous profiling helps users to understand performance
+differences between versions of the same application. Recent outputs can
+be compared with continuous profiling output history to find differences 
+and optimize the changes introduced in case of performance degradations. 
+aysnc-profiler provides the ability to continously profile an application with 
+the `loop` option. Make sure the filename includes a timestamp pattern, or the 
+output will be overwritten on each iteration.
+```
+asprof --loop 1h -f /var/log/profile-%t.jfr 8983
+```
