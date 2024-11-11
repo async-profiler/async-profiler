@@ -686,7 +686,7 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
     }
 
     CodeCacheArray* array = (CodeCacheArray*)data;
-    CodeCache* cc;
+    CodeCache* cc = NULL;
     const char* image_base = NULL;
     u64 last_inode = 0;
     u64 cc_inode = 0;
