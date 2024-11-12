@@ -106,6 +106,12 @@ applications.
 For more details, please refer to
 [Profiling Non-Java Applications](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingNonJavaApplications.md).
 
+# JFR Visualization
+
+`jfr` output from async-profiler can be visualized in a human-readable format using multiple
+options, listed and explained in the
+[JFR Visualization Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md).
+
 # Building
 
 Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
