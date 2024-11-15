@@ -47,6 +47,10 @@ Sampling interval can be adjusted with `--alloc` option.
 For example, `--alloc 500k` will take one sample after 500 KB of allocated
 space on average. Prior to JDK 11, intervals less than TLAB size will not take effect.
 
+In allocation profiling mode the top frame of every call trace is the class
+of the allocated object, and the counter is the heap pressure (the total size
+of allocated TLABs or objects outside TLAB).
+
 ### Installing Debug Symbols
 
 Prior to JDK 11, the allocation profiler required HotSpot debug symbols.
@@ -86,6 +90,18 @@ Wall-clock profiler is most useful in per-thread mode: `-t`.
 
 Example: `asprof -e wall -t -i 5ms -f result.html 8983`
 
+
+## Lock profiling
+
+`-e lock` option tells async-profiler to measure lock contention in the profiled application. Lock profiling can help
+developers understand lock acquisition patterns, lock contention (when threads have to wait to acquire locks), time
+spent waiting for locks and which code paths are blocked due to locks
+
+In lock profiling mode the top frame is the class of lock/monitor, and the counter is number of nanoseconds it took to
+enter this lock/monitor.
+
+Example: `asprof -e lock -t -i 5ms -f result.html 8983`
+
 ## Java method profiling
 
 `-e ClassName.methodName` option instruments the given Java method
@@ -103,7 +119,7 @@ of all compiled methods. The subsequent instrumentation flushes only the _depend
 
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
 
-### Java Native Method Profiling
+### Java native method profiling
 Here are some useful native methods to profile:
 * ```G1CollectedHeap::humongous_obj_allocate``` - trace _humongous allocations_ of the G1 GC,
 * ```JVM_StartThread``` - trace creation of new Java threads,
@@ -150,3 +166,19 @@ output will be overwritten on each iteration.
 ```
 asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ```
+
+## Special event types supported on Linux
+
+Below special event types are supported on Linux:
+- `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
+  `<func>`. The format of `mem` event is the same as in `perf-record`.
+  Execution breakpoints can be also specified by the function name,
+  e.g. `-e malloc` will trace all calls of native `malloc` function.
+- `-e trace:<id>` sets a kernel tracepoint. It is possible to specify
+  tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
+  all `open` syscalls.
+- Raw PMU event, e.g. `-e r4d2` selects `MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM` event, which corresponds to event 0xd2, umask 0x4
+- PMU event descriptor, e.g. `-e cpu/event=0xd2,umask=4/`. The same syntax can be used for uncore and vendor-specific events, e.g. `amd_l3/event=0x01,umask=0x80/`
+- Symbolic name of a dynamic PMU event, e.g. `-e cpu/topdown-fetch-bubbles/`
+- kprobe/kretprobe, e.g. `-e kprobe:do_sys_open`, `-e kretprobe:do_sys_open`
+- uprobe/uretprobe, e.g. `-e uprobe:/usr/lib64/libc-2.17.so+0x114790`

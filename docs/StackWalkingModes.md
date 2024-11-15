@@ -1,4 +1,4 @@
-# Stack Walkling Modes
+# Stack Walking Modes
 
 ## Frame pointer
 

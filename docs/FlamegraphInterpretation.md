@@ -66,7 +66,7 @@ heap utilization and wall-clock profiling to view latency.
 
 [More on various modes of profiling](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#profiling-modes)
 
-## Understanding FlameGraph colours
+## Understanding FlameGraph colors
 The various colours in a FlameGraph output with their relation to 
 underlying code for a Java application:
 
@@ -76,5 +76,4 @@ underlying code for a Java application:
 * <span style="color:orange">orange</span> : kernel
 * <span style="color:red">red</span> : native (user-level)
 
-Please note the colours in the example diagrams above have no relation 
-to the official FlameGraph colour palette. 
+Please note the colours in the example diagrams above have no relation to the official FlameGraph colour palette. 

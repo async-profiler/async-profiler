@@ -15,7 +15,16 @@ where N is the profiling interval.
 syscall, which ideally generates a signal every given interval of the CPU time consumed by the process.
 - `cpu` mode relies on [perf_events](https://man7.org/linux/man-pages/man2/perf_event_open.2.html). 
 The idea is the same - to generate a signal every `N` nanoseconds of CPU time, which in this case 
-is achieved by configuring PMU to generate an interrupt every `K` CPU cycles.
+is achieved by configuring PMU to generate an interrupt every `K` CPU cycles. `cpu` mode has few additional features:
+  - `perf_events` availability is now automatically checked by trying to create a dummy perf_event.
+  - If kernel-space profiling using `perf_events` is not available (including when restricted by `perf_event_paranoid`
+    setting or by `seccomp`), async-profiler transparently falls back to `ctimer` mode.
+  - If `perf_events` are available, but kernel symbols are hidden (e.g., by `kptr_resitrct` setting), async-profiler
+    continues to use `perf_events`, emits a warning and does not show kernel stack traces.
+  - To force using `perf_events` for user-space only profiling, specify `-e cpu-clock --all-user` instead of `-e cpu`.
+  - `allkernel` option has been removed.
+  - JFR recording now contains engine setting with the current profiling engine: `perf_events`, `ctimer`, `wall` etc.
+
 
 Ideally, both `itimer` and `cpu` should collect the same number of samples. Typically, the 
 profiles indeed look very similar. However, in [some cases](https://github.com/golang/go/issues/14434)

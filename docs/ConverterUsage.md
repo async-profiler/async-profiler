@@ -59,8 +59,8 @@ Flame Graph options:
     --grain X          Coarsen Flame Graph to the given grain size
     --skip N           Skip N bottom frames
  -r --reverse          Reverse stack traces (icicle graph)
- -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'Primes.*' -I 'java/*'
- -X --exclude REGEX    Exclude stacks with the specified frames, e.g.  -X '*Unsafe.park*'
+ -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'jdk\.GC.*' -I 'jdk\.Thread.*'
+ -X --exclude REGEX    Exclude stacks with the specified frames, e.g.  -X 'jdk\.GC.*'
     --highlight REGEX  Highlight frames matching the given pattern
 ```
 

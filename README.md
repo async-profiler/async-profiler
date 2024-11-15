@@ -34,7 +34,9 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 
 [Nightly releases](https://github.com/async-profiler/async-profiler/releases/tag/nightly) (published on each commit to master)
 
-For the build corresponding to a previous commit, go to the corresponding `Publish Nightly Builds` Github Action and scroll down to the artifacts section. These binaries are kept for 30 days.
+For the build corresponding to a previous commit, go to
+[Publish Nightly Builds](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml),
+click the desired build and scroll down to the artifacts section. These binaries are kept for 30 days.
 
 # Supported platforms
 
@@ -44,20 +46,22 @@ For the build corresponding to a previous commit, go to the corresponding `Publi
 | **macOS** | x64, arm64                   |                                           |
 
 # Getting started
-In this section, we will get acquainted with using async-profiler to profile applications and
-analyze the profile output in the Flame Graph format.
+
+In a typical use case, profiling a Java application is just a matter of a running `asprof` with a PID of a
+running Java process.
+```
+$ asprof -d 30 -f /tmp/flamegraph.html <PID>
+```
+
+[![Sample FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.html)
 
 For the detailed walkthrough, please refer to the
 [Getting Started Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
 
 # Output formats
 
-async-profiler currently supports the below output formats:
-* `collapsed` - This is a collection of call stacks, where each line is a  semicolon separated list of frames followed by a counter. This is used by the FlameGraph script to generate the FlameGraph visualization of the profile data.
-* `flamegraph` - Flamegraph is a hierarchical representation of call traces of the profiled software in a color coded format that helps to identify a particular resource usage like CPU and memory for the application.
-* `tree` - Profile output generated in an html format showing a tree view of resource usage beginning with the call stack with highest resource usage and then showing other  call stacks in descending order of resource usage. Expanding a parent frame follows the same hierarchical representation within that frame.
-* `jfr` - Java Flight Recording(JFR) is a widely known tool for profiling Java applications. async-profiler can generate output in jfr format compatible with tools capable of viewing and analyzing `jfr` files. The `jfr` format collects data about the JVM as well as the Java application running on it. 
-* `text` -  If no output format is specified with `-o` and filename has no extension provided, profiled output is generated in text format.
+async-profiler can generate profile outputs in multiple formats which have been explained in details in the
+[Output Formats Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/OutputFormats.md)
 
 # Profiling modes
 The [Getting Started](#getting-started) section focused mostly on CPU usage profiling. However,
@@ -112,19 +116,25 @@ For more details, please refer to
 options, listed and explained in the
 [JFR Visualization Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md).
 
-# Building
-
-Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
-
-## Build requirements
-* JDK: 11+
-* GCC: 7.5.0+
-
-Make sure the `JAVA_HOME` environment variable points to your JDK installation,
-and then run `make`. GCC or Clang is required. After building, the profiler binaries
-will be in the `build` subdirectory.
-
 # Troubleshooting
 
 For known issues faced while running async-profiler and their detailed troubleshooting,
 please refer [here](https://github.com/async-profiler/async-profiler/blob/master/docs/Troubleshooting.md).
+
+# List of all async-profiler documentation
+
+The below list includes all documentation related to async-profiler, most of which are part of `README`:
+* [Advanced Stacktrace Features](https://github.com/async-profiler/async-profiler/blob/master/docs/AdvancedStacktraceFeatures.md)
+* [Converter Usage](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md)
+* [CPU Sampling Engines](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md)
+* [FlameGraph Interpretation](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
+* [Getting Started](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md)
+* [JFR Visualization](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md)
+* [Other Use Cases](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md)
+* [Output Formats](https://github.com/async-profiler/async-profiler/blob/master/docs/OutputFormats.md)
+* [Profiler Options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md)
+* [Profiling In Container](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingInContainer.md)
+* [Profiling Modes](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingModes.md)
+* [Profiling Non-Java Applications](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingNonJavaApplications.md)
+* [StackWalkingModes](https://github.com/async-profiler/async-profiler/blob/master/docs/StackWalkingModes.md)
+* [Troubleshooting](https://github.com/async-profiler/async-profiler/blob/master/docs/Troubleshooting.md)
