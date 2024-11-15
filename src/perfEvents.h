@@ -36,7 +36,7 @@ class PerfEvents : public CpuEngine {
     void stop();
 
     const char* type() {
-        return "perf";
+        return "perf_events";
     }
 
     const char* title();
