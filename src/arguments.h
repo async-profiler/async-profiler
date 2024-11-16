@@ -175,6 +175,7 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _live;
+    int _live_gc_threshold;
     bool _nobatch;
     bool _alluser;
     bool _fdtransfer;
@@ -225,6 +226,7 @@ class Arguments {
         _threads(false),
         _sched(false),
         _live(false),
+        _live_gc_threshold(0),
         _nobatch(false),
         _alluser(false),
         _fdtransfer(false),
