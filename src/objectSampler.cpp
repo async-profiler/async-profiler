@@ -12,7 +12,7 @@
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
-
+size_t ObjectSampler::_observed_gc_starts = 0;
 
 static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
     u32 class_id = 0;
@@ -32,6 +32,7 @@ struct LiveObjectInfo {
     jlong size;
     u64 trace;
     u64 time;
+    size_t gc_count;
 };
 
 class LiveRefs {
@@ -86,6 +87,7 @@ class LiveRefs {
                     _values[i].size = size;
                     _values[i].trace = trace;
                     _values[i].time = TSC::ticks();
+                    _values[i].gc_count = ObjectSampler::current_gc_counter();
                     _lock.unlock();
                     return;
                 }
@@ -143,6 +145,7 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 }
 
 void ObjectSampler::GarbageCollectionStart(jvmtiEnv* jvmti) {
+    _observed_gc_starts++;
     live_refs.gc();
 }
 

@@ -18,6 +18,9 @@ class ObjectSampler : public Engine {
     static bool _live;
     static volatile u64 _allocated_bytes;
 
+    // Doesn't need to be volatile since only mutated during JVMTI callback when
+    // VM is stopped.
+    static size_t _observed_gc_starts;
     static void initLiveRefs(bool live, int ringsize);
     static void dumpLiveRefs();
 
@@ -39,6 +42,10 @@ class ObjectSampler : public Engine {
 
     Error start(Arguments& args);
     void stop();
+
+    static inline size_t current_gc_counter() {
+        return _observed_gc_starts;
+    }
 
     static void JNICALL SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                            jobject object, jclass object_klass, jlong size);
