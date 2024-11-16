@@ -16,12 +16,13 @@ class ObjectSampler : public Engine {
   protected:
     static u64 _interval;
     static bool _live;
+    static size_t _live_gc_threshold;
     static volatile u64 _allocated_bytes;
 
     // Doesn't need to be volatile since only mutated during JVMTI callback when
     // VM is stopped.
     static size_t _observed_gc_starts;
-    static void initLiveRefs(bool live, int ringsize);
+    static void initLiveRefs(bool live, int ringsize, int live_gc_threshold);
     static void dumpLiveRefs();
 
     static void recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType event_type,

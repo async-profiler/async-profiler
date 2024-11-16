@@ -351,6 +351,11 @@ Error Arguments::parse(const char* args) {
                     msg = "livebuffersize must be >= 0";
                 }
 
+            CASE("livegcs")
+                if (value == NULL || (_live_gc_threshold = atoi(value)) < 0) {
+                    msg = "livegcs must be >= 0";
+                }
+
             CASE("nobatch")
                 _nobatch = true;
 

@@ -11,6 +11,7 @@
 
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
+size_t ObjectSampler::_live_gc_threshold;
 volatile u64 ObjectSampler::_allocated_bytes;
 size_t ObjectSampler::_observed_gc_starts = 0;
 
@@ -192,8 +193,9 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     }
 }
 
-void ObjectSampler::initLiveRefs(bool live, int ringsize) {
+void ObjectSampler::initLiveRefs(bool live, int ringsize, int live_gc_threshold) {
     _live = live;
+    _live_gc_threshold = live_gc_threshold;
     if (_live) {
         live_refs.init(ringsize);
     }
@@ -201,14 +203,14 @@ void ObjectSampler::initLiveRefs(bool live, int ringsize) {
 
 void ObjectSampler::dumpLiveRefs() {
     if (_live) {
-        live_refs.dump(VM::jni(), 0);
+        live_refs.dump(VM::jni(), _live_gc_threshold);
     }
 }
 
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
-    initLiveRefs(args._live, args._livebuffersize);
+    initLiveRefs(args._live, args._livebuffersize, args._live_gc_threshold);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetHeapSamplingInterval(_interval);

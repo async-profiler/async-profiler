@@ -81,6 +81,8 @@ public class AllocTests {
     @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
     @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live,livebuffersize=1048")
     @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live,livebuffersize=1048")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live,livegcs=0")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live,livegcs=0")
     public void liveness(TestProcess p) throws Exception {
         final long TOTAL_BYTES = 50000000;
         final double tolerance = 0.10;
@@ -113,5 +115,14 @@ public class AllocTests {
                 assert trace != null : "Stack trace missing for id " + event.stackTraceId;
             }
         }
+    }
+
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, agentArgs = "start,alloc=1k,total,file=%f,collapsed,live,livegcs=999")
+    public void livenessGCThresholdImpossible(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        long totalBytes = out.filter("RandomBlockRetainer\\.alloc").samples("byte\\[\\]");
+
+        // Impossibly high GC threshold should filter out all samples.
+        Assert.isEqual(0, totalBytes);
     }
 }
