@@ -280,7 +280,7 @@ struct PerfEventType {
         probe_func[sizeof(probe_func) - 1] = 0;
 
         if (probe_func[0] == 0) {
-          return NULL;
+            return NULL;
         }
 
         if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
