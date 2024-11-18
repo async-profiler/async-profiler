@@ -115,7 +115,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 

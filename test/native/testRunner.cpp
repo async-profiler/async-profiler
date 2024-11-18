@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "os.h"
 #include "testRunner.hpp"
-#include <chrono>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -39,7 +39,7 @@ int TestRunner::runAllTests() {
     double total_duration = 0;
     const int total_tests = testCases().size();
 
-    const bool redirected = !isatty(fileno(stdout));
+    const bool redirected = !isatty(STDOUT_FILENO);
     const char* red = redirected ? "" : "\033[31m";
     const char* green = redirected ? "" : "\033[32m";
     const char* yellow = redirected ? "" : "\033[33m";
@@ -59,24 +59,24 @@ int TestRunner::runAllTests() {
 
         printf("Running %s @ %s:%d\n", test_case.name.c_str(), test_case.filename.c_str(), test_case.line_no);
 
-        std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+        u64 start = OS::nanotime();
         if (!force_skip) {
             test_case.test_function();
         } else {
             test_case.skipped = true;
         }
-        std::chrono::duration<double, std::milli> duration = std::chrono::high_resolution_clock::now() - start;
+        double duration = (OS::nanotime() - start) / 1e6;
 
-        total_duration += duration.count();
+        total_duration += duration;
         total_assertions += test_case.assertion_count;
         if (test_case.skipped) {
-            printf("%sSKIP%s [%d/%d] %s took %0.1f ms\n", yellow, reset, i, total_tests, test_case.name.c_str(), duration.count());
+            printf("%sSKIP%s [%d/%d] %s took %0.1f ms\n", yellow, reset, i, total_tests, test_case.name.c_str(), duration);
             skipped++;
         } else if (test_case.has_failed_assertions) {
-            printf("%sFAIL%s [%d/%d] %s took %0.1f ms\n", red, reset, i, total_tests, test_case.name.c_str(), duration.count());
+            printf("%sFAIL%s [%d/%d] %s took %0.1f ms\n", red, reset, i, total_tests, test_case.name.c_str(), duration);
             failed++;
         } else {
-            printf("%sPASS%s [%d/%d] %s took %0.1f ms\n", green, reset, i, total_tests, test_case.name.c_str(), duration.count());
+            printf("%sPASS%s [%d/%d] %s took %0.1f ms\n", green, reset, i, total_tests, test_case.name.c_str(), duration);
             passed++;
         }
         i++;
