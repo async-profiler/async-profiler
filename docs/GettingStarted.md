@@ -78,9 +78,9 @@ call stack leading to it comes from `Primes.primesThread`.
 
 ## Other use cases
 
-* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent)
-* [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#using-java-api)
-* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#intellij-idea)
+* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent)
+* [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#using-java-api)
+* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#intellij-idea)
 
 ## FlameGraph visualization
 
@@ -95,7 +95,7 @@ $ jps
 $ asprof -d 30 -f /tmp/flamegraph.html 8983
 ```
 
-[![Example](https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.html)
+[![Example](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
 The flame graph html can be opened in any browser of your choice for further interpretation.
 

@@ -1,5 +1,8 @@
 # Profiling Java in a container
 
+async-profiler provides the ability to profile Java processes running in a Docker or LXC
+container both from within a container and from the host system.
+
 When profiling from the host, `pid` should be the Java process ID in the host
 namespace. Use `ps aux | grep java` or `docker top <container>` to find
 the process ID.

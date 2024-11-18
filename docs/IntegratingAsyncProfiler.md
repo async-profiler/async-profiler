@@ -1,4 +1,4 @@
-# Other use cases
+# Integrating async-profiler
 
 ## Launching as an agent
 

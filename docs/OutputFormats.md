@@ -3,18 +3,18 @@
 async-profiler currently supports the below output formats:
 * `collapsed` - This is a collection of call stacks, where each line is a  semicolon separated list of frames followed
   by a counter. This is used by the FlameGraph script to generate the FlameGraph visualization of the profile data.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/demo/collapsed_example.png)
+  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/collapsed_example.png)
 
 
 * `flamegraph` - FlameGraph is a hierarchical representation of call traces of the profiled software in a color coded
   format that helps to identify a particular resource usage like CPU and memory for the application.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph_example.png)
+  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_example.png)
 
 
 * `tree` - Profile output generated in a html format showing a tree view of resource usage beginning with the call stack
   with the highest resource usage and then showing other  call stacks in descending order of resource usage. Expanding a
   parent frame follows the same hierarchical representation within that frame.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/demo/treeview_example.png)
+  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/treeview_example.png)
 
 * `text` -  If no output format is specified with `-o` and filename has no extension provided, profiled output is
   generated in text format.

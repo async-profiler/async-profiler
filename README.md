@@ -9,10 +9,12 @@ and to track memory allocations. The profiler works with
 OpenJDK and other Java runtimes based on the HotSpot JVM.
 
 async-profiler can trace the following kinds of events:
+
 - CPU cycles
 - Hardware and Software performance counters like cache misses, branch misses, page faults, context switches etc.
 - Allocations in Java Heap
 - Contented lock attempts, including both Java object monitors and ReentrantLocks
+  and [more](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingModes.md).
 
 See our [3 hours playlist](https://www.youtube.com/playlist?list=PLNCLTEx3B8h4Yo_WvKWdLvI9mj1XpTKBr)
 to learn about more features.
@@ -35,7 +37,7 @@ For more information refer to [IntelliJ IDEA documentation](https://www.jetbrain
 [Nightly releases](https://github.com/async-profiler/async-profiler/releases/tag/nightly) (published on each commit to master)
 
 For the build corresponding to a previous commit, go to
-[Publish Nightly Builds](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml),
+[Nightly Builds](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml),
 click the desired build and scroll down to the artifacts section. These binaries are kept for 30 days.
 
 # Supported platforms
@@ -45,61 +47,40 @@ click the desired build and scroll down to the artifacts section. These binaries
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
-# Getting started
+# Quick start
 
 In a typical use case, profiling a Java application is just a matter of a running `asprof` with a PID of a
 running Java process.
 ```
 $ asprof -d 30 -f /tmp/flamegraph.html <PID>
 ```
+The above command translates to: After running profiler for 30 seconds, results will be saved to `/tmp/flamegraph.html`
+as an interactive `Flame Graph` that can be viewed in a browser.
 
-[![Sample FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/demo/flamegraph.html)
+[![FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
-For the detailed walkthrough, please refer to the
-[Getting Started Guide](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md).
+# Documentation
 
-# Output formats
+## Basic usage
 
-async-profiler can generate profile outputs in multiple formats which have been explained in details in the
-[Output Formats Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/OutputFormats.md)
+* [Getting Started](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md)
+* [Profiler Options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md)
+* [Profiling Modes](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingModes.md)
+* [Integrating async-profiler](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md)
+* [Profiling In Container](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingInContainer.md)
 
-# Profiling modes
-The [Getting Started](#getting-started) section focused mostly on CPU usage profiling. However,
-async-profiler provides various other profiling modes like `Allocation`, `Wall Clock`, `Java Method`
-and even a `Multiple Events` profiling mode.
+## Profiler output
 
-For the detailed explanation on all profiling modes, please refer to the
-[Profiling Modes Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/Profiling.md).
+* [Output Formats](https://github.com/async-profiler/async-profiler/blob/master/docs/OutputFormats.md)
+* [FlameGraph Interpretation](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
+* [JFR Visualization](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md)
+* [Converter Usage](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md)
 
-# Converter usage & demo
-async-profiler provides profile outputs in formats like `collapsed`, `html`, `jfr`. Further,
-async-profiler provider a converter utility to convert the profile output to other popular formats.
+## Advanced usage
 
-## Supported conversions
-
-* collapsed -> html, collapsed
-* html -> html, collapsed
-* jfr -> html, collapsed, pprof, pb.gz
-
-For the detailed usage instructions and demo, please refer to
-[Converter Usage & Demo](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md).
-
-# Profiler options
-
-async-profiler provides many options for both `asprof` binary and
-[Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md#launching-as-an-agent)
-to produce profiling outputs catering to specific needs.
-
-For a detailed guide on all the available options, please refer to
-[Profiler Options Details](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md)
-
-# Profiling Java in a container
-
-async-profiler provides the ability to profile Java processes running in a Docker or LXC
-container both from within a container and from the host system.
-
-For more details, please refer to
-[Profiling In Container Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md).
+* [CPU Sampling Engines](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md)
+* [StackWalkingModes](https://github.com/async-profiler/async-profiler/blob/master/docs/StackWalkingModes.md)
+* [Advanced Stacktrace Features](https://github.com/async-profiler/async-profiler/blob/master/docs/AdvancedStacktraceFeatures.md)
 
 # Profiling Non-Java applications
 
@@ -110,31 +91,7 @@ applications.
 For more details, please refer to
 [Profiling Non-Java Applications](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingNonJavaApplications.md).
 
-# JFR Visualization
-
-`jfr` output from async-profiler can be visualized in a human-readable format using multiple
-options, listed and explained in the
-[JFR Visualization Documentation](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md).
-
 # Troubleshooting
 
 For known issues faced while running async-profiler and their detailed troubleshooting,
 please refer [here](https://github.com/async-profiler/async-profiler/blob/master/docs/Troubleshooting.md).
-
-# List of all async-profiler documentation
-
-The below list includes all documentation related to async-profiler, most of which are part of `README`:
-* [Advanced Stacktrace Features](https://github.com/async-profiler/async-profiler/blob/master/docs/AdvancedStacktraceFeatures.md)
-* [Converter Usage](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md)
-* [CPU Sampling Engines](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md)
-* [FlameGraph Interpretation](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
-* [Getting Started](https://github.com/async-profiler/async-profiler/blob/master/docs/GettingStarted.md)
-* [JFR Visualization](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md)
-* [Other Use Cases](https://github.com/async-profiler/async-profiler/blob/master/docs/OtherUseCases.md)
-* [Output Formats](https://github.com/async-profiler/async-profiler/blob/master/docs/OutputFormats.md)
-* [Profiler Options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md)
-* [Profiling In Container](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingInContainer.md)
-* [Profiling Modes](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingModes.md)
-* [Profiling Non-Java Applications](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilingNonJavaApplications.md)
-* [StackWalkingModes](https://github.com/async-profiler/async-profiler/blob/master/docs/StackWalkingModes.md)
-* [Troubleshooting](https://github.com/async-profiler/async-profiler/blob/master/docs/Troubleshooting.md)

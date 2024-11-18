@@ -1,5 +1,8 @@
 # Profiling modes
 
+async-profiler provides various other profiling modes other than just `CPU` like `Allocation`, `Wall Clock`, `Java Method`
+and even a `Multiple Events` profiling mode.
+
 ## CPU profiling
 
 In this mode profiler collects stack trace samples that include **Java** methods,

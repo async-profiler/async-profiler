@@ -1,5 +1,15 @@
 # Converter usage & demo
 
+async-profiler provides a converter utility to convert the profile output to other popular formats. async-profiler
+provides `jfrconv` as part of the compressed package which is found in the same location as the `asprof` binary. A
+standalone converter binary is also available [here](ttps://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar).
+
+## Supported conversions
+
+* collapsed -> html, collapsed
+* html -> html, collapsed
+* jfr -> html, collapsed, pprof, pb.gz
+
 ## Usage
 
 `jfrconv [options] <input> [<input>...] <output>`
@@ -106,14 +116,14 @@ jfrconv --cpu foo.jfr --reverse --title Title
 These are few common use cases. Similarly, a JFR output can be converted to `collapsed`, `pprof` and
 `pb.gz` formats based on specific needs.
 
-### Example usages with `jfr-converter.jar`
+### Example usages with standalone converter
 
-The usage with `jfr-convereter.jar` provided in
+The usage with standalone converter jar provided in
 [Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)
 section is very similar to `jfrconv`.
 
 Below is an example usage:
 
-`java -cp /path/to/jfr-converter.jar --cpu foo.jfr --reverse --title Application CPU profile`
+`java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title Application CPU profile`
 
-As we can see, the only difference lies in how the binary is used.
+The only difference lies in how the binary is used.
