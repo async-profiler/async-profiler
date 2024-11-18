@@ -34,10 +34,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - runson: macos-14 # mac arm
+          - runson: macos-14
+            display: macos-14-arm64
           - runson: codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}
+            display: linux-x64
           - runson: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
+            display: linux-arm64
     runs-on: ${{ matrix.runson }}
+    name: "test (${{ matrix.display }})"
     steps:
       - name: Setup Java for macOS x64
         uses: actions/setup-java@v4
@@ -60,12 +64,28 @@ jobs:
           # there is no git on the codebuild runner, so it's easier to get it from github.sha
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson }}" in
-            macos*) make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
+            macos*)
+              make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
-            *) make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
+            *)
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Coverage
+        id: coverage
+        run: |
+          # there is no git on the codebuild runner, so it's easier to get it from github.sha
+          HASH=$(echo ${{ github.sha }} | cut -c-7)
+          case "${{ matrix.runson }}" in
+            macos*)
+              brew install gcovr
+              make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
+            ;;
+            *)
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc coverage -j
+            ;;
+          esac
       - name: Upload test logs for default architecture
         uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
@@ -74,6 +94,11 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-coverage-${{ matrix.runson }}
+          path: build/test/coverage/
       - name: Test macOS x64
         if: ${{ matrix.runson == 'macos-14' }}
         run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
@@ -91,7 +116,8 @@ jobs:
             build/test/logs/
             hs_err*.log
   publish-only-on-push:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    name: publish (nightly)
     runs-on: ubuntu-latest
     needs: [build-jars, build-binaries-and-test]
     steps:
