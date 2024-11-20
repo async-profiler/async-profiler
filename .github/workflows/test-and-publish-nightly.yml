@@ -38,7 +38,7 @@ jobs:
               name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
             }
         java-version: [11, 17, 21, 23]
-        java-distribution: [corretto]
+        java-distribution: ["corretto"]
         include:
           - runson:
               display: macos-14-arm64
