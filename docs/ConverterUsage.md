@@ -1,4 +1,4 @@
-# Converter usage & demo
+# Converter Usage
 
 async-profiler provides a converter utility to convert the profile output to other popular formats. async-profiler
 provides `jfrconv` as part of the compressed package which is found in the same location as the `asprof` binary. A
@@ -6,53 +6,57 @@ standalone converter binary is also available [here](ttps://github.com/async-pro
 
 ## Supported conversions
 
-* collapsed -> html, collapsed
-* html -> html, collapsed
-* jfr -> html, collapsed, pprof, pb.gz
+| From | html | collapsed | pprof | pb.gz |
+|------|------|-----------|--------|--------|
+| collapsed | ✅ | ✅ | ❌ | ❌ |
+| html | ✅ | ✅ | ❌ | ❌ |
+| jfr | ✅ | ✅ | ✅ | ✅ |
 
 ## Usage
 
-`jfrconv [options] <input> [<input>...] <output>`
+```
+jfrconv [options] <input> [<input>...] <output>
+```
 
 The output format specified can be only one at a time for conversion from one format to another.
 
-### Available arguments
-
 ```
-Conversion options: 
+Conversion options:
   -o --output FORMAT, -o can be omitted if the output file extension unambiguously determines the format, e.g. profile.collapsed
-  
+
   FORMAT can be any of the following:
-  # collapsed: This is a collection of call stacks, where each line is a  semicolon separated 
-               list of frames followed by a counter. This is used by the FlameGraph script to 
+  # collapsed: This is a collection of call stacks, where each line is a  semicolon separated
+               list of frames followed by a counter. This is used by the FlameGraph script to
                generate the FlameGraph visualization of the profile data.
-      
-  # flamegraph: Flamegraph is a hierarchical representation of call traces of the profiled 
+
+  # flamegraph: Flamegraph is a hierarchical representation of call traces of the profiled
                 software in a color coded format that helps to identify a particular resource
                 usage like CPU and memory for the application.
-      
-  # pprof: pprof is a profiling visualization and analysis tool from Google. More details on 
+
+  # pprof: pprof is a profiling visualization and analysis tool from Google. More details on
            pprof  on the official github page https://github.com/google/pprof.
-      
+
   # pb.gz: This is a compressed version of pprof output.
-       
-       
+
+
 JFR options:
     --cpu              Generate only CPU profile during conversion
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
+    --nativemem        Generate native memory allocation profile
+    --leak             Only include memory leaks in nativemem
     --live             Build allocation profile from live objects only during conversion
     --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
- -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive 
+ -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive
                        and can be abbreviated, e.g. -s r
     --classify         Classify samples into predefined categories
     --total            Accumulate total value (time, bytes, etc.) instead of samples
     --lines            Show line numbers
     --bci              Show bytecode indices
     --simple           Simple class names instead of fully qualified names
-    --norm             Normalize names of hidden classes/lambdas, e.g. Original JFR transforms  
-                       lambda names to something like pkg.ClassName$$Lambda+0x00007f8177090218/543846639  
+    --norm             Normalize names of hidden classes/lambdas, e.g. Original JFR transforms
+                       lambda names to something like pkg.ClassName$$Lambda+0x00007f8177090218/543846639
                        which gets normalized to pkg.ClassName$$Lambda
     --dot              Dotted class names, e.g. java.lang.String instead of java/lang/String
     --from TIME        Start time in ms (absolute or relative)
@@ -74,56 +78,52 @@ Flame Graph options:
     --highlight REGEX  Highlight frames matching the given pattern
 ```
 
-### Example usages with `jfrconv`
+## `jfrconv` Examples
 
-This section explains how the binary `jfrconv` can be used which exists in the same bin folder as
-`asprof`binary.
+`jfrconv` is built into the same location as the `asprof` binary.
 
-The below command will generate a foo.html. If no output file is specified, it defaults to a 
-Flame Graph output. 
+### Generate flamegraph from jfr
+
+If no output file is specified, it defaults to a Flame Graph output.
 
 ```
 jfrconv foo.jfr
 ```
 
-Profiling in JFR mode allows multi-mode profiling. So the command above will generate a Flame Graph 
-output, however, for a multi-mode profile output with both `cpu` and `wall-clock` events, the 
-Flame Graph will have an aggregation of both in the view. Such a view wouldn't make much sense and 
-hence it is advisable to use JFR conversion filter options like `--cpu` to filter out events 
+Profiling in JFR mode allows multi-mode profiling. So the command above will generate a Flame Graph
+output, however, for a multi-mode profile output with both `cpu` and `wall-clock` events, the
+Flame Graph will have an aggregation of both in the view. Such a view wouldn't make much sense and
+hence it is advisable to use JFR conversion filter options like `--cpu` to filter out events
 during a conversion.
 
 ```
-jfrconv --cpu foo.jfr -o foo.html
-```
-or
-```
 jfrconv --cpu foo.jfr
+
+# which is equivalent to:
+# jfrconv --cpu foo.jfr -o foo.html
 ```
+
 for HTML output as HTML is the default format for conversion from JFR.
 
-In case the conversion output is a Flame Graph, it can be further formatted with the use of flags 
-specified above under `Flame Graph options`. The below command(s) will add a title string named `Title` 
-to the Flame Graph instead of the default `Flame Graph` title and also will reverse the graph view 
-by reversing the stack traces.
+#### Flame Graph options
+
+To add a custom title to the generated Flame Graph, use `--title`, which has the default value `Flame Graph`:
+
 ```
-jfrconv --cpu foo.jfr foo.html -r --title Title
-```
-or
-```
-jfrconv --cpu foo.jfr --reverse --title Title
+jfrconv --cpu foo.jfr foo.html -r --title "Custom Title"
 ```
 
-These are few common use cases. Similarly, a JFR output can be converted to `collapsed`, `pprof` and
-`pb.gz` formats based on specific needs.
+### Other formats
 
-### Example usages with standalone converter
+`jfrconv` supports converting a JFR file to `collapsed`, `pprof` and `pb.gz` formats as well.
 
-The usage with standalone converter jar provided in
-[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)
-section is very similar to `jfrconv`.
+## Standalone converter examples
+
+Standalone converter jar is provided in
+[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download). It accepts the same parameters as `jfrconv`.
 
 Below is an example usage:
 
-`java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title Application CPU profile`
-
-The only difference lies in how the binary is used.
+```
+java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title "Application CPU profile"
+```

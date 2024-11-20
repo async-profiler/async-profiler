@@ -5,10 +5,7 @@
 
 package one.convert;
 
-import one.jfr.ClassRef;
-import one.jfr.Dictionary;
-import one.jfr.JfrReader;
-import one.jfr.MethodRef;
+import one.jfr.*;
 import one.jfr.event.*;
 
 import java.io.IOException;
@@ -22,10 +19,12 @@ public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
     protected Dictionary<String> methodNames;
+    private final IEventReader eventFilter;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
         this.jfr = jfr;
         this.args = args;
+        this.eventFilter = args.leak ? new MallocLeakFilter(jfr) : null;
     }
 
     public void convert() throws IOException {
@@ -45,7 +44,8 @@ public abstract class JfrConverter extends Classifier {
         Class<? extends Event> eventClass =
                 args.live ? LiveObject.class :
                         args.alloc ? AllocationSample.class :
-                                args.lock ? ContendedLock.class : ExecutionSample.class;
+                                args.lock ? ContendedLock.class :
+                                        args.nativemem ? MallocEvent.class : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -61,10 +61,15 @@ public abstract class JfrConverter extends Classifier {
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
+        boolean allowZeroes = !args.nativemem;
+        IEventReader reader = eventFilter != null ? eventFilter : jfr;
 
-        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+        for (Event event; (event = reader.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
-                if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
+                if (!allowZeroes && (event instanceof MallocEvent) && ((MallocEvent) event).size == 0) {
+                    continue;
+                }
+                if ((threadStates == null || threadStates.get(((ExecutionSample) event).threadState))) {
                     agg.collect(event);
                 }
             }
@@ -80,7 +85,7 @@ public abstract class JfrConverter extends Classifier {
     protected int toThreadState(String name) {
         Map<Integer, String> threadStates = jfr.enums.get("jdk.types.ThreadState");
         if (threadStates != null) {
-            for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
+            for (Entry<Integer, String> entry : threadStates.entrySet()) {
                 if (entry.getValue().startsWith(name, 6)) {
                     return entry.getKey();
                 }
@@ -93,7 +98,7 @@ public abstract class JfrConverter extends Classifier {
         BitSet set = new BitSet();
         Map<Integer, String> threadStates = jfr.enums.get("jdk.types.ThreadState");
         if (threadStates != null) {
-            for (Map.Entry<Integer, String> entry : threadStates.entrySet()) {
+            for (Entry<Integer, String> entry : threadStates.entrySet()) {
                 set.set(entry.getKey(), "STATE_DEFAULT".equals(entry.getValue()) == cpu);
             }
         }

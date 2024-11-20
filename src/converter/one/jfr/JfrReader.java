@@ -16,16 +16,12 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Parses JFR output produced by async-profiler.
  */
-public class JfrReader implements Closeable {
+public class JfrReader implements Closeable, IEventReader {
     private static final int BUFFER_SIZE = 2 * 1024 * 1024;
     private static final int CHUNK_HEADER_SIZE = 68;
     private static final int CHUNK_SIGNATURE = 0x464c5200;
@@ -73,6 +69,8 @@ public class JfrReader implements Closeable {
     private int monitorEnter;
     private int threadPark;
     private int activeSetting;
+    private int malloc;
+    private int free;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -150,6 +148,7 @@ public class JfrReader implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
+    @Override
     public <E extends Event> E readEvent(Class<E> cls) throws IOException {
         while (ensureBytes(CHUNK_HEADER_SIZE)) {
             int pos = buf.position();
@@ -174,6 +173,10 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(true);
             } else if (type == allocationOutsideTLAB || type == allocationSample) {
                 if (cls == null || cls == AllocationSample.class) return (E) readAllocationSample(false);
+            } else if (type == malloc) {
+                if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(true);
+            } else if (type == free) {
+                if (cls == null || cls == MallocEvent.class) return (E) readMallocEvent(false);
             } else if (type == liveObject) {
                 if (cls == null || cls == LiveObject.class) return (E) readLiveObject();
             } else if (type == monitorEnter) {
@@ -219,6 +222,15 @@ public class JfrReader implements Closeable {
         long allocationSize = getVarlong();
         long tlabSize = tlab ? getVarlong() : 0;
         return new AllocationSample(time, tid, stackTraceId, classId, allocationSize, tlabSize);
+    }
+
+    private MallocEvent readMallocEvent(boolean hasSize) {
+        long time = getVarlong();
+        int tid = getVarint();
+        int stackTraceId = getVarint();
+        long address = getVarlong();
+        long size = hasSize ? getVarlong() : 0;
+        return new MallocEvent(time, tid, stackTraceId, address, size);
     }
 
     private LiveObject readLiveObject() {
@@ -540,6 +552,8 @@ public class JfrReader implements Closeable {
         monitorEnter = getTypeId("jdk.JavaMonitorEnter");
         threadPark = getTypeId("jdk.ThreadPark");
         activeSetting = getTypeId("jdk.ActiveSetting");
+        malloc = getTypeId("profiler.Malloc");
+        free = getTypeId("profiler.Free");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);

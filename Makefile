@@ -6,6 +6,8 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
+export SOEXT ?= so
+
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
@@ -17,7 +19,7 @@ CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
 CC ?= $(CROSS_COMPILE)gcc
-CXX ?= $(CROSS_COMPILE)g++
+export CXX ?= $(CROSS_COMPILE)g++
 STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
@@ -26,7 +28,7 @@ CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
-INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
+export INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
 GCOV ?= gcov
@@ -37,6 +39,7 @@ JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
+export TEST_LIB_DIR=$(abspath build/test/lib)
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -188,11 +191,18 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
 
-build-test-java: all build/$(TEST_JAR)
+build-test-java: all build/$(TEST_JAR) build-test-java-libs
 
 build-test-cpp: build/test/cpptests
 
 build-test: build-test-cpp build-test-java
+
+build-test-java-libs: $(addsuffix /.build-test,$(TESTS))
+%/.build-test:
+	@mkdir -p $(TEST_LIB_DIR)
+	@if [ -f test/test/$*/Makefile ]; then \
+		$(MAKE) -C test/test/$* build-test INCLUDES="$(INCLUDES) -I$(realpath src)" ; \
+	fi
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -200,7 +210,8 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" $(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage

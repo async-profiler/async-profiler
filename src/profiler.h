@@ -26,6 +26,14 @@
 #include "writer.h"
 
 
+# ifndef likely
+#  define likely(x)     (__builtin_expect(!!(x), 1))
+# endif
+
+# ifndef unlikely
+#  define unlikely(x)   (__builtin_expect(!!(x), 0))
+# endif
+
 const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;
 const int CONCURRENCY_LEVEL = 16;
@@ -65,6 +73,7 @@ class Profiler {
     FlightRecorder _jfr;
     Engine* _engine;
     Engine* _alloc_engine;
+    Engine* _malloc_engine;
     int _event_mask;
 
     time_t _start_time;

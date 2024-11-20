@@ -77,6 +77,15 @@ public class TestProcess implements Closeable {
         if (test.error()) {
             pb.redirectError(createTempFile(STDERR));
         }
+
+        String[] pairs = test.env().split(";");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split("=", 2);
+            if (keyValue.length == 2) {
+                pb.environment().put(keyValue[0], keyValue[1]);
+            }
+        }
+
         this.p = pb.start();
 
         if (cmd.get(0).endsWith("java")) {

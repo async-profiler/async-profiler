@@ -214,6 +214,8 @@ Error Arguments::parse(const char* args) {
                     msg = "event must not be empty";
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc < 0) _alloc = 0;
+                } else if (strcmp(value, EVENT_NATIVEMEM) == 0) {
+                    if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL) {
@@ -235,6 +237,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
+
+            CASE("nativemem")
+                _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
 
             CASE("lock")
                 _lock = value == NULL ? 0 : parseUnits(value, NANOS);
@@ -409,7 +414,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0) {
         _event = EVENT_CPU;
     }
 

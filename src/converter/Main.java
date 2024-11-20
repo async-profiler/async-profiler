@@ -96,6 +96,8 @@ public class Main {
                 "     --cpu              CPU profile\n" +
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
+                "     --nativemem        malloc profile\n" +
+                "     --leak             Only include memory leaks in nativemem\n" +
                 "     --live             Live object profile\n" +
                 "     --lock             Lock contention profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +

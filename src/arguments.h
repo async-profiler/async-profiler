@@ -14,12 +14,13 @@ const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
 const int DEFAULT_JSTACKDEPTH = 2048;
 
-const char* const EVENT_CPU    = "cpu";
-const char* const EVENT_ALLOC  = "alloc";
-const char* const EVENT_LOCK   = "lock";
-const char* const EVENT_WALL   = "wall";
-const char* const EVENT_CTIMER = "ctimer";
-const char* const EVENT_ITIMER = "itimer";
+const char* const EVENT_CPU        = "cpu";
+const char* const EVENT_ALLOC      = "alloc";
+const char* const EVENT_NATIVEMEM  = "nativemem";
+const char* const EVENT_LOCK       = "lock";
+const char* const EVENT_WALL       = "wall";
+const char* const EVENT_CTIMER     = "ctimer";
+const char* const EVENT_ITIMER     = "itimer";
 
 #define SHORT_ENUM __attribute__((__packed__))
 
@@ -157,6 +158,7 @@ class Arguments {
     int _timeout;
     long _interval;
     long _alloc;
+    long _nativemem;
     long _lock;
     long _wall;
     int _jstackdepth;
@@ -207,6 +209,7 @@ class Arguments {
         _timeout(0),
         _interval(0),
         _alloc(-1),
+        _nativemem(-1),
         _lock(-1),
         _wall(-1),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
