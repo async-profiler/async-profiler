@@ -38,16 +38,18 @@ jobs:
               name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
             }
         java-version: [11, 17, 21, 23]
-        java-distribution: ["corretto"]
+        java-distribution: [corretto]
         include:
           - runson:
               display: macos-14-arm64
               name: macos-14
             java-version: 11
+            java-distribution: corretto
           - runson:
               display: linux-arm64
               name: "codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}"
             java-version: 11
+            java-distribution: corretto
     runs-on: ${{ matrix.runson.name }}
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
