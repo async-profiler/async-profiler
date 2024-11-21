@@ -33,8 +33,10 @@ jobs:
     strategy:
       matrix:
         runson:
-          display: linux-x64,
-          name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
+          - {
+              display: linux-x64,
+              name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
+            }
         java-version: [11, 17, 21, 23]
         java-distribution: [corretto]
         include:
