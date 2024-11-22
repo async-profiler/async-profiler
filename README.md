@@ -151,7 +151,7 @@ Here are some useful native methods that you may want to profile:
 
 ## Building
 
-Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/ci.yml)
+Build status: [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml)
 
 Make sure the `JAVA_HOME` environment variable points to your JDK installation,
 and then run `make`. GCC or Clang is required. After building, the profiler binaries
