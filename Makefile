@@ -16,17 +16,20 @@ API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
-CC=$(CROSS_COMPILE)gcc
-CXX=$(CROSS_COMPILE)g++
+CC ?= $(CROSS_COMPILE)gcc
+CXX ?= $(CROSS_COMPILE)g++
 STRIP=$(CROSS_COMPILE)strip
 
-CFLAGS=-O3 -fno-exceptions
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden
+CFLAGS_EXTRA ?=
+CXXFLAGS_EXTRA ?=
+CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
+GCOV ?= gcov
 
 JAVAC=$(JAVA_HOME)/bin/javac
 JAR=$(JAVA_HOME)/bin/jar
@@ -47,6 +50,9 @@ API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
 TESTS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
+CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
+CPP_TEST_HEADER := test/native/testRunner.hpp
+CPP_TEST_INCLUDES := -Isrc -Itest/native
 
 ifeq ($(JAVA_HOME),)
   export JAVA_HOME:=$(shell java -cp . JavaHome)
@@ -109,7 +115,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -172,11 +178,38 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 %.class: %.java
 	$(JAVAC) -source 7 -target 7 -Xlint:-options -g:none $^
 
-build-test: all build/$(TEST_JAR)
+build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+	mkdir -p build/test
 
-test: all build/$(TEST_JAR)
+ifeq ($(MERGE),true)
+	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
+else
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
+endif
+
+build-test-java: all build/$(TEST_JAR)
+
+build-test-cpp: build/test/cpptests
+
+build-test: build-test-cpp build-test-java
+
+test-cpp: build-test-cpp
+	echo "Running cpp tests..."
+	build/test/cpptests
+
+test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+coverage: override FAT_BINARY=false
+coverage: clean-coverage
+	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 --coverage"
+	mkdir -p build/test/coverage
+	cd build/test/ && gcovr -r ../.. --html-details --gcov-executable "$(GCOV)" -o coverage/index.html
+	rm -rf -- -.gc*
+
+test: test-cpp test-java
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
@@ -188,6 +221,9 @@ native:
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
 	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
+
+clean-coverage:
+	$(RM) -rf build/test/cpptests build/test/coverage
 
 clean:
 	$(RM) -r build

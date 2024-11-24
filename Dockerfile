@@ -4,7 +4,7 @@
 FROM public.ecr.aws/debian/debian:10-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    sudo libicu-dev patchelf curl make g++ openjdk-11-jdk-headless && \
+    sudo libicu-dev patchelf curl make g++ openjdk-11-jdk-headless gcovr && \
     rm -rf /var/cache/apt /var/lib/apt/lists/*
 
 ARG musl_src=musl-1.2.5
@@ -26,7 +26,7 @@ FROM public.ecr.aws/debian/debian:10-slim
 # The following command should be exactly the same as at stage 0 to benefit from caching.
 # libicu-dev is needed for the github actions runner
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    sudo libicu-dev patchelf curl make g++ openjdk-11-jdk-headless && \
+    sudo libicu-dev patchelf curl make g++ openjdk-11-jdk-headless gcovr && \
     rm -rf /var/cache/apt /var/lib/apt/lists/*
 
 COPY --from=0 /usr/local/musl /usr/local/musl
