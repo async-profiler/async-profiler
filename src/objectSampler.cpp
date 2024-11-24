@@ -11,8 +11,9 @@
 
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
+size_t ObjectSampler::_live_gc_threshold;
 volatile u64 ObjectSampler::_allocated_bytes;
-
+size_t ObjectSampler::_observed_gc_starts = 0;
 
 static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
     u32 class_id = 0;
@@ -39,6 +40,7 @@ class LiveRefs {
         jlong size;
         u64 trace;
         u64 time;
+        size_t gc_count;
     } _values[MAX_REFS];
     bool _full;
 
@@ -82,6 +84,7 @@ class LiveRefs {
                     _values[i].size = size;
                     _values[i].trace = trace;
                     _values[i].time = TSC::ticks();
+                    _values[i].gc_count = ObjectSampler::current_gc_counter();
                     _lock.unlock();
                     return;
                 }
@@ -94,7 +97,7 @@ class LiveRefs {
         jni->DeleteWeakGlobalRef(wobject);
     }
 
-    void dump(JNIEnv* jni) {
+    void dump(JNIEnv* jni, size_t minimum_gc_count) {
         _lock.lock();
 
         jvmtiEnv* jvmti = VM::jvmti();
@@ -103,22 +106,51 @@ class LiveRefs {
         // Reset counters before dumping to collect live objects only.
         profiler->tryResetCounters();
 
+        size_t current_gc_counter = ObjectSampler::current_gc_counter();
+
         for (u32 i = 0; i < MAX_REFS; i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);
 
             jweak w = _refs[i];
             if (w != NULL) {
-                jobject obj = jni->NewLocalRef(w);
-                if (obj != NULL) {
-                    LiveObject event;
-                    event._start_time = TSC::ticks();
-                    event._alloc_size = _values[i].size;
-                    event._alloc_time = _values[i].time;
-                    event._class_id = lookupClassId(jvmti, jni->GetObjectClass(obj));
+                // We can optionally filter objects based on how many GCs they
+                // survive.
+                //
+                // Our heuristic is to compare the current observed GC count against
+                // the GC count when the object was allocated. If the delta exceeds
+                // our GC count threshold, we can emit the object.
+                //
+                // The GC counter is incremented during GarbageCollectionStart JVMTI
+                // events and we only consider the GC start events. There should be
+                // no race condition for events allocated between GarbageCollectionStart
+                // and GarbageCollectionFinish because the VM is paused between these
+                // events and no allocations should occur. Therefore the counts of GC
+                // start and finish JVMTI events are effectively identical.
 
-                    int tid = _values[i].trace >> 32;
-                    u32 call_trace_id = (u32)_values[i].trace;
-                    profiler->recordExternalSamples(1, event._alloc_size, tid, call_trace_id, LIVE_OBJECT, &event);
+                bool meets_gc_filter = false;
+                if (minimum_gc_count == 0) {
+                    meets_gc_filter = true;
+                } else if (_values[i].gc_count > current_gc_counter) {
+                    // integer wraparound. Should be rare. Don't bother with
+                    // complexity. Don't emit.
+                    meets_gc_filter = false;
+                } else {
+                    meets_gc_filter = current_gc_counter - _values[i].gc_count >= minimum_gc_count;
+                }
+
+                if (meets_gc_filter) {
+                    jobject obj = jni->NewLocalRef(w);
+                    if (obj != NULL) {
+                        LiveObject event;
+                        event._start_time = TSC::ticks();
+                        event._alloc_size = _values[i].size;
+                        event._alloc_time = _values[i].time;
+                        event._class_id = lookupClassId(jvmti, jni->GetObjectClass(obj));
+
+                        int tid = _values[i].trace >> 32;
+                        u32 call_trace_id = (u32) _values[i].trace;
+                        profiler->recordExternalSamples(1, event._alloc_size, tid, call_trace_id, LIVE_OBJECT, &event);
+                    }
                 }
                 jni->DeleteWeakGlobalRef(w);
             }
@@ -139,6 +171,7 @@ void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thr
 }
 
 void ObjectSampler::GarbageCollectionStart(jvmtiEnv* jvmti) {
+    _observed_gc_starts++;
     live_refs.gc();
 }
 
@@ -156,8 +189,9 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     }
 }
 
-void ObjectSampler::initLiveRefs(bool live) {
+void ObjectSampler::initLiveRefs(bool live, size_t live_gc_threshold) {
     _live = live;
+    _live_gc_threshold = live_gc_threshold;
     if (_live) {
         live_refs.init();
     }
@@ -165,14 +199,14 @@ void ObjectSampler::initLiveRefs(bool live) {
 
 void ObjectSampler::dumpLiveRefs() {
     if (_live) {
-        live_refs.dump(VM::jni());
+        live_refs.dump(VM::jni(), _live_gc_threshold);
     }
 }
 
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
-    initLiveRefs(args._live);
+    initLiveRefs(args._live, args._live_gc_threshold);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetHeapSamplingInterval(_interval);

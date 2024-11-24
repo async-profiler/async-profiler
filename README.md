@@ -352,6 +352,12 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
   (object that have not been collected by the end of profiling session).
   Useful for finding Java heap memory leaks.
 
+* `--livegcs N` - defines the number (>=0) of garbage collections a
+  `--live` object must survive for a sample to be emitted. Setting to >0
+  filters out recently allocated objects that haven't yet survived "enough"
+  GCs. Setting to ever-increasing values can improve confidence that an
+  object is actually leaked and not just recently allocated. Defaults to 0.
+
 * `--lock N` - lock profiling threshold in nanoseconds (or other units).
   In lock profiling mode, sample contended locks when total lock duration
   overflows the threshold.

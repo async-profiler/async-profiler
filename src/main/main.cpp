@@ -69,6 +69,7 @@ static const char USAGE_STRING[] =
     "  --loop time       run profiler in a loop\n"
     "  --alloc bytes     allocation profiling interval in bytes\n"
     "  --live            build allocation profile from live objects only\n"
+    "  --livegcs num     number of GCs a --live object must survive to be emitted\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
@@ -492,7 +493,8 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--alloc" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
-                   arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
+                   arg == "--cstack" || arg == "--signal" || arg == "--clock" ||
+                   arg == "--begin" || arg == "--end" || arg == "--livegcs") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
