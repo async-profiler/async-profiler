@@ -485,14 +485,16 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             }
         }
     } else if (trace.num_frames == ticks_unknown_not_Java && _features.java_anchor) {
-        uintptr_t& sp = vm_thread->lastJavaSP();
-        uintptr_t& pc = vm_thread->lastJavaPC();
-        if (sp != 0 && pc == 0) {
+        JavaFrameAnchor* anchor = vm_thread->anchor();
+        uintptr_t sp = anchor->lastJavaSP();
+        const void* pc = anchor->lastJavaPC();
+        if (sp != 0 && pc == NULL) {
             // We have the last Java frame anchor, but it is not marked as walkable.
             // Make it walkable here
-            pc = ((uintptr_t*)sp)[-1];
+            pc = ((const void**)sp)[-1];
+            anchor->setLastJavaPC(pc);
 
-            NMethod* m = CodeHeap::findNMethod((const void*)pc);
+            NMethod* m = CodeHeap::findNMethod(pc);
             if (m != NULL) {
                 // AGCT fails if the last Java frame is a Runtime Stub with an invalid _frame_complete_offset.
                 // In this case we patch _frame_complete_offset manually
@@ -500,26 +502,27 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     m->setFrameCompleteOffset(0);
                 }
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
-            } else if (findLibraryByAddress((const void*)pc) != NULL) {
+            } else if (findLibraryByAddress(pc) != NULL) {
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
 
-            pc = 0;
+            anchor->setLastJavaPC(NULL);
         }
     } else if (trace.num_frames == ticks_not_walkable_not_Java && _features.java_anchor) {
-        uintptr_t& sp = vm_thread->lastJavaSP();
-        uintptr_t& pc = vm_thread->lastJavaPC();
-        if (sp != 0 && pc != 0) {
+        JavaFrameAnchor* anchor = vm_thread->anchor();
+        uintptr_t sp = anchor->lastJavaSP();
+        const void* pc = anchor->lastJavaPC();
+        if (sp != 0 && pc != NULL) {
             // Similar to the above: last Java frame is set,
             // but points to a Runtime Stub with an invalid _frame_complete_offset
-            NMethod* m = CodeHeap::findNMethod((const void*)pc);
+            NMethod* m = CodeHeap::findNMethod(pc);
             if (m != NULL && !m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
                 m->setFrameCompleteOffset(0);
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
         }
     } else if (trace.num_frames == ticks_GC_active && _features.gc_traces) {
-        if (vm_thread->lastJavaSP() == 0) {
+        if (vm_thread->anchor()->lastJavaSP() == 0) {
             // Do not add 'GC_active' for threads with no Java frames, e.g. Compiler threads
             frame.restore(saved_pc, saved_sp, saved_fp);
             return 0;
@@ -547,38 +550,15 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth) {
     int num_frames;
     if (VM::jvmti()->GetStackTrace(NULL, start_depth, _max_stack_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
-        return convertFrames(jvmti_frames, frames, num_frames);
+        // Convert to AsyncGetCallTrace format.
+        // Note: jvmti_frames and frames may overlap.
+        for (int i = 0; i < num_frames; i++) {
+            jint bci = jvmti_frames[i].location;
+            frames[i].method_id = jvmti_frames[i].method;
+            frames[i].bci = bci;
+        }
     }
     return 0;
-}
-
-int Profiler::getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth) {
-    // We cannot call pure JVM TI here, because it assumes _thread_in_native state,
-    // but allocation events happen in _thread_in_vm state,
-    // see https://github.com/async-profiler/async-profiler/issues/64
-    JNIEnv* jni = VM::jni();
-    if (jni == NULL) {
-        return 0;
-    }
-
-    JitWriteProtection jit(false);
-    VMThread* vm_thread = VMThread::fromEnv(jni);
-    int num_frames;
-    if (VMStructs::_get_stack_trace(NULL, vm_thread, 0, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
-        return convertFrames(jvmti_frames, frames, num_frames);
-    }
-    return 0;
-}
-
-inline int Profiler::convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames) {
-    // Convert to AsyncGetCallTrace format.
-    // Note: jvmti_frames and frames may overlap.
-    for (int i = 0; i < num_frames; i++) {
-        jint bci = jvmti_frames[i].location;
-        frames[i].method_id = jvmti_frames[i].method;
-        frames[i].bci = bci;
-    }
-    return num_frames;
 }
 
 void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod) {
@@ -679,10 +659,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
         num_frames += java_frames;
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
-        if (VMStructs::_get_stack_trace != NULL) {
-            // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
-            // but not directly, since the thread is in_vm rather than in_native
-            num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
+        VMThread* vm_thread;
+        if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }

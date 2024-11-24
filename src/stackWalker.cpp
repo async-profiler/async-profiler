@@ -194,21 +194,41 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 }
 
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
-    const void* pc;
-    uintptr_t fp;
-    uintptr_t sp;
-    uintptr_t bottom = (uintptr_t)&sp + MAX_WALK_SIZE;
-
-    StackFrame frame(ucontext);
     if (ucontext == NULL) {
-        pc = __builtin_return_address(0);
-        fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
+        const void* pc = __builtin_return_address(0);
+        uintptr_t sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
+        uintptr_t fp = (uintptr_t)__builtin_frame_address(1);
+        return walkVM<true>(ucontext, frames, max_depth, pc, sp, fp);
     } else {
-        pc = (const void*)frame.pc();
-        fp = frame.fp();
-        sp = frame.sp();
+        StackFrame frame(ucontext);
+        return walkVM<true>(ucontext, frames, max_depth, (const void*)frame.pc(), frame.sp(), frame.fp());
     }
+}
+
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor) {
+    uintptr_t sp = anchor->lastJavaSP();
+    if (sp == 0) {
+        return 0;
+    }
+
+    uintptr_t fp = anchor->lastJavaFP();
+    if (fp == 0) {
+        fp = sp;
+    }
+
+    const void* pc = anchor->lastJavaPC();
+    if (pc == NULL) {
+        pc = ((const void**)sp)[-1];
+    }
+
+    return walkVM<false>(ucontext, frames, max_depth, pc, sp, fp);
+}
+
+template<bool EXPERT_MODE>
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
+                        const void* pc, uintptr_t sp, uintptr_t fp) {
+    StackFrame frame(ucontext);
+    uintptr_t bottom = (uintptr_t)&frame + MAX_WALK_SIZE;
 
     Profiler* profiler = Profiler::instance();
     int bcp_offset = InterpreterFrame::bcp_offset();
@@ -239,7 +259,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
             } else if (nm->isNMethod()) {
                 int level = nm->level();
-                FrameTypeId type = level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                FrameTypeId type = EXPERT_MODE && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                 fillFrame(frames[depth++], type, 0, nm->method()->id());
 
                 if (nm->isFrameCompleteAt(pc)) {
@@ -249,8 +269,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
                         ScopeDesc scope(nm);
                         do {
                             scope_offset = scope.decode(scope_offset);
-                            type = scope_offset > 0 ? FRAME_INLINED :
-                                   level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                            if (EXPERT_MODE) {
+                                type = scope_offset > 0 ? FRAME_INLINED :
+                                       level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                            }
                             fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
                         } while (scope_offset > 0 && depth < max_depth);
                     }
@@ -314,11 +336,28 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) 
 
                 fillFrame(frames[depth++], BCI_ERROR, "break_interpreted");
                 break;
+            } else if (!EXPERT_MODE && nm->isEntryFrame(pc)) {
+                JavaFrameAnchor* anchor = JavaFrameAnchor::fromEntryFrame(fp);
+                if (anchor == NULL) {
+                    fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
+                    break;
+                }
+                sp = anchor->lastJavaSP();
+                fp = anchor->lastJavaFP();
+                pc = anchor->lastJavaPC();
+                if (sp == 0 || pc == NULL) {
+                    // End of Java stack
+                    break;
+                }
+                continue;
             } else {
                 CodeBlob* stub = profiler->findRuntimeStub(pc);
                 const void* start = stub != NULL ? stub->_start : nm->code();
                 const char* name = stub != NULL ? stub->_name : nm->name();
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
+
+                if (EXPERT_MODE) {
+                    fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
+                }
 
                 if (frame.unwindStub((instruction_t*)start, name, (uintptr_t&)pc, sp, fp)) {
                     continue;

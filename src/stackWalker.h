@@ -10,6 +10,8 @@
 #include "vmEntry.h"
 
 
+class JavaFrameAnchor;
+
 struct StackContext {
     const void* pc;
     uintptr_t sp;
@@ -23,10 +25,16 @@ struct StackContext {
 };
 
 class StackWalker {
+  private:
+    template<bool EXPERT_MODE>
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
+                      const void* pc, uintptr_t sp, uintptr_t fp);
+
   public:
     static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
     static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
     static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor);
 
     static void checkFault();
 };
