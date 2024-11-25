@@ -39,10 +39,6 @@ struct CallTraceSample {
         counter += s.counter;
         return *this;
     }
-
-    bool operator<(const CallTraceSample& other) const {
-        return counter > other.counter;
-    }
 };
 
 class CallTraceStorage {

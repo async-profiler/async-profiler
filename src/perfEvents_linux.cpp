@@ -210,7 +210,9 @@ struct PerfEventType {
         c = strrchr(buf, ':');
         if (c != NULL && c != name && c[-1] != ':') {
             *c++ = 0;
-            if (strcmp(c, "r") == 0) {
+            if (strcmp(c, "rw") == 0 || strcmp(c, "wr") == 0) {
+                bp_type = HW_BREAKPOINT_RW;
+            } else if (strcmp(c, "r") == 0) {
                 bp_type = HW_BREAKPOINT_R;
             } else if (strcmp(c, "w") == 0) {
                 bp_type = HW_BREAKPOINT_W;
@@ -218,7 +220,7 @@ struct PerfEventType {
                 bp_type = HW_BREAKPOINT_X;
                 bp_len = sizeof(long);
             } else {
-                bp_type = HW_BREAKPOINT_RW;
+                return NULL;
             }
         }
 
@@ -241,6 +243,9 @@ struct PerfEventType {
         __u64 addr;
         if (strncmp(buf, "0x", 2) == 0) {
             addr = (__u64)strtoll(buf, NULL, 0);
+        } else if (buf[0] >= '0' && buf[0] <= '9') {
+            // Only hex address is supported.
+            return NULL;
         } else {
             addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, buf);
             if (addr == 0) {
@@ -273,6 +278,10 @@ struct PerfEventType {
     static PerfEventType* getProbe(PerfEventType* probe, const char* type, const char* name, __u64 ret) {
         strncpy(probe_func, name, sizeof(probe_func) - 1);
         probe_func[sizeof(probe_func) - 1] = 0;
+
+        if (probe_func[0] == 0) {
+            return NULL;
+        }
 
         if (probe->type == 0 && (probe->type = findDeviceType(type)) == 0) {
             return NULL;
@@ -794,6 +803,8 @@ Error PerfEvents::start(Arguments& args) {
                   "  sysctl kernel.perf_event_paranoid=1\n"
                   "  sysctl kernel.kptr_restrict=0");
         _kernel_stack = false;
+        // Automatically switch on alluser for non-CPU events, if kernel profiling is unavailable
+        _alluser = strcmp(args._event, EVENT_CPU) != 0 && !supported();
     }
 
     adjustFDLimit();
@@ -941,6 +952,8 @@ void PerfEvents::resetBuffer(int tid) {
     event->unlock();
 }
 
+// This function determines engine selection for CPU profiling.
+// Returns true if perf_events AND kernel measurements are available.
 bool PerfEvents::supported() {
     struct perf_event_attr attr = {0};
     attr.size = sizeof(attr);
