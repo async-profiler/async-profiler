@@ -21,7 +21,6 @@
 *  ```
    Could not start attach mechanism: No such file or directory
    ```
-
    The profiler cannot establish communication with the target JVM through UNIX domain socket.
    Usually this happens in one of the following cases:
      1. Attach socket `/tmp/.java_pidNNN` has been deleted. It is a common
@@ -50,13 +49,8 @@
 
 
 *  ```
-   Perf events unavailable. Try --fdtransfer or --all-user option or 'sysctl kernel.perf_event_paranoid=1'
-   ```
-   or
-   ```
    Perf events unavailable
    ```
-   
    `perf_event_open()` syscall has failed. Typical reasons include:
    1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
    2. seccomp disables `perf_event_open` API in a container.
@@ -75,7 +69,7 @@
    No AllocTracer symbols found. Are JDK debug symbols installed?
    ```
    The OpenJDK debug symbols are required for allocation profiling for applications developed
-   with JDK prior to 11. See [Installing Debug Symbols](#installing-debug-symbols) for more
+   with JDK prior to 11. See [Installing Debug Symbols](ProfilingModes.md#installing-debug-symbols) for more
    details. If the error message persists after a successful installation of the debug symbols,
    it is possible that the JDK was upgraded when installing the debug symbols.
    In this case, profiling any Java process which had started prior to the installation
