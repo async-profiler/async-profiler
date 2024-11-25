@@ -33,7 +33,7 @@ main() {
 ```
 
 ## Profiler sampling
-Profiling starts by taking samples x times per second. Whenever a sample is taken, the current call stack for it is saved. The diagram below shows the unsorted sampling view before the sorting and aggregation takes place. 
+Profiling starts by taking samples x times per second. Whenever a sample is taken, the current call stack for it is saved. The diagram below shows the unsorted sampling view before the sorting and aggregation takes place.
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSamplings.png)
 
@@ -51,7 +51,7 @@ Samples are then alphabetically sorted at the base level just after root(or main
 
 ## Aggregated view
 For the aggregated view, the blocks for the same functions at each
-level of stack depth are stitched together to get the aggregated 
+level of stack depth are stitched together to get the aggregated
 view of the flame graph.
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AggregatedView.png)
 
@@ -67,13 +67,7 @@ heap utilization and wall-clock profiling to view latency.
 [More on various modes of profiling](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#profiling-modes)
 
 ## Understanding FlameGraph colors
-The various colours in a FlameGraph output with their relation to 
-underlying code for a Java application:
+The various colours in a FlameGraph output with their relation to underlying code for a Java application:
+![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_colors.png)
 
-* <span style="color:green">green</span> : JIT
-* <span style="color:aqua">aqua</span> : inlined
-* <span style="color:yellow">yellow</span> : C++
-* <span style="color:orange">orange</span> : kernel
-* <span style="color:red">red</span> : native (user-level)
-
-Please note the colours in the example diagrams above have no relation to the official FlameGraph colour palette. 
+Please note the colours in the example diagrams above have no relation to the official FlameGraph colour palette.
