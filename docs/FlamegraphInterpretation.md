@@ -68,6 +68,7 @@ heap utilization and wall-clock profiling to view latency.
 
 ## Understanding FlameGraph colors
 The various colours in a FlameGraph output with their relation to underlying code for a Java application:
+
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_colors.png)
 
 Please note the colours in the example diagrams above have no relation to the official FlameGraph colour palette.
