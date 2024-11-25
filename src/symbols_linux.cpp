@@ -394,7 +394,8 @@ void ElfParser::parseDynamicSection() {
                     _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
                 }
             }
-        } else if (rel != NULL && relsz != 0) {
+        }
+        if (rel != NULL && relsz != 0) {
             // Shared library was built without PLT (-fno-plt)
             // Relocation entries have been moved from .rela.plt to .rela.dyn
             for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
