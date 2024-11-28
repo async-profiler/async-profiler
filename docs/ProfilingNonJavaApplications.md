@@ -27,8 +27,13 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
 ```
-To use it in a C/C++ application, include asprof.h. Below is an example usage showing how to use async-profiler command with the API. The :
+To use it in a C/C++ application, include asprof.h. Below is an example usage showing how to use async-profiler command with the API:
 ```
+#include "asprof.h"
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 void test_output_callback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stderr);
 }
@@ -42,7 +47,7 @@ int main() {
         exit(1);
     }
 
-    asprof_init_t asprof_init = dlsym(lib, "asprof_init");
+    asprof_init_t asprof_init = (asprof_init_t)dlsym(lib, "asprof_init");
     if(asprof_init == NULL) {
         printf("%s\n", dlerror());
         dlclose(lib);
@@ -55,13 +60,14 @@ int main() {
 
     printf("Starting profiler\n");
     
-    asprof_execute_t asprof_execute = dlsym(lib, "asprof_execute");
+    asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(lib, "asprof_execute");
     if(asprof_execute == NULL) {
         printf("%s\n", dlerror());
         dlclose(lib);
         exit(1);
     }
 
+    asprof_error_str_t asprof_error_str = (asprof_error_str_t)dlsym(lib, "asprof_error_str");
     asprof_error_t err = asprof_execute(cmd, test_output_callback);
     if (err != NULL) {
         fprintf(stderr, "%s\n", asprof_error_str(err));
