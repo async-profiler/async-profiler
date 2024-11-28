@@ -21,30 +21,30 @@ import one.profiler.test.TestProcess;
 
 public class NativememTests {
 
-    final int MALLOC_SIZE = 1999993;
-    final int CALLOC_SIZE = 2000147;
-    final int REALLOC_SIZE = 30000170;
+    private static final int MALLOC_SIZE = 1999993;
+    private static final int CALLOC_SIZE = 2000147;
+    private static final int REALLOC_SIZE = 30000170;
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsMallocCalloc_nativeMalloc"), MALLOC_SIZE);
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsMallocCalloc_nativeCalloc"), CALLOC_SIZE);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), MALLOC_SIZE);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), CALLOC_SIZE);
     }
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
     public void canAgentFilterMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsMallocCalloc_nativeMalloc"), 0);
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsMallocCalloc_nativeCalloc"), 0);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), 0);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), 0);
     }
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX)
     public void canAsprofTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
-        long samplesMalloc = out.samples("Java_test_nativemem_CallsMallocCalloc_nativeMalloc");
-        long samplesCalloc = out.samples("Java_test_nativemem_CallsMallocCalloc_nativeCalloc");
+        long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
+        long samplesCalloc = out.samples("Java_test_nativemem_Native_calloc");
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);
@@ -56,15 +56,15 @@ public class NativememTests {
     public void canAgentTraceRealloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsRealloc_nativeMalloc"), MALLOC_SIZE);
-        Assert.isEqual(out.samples("Java_test_nativemem_CallsRealloc_nativeRealloc"), REALLOC_SIZE);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), MALLOC_SIZE);
+        Assert.isEqual(out.samples("Java_test_nativemem_Native_realloc"), REALLOC_SIZE);
     }
 
     @Test(mainClass = CallsRealloc.class, os = Os.LINUX)
     public void canAsprofTraceRealloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
-        long samplesMalloc = out.samples("Java_test_nativemem_CallsRealloc_nativeMalloc");
-        long samplesRealloc = out.samples("Java_test_nativemem_CallsRealloc_nativeRealloc");
+        long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
+        long samplesRealloc = out.samples("Java_test_nativemem_Native_realloc");
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesRealloc, 0);
@@ -76,9 +76,9 @@ public class NativememTests {
     public void canAsprofTraceAllNoLeak(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
 
-        long samplesMalloc = out.samples("Java_test_nativemem_CallsAllNoLeak_nativeMalloc");
-        long samplesCalloc = out.samples("Java_test_nativemem_CallsAllNoLeak_nativeCalloc");
-        long samplesRealloc = out.samples("Java_test_nativemem_CallsAllNoLeak_nativeRealloc");
+        long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
+        long samplesCalloc = out.samples("Java_test_nativemem_Native_calloc");
+        long samplesRealloc = out.samples("Java_test_nativemem_Native_realloc");
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);

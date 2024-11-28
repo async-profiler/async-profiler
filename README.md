@@ -29,7 +29,10 @@ Current release (3.0):
 - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
 - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
 - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)
-  (JFR to Flame Graph, JFR to pprof, collapsed stacks to Flame Graph, JFR to memory leak Flame Graph)
+  * JFR to Flame Graph
+  * JFR to pprof
+  * collapsed stacks to Flame Graph
+  * JFR to memory leak Flame Graph
 
 [Previous releases](https://github.com/async-profiler/async-profiler/releases)
 

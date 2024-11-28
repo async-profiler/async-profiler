@@ -73,7 +73,6 @@ class Profiler {
     FlightRecorder _jfr;
     Engine* _engine;
     Engine* _alloc_engine;
-    Engine* _malloc_engine;
     int _event_mask;
 
     time_t _start_time;

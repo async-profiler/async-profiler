@@ -14,7 +14,6 @@ header:
     paths-ignore:
       - 'src/jattach'
       - 'src/res'
-      - '**/Makefile'
     license:
       content: |
         Copyright The async-profiler authors

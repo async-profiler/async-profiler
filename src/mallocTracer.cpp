@@ -32,12 +32,11 @@ static free_t _orig_free = NULL;
 static void* malloc_hook(size_t size) {
     void* ret = _orig_calloc(1, size);
     if (likely(ret && size)) {
-        MallocTracer::recordMalloc(ret, size, OS::nanotime());
+        MallocTracer::recordMalloc(ret, size);
     }
     return ret;
 }
 
-#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* malloc(size_t size) {
     if (unlikely(!_orig_malloc)) {
         return NULL;
@@ -48,20 +47,17 @@ extern "C" WEAK DLLEXPORT void* malloc(size_t size) {
     }
     return _orig_malloc(size);
 }
-#endif // __linux__
 
 static void* calloc_hook(size_t num, size_t size) {
     void* ret = _orig_calloc(num, size);
     if (likely(ret && num && size)) {
-        MallocTracer::recordMalloc(ret, num * size, OS::nanotime());
+        MallocTracer::recordMalloc(ret, num * size);
     }
     return ret;
 }
 
-#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* calloc(size_t num, size_t size) {
     if (unlikely(!_orig_calloc)) {
-        // In some libc versions, dlsym may call calloc on error case in the ADDRESS_OF macro.
         return NULL;
     }
 
@@ -70,21 +66,19 @@ extern "C" WEAK DLLEXPORT void* calloc(size_t num, size_t size) {
     }
     return _orig_calloc(num, size);
 }
-#endif // __linux__
 
 static void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
     if (likely(ret && addr)) {
-        MallocTracer::recordFree(addr, OS::nanotime());
+        MallocTracer::recordFree(addr);
     }
 
     if (likely(ret && size)) {
-        MallocTracer::recordMalloc(ret, size, OS::nanotime());
+        MallocTracer::recordMalloc(ret, size);
     }
     return ret;
 }
 
-#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* realloc(void* addr, size_t size) {
     if (unlikely(!_orig_realloc)) {
         return NULL;
@@ -95,14 +89,14 @@ extern "C" WEAK DLLEXPORT void* realloc(void* addr, size_t size) {
     }
     return _orig_realloc(addr, size);
 }
-#endif // __linux__
 
 static void free_hook(void* addr) {
     _orig_free(addr);
-    MallocTracer::recordFree(addr, OS::nanotime());
+    if (addr) {
+        MallocTracer::recordFree(addr);
+    }
 }
 
-#ifdef __linux__
 extern "C" WEAK DLLEXPORT void free(void* addr) {
     if (unlikely(!_orig_free)) {
         return;
@@ -113,7 +107,6 @@ extern "C" WEAK DLLEXPORT void free(void* addr) {
     }
     return _orig_free(addr);
 }
-#endif // __linux__
 
 u64 MallocTracer::_interval;
 volatile u64 MallocTracer::_allocated_bytes;
@@ -122,12 +115,25 @@ Mutex MallocTracer::_patch_lock;
 int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 
+// Only to be used from getOrigAddresses
+void* safeCalloc(size_t num, size_t size) {
+    void* ret = OS::safeAlloc(num * size);
+    if (likely(ret)) {
+        memset(ret, 0, num * size);
+    }
+    return ret;
+}
+
 __attribute__((constructor)) static void getOrigAddresses() {
+    // Set malloc and calloc which may be called from libc during getOrigAddresses.
+    _orig_malloc = OS::safeAlloc;
+    _orig_calloc = safeCalloc;
+
     // Store these addresses, regardless of MallocTracer being enabled or not.
-    _orig_calloc = ADDRESS_OF(calloc);
-    _orig_free = ADDRESS_OF(free);
     _orig_malloc = ADDRESS_OF(malloc);
+    _orig_calloc = ADDRESS_OF(calloc);
     _orig_realloc = ADDRESS_OF(realloc);
+    _orig_free = ADDRESS_OF(free);
 }
 
 bool MallocTracer::initialize() {
@@ -135,12 +141,15 @@ bool MallocTracer::initialize() {
         return false;
     }
 
-    CodeCache* lib = Profiler::instance()->findLibraryByName("libasyncProfiler");
+    CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
 
     lib->mark(
         [](const char* s) -> bool {
-            return strncmp(s, "_ZL11malloc_hook", 16) == 0 || strncmp(s, "_ZL11calloc_hook", 16) == 0 || strncmp(s, "_ZL12realloc_hook", 16) == 0 || strncmp(s, " _ZL9free_hook", 13) == 0;
+            return strncmp(s, "_ZL11malloc_hook", 16) == 0
+                || strncmp(s, "_ZL11calloc_hook", 16) == 0
+                || strncmp(s, "_ZL12realloc_hook", 16) == 0
+                || strncmp(s, " _ZL9free_hook", 13) == 0;
         },
         MARK_ASYNC_PROFILER);
 
@@ -181,10 +190,10 @@ bool MallocTracer::patchLibs(bool install) {
     return true;
 }
 
-void MallocTracer::recordMalloc(void* address, size_t size, u64 time) {
+void MallocTracer::recordMalloc(void* address, size_t size) {
     if (updateCounter(_allocated_bytes, size, _interval)) {
         MallocEvent event;
-        event._start_time = time;
+        event._start_time = OS::nanotime();
         event._address = (uintptr_t)address;
         event._size = size;
 
@@ -192,20 +201,21 @@ void MallocTracer::recordMalloc(void* address, size_t size, u64 time) {
     }
 }
 
-void MallocTracer::recordFree(void* address, u64 time) {
+void MallocTracer::recordFree(void* address) {
     MallocEvent event;
-    event._start_time = time;
+    event._start_time = OS::nanotime();
     event._address = (uintptr_t)address;
     event._size = 0;
 
-    Profiler::instance()->recordSample(NULL, 0, MALLOC_SAMPLE, &event);
+    Profiler::instance()->recordEventOnly(MALLOC_SAMPLE, &event);
 }
 
 Error MallocTracer::check(Arguments& args) {
-#ifndef __linux__
-    return Error("nativemem option is only supported on linux.");
-#endif
-    return Error::OK;
+    if (!OS::isLinux()) {
+        return Error("nativemem option is only supported on linux.");
+    } else {
+        return Error::OK;
+    }
 }
 
 Error MallocTracer::start(Arguments& args) {

@@ -50,8 +50,8 @@ class MallocTracer : public Engine {
         return _initialized;
     }
 
-    static void recordMalloc(void* address, size_t size, u64 time);
-    static void recordFree(void* address, u64 time);
+    static void recordMalloc(void* address, size_t size);
+    static void recordFree(void* address);
 };
 
 #endif // _MALLOCTRACER_H

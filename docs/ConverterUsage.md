@@ -43,9 +43,9 @@ JFR options:
     --cpu              Generate only CPU profile during conversion
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
+    --live             Build allocation profile from live objects only during conversion
     --nativemem        Generate native memory allocation profile
     --leak             Only include memory leaks in nativemem
-    --live             Build allocation profile from live objects only during conversion
     --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
  -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive
@@ -100,7 +100,7 @@ during a conversion.
 jfrconv --cpu foo.jfr
 
 # which is equivalent to:
-# jfrconv --cpu foo.jfr -o foo.html
+# jfrconv --cpu -o flamegraph foo.jfr foo.html
 ```
 
 for HTML output as HTML is the default format for conversion from JFR.

@@ -6,7 +6,7 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
-export SOEXT ?= so
+SOEXT ?= so
 
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
@@ -19,7 +19,7 @@ CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
 CC ?= $(CROSS_COMPILE)gcc
-export CXX ?= $(CROSS_COMPILE)g++
+CXX ?= $(CROSS_COMPILE)g++
 STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
@@ -28,7 +28,7 @@ CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
-export INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
+INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
 MERGE=true
 GCOV ?= gcov
@@ -39,7 +39,7 @@ JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
-export TEST_LIB_DIR=$(abspath build/test/lib)
+TEST_LIB_DIR=$(abspath build/test/lib)
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -58,7 +58,7 @@ CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
 
 ifeq ($(JAVA_HOME),)
-  export JAVA_HOME:=$(shell java -cp . JavaHome)
+  JAVA_HOME:=$(shell java -cp . JavaHome)
 endif
 
 OS:=$(shell uname -s)
@@ -197,12 +197,9 @@ build-test-cpp: build/test/cpptests
 
 build-test: build-test-cpp build-test-java
 
-build-test-java-libs: $(addsuffix /.build-test,$(TESTS))
-%/.build-test:
+build-test-java-libs:
 	@mkdir -p $(TEST_LIB_DIR)
-	@if [ -f test/test/$*/Makefile ]; then \
-		$(MAKE) -C test/test/$* build-test INCLUDES="$(INCLUDES) -I$(realpath src)" ; \
-	fi
+	$(CC) -shared -fPIC $(INCLUDES) -I$(realpath src) -o $(TEST_LIB_DIR)/libdoesmalloc.$(SOEXT) test/test/nativemem/doesmalloc.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."

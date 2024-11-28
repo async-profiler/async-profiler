@@ -99,11 +99,10 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(boolean hasOnly, RunnableTest rt) {
+    private static boolean enabled(RunnableTest rt) {
         return rt.test().enabled() &&
                 !skipTests.contains(rt.className().toLowerCase()) &&
-                !skipTests.contains(rt.method().getName().toLowerCase()) &&
-                !(hasOnly && !rt.test().only());
+                !skipTests.contains(rt.method().getName().toLowerCase());
     }
 
     private static boolean applicable(Test test) {
@@ -117,8 +116,8 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(boolean hasOnly, RunnableTest rt) {
-        if (!enabled(hasOnly, rt)) {
+    private static TestResult run(RunnableTest rt) {
+        if (!enabled(rt)) {
             return TestResult.skipDisabled();
         }
         if (!applicable(rt.test())) {
@@ -222,21 +221,13 @@ public class Runner {
 
         List<RunnableTest> allTests = getRunnableTests(args);
         final int testCount = allTests.size();
-        boolean hasOnly = false;
-        for (RunnableTest rt: allTests) {
-            if (rt.test().only()) {
-                hasOnly = true;
-                break;
-            }
-        }
-
         int i = 1;
         long totalTestDuration = 0;
         List<String> failedTests = new ArrayList<>();
         EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
-            TestResult result = run(hasOnly, rt);
+            TestResult result = run(rt);
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;

@@ -6,17 +6,6 @@
 package test.nativemem;
 
 public class CallsAllNoLeak {
-    static {
-        System.loadLibrary("doesmalloc");
-    }
-
-    public static native long nativeMalloc(int size);
-
-    public static native long nativeRealloc(long addr, int size);
-
-    public static native long nativeCalloc(long num, int size);
-
-    public static native long nativeFree(long addr);
 
     private static final int NUM_THREADS = 8; // Number of threads
 
@@ -27,12 +16,12 @@ public class CallsAllNoLeak {
     private static void do_work(boolean once) {
         try {
             do {
-                long addr = nativeMalloc(MALLOC_SIZE);
-                long reallocd = nativeRealloc(addr, REALLOC_SIZE);
-                nativeFree(reallocd);
+                long addr = Native.malloc(MALLOC_SIZE);
+                long reallocd = Native.realloc(addr, REALLOC_SIZE);
+                Native.free(reallocd);
 
-                long callocd = nativeCalloc(1, CALLOC_SIZE);
-                nativeFree(callocd);
+                long callocd = Native.calloc(1, CALLOC_SIZE);
+                Native.free(callocd);
 
                 Thread.sleep(1);
             } while (!once);

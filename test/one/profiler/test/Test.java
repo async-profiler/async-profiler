@@ -26,7 +26,7 @@ public @interface Test {
 
     String jvmArgs() default "";
 
-    String env() default "";
+    String[] env() default {};
 
     boolean debugNonSafepoints() default false;
 
@@ -46,6 +46,4 @@ public @interface Test {
 
     // Optional inputs to the test method.
     String[] inputs() default {};
-
-    boolean only() default false;
 }

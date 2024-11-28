@@ -6,23 +6,16 @@
 package test.nativemem;
 
 public class CallsMallocCalloc {
-    static {
-        System.loadLibrary("doesmalloc");
-    }
 
-    public static native long nativeMalloc(int size);
-
-    public static native long nativeCalloc(int num, int size);
+    private static final int MALLOC_SIZE = 1999993; // Prime size, useful in assertions.
+    private static final int CALLOC_SIZE = 2000147;
 
     public static void main(String[] args) throws InterruptedException {
         final boolean once = args.length > 0 && args[0].equals("once");
 
-        final int malloc_size = 1999993; // unlikely, prime size.
-        final int calloc_size = 2000147; // unlikely, prime size.
-
         do {
-            nativeMalloc(malloc_size);
-            nativeCalloc(1, calloc_size);
+            Native.malloc(MALLOC_SIZE);
+            Native.calloc(1, CALLOC_SIZE);
 
             // allocate every 1 second.
             Thread.sleep(1000);
