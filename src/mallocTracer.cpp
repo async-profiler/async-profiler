@@ -37,6 +37,7 @@ static void* malloc_hook(size_t size) {
     return ret;
 }
 
+#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* malloc(size_t size) {
     if (unlikely(!_orig_malloc)) {
         return NULL;
@@ -47,6 +48,7 @@ extern "C" WEAK DLLEXPORT void* malloc(size_t size) {
     }
     return _orig_malloc(size);
 }
+#endif
 
 static void* calloc_hook(size_t num, size_t size) {
     void* ret = _orig_calloc(num, size);
@@ -56,6 +58,7 @@ static void* calloc_hook(size_t num, size_t size) {
     return ret;
 }
 
+#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* calloc(size_t num, size_t size) {
     if (unlikely(!_orig_calloc)) {
         return NULL;
@@ -66,6 +69,7 @@ extern "C" WEAK DLLEXPORT void* calloc(size_t num, size_t size) {
     }
     return _orig_calloc(num, size);
 }
+#endif
 
 static void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
@@ -79,6 +83,7 @@ static void* realloc_hook(void* addr, size_t size) {
     return ret;
 }
 
+#ifdef __linux__
 extern "C" WEAK DLLEXPORT void* realloc(void* addr, size_t size) {
     if (unlikely(!_orig_realloc)) {
         return NULL;
@@ -89,6 +94,7 @@ extern "C" WEAK DLLEXPORT void* realloc(void* addr, size_t size) {
     }
     return _orig_realloc(addr, size);
 }
+#endif
 
 static void free_hook(void* addr) {
     _orig_free(addr);
@@ -97,6 +103,7 @@ static void free_hook(void* addr) {
     }
 }
 
+#ifdef __linux__
 extern "C" WEAK DLLEXPORT void free(void* addr) {
     if (unlikely(!_orig_free)) {
         return;
@@ -107,6 +114,7 @@ extern "C" WEAK DLLEXPORT void free(void* addr) {
     }
     return _orig_free(addr);
 }
+#endif
 
 u64 MallocTracer::_interval;
 volatile u64 MallocTracer::_allocated_bytes;
