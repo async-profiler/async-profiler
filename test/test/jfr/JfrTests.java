@@ -18,17 +18,16 @@ import java.util.Map;
 
 public class JfrTests {
 
-    @Test(mainClass = RegularPeak.class, agentArgs = "start,event=cpu,file=%f.jfr")
+    @Test(mainClass = RegularPeak.class)
     public void regularPeak(TestProcess p) throws Exception {
-        Thread.sleep(6000);
-        Output out = p.profile("stop");
+        Output out = p.profile("-e cpu -d 6 -f %f.jfr");
         String jfrOutPath = p.getFile("%f").getAbsolutePath();
         out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
-        assert !out.contains("test/jfr/Cache\\.lambda\\$calculateTop\\$1");
+        assert !out.contains("test/jfr/Cache\\.calculateTop");
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "2500", "--to", "5000");
-        assert out.samples("test/jfr/Cache\\.lambda\\$calculateTop\\$1") >= 1;
+        assert out.samples("test/jfr/Cache\\.calculateTop") >= 1;
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "5000");
-        assert !out.contains("test/jfr/Cache\\.lambda\\$calculateTop\\$1");
+        assert !out.contains("test/jfr/Cache\\.calculateTop");
     }
 
     /**
