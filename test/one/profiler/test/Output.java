@@ -13,7 +13,6 @@ import one.jfr.JfrReader;
 import java.io.*;
 import java.util.Arrays;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class Output {
@@ -43,6 +42,10 @@ public class Output {
 
     public long samples(String regex) {
         return stream(regex).mapToLong(Output::extractSamples).sum();
+    }
+
+    public long total() {
+        return stream().mapToLong(Output::extractSamples).sum();
     }
 
     public double ratio(String regex) {
@@ -84,13 +87,6 @@ public class Output {
             converter.dump(outputStream);
             return new Output(outputStream.toString("UTF-8").split(System.lineSeparator()));
         }
-    }
-
-    public double ratio(String regex1, String regex2) {
-        long matched1 = samples(regex1);
-        long matched2 = samples(regex2);
-
-        return (double) matched1 / (matched1 + matched2);
     }
 
     public Output filter(String regex) {
