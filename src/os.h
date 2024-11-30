@@ -70,6 +70,7 @@ class OS {
     static u64 micros();
     static u64 processStartTime();
     static void sleep(u64 nanos);
+    static u64 overrun(siginfo_t* siginfo);
 
     static u64 hton64(u64 x);
     static u64 ntoh64(u64 x);

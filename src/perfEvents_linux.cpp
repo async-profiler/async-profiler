@@ -795,6 +795,7 @@ Error PerfEvents::start(Arguments& args) {
     _interval = args._interval ? args._interval : _event_type->default_interval;
     _cstack = args._cstack;
     _signal = args._signal == 0 ? OS::getProfilingSignal(0) : args._signal & 0xff;
+    _count_overrun = false;
 
     _alluser = args._alluser;
     _kernel_stack = !_alluser && _cstack != CSTACK_NO;
