@@ -352,10 +352,13 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
         const char* current_method_name = findNativeMethod(callchain[i]);
         char mark;
         if (current_method_name != NULL && (mark = NativeFunc::mark(current_method_name)) != 0) {
-            if ((mark == MARK_VM_RUNTIME || mark == MARK_ASYNC_PROFILER) && event_type >= MALLOC_SAMPLE) {
+            if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
+            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+                // Skip all internal frames above the *_hook functions. Include the hook function itself.
+                depth = 0;
             } else if (mark == MARK_INTERPRETER) {
                 // This is C++ interpreter frame, this and later frames should be reported
                 // as Java frames returned by AGCT. Terminate the scan here.
@@ -682,17 +685,16 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             }
         }
         num_frames += java_frames;
-    } else if (event_type >= MALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && (_alloc_engine == &alloc_tracer || malloc_tracer.initialized())) {
-        // Do not collect stack traces for free.
-        if (event_type != MALLOC_SAMPLE || (event_type == MALLOC_SAMPLE && ((MallocEvent*)event)->_size > 0)) {
-            if (VMStructs::_get_stack_trace != NULL) {
-                // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
-                // but not directly, since the thread is in_vm rather than in_native
-                num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
-            } else {
-                num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
-            }
+    } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
+        if (VMStructs::_get_stack_trace != NULL) {
+            // Object allocation in HotSpot happens at known places where it is safe to call JVM TI,
+            // but not directly, since the thread is in_vm rather than in_native
+            num_frames += getJavaTraceInternal(jvmti_frames + num_frames, frames + num_frames, _max_stack_depth);
+        } else {
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
+    } else if (event_type == MALLOC_SAMPLE && malloc_tracer.initialized()) {
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method

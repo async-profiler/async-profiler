@@ -156,8 +156,8 @@ bool MallocTracer::initialize() {
         [](const char* s) -> bool {
             return strncmp(s, "_ZL11malloc_hook", 16) == 0
                 || strncmp(s, "_ZL11calloc_hook", 16) == 0
-                || strncmp(s, "_ZL12realloc_hook", 16) == 0
-                || strncmp(s, " _ZL9free_hook", 13) == 0;
+                || strncmp(s, "_ZL12realloc_hook", 17) == 0
+                || strncmp(s, "_ZL9free_hook", 13) == 0;
         },
         MARK_ASYNC_PROFILER);
 
