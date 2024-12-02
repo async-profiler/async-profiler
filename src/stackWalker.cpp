@@ -342,11 +342,16 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
                     break;
                 }
+                uintptr_t prev_sp = sp;
                 sp = anchor->lastJavaSP();
                 fp = anchor->lastJavaFP();
                 pc = anchor->lastJavaPC();
                 if (sp == 0 || pc == NULL) {
                     // End of Java stack
+                    break;
+                }
+                if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
                     break;
                 }
                 continue;
