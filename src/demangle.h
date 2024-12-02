@@ -16,6 +16,9 @@ class Demangle {
 
   public:
     static char* demangle(const char* s, bool full_signature);
+    static bool needsDemangling(const char *s) {
+	    return s[0] == '_' && (s[1] == 'R' || s[1] == 'Z');
+    }
 };
 
 #endif // _DEMANGLE_H
