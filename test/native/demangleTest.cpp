@@ -61,6 +61,27 @@ TEST_CASE(Demangle_test_demangle_rust_v0) {
     free((void*)s);
 }
 
+TEST_CASE(Demangle_test_demangle_rust_v0_expanding) {
+    // Test that demangling of a symbol that is big is handled correctly
+    const char *s = Demangle::demangle("_RNvMC0" "TTTTTT" "p" "Ba_E" "B9_E" "B8_E" "B7_E" "B6_E" "B5_E" "3run", false);
+    printf("%s\n", s);
+    const char *expected =
+        "<"
+        "((((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _)))), "
+        "((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _))))), "
+        "(((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _)))), "
+        "((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _))))))"
+        ">::run";
+    CHECK_EQ (strcmp(s, expected), 0);
+    free((void*)s);
+}
+
+TEST_CASE(Demangle_test_demangle_rust_v0_infinite) {
+    // Test that demangling of a symbol that is stupidly big is handled correctly
+    const char *s = Demangle::demangle("_RNvMC0" "TTTTTTTTTT" "p" "Be_E" "Bd_E" "Bc_E" "Bb_E" "Ba_E" "B9_E" "B8_E" "B7_E" "B6_E" "B5_E" "3run", false);
+    CHECK_EQ (s, NULL);
+}
+
 TEST_CASE(Demangle_test_demangle_rust_v0_full_signature) {
     const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", true);
     CHECK_EQ (strcmp(s, "infiloop[4e9e38d21762ec98]::main"), 0);
