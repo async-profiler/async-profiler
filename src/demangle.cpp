@@ -25,7 +25,7 @@ char* Demangle::demangleCpp(const char* s) {
     return result;
 }
 
-char* Demangle::demangleRust(const char *s, struct demangle const *demangle) {
+char* Demangle::demangleRust(const char *s, struct demangle const *demangle, bool full_signature) {
     // Demangled symbol can be 1.5x longer than original, e.g. 1A1B1C -> A::B::C
     char* result = NULL, *new_result;
     for (size_t demangled_size = strlen(s) * 3 / 2 + 1; demangled_size < 1000000; demangled_size *= 2) {
@@ -35,7 +35,7 @@ char* Demangle::demangleRust(const char *s, struct demangle const *demangle) {
             return NULL;
         }
         result = new_result;
-        if (rust_demangle_display_demangle(demangle, result, demangled_size, true /* alternate */) == OverflowOk) {
+        if (rust_demangle_display_demangle(demangle, result, demangled_size, !full_signature /* alternate */) == OverflowOk) {
             return result;
         }
     }
@@ -63,8 +63,15 @@ char* Demangle::demangle(const char* s, bool full_signature) {
     // try to demangle as Rust
     struct demangle demangle;
     rust_demangle_demangle(s, &demangle);
-    if (rust_demangle_is_known(&demangle)) {
-        return demangleRust(s, &demangle);
+    // Heuristic: check suffix_len == 0 to make sure the Rust demangled part contains the entire
+    // symbol, otherwise a C++ symbol can look like a Rust symbol with a suffix,
+    // e.g. `_ZN5MyMapESt6vectorIRKSsE`. This won't work if there are ".exit.i.i"-style suffixes,
+    // but I haven't seen them in an actual profile.
+    //
+    // Theoretically, non-Rust Itanium could also generate a symbol that is like `_ZN5MyMapE` which would be detected
+    // as a Rust symbol, but in that case the demangling would be identical.
+    if (rust_demangle_is_known(&demangle) && demangle.suffix_len == 0) {
+        return demangleRust(s, &demangle, full_signature);
     }
 
     char* result = demangleCpp(s);

@@ -11,7 +11,7 @@
 class Demangle {
   private:
     static char* demangleCpp(const char* s);
-    static char* demangleRust(const char *s, struct demangle const *demangle);
+    static char* demangleRust(const char *s, struct demangle const *demangle, bool full_signature);
     static void cutArguments(char* s);
 
   public:
