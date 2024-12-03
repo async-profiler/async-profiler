@@ -193,15 +193,15 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     return depth;
 }
 
-int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth) {
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail) {
     if (ucontext == NULL) {
         const void* pc = __builtin_return_address(0);
         uintptr_t sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
         uintptr_t fp = (uintptr_t)__builtin_frame_address(1);
-        return walkVM<true>(ucontext, frames, max_depth, pc, sp, fp);
+        return walkVM(ucontext, frames, max_depth, detail, pc, sp, fp);
     } else {
         StackFrame frame(ucontext);
-        return walkVM<true>(ucontext, frames, max_depth, (const void*)frame.pc(), frame.sp(), frame.fp());
+        return walkVM(ucontext, frames, max_depth, detail, (const void*)frame.pc(), frame.sp(), frame.fp());
     }
 }
 
@@ -221,12 +221,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         pc = ((const void**)sp)[-1];
     }
 
-    return walkVM<false>(ucontext, frames, max_depth, pc, sp, fp);
+    return walkVM(ucontext, frames, max_depth, VM_BASIC, pc, sp, fp);
 }
 
-template<bool EXPERT_MODE>
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                        const void* pc, uintptr_t sp, uintptr_t fp) {
+                        StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp) {
     StackFrame frame(ucontext);
     uintptr_t bottom = (uintptr_t)&frame + MAX_WALK_SIZE;
 
@@ -259,7 +258,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
             } else if (nm->isNMethod()) {
                 int level = nm->level();
-                FrameTypeId type = EXPERT_MODE && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                FrameTypeId type = detail != VM_BASIC && level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                 fillFrame(frames[depth++], type, 0, nm->method()->id());
 
                 if (nm->isFrameCompleteAt(pc)) {
@@ -269,7 +268,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                         ScopeDesc scope(nm);
                         do {
                             scope_offset = scope.decode(scope_offset);
-                            if (EXPERT_MODE) {
+                            if (detail != VM_BASIC) {
                                 type = scope_offset > 0 ? FRAME_INLINED :
                                        level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
                             }
@@ -336,7 +335,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
                 fillFrame(frames[depth++], BCI_ERROR, "break_interpreted");
                 break;
-            } else if (!EXPERT_MODE && nm->isEntryFrame(pc)) {
+            } else if (detail < VM_EXPERT && nm->isEntryFrame(pc)) {
                 JavaFrameAnchor* anchor = JavaFrameAnchor::fromEntryFrame(fp);
                 if (anchor == NULL) {
                     fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
@@ -360,7 +359,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 const void* start = stub != NULL ? stub->_start : nm->code();
                 const char* name = stub != NULL ? stub->_name : nm->name();
 
-                if (EXPERT_MODE) {
+                if (detail != VM_BASIC) {
                     fillFrame(frames[depth++], BCI_NATIVE_FRAME, name);
                 }
 

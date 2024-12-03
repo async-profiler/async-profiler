@@ -53,12 +53,13 @@ enum Style {
 
 // Whenever enum changes, update SETTING_CSTACK in FlightRecorder
 enum SHORT_ENUM CStack {
-    CSTACK_DEFAULT,
-    CSTACK_NO,
-    CSTACK_FP,
-    CSTACK_DWARF,
-    CSTACK_LBR,
-    CSTACK_VM
+    CSTACK_DEFAULT,  // use perf_event_open stack if available or Frame Pointer links otherwise
+    CSTACK_NO,       // do not collect native frames
+    CSTACK_FP,       // walk stack using Frame Pointer links
+    CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
+    CSTACK_LBR,      // Last Branch Record hardware capability
+    CSTACK_VM,       // unwind using HotSpot VMStructs
+    CSTACK_VMX       // same as CSTACK_VM but with intermediate native frames
 };
 
 enum SHORT_ENUM Clock {
