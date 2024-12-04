@@ -5,7 +5,7 @@
 
 package one.jfr.event;
 
-public class EventAggregator {
+public class EventAggregator implements IEventAggregator {
     private static final int INITIAL_CAPACITY = 1024;
 
     private final boolean threads;
@@ -38,7 +38,7 @@ public class EventAggregator {
         collect(e, e.samples(), e.value());
     }
 
-    public void collect(Event e, long samples, long value) {
+    protected void collect(Event e, long samples, long value) {
         int mask = keys.length - 1;
         int i = hashCode(e) & mask;
         while (keys[i] != null) {
@@ -59,7 +59,15 @@ public class EventAggregator {
         }
     }
 
-    public void forEach(Visitor visitor) {
+    public void finish() {
+        // EventAggregator does not need finishing.
+    }
+
+    public void finishChunk() {
+        // EventAggregator does not need finishing.
+    }
+
+    public void forEach(IEventAggregator.Visitor visitor) {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
                 visitor.visit(keys[i], samples[i], values[i]);
@@ -67,7 +75,7 @@ public class EventAggregator {
         }
     }
 
-    public void forEach(ValueVisitor visitor) {
+    public void forEach(IEventAggregator.ValueVisitor visitor) {
         double factor = total ? this.factor : 0.0;
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
@@ -130,13 +138,5 @@ public class EventAggregator {
         keys = newKeys;
         samples = newSamples;
         values = newValues;
-    }
-
-    public interface Visitor {
-        void visit(Event event, long samples, long value);
-    }
-
-    public interface ValueVisitor {
-        void visit(Event event, long value);
     }
 }

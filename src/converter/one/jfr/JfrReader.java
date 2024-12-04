@@ -16,12 +16,16 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Parses JFR output produced by async-profiler.
  */
-public class JfrReader implements Closeable, IEventReader {
+public class JfrReader implements Closeable {
     private static final int BUFFER_SIZE = 2 * 1024 * 1024;
     private static final int CHUNK_HEADER_SIZE = 68;
     private static final int CHUNK_SIGNATURE = 0x464c5200;
@@ -148,7 +152,6 @@ public class JfrReader implements Closeable, IEventReader {
     }
 
     @SuppressWarnings("unchecked")
-    @Override
     public <E extends Event> E readEvent(Class<E> cls) throws IOException {
         while (ensureBytes(CHUNK_HEADER_SIZE)) {
             int pos = buf.position();
