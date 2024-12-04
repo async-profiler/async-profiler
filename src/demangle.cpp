@@ -63,14 +63,15 @@ char* Demangle::demangle(const char* s, bool full_signature) {
     // try to demangle as Rust
     struct demangle demangle;
     rust_demangle_demangle(s, &demangle);
-    // Heuristic: check suffix_len == 0 to make sure the Rust demangled part contains the entire
-    // symbol, otherwise a C++ symbol can look like a Rust symbol with a suffix,
-    // e.g. `_ZN5MyMapESt6vectorIRKSsE`. This won't work if there are ".exit.i.i"-style suffixes,
-    // but I haven't seen them in an actual profile.
+    // Heuristic: check suffix_len == 0 or that there is a dot in the suffix to make sure the Rust demangled part
+    // contains the entire symbol, otherwise a C++ symbol can look like a Rust symbol with a suffix,
+    // e.g. `_ZN5MyMapESt6vectorIRKSsE`.
+    //
+    // Itanium names can't contain an unescaped "." so this should be fine.
     //
     // Theoretically, non-Rust Itanium could also generate a symbol that is like `_ZN5MyMapE` which would be detected
     // as a Rust symbol, but in that case the demangling would be identical.
-    if (rust_demangle_is_known(&demangle) && demangle.suffix_len == 0) {
+    if (rust_demangle_is_known(&demangle) && (demangle.suffix_len == 0 || demangle.suffix[0] == '.')) {
         return demangleRust(s, &demangle, full_signature);
     }
 

@@ -48,15 +48,45 @@ TEST_CASE(Demangle_test_demangle_rust_legacy) {
     free((void*)s);
 }
 
+TEST_CASE(Demangle_test_demangle_rust_legacy_dot_lto) {
+    const char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E.lto.1", false);
+    CHECK_EQ (strcmp(s, "panic_unwind::imp::panic::exception_cleanup.lto.1"), 0);
+    free((void*)s);
+}
+
 TEST_CASE(Demangle_test_demangle_rust_legacy_full_signature) {
     const char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E", true);
     CHECK_EQ (strcmp(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46"), 0);
     free((void*)s);
 }
 
+TEST_CASE(Demangle_test_demangle_rust_legacy_full_signature_dot_lto) {
+    const char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E.lto.1", true);
+    CHECK_EQ (strcmp(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46.lto.1"), 0);
+    free((void*)s);
+}
+
 TEST_CASE(Demangle_test_demangle_rust_v0) {
     const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", false);
     CHECK_EQ (strcmp(s, "infiloop::main"), 0);
+    free((void*)s);
+}
+
+TEST_CASE(Demangle_test_demangle_rust_v0_full_signature) {
+    const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", true);
+    CHECK_EQ (strcmp(s, "infiloop[4e9e38d21762ec98]::main"), 0);
+    free((void*)s);
+}
+
+TEST_CASE(Demangle_test_demangle_rust_v0_dot_lto) {
+    const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main.lto.1", false);
+    CHECK_EQ (strcmp(s, "infiloop::main.lto.1"), 0);
+    free((void*)s);
+}
+
+TEST_CASE(Demangle_test_demangle_rust_v0_full_signature_dot_lto) {
+    const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main.lto.1", true);
+    CHECK_EQ (strcmp(s, "infiloop[4e9e38d21762ec98]::main.lto.1"), 0);
     free((void*)s);
 }
 
@@ -116,10 +146,4 @@ TEST_CASE(Demangle_test_demangle_rust_v0_infinite) {
     // Test that demangling of a symbol that is stupidly big is handled correctly
     const char *s = Demangle::demangle("_RNvMC0" "TTTTTTTTTT" "p" "Be_E" "Bd_E" "Bc_E" "Bb_E" "Ba_E" "B9_E" "B8_E" "B7_E" "B6_E" "B5_E" "3run", false);
     CHECK_EQ (s, NULL);
-}
-
-TEST_CASE(Demangle_test_demangle_rust_v0_full_signature) {
-    const char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", true);
-    CHECK_EQ (strcmp(s, "infiloop[4e9e38d21762ec98]::main"), 0);
-    free((void*)s);
 }
