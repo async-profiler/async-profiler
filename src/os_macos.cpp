@@ -117,6 +117,10 @@ void OS::sleep(u64 nanos) {
     nanosleep(&ts, NULL);
 }
 
+u64 OS::overrun(siginfo_t* siginfo) {
+    return 0;
+}
+
 u64 OS::processStartTime() {
     static u64 start_time = 0;
 

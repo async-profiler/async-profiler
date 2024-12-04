@@ -131,6 +131,10 @@ void OS::sleep(u64 nanos) {
     nanosleep(&ts, NULL);
 }
 
+u64 OS::overrun(siginfo_t* siginfo) {
+    return siginfo->si_overrun;
+}
+
 u64 OS::hton64(u64 x) {
     return htonl(1) == 1 ? x : bswap_64(x);
 }
