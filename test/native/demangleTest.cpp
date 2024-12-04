@@ -70,6 +70,20 @@ TEST_CASE(Demangle_test_demangle_rust_v0_punycode) {
     free((void*)s);
 }
 
+TEST_CASE(Demangle_test_demangle_rust_v0_consts) {
+    const char *s = Demangle::demangle("_RIC0KVNtC3foo3BarS1sRe616263_2chc78_5sliceRAh1_h2_h3_EEE", false);
+    CHECK_EQ (strcmp(s,
+        "::<{foo::Bar { s: \"abc\", ch: 'x', slice: &[1, 2, 3] }}>"), 0);
+    free((void*)s);
+}
+
+TEST_CASE(Demangle_test_demangle_rust_v0_consts_full_signature) {
+    const char *s = Demangle::demangle("_RIC0KVNtC3foo3BarS1sRe616263_2chc78_5sliceRAh1_h2_h3_EEE", true);
+    CHECK_EQ (strcmp(s,
+        "::<{foo::Bar { s: \"abc\", ch: 'x', slice: &[1u8, 2u8, 3u8] }}>"), 0);
+    free((void*)s);
+}
+
 TEST_CASE(Demangle_test_demangle_rust_v0_const_string) {
     const char *s = Demangle::demangle("_RIC0Kef09f908af09fa688f09fa686f09f90ae20c2a720f09f90b6f09f9192e29895f09f94a520c2a720f09fa7a1f09f929bf09f929af09f9299f09f929c_E", false);
     CHECK_EQ(strcmp(s,
