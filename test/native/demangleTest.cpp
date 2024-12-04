@@ -44,7 +44,6 @@ TEST_CASE(Demangle_test_demangle_cpp_full_signature) {
 
 TEST_CASE(Demangle_test_demangle_rust_legacy) {
     const char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E", false);
-    printf("A0=%s", s);
     CHECK_EQ (strcmp(s, "panic_unwind::imp::panic::exception_cleanup"), 0);
     free((void*)s);
 }
@@ -88,7 +87,6 @@ TEST_CASE(Demangle_test_demangle_rust_v0_invalid_backref) {
 TEST_CASE(Demangle_test_demangle_rust_v0_expanding) {
     // Test that demangling of a symbol that is big is handled correctly
     const char *s = Demangle::demangle("_RNvMC0" "TTTTTT" "p" "Ba_E" "B9_E" "B8_E" "B7_E" "B6_E" "B5_E" "3run", false);
-    printf("%s\n", s);
     const char *expected =
         "<"
         "((((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _)))), "
