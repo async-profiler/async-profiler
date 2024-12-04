@@ -805,7 +805,7 @@ void Profiler::switchLibraryTrap(bool enable) {
     }
 }
 
-Error Profiler::installTraps(const char* begin, const char* end, bool start_alongside_traps) {
+Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
     const void* begin_addr = NULL;
     if (begin != NULL && (begin_addr = resolveSymbol(begin)) == NULL) {
         return Error("Begin address not found");
@@ -818,12 +818,12 @@ Error Profiler::installTraps(const char* begin, const char* end, bool start_alon
 
     _begin_trap.assign(begin_addr);
     _end_trap.assign(end_addr);
-    _start_alongside_traps = start_alongside_traps;
+    _nostop = nostop;
 
     if (_begin_trap.entry() == 0) {
         _engine->enableEvents(true);
     } else {
-        _engine->enableEvents(start_alongside_traps);
+        _engine->enableEvents(nostop);
         if (!_begin_trap.install()) {
             return Error("Cannot install begin breakpoint");
         }
@@ -835,7 +835,6 @@ Error Profiler::installTraps(const char* begin, const char* end, bool start_alon
 void Profiler::uninstallTraps() {
     _begin_trap.uninstall();
     _end_trap.uninstall();
-    fprintf(stderr, "uninstall traps");
     _engine->enableEvents(false);
 }
 
@@ -849,7 +848,7 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         _end_trap.install();
         frame.pc() = _begin_trap.entry();
     } else if (_end_trap.covers(frame.pc())) {
-        _engine->enableEvents(_start_alongside_traps);
+        _engine->enableEvents(_nostop);
         _end_trap.uninstall();
         profiling_window._end_time = TSC::ticks();
         recordEventOnly(PROFILING_WINDOW, &profiling_window);
@@ -1170,7 +1169,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
 
-    error = installTraps(args._begin, args._end, args._start_alongside_traps);
+    error = installTraps(args._begin, args._end, args._nostop);
     if (error) {
         return error;
     }

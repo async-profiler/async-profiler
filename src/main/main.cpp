@@ -79,9 +79,8 @@ static const char USAGE_STRING[] =
     "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
-    "  --timebetween a b record when a is executed, and then when b is executed, and duration between\n"
-    "  --onlyttsp        only time-to-safepoint profiling \n"
-    "  --includettsp     profile as per normal, but include time-to-safepoint information\n"
+    "  --ttsp            only time-to-safepoint profiling \n"
+    "  --nostop          always start profiling, also include time-to-safepoint and other profiler window information\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
@@ -497,15 +496,11 @@ int main(int argc, const char** argv) {
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
-        } else if (arg == "--ttsp" || arg == "--onlyttsp") {
+        } else if (arg == "--ttsp") {
             params << ",begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";
 
-        } else if (arg == "--includettsp") {
-            fprintf(stderr, "ZZZZ");
-            params << ",recordonly,begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";
-
-        } else if (arg == "--timebetween") {
-            params << ",recordonly,begin=" << args.next() << ",end=" << args.next();
+        } else if (arg == "--nostop") {
+            params << ",nostop";
 
         } else if (arg == "--all-user") {
             params << ",alluser";

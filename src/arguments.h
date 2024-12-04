@@ -193,7 +193,7 @@ class Arguments {
     unsigned int _file_num;
     const char* _begin;
     const char* _end;
-    bool _start_alongside_traps;
+    bool _nostop;
     // FlameGraph parameters
     const char* _title;
     double _minwidth;
@@ -244,7 +244,7 @@ class Arguments {
         _file_num(0),
         _begin(NULL),
         _end(NULL),
-        _start_alongside_traps(false),
+        _nostop(false),
         _title(NULL),
         _minwidth(0),
         _reverse(false) {

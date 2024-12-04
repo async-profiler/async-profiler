@@ -5,40 +5,36 @@
 
 package test.jfr;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
 
 class Ttsp {
+    static private double loop(int iterations, double arg) {
+        double total = 0;
+        for (int i = 0; i < iterations; i++) {
+            total += Math.sin(Math.cos(Math.tan(arg)));
+        }
+        return total;
+    }
     public static void main(String[] args) throws Exception {
         new Thread(() -> {
             while (true) {
-                Thread.getAllStackTraces();
+                loop(10000, 1);
                 try {
-                    Thread.sleep(50);
+                    Thread.sleep(10);
                 } catch (InterruptedException e) {
-                    return;
+                    throw new RuntimeException(e);
                 }
             }
         }).start();
-
-        byte[] data = new byte[1024 * 1024 * 1024];
-        Arrays.fill(data, (byte) 'A');
-        while (true) {
-            File temp = File.createTempFile("temp", null);
-            try {
-                temp.deleteOnExit();
-            } catch (IllegalStateException e) {
-                // the JVM is already exiting, delete the file and exit
-                temp.delete();
-                break;
+        new Thread(() -> {
+            while (true) {
+                System.gc();
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
-            Files.write(temp.toPath(), data);
-            temp.delete();
-        }
+        }).start();
     }
 }
 
