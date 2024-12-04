@@ -75,6 +75,7 @@ class Profiler {
     void* _timer_id;
 
     u64 _total_samples;
+    u64 _total_stack_walk_time;
     u64 _failures[ASGCT_FAILURE_TYPES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
@@ -197,6 +198,7 @@ class Profiler {
     Error flushJfr();
     Error dump(Writer& out, Arguments& args);
     void printUsedMemory(Writer& out);
+    void logStats();
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type);
     u64 recordSample(void* ucontext, u64 counter, EventType event_type, Event* event);

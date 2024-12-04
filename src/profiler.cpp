@@ -623,6 +623,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         return 0;
     }
 
+    u64 stack_walk_begin = _features.stats ? OS::nanotime() : 0;
+
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
     jvmtiFrameInfo* jvmti_frames = _calltrace_buffer[lock_index]->_jvmti_frames;
 
@@ -685,6 +687,11 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
+    }
+
+    if (stack_walk_begin != 0) {
+        u64 stack_walk_end = OS::nanotime();
+        atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
     }
 
     u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
@@ -1085,6 +1092,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (reset || _start_time == 0) {
         // Reset counters
         _total_samples = 0;
+        _total_stack_walk_time = 0;
         memset(_failures, 0, sizeof(_failures));
 
         // Reset dictionaries and bitmaps
@@ -1248,6 +1256,9 @@ Error Profiler::stop(bool restart) {
     // Make sure no periodic events sent after JFR stops
     stopTimer();
 
+    // Log before stopping JFR to include stats in the recording
+    logStats();
+
     // Acquire all spinlocks to avoid race with remaining signals
     lockAll();
     _jfr.stop();
@@ -1376,6 +1387,14 @@ void Profiler::printUsedMemory(Writer& out) {
              call_trace_storage / KB, flight_recording / KB, dictionaries / KB, code_cache / KB,
              (call_trace_storage + flight_recording + dictionaries + code_cache) / KB);
     out << buf;
+}
+
+void Profiler::logStats() {
+    if (!_features.stats) return;
+
+    u64 stacks = _total_samples - _failures[-ticks_skipped];
+    u64 avg_time = stacks == 0 ? 0 : _total_stack_walk_time / stacks;
+    Log::info("Collected %llu stacks, avg time = %llu ns", stacks, avg_time);
 }
 
 void Profiler::lockAll() {
