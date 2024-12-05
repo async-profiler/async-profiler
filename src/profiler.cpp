@@ -985,7 +985,7 @@ Engine* Profiler::selectEngine(const char* event_name) {
     if (event_name == NULL) {
         return &noop_engine;
     } else if (strcmp(event_name, EVENT_CPU) == 0) {
-        if (PerfEvents::supported()) {
+        if (FdTransferClient::hasPeer() || PerfEvents::supported()) {
             return &perf_events;
         } else if (CTimer::supported()) {
             return &ctimer;
