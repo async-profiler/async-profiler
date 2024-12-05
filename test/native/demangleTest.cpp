@@ -25,68 +25,68 @@ TEST_CASE(Demangle_test_needs_demangling) {
 #ifdef __linux__
 TEST_CASE(Demangle_test_demangle_cpp) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", false);
-    CHECK_EQ(strcmp(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail"), 0);
+    CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_cpp_rust_like) {
     char *s = Demangle::demangle("_ZN5MyMapESt6vectorIRKSsE", true);
-    CHECK_EQ(strcmp(s, "MyMap(std::vector<std::string const&>)"), 0);
+    CHECK_EQ(s, "MyMap(std::vector<std::string const&>)");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_cpp_full_signature) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", true);
-    CHECK_EQ(strcmp(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)"), 0);
+    CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)");
     free(s);
 }
 #endif
 
 TEST_CASE(Demangle_test_demangle_rust_legacy) {
     char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E", false);
-    CHECK_EQ(strcmp(s, "panic_unwind::imp::panic::exception_cleanup"), 0);
+    CHECK_EQ(s, "panic_unwind::imp::panic::exception_cleanup");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_legacy_dot_lto) {
     char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E.lto.1", false);
-    CHECK_EQ(strcmp(s, "panic_unwind::imp::panic::exception_cleanup.lto.1"), 0);
+    CHECK_EQ(s, "panic_unwind::imp::panic::exception_cleanup.lto.1");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_legacy_full_signature) {
     char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E", true);
-    CHECK_EQ(strcmp(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46"), 0);
+    CHECK_EQ(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_legacy_full_signature_dot_lto) {
     char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E.lto.1", true);
-    CHECK_EQ(strcmp(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46.lto.1"), 0);
+    CHECK_EQ(s, "panic_unwind::imp::panic::exception_cleanup::he4cf772173d90f46.lto.1");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_v0) {
     char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", false);
-    CHECK_EQ(strcmp(s, "infiloop::main"), 0);
+    CHECK_EQ(s, "infiloop::main");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_v0_full_signature) {
     char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main", true);
-    CHECK_EQ(strcmp(s, "infiloop[4e9e38d21762ec98]::main"), 0);
+    CHECK_EQ(s, "infiloop[4e9e38d21762ec98]::main");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_v0_dot_lto) {
     char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main.lto.1", false);
-    CHECK_EQ(strcmp(s, "infiloop::main.lto.1"), 0);
+    CHECK_EQ(s, "infiloop::main.lto.1");
     free(s);
 }
 
 TEST_CASE(Demangle_test_demangle_rust_v0_full_signature_dot_lto) {
     char *s = Demangle::demangle("_RNvCs6KtT2fMGqXk_8infiloop4main.lto.1", true);
-    CHECK_EQ(strcmp(s, "infiloop[4e9e38d21762ec98]::main.lto.1"), 0);
+    CHECK_EQ(s, "infiloop[4e9e38d21762ec98]::main.lto.1");
     free(s);
 }
 
@@ -124,7 +124,7 @@ TEST_CASE(Demangle_test_demangle_rust_v0_const_string) {
 
 TEST_CASE(Demangle_test_demangle_rust_v0_invalid_backref) {
     char *s = Demangle::demangle("_RNvNvB0_1x1y", false);
-    CHECK_EQ(strcmp(s, "{invalid syntax}::x::y"), 0);
+    CHECK_EQ(s, "{invalid syntax}::x::y");
     free(s);
 }
 
@@ -138,7 +138,7 @@ TEST_CASE(Demangle_test_demangle_rust_v0_expanding) {
         "(((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _)))), "
         "((((_, _), (_, _)), ((_, _), (_, _))), (((_, _), (_, _)), ((_, _), (_, _))))))"
         ">::run";
-    CHECK_EQ(strcmp(s, expected), 0);
+    CHECK_EQ(s, expected);
     free(s);
 }
 
