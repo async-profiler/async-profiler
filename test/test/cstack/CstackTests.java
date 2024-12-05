@@ -6,6 +6,7 @@
 package test.cstack;
 
 import one.profiler.test.Jvm;
+import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -24,7 +25,7 @@ public class CstackTests {
         assert out.contains("LongInitializer.main_\\[j]");
     }
 
-    @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT)
+    @Test(mainClass = LongInitializer.class, jvm = Jvm.HOTSPOT, os = Os.LINUX)
     public void vmStructs(TestProcess p) throws Exception {
         Output out = p.profile(PROFILE_COMMAND + "--cstack vm");
         assert out.contains(";readBytes");
