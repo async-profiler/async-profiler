@@ -83,6 +83,36 @@ $ gdb $JAVA_HOME/lib/server/libjvm.so -ex 'info address UseG1GC'
 This command's output will either contain `Symbol "UseG1GC" is at 0xxxxx`
 or `No symbol "UseG1GC" in current context`.
 
+## Native memory leaks
+
+It is possible to profile `malloc` and `mmap` calls in Java context before, not always helpful. A large amount of allocations does not yet mean a leak, in case all the allocated memory is released on time.
+
+The profiling mode `nativemem` records `malloc`, `realloc`, `calloc` and `free` calls with the addresses, so that allocations can be matched with frees. This helps to focus the profile report only on unfreed allocations, which are the likely to be a source of a memory leak.
+
+Example:
+
+```
+asprof start --nativemem[=N] <YourApp>
+
+asprof stop -f <app.jfr> <YourApp>
+```
+
+Now we need to process the jfr file, to find native memory leaks:
+
+```
+# --total for bytes, default counts invocations.
+jfrconv --total --nativemem --leak app.jfr app-leak.html
+
+# No leak analysis, include all native allocations:
+jfrconv --total --nativemem app.jfr app-malloc.html
+```
+
+When `--leak` option is used, the generated flame graph will show allocations without matching `free` calls:
+
+![nativemem flamegraph](../.assets/images/nativemem_flamegraph.png)
+
+The overhead of `nativemem` profiling depends on the number of native allocations, but is usually small enough even for production use. If required, the overhead can be reduced by configuring the profiling interval. E.g. if you add `nativemem=1m` profiler option, allocation samples will be limited to at most one sample per allocated megabyte.
+
 ## Wall-clock profiling
 
 `-e wall` option tells async-profiler to sample all threads equally every given
