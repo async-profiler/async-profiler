@@ -75,6 +75,7 @@ class Profiler {
     void* _timer_id;
 
     u64 _total_samples;
+    u64 _total_stack_walk_time;
     u64 _failures[ASGCT_FAILURE_TYPES];
 
     SpinLock _locks[CONCURRENCY_LEVEL];
@@ -115,8 +116,6 @@ class Profiler {
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
-    int getJavaTraceInternal(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int max_depth);
-    int convertFrames(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int num_frames);
     void fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* nmethod);
     void setThreadInfo(int tid, const char* name, jlong java_thread_id);
     void updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);
@@ -199,6 +198,7 @@ class Profiler {
     Error flushJfr();
     Error dump(Writer& out, Arguments& args);
     void printUsedMemory(Writer& out);
+    void logStats();
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames, EventType event_type);
     u64 recordSample(void* ucontext, u64 counter, EventType event_type, Event* event);

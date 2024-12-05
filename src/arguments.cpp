@@ -269,6 +269,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("features")
                 if (value != NULL) {
+                    if (strstr(value, "stats"))    _features.stats = 1;
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
@@ -343,12 +344,18 @@ Error Arguments::parse(const char* args) {
 
             CASE("cstack")
                 if (value != NULL) {
-                    switch (value[0]) {
-                        case 'n': _cstack = CSTACK_NO;    break;
-                        case 'd': _cstack = CSTACK_DWARF; break;
-                        case 'l': _cstack = CSTACK_LBR;   break;
-                        case 'v': _cstack = CSTACK_VM;    break;
-                        default:  _cstack = CSTACK_FP;
+                    if (strcmp(value, "fp") == 0) {
+                        _cstack = CSTACK_FP;
+                    } else if (strcmp(value, "dwarf") == 0) {
+                        _cstack = CSTACK_DWARF;
+                    } else if (strcmp(value, "lbr") == 0) {
+                        _cstack = CSTACK_LBR;
+                    } else if (strcmp(value, "vm") == 0) {
+                        _cstack = CSTACK_VM;
+                    } else if (strcmp(value, "vmx") == 0) {
+                        _cstack = CSTACK_VMX;
+                    } else {
+                        _cstack = CSTACK_NO;
                     }
                 }
 
