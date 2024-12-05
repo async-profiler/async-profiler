@@ -9,6 +9,7 @@ endif
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
+SOEXT := so
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
@@ -37,6 +38,7 @@ JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
+TEST_LIB_DIR=$(abspath build/test/lib)
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -115,7 +117,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-libs build-test-cpp test-cpp test-java
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -188,15 +190,19 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
 
-build-test-java: all build/$(TEST_JAR)
+build-test-java: all build/$(TEST_JAR) build-test-libs
 
-build-test-cpp: build/test/cpptests
+build-test-cpp: build/test/cpptests build-test-libs
 
 build-test: build-test-cpp build-test-java
 
+build-test-libs:
+	@mkdir -p $(TEST_LIB_DIR)
+	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
+
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
-	build/test/cpptests
+	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
