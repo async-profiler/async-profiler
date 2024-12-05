@@ -6,12 +6,12 @@
 #ifndef _DEMANGLE_H
 #define _DEMANGLE_H
 
-#include "rust-demangle.h"
+struct demangle;
 
 class Demangle {
   private:
     static char* demangleCpp(const char* s);
-    static char* demangleRust(const char *s, struct demangle const *demangle, bool full_signature);
+    static char* demangleRust(struct demangle const *demangle, bool full_signature);
     static void cutArguments(char* s);
 
   public:
