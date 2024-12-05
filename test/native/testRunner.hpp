@@ -67,7 +67,8 @@ struct TestCase {
 #define __ASSERT_OR_CHECK_OP(isAssert, val1, op, val2)                                                               \
     {                                                                                                                \
         const bool is_string =                                                                                       \
-            std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val2), const char*>::value;    \
+            std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val2), const char*>::value ||  \
+            std::is_same<decltype(val1), char*>::value || std::is_same<decltype(val2), char*>::value;                \
         if (is_string) {                                                                                             \
             if ((std::string(#op) == "==") || (std::string(#op) == "!=")) {                                          \
                 const char* str1 = reinterpret_cast<const char*>(val1);                                              \
