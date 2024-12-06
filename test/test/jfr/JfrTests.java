@@ -93,7 +93,7 @@ public class JfrTests {
     }
 
     /**
-     * Test to validate time to safepoint profiling (recording the window only)
+     * Test to validate time to safepoint profiling (recording the windows only, profiling starts immediately)
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
