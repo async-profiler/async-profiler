@@ -392,17 +392,6 @@ void ElfParser::parseDynamicSection() {
         }
 
         const char* base = this->base();
-        if (jmprel != NULL && pltrelsz != 0) {
-            // Parse .rela.plt table
-            for (size_t offs = 0; offs < pltrelsz; offs += relent) {
-                ElfRelocation* r = (ElfRelocation*)(jmprel + offs);
-                ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
-                if (sym->st_name != 0) {
-                    _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
-                }
-            }
-        }
-
         if (rel != NULL && relsz != 0) {
             // Shared library was built without PLT (-fno-plt)
             // Relocation entries have been moved from .rela.plt to .rela.dyn
@@ -413,6 +402,17 @@ void ElfParser::parseDynamicSection() {
                     if (sym->st_name != 0) {
                         _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
                     }
+                }
+            }
+        }
+
+        if (jmprel != NULL && pltrelsz != 0) {
+            // Parse .rela.plt table
+            for (size_t offs = 0; offs < pltrelsz; offs += relent) {
+                ElfRelocation* r = (ElfRelocation*)(jmprel + offs);
+                ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
+                if (sym->st_name != 0) {
+                    _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
                 }
             }
         }
