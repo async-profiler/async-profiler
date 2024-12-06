@@ -42,6 +42,7 @@ class VMStructs {
     static int _thread_vframe_offset;
     static int _thread_exception_offset;
     static int _osthread_id_offset;
+    static int _call_wrapper_anchor_offset;
     static int _comp_env_offset;
     static int _comp_task_offset;
     static int _comp_method_offset;
@@ -101,6 +102,7 @@ class VMStructs {
     static int _region_size_offset;
     static int _markword_klass_shift;
     static int _markword_monitor_value;
+    static int _entry_frame_call_wrapper_offset;
     static int _interpreter_frame_bcp_offset;
     static unsigned char _unsigned5_base;
     static const void** _call_stub_return_addr;
@@ -112,7 +114,6 @@ class VMStructs {
     static jfieldID _tid;
     static jfieldID _klass;
     static int _tls_index;
-    static intptr_t _env_offset;
 
     typedef void (*LockFunc)(void*);
     static LockFunc _lock_func;
@@ -178,11 +179,6 @@ class VMStructs {
     static bool isInterpretedFrameValidFunc(const void* pc) {
         return pc >= _interpreted_frame_valid_start && pc < _interpreted_frame_valid_end;
     }
-
-    typedef jvmtiError (*GetStackTraceFunc)(void* self, void* thread,
-                                            jint start_depth, jint max_frame_count,
-                                            jvmtiFrameInfo* frame_buffer, jint* count_ptr);
-    static GetStackTraceFunc _get_stack_trace;
 };
 
 
@@ -301,6 +297,36 @@ class VMKlass : VMStructs {
     }
 };
 
+class JavaFrameAnchor : VMStructs {
+  private:
+    enum { MAX_CALL_WRAPPER_DISTANCE = 512 };
+
+  public:
+    static JavaFrameAnchor* fromEntryFrame(uintptr_t fp) {
+        const char* call_wrapper = *(const char**)(fp + _entry_frame_call_wrapper_offset);
+        if (!goodPtr(call_wrapper) || (uintptr_t)call_wrapper - fp > MAX_CALL_WRAPPER_DISTANCE) {
+            return NULL;
+        }
+        return (JavaFrameAnchor*)(call_wrapper + _call_wrapper_anchor_offset);
+    }
+
+    uintptr_t lastJavaSP() {
+        return *(uintptr_t*) at(_anchor_sp_offset);
+    }
+
+    uintptr_t lastJavaFP() {
+        return *(uintptr_t*) at(_anchor_fp_offset);
+    }
+
+    const void* lastJavaPC() {
+        return *(const void**) at(_anchor_pc_offset);
+    }
+
+    void setLastJavaPC(const void* pc) {
+        *(const void**) at(_anchor_pc_offset) = pc;
+    }
+};
+
 class VMThread : VMStructs {
   public:
     static VMThread* current();
@@ -311,10 +337,6 @@ class VMThread : VMStructs {
 
     static VMThread* fromJavaThread(JNIEnv* env, jthread thread) {
         return (VMThread*)(uintptr_t)env->GetLongField(thread, _eetop);
-    }
-
-    static VMThread* fromEnv(JNIEnv* env) {
-        return (VMThread*)((intptr_t)env - _env_offset);
     }
 
     static jlong javaThreadId(JNIEnv* env, jthread thread) {
@@ -344,16 +366,8 @@ class VMThread : VMStructs {
         return *(void**) at(_thread_exception_offset);
     }
 
-    uintptr_t& lastJavaSP() {
-        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_sp_offset);
-    }
-
-    uintptr_t& lastJavaPC() {
-        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_pc_offset);
-    }
-
-    uintptr_t& lastJavaFP() {
-        return *(uintptr_t*) (at(_thread_anchor_offset) + _anchor_fp_offset);
+    JavaFrameAnchor* anchor() {
+        return (JavaFrameAnchor*) at(_thread_anchor_offset);
     }
 
     VMMethod* compiledMethod() {
