@@ -80,7 +80,7 @@ static const char USAGE_STRING[] =
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
     "  --ttsp            only time-to-safepoint profiling \n"
-    "  --nostop          always start profiling, modifies --begin, --end, --ttsp flags to records these events in a profiler window event\n"
+    "  --nostop          always start profiling, also include time-to-safepoint and other profiler window information\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
