@@ -118,10 +118,10 @@ endif
 .PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp test-cpp test-java format-md check-md
 
 check-md:
-	prettier -c README.md "docs/**/*.md" ".github/**/*.md"
+	prettier -c README.md "docs/**/*.md"
 
 format-md:
-	prettier -w README.md "docs/**/*.md" ".github/**/*.md"
+	prettier -w README.md "docs/**/*.md"
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
