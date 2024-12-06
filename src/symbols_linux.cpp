@@ -411,7 +411,7 @@ void ElfParser::parseDynamicSection() {
                 if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_DIRECT) {
                     ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
                     if (sym->st_name != 0) {
-                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
+                        _cc->tryAddImport((void**)(base + r->r_offset), strtab + sym->st_name);
                     }
                 }
             }

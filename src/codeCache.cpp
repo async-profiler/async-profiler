@@ -182,22 +182,32 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
     return NULL;
 }
 
-void CodeCache::addImport(void** entry, const char* name) {
+void CodeCache::addImportWithOverride(void** entry, const char* name, bool override) {
     switch (name[0]) {
         case 'd':
             if (strcmp(name, "dlopen") == 0) {
-                _imports[im_dlopen] = entry;
+                if (override || !_imports[im_dlopen]) {
+                    _imports[im_dlopen] = entry;
+                }
             }
             break;
         case 'p':
             if (strcmp(name, "pthread_create") == 0) {
-                _imports[im_pthread_create] = entry;
+                if (override || !_imports[im_pthread_create]) {
+                    _imports[im_pthread_create] = entry;
+                }
             } else if (strcmp(name, "pthread_exit") == 0) {
-                _imports[im_pthread_exit] = entry;
+                if (override || !_imports[im_pthread_exit]) {
+                    _imports[im_pthread_exit] = entry;
+                }
             } else if (strcmp(name, "pthread_setspecific") == 0) {
-                _imports[im_pthread_setspecific] = entry;
+                if (override || !_imports[im_pthread_setspecific]) {
+                    _imports[im_pthread_setspecific] = entry;
+                }
             } else if (strcmp(name, "poll") == 0) {
-                _imports[im_poll] = entry;
+                if (override || !_imports[im_poll]) {
+                    _imports[im_poll] = entry;
+                }
             }
             break;
     }
