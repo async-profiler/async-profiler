@@ -127,7 +127,7 @@ that simple inlined methods will not appear in the profile. When the agent is at
 
 
 * You will not see the non-Java frames _preceding_ the Java frames on the
-stack, unless `--cstack vm` is specified.
+stack, unless `--cstack vmx` is specified.
 For example, if `start_thread` called `JavaMain` and then your Java
 code started running, you will not see the first two frames in the resulting
 stack. On the other hand, you _will_ see non-Java frames (user and kernel)

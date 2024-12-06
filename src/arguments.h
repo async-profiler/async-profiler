@@ -54,12 +54,13 @@ enum Style {
 
 // Whenever enum changes, update SETTING_CSTACK in FlightRecorder
 enum SHORT_ENUM CStack {
-    CSTACK_DEFAULT,
-    CSTACK_NO,
-    CSTACK_FP,
-    CSTACK_DWARF,
-    CSTACK_LBR,
-    CSTACK_VM
+    CSTACK_DEFAULT,  // use perf_event_open stack if available or Frame Pointer links otherwise
+    CSTACK_NO,       // do not collect native frames
+    CSTACK_FP,       // walk stack using Frame Pointer links
+    CSTACK_DWARF,    // use DWARF unwinding info from .eh_frame section
+    CSTACK_LBR,      // Last Branch Record hardware capability
+    CSTACK_VM,       // unwind using HotSpot VMStructs
+    CSTACK_VMX       // same as CSTACK_VM but with intermediate native frames
 };
 
 enum SHORT_ENUM Clock {
@@ -99,15 +100,18 @@ struct StackWalkFeatures {
     unsigned short java_anchor   : 1;
     unsigned short gc_traces     : 1;
 
+    // Common features
+    unsigned short stats         : 1;
+
     // Additional HotSpot-specific features
     unsigned short probe_sp      : 1;
     unsigned short vtable_target : 1;
     unsigned short comp_task     : 1;
     unsigned short pc_addr       : 1;
-    unsigned short _reserved     : 6;
+    unsigned short _reserved     : 5;
 
     StackWalkFeatures() : unknown_java(1), unwind_stub(1), unwind_comp(1), unwind_native(1), java_anchor(1), gc_traces(1),
-                          probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
+                          stats(0), probe_sp(0), vtable_target(0), comp_task(0), pc_addr(0), _reserved(0) {
     }
 };
 
