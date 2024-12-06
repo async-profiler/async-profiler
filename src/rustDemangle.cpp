@@ -1079,7 +1079,7 @@ static NODISCARD overflow_status printer_print_lifetime_from_index(struct printe
         PRINT_STR(printer, "_");
         return OverflowOk;
     }
-    
+
     if (printer->bound_lifetime_depth < lt) {
         INVALID(printer);
     } else {
@@ -1344,7 +1344,7 @@ static NODISCARD overflow_status printer_print_const(struct printer *printer, bo
             opened_brace = true; \
             PRINT_STR(printer, "{"); \
         } } while(0)
-    
+
     switch(tag) {
     case 'p':
         PRINT_STR(printer, "_");
@@ -1455,7 +1455,7 @@ static NODISCARD overflow_status printer_print_const(struct printer *printer, bo
     case 'B':
         PRINT(printer_print_backref(printer, in_value ? printer_print_const_in_value : printer_print_const_out_of_value, NULL));
         break;
-    default: 
+    default:
         INVALID(printer);
     }
 #undef OPEN_BRACE_IF_OUTSIDE_EXPR
@@ -1772,7 +1772,7 @@ NODISCARD static overflow_status rust_demangle_legacy_display_demangle(struct de
     struct printer printer = {
         // not actually using the parser part of the printer, just keeping it to share the format functions
         DemangleOk,
-        { NULL }, 
+        { NULL },
         out,
         len,
         0,
@@ -1795,7 +1795,7 @@ NODISCARD static overflow_status rust_demangle_legacy_display_demangle(struct de
         size_t len = i;
         inner = rest + len;
 
-        // From here on, inner contains a pointer to the next element, rest[:len] to the current one        
+        // From here on, inner contains a pointer to the next element, rest[:len] to the current one
         if (alternate && element + 1 == res.elements && is_rust_hash(rest, i)) {
             break;
         }
@@ -1807,7 +1807,7 @@ NODISCARD static overflow_status rust_demangle_legacy_display_demangle(struct de
             rest++;
             len--;
         }
-        
+
         while (len > 0) {
             if (rest[0] == '.') {
                 if (len >= 2 && rest[1] == '.') {
@@ -1826,7 +1826,7 @@ NODISCARD static overflow_status rust_demangle_legacy_display_demangle(struct de
                 }
                 const char *escape_start = rest + 1;
                 size_t escape_len = escape - (rest + 1);
-                
+
                 size_t next_len = len - (escape + 1 - rest);
                 const char *next_rest = escape + 1;
 
@@ -1966,7 +1966,7 @@ void rust_demangle_demangle(const char *s, struct demangle *res)
                 .original_len=s_len,
                 .suffix=s,
                 .suffix_len=0,
-            };            
+            };
         }
     }
 
@@ -1987,7 +1987,7 @@ bool rust_demangle_is_known(struct demangle *res) {
     return res->style != DemangleStyleUnknown;
 }
 
-overflow_status rust_demangle_display_demangle(struct demangle const *res, char *out, size_t len, bool alternate) {    
+overflow_status rust_demangle_display_demangle(struct demangle const *res, char *out, size_t len, bool alternate) {
     size_t original_len = res->original_len;
     size_t out_len;
     switch (res->style) {

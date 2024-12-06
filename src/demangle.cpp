@@ -9,6 +9,7 @@
 #include "demangle.h"
 #include "rustDemangle.h"
 
+
 char* Demangle::demangleCpp(const char* s) {
     int status;
     char* result = abi::__cxa_demangle(s, NULL, NULL, &status);
@@ -25,7 +26,7 @@ char* Demangle::demangleCpp(const char* s) {
     return result;
 }
 
-bool Demangle::isRustSymbol(const char *s) {
+bool Demangle::isRustSymbol(const char* s) {
     // "_R" symbols (Rust "mangling V0") symbols can always be easily distinguished from C++ symbols.
     if (s[0] == '_' && s[1] == 'R') {
         return true;
@@ -55,9 +56,8 @@ bool Demangle::isRustSymbol(const char *s) {
 }
 
 char* Demangle::demangleRust(struct demangle const *demangle, bool full_signature) {
-    char* result;
     for (size_t demangled_size = 64; demangled_size < 1000000; demangled_size *= 2) {
-        result = (char *)malloc(demangled_size);
+        char* result = (char*)malloc(demangled_size);
         if (result == NULL) {
             return NULL;
         }

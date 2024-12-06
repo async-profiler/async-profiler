@@ -16,7 +16,7 @@ enum FrameTypeId {
     // The distinction between FRAME_NATIVE and FRAME_CPP is for visual purposes
     // to make differentiating between libc and application code easier, which
     // means that C and asm code is FRAME_NATIVE and Rust/Objective-C code is of
-    // type FRAME_CPP. 
+    // type FRAME_CPP.
     //
     // There probably should be a better way of doing this distinction, but it
     // works well enough in practice.
