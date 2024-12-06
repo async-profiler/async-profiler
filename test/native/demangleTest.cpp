@@ -22,7 +22,12 @@ TEST_CASE(Demangle_test_needs_demangling) {
 
 TEST_CASE(Demangle_test_demangle_cpp) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", false);
-    CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail");
+    // 2 different demangling formats between libc++ (Mac) and libstdc++ (most Linux)
+    if (strcmp(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail") == 0) {
+        CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail");
+    } else {
+        CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t>>::pbackfail");
+    }
     free(s);
 }
 
@@ -40,7 +45,12 @@ TEST_CASE(Demangle_test_demangle_cpp_rust_like_2) {
 
 TEST_CASE(Demangle_test_demangle_cpp_full_signature) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", true);
-    CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)");
+    // 2 different demangling formats between libc++ (Mac) and libstdc++ (most Linux)
+    if (strcmp(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)") == 0) {
+        CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)");
+    } else {
+        CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t>>::pbackfail(unsigned int)");
+    }
     free(s);
 }
 
