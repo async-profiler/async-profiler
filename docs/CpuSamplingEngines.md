@@ -6,7 +6,7 @@ Async-profiler has three options for CPU profiling: `-e cpu`, `-e itimer` and `-
 
 Both cpu and itimer mode measure the CPU time spent by the running threads. For example,
 if an application uses 2 cpu cores, each with 30% utilization, and the sampling interval is
-10ms, then the profiler will collect about 2 _ 0.3 _ 100 = 60 samples per second.
+10ms, then the profiler will collect about `2 * 0.3 * 100 = 60` samples per second.
 
 In other words, 1 profiling sample means that one CPU was actively running for N nanoseconds,
 where N is the profiling interval.
