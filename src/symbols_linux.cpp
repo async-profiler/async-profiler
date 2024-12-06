@@ -154,7 +154,7 @@ typedef Elf32_Dyn  ElfDyn;
 #  define R_DIRECT -1
 #elif defined(__aarch64__)
 #  define R_GLOB_DAT R_AARCH64_GLOB_DAT
-#  define R_DIRECT -1
+#  define R_DIRECT R_AARCH64_ABS64
 #elif defined(__PPC64__)
 #  define R_GLOB_DAT R_PPC64_GLOB_DAT
 #  define R_DIRECT -1
