@@ -20,9 +20,6 @@ TEST_CASE(Demangle_test_needs_demangling) {
     CHECK_EQ(Demangle::needsDemangling("_malloc"), false);
 }
 
-// demangle calls _cxa_demangle, which should support demangling Itanium-mangled symbols across all Linux systems,
-// but might have a different mangling format on some other platforms.
-#ifdef __linux__
 TEST_CASE(Demangle_test_demangle_cpp) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", false);
     CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail");
@@ -35,12 +32,17 @@ TEST_CASE(Demangle_test_demangle_cpp_rust_like) {
     free(s);
 }
 
+TEST_CASE(Demangle_test_demangle_cpp_rust_like_2) {
+    char *s = Demangle::demangle("_ZN12_GLOBAL__N_113single_threadE", true);
+    CHECK_EQ(s, "(anonymous namespace)::single_thread");
+    free(s);
+}
+
 TEST_CASE(Demangle_test_demangle_cpp_full_signature) {
     char *s = Demangle::demangle("_ZNSt15basic_streambufIwSt11char_traitsIwEE9pbackfailEj", true);
     CHECK_EQ(s, "std::basic_streambuf<wchar_t, std::char_traits<wchar_t> >::pbackfail(unsigned int)");
     free(s);
 }
-#endif
 
 TEST_CASE(Demangle_test_demangle_rust_legacy) {
     char *s = Demangle::demangle("_ZN12panic_unwind3imp5panic17exception_cleanup17he4cf772173d90f46E", false);
