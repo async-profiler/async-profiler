@@ -5,34 +5,31 @@
 
 package test.jfr;
 
+import java.util.Random;
 
 class Ttsp {
-    static private double loop(int iterations, double arg) {
-        double total = 0;
-        for (int i = 0; i < iterations; i++) {
-            total += Math.sin(Math.cos(Math.tan(arg)));
+    static private double loop(){
+        byte[] byteArray = new byte[1024 * 1024 * 1024];
+        for (int i = 0; i < 10000; i++) {
+            new Random().nextBytes(byteArray);
         }
-        return total;
+        return 1;
     }
     public static void main(String[] args) throws Exception {
         new Thread(() -> {
             while (true) {
-                loop(10000, 1);
+                System.gc();
                 try {
-                    Thread.sleep(10);
+                    Thread.sleep(20);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
         }).start();
+        Thread.sleep(1000);
         new Thread(() -> {
             while (true) {
-                System.gc();
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+                loop();
             }
         }).start();
     }

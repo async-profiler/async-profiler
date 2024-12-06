@@ -85,8 +85,8 @@ public class JfrTests {
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = Ttsp.class)
-    public void ttspNostop(TestProcess p) throws Exception {
-        p.profile("-d 3 --ttsp -f %f.jfr");
+    public void ttsp(TestProcess p) throws Exception {
+        p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         if (containsSamplesOutsideWindow(p)) {
             throw new RuntimeException("Expected no samples outside of ttsp window, but found some");
         }
@@ -99,8 +99,8 @@ public class JfrTests {
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = Ttsp.class)
-    public void ttsp(TestProcess p) throws Exception {
-        p.profile("-d 3 --ttsp --nostop -f %f.jfr");
+    public void ttspNostop(TestProcess p) throws Exception {
+        p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
         if (!containsSamplesOutsideWindow(p)) {
             throw new RuntimeException("Expected to find samples outside of ttsp window, but did not find any");
         }
