@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "demangle.h"
-#include "rust-demangle.h"
+#include "rustDemangle.h"
 
 char* Demangle::demangleCpp(const char* s) {
     int status;

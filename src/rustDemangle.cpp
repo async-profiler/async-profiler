@@ -15,7 +15,7 @@
 #include <sys/param.h>
 #include <stdio.h>
 
-#include "rust-demangle.h"
+#include "rustDemangle.h"
 
 #if defined(__GNUC__) || defined(__clang__)
 #define NODISCARD __attribute__((warn_unused_result))
