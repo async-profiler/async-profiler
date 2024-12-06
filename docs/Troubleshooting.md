@@ -55,9 +55,9 @@
    1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
    2. seccomp disables `perf_event_open` API in a container.
    3. OS runs under a hypervisor that does not virtualize performance counters.
-   4. perf_event_open API is not supported on this system, e.g. WSL.</br>
+   4. perf_event_open API is not supported on this system, e.g. WSL.
 
-   </br>For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
+   <br>For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
    as a privileged user may solve the issue.
    
    If changing the configuration is not possible, you may fall back to
