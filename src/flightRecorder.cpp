@@ -988,7 +988,9 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(10);
+        const int poolCountOffset = buf->offset();
+        char poolCount = 10;
+        buf->putVar32(0); // patched below.
 
         Lookup lookup(&_method_map, Profiler::instance()->classMap());
         writeFrameTypes(buf);
@@ -998,9 +1000,16 @@ class Recording {
         writeStackTraces(buf, &lookup);
         writeMethods(buf, &lookup);
         writeClasses(buf, &lookup);
-        writePackages(buf, &lookup);
+
+        if(!tryWritePackages(buf, &lookup)) {
+            poolCount--;
+        }
+
         writeSymbols(buf, &lookup);
         writeLogLevels(buf);
+
+        // Patch pool count.
+        buf->put8(poolCountOffset, poolCount);
     }
 
     void writeFrameTypes(Buffer* buf) {
@@ -1145,9 +1154,13 @@ class Recording {
         }
     }
 
-    void writePackages(Buffer* buf, Lookup* lookup) {
+    bool tryWritePackages(Buffer* buf, Lookup* lookup) {
         std::map<u32, const char*> packages;
         lookup->_packages.collect(packages);
+
+        if (packages.empty()) {
+            return false;
+        }
 
         buf->putVar32(T_PACKAGE);
         buf->putVar32(packages.size());
@@ -1156,6 +1169,7 @@ class Recording {
             buf->putVar64(lookup->getSymbol(it->second) | _base_id);
             flushIfNeeded(buf);
         }
+        return true;
     }
 
     void writeSymbols(Buffer* buf, Lookup* lookup) {
