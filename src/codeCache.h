@@ -161,17 +161,9 @@ class CodeCache {
     void sort();
     void mark(NamePredicate predicate, char value);
 
-    void addImportWithOverride(void** entry, const char* name, bool override);
+    void addImport(void** entry, const char* name);
     void** findImport(ImportId id);
     void patchImport(ImportId, void* hook_func);
-
-    inline void addImport(void** entry, const char* name) {
-        addImportWithOverride(entry, name, true);
-    }
-
-    inline void tryAddImport(void** entry, const char* name) {
-        return addImportWithOverride(entry, name, false);
-    }
 
     CodeBlob* findBlob(const char* name);
     CodeBlob* findBlobByAddress(const void* address);
