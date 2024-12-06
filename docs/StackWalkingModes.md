@@ -24,13 +24,13 @@ The feature can be enabled with the option `--cstack dwarf` (or its agent equiva
 
 Modern Intel CPUs can profile branch instructions, including `call`s and `ret`s, and store their source and destination
 addresses (Last Branch Records) in hardware registers. Starting from Haswell, CPU can match these addresses to form a
-branch stack. This branch stack will be effectively a call chain automatically collected by the hardware. 
+branch stack. This branch stack will be effectively a call chain automatically collected by the hardware.
 
 LBR stacks are not always complete or accurate, but they still appear much more helpful comparing to FP-based stack
 walking, when a native library is compiled with omitted frame pointers. It works only with hardware events like
 `-e cycles` (`instructions`, `cache-misses` etc.) and the maximum call chain depth is 32 (hardware limit).
 
-The feature can be enabled with the option `--cstack lbr` (or its agent equivalent `cstack=lbr`). 
+The feature can be enabled with the option `--cstack lbr` (or its agent equivalent `cstack=lbr`).
 
 ## VM Structs
 
@@ -51,6 +51,7 @@ AsyncGetCallTrace can crash JVM, and there is no reliable way to get around this
 Due to issues with AGCT from time to time, including random crashes and missing stack traces,
 `vm` stack walking mode based on HotSpot VM Structs was introduced in async-profiler.
 `vm` stack walker has the following advantages:
+
 - Fully enclosed by the crash protection based on `setjmp`/`longjmp`.
 - Can show all frames: Java, native and JVM stubs throughout the whole stack.
 - Provides additional information on each frame, like JIT compilation type.
