@@ -7,7 +7,7 @@ package test.nativemem;
 
 public class Native {
     static {
-        System.loadLibrary("doesmalloc");
+        System.loadLibrary("jnimalloc");
     }
 
     public static native long malloc(int size);

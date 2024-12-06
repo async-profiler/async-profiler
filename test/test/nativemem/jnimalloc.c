@@ -18,10 +18,10 @@ JNIEXPORT jlong JNICALL Java_test_nativemem_Native_calloc(JNIEnv* env, jclass cl
 }
 
 JNIEXPORT jlong JNICALL Java_test_nativemem_Native_realloc(JNIEnv* env, jclass clazz, jlong addr, jlong size) {
-    void* ptr = realloc((void*)addr, (size_t)size);
+    void* ptr = realloc((void*)(intptr_t)addr, (size_t)size);
     return (jlong)(intptr_t)ptr;
 }
 
 JNIEXPORT void JNICALL Java_test_nativemem_Native_free(JNIEnv* env, jclass clazz, jlong addr) {
-    free((void*)addr);
+    free((void*)(intptr_t)addr);
 }

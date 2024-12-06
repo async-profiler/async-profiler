@@ -85,16 +85,15 @@ or `No symbol "UseG1GC" in current context`.
 
 ## Native memory leaks
 
-It is possible to profile `malloc` and `mmap` calls in Java context before, not always helpful. A large amount of allocations does not yet mean a leak, in case all the allocated memory is released on time.
-
 The profiling mode `nativemem` records `malloc`, `realloc`, `calloc` and `free` calls with the addresses, so that allocations can be matched with frees. This helps to focus the profile report only on unfreed allocations, which are the likely to be a source of a memory leak.
 
 Example:
 
 ```
-asprof start --nativemem[=N] <YourApp>
+asprof start -e nativemem -f app.jfr <YourApp>
+# asprof start --nativemem=N -f app.jfr <YourApp>
 
-asprof stop -f <app.jfr> <YourApp>
+asprof stop <YourApp>
 ```
 
 Now we need to process the jfr file, to find native memory leaks:

@@ -6,8 +6,6 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
-SOEXT ?= so
-
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
@@ -39,7 +37,7 @@ JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
-TEST_LIB_DIR=$(abspath build/test/lib)
+TEST_LIB_DIR=build/test/lib
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -199,7 +197,7 @@ build-test: build-test-cpp build-test-java
 
 build-test-java-libs:
 	@mkdir -p $(TEST_LIB_DIR)
-	$(CC) -shared -fPIC $(INCLUDES) -I$(realpath src) -o $(TEST_LIB_DIR)/libdoesmalloc.$(SOEXT) test/test/nativemem/doesmalloc.c
+	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/test/nativemem/jnimalloc.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -208,7 +206,7 @@ test-cpp: build-test-cpp
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 
-	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" $(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
