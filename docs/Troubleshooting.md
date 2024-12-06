@@ -94,6 +94,8 @@ This is the OS bug, see <https://bugs.launchpad.net/ubuntu/+source/linux/+bug/18
 Output file is written by the target JVM process, not by the profiler script.
 Make sure the path specified in `-f` option is correct and is accessible by the JVM.
 
+## Known Limitations
+
 - No Java stacks will be collected if `-XX:MaxJavaStackTraceDepth` is zero
   or negative. The exception is `--cstack vm` mode, which does not take
   `MaxJavaStackTraceDepth` into account.
