@@ -28,7 +28,6 @@ Usually this happens in one of the following cases:
 
    - How to check: run `lsof -p PID | grep java_pid`. If it lists a socket file, but the file does not exist, then this is exactly
      the described problem.
-
 2. JVM is started with `-XX:+DisableAttachMechanism` option.
 3. `/tmp` directory of Java process is not physically the same directory
    as `/tmp` of your shell, because Java is running in a container or in
@@ -53,9 +52,9 @@ For more information see [#78](https://github.com/async-profiler/async-profiler/
 1. `/proc/sys/kernel/perf_event_paranoid` is set to restricted mode (>=2).
 2. seccomp disables `perf_event_open` API in a container.
 3. OS runs under a hypervisor that does not virtualize performance counters.
-4. perf_event_open API is not supported on this system, e.g. WSL.</br>
+4. perf_event_open API is not supported on this system, e.g. WSL.
 
-</br>For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
+<br>For permissions-related reasons (such as 1 and 2), using `--fdtransfer` while running the profiler
 as a privileged user may solve the issue.
 
 If changing the configuration is not possible, you may fall back to

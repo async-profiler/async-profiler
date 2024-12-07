@@ -13,6 +13,13 @@ enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
     FRAME_JIT_COMPILED = 1,
     FRAME_INLINED      = 2,
+    // The distinction between FRAME_NATIVE and FRAME_CPP is for visual purposes
+    // to make differentiating between libc and application code easier, which
+    // means that C and asm code is FRAME_NATIVE and Rust/Objective-C code is of
+    // type FRAME_CPP.
+    //
+    // There probably should be a better way of doing this distinction, but it
+    // works well enough in practice.
     FRAME_NATIVE       = 3,
     FRAME_CPP          = 4,
     FRAME_KERNEL       = 5,

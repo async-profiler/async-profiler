@@ -148,7 +148,7 @@ class Lookup {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
 
-        if (name[0] == '_' && name[1] == 'Z') {
+        if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
                 mi->_name = _symbols.lookup(demangled);
