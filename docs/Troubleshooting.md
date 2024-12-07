@@ -28,6 +28,7 @@ Usually this happens in one of the following cases:
 
    - How to check: run `lsof -p PID | grep java_pid`. If it lists a socket file, but the file does not exist, then this is exactly
      the described problem.
+
 2. JVM is started with `-XX:+DisableAttachMechanism` option.
 3. `/tmp` directory of Java process is not physically the same directory
    as `/tmp` of your shell, because Java is running in a container or in
