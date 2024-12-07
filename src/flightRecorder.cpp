@@ -148,7 +148,7 @@ class Lookup {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
 
-        if (name[0] == '_' && name[1] == 'Z') {
+        if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
                 mi->_name = _symbols.lookup(demangled);
@@ -712,13 +712,14 @@ class Recording {
     }
 
     const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
                  f.unwind_native ? "unwind_native" : "-",
                  f.java_anchor   ? "java_anchor"   : "-",
                  f.gc_traces     ? "gc_traces"     : "-",
+                 f.stats         ? "stats"         : "-",
                  f.probe_sp      ? "probesp"       : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",

@@ -9,7 +9,6 @@ endif
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 
-SOEXT := so
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
@@ -38,7 +37,7 @@ JAVA=$(JAVA_HOME)/bin/java
 JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
-TEST_LIB_DIR=$(abspath build/test/lib)
+TEST_LIB_DIR=build/test/lib
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -117,7 +116,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-libs build-test-cpp test-cpp test-java
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -182,7 +181,6 @@ build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 
 build/test/cpptests: $(CPP_TEST_SOURCES) $(CPP_TEST_HEADER) $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 	mkdir -p build/test
-
 ifeq ($(MERGE),true)
 	for f in src/*.cpp test/native/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ -xc++ - $(LIBS)
@@ -227,6 +225,12 @@ native:
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
 	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
 	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
+
+check-md:
+	prettier -c README.md "docs/**/*.md"
+
+format-md:
+	prettier -w README.md "docs/**/*.md"
 
 clean-coverage:
 	$(RM) -rf build/test/cpptests build/test/coverage

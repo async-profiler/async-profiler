@@ -5,8 +5,8 @@ below:
 
 ## Built-in converter
 
-async-profiler provides a built-in converter which can be used to convert `jfr` output to 
-readable formats like `FlameGraph` visualization. More details on the built-in converter usage 
+async-profiler provides a built-in converter which can be used to convert `jfr` output to
+readable formats like `FlameGraph` visualization. More details on the built-in converter usage
 can be found [here](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md).
 
 ## JMC
@@ -20,15 +20,15 @@ provides details on how a `jfr` output can be interpreted using `JMC`.
 
 ## IntelliJ IDEA
 
-An open-source profiler 
-[plugin](https://plugins.jetbrains.com/plugin/20937-java-jfr-profiler) for JDK 11+ allows us to 
-profile your Java application with JFR and async-profiler and view the results in IntelliJ IDEA, 
+An open-source profiler
+[plugin](https://plugins.jetbrains.com/plugin/20937-java-jfr-profiler) for JDK 11+ allows us to
+profile your Java application with JFR and async-profiler and view the results in IntelliJ IDEA,
 as well as opening JFR files.
 
 ## JFR command line
 
-`jfr` provides a command line option to filter, summarize and output flight recording files 
+`jfr` provides a command line option to filter, summarize and output flight recording files
 into human-readable format. The
 [official documentation](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jfr.html)
 provides complete information on how to manipulate the contents and translate them as per
-developers' needs to debug performance issues with their Java applications. 
+developers' needs to debug performance issues with their Java applications.
