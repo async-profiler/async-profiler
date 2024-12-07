@@ -29,7 +29,7 @@ TEST_CASE(ResolveFromRela_dyn_R_GLOB_DAT) {
     ASSERT_RESOLVE(im_pthread_setspecific);
 }
 
-TEST_CASE(ResolveFromRela_dyn_R_DIRECT) {
+TEST_CASE(ResolveFromRela_dyn_R_ABS64) {
     ASSERT_RESOLVE(im_pthread_exit);
 }
 
