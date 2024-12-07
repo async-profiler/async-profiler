@@ -1,4 +1,4 @@
-# Converter usage & demo
+# Converter Usage
 
 async-profiler provides a converter utility to convert the profile output to other popular formats. async-profiler
 provides `jfrconv` as part of the compressed package which is found in the same location as the `asprof` binary. A
@@ -6,17 +6,19 @@ standalone converter binary is also available [here](ttps://github.com/async-pro
 
 ## Supported conversions
 
-- collapsed -> html, collapsed
-- html -> html, collapsed
-- jfr -> html, collapsed, pprof, pb.gz
+| From      | html | collapsed | pprof | pb.gz |
+| --------- | ---- | --------- | ----- | ----- |
+| collapsed | ✅   | ✅        | ❌    | ❌    |
+| html      | ✅   | ✅        | ❌    | ❌    |
+| jfr       | ✅   | ✅        | ✅    | ✅    |
 
 ## Usage
 
-`jfrconv [options] <input> [<input>...] <output>`
+```
+jfrconv [options] <input> [<input>...] <output>
+```
 
 The output format specified can be only one at a time for conversion from one format to another.
-
-### Available arguments
 
 ```
 Conversion options:
@@ -42,6 +44,8 @@ JFR options:
     --wall             Generate only Wall clock profile during conversion
     --alloc            Generate only Allocation profile during conversion
     --live             Build allocation profile from live objects only during conversion
+    --nativemem        Generate native memory allocation profile
+    --leak             Only include memory leaks in nativemem
     --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
  -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive
@@ -74,13 +78,13 @@ Flame Graph options:
     --highlight REGEX  Highlight frames matching the given pattern
 ```
 
-### Example usages with `jfrconv`
+## `jfrconv` Examples
 
-This section explains how the binary `jfrconv` can be used which exists in the same bin folder as
-`asprof`binary.
+`jfrconv` is built into the same location as the `asprof` binary.
 
-The below command will generate a foo.html. If no output file is specified, it defaults to a
-Flame Graph output.
+### Generate flamegraph from jfr
+
+If no output file is specified, it defaults to a Flame Graph output.
 
 ```
 jfrconv foo.jfr
@@ -93,43 +97,33 @@ hence it is advisable to use JFR conversion filter options like `--cpu` to filte
 during a conversion.
 
 ```
-jfrconv --cpu foo.jfr -o foo.html
-```
-
-or
-
-```
 jfrconv --cpu foo.jfr
+
+# which is equivalent to:
+# jfrconv --cpu -o flamegraph foo.jfr foo.html
 ```
 
 for HTML output as HTML is the default format for conversion from JFR.
 
-In case the conversion output is a Flame Graph, it can be further formatted with the use of flags
-specified above under `Flame Graph options`. The below command(s) will add a title string named `Title`
-to the Flame Graph instead of the default `Flame Graph` title and also will reverse the graph view
-by reversing the stack traces.
+#### Flame Graph options
+
+To add a custom title to the generated Flame Graph, use `--title`, which has the default value `Flame Graph`:
 
 ```
-jfrconv --cpu foo.jfr foo.html -r --title Title
+jfrconv --cpu foo.jfr foo.html -r --title "Custom Title"
 ```
 
-or
+### Other formats
 
-```
-jfrconv --cpu foo.jfr --reverse --title Title
-```
+`jfrconv` supports converting a JFR file to `collapsed`, `pprof` and `pb.gz` formats as well.
 
-These are few common use cases. Similarly, a JFR output can be converted to `collapsed`, `pprof` and
-`pb.gz` formats based on specific needs.
+## Standalone converter examples
 
-### Example usages with standalone converter
-
-The usage with standalone converter jar provided in
-[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download)
-section is very similar to `jfrconv`.
+Standalone converter jar is provided in
+[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download). It accepts the same parameters as `jfrconv`.
 
 Below is an example usage:
 
-`java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title Application CPU profile`
-
-The only difference lies in how the binary is used.
+```
+java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title "Application CPU profile"
+```

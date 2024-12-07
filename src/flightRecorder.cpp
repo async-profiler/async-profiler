@@ -1224,6 +1224,19 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMallocSample(Buffer* buf, int tid, u32 call_trace_id, MallocEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(event->_size != 0 ? T_MALLOC : T_FREE);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar64(event->_address);
+        if (event->_size != 0) {
+            buf->putVar64(event->_size);
+        }
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
@@ -1476,6 +1489,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
+                break;
+            case MALLOC_SAMPLE:
+                _rec->recordMallocSample(buf, tid, call_trace_id, (MallocEvent*)event);
                 break;
             case ALLOC_SAMPLE:
                 _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);

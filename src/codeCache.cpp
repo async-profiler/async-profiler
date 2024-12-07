@@ -107,20 +107,6 @@ void CodeCache::sort() {
     if (_max_address == NO_MAX_ADDRESS) _max_address = _blobs[_count - 1]._end;
 }
 
-void CodeCache::mark(NamePredicate predicate, char value) {
-    for (int i = 0; i < _count; i++) {
-        const char* blob_name = _blobs[i]._name;
-        if (blob_name != NULL && predicate(blob_name)) {
-            NativeFunc::mark(blob_name, value);
-        }
-    }
-
-    if (value == MARK_VM_RUNTIME && _name != NULL) {
-        // In case a library has no debug symbols
-        NativeFunc::mark(_name, value);
-    }
-}
-
 CodeBlob* CodeCache::findBlob(const char* name) {
     for (int i = 0; i < _count; i++) {
         const char* blob_name = _blobs[i]._name;
@@ -184,9 +170,24 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
 
 void CodeCache::addImport(void** entry, const char* name) {
     switch (name[0]) {
+        case 'c':
+            if (strcmp(name, "calloc") == 0) {
+                _imports[im_calloc] = entry;
+            }
+            break;
         case 'd':
             if (strcmp(name, "dlopen") == 0) {
                 _imports[im_dlopen] = entry;
+            }
+            break;
+        case 'f':
+            if (strcmp(name, "free") == 0) {
+                _imports[im_free] = entry;
+            }
+            break;
+        case 'm':
+            if (strcmp(name, "malloc") == 0) {
+                _imports[im_malloc] = entry;
             }
             break;
         case 'p':
@@ -198,6 +199,11 @@ void CodeCache::addImport(void** entry, const char* name) {
                 _imports[im_pthread_setspecific] = entry;
             } else if (strcmp(name, "poll") == 0) {
                 _imports[im_poll] = entry;
+            }
+            break;
+        case 'r':
+            if (strcmp(name, "realloc") == 0) {
+                _imports[im_realloc] = entry;
             }
             break;
     }

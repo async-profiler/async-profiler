@@ -221,7 +221,6 @@ public class Runner {
 
         List<RunnableTest> allTests = getRunnableTests(args);
         final int testCount = allTests.size();
-
         int i = 1;
         long totalTestDuration = 0;
         List<String> failedTests = new ArrayList<>();

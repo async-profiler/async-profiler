@@ -56,7 +56,7 @@ CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
 
 ifeq ($(JAVA_HOME),)
-  export JAVA_HOME:=$(shell java -cp . JavaHome)
+  JAVA_HOME:=$(shell java -cp . JavaHome)
 endif
 
 OS:=$(shell uname -s)
@@ -197,6 +197,7 @@ build-test: build-test-cpp build-test-java
 build-test-libs:
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
+	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -204,7 +205,8 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
