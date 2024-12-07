@@ -1,6 +1,7 @@
 # Getting started guide
 
 ## Before we start profiling
+
 As of Linux 4.6, capturing kernel call stacks using `perf_events` from a non-root
 process requires setting two runtime variables. You can set them using
 sysctl or as follows:
@@ -11,12 +12,14 @@ sysctl or as follows:
 ```
 
 ## Find process to profile
+
 Common ways to find the target process include using `jps` and `pgrep`. `pgrep` can be used
 along with necessary flags for example `-l` and search for `java` to find all running java
-processes and find the target process name and id from the list `pgrep ssh -l`. The next 
+processes and find the target process name and id from the list `pgrep ssh -l`. The next
 section includes an example using `jps`.
 
 ## Start profiling
+
 async-profiler works in the context of the target Java application,
 i.e. it runs as an agent in the process being profiled.
 `asprof` is a tool to attach and control the agent.
@@ -78,9 +81,9 @@ call stack leading to it comes from `Primes.primesThread`.
 
 ## Other use cases
 
-* [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent)
-* [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#using-java-api)
-* [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#intellij-idea)
+- [Launching as an agent](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent)
+- [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#using-java-api)
+- [IntelliJ IDEA](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#intellij-idea)
 
 ## FlameGraph visualization
 
@@ -99,6 +102,6 @@ $ asprof -d 30 -f /tmp/flamegraph.html 8983
 
 The flame graph html can be opened in any browser of your choice for further interpretation.
 
-Please refer to 
+Please refer to
 [Interpreting a Flame Graph](https://github.com/async-profiler/async-profiler/blob/master/docs/FlamegraphInterpretation.md)
 to understand more on how to interpret a Flame Graph.

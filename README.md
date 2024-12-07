@@ -41,7 +41,7 @@ click the desired build and scroll down to the artifacts section. These binaries
 # Supported platforms
 
 |           | Officially maintained builds | Other available ports                     |
-|-----------|------------------------------|-------------------------------------------|
+| --------- | ---------------------------- | ----------------------------------------- |
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
@@ -49,9 +49,11 @@ click the desired build and scroll down to the artifacts section. These binaries
 
 In a typical use case, profiling a Java application is just a matter of a running `asprof` with a PID of a
 running Java process.
+
 ```
 $ asprof -d 30 -f /tmp/flamegraph.html <PID>
 ```
+
 The above command translates to: run profiler for 30 seconds and save results to `/tmp/flamegraph.html`
 as an interactive `Flame Graph` that can be viewed in a browser.
 
@@ -65,25 +67,25 @@ as an interactive `Flame Graph` that can be viewed in a browser.
 
 ## Basic usage
 
-* [Getting Started](docs/GettingStarted.md)
-* [Profiler Options](docs/ProfilerOptions.md)
-* [Profiling Modes](docs/ProfilingModes.md)
-* [Integrating async-profiler](docs/IntegratingAsyncProfiler.md)
-* [Profiling In Container](docs/ProfilingInContainer.md)
+- [Getting Started](docs/GettingStarted.md)
+- [Profiler Options](docs/ProfilerOptions.md)
+- [Profiling Modes](docs/ProfilingModes.md)
+- [Integrating async-profiler](docs/IntegratingAsyncProfiler.md)
+- [Profiling In Container](docs/ProfilingInContainer.md)
 
 ## Profiler output
 
-* [Output Formats](docs/OutputFormats.md)
-* [FlameGraph Interpretation](docs/FlamegraphInterpretation.md)
-* [JFR Visualization](docs/JfrVisualization.md)
-* [Converter Usage](docs/ConverterUsage.md)
+- [Output Formats](docs/OutputFormats.md)
+- [FlameGraph Interpretation](docs/FlamegraphInterpretation.md)
+- [JFR Visualization](docs/JfrVisualization.md)
+- [Converter Usage](docs/ConverterUsage.md)
 
 ## Advanced usage
 
-* [CPU Sampling Engines](docs/CpuSamplingEngines.md)
-* [Stack Walking Modes](docs/StackWalkingModes.md)
-* [Advanced Stacktrace Features](docs/AdvancedStacktraceFeatures.md)
-* [Profiling Non-Java Applications](docs/ProfilingNonJavaApplications.md)
+- [CPU Sampling Engines](docs/CpuSamplingEngines.md)
+- [Stack Walking Modes](docs/StackWalkingModes.md)
+- [Advanced Stacktrace Features](docs/AdvancedStacktraceFeatures.md)
+- [Profiling Non-Java Applications](docs/ProfilingNonJavaApplications.md)
 
 ## Troubleshooting
 
