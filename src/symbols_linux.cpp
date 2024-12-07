@@ -393,8 +393,9 @@ void ElfParser::parseDynamicSection() {
 
         const char* base = this->base();
         if (rel != NULL && relsz != 0) {
-            // Shared library was built without PLT (-fno-plt)
-            // Relocation entries have been moved from .rela.plt to .rela.dyn
+            // If a shared library is built without PLT (-fno-plt), relocation entries for imports
+            // can be found in .rela.dyn. However, if both sections exist, .rela.plt entries
+            // should take precedence, that's why we parse .rela.dyn first.
             for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
                 ElfRelocation* r = (ElfRelocation*)(rel + offs);
                 if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_ABS64) {
