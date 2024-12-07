@@ -15,6 +15,7 @@ absolute path as on the host.
 
 By default, Docker container restricts the access to `perf_event_open`
 syscall. There are 3 alternatives to allow profiling in a container:
+
 1. You can modify the [seccomp profile](https://docs.docker.com/engine/security/seccomp/)
    or disable it altogether with `--security-opt seccomp=unconfined` option. In
    addition, `--cap-add SYS_ADMIN` may be required.

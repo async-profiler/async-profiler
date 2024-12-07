@@ -18,15 +18,15 @@ where `AsyncGetCallTrace` fails.
 This approach has the following advantages compared to using `perf_events`
 directly with a Java agent that translates addresses to Java method names:
 
-* Does not require `-XX:+PreserveFramePointer`, which introduces
+- Does not require `-XX:+PreserveFramePointer`, which introduces
   performance overhead that can be sometimes as high as 10%.
 
-* Does not require generating a map file for translating Java code addresses
+- Does not require generating a map file for translating Java code addresses
   to method names.
 
-* Displays interpreter frames.
+- Displays interpreter frames.
 
-* Does not produce large intermediate files (perf.data) for further processing in
+- Does not produce large intermediate files (perf.data) for further processing in
   user space scripts.
 
 If you wish to resolve frames within `libjvm`, the [debug symbols](#installing-debug-symbols) are required.
@@ -43,6 +43,7 @@ like allocation elimination. Only actual heap allocations are measured.
 
 The profiler features TLAB-driven sampling. It relies on HotSpot-specific
 callbacks to receive two kinds of notifications:
+
 - when an object is allocated in a newly created TLAB;
 - when an object is allocated on a slow path outside TLAB.
 
@@ -61,13 +62,16 @@ Some OpenJDK distributions (Amazon Corretto, Liberica JDK, Azul Zulu)
 already have them embedded in `libjvm.so`, other OpenJDK builds typically
 provide debug symbols in a separate package. For example, to install
 OpenJDK debug symbols on Debian / Ubuntu, run:
+
 ```
 # apt install openjdk-17-dbg
 ```
+
 (replace `17` with the desired version of JDK).
 
 On CentOS, RHEL and some other RPM-based distributions, this could be done with
 [debuginfo-install](http://man7.org/linux/man-pages/man1/debuginfo-install.1.html) utility:
+
 ```
 # debuginfo-install java-1.8.0-openjdk
 ```
@@ -77,9 +81,11 @@ On Gentoo the `icedtea` OpenJDK package can be built with the per-package settin
 
 The `gdb` tool can be used to verify if debug symbols are properly installed for the `libjvm` library.
 For example, on Linux:
+
 ```
 $ gdb $JAVA_HOME/lib/server/libjvm.so -ex 'info address UseG1GC'
 ```
+
 This command's output will either contain `Symbol "UseG1GC" is at 0xxxxx`
 or `No symbol "UseG1GC" in current context`.
 
@@ -122,7 +128,6 @@ Wall-clock profiler is most useful in per-thread mode: `-t`.
 
 Example: `asprof -e wall -t -i 5ms -f result.html 8983`
 
-
 ## Lock profiling
 
 `-e lock` option tells async-profiler to measure lock contention in the profiled application. Lock profiling can help
@@ -152,10 +157,12 @@ of all compiled methods. The subsequent instrumentation flushes only the _depend
 The massive CodeCache flush doesn't occur if attaching async-profiler as an agent.
 
 ### Java native method profiling
+
 Here are some useful native methods to profile:
-* ```G1CollectedHeap::humongous_obj_allocate``` - trace _humongous allocations_ of the G1 GC,
-* ```JVM_StartThread``` - trace creation of new Java threads,
-* ```Java_java_lang_ClassLoader_defineClass1``` - trace class loading.
+
+- `G1CollectedHeap::humongous_obj_allocate` - trace _humongous allocations_ of the G1 GC,
+- `JVM_StartThread` - trace creation of new Java threads,
+- `Java_java_lang_ClassLoader_defineClass1` - trace class loading.
 
 ## Multiple events
 
@@ -165,6 +172,7 @@ perf event, tracepoint, Java method, etc.
 
 The only output format that supports multiple events together is JFR.
 The recording will contain the following event types:
+
 - `jdk.ExecutionSample`
 - `jdk.ObjectAllocationInNewTLAB` (alloc)
 - `jdk.ObjectAllocationOutsideTLAB` (alloc)
@@ -172,29 +180,36 @@ The recording will contain the following event types:
 - `jdk.ThreadPark` (lock)
 
 To start profiling cpu + allocations + locks together, specify
+
 ```
 asprof -e cpu,alloc,lock -f profile.jfr ...
 ```
+
 or use `--alloc` and `--lock` parameters with the desired threshold:
+
 ```
 asprof -e cpu --alloc 2m --lock 10ms -f profile.jfr ...
 ```
+
 The same, when starting profiler as an agent:
+
 ```
 -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,alloc=2m,lock=10ms,file=profile.jfr
 ```
 
 ## Continuous profiling
+
 Continuous profiling is a means using which an application can be profiled
-continuously and dump profile outputs after a specified amount of time duration. 
-It is a very effective technique in finding performance degradations proactively 
+continuously and dump profile outputs after a specified amount of time duration.
+It is a very effective technique in finding performance degradations proactively
 and efficiently. Continuous profiling helps users to understand performance
 differences between versions of the same application. Recent outputs can
-be compared with continuous profiling output history to find differences 
-and optimize the changes introduced in case of performance degradations. 
-aysnc-profiler provides the ability to continously profile an application with 
-the `loop` option. Make sure the filename includes a timestamp pattern, or the 
+be compared with continuous profiling output history to find differences
+and optimize the changes introduced in case of performance degradations.
+aysnc-profiler provides the ability to continously profile an application with
+the `loop` option. Make sure the filename includes a timestamp pattern, or the
 output will be overwritten on each iteration.
+
 ```
 asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ```
@@ -202,6 +217,7 @@ asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ## Special event types supported on Linux
 
 Below special event types are supported on Linux:
+
 - `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
   `<func>`. The format of `mem` event is the same as in `perf-record`.
   Execution breakpoints can be also specified by the function name,

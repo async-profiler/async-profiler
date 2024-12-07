@@ -29,10 +29,12 @@ Current release (3.0):
 - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
 - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
 - Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)
-  * JFR to Flame Graph
-  * JFR to pprof
-  * collapsed stacks to Flame Graph
-  * JFR to memory leak Flame Graph
+
+  | From      | html | collapsed | pprof | pb.gz |
+  | --------- | ---- | --------- | ----- | ----- |
+  | collapsed | ✅   | ✅        | ❌    | ❌    |
+  | html      | ✅   | ✅        | ❌    | ❌    |
+  | jfr       | ✅   | ✅        | ✅    | ✅    |
 
 [Previous releases](https://github.com/async-profiler/async-profiler/releases)
 
@@ -45,7 +47,7 @@ click the desired build and scroll down to the artifacts section. These binaries
 # Supported platforms
 
 |           | Officially maintained builds | Other available ports                     |
-|-----------|------------------------------|-------------------------------------------|
+| --------- | ---------------------------- | ----------------------------------------- |
 | **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
 | **macOS** | x64, arm64                   |                                           |
 
@@ -71,25 +73,25 @@ as an interactive `Flame Graph` that can be viewed in a browser.
 
 ## Basic usage
 
-* [Getting Started](docs/GettingStarted.md)
-* [Profiler Options](docs/ProfilerOptions.md)
-* [Profiling Modes](docs/ProfilingModes.md)
-* [Integrating async-profiler](docs/IntegratingAsyncProfiler.md)
-* [Profiling In Container](docs/ProfilingInContainer.md)
+- [Getting Started](docs/GettingStarted.md)
+- [Profiler Options](docs/ProfilerOptions.md)
+- [Profiling Modes](docs/ProfilingModes.md)
+- [Integrating async-profiler](docs/IntegratingAsyncProfiler.md)
+- [Profiling In Container](docs/ProfilingInContainer.md)
 
 ## Profiler output
 
-* [Output Formats](docs/OutputFormats.md)
-* [FlameGraph Interpretation](docs/FlamegraphInterpretation.md)
-* [JFR Visualization](docs/JfrVisualization.md)
-* [Converter Usage](docs/ConverterUsage.md)
+- [Output Formats](docs/OutputFormats.md)
+- [FlameGraph Interpretation](docs/FlamegraphInterpretation.md)
+- [JFR Visualization](docs/JfrVisualization.md)
+- [Converter Usage](docs/ConverterUsage.md)
 
 ## Advanced usage
 
-* [CPU Sampling Engines](docs/CpuSamplingEngines.md)
-* [Stack Walking Modes](docs/StackWalkingModes.md)
-* [Advanced Stacktrace Features](docs/AdvancedStacktraceFeatures.md)
-* [Profiling Non-Java Applications](docs/ProfilingNonJavaApplications.md)
+- [CPU Sampling Engines](docs/CpuSamplingEngines.md)
+- [Stack Walking Modes](docs/StackWalkingModes.md)
+- [Advanced Stacktrace Features](docs/AdvancedStacktraceFeatures.md)
+- [Profiling Non-Java Applications](docs/ProfilingNonJavaApplications.md)
 
 ## Troubleshooting
 

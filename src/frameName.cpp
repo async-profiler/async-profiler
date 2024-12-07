@@ -119,7 +119,7 @@ void FrameName::buildFilter(std::vector<Matcher>& vector, const char* base, int 
 const char* FrameName::decodeNativeSymbol(const char* name) {
     const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
 
-    if (name[0] == '_' && name[1] == 'Z') {
+    if (Demangle::needsDemangling(name)) {
         char* demangled = Demangle::demangle(name, _style & STYLE_SIGNATURES);
         if (demangled != NULL) {
             if (lib_name != NULL) {
@@ -333,6 +333,7 @@ FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
         case BCI_NATIVE_FRAME: {
             const char* name = (const char*)frame.method_id;
             if ((name[0] == '_' && name[1] == 'Z') ||
+                (name[0] == '_' && name[1] == 'R') ||
                 (name[0] == '+' && name[1] == '[') ||
                 (name[0] == '-' && name[1] == '[')) {
                 return FRAME_CPP;

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "demangle.h"
+#include "rustDemangle.h"
 
 
 char* Demangle::demangleCpp(const char* s) {
@@ -25,80 +26,48 @@ char* Demangle::demangleCpp(const char* s) {
     return result;
 }
 
-char* Demangle::demangleRust(const char* s, const char* e) {
-    // Demangled symbol can be 1.5x longer than original, e.g. 1A1B1C -> A::B::C
-    char* result = (char*)malloc((e - s) * 3 / 2 + 1);
-    if (result == NULL) {
-        return NULL;
+bool Demangle::isRustSymbol(const char* s) {
+    // "_R" symbols (Rust "mangling V0") symbols can always be easily distinguished from C++ symbols.
+    if (s[0] == '_' && s[1] == 'R') {
+        return true;
     }
 
-    char* r = result;
-    char* tmp;
-
-    while (s < e) {
-        unsigned long len = strtoul(s, &tmp, 10);
-        const char* next = tmp + len;
-        if (len == 0 || next > e) {
-            break;
-        }
-
-        s = tmp;
-        if (s[0] == '_' && s[1] == '$') s++;
-
-        if (r > result) {
-            *r++ = ':';
-            *r++ = ':';
-        }
-
-        while (s < next) {
-            if (s[0] == '$') {
-                if (s[1] == 'L' && s[2] == 'T' && s[3] == '$') {
-                    *r++ = '<';
-                    s += 4;
-                } else if (s[1] == 'G' && s[2] == 'T' && s[3] == '$') {
-                    *r++ = '>';
-                    s += 4;
-                } else if (s[1] == 'L' && s[2] == 'P' && s[3] == '$') {
-                    *r++ = '(';
-                    s += 4;
-                } else if (s[1] == 'R' && s[2] == 'P' && s[3] == '$') {
-                    *r++ = ')';
-                    s += 4;
-                } else if (s[1] == 'S' && s[2] == 'P' && s[3] == '$') {
-                    *r++ = '@';
-                    s += 4;
-                } else if (s[1] == 'B' && s[2] == 'P' && s[3] == '$') {
-                    *r++ = '*';
-                    s += 4;
-                } else if (s[1] == 'R' && s[2] == 'F' && s[3] == '$') {
-                    *r++ = '&';
-                    s += 4;
-                } else if (s[1] == 'C' && s[2] == '$') {
-                    *r++ = ',';
-                    s += 3;
-                } else if (s[1] == 'u') {
-                    *r++ = (char)strtoul(s + 2, &tmp, 16);
-                    s = tmp + 1;
-                } else {
-                    *r++ = '$';
-                    s++;
-                }
-            } else if (s[0] == '.' && s[1] == '.') {
-                *r++ = ':';
-                *r++ = ':';
-                s += 2;
-            } else {
-                *r++ = *s++;
-            }
-        }
-
-        if (s > next) {
-            break;
+    // Rust symbols with the legacy demangling (`_ZN3foo3bar17h0123456789abcdefE`) look very much like valid
+    // C++ demangling symbols, but we only want to use the Rust demangling for Rust symbols since
+    // the Rust demangling does not support C++ anonymous namespaces (e.g. `_ZN12_GLOBAL__N_113single_threadE`
+    // is supposed to demangle to `(anonymous namespace)::single_thread`, but Rust will demangle it to
+    // `_GLOBAL__N_1::single_thread`).
+    //
+    // So try to have a heuristic to avoid sending C++ symbols to Rust demangling - if a symbol's last "E"
+    // refers to a Rust hash, expect it to be a Rust symbol. We don't require the `E` to be at the end
+    // of the string since there can be `.lto.1` suffixes.
+    //
+    // FIXME: there might be a better heuristic if there are problems with this one
+    const char* e = strrchr(s, 'E');
+    if (e != NULL && e - s > 22 && e[-19] == '1' && e[-18] == '7' && e[-17] == 'h') {
+        const char* h = e - 16;
+        while ((*h >= '0' && *h <= '9') || (*h >= 'a' && *h <= 'f')) h++;
+        if (h == e) {
+            return true;
         }
     }
 
-    *r = 0;
-    return result;
+    return false;
+}
+
+char* Demangle::demangleRust(struct demangle const *demangle, bool full_signature) {
+    for (size_t demangled_size = 64; demangled_size < 1000000; demangled_size *= 2) {
+        char* result = (char*)malloc(demangled_size);
+        if (result == NULL) {
+            return NULL;
+        }
+        if (rust_demangle_display_demangle(demangle, result, demangled_size, !full_signature /* alternate */) == OverflowOk) {
+            return result;
+        }
+        free(result);
+    }
+    // demangling Rust failed, return NULL
+    return NULL;
 }
 
 void Demangle::cutArguments(char* s) {
@@ -117,13 +86,11 @@ void Demangle::cutArguments(char* s) {
 }
 
 char* Demangle::demangle(const char* s, bool full_signature) {
-    // Check if the mangled symbol ends with a Rust hash "17h<hex>E"
-    const char* e = strrchr(s, 'E');
-    if (e != NULL && e - s > 22 && e[-19] == '1' && e[-18] == '7' && e[-17] == 'h') {
-        const char* h = e - 16;
-        while ((*h >= '0' && *h <= '9') || (*h >= 'a' && *h <= 'f')) h++;
-        if (h == e) {
-            return demangleRust(s + 3, e - 19);
+    if (isRustSymbol(s)) {
+        struct demangle demangle;
+        rust_demangle_demangle(s, &demangle);
+        if (rust_demangle_is_known(&demangle)) {
+            return demangleRust(&demangle, full_signature);
         }
     }
 

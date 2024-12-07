@@ -58,6 +58,8 @@ struct TestCase {
 
 #define CHECK_OP(val1, op, val2) __ASSERT_OR_CHECK_OP(false, val1, op, val2)
 
+#define CSTR(s) ((s) ? (s) : "(null)")
+
 #define __ASSERTED(isAssert)                \
     test_case.has_failed_assertions = true; \
     if (isAssert) {                         \
@@ -67,16 +69,16 @@ struct TestCase {
 #define __ASSERT_OR_CHECK_OP(isAssert, val1, op, val2)                                                               \
     {                                                                                                                \
         const bool is_string =                                                                                       \
-            std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val2), const char*>::value ||  \
-            std::is_same<decltype(val1), char*>::value || std::is_same<decltype(val2), char*>::value;                \
+            std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val1), char*>::value ||        \
+            std::is_same<decltype(val2), const char*>::value || std::is_same<decltype(val2), char*>::value;          \
         if (is_string) {                                                                                             \
             if ((std::string(#op) == "==") || (std::string(#op) == "!=")) {                                          \
                 const char* str1 = reinterpret_cast<const char*>(val1);                                              \
                 const char* str2 = reinterpret_cast<const char*>(val2);                                              \
-                if ((std::string(#op) == "==" && (str1 && str2 && strcmp(str1, str2) != 0)) ||                       \
+                if ((std::string(#op) == "==" && (str1 != str2) && !(str1 && str2 && strcmp(str1, str2) == 0)) ||    \
                     (std::string(#op) == "!=" && (str1 == str2 || (str1 && str2 && strcmp(str1, str2) == 0)))) {     \
                     printf("Assertion failed: (%s %s %s),\n\tactual values: %s = \"%s\", %s = \"%s\"\n\tat %s:%d\n", \
-                           #val1, #op, #val2, #val1, str1, #val2, str2, __FILE__, __LINE__);                         \
+                           #val1, #op, #val2, #val1, CSTR(str1), #val2, CSTR(str2), __FILE__, __LINE__);             \
                     __ASSERTED(isAssert)                                                                             \
                 }                                                                                                    \
             } else {                                                                                                 \

@@ -1,15 +1,16 @@
 # Profiling Non-Java applications
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
-programmatically from the process being profiled and with LD_PRELOAD. It is worth noting that 
-[dynamic attach](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent) 
+programmatically from the process being profiled and with LD_PRELOAD. It is worth noting that
+[dynamic attach](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent)
 which is available for Java is not supported for non-Java profiling.
 
-
 ## C API
+
 Similar to the
 [Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#using-java-api),
 there is a C API for using inside native applications.
+
 ```
 typedef const char* asprof_error_t;
 typedef void (*asprof_writer_t)(const char* buf, size_t size);
@@ -27,7 +28,9 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
 ```
+
 To use it in a C/C++ application, include asprof.h. Below is an example usage showing how to use async-profiler command with the API:
+
 ```
 #include "asprof.h"
 #include <dlfcn.h>
@@ -53,13 +56,13 @@ int main() {
         dlclose(lib);
         exit(1);
     }
-    
+
     asprof_init();
 
     char cmd[] = "start,event=cpu,loglevel=debug,file=profile.jfr";
 
     printf("Starting profiler\n");
-    
+
     asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(lib, "asprof_execute");
     if(asprof_execute == NULL) {
         printf("%s\n", dlerror());
@@ -88,10 +91,11 @@ int main() {
 ```
 
 In addition, async-profiler can be injected into a native application through LD_PRELOAD mechanism:
+
 ```
 LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,event=cpu,file=profile.jfr NativeApp [args]
 ```
 
-All basic functionality remains the same. Profiler can run in cpu, wall and other perf_events 
+All basic functionality remains the same. Profiler can run in cpu, wall and other perf_events
 modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
 Java-specific events.

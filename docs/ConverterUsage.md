@@ -6,11 +6,11 @@ standalone converter binary is also available [here](ttps://github.com/async-pro
 
 ## Supported conversions
 
-| From | html | collapsed | pprof | pb.gz |
-|------|------|-----------|--------|--------|
-| collapsed | ✅ | ✅ | ❌ | ❌ |
-| html | ✅ | ✅ | ❌ | ❌ |
-| jfr | ✅ | ✅ | ✅ | ✅ |
+| From      | html | collapsed | pprof | pb.gz |
+| --------- | ---- | --------- | ----- | ----- |
+| collapsed | ✅   | ✅        | ❌    | ❌    |
+| html      | ✅   | ✅        | ❌    | ❌    |
+| jfr       | ✅   | ✅        | ✅    | ✅    |
 
 ## Usage
 
