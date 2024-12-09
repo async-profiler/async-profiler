@@ -79,7 +79,8 @@ static const char USAGE_STRING[] =
     "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
-    "  --ttsp            time-to-safepoint profiling\n"
+    "  --ttsp            only time-to-safepoint profiling \n"
+    "  --nostop          do not stop profiling outside --begin/--end window\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
@@ -497,6 +498,9 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--ttsp") {
             params << ",begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";
+
+        } else if (arg == "--nostop") {
+            params << ",nostop";
 
         } else if (arg == "--all-user") {
             params << ",alluser";
