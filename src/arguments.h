@@ -180,6 +180,7 @@ class Arguments {
     bool _sched;
     bool _live;
     bool _nobatch;
+    bool _nostop;
     bool _alluser;
     bool _fdtransfer;
     const char* _fdtransfer_path;
@@ -197,7 +198,6 @@ class Arguments {
     unsigned int _file_num;
     const char* _begin;
     const char* _end;
-    bool _nostop;
     // FlameGraph parameters
     const char* _title;
     double _minwidth;
@@ -231,6 +231,7 @@ class Arguments {
         _sched(false),
         _live(false),
         _nobatch(false),
+        _nostop(false),
         _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
@@ -248,7 +249,6 @@ class Arguments {
         _file_num(0),
         _begin(NULL),
         _end(NULL),
-        _nostop(false),
         _title(NULL),
         _minwidth(0),
         _reverse(false) {

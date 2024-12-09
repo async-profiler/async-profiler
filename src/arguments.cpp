@@ -102,7 +102,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
 //     end=FUNCTION     - end profiling when FUNCTION is executed
-//     nostop           - always start profiling, while also recording windows between the begin FUNCTION and the end FUNCTION
+//     nostop           - do not stop profiling outside --begin/--end window
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree
@@ -391,14 +391,14 @@ Error Arguments::parse(const char* args) {
             CASE("mcache")
                 _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
 
-            CASE("nostop")
-                _nostop = true;
-
             CASE("begin")
                 _begin = value;
 
             CASE("end")
                 _end = value;
+
+            CASE("nostop")
+                _nostop = true;
 
             // FlameGraph options
             CASE("title")

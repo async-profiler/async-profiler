@@ -87,9 +87,7 @@ public class JfrTests {
     @Test(mainClass = Ttsp.class)
     public void ttsp(TestProcess p) throws Exception {
         p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
-        if (containsSamplesOutsideWindow(p)) {
-            throw new RuntimeException("Expected no samples outside of ttsp window, but found some");
-        }
+        assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
     }
 
     /**
@@ -101,9 +99,7 @@ public class JfrTests {
     @Test(mainClass = Ttsp.class)
     public void ttspNostop(TestProcess p) throws Exception {
         p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
-        if (!containsSamplesOutsideWindow(p)) {
-            throw new RuntimeException("Expected to find samples outside of ttsp window, but did not find any");
-        }
+        assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
