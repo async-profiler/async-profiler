@@ -15,6 +15,7 @@
 #include "perfEvents.h"
 #include "ctimer.h"
 #include "allocTracer.h"
+#include "mallocTracer.h"
 #include "lockTracer.h"
 #include "wallClock.h"
 #include "j9ObjectSampler.h"
@@ -46,6 +47,7 @@ static SigAction orig_segvHandler = NULL;
 static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
+static MallocTracer malloc_tracer;
 static LockTracer lock_tracer;
 static ObjectSampler object_sampler;
 static J9ObjectSampler j9_object_sampler;
@@ -63,7 +65,8 @@ enum EventMask {
     EM_CPU   = 1,
     EM_ALLOC = 2,
     EM_LOCK  = 4,
-    EM_WALL  = 8
+    EM_WALL  = 8,
+    EM_NATIVEMEM = 16,
 };
 
 
@@ -89,6 +92,7 @@ static inline int hasNativeStack(EventType event_type) {
         (1 << PERF_SAMPLE)       |
         (1 << EXECUTION_SAMPLE)  |
         (1 << WALL_CLOCK_SAMPLE) |
+        (1 << MALLOC_SAMPLE)     |
         (1 << ALLOC_SAMPLE)      |
         (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
@@ -352,6 +356,9 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 // Skip all internal frames above VM runtime entry for allocation samples
                 depth = 0;
                 continue;
+            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+                // Skip all internal frames above the *_hook functions. Include the hook function itself.
+                depth = 0;
             } else if (mark == MARK_INTERPRETER) {
                 // This is C++ interpreter frame, this and later frames should be reported
                 // as Java frames returned by AGCT. Terminate the scan here.
@@ -671,6 +678,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
+    } else if (event_type == MALLOC_SAMPLE && malloc_tracer.initialized()) {
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
@@ -784,6 +793,7 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
     void* result = dlopen(filename, flags);
     if (result != NULL) {
         instance()->updateSymbols(false);
+        MallocTracer::installHooks();
     }
     return result;
 }
@@ -1028,6 +1038,8 @@ Engine* Profiler::activeEngine() {
             return &lock_tracer;
         case EM_WALL:
             return &wall_clock;
+        case EM_NATIVEMEM:
+            return &malloc_tracer;
         default:
             return _engine;
     }
@@ -1072,7 +1084,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     _event_mask = (args._event != NULL ? EM_CPU : 0) |
                   (args._alloc >= 0 ? EM_ALLOC : 0) |
                   (args._lock >= 0 ? EM_LOCK : 0) |
-                  (args._wall >= 0 ? EM_WALL : 0);
+                  (args._wall >= 0 ? EM_WALL : 0) |
+                  (args._nativemem >= 0 ? EM_NATIVEMEM : 0);
+
     if (_event_mask == 0) {
         return Error("No profiling events specified");
     } else if ((_event_mask & (_event_mask - 1)) && args._output != OUTPUT_JFR) {
@@ -1164,7 +1178,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (error) {
         return error;
     }
-
     switchLibraryTrap(true);
 
     if (args._output == OUTPUT_JFR) {
@@ -1200,6 +1213,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             goto error4;
         }
     }
+    if (_event_mask & EM_NATIVEMEM) {
+        error = malloc_tracer.start(args);
+        if (error) {
+            goto error5;
+        }
+    }
 
     switchThreadEvents(JVMTI_ENABLE);
 
@@ -1213,6 +1232,9 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     return Error::OK;
+
+error5:
+    if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
 
 error4:
     if (_event_mask & EM_LOCK) lock_tracer.stop();
@@ -1246,6 +1268,7 @@ Error Profiler::stop(bool restart) {
     if (_event_mask & EM_WALL) wall_clock.stop();
     if (_event_mask & EM_LOCK) lock_tracer.stop();
     if (_event_mask & EM_ALLOC) _alloc_engine->stop();
+    if (_event_mask & EM_NATIVEMEM) malloc_tracer.stop();
 
     _engine->stop();
 
@@ -1288,6 +1311,9 @@ Error Profiler::check(Arguments& args) {
     if (!error && args._alloc >= 0) {
         _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->check(args);
+    }
+    if (!error && args._nativemem >= 0) {
+        error = malloc_tracer.check(args);
     }
     if (!error && args._lock >= 0) {
         error = lock_tracer.check(args);
@@ -1754,6 +1780,7 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             out << "Basic events:\n";
             out << "  " << EVENT_CPU << "\n";
             out << "  " << EVENT_ALLOC << "\n";
+            out << "  " << EVENT_NATIVEMEM << "\n";
             out << "  " << EVENT_LOCK << "\n";
             out << "  " << EVENT_WALL << "\n";
             out << "  " << EVENT_ITIMER << "\n";
