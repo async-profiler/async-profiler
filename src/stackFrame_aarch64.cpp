@@ -114,6 +114,13 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
             pc = ((uintptr_t*)sp)[-1];
             return true;
         }
+    } else if (strncmp(name, "indexof_linear_", 15) == 0 &&
+               entry != NULL && entry[0] == 0xa9be57f4 && entry[1] == 0xa9015ff6) {
+        // JDK-8189103: String.indexOf intrinsic.
+        // Entry and exit are covered by the very first 'if', in all other cases SP is 4 words off.
+        sp += 32;
+        pc = link();
+        return true;
     }
     return false;
 }
