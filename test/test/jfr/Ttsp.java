@@ -5,37 +5,42 @@
 
 package test.jfr;
 
-import java.util.Random;
+import java.lang.management.ManagementFactory;
+import java.util.Arrays;
 
-class Ttsp {
+public class Ttsp {
+    static volatile int sink;
 
-    static private byte loop() {
-        byte[] byteArray = new byte[1024 * 1024 * 1024];
-        for (int i = 0; i < 10000; i++) {
-            new Random().nextBytes(byteArray);
+    // String.indexOf is a JVM intrinsic. When JIT-compiled, it has no safepoint check inside
+    // and therefore may delay safepoint start.
+    static int indexOfTest(int length) {
+        char[] chars = new char[length * length];
+        Arrays.fill(chars, 'a');
+        String haystack = new String(chars);
+        String needle = haystack.substring(0, length) + 'b' + haystack.substring(0, length);
+        return haystack.indexOf(needle);
+    }
+
+    static void spoiler(int length, long count) {
+        for (long i = 0; i < count; i++) {
+            sink = indexOfTest(length);
         }
-        return byteArray[0];
+    }
+
+    static void requestSafepoint() {
+        ManagementFactory.getThreadMXBean().dumpAllThreads(false, false);
     }
 
     public static void main(String[] args) throws Exception {
-        new Thread(() -> {
-            while (true) {
-                System.gc();
-                try {
-                    Thread.sleep(20);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }).start();
+        // Warmup with small input to force JIT-compilation of indexOfTest
+        spoiler(10, 1000000);
 
-        Thread.sleep(1000);
+        // Run actual workload with large input to cause long time-to-safepoint pauses
+        new Thread(() -> spoiler(1000, Long.MAX_VALUE)).start();
 
-        new Thread(() -> {
-            while (true) {
-                loop();
-            }
-        }).start();
+        while (true) {
+            requestSafepoint();
+            Thread.sleep(50);
+        }
     }
 }
-

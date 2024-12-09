@@ -88,6 +88,9 @@ public class JfrTests {
     public void ttsp(TestProcess p) throws Exception {
         p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
+
+        Output out = Output.convertJfrToCollapsed(p.getFile("%f").getAbsolutePath());
+        assert out.samples("indexOfTest") >= 10;
     }
 
     /**
