@@ -13,8 +13,9 @@ import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 public class JfrTests {
 
@@ -75,5 +76,54 @@ public class JfrTests {
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
         Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50);
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
+    }
+
+    /**
+     * Test to validate time to safepoint profiling
+     *
+     * @param p The test process to profile with.
+     * @throws Exception Any exception thrown during profiling JFR output parsing.
+     */
+    @Test(mainClass = Ttsp.class)
+    public void ttsp(TestProcess p) throws Exception {
+        p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
+        assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
+
+        Output out = Output.convertJfrToCollapsed(p.getFile("%f").getAbsolutePath());
+        assert out.samples("indexOfTest") >= 10;
+    }
+
+    /**
+     * Test to validate time to safepoint profiling (recording the windows only, profiling starts immediately)
+     *
+     * @param p The test process to profile with.
+     * @throws Exception Any exception thrown during profiling JFR output parsing.
+     */
+    @Test(mainClass = Ttsp.class)
+    public void ttspNostop(TestProcess p) throws Exception {
+        p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
+        assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
+    }
+
+    private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
+        TreeMap<Instant, Instant> profilerWindows = new TreeMap<>();
+        List<RecordedEvent> samples = new ArrayList<>();
+        try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                if (event.getEventType().getName().equals("profiler.Window")) {
+                    profilerWindows.put(event.getStartTime(), event.getEndTime());
+                } else if (event.getEventType().getName().equals("jdk.ExecutionSample")) {
+                    samples.add(event);
+                }
+            }
+        }
+
+        return samples.stream().anyMatch(event -> {
+            Map.Entry<Instant, Instant> entry = profilerWindows.floorEntry(event.getStartTime().plus(10, ChronoUnit.MILLIS));
+            Instant entryEnd = entry == null ? Instant.MIN : entry.getValue().plus(10, ChronoUnit.MILLIS);
+            // check that the current sample takes place during a profiling window, allowing for a 10ms buffer at each end
+            return entryEnd.isBefore(event.getStartTime());
+        });
     }
 }

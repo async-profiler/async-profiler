@@ -182,6 +182,7 @@ class Arguments {
     bool _sched;
     bool _live;
     bool _nobatch;
+    bool _nostop;
     bool _alluser;
     bool _fdtransfer;
     const char* _fdtransfer_path;
@@ -233,6 +234,7 @@ class Arguments {
         _sched(false),
         _live(false),
         _nobatch(false),
+        _nostop(false),
         _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
