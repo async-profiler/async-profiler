@@ -66,11 +66,10 @@ jobs:
           # architecture: not specifying this defaults to architecture of the runner
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Setup upterm session
-        uses: lhotari/action-upterm@v1
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
-          limit-access-to-users: krk
       - name: Build and test
         id: build
         run: |
