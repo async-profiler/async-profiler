@@ -30,7 +30,7 @@ typedef void (*free_t)(void*);
 static free_t _orig_free = NULL;
 
 static void* malloc_hook(size_t size) {
-    void* ret = _orig_calloc(1, size);
+    void* ret = _orig_malloc(size);
     if (likely(ret && size)) {
         MallocTracer::recordMalloc(ret, size);
     }
