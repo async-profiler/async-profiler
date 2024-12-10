@@ -25,7 +25,7 @@ public class NativememTests {
     private static final int CALLOC_SIZE = 2000147;
     private static final int REALLOC_SIZE = 30000170;
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
+    @Test(mainClass = CallsMallocCalloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
@@ -33,14 +33,14 @@ public class NativememTests {
         Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), CALLOC_SIZE);
     }
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
+    @Test(mainClass = CallsMallocCalloc.class, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
     public void canAgentFilterMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), 0);
         Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), 0);
     }
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX)
+    @Test(mainClass = CallsMallocCalloc.class)
     public void canAsprofTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
@@ -52,7 +52,7 @@ public class NativememTests {
         Assert.isEqual(samplesCalloc % CALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsRealloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once", os = Os.LINUX)
+    @Test(mainClass = CallsRealloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceRealloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
@@ -60,7 +60,7 @@ public class NativememTests {
         Assert.isEqual(out.samples("Java_test_nativemem_Native_realloc"), REALLOC_SIZE);
     }
 
-    @Test(mainClass = CallsRealloc.class, os = Os.LINUX)
+    @Test(mainClass = CallsRealloc.class)
     public void canAsprofTraceRealloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
@@ -72,7 +72,7 @@ public class NativememTests {
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX)
+    @Test(mainClass = CallsAllNoLeak.class)
     public void canAsprofTraceAllNoLeak(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
 
@@ -88,11 +88,11 @@ public class NativememTests {
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
     public void livenessJfrHasStacks(TestProcess p) throws Exception {
         p.waitForExit();
         String filename = p.getFile("%f").toPath().toString();

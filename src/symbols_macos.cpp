@@ -24,10 +24,12 @@ class MachOParser {
         return (const char*)base + offset;
     }
 
-    const section_64* findSymbolPtrSection(const segment_command_64* sc) {
+    const section_64* findSection(const segment_command_64* sc, const char* sectname) {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
-            if (strcmp(section->sectname, "__la_symbol_ptr") == 0) {
+            char section_type = section->flags & SECTION_TYPE;
+            if ((section_type == S_NON_LAZY_SYMBOL_POINTERS || section_type == S_LAZY_SYMBOL_POINTERS) 
+                && strcmp(section->sectname, sectname) == 0) {
                 return section;
             }
             section++;
@@ -55,13 +57,13 @@ class MachOParser {
     }
 
     void loadImports(const symtab_command* symtab, const dysymtab_command* dysymtab,
-                     const section_64* la_symbol_ptr, const char* link_base) {
+                     const section_64* section, const char* link_base) {
         const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
 
-        const uint32_t* isym = (const uint32_t*)add(link_base, dysymtab->indirectsymoff) + la_symbol_ptr->reserved1;
-        uint32_t isym_count = la_symbol_ptr->size / sizeof(void*);
-        void** slot = (void**)add(_image_base, la_symbol_ptr->addr);
+        const uint32_t* isym = (const uint32_t*)add(link_base, dysymtab->indirectsymoff) + section->reserved1;
+        uint32_t isym_count = section->size / sizeof(void*);
+        void** slot = (void**)add(_image_base, section->addr);
 
         for (uint32_t i = 0; i < isym_count; i++) {
             const char* name = str_table + sym[isym[i]].n_un.n_strx;
@@ -86,6 +88,7 @@ class MachOParser {
         const char* text_base = UNDEFINED;
         const char* link_base = UNDEFINED;
         const section_64* la_symbol_ptr = NULL;
+        const section_64* got_ptr = NULL;
         const symtab_command* symtab = NULL;
 
         for (uint32_t i = 0; i < header->ncmds; i++) {
@@ -103,7 +106,9 @@ class MachOParser {
                     }
                 } else if ((sc->initprot & 2) != 0) {
                     if (strcmp(sc->segname, "__DATA") == 0) {
-                        la_symbol_ptr = findSymbolPtrSection(sc);
+                        la_symbol_ptr = findSection(sc, "__la_symbol_ptr");
+                    } else if (strcmp(sc->segname, "__DATA_CONST") == 0) {
+                        got_ptr = findSection(sc, "__got");
                     }
                 }
             } else if (lc->cmd == LC_SYMTAB) {
@@ -114,6 +119,10 @@ class MachOParser {
             } else if (lc->cmd == LC_DYSYMTAB) {
                 if (la_symbol_ptr != NULL && symtab != NULL && link_base != UNDEFINED) {
                     loadImports(symtab, (const dysymtab_command*)lc, la_symbol_ptr, link_base);
+                }
+
+                if (got_ptr != NULL && symtab != NULL && link_base != UNDEFINED) {
+                    loadImports(symtab, (const dysymtab_command*)lc, got_ptr, link_base);
                 }
             }
             lc = (const load_command*)add(lc, lc->cmdsize);
@@ -154,7 +163,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             continue;
         }
 
-        CodeCache* cc = new CodeCache(path, count, true);
+        CodeCache* cc = new CodeCache(path, count, false);
         MachOParser parser(cc, image_base);
         if (!parser.parse()) {
             Log::warn("Could not parse symbols from %s", path);
