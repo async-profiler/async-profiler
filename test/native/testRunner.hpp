@@ -68,6 +68,8 @@ struct TestCase {
 
 #define __ASSERT_OR_CHECK_OP(isAssert, val1, op, val2)                                                               \
     {                                                                                                                \
+        _Pragma("GCC diagnostic push");                                                                              \
+        _Pragma("GCC diagnostic ignored \"-Waddress\"");                                                             \
         const bool is_string =                                                                                       \
             std::is_same<decltype(val1), const char*>::value || std::is_same<decltype(val1), char*>::value ||        \
             std::is_same<decltype(val2), const char*>::value || std::is_same<decltype(val2), char*>::value;          \
@@ -96,6 +98,7 @@ struct TestCase {
         } else {                                                                                                     \
             test_case.assertion_count++;                                                                             \
         }                                                                                                            \
+        _Pragma("GCC diagnostic pop");                                                                               \
     }
 
 // ASSERT stops execution after a failure.

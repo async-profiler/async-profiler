@@ -229,6 +229,21 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("state", T_THREAD_STATE, "Thread State", F_CPOOL)
                 << field("samples", T_INT, "Samples", F_UNSIGNED))
 
+            << (type("profiler.Malloc", T_MALLOC, "malloc")
+                << category("Java Virtual Machine", "Native Memory")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("address", T_LONG, "Address", F_ADDRESS)
+                << field("size", T_LONG, "Size", F_BYTES))
+
+            << (type("profiler.Free", T_FREE, "free")
+                << category("Java Virtual Machine", "Native Memory")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
+                << field("address", T_LONG, "Address", F_ADDRESS))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 
