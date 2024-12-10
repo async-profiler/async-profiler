@@ -1026,8 +1026,9 @@ static NODISCARD overflow_status printer_print_ch(struct printer *printer, char 
 }
 
 static NODISCARD overflow_status printer_print_u64(struct printer *printer, uint64_t n) {
-    char buf[32] = {0};
-    sprintf(buf, "%llu", (unsigned long long)n); // printing uint64 uses 21 < 32 chars
+    const int BUF_SIZE = 32;
+    char buf[BUF_SIZE] = {0};
+    snprintf(buf, BUF_SIZE, "%llu", (unsigned long long)n); // printing uint64 uses 21 < 32 chars
     return printer_print_str(printer, buf);
 }
 
@@ -1171,8 +1172,9 @@ static NODISCARD overflow_status printer_print_path(struct printer *printer, boo
 
         if (printer->out != NULL && !printer->alternate && dis != 0) {
             PRINT_STR(printer, "[");
-            char buf[24] = {0};
-            sprintf(buf, "%llx", (unsigned long long)dis);
+            const int BUF_SIZE = 24;
+            char buf[BUF_SIZE] = {0};
+            snprintf(buf, BUF_SIZE, "%llx", (unsigned long long)dis);
             PRINT_STR(printer, buf);
             PRINT_STR(printer, "]");
         }
