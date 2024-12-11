@@ -47,4 +47,4 @@ async-profiler currently supports the below output formats:
 - `jfr` - Java Flight Recording(JFR) is a widely known tool for profiling Java applications. The `jfr` format collects data
   about the JVM as well as the Java application running on it. async-profiler can generate output in `jfr` format
   compatible with tools capable of viewing and analyzing `jfr` files. Java Mission Control(JMC) and Intellij IDEA are
-  some of many options to visualize `jfr` files. More details [here](https://github.com/async-profiler/async-profiler/blob/master/JfrVisualization.md).
+  some of many options to visualize `jfr` files. More details [here](https://github.com/async-profiler/async-profiler/blob/master/docs/JfrVisualization.md).
