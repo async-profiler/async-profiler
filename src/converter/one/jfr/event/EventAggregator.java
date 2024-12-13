@@ -5,7 +5,7 @@
 
 package one.jfr.event;
 
-public class EventAggregator implements IEventAggregator {
+public class EventAggregator implements IEventAggregator, IEventAcceptor {
     private static final int INITIAL_CAPACITY = 1024;
 
     private final boolean threads;
@@ -25,6 +25,13 @@ public class EventAggregator implements IEventAggregator {
         this.threads = threads;
         this.total = total;
         this.factor = factor;
+
+        this.resetChunk();
+    }
+
+    public void resetChunk() {
+        this.fraction = 0;
+        this.size = 0;
         this.keys = new Event[INITIAL_CAPACITY];
         this.samples = new long[INITIAL_CAPACITY];
         this.values = new long[INITIAL_CAPACITY];
@@ -67,7 +74,7 @@ public class EventAggregator implements IEventAggregator {
         // EventAggregator does not need finishing.
     }
 
-    public void forEach(IEventAggregator.Visitor visitor) {
+    public void forEach(IEventAcceptor.Visitor visitor) {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
                 visitor.visit(keys[i], samples[i], values[i]);
@@ -75,7 +82,7 @@ public class EventAggregator implements IEventAggregator {
         }
     }
 
-    public void forEach(IEventAggregator.ValueVisitor visitor) {
+    public void forEach(IEventAcceptor.ValueVisitor visitor) {
         double factor = total ? this.factor : 0.0;
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {

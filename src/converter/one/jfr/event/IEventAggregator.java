@@ -5,24 +5,14 @@
 
 package one.jfr.event;
 
-public interface IEventAggregator {
-    void forEach(Visitor visitor);
-
-    void forEach(ValueVisitor visitor);
-
+public interface IEventAggregator extends IEventAcceptor {
     void collect(Event e);
 
     void finishChunk();
 
+    void resetChunk();
+
     void finish();
 
     void coarsen(double grain);
-
-    public interface Visitor {
-        void visit(Event event, long samples, long value);
-    }
-
-    public interface ValueVisitor {
-        void visit(Event event, long value);
-    }
 }

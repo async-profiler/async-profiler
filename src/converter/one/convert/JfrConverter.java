@@ -21,7 +21,7 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
-    private final IEventAggregator leakAggregator;
+    private final IEventAggregator eventAggregator;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
@@ -29,8 +29,9 @@ public abstract class JfrConverter extends Classifier {
 
         this.jfr = jfr;
         this.args = args;
-        this.leakAggregator = leakDetection ? new MallocLeakAggregator(args.threads, args.total,
-                args.lock ? 1e9 / jfr.ticksPerSec : 1.0) : null;
+
+        IEventAggregator agg = new EventAggregator(args.threads, args.total, args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
+        this.eventAggregator = leakDetection ? new MallocLeakAggregator(agg) : agg;
     }
 
     public void convert() throws IOException {
@@ -39,34 +40,20 @@ public abstract class JfrConverter extends Classifier {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
             convertChunk(collectEvents());
+            eventAggregator.resetChunk();
         }
 
-        if (leakAggregator != null) {
-            leakAggregator.finish();
-
-            if (args.grain > 0) {
-                leakAggregator.coarsen(args.grain);
-            }
-
-            convertChunk(leakAggregator);
-        }
+        eventAggregator.finish();
+        convertChunk(eventAggregator);
+        eventAggregator.resetChunk();
     }
 
-    protected abstract void convertChunk(IEventAggregator agg) throws IOException;
-
-    protected IEventAggregator getEventAggregator() {
-        return leakAggregator != null
-                ? leakAggregator
-                : new EventAggregator(args.threads, args.total, args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
-    }
+    protected abstract void convertChunk(IEventAcceptor acceptor) throws IOException;
 
     protected IEventAggregator collectEvents() throws IOException {
-        Class<? extends Event> eventClass =
-                args.live ? LiveObject.class :
-                        args.alloc ? AllocationSample.class :
-                                args.lock ? ContendedLock.class :
-                                        args.nativemem ? MallocEvent.class :
-                                                ExecutionSample.class;
+        Class<? extends Event> eventClass = args.live ? LiveObject.class
+                : args.alloc ? AllocationSample.class
+                        : args.lock ? ContendedLock.class : args.nativemem ? MallocEvent.class : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -82,22 +69,21 @@ public abstract class JfrConverter extends Classifier {
 
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
-        IEventAggregator agg = getEventAggregator();
 
-        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+        for (Event event; (event = jfr.readEvent(eventClass)) != null;) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    agg.collect(event);
+                    eventAggregator.collect(event);
                 }
             }
         }
-        agg.finishChunk();
+        eventAggregator.finishChunk();
 
         if (args.grain > 0) {
-            agg.coarsen(args.grain);
+            eventAggregator.coarsen(args.grain);
         }
 
-        return agg;
+        return eventAggregator;
     }
 
     protected int toThreadState(String name) {
@@ -123,7 +109,8 @@ public abstract class JfrConverter extends Classifier {
         return set;
     }
 
-    // millis can be an absolute timestamp or an offset from the beginning/end of the recording
+    // millis can be an absolute timestamp or an offset from the beginning/end of
+    // the recording
     protected long toTicks(long millis) {
         long nanos = millis * 1_000_000;
         if (millis < 0) {
@@ -186,8 +173,8 @@ public abstract class JfrConverter extends Classifier {
 
     protected String getThreadName(int tid) {
         String threadName = jfr.threads.get(tid);
-        return threadName == null ? "[tid=" + tid + ']' :
-                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
+        return threadName == null ? "[tid=" + tid + ']'
+                : threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
     protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {
