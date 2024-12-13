@@ -15,6 +15,7 @@ public class MallocLeakAggregator implements IEventAggregator {
     private final IEventAggregator wrapped;
     private List<Event> events;
     private double grain = 0;
+    private double factor = 1;
 
     Map<Long, MallocEvent> addresses = new HashMap<>();
 
@@ -50,6 +51,8 @@ public class MallocLeakAggregator implements IEventAggregator {
     }
 
     public void finish() {
+        wrapped.setFactor(this.factor);
+
         if (grain > 0) {
             wrapped.coarsen(grain);
         }
@@ -64,15 +67,19 @@ public class MallocLeakAggregator implements IEventAggregator {
         this.grain = grain;
     }
 
+    public void setFactor(double factor) {
+        this.factor = factor;
+    }
+
     public void resetChunk() {
         wrapped.resetChunk();
     }
 
-    public void forEach(IEventAcceptor.Visitor visitor) {
+    public void forEach(IEventAggregator.Visitor visitor) {
         wrapped.forEach(visitor);
     }
 
-    public void forEach(IEventAcceptor.ValueVisitor visitor) {
+    public void forEach(IEventAggregator.ValueVisitor visitor) {
         wrapped.forEach(visitor);
     }
 }

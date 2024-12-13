@@ -26,14 +26,6 @@
 #include "writer.h"
 
 
-# ifndef likely
-#  define likely(x)     (__builtin_expect(!!(x), 1))
-# endif
-
-# ifndef unlikely
-#  define unlikely(x)   (__builtin_expect(!!(x), 0))
-# endif
-
 const int MAX_NATIVE_FRAMES = 128;
 const int RESERVED_FRAMES   = 4;
 const int CONCURRENCY_LEVEL = 16;

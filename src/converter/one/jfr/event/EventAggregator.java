@@ -5,12 +5,12 @@
 
 package one.jfr.event;
 
-public class EventAggregator implements IEventAggregator, IEventAcceptor {
+public class EventAggregator implements IEventAggregator {
     private static final int INITIAL_CAPACITY = 1024;
 
     private final boolean threads;
     private final boolean total;
-    private final double factor;
+    private double factor;
     private Event[] keys;
     private long[] samples;
     private long[] values;
@@ -18,20 +18,19 @@ public class EventAggregator implements IEventAggregator, IEventAcceptor {
     private double fraction;
 
     public EventAggregator(boolean threads, boolean total) {
-        this(threads, total, 1.0);
-    }
-
-    public EventAggregator(boolean threads, boolean total, double factor) {
         this.threads = threads;
         this.total = total;
-        this.factor = factor;
 
         this.resetChunk();
     }
 
+    public void setFactor(double factor) {
+        this.factor = factor;
+    }
+
     public void resetChunk() {
-        this.fraction = 0;
         this.size = 0;
+        this.factor = 1;
         this.keys = new Event[INITIAL_CAPACITY];
         this.samples = new long[INITIAL_CAPACITY];
         this.values = new long[INITIAL_CAPACITY];
@@ -74,7 +73,7 @@ public class EventAggregator implements IEventAggregator, IEventAcceptor {
         // EventAggregator does not need finishing.
     }
 
-    public void forEach(IEventAcceptor.Visitor visitor) {
+    public void forEach(IEventAggregator.Visitor visitor) {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
                 visitor.visit(keys[i], samples[i], values[i]);
@@ -82,7 +81,7 @@ public class EventAggregator implements IEventAggregator, IEventAcceptor {
         }
     }
 
-    public void forEach(IEventAcceptor.ValueVisitor visitor) {
+    public void forEach(IEventAggregator.ValueVisitor visitor) {
         double factor = total ? this.factor : 0.0;
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
@@ -92,6 +91,8 @@ public class EventAggregator implements IEventAggregator, IEventAcceptor {
     }
 
     public void coarsen(double grain) {
+        this.fraction = 0;
+
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != null) {
                 long s0 = samples[i];

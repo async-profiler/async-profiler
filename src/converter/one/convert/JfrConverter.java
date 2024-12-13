@@ -21,7 +21,7 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
-    private final IEventAggregator eventAggregator;
+    protected final IEventAggregator eventAggregator;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
@@ -30,7 +30,7 @@ public abstract class JfrConverter extends Classifier {
         this.jfr = jfr;
         this.args = args;
 
-        IEventAggregator agg = new EventAggregator(args.threads, args.total, args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
+        IEventAggregator agg = new EventAggregator(args.threads, args.total);
         this.eventAggregator = leakDetection ? new MallocLeakAggregator(agg) : agg;
     }
 
@@ -39,21 +39,35 @@ public abstract class JfrConverter extends Classifier {
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
-            convertChunk(collectEvents());
+            collectEvents();
+
+            eventAggregator.setFactor(args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
+            eventAggregator.finishChunk();
+            if (args.grain > 0) {
+                eventAggregator.coarsen(args.grain);
+            }
+
+            convertChunk();
             eventAggregator.resetChunk();
         }
 
+        finalizeAggregator();
+    }
+
+    private void finalizeAggregator()throws IOException {
         eventAggregator.finish();
-        convertChunk(eventAggregator);
+        convertChunk();
         eventAggregator.resetChunk();
     }
 
-    protected abstract void convertChunk(IEventAcceptor acceptor) throws IOException;
+    protected abstract void convertChunk();
 
-    protected IEventAggregator collectEvents() throws IOException {
+    protected void collectEvents() throws IOException {
         Class<? extends Event> eventClass = args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
-                        : args.lock ? ContendedLock.class : args.nativemem ? MallocEvent.class : ExecutionSample.class;
+                        : args.lock ? ContendedLock.class
+                            : args.nativemem ? MallocEvent.class
+                                : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -77,13 +91,6 @@ public abstract class JfrConverter extends Classifier {
                 }
             }
         }
-        eventAggregator.finishChunk();
-
-        if (args.grain > 0) {
-            eventAggregator.coarsen(args.grain);
-        }
-
-        return eventAggregator;
     }
 
     protected int toThreadState(String name) {
@@ -109,8 +116,7 @@ public abstract class JfrConverter extends Classifier {
         return set;
     }
 
-    // millis can be an absolute timestamp or an offset from the beginning/end of
-    // the recording
+    // millis can be an absolute timestamp or an offset from the beginning/end of the recording
     protected long toTicks(long millis) {
         long nanos = millis * 1_000_000;
         if (millis < 0) {

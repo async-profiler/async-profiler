@@ -5,7 +5,7 @@
 
 package one.jfr.event;
 
-public interface IEventAggregator extends IEventAcceptor {
+public interface IEventAggregator {
     void collect(Event e);
 
     void finishChunk();
@@ -14,5 +14,19 @@ public interface IEventAggregator extends IEventAcceptor {
 
     void finish();
 
+    void setFactor(double factor);
+
     void coarsen(double grain);
+
+    void forEach(Visitor visitor);
+
+    void forEach(ValueVisitor visitor);
+
+    public interface Visitor {
+        void visit(Event event, long samples, long value);
+    }
+
+    public interface ValueVisitor {
+        void visit(Event event, long value);
+    }
 }
