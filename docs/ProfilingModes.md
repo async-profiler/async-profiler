@@ -97,7 +97,7 @@ Example:
 
 ```
 asprof start -e nativemem -f app.jfr <YourApp>
-# asprof start --nativemem=N -f app.jfr <YourApp>
+# asprof start --nativemem N -f app.jfr <YourApp>
 
 asprof stop <YourApp>
 ```

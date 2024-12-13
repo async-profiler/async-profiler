@@ -123,20 +123,7 @@ Mutex MallocTracer::_patch_lock;
 int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 
-// Only to be used from getOrigAddresses
-void* safeCalloc(size_t num, size_t size) {
-    void* ret = OS::safeAlloc(num * size);
-    if (likely(ret)) {
-        memset(ret, 0, num * size);
-    }
-    return ret;
-}
-
 __attribute__((constructor)) static void getOrigAddresses() {
-    // Set malloc and calloc which may be called from libc during getOrigAddresses.
-    _orig_malloc = OS::safeAlloc;
-    _orig_calloc = safeCalloc;
-
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
     _orig_calloc = ADDRESS_OF(calloc);

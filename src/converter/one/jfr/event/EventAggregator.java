@@ -38,7 +38,7 @@ public class EventAggregator implements IEventAggregator {
         collect(e, e.samples(), e.value());
     }
 
-    protected void collect(Event e, long samples, long value) {
+    public void collect(Event e, long samples, long value) {
         int mask = keys.length - 1;
         int i = hashCode(e) & mask;
         while (keys[i] != null) {
