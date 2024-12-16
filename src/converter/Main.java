@@ -97,6 +97,8 @@ public class Main {
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
                 "     --live             Live object profile\n" +
+                "     --nativemem        malloc profile\n" +
+                "     --leak             Only include memory leaks in nativemem\n" +
                 "     --lock             Lock contention profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +
                 "  -s --state LIST       Filter thread states: runnable, sleeping\n" +

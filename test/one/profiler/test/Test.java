@@ -26,6 +26,8 @@ public @interface Test {
 
     String jvmArgs() default "";
 
+    String[] env() default {};
+
     boolean debugNonSafepoints() default false;
 
     boolean output() default false;

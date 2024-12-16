@@ -25,6 +25,8 @@ public class Arguments {
     public boolean cpu;
     public boolean wall;
     public boolean alloc;
+    public boolean nativemem;
+    public boolean leak;
     public boolean live;
     public boolean lock;
     public boolean threads;

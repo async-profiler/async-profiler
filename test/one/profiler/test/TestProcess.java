@@ -77,6 +77,14 @@ public class TestProcess implements Closeable {
         if (test.error()) {
             pb.redirectError(createTempFile(STDERR));
         }
+
+        for (String env : test.env()) {
+            String[] keyValue = env.split("=", 2);
+            if (keyValue.length == 2) {
+                pb.environment().put(keyValue[0], keyValue[1]);
+            }
+        }
+
         this.p = pb.start();
 
         if (cmd.get(0).endsWith("java")) {
@@ -118,6 +126,7 @@ public class TestProcess implements Closeable {
                 cmd.add("-XX:+UnlockDiagnosticVMOptions");
                 cmd.add("-XX:+DebugNonSafepoints");
             }
+            cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
             addArgs(cmd, test.jvmArgs());
             if (!test.agentArgs().isEmpty()) {
                 cmd.add("-agentpath:" + profilerLibPath() + "=" +

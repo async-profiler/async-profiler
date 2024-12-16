@@ -16,6 +16,7 @@ enum EventType {
     EXECUTION_SAMPLE,
     WALL_CLOCK_SAMPLE,
     INSTRUMENTED_METHOD,
+    MALLOC_SAMPLE,
     ALLOC_SAMPLE,
     ALLOC_OUTSIDE_TLAB,
     LIVE_OBJECT,
@@ -73,6 +74,13 @@ class ProfilingWindow : public Event {
   public:
     u64 _start_time;
     u64 _end_time;
+};
+
+class MallocEvent : public Event {
+  public:
+    u64 _start_time;
+    uintptr_t _address;
+    u64 _size;
 };
 
 #endif // _EVENT_H

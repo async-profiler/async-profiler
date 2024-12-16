@@ -21,11 +21,17 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
+    protected final IEventAggregator eventAggregator;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
+        boolean leakDetection = args.nativemem && args.leak;
+
         this.jfr = jfr;
         this.args = args;
+
+        IEventAggregator agg = new EventAggregator(args.threads, args.total);
+        this.eventAggregator = leakDetection ? new MallocLeakAggregator(agg) : agg;
     }
 
     public void convert() throws IOException {
@@ -33,19 +39,35 @@ public abstract class JfrConverter extends Classifier {
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
+            collectEvents();
+
+            eventAggregator.setFactor(args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
+            eventAggregator.finishChunk();
+            if (args.grain > 0) {
+                eventAggregator.coarsen(args.grain);
+            }
+
             convertChunk();
+            eventAggregator.resetChunk();
         }
+
+        finalizeAggregator();
     }
 
-    protected abstract void convertChunk() throws IOException;
+    private void finalizeAggregator()throws IOException {
+        eventAggregator.finish();
+        convertChunk();
+        eventAggregator.resetChunk();
+    }
 
-    protected EventAggregator collectEvents() throws IOException {
-        EventAggregator agg = new EventAggregator(args.threads, args.total, args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
+    protected abstract void convertChunk();
 
-        Class<? extends Event> eventClass =
-                args.live ? LiveObject.class :
-                        args.alloc ? AllocationSample.class :
-                                args.lock ? ContendedLock.class : ExecutionSample.class;
+    protected void collectEvents() throws IOException {
+        Class<? extends Event> eventClass = args.live ? LiveObject.class
+                : args.alloc ? AllocationSample.class
+                        : args.lock ? ContendedLock.class
+                            : args.nativemem ? MallocEvent.class
+                                : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -62,19 +84,13 @@ public abstract class JfrConverter extends Classifier {
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
 
-        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
+        for (Event event; (event = jfr.readEvent(eventClass)) != null;) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    agg.collect(event);
+                    eventAggregator.collect(event);
                 }
             }
         }
-
-        if (args.grain > 0) {
-            agg.coarsen(args.grain);
-        }
-
-        return agg;
     }
 
     protected int toThreadState(String name) {
@@ -163,8 +179,8 @@ public abstract class JfrConverter extends Classifier {
 
     protected String getThreadName(int tid) {
         String threadName = jfr.threads.get(tid);
-        return threadName == null ? "[tid=" + tid + ']' :
-                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
+        return threadName == null ? "[tid=" + tid + ']'
+                : threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
     protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {

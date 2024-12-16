@@ -7,6 +7,14 @@
 #define _ARCH_H
 
 
+# ifndef likely
+#  define likely(x)     (__builtin_expect(!!(x), 1))
+# endif
+
+# ifndef unlikely
+#  define unlikely(x)   (__builtin_expect(!!(x), 0))
+# endif
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;

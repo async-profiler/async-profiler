@@ -13,7 +13,8 @@ What can be profiled:
 
 - CPU time
 - Allocations in Java Heap
-- Contented locks
+- Native memory allocations and leaks
+- Contended locks
 - Hardware and software performance counters like cache misses, page faults, context switches
 - and [more](docs/ProfilingModes.md).
 
@@ -27,8 +28,13 @@ Current release (3.0):
 - Linux x64: [async-profiler-3.0-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz)
 - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
 - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
-- Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)  
-  (JFR to Flame Graph, JFR to pprof, collapsed stacks to Flame Graph)
+- Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)
+
+  | From      | html | collapsed | pprof | pb.gz |
+  | --------- | ---- | --------- | ----- | ----- |
+  | collapsed | ✅   | ✅        | ❌    | ❌    |
+  | html      | ✅   | ✅        | ❌    | ❌    |
+  | jfr       | ✅   | ✅        | ✅    | ✅    |
 
 [Previous releases](https://github.com/async-profiler/async-profiler/releases)
 
