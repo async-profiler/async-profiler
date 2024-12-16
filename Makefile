@@ -16,8 +16,8 @@ API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
-CC ?= $(CROSS_COMPILE)gcc
-CXX ?= $(CROSS_COMPILE)g++
+CC=$(CROSS_COMPILE)gcc
+CXX=$(CROSS_COMPILE)g++
 STRIP=$(CROSS_COMPILE)strip
 
 CFLAGS_EXTRA ?=
