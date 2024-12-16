@@ -9,6 +9,7 @@
 #include "mallocTracer.h"
 #include "os.h"
 #include "profiler.h"
+#include "tsc.h"
 #include <dlfcn.h>
 #include <string.h>
 
@@ -185,7 +186,7 @@ bool MallocTracer::patchLibs(bool install) {
 void MallocTracer::recordMalloc(void* address, size_t size) {
     if (updateCounter(_allocated_bytes, size, _interval)) {
         MallocEvent event;
-        event._start_time = OS::nanotime();
+        event._start_time = TSC::ticks();
         event._address = (uintptr_t)address;
         event._size = size;
 
@@ -195,7 +196,7 @@ void MallocTracer::recordMalloc(void* address, size_t size) {
 
 void MallocTracer::recordFree(void* address) {
     MallocEvent event;
-    event._start_time = OS::nanotime();
+    event._start_time = TSC::ticks();
     event._address = (uintptr_t)address;
     event._size = 0;
 
