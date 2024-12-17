@@ -23,6 +23,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "os.h"
+#include "log.h"
 
 
 #ifdef __LP64__
@@ -360,14 +361,23 @@ int OS::createMemoryFile(const char* name) {
 }
 
 void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
-    // copy_file_range() is probably better, but not supported on all kernels
+    char* buf = (char*)mmap(NULL, size + offset, PROT_READ, MAP_PRIVATE, src_fd, 0);
+    if (buf == NULL) {
+        Log::warn("Failed to mmap source fd: %s", strerror(errno));
+        return;
+    }
+
     while (size > 0) {
-        ssize_t bytes = sendfile(dst_fd, src_fd, &offset, size);
+        ssize_t bytes = write(dst_fd, buf + offset, size < 262144 ? size : 262144);
         if (bytes <= 0) {
+            Log::warn("Failed to copy: %s", strerror(errno));
             break;
         }
+        offset += (size_t)bytes;
         size -= (size_t)bytes;
     }
+
+    munmap(buf, offset);
 }
 
 void OS::freePageCache(int fd, off_t start_offset) {
