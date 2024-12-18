@@ -60,9 +60,9 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
 
     StackFrame frame(ucontext);
     if (ucontext == NULL) {
-        pc = __builtin_return_address(0);
-        fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
+        pc = callerPC();
+        fp = (uintptr_t)callerFP();
+        sp = (uintptr_t)callerSP();
     } else {
         pc = (const void*)frame.pc();
         fp = frame.fp();
@@ -110,9 +110,9 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
     StackFrame frame(ucontext);
     if (ucontext == NULL) {
-        pc = __builtin_return_address(0);
-        fp = (uintptr_t)__builtin_frame_address(1);
-        sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
+        pc = callerPC();
+        fp = (uintptr_t)callerFP();
+        sp = (uintptr_t)callerSP();
     } else {
         pc = (const void*)frame.pc();
         fp = frame.fp();
@@ -195,13 +195,12 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail) {
     if (ucontext == NULL) {
-        const void* pc = __builtin_return_address(0);
-        uintptr_t sp = (uintptr_t)__builtin_frame_address(0) + LINKED_FRAME_SIZE;
-        uintptr_t fp = (uintptr_t)__builtin_frame_address(1);
-        return walkVM(ucontext, frames, max_depth, detail, pc, sp, fp);
+        return walkVM(ucontext, frames, max_depth, detail,
+                      callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP());
     } else {
         StackFrame frame(ucontext);
-        return walkVM(ucontext, frames, max_depth, detail, (const void*)frame.pc(), frame.sp(), frame.fp());
+        return walkVM(ucontext, frames, max_depth, detail,
+                      (const void*)frame.pc(), frame.sp(), frame.fp());
     }
 }
 
