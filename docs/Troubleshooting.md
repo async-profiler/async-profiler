@@ -4,10 +4,16 @@
 
 ### perf_event mmap failed: Operation not permitted
 
-Profiler allocates 8kB perf_event buffer for each thread of the target process.
-Make sure `/proc/sys/kernel/perf_event_mlock_kb` value is large enough
-(more than `8 * threads`) when running under unprivileged user. Otherwise, the above message
-will be printed, and no native stack traces will be collected.
+Profiler allocates 8 kB perf_event buffer for each thread of the target process.
+The above error may appear if the total size of perf_event buffers (`8 * threads` kB)
+exceeds locked memory limit. This limit is comprised of `ulimit -l` plus
+the value of `kernel.perf_event_mlock_kb` sysctl multiplied by the number of CPU cores.
+For example, on a 16-core machine, `ulimit -l 65536` and `kernel.perf_event_mlock_kb=516`
+is enough for profiling `(65536 + 516*16) / 8 = 9224` threads.
+If an application has more threads, increase one of the above limits, or native stacks
+will not be collected for some threads.
+
+A privileged process is not subject to the locked memory limit.
 
 ### Failed to change credentials to match the target process: Operation not permitted
 
