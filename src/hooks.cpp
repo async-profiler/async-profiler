@@ -11,6 +11,7 @@
 #include "hooks.h"
 #include "asprof.h"
 #include "cpuEngine.h"
+#include "mallocTracer.h"
 #include "profiler.h"
 
 
@@ -97,6 +98,7 @@ static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
         if (patch) {
             Hooks::patchLibraries();
         }
+        MallocTracer::installHooks();
     }
     return result;
 }

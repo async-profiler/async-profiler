@@ -21,9 +21,10 @@ class MallocTracer : public Engine {
     static Mutex _patch_lock;
     static int _patched_libs;
     static bool _initialized;
+    static volatile bool _running;
 
-    static bool initialize();
-    static bool patchLibs(bool install);
+    static void initialize();
+    static void patchLibraries();
 
   public:
     const char* type() {
@@ -42,12 +43,14 @@ class MallocTracer : public Engine {
     Error start(Arguments& args);
     void stop();
 
-    inline static bool installHooks() {
-        return patchLibs(true);
+    static inline bool running() {
+        return _running;
     }
 
-    inline static bool initialized() {
-        return _initialized;
+    static inline void installHooks() {
+        if (running()) {
+            patchLibraries();
+        }
     }
 
     static void recordMalloc(void* address, size_t size);

@@ -30,97 +30,6 @@ static realloc_t _orig_realloc = NULL;
 typedef void (*free_t)(void*);
 static free_t _orig_free = NULL;
 
-static void* malloc_hook(size_t size) {
-    void* ret = _orig_malloc(size);
-    if (likely(ret && size)) {
-        MallocTracer::recordMalloc(ret, size);
-    }
-    return ret;
-}
-
-#ifdef __linux__
-extern "C" WEAK DLLEXPORT void* malloc(size_t size) {
-    if (likely(MallocTracer::initialized())) {
-        return malloc_hook(size);
-    }
-
-    if (unlikely(!_orig_malloc)) {
-        return NULL;
-    }
-    return _orig_malloc(size);
-}
-#endif
-
-static void* calloc_hook(size_t num, size_t size) {
-    void* ret = _orig_calloc(num, size);
-    if (likely(ret && num && size)) {
-        MallocTracer::recordMalloc(ret, num * size);
-    }
-    return ret;
-}
-
-#ifdef __linux__
-extern "C" WEAK DLLEXPORT void* calloc(size_t num, size_t size) {
-    if (likely(MallocTracer::initialized())) {
-        return calloc_hook(num, size);
-    }
-    if (unlikely(!_orig_calloc)) {
-        return NULL;
-    }
-    return _orig_calloc(num, size);
-}
-#endif
-
-static void* realloc_hook(void* addr, size_t size) {
-    void* ret = _orig_realloc(addr, size);
-    if (likely(ret && addr)) {
-        MallocTracer::recordFree(addr);
-    }
-
-    if (likely(ret && size)) {
-        MallocTracer::recordMalloc(ret, size);
-    }
-    return ret;
-}
-
-#ifdef __linux__
-extern "C" WEAK DLLEXPORT void* realloc(void* addr, size_t size) {
-    if (likely(MallocTracer::initialized())) {
-        return realloc_hook(addr, size);
-    }
-    if (unlikely(!_orig_realloc)) {
-        return NULL;
-    }
-    return _orig_realloc(addr, size);
-}
-#endif
-
-static void free_hook(void* addr) {
-    _orig_free(addr);
-    if (addr) {
-        MallocTracer::recordFree(addr);
-    }
-}
-
-#ifdef __linux__
-extern "C" WEAK DLLEXPORT void free(void* addr) {
-    if (likely(MallocTracer::initialized())) {
-        return free_hook(addr);
-    }
-    if (unlikely(!_orig_free)) {
-        return;
-    }
-    return _orig_free(addr);
-}
-#endif
-
-u64 MallocTracer::_interval;
-volatile u64 MallocTracer::_allocated_bytes;
-
-Mutex MallocTracer::_patch_lock;
-int MallocTracer::_patched_libs = 0;
-bool MallocTracer::_initialized = false;
-
 __attribute__((constructor)) static void getOrigAddresses() {
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
@@ -129,40 +38,71 @@ __attribute__((constructor)) static void getOrigAddresses() {
     _orig_free = ADDRESS_OF(free);
 }
 
-bool MallocTracer::initialize() {
-    if (!__sync_bool_compare_and_swap(&_initialized, false, true)) {
-        return false;
-    }
+extern "C" {
 
+static void* malloc_hook(size_t size) {
+    void* ret = _orig_malloc(size);
+    if (MallocTracer::running() && ret && size) {
+        MallocTracer::recordMalloc(ret, size);
+    }
+    return ret;
+}
+
+static void* calloc_hook(size_t num, size_t size) {
+    void* ret = _orig_calloc(num, size);
+    if (MallocTracer::running() && ret && num && size) {
+        MallocTracer::recordMalloc(ret, num * size);
+    }
+    return ret;
+}
+
+static void* realloc_hook(void* addr, size_t size) {
+    void* ret = _orig_realloc(addr, size);
+    if (MallocTracer::running() && ret) {
+        if (addr) {
+            MallocTracer::recordFree(addr);
+        }
+        if (size) {
+            MallocTracer::recordMalloc(ret, size);
+        }
+    }
+    return ret;
+}
+
+static void free_hook(void* addr) {
+    _orig_free(addr);
+    if (MallocTracer::running() && addr) {
+        MallocTracer::recordFree(addr);
+    }
+}
+
+} // extern "C"
+
+
+u64 MallocTracer::_interval;
+volatile u64 MallocTracer::_allocated_bytes;
+
+Mutex MallocTracer::_patch_lock;
+int MallocTracer::_patched_libs = 0;
+bool MallocTracer::_initialized = false;
+volatile bool MallocTracer::_running = false;
+
+void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
 
     lib->mark(
         [](const char* s) -> bool {
-            return strncmp(s, "_ZL11malloc_hook", 16) == 0
-                || strncmp(s, "_ZL11calloc_hook", 16) == 0
-                || strncmp(s, "_ZL12realloc_hook", 17) == 0
-                || strncmp(s, "_ZL9free_hook", 13) == 0;
+            return strcmp(s, "malloc_hook") == 0
+                || strcmp(s, "calloc_hook") == 0
+                || strcmp(s, "realloc_hook") == 0
+                || strcmp(s, "free_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
-
-    return installHooks();
 }
 
-bool MallocTracer::patchLibs(bool install) {
-    if (!initialized()) {
-        return false;
-    }
-
+void MallocTracer::patchLibraries() {
     MutexLocker ml(_patch_lock);
-    if (!install) {
-        assert(_orig_malloc);
-        assert(_orig_calloc);
-        assert(_orig_realloc);
-        assert(_orig_free);
-
-        _patched_libs = 0;
-    }
 
     CodeCacheArray* native_libs = Profiler::instance()->nativeLibs();
     int native_lib_count = native_libs->count();
@@ -170,17 +110,11 @@ bool MallocTracer::patchLibs(bool install) {
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
 
-        cc->patchImport(im_malloc, (void*)(install ? malloc_hook : _orig_malloc));
-        cc->patchImport(im_calloc, (void*)(install ? calloc_hook : _orig_calloc));
-        cc->patchImport(im_realloc, (void*)(install ? realloc_hook : _orig_realloc));
-        cc->patchImport(im_free, (void*)(install ? free_hook : _orig_free));
+        cc->patchImport(im_malloc, (void*)malloc_hook);
+        cc->patchImport(im_calloc, (void*)calloc_hook);
+        cc->patchImport(im_realloc, (void*)realloc_hook);
+        cc->patchImport(im_free, (void*)free_hook);
     }
-
-    if (!install) {
-        _patched_libs = 0;
-    }
-
-    return true;
 }
 
 void MallocTracer::recordMalloc(void* address, size_t size) {
@@ -205,10 +139,9 @@ void MallocTracer::recordFree(void* address) {
 
 Error MallocTracer::check(Arguments& args) {
     if (!OS::isLinux()) {
-        return Error("nativemem option is only supported on linux.");
-    } else {
-        return Error::OK;
+        return Error("nativemem option is only supported on Linux");
     }
+    return Error::OK;
 }
 
 Error MallocTracer::start(Arguments& args) {
@@ -220,14 +153,19 @@ Error MallocTracer::start(Arguments& args) {
     _interval = args._nativemem > 0 ? args._nativemem : 0;
     _allocated_bytes = 0;
 
-    if (!initialize() && initialized()) {
-        // Restart.
-        installHooks();
+    if (!_initialized) {
+        initialize();
+        _initialized = true;
     }
+
+    _running = true;
+    patchLibraries();
 
     return Error::OK;
 }
 
 void MallocTracer::stop() {
-    patchLibs(false);
+    // Ideally, we should reset original malloc entries, but it's not currently safe
+    // in the view of library unloading. Consider using dl_iterate_phdr.
+    _running = false;
 }
