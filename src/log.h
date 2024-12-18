@@ -8,6 +8,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include "mutex.h"
 
 #ifdef __GNUC__
 #define ATTR_FORMAT __attribute__((format(printf, 1, 2)))
@@ -30,6 +31,7 @@ class Arguments;
 
 class Log {
   private:
+    static Mutex _lock;
     static FILE* _file;
     static LogLevel _level;
 

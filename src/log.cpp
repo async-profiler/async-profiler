@@ -17,6 +17,7 @@ const char* const Log::LEVEL_NAME[] = {
     "NONE"
 };
 
+Mutex Log::_lock;
 FILE* Log::_file = stdout;
 LogLevel Log::_level = LOG_INFO;
 
@@ -30,6 +31,19 @@ void Log::open(Arguments& args) {
 }
 
 void Log::open(const char* file_name, const char* level) {
+    LogLevel l = LOG_INFO;
+    if (level != NULL) {
+        for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
+            if (strcasecmp(LEVEL_NAME[i], level) == 0) {
+                l = (LogLevel)i;
+                break;
+            }
+        }
+    }
+
+    MutexLocker ml(_lock);
+    _level = l;
+
     if (_file != stdout && _file != stderr) {
         fclose(_file);
     }
@@ -42,20 +56,10 @@ void Log::open(const char* file_name, const char* level) {
         _file = stdout;
         warn("Could not open log file: %s", file_name);
     }
-
-    LogLevel l = LOG_INFO;
-    if (level != NULL) {
-        for (int i = LOG_TRACE; i <= LOG_NONE; i++) {
-            if (strcasecmp(LEVEL_NAME[i], level) == 0) {
-                l = (LogLevel)i;
-                break;
-            }
-        }
-    }
-    __atomic_store_n(&_level, l, __ATOMIC_RELEASE);
 }
 
 void Log::close() {
+    MutexLocker ml(_lock);
     if (_file != stdout && _file != stderr) {
         fclose(_file);
         _file = stdout;
@@ -63,6 +67,7 @@ void Log::close() {
 }
 
 void Log::writeRaw(LogLevel level, const char* msg, size_t len) {
+    MutexLocker ml(_lock);
     if (level < _level) {
         return;
     }
@@ -83,6 +88,7 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
         Profiler::instance()->writeLog(level, buf, len);
     }
 
+    MutexLocker ml(_lock);
     if (level >= _level) {
         fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
         fflush(_file);
