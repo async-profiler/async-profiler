@@ -7,7 +7,6 @@
 #define _LOG_H
 
 #include <stdarg.h>
-#include <stdio.h>
 #include "mutex.h"
 
 #ifdef __GNUC__
@@ -32,7 +31,7 @@ class Arguments;
 class Log {
   private:
     static Mutex _lock;
-    static FILE* _file;
+    static int _fd;
     static LogLevel _level;
 
   public:

@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 #include "log.h"
 #include "profiler.h"
 
@@ -18,7 +20,7 @@ const char* const Log::LEVEL_NAME[] = {
 };
 
 Mutex Log::_lock;
-FILE* Log::_file = stdout;
+int Log::_fd = STDOUT_FILENO;
 LogLevel Log::_level = LOG_INFO;
 
 
@@ -44,25 +46,25 @@ void Log::open(const char* file_name, const char* level) {
     MutexLocker ml(_lock);
     _level = l;
 
-    if (_file != stdout && _file != stderr) {
-        fclose(_file);
+    if (_fd > STDERR_FILENO) {
+        ::close(_fd);
     }
 
     if (file_name == NULL || strcmp(file_name, "stdout") == 0) {
-        _file = stdout;
+        _fd = STDOUT_FILENO;
     } else if (strcmp(file_name, "stderr") == 0) {
-        _file = stderr;
-    } else if ((_file = fopen(file_name, "w")) == NULL) {
-        _file = stdout;
+        _fd = STDERR_FILENO;
+    } else if ((_fd = creat(file_name, 0660)) < 0) {
+        _fd = STDOUT_FILENO;
         warn("Could not open log file: %s", file_name);
     }
 }
 
 void Log::close() {
     MutexLocker ml(_lock);
-    if (_file != stdout && _file != stderr) {
-        fclose(_file);
-        _file = stdout;
+    if (_fd > STDERR_FILENO) {
+        ::close(_fd);
+        _fd = STDOUT_FILENO;
     }
 }
 
@@ -72,26 +74,35 @@ void Log::writeRaw(LogLevel level, const char* msg, size_t len) {
         return;
     }
 
-    fwrite(msg, 1, len, _file);
-    fflush(_file);
+    while (len > 0) {
+        ssize_t bytes = ::write(_fd, msg, len);
+        if (bytes <= 0) {
+            break;
+        }
+        msg += (size_t)bytes;
+        len -= (size_t)bytes;
+    }
 }
 
 void Log::log(LogLevel level, const char* msg, va_list args) {
     char buf[1024];
-    size_t len = vsnprintf(buf, sizeof(buf), msg, args);
-    if (len >= sizeof(buf)) {
-        len = sizeof(buf) - 1;
-        buf[len] = 0;
-    }
 
+    // Format log message: [LEVEL] Message\n
+    size_t prefix_len = snprintf(buf, sizeof(buf), "[%s] ", LEVEL_NAME[level]);
+    size_t msg_len = vsnprintf(buf + prefix_len, sizeof(buf) - 1 - prefix_len, msg, args);
+    if (msg_len > sizeof(buf) - 1 - prefix_len) {
+        msg_len = sizeof(buf) - 1 - prefix_len;
+    }
+    buf[prefix_len + msg_len] = '\n';
+
+    // Write all messages to JFR, if active
     if (level < LOG_ERROR) {
-        Profiler::instance()->writeLog(level, buf, len);
+        Profiler::instance()->writeLog(level, buf + prefix_len, msg_len);
     }
 
-    MutexLocker ml(_lock);
+    // Write a message with a prefix to a file
     if (level >= _level) {
-        fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
-        fflush(_file);
+        writeRaw(level, buf, prefix_len + msg_len + 1);
     }
 }
 
