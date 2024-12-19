@@ -90,8 +90,13 @@ void Log::log(LogLevel level, const char* msg, va_list args) {
 
     MutexLocker ml(_lock);
     if (level >= _level) {
-        fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
-        fflush(_file);
+        struct stat file_info;
+        if (_file == stdout || _file == stderr || (fstat(fileno(_file), &file_info) == 0 && file_info.st_nlink > 0)) {
+            fprintf(_file, "[%s] %s\n", LEVEL_NAME[level], buf);
+            fflush(_file);
+        } else {
+            fprintf(stdout, "[%s] %s\n", LEVEL_NAME[level], buf);
+        }
     }
 }
 
