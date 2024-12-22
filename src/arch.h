@@ -17,6 +17,12 @@
 
 #define callerPC()     __builtin_return_address(0)
 
+#ifdef _LP64
+#  define LP64_ONLY(code) code
+#else // !_LP64
+#  define LP64_ONLY(code)
+#endif // _LP64
+
 
 typedef unsigned char u8;
 typedef unsigned short u16;

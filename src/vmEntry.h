@@ -7,6 +7,7 @@
 #define _VMENTRY_H
 
 #include <jvmti.h>
+#include "arch.h"
 
 
 enum FrameTypeId {
@@ -70,6 +71,7 @@ enum ASGCT_Failure {
 
 typedef struct {
     jint bci;
+    LP64_ONLY(jint padding;)
     jmethodID method_id;
 } ASGCT_CallFrame;
 
