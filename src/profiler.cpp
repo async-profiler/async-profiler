@@ -563,6 +563,9 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
             jint bci = jvmti_frames[i].location;
             frames[i].method_id = jvmti_frames[i].method;
             frames[i].bci = bci;
+#if defined(__x86_64__) || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
+            frames[i].padding = 0;
+#endif
         }
     }
     return num_frames;
