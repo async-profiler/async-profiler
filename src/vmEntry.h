@@ -7,6 +7,7 @@
 #define _VMENTRY_H
 
 #include <jvmti.h>
+#include "arch.h"
 
 
 enum FrameTypeId {
