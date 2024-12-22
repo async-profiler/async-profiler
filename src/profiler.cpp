@@ -563,9 +563,7 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
             jint bci = jvmti_frames[i].location;
             frames[i].method_id = jvmti_frames[i].method;
             frames[i].bci = bci;
-#if defined(__x86_64__) || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
-            frames[i].padding = 0;
-#endif
+            LP64_ONLY(frames[i].padding = 0;)
         }
     }
     return num_frames;
@@ -1133,11 +1131,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     // (Re-)allocate calltrace buffers
     if (_max_stack_depth != args._jstackdepth) {
         _max_stack_depth = args._jstackdepth;
-        size_t buffer_size = (_max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES) * sizeof(CallTraceBuffer);
+        size_t nelem = _max_stack_depth + MAX_NATIVE_FRAMES + RESERVED_FRAMES;
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             free(_calltrace_buffer[i]);
-            _calltrace_buffer[i] = (CallTraceBuffer*)malloc(buffer_size);
+            _calltrace_buffer[i] = (CallTraceBuffer*)calloc(nelem, sizeof(CallTraceBuffer));
             if (_calltrace_buffer[i] == NULL) {
                 _max_stack_depth = 0;
                 return Error("Not enough memory to allocate stack trace buffers (try smaller jstackdepth)");

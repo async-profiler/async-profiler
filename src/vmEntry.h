@@ -70,9 +70,7 @@ enum ASGCT_Failure {
 
 typedef struct {
     jint bci;
-#if defined(__x86_64__) || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
-    jint padding;
-#endif
+    LP64_ONLY(jint padding;)
     jmethodID method_id;
 } ASGCT_CallFrame;
 
