@@ -1,8 +1,8 @@
 # Converter Usage
 
-async-profiler provides a converter utility to convert the profile output to other popular formats. async-profiler
-provides `jfrconv` as part of the compressed package which is found in the same location as the `asprof` binary. A
-standalone converter binary is also available [here](ttps://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar).
+async-profiler provides `jfrconv` utility to convert between different profile output formats.
+`jfrconv` can be found at the same location as the `asprof` binary. Converter is also available
+as a standalone Java application: [`jfr-converter.jar`](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar).
 
 ## Supported conversions
 
@@ -80,9 +80,10 @@ Flame Graph options:
 
 ## `jfrconv` Examples
 
-`jfrconv` is built into the same location as the `asprof` binary.
+`jfrconv` utility is provided in `bin` directory of the async-profiler package.
+It requires JRE to be installed on the system.
 
-### Generate flamegraph from jfr
+### Generate Flame Graph from JFR
 
 If no output file is specified, it defaults to a Flame Graph output.
 
@@ -125,5 +126,5 @@ Standalone converter jar is provided in
 Below is an example usage:
 
 ```
-java -cp /path/to/standalone-converter-jar --cpu foo.jfr --reverse --title "Application CPU profile"
+java -jar jfr-converter.jar --cpu foo.jfr --reverse --title "Application CPU profile"
 ```

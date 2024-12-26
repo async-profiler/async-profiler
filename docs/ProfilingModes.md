@@ -97,7 +97,8 @@ Example:
 
 ```
 asprof start -e nativemem -f app.jfr <YourApp>
-# asprof start --nativemem N -f app.jfr <YourApp>
+# or
+asprof start --nativemem N -f app.jfr <YourApp>
 
 asprof stop <YourApp>
 ```
@@ -116,7 +117,10 @@ When `--leak` option is used, the generated flame graph will show allocations wi
 
 ![nativemem flamegraph](../.assets/images/nativemem_flamegraph.png)
 
-The overhead of `nativemem` profiling depends on the number of native allocations, but is usually small enough even for production use. If required, the overhead can be reduced by configuring the profiling interval. E.g. if you add `nativemem=1m` profiler option, allocation samples will be limited to at most one sample per allocated megabyte.
+The overhead of `nativemem` profiling depends on the number of native allocations,
+but is usually small enough even for production use. If required, the overhead can be reduced
+by configuring the profiling interval. E.g. if you add `nativemem=1m` profiler option,
+allocation samples will be limited to at most one sample per allocated megabyte.
 
 ## Wall-clock profiling
 
