@@ -40,7 +40,7 @@ public class Ttsp {
 
         while (true) {
             requestSafepoint();
-            Thread.sleep(50);
+            Thread.sleep(200);
         }
     }
 }
