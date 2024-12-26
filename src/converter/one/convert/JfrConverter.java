@@ -21,53 +21,44 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
-    protected final IEventAggregator eventAggregator;
+    protected final EventCollector collector;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
-        boolean leakDetection = args.nativemem && args.leak;
-
         this.jfr = jfr;
         this.args = args;
 
-        IEventAggregator agg = new EventAggregator(args.threads, args.total);
-        this.eventAggregator = leakDetection ? new MallocLeakAggregator(agg) : agg;
+        EventAggregator agg = new EventAggregator(args.threads, args.grain);
+        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(agg) : agg;
     }
 
     public void convert() throws IOException {
         jfr.stopAtNewChunk = true;
+
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
-            collectEvents();
 
-            eventAggregator.setFactor(args.lock ? 1e9 / jfr.ticksPerSec : 1.0);
-            eventAggregator.finishChunk();
-            if (args.grain > 0) {
-                eventAggregator.coarsen(args.grain);
-            }
+            collectEvents();
+            collector.finishChunk();
 
             convertChunk();
-            eventAggregator.resetChunk();
+            collector.resetChunk();
         }
 
-        finalizeAggregator();
-    }
-
-    private void finalizeAggregator()throws IOException {
-        eventAggregator.finish();
-        convertChunk();
-        eventAggregator.resetChunk();
+        if (collector.finish()) {
+            convertChunk();
+        }
     }
 
     protected abstract void convertChunk();
 
     protected void collectEvents() throws IOException {
-        Class<? extends Event> eventClass = args.live ? LiveObject.class
+        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+                : args.live ? LiveObject.class
                 : args.alloc ? AllocationSample.class
-                        : args.lock ? ContendedLock.class
-                            : args.nativemem ? MallocEvent.class
-                                : ExecutionSample.class;
+                : args.lock ? ContendedLock.class
+                : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -84,10 +75,10 @@ public abstract class JfrConverter extends Classifier {
         long startTicks = args.from != 0 ? toTicks(args.from) : Long.MIN_VALUE;
         long endTicks = args.to != 0 ? toTicks(args.to) : Long.MAX_VALUE;
 
-        for (Event event; (event = jfr.readEvent(eventClass)) != null;) {
+        for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    eventAggregator.collect(event);
+                    collector.collect(event);
                 }
             }
         }
@@ -244,5 +235,18 @@ public abstract class JfrConverter extends Classifier {
         return methodType == TYPE_NATIVE && jfr.getEnumValue("jdk.types.FrameType", TYPE_KERNEL) != null ||
                 methodType == TYPE_CPP ||
                 methodType == TYPE_KERNEL;
+    }
+
+    // Select sum(samples) or sum(value) depending on the --total option.
+    // For lock events, convert lock duration from ticks to nanoseconds.
+    protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
+        final double factor = !args.total ? 0.0 : args.lock ? 1e9 / jfr.ticksPerSec : 1.0;
+
+        @Override
+        public final void visit(Event event, long samples, long value) {
+            visit(event, factor == 0.0 ? samples : factor == 1.0 ? value : (long) (value * factor));
+        }
+
+        protected abstract void visit(Event event, long value);
     }
 }

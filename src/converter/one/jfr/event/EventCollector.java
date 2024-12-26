@@ -5,28 +5,20 @@
 
 package one.jfr.event;
 
-public interface IEventAggregator {
+public interface EventCollector {
+
     void collect(Event e);
 
     void finishChunk();
 
     void resetChunk();
 
-    void finish();
-
-    void setFactor(double factor);
-
-    void coarsen(double grain);
+    // Returns true if this collector has remaining data to process
+    boolean finish();
 
     void forEach(Visitor visitor);
 
-    void forEach(ValueVisitor visitor);
-
-    public interface Visitor {
+    interface Visitor {
         void visit(Event event, long samples, long value);
-    }
-
-    public interface ValueVisitor {
-        void visit(Event event, long value);
     }
 }

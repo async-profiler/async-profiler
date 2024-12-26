@@ -8,7 +8,6 @@ package one.convert;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
-import one.jfr.event.IEventAggregator;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -45,7 +44,7 @@ public class JfrToPprof extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        eventAggregator.forEach(new IEventAggregator.ValueVisitor() {
+        collector.forEach(new AggregatedEventVisitor() {
             final Proto s = new Proto(100);
 
             @Override

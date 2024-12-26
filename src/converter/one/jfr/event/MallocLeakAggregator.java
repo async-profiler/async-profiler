@@ -7,79 +7,57 @@ package one.jfr.event;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Map;
 import java.util.HashMap;
 
-public class MallocLeakAggregator implements IEventAggregator {
-    private final IEventAggregator wrapped;
-    private List<Event> events;
-    private double grain = 0;
-    private double factor = 1;
+public class MallocLeakAggregator implements EventCollector {
+    private final EventAggregator wrapped;
+    private final Map<Long, MallocEvent> addresses;
+    private List<MallocEvent> events;
 
-    Map<Long, MallocEvent> addresses = new HashMap<>();
-
-    public MallocLeakAggregator(IEventAggregator wrapped) {
+    public MallocLeakAggregator(EventAggregator wrapped) {
         this.wrapped = wrapped;
-        this.events = new ArrayList<Event>();
+        this.addresses = new HashMap<>();
+        this.events = new ArrayList<>();
     }
 
-    private List<Event> filter(List<Event> events) {
-        for (Event event : events) {
-            if (!(event instanceof MallocEvent)) {
-                continue;
-            }
+    @Override
+    public void collect(Event e) {
+        events.add((MallocEvent) e);
+    }
 
-            MallocEvent e = (MallocEvent) event;
+    @Override
+    public void finishChunk() {
+        events.sort(null);
+
+        for (MallocEvent e : events) {
             if (e.size > 0) {
                 addresses.put(e.address, e);
             } else {
                 addresses.remove(e.address);
             }
         }
-
-        return new ArrayList<>(addresses.values());
     }
 
-    public void collect(Event e) {
-        events.add(e);
+    @Override
+    public void resetChunk() {
+        events = new ArrayList<>();
     }
 
-    public void finishChunk() {
-        Collections.sort(events);
-        events = filter(events);
-    }
-
-    public void finish() {
-        wrapped.setFactor(this.factor);
-
-        if (grain > 0) {
-            wrapped.coarsen(grain);
-        }
-
-        for (Event e : events) {
+    @Override
+    public boolean finish() {
+        for (Event e : addresses.values()) {
             wrapped.collect(e);
         }
+        wrapped.finishChunk();
+
+        // Free memory before the final conversion
+        addresses.clear();
+        return true;
     }
 
-    public void coarsen(double grain) {
-        // Delay coarsening until the final chunk is processed.
-        this.grain = grain;
-    }
-
-    public void setFactor(double factor) {
-        this.factor = factor;
-    }
-
-    public void resetChunk() {
-        wrapped.resetChunk();
-    }
-
-    public void forEach(IEventAggregator.Visitor visitor) {
-        wrapped.forEach(visitor);
-    }
-
-    public void forEach(IEventAggregator.ValueVisitor visitor) {
+    @Override
+    public void forEach(Visitor visitor) {
         wrapped.forEach(visitor);
     }
 }
