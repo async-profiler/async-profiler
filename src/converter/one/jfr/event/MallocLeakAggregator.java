@@ -11,14 +11,13 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class MallocLeakAggregator implements EventCollector {
-    private final EventAggregator wrapped;
+    private final EventCollector wrapped;
     private final Map<Long, MallocEvent> addresses;
     private List<MallocEvent> events;
 
-    public MallocLeakAggregator(EventAggregator wrapped) {
+    public MallocLeakAggregator(EventCollector wrapped) {
         this.wrapped = wrapped;
         this.addresses = new HashMap<>();
-        this.events = new ArrayList<>();
     }
 
     @Override
@@ -27,7 +26,12 @@ public class MallocLeakAggregator implements EventCollector {
     }
 
     @Override
-    public void finishChunk() {
+    public void beforeChunk() {
+        events = new ArrayList<>();
+    }
+
+    @Override
+    public void afterChunk() {
         events.sort(null);
 
         for (MallocEvent e : events) {
@@ -37,19 +41,17 @@ public class MallocLeakAggregator implements EventCollector {
                 addresses.remove(e.address);
             }
         }
-    }
 
-    @Override
-    public void resetChunk() {
-        events = new ArrayList<>();
+        events = null;
     }
 
     @Override
     public boolean finish() {
+        wrapped.beforeChunk();
         for (Event e : addresses.values()) {
             wrapped.collect(e);
         }
-        wrapped.finishChunk();
+        wrapped.afterChunk();
 
         // Free memory before the final conversion
         addresses.clear();

@@ -20,7 +20,7 @@ public class EventAggregator implements EventCollector {
         this.threads = threads;
         this.grain = grain;
 
-        resetChunk();
+        beforeChunk();
     }
 
     public int size() {
@@ -54,22 +54,27 @@ public class EventAggregator implements EventCollector {
     }
 
     @Override
-    public void finishChunk() {
+    public void beforeChunk() {
+        if (keys == null || size > 0) {
+            keys = new Event[INITIAL_CAPACITY];
+            samples = new long[INITIAL_CAPACITY];
+            values = new long[INITIAL_CAPACITY];
+            size = 0;
+        }
+    }
+
+    @Override
+    public void afterChunk() {
         if (grain > 0) {
             coarsen(grain);
         }
     }
 
     @Override
-    public void resetChunk() {
-        keys = new Event[INITIAL_CAPACITY];
-        samples = new long[INITIAL_CAPACITY];
-        values = new long[INITIAL_CAPACITY];
-        size = 0;
-    }
-
-    @Override
     public boolean finish() {
+        keys = null;
+        samples = null;
+        values = null;
         return false;
     }
 

@@ -28,8 +28,8 @@ public abstract class JfrConverter extends Classifier {
         this.jfr = jfr;
         this.args = args;
 
-        EventAggregator agg = new EventAggregator(args.threads, args.grain);
-        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(agg) : agg;
+        EventCollector collector = createCollector(args);
+        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector) : collector;
     }
 
     public void convert() throws IOException {
@@ -39,11 +39,11 @@ public abstract class JfrConverter extends Classifier {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
 
+            collector.beforeChunk();
             collectEvents();
-            collector.finishChunk();
+            collector.afterChunk();
 
             convertChunk();
-            collector.resetChunk();
         }
 
         if (collector.finish()) {
@@ -51,7 +51,9 @@ public abstract class JfrConverter extends Classifier {
         }
     }
 
-    protected abstract void convertChunk();
+    protected EventCollector createCollector(Arguments args) {
+        return new EventAggregator(args.threads, args.grain);
+    }
 
     protected void collectEvents() throws IOException {
         Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
@@ -82,6 +84,10 @@ public abstract class JfrConverter extends Classifier {
                 }
             }
         }
+    }
+
+    protected void convertChunk() {
+        // To be overridden in subclasses
     }
 
     protected int toThreadState(String name) {
@@ -154,24 +160,20 @@ public abstract class JfrConverter extends Classifier {
         if (cls == null) {
             return "null";
         }
-        byte[] className = jfr.symbols.get(cls.name);
+        return toJavaClassName(jfr.symbols.get(cls.name));
+    }
 
+    protected String toJavaClassName(byte[] symbol) {
         int arrayDepth = 0;
-        while (className[arrayDepth] == '[') {
+        while (symbol[arrayDepth] == '[') {
             arrayDepth++;
         }
 
-        String name = toJavaClassName(className, arrayDepth, true);
+        String name = toJavaClassName(symbol, arrayDepth, true);
         while (arrayDepth-- > 0) {
             name = name.concat("[]");
         }
         return name;
-    }
-
-    protected String getThreadName(int tid) {
-        String threadName = jfr.threads.get(tid);
-        return threadName == null ? "[tid=" + tid + ']'
-                : threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
     protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {
@@ -227,6 +229,12 @@ public abstract class JfrConverter extends Classifier {
 
         String s = new String(symbol, start, end - start, StandardCharsets.UTF_8);
         return dotted ? s.replace('/', '.') : s;
+    }
+
+    protected String getThreadName(int tid) {
+        String threadName = jfr.threads.get(tid);
+        return threadName == null ? "[tid=" + tid + ']' :
+                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
     protected boolean isNativeFrame(byte methodType) {

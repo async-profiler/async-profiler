@@ -9,9 +9,9 @@ public interface EventCollector {
 
     void collect(Event e);
 
-    void finishChunk();
+    void beforeChunk();
 
-    void resetChunk();
+    void afterChunk();
 
     // Returns true if this collector has remaining data to process
     boolean finish();
