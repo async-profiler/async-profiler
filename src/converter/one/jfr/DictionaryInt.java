@@ -18,8 +18,12 @@ public class DictionaryInt {
     private int size;
 
     public DictionaryInt() {
-        this.keys = new long[INITIAL_CAPACITY];
-        this.values = new int[INITIAL_CAPACITY];
+        this(INITIAL_CAPACITY);
+    }
+
+    public DictionaryInt(int initialCapacity) {
+        this.keys = new long[initialCapacity];
+        this.values = new int[initialCapacity];
     }
 
     public void clear() {
@@ -87,10 +91,6 @@ public class DictionaryInt {
             resize(Integer.highestOneBit(count * 4 - 1));
         }
         return count;
-    }
-
-    public int size() {
-        return size;
     }
 
     private void resize(int newCapacity) {

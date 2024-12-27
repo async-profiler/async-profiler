@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package one.jfr;
+package one.heatmap;
 
 /**
  * Fast and compact Object->int map.
@@ -13,7 +13,6 @@ public class Index<T> {
 
     private Object[] keys;
     private int[] values;
-
     public int size;
 
     public Index() {

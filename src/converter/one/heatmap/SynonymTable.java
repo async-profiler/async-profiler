@@ -21,7 +21,6 @@ public class SynonymTable {
         this.nodesCount = nodesCount;
     }
 
-
     public void calculateSynonyms() {
         int[] childrenCount = childrenCountOrNodeSynonym;
         for (int i = 0; i < nodesCount; i++) {
@@ -46,12 +45,11 @@ public class SynonymTable {
     }
 
     public int synonymAt(int synonymIndex) {
-        return (int)(synonyms[synonymIndex] & 0xFFFFFFFFL) + synonymsCount;
+        return (int) (synonyms[synonymIndex] & 0xFFFFFFFFL) + synonymsCount;
     }
 
     public int nodeIdOrSynonym(int node) {
-        int[] nodeSynonyms = childrenCountOrNodeSynonym;
-        return nodeSynonyms[node];
+        return childrenCountOrNodeSynonym[node];
     }
 
     public int[] reset() {

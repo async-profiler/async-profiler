@@ -5,15 +5,7 @@
 
 package one.convert;
 
-import static one.convert.Frame.TYPE_INLINED;
-import static one.convert.Frame.TYPE_KERNEL;
-
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.concurrent.TimeUnit;
+import one.heatmap.FrameFormatter;
 import one.heatmap.Heatmap;
 import one.jfr.Dictionary;
 import one.jfr.JfrReader;
@@ -21,51 +13,82 @@ import one.jfr.StackTrace;
 import one.jfr.event.AllocationSample;
 import one.jfr.event.ContendedLock;
 import one.jfr.event.Event;
-import one.jfr.event.EventAggregator;
+import one.jfr.event.EventCollector;
 
-public class JfrToHeatmap extends JfrConverter {
+import java.io.*;
 
+import static one.convert.Frame.TYPE_INLINED;
+import static one.convert.Frame.TYPE_KERNEL;
+
+public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
     private final Heatmap heatmap;
 
     public JfrToHeatmap(JfrReader jfr, Arguments args) {
         super(jfr, args);
-        this.heatmap = new Heatmap(args);
+        this.heatmap = new Heatmap(args, this);
     }
 
     @Override
-    protected void convertChunk() throws IOException {
-        heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols, jfr.isAsyncProfiler());
-        jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
+    protected EventCollector createCollector(Arguments args) {
+        return new EventCollector() {
             @Override
-            public void visit(long key, StackTrace value) {
-                heatmap.addStack(key, value.methods, value.locations, value.types, value.methods.length);
-            }
-        });
-        collectEvents(new EventAggregator.Visitor() {
-
-            @Override
-            public void visit(Event event, long value) {
+            public void collect(Event e) {
                 int extra = 0;
                 byte type = 0;
-                if (event instanceof AllocationSample) {
-                    extra = ((AllocationSample) event).classId;
-                    type = ((AllocationSample) event).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
-                } else if (event instanceof ContendedLock) {
-                    extra = ((ContendedLock) event).classId;
+                if (e instanceof AllocationSample) {
+                    extra = ((AllocationSample) e).classId;
+                    type = ((AllocationSample) e).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
+                } else if (e instanceof ContendedLock) {
+                    extra = ((ContendedLock) e).classId;
                     type = TYPE_KERNEL;
                 }
 
-                long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000L / jfr.ticksPerSec;
-                long timeMs = TimeUnit.NANOSECONDS.toMillis(jfr.chunkStartNanos) + msFromStart;
+                long msFromStart = (e.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
+                long timeMs = jfr.chunkStartNanos / 1_000_000 + msFromStart;
 
-                heatmap.addEvent(event.stackTraceId, extra, type, timeMs);
+                heatmap.addEvent(e.stackTraceId, extra, type, timeMs);
             }
-        });
-        jfr.stackTraces.clear();
+
+            @Override
+            public void beforeChunk() {
+                heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols);
+                jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
+                    @Override
+                    public void visit(long key, StackTrace value) {
+                        heatmap.addStack(key, value.methods, value.locations, value.types, value.methods.length);
+                    }
+                });
+            }
+
+            @Override
+            public void afterChunk() {
+                jfr.stackTraces.clear();
+            }
+
+            @Override
+            public boolean finish() {
+                heatmap.finish(jfr.startNanos / 1_000_000);
+                return false;
+            }
+
+            @Override
+            public void forEach(Visitor visitor) {
+                throw new AssertionError("Should not be called");
+            }
+        };
+    }
+
+    @Override
+    public boolean isNativeFrame(byte type) {
+        return super.isNativeFrame(type);
+    }
+
+    @Override
+    public String toJavaClassName(byte[] symbol) {
+        return super.toJavaClassName(symbol);
     }
 
     public void dump(OutputStream out) throws IOException {
-        heatmap.finish(TimeUnit.NANOSECONDS.toMillis(jfr.startNanos));
         try (PrintStream ps = new PrintStream(out, false, "UTF-8")) {
             heatmap.dump(ps);
         }

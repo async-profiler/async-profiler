@@ -13,6 +13,7 @@ import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import static one.convert.Frame.*;
+import static one.convert.ResourceProcessor.*;
 
 public class FlameGraph implements Comparator<Frame> {
     private static final Frame[] EMPTY_FRAME_ARRAY = {};
@@ -171,29 +172,29 @@ public class FlameGraph implements Comparator<Frame> {
             return;
         }
 
-        String tail = ResourceProcessor.getResource("/flame.html");
+        String tail = getResource("/flame.html");
 
-        tail = ResourceProcessor.printTill(out, tail, "/*height:*/300");
+        tail = printTill(out, tail, "/*height:*/300");
         int depth = mintotal > 1 ? root.depth(mintotal) : this.depth + 1;
         out.print(Math.min(depth * 16, 32767));
 
-        tail = ResourceProcessor.printTill(out, tail, "/*title:*/");
+        tail = printTill(out, tail, "/*title:*/");
         out.print(args.title);
 
-        tail = ResourceProcessor.printTill(out, tail, "/*reverse:*/false");
+        tail = printTill(out, tail, "/*reverse:*/false");
         out.print(args.reverse);
 
-        tail = ResourceProcessor.printTill(out, tail, "/*depth:*/0");
+        tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
 
-        tail = ResourceProcessor.printTill(out, tail, "/*cpool:*/");
+        tail = printTill(out, tail, "/*cpool:*/");
         printCpool(out);
 
-        tail = ResourceProcessor.printTill(out, tail, "/*frames:*/");
+        tail = printTill(out, tail, "/*frames:*/");
         printFrame(out, root, 0, 0);
         out.print(outbuf);
 
-        tail = ResourceProcessor.printTill(out, tail, "/*highlight:*/");
+        tail = printTill(out, tail, "/*highlight:*/");
         out.print(args.highlight != null ? "'" + escape(args.highlight) + "'" : "");
 
         out.print(tail);

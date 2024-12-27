@@ -7,8 +7,6 @@ package one.heatmap;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import one.convert.Arguments;
-import one.convert.JfrConverter;
 
 public class SymbolTable {
 
@@ -105,9 +103,9 @@ public class SymbolTable {
 
         for (int i = 0; i < limit; i += 4) {
             int k = (data[i] & 0xff) |
-                (data[i + 1] & 0xff) << 8 |
-                (data[i + 2] & 0xff) << 16 |
-                data[i + 3] << 24;
+                    (data[i + 1] & 0xff) << 8 |
+                    (data[i + 2] & 0xff) << 16 |
+                    data[i + 3] << 24;
             k *= m;
             k ^= k >>> 24;
             k *= m;
@@ -132,7 +130,7 @@ public class SymbolTable {
         return h;
     }
 
-    public String[] orderedKeys(Arguments args) {
+    public String[] orderedKeys(FrameFormatter formatter) {
         String[] out = new String[size];
 
         for (int i = 0; i < meta.length; i++) {
@@ -144,7 +142,7 @@ public class SymbolTable {
             int index = (int) (currentMeta >>> 33);
 
             if ((currentMeta & MARK_JAVA_CLASS) == MARK_JAVA_CLASS) {
-                out[index - 1] = convertClassName(keys[i], args);
+                out[index - 1] = formatter.toJavaClassName(keys[i]);
             } else {
                 out[index - 1] = new String(keys[i], StandardCharsets.UTF_8);
             }
@@ -152,9 +150,4 @@ public class SymbolTable {
 
         return out;
     }
-
-    private String convertClassName(byte[] className, Arguments args) {
-        return JfrConverter.convertJavaClassName(className, args);
-    }
-
 }

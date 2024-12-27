@@ -12,10 +12,14 @@ public class HtmlOut {
 
     private final PrintStream out;
 
-    private int pos = 0;
+    private int pos;
 
     public HtmlOut(PrintStream out) {
         this.out = out;
+    }
+
+    public int pos() {
+        return pos;
     }
 
     public void resetPos() {
@@ -85,9 +89,4 @@ public class HtmlOut {
         out.write(data);
         pos += data.length;
     }
-
-    public int pos() {
-        return pos;
-    }
-
 }

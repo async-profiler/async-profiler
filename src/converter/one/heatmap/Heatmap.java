@@ -9,38 +9,35 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Comparator;
+
 import one.convert.Arguments;
 import one.convert.ResourceProcessor;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
 import one.jfr.DictionaryInt;
-import one.jfr.Index;
 import one.jfr.MethodRef;
 
 public class Heatmap {
 
-    // TODO it is probably should be an argument
+    // TODO: should be probably an argument,
     // but there is a good chance that changing it will have some side effects
     public static final int BLOCK_DURATION_MS = 20;
-    private final Arguments arguments;
 
+    private final Arguments args;
     private State state;
-
     private long startMs;
 
-    public Heatmap(Arguments arguments) {
-        this.arguments = arguments;
-
-        this.state = new State(arguments, BLOCK_DURATION_MS);
+    public Heatmap(Arguments args, FrameFormatter formatter) {
+        this.args = args;
+        this.state = new State(formatter, BLOCK_DURATION_MS);
     }
 
     public void assignConstantPool(
-        Dictionary<MethodRef> methodRefs,
-        Dictionary<ClassRef> classRefs,
-        Dictionary<byte[]> symbols,
-        boolean isAsyncProfiler
+            Dictionary<MethodRef> methodRefs,
+            Dictionary<ClassRef> classRefs,
+            Dictionary<byte[]> symbols
     ) {
-        state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols, isAsyncProfiler);
+        state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols);
     }
 
     public void nextFile() {
@@ -58,7 +55,7 @@ public class Heatmap {
 
     public void finish(long startMs) {
         this.startMs = startMs;
-        assignConstantPool(null, null, null, false);
+        assignConstantPool(null, null, null);
         nextFile();
     }
 
@@ -66,10 +63,10 @@ public class Heatmap {
         State state = this.state;
         this.state = null;
         return new EvaluationContext(
-            state.sampleList.samples(),
-            state.methodsCache.methodsIndex(),
-            state.stackTracesRemap.orderedTraces(),
-            state.methodsCache.orderedSymbolTable()
+                state.sampleList.samples(),
+                state.methodsCache.methodsIndex(),
+                state.stackTracesRemap.orderedTraces(),
+                state.methodsCache.orderedSymbolTable()
         );
     }
 
@@ -103,7 +100,7 @@ public class Heatmap {
         stream.print('E');
 
         tail = ResourceProcessor.printTill(stream, tail, "/*title:*/");
-        stream.print(arguments.title == null ? "Heatmap" : arguments.title);
+        stream.print(args.title == null ? "Heatmap" : args.title);
 
         tail = ResourceProcessor.printTill(stream, tail, "/*startMs:*/0");
         stream.print(startMs);
@@ -270,8 +267,7 @@ public class Heatmap {
 
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
-                    if (current
-                        == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
+                    if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
                         context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
@@ -296,8 +292,7 @@ public class Heatmap {
             } else { // general case
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
-                    if (current
-                        == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
+                    if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
                         context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
                     }
                 }
@@ -415,9 +410,9 @@ public class Heatmap {
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(Arguments args, long blockDurationMs) {
+        State(FrameFormatter formatter, long blockDurationMs) {
             sampleList = new SampleList(blockDurationMs);
-            methodsCache = new MethodCache(args);
+            methodsCache = new MethodCache(formatter);
         }
 
         public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {

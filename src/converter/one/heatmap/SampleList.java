@@ -53,8 +53,8 @@ public class SampleList {
         int currentBlockSize = 0;
         int currentBlockId = firstBlockId;
 
-
-        a: while (stackIdsPos < stackIds.length) {
+        outer:
+        while (stackIdsPos < stackIds.length) {
             long currentData = data[stackIdsPos];
             int blockId = (int) (currentData >> 32);
             while (currentBlockId != blockId) {
@@ -62,7 +62,7 @@ public class SampleList {
                 currentBlockSize = 0;
                 currentBlockId++;
                 if (currentBlockId > lastBlockId) {
-                    break a;
+                    break outer;
                 }
             }
 
