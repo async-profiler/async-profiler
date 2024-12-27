@@ -1,0 +1,21 @@
+name: lint
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  license-header:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check license headers
+        uses: apache/skywalking-eyes/header@v0.6.0
+  markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install prettier
+        run: |
+          npm install -g prettier@3.4.2
+          make check-md

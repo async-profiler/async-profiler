@@ -16,7 +16,7 @@ public class KernelTests {
 
     @Test(mainClass = ListFiles.class, os = Os.LINUX)
     public void kernel(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 3 -i 1ms -o collapsed");
+        Output out = p.profile("-e cpu-clock -d 3 -i 1ms -o collapsed");
         Output err = p.readFile(TestProcess.PROFERR);
         assert out.contains("test/kernel/ListFiles.listFiles;java/io/File");
         assert err.contains("Kernel symbols are unavailable") || out.contains("sys_getdents");
@@ -35,7 +35,7 @@ public class KernelTests {
         assert out.contains("sys_getdents");
     }
 
-    @Test(mainClass = ListFiles.class, jvmArgs = "-XX:+UseParallelGC -Xmx1g -Xms1g", os = {Os.MACOS, Os.WINDOWS})
+    @Test(mainClass = ListFiles.class, os = {Os.MACOS, Os.WINDOWS})
     public void notLinux(TestProcess p) throws Exception {
         try {
             p.profile("-e cpu -d 3 -i 1ms -o collapsed -f %f --fdtransfer");

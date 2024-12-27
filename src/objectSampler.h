@@ -25,6 +25,10 @@ class ObjectSampler : public Engine {
                                  jobject object, jclass object_klass, jlong size);
 
   public:
+    const char* type() {
+        return "object_sampler";
+    }
+
     const char* title() {
         return "Allocation profile";
     }
@@ -33,7 +37,6 @@ class ObjectSampler : public Engine {
         return "bytes";
     }
 
-    Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
 

@@ -100,6 +100,9 @@ class LiveRefs {
         jvmtiEnv* jvmti = VM::jvmti();
         Profiler* profiler = Profiler::instance();
 
+        // Reset counters before dumping to collect live objects only.
+        profiler->tryResetCounters();
+
         for (u32 i = 0; i < MAX_REFS; i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);
 
@@ -147,13 +150,9 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     event._instance_size = size;
     event._class_id = lookupClassId(jvmti, object_klass);
 
-    if (_live) {
-        u64 trace = Profiler::instance()->recordSample(NULL, 0, event_type, &event);
-        if (trace != 0) {
-            live_refs.add(jni, object, size, trace);
-        }
-    } else {
-        Profiler::instance()->recordSample(NULL, event._total_size, event_type, &event);
+    u64 trace = Profiler::instance()->recordSample(NULL, event._total_size, event_type, &event);
+    if (_live && trace != 0) {
+        live_refs.add(jni, object, size, trace);
     }
 }
 
@@ -170,19 +169,7 @@ void ObjectSampler::dumpLiveRefs() {
     }
 }
 
-Error ObjectSampler::check(Arguments& args) {
-    if (!VM::canSampleObjects()) {
-        return Error("SampledObjectAlloc is not supported on this JVM");
-    }
-    return Error::OK;
-}
-
 Error ObjectSampler::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
-    }
-
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
     initLiveRefs(args._live);
@@ -199,6 +186,8 @@ void ObjectSampler::stop() {
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_GARBAGE_COLLECTION_START, NULL);
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SAMPLED_OBJECT_ALLOC, NULL);
+
+    VM::releaseSampleObjectsCapability();
 
     dumpLiveRefs();
 }

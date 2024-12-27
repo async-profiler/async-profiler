@@ -6,6 +6,7 @@
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "fdtransferServer.h"
+
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -42,7 +44,7 @@ static const char USAGE_STRING[] =
     "  collect           collect profile for the specified period of time\n"
     "                    and then stop (default action)\n"
     "Options:\n"
-    "  -e event          profiling event: cpu|alloc|lock|cache-misses etc.\n"
+    "  -e event          profiling event: cpu|alloc|nativemem|lock|cache-misses etc.\n"
     "  -d duration       run profiling for <duration> seconds\n"
     "  -f filename       dump output to <filename>\n"
     "  -i interval       sampling interval in nanoseconds\n"
@@ -67,6 +69,7 @@ static const char USAGE_STRING[] =
     "  --loop time       run profiler in a loop\n"
     "  --alloc bytes     allocation profiling interval in bytes\n"
     "  --live            build allocation profile from live objects only\n"
+    "  --nativemem bytes native allocation profiling interval in bytes\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
@@ -77,7 +80,8 @@ static const char USAGE_STRING[] =
     "  --clock source    clock source for JFR timestamps: tsc|monotonic\n"
     "  --begin function  begin profiling when function is executed\n"
     "  --end function    end profiling when function is executed\n"
-    "  --ttsp            time-to-safepoint profiling\n"
+    "  --ttsp            only time-to-safepoint profiling \n"
+    "  --nostop          do not stop profiling outside --begin/--end window\n"
     "  --jfropts opts    JFR recording options: mem\n"
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
@@ -234,7 +238,7 @@ static void setup_output_files(int pid) {
 }
 
 static void setup_lib_path() {
-    char buf[1024];
+    char buf[PATH_MAX];
 
 #ifdef __linux__
     const char* lib = "../lib/libasyncProfiler.so";
@@ -488,13 +492,16 @@ int main(int argc, const char** argv) {
         } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live") {
             format << "," << (arg.str() + 2);
 
-        } else if (arg == "--alloc" || arg == "--lock" || arg == "--wall" ||
+        } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
             params << ",begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";
+
+        } else if (arg == "--nostop") {
+            params << ",nostop";
 
         } else if (arg == "--all-user") {
             params << ",alluser";

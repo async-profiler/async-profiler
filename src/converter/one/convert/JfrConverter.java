@@ -21,40 +21,46 @@ import static one.convert.Frame.*;
 public abstract class JfrConverter extends Classifier {
     protected final JfrReader jfr;
     protected final Arguments args;
+    protected final EventCollector collector;
     protected Dictionary<String> methodNames;
 
     public JfrConverter(JfrReader jfr, Arguments args) {
         this.jfr = jfr;
         this.args = args;
+
+        EventCollector collector = createCollector(args);
+        this.collector = args.nativemem && args.leak ? new MallocLeakAggregator(collector) : collector;
     }
 
     public void convert() throws IOException {
         jfr.stopAtNewChunk = true;
+
         while (jfr.hasMoreChunks()) {
             // Reset method dictionary, since new chunk may have different IDs
             methodNames = new Dictionary<>();
+
+            collector.beforeChunk();
+            collectEvents();
+            collector.afterChunk();
+
+            convertChunk();
+        }
+
+        if (collector.finish()) {
             convertChunk();
         }
     }
 
-    protected abstract void convertChunk() throws IOException;
-
-    protected EventAggregator collectEvents() throws IOException {
-        EventAggregator agg = new EventAggregator(args.threads, args.total);
-        collectEvents(new EventAggregator.Visitor() {
-            @Override
-            public void visit(Event event, long value) {
-                agg.collect(event);
-            }
-        });
-        return agg;
+    protected EventCollector createCollector(Arguments args) {
+        return new EventAggregator(args.threads, args.grain);
     }
 
-    protected void collectEvents(EventAggregator.Visitor visitor) throws IOException {
-        Class<? extends Event> eventClass =
-            args.live ? LiveObject.class :
-                args.alloc ? AllocationSample.class :
-                    args.lock ? ContendedLock.class : ExecutionSample.class;
+    protected void collectEvents() throws IOException {
+        Class<? extends Event> eventClass = args.nativemem ? MallocEvent.class
+                : args.live ? LiveObject.class
+                : args.alloc ? AllocationSample.class
+                : args.lock ? ContendedLock.class
+                : ExecutionSample.class;
 
         BitSet threadStates = null;
         if (args.state != null) {
@@ -74,10 +80,14 @@ public abstract class JfrConverter extends Classifier {
         for (Event event; (event = jfr.readEvent(eventClass)) != null; ) {
             if (event.time >= startTicks && event.time <= endTicks) {
                 if (threadStates == null || threadStates.get(((ExecutionSample) event).threadState)) {
-                    visitor.visit(event, 1);
+                    collector.collect(event);
                 }
             }
         }
+    }
+
+    protected void convertChunk() {
+        // To be overridden in subclasses
     }
 
     protected int toThreadState(String name) {
@@ -136,7 +146,7 @@ public abstract class JfrConverter extends Classifier {
         if (className == null || className.length == 0 || isNativeFrame(methodType)) {
             return new String(methodName, StandardCharsets.UTF_8);
         } else {
-            String classStr = toJavaClassName(className, 0, args.dot, args);
+            String classStr = toJavaClassName(className, 0, args.dot);
             if (methodName == null || methodName.length == 0) {
                 return classStr;
             }
@@ -150,30 +160,23 @@ public abstract class JfrConverter extends Classifier {
         if (cls == null) {
             return "null";
         }
-        byte[] className = jfr.symbols.get(cls.name);
-        return convertJavaClassName(className, args);
+        return toJavaClassName(jfr.symbols.get(cls.name));
     }
 
-    public static String convertJavaClassName(byte[] className, Arguments args) {
+    protected String toJavaClassName(byte[] symbol) {
         int arrayDepth = 0;
-        while (className[arrayDepth] == '[') {
+        while (symbol[arrayDepth] == '[') {
             arrayDepth++;
         }
 
-        String name = toJavaClassName(className, arrayDepth, true, args);
+        String name = toJavaClassName(symbol, arrayDepth, true);
         while (arrayDepth-- > 0) {
             name = name.concat("[]");
         }
         return name;
     }
 
-    protected String getThreadName(int tid) {
-        String threadName = jfr.threads.get(tid);
-        return threadName == null ? "[tid=" + tid + ']' :
-                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
-    }
-
-    public static String toJavaClassName(byte[] symbol, int start, boolean dotted, Arguments args) {
+    protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {
         int end = symbol.length;
         if (start > 0) {
             switch (symbol[start]) {
@@ -228,16 +231,30 @@ public abstract class JfrConverter extends Classifier {
         return dotted ? s.replace('/', '.') : s;
     }
 
-    protected boolean isNativeFrame(byte methodType) {
-        return isNativeFrame(methodType, jfr.isAsyncProfiler());
+    protected String getThreadName(int tid) {
+        String threadName = jfr.threads.get(tid);
+        return threadName == null ? "[tid=" + tid + ']' :
+                threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
     }
 
-    public static boolean isNativeFrame(byte methodType, boolean isAsyncProfiler) {
+    protected boolean isNativeFrame(byte methodType) {
         // In JDK Flight Recorder, TYPE_NATIVE denotes Java native methods,
         // while in async-profiler, TYPE_NATIVE is for C methods
-        return methodType == TYPE_NATIVE && isAsyncProfiler ||
-            methodType == TYPE_CPP ||
-            methodType == TYPE_KERNEL;
+        return methodType == TYPE_NATIVE && jfr.getEnumValue("jdk.types.FrameType", TYPE_KERNEL) != null ||
+                methodType == TYPE_CPP ||
+                methodType == TYPE_KERNEL;
     }
 
+    // Select sum(samples) or sum(value) depending on the --total option.
+    // For lock events, convert lock duration from ticks to nanoseconds.
+    protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
+        final double factor = !args.total ? 0.0 : args.lock ? 1e9 / jfr.ticksPerSec : 1.0;
+
+        @Override
+        public final void visit(Event event, long samples, long value) {
+            visit(event, factor == 0.0 ? samples : factor == 1.0 ? value : (long) (value * factor));
+        }
+
+        protected abstract void visit(Event event, long value);
+    }
 }

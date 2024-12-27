@@ -5,56 +5,114 @@
 
 package one.jfr.event;
 
-public class EventAggregator {
+public class EventAggregator implements EventCollector {
     private static final int INITIAL_CAPACITY = 1024;
 
     private final boolean threads;
-    private final boolean total;
+    private final double grain;
     private Event[] keys;
+    private long[] samples;
     private long[] values;
     private int size;
+    private double fraction;
 
-    public EventAggregator(boolean threads, boolean total) {
+    public EventAggregator(boolean threads, double grain) {
         this.threads = threads;
-        this.total = total;
-        this.keys = new Event[INITIAL_CAPACITY];
-        this.values = new long[INITIAL_CAPACITY];
+        this.grain = grain;
+
+        beforeChunk();
     }
 
+    public int size() {
+        return size;
+    }
+
+    @Override
     public void collect(Event e) {
+        collect(e, e.samples(), e.value());
+    }
+
+    public void collect(Event e, long samples, long value) {
         int mask = keys.length - 1;
         int i = hashCode(e) & mask;
         while (keys[i] != null) {
             if (sameGroup(keys[i], e)) {
-                values[i] += total ? e.value() : e.samples();
+                this.samples[i] += samples;
+                this.values[i] += value;
                 return;
             }
             i = (i + 1) & mask;
         }
 
-        keys[i] = e;
-        values[i] = total ? e.value() : e.samples();
+        this.keys[i] = e;
+        this.samples[i] = samples;
+        this.values[i] = value;
 
         if (++size * 2 > keys.length) {
             resize(keys.length * 2);
         }
     }
 
-    public long getValue(Event e) {
-        int mask = keys.length - 1;
-        int i = hashCode(e) & mask;
-        while (keys[i] != null && !sameGroup(keys[i], e)) {
-            i = (i + 1) & mask;
+    @Override
+    public void beforeChunk() {
+        if (keys == null || size > 0) {
+            keys = new Event[INITIAL_CAPACITY];
+            samples = new long[INITIAL_CAPACITY];
+            values = new long[INITIAL_CAPACITY];
+            size = 0;
         }
-        return values[i];
     }
 
+    @Override
+    public void afterChunk() {
+        if (grain > 0) {
+            coarsen(grain);
+        }
+    }
+
+    @Override
+    public boolean finish() {
+        keys = null;
+        samples = null;
+        values = null;
+        return false;
+    }
+
+    @Override
     public void forEach(Visitor visitor) {
-        for (int i = 0; i < keys.length; i++) {
-            if (keys[i] != null) {
-                visitor.visit(keys[i], values[i]);
+        if (size > 0) {
+            for (int i = 0; i < keys.length; i++) {
+                if (keys[i] != null) {
+                    visitor.visit(keys[i], samples[i], values[i]);
+                }
             }
         }
+    }
+
+    public void coarsen(double grain) {
+        fraction = 0;
+
+        for (int i = 0; i < keys.length; i++) {
+            if (keys[i] != null) {
+                long s0 = samples[i];
+                long s1 = round(s0 / grain);
+                if (s1 == 0) {
+                    keys[i] = null;
+                    size--;
+                }
+                samples[i] = s1;
+                values[i] = (long) (values[i] * ((double) s1 / s0));
+            }
+        }
+    }
+
+    private long round(double d) {
+        long r = (long) d;
+        if ((fraction += d - r) >= 1.0) {
+            fraction -= 1.0;
+            r++;
+        }
+        return r;
     }
 
     private int hashCode(Event e) {
@@ -67,6 +125,7 @@ public class EventAggregator {
 
     private void resize(int newCapacity) {
         Event[] newKeys = new Event[newCapacity];
+        long[] newSamples = new long[newCapacity];
         long[] newValues = new long[newCapacity];
         int mask = newKeys.length - 1;
 
@@ -75,6 +134,7 @@ public class EventAggregator {
                 for (int j = hashCode(keys[i]) & mask; ; j = (j + 1) & mask) {
                     if (newKeys[j] == null) {
                         newKeys[j] = keys[i];
+                        newSamples[j] = samples[i];
                         newValues[j] = values[i];
                         break;
                     }
@@ -83,10 +143,7 @@ public class EventAggregator {
         }
 
         keys = newKeys;
+        samples = newSamples;
         values = newValues;
-    }
-
-    public interface Visitor {
-        void visit(Event event, long value);
     }
 }

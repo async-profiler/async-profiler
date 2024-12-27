@@ -36,10 +36,11 @@ int VMStructs::_thread_anchor_offset = -1;
 int VMStructs::_thread_state_offset = -1;
 int VMStructs::_thread_vframe_offset = -1;
 int VMStructs::_thread_exception_offset = -1;
+int VMStructs::_osthread_id_offset = -1;
+int VMStructs::_call_wrapper_anchor_offset = -1;
 int VMStructs::_comp_env_offset = -1;
 int VMStructs::_comp_task_offset = -1;
 int VMStructs::_comp_method_offset = -1;
-int VMStructs::_osthread_id_offset = -1;
 int VMStructs::_anchor_sp_offset = -1;
 int VMStructs::_anchor_pc_offset = -1;
 int VMStructs::_anchor_fp_offset = -1;
@@ -96,6 +97,7 @@ int VMStructs::_region_start_offset = -1;
 int VMStructs::_region_size_offset = -1;
 int VMStructs::_markword_klass_shift = -1;
 int VMStructs::_markword_monitor_value = -1;
+int VMStructs::_entry_frame_call_wrapper_offset = -1;
 int VMStructs::_interpreter_frame_bcp_offset = 0;
 unsigned char VMStructs::_unsigned5_base = 0;
 const void** VMStructs::_call_stub_return_addr = NULL;
@@ -107,9 +109,7 @@ jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
 jfieldID VMStructs::_klass = NULL;
 int VMStructs::_tls_index = -1;
-intptr_t VMStructs::_env_offset;
 
-VMStructs::GetStackTraceFunc VMStructs::_get_stack_trace = NULL;
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
 
@@ -274,6 +274,10 @@ void VMStructs::initOffsets() {
                 if (strcmp(field, "_method") == 0) {
                     _comp_method_offset = *(int*)(entry + offset_offset);
                 }
+            } else if (strcmp(type, "JavaCallWrapper") == 0) {
+                if (strcmp(field, "_anchor") == 0) {
+                    _call_wrapper_anchor_offset = *(int*)(entry + offset_offset);
+                }
             } else if (strcmp(type, "JavaFrameAnchor") == 0) {
                 if (strcmp(field, "_last_Java_sp") == 0) {
                     _anchor_sp_offset = *(int*)(entry + offset_offset);
@@ -401,6 +405,25 @@ void VMStructs::initOffsets() {
             }
         }
     }
+
+    entry = readSymbol("gHotSpotVMIntConstants");
+    stride = readSymbol("gHotSpotVMIntConstantEntryArrayStride");
+    name_offset = readSymbol("gHotSpotVMIntConstantEntryNameOffset");
+    value_offset = readSymbol("gHotSpotVMIntConstantEntryValueOffset");
+
+    if (entry != 0 && stride != 0) {
+        for (;; entry += stride) {
+            const char* name = *(const char**)(entry + name_offset);
+            if (name == NULL) {
+                break;
+            }
+
+            if (strcmp(name, "frame::entry_frame_call_wrapper_offset") == 0) {
+                _entry_frame_call_wrapper_offset = *(int*)(entry + value_offset) * sizeof(uintptr_t);
+                break;  // remove it for reading more constants
+            }
+        }
+    }
 }
 
 void VMStructs::resolveOffsets() {
@@ -451,6 +474,8 @@ void VMStructs::resolveOffsets() {
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -8 : VM::hotspot_version() == 8 ? -7 : 0;
 #elif defined(__aarch64__)
     _interpreter_frame_bcp_offset = VM::hotspot_version() >= 11 ? -9 : VM::hotspot_version() == 8 ? -7 : 0;
+    // The constant is missing on ARM, but fortunately, it has been stable for years across all JDK versions
+    _entry_frame_call_wrapper_offset = -64;
 #endif
 
     // JDK-8292758 has slightly changed ScopeDesc encoding
@@ -468,6 +493,8 @@ void VMStructs::resolveOffsets() {
     }
 
     _has_stack_structs = _has_method_structs
+            && _call_wrapper_anchor_offset >= 0
+            && _entry_frame_call_wrapper_offset != -1
             && _interpreter_frame_bcp_offset != 0
             && _code_offset != -1
             && _data_offset >= 0
@@ -510,8 +537,6 @@ void VMStructs::resolveOffsets() {
 }
 
 void VMStructs::initJvmFunctions() {
-    _get_stack_trace = (GetStackTraceFunc)_libjvm->findSymbolByPrefix("_ZN8JvmtiEnv13GetStackTraceEP10JavaThreadiiP");
-
     if (VM::hotspot_version() == 8) {
         _lock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor28lock_without_safepoint_checkEv");
         _unlock_func = (LockFunc)_libjvm->findSymbol("_ZN7Monitor6unlockEv");
@@ -574,7 +599,6 @@ void VMStructs::initThreadBridge() {
         // HotSpot
         VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
         if (vm_thread != NULL) {
-            _env_offset = (intptr_t)env - (intptr_t)vm_thread;
             _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
             initTLS(vm_thread);
         }
@@ -582,7 +606,7 @@ void VMStructs::initThreadBridge() {
 }
 
 VMThread* VMThread::current() {
-    return (VMThread*)pthread_getspecific((pthread_key_t)_tls_index);
+    return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : NULL;
 }
 
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {

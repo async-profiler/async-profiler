@@ -39,10 +39,6 @@ struct CallTraceSample {
         counter += s.counter;
         return *this;
     }
-
-    bool operator<(const CallTraceSample& other) const {
-        return counter > other.counter;
-    }
 };
 
 class CallTraceStorage {
@@ -70,6 +66,7 @@ class CallTraceStorage {
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void add(u32 call_trace_id, u64 samples, u64 counter);
+    void resetCounters();
 };
 
 #endif // _CALLTRACESTORAGE

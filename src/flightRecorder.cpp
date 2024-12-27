@@ -56,7 +56,6 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
 
-static const char* const SETTING_RING[] = {NULL, "kernel", "user"};
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
 static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
@@ -149,7 +148,7 @@ class Lookup {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
 
-        if (name[0] == '_' && name[1] == 'Z') {
+        if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
                 mi->_name = _symbols.lookup(demangled);
@@ -183,7 +182,7 @@ class Lookup {
 
         jvmtiEnv* jvmti = VM::jvmti();
 
-        jclass method_class;
+        jclass method_class = NULL;
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
@@ -713,13 +712,14 @@ class Recording {
     }
 
     const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
-        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s",
+        snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
                  f.unwind_comp   ? "unwind_comp"   : "-",
                  f.unwind_native ? "unwind_native" : "-",
                  f.java_anchor   ? "java_anchor"   : "-",
                  f.gc_traces     ? "gc_traces"     : "-",
+                 f.stats         ? "stats"         : "-",
                  f.probe_sp      ? "probesp"       : "-",
                  f.vtable_target ? "vtable"        : "-",
                  f.comp_task     ? "comptask"      : "-",
@@ -804,7 +804,7 @@ class Recording {
 
     void writeSettings(Buffer* buf, Arguments& args) {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "ring", SETTING_RING[args._ring]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", SETTING_CLOCK[args._clock]);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
@@ -824,6 +824,7 @@ class Recording {
         writeBoolSetting(buf, T_EXECUTION_SAMPLE, "enabled", args._event != NULL);
         if (args._event != NULL) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "interval", args._interval);
+            writeBoolSetting(buf, T_EXECUTION_SAMPLE, "alluser", args._alluser);
         }
         if (args._wall >= 0) {
             writeIntSetting(buf, T_EXECUTION_SAMPLE, "wall", args._wall);
@@ -1223,6 +1224,19 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
+    void recordMallocSample(Buffer* buf, int tid, u32 call_trace_id, MallocEvent* event) {
+        int start = buf->skip(1);
+        buf->put8(event->_size != 0 ? T_MALLOC : T_FREE);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(call_trace_id);
+        buf->putVar64(event->_address);
+        if (event->_size != 0) {
+            buf->putVar64(event->_size);
+        }
+        buf->put8(start, buf->offset() - start);
+    }
+
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
@@ -1475,6 +1489,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case WALL_CLOCK_SAMPLE:
                 _rec->recordWallClockSample(buf, tid, call_trace_id, (WallClockEvent*)event);
+                break;
+            case MALLOC_SAMPLE:
+                _rec->recordMallocSample(buf, tid, call_trace_id, (MallocEvent*)event);
                 break;
             case ALLOC_SAMPLE:
                 _rec->recordAllocationInNewTLAB(buf, tid, call_trace_id, (AllocEvent*)event);

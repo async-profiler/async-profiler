@@ -19,6 +19,7 @@ CpuEngine* CpuEngine::_current = NULL;
 long CpuEngine::_interval;
 CStack CpuEngine::_cstack;
 int CpuEngine::_signal;
+bool CpuEngine::_count_overrun;
 
 // Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
 // HotSpot puts VMThread into TLS on thread start, and resets on thread end.
@@ -114,7 +115,9 @@ void CpuEngine::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     if (!_enabled) return;
 
     ExecutionEvent event(TSC::ticks());
-    Profiler::instance()->recordSample(ucontext, _interval, EXECUTION_SAMPLE, &event);
+    // Count missed samples when estimating total CPU time
+    u64 total_cpu_time = _count_overrun ? u64(_interval) * (1 + OS::overrun(siginfo)) : u64(_interval);
+    Profiler::instance()->recordSample(ucontext, total_cpu_time, EXECUTION_SAMPLE, &event);
 }
 
 void CpuEngine::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {

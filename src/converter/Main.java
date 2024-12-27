@@ -106,6 +106,8 @@ public class Main {
                 "     --wall             Wall clock profile\n" +
                 "     --alloc            Allocation profile\n" +
                 "     --live             Live object profile\n" +
+                "     --nativemem        malloc profile\n" +
+                "     --leak             Only include memory leaks in nativemem\n" +
                 "     --lock             Lock contention profile\n" +
                 "  -t --threads          Split stack traces by threads\n" +
                 "  -s --state LIST       Filter thread states: runnable, sleeping\n" +
@@ -122,6 +124,7 @@ public class Main {
                 "Flame Graph options:\n" +
                 "     --title STRING     Flame Graph title\n" +
                 "     --minwidth X       Skip frames smaller than X%\n" +
+                "     --grain X          Coarsen Flame Graph to the given grain size\n" +
                 "     --skip N           Skip N bottom frames\n" +
                 "  -r --reverse          Reverse stack traces (icicle graph)\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +

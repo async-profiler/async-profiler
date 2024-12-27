@@ -7,12 +7,20 @@
 #define _VMENTRY_H
 
 #include <jvmti.h>
+#include "arch.h"
 
 
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
     FRAME_JIT_COMPILED = 1,
     FRAME_INLINED      = 2,
+    // The distinction between FRAME_NATIVE and FRAME_CPP is for visual purposes
+    // to make differentiating between libc and application code easier, which
+    // means that C and asm code is FRAME_NATIVE and Rust/Objective-C code is of
+    // type FRAME_CPP.
+    //
+    // There probably should be a better way of doing this distinction, but it
+    // works well enough in practice.
     FRAME_NATIVE       = 3,
     FRAME_CPP          = 4,
     FRAME_KERNEL       = 5,
@@ -63,6 +71,7 @@ enum ASGCT_Failure {
 
 typedef struct {
     jint bci;
+    LP64_ONLY(jint padding;)
     jmethodID method_id;
 } ASGCT_CallFrame;
 
@@ -92,7 +101,6 @@ class VM {
     static int _hotspot_version;
     static bool _openj9;
     static bool _zing;
-    static bool _can_sample_objects;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -144,8 +152,16 @@ class VM {
         return _zing;
     }
 
-    static bool canSampleObjects() {
-        return _can_sample_objects;
+    static bool addSampleObjectsCapability() {
+        jvmtiCapabilities capabilities = {0};
+        capabilities.can_generate_sampled_object_alloc_events = 1;
+        return _jvmti->AddCapabilities(&capabilities) == 0;
+    }
+
+    static void releaseSampleObjectsCapability() {
+        jvmtiCapabilities capabilities = {0};
+        capabilities.can_generate_sampled_object_alloc_events = 1;
+        _jvmti->RelinquishCapabilities(&capabilities);
     }
 
     static void JNICALL VMInit(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread);

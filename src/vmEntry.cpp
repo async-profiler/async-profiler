@@ -31,7 +31,6 @@ jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
-bool VM::_can_sample_objects = false;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -152,7 +151,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     profiler->updateSymbols(false);
 
     _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
-    _can_sample_objects = !is_hotspot || hotspot_version() >= 11;
 
     CodeCache* lib = isOpenJ9()
         ? profiler->findJvmLibrary("libj9vm")
@@ -200,7 +198,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_retransform_classes = 1;
     capabilities.can_retransform_any_class = isOpenJ9() ? 0 : 1;
     capabilities.can_generate_vm_object_alloc_events = isOpenJ9() ? 1 : 0;
-    capabilities.can_generate_sampled_object_alloc_events = _can_sample_objects ? 1 : 0;
     capabilities.can_get_bytecodes = 1;
     capabilities.can_get_constant_pool = 1;
     capabilities.can_get_source_file_name = 1;
@@ -209,11 +206,7 @@ bool VM::init(JavaVM* vm, bool attach) {
     capabilities.can_generate_monitor_events = 1;
     capabilities.can_generate_garbage_collection_events = 1;
     capabilities.can_tag_objects = 1;
-    if (_jvmti->AddCapabilities(&capabilities) != 0) {
-        _can_sample_objects = false;
-        capabilities.can_generate_sampled_object_alloc_events = 0;
-        _jvmti->AddCapabilities(&capabilities);
-    }
+    _jvmti->AddCapabilities(&capabilities);
 
     jvmtiEventCallbacks callbacks = {0};
     callbacks.VMInit = VMInit;
@@ -251,13 +244,14 @@ bool VM::init(JavaVM* vm, bool attach) {
         }
     }
 
-    if (_can_sample_objects) {
+    if (addSampleObjectsCapability()) {
         // SetHeapSamplingInterval does not have immediate effect, so apply the configuration
         // as early as possible to allow profiling all startup allocations
         JVMFlag* f = JVMFlag::find("UseTLAB");
         if (f != NULL && !f->get()) {
             _jvmti->SetHeapSamplingInterval(0);
         }
+        VM::releaseSampleObjectsCapability();
     }
 
     if (attach) {

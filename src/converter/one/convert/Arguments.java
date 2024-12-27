@@ -18,12 +18,15 @@ public class Arguments {
     public Pattern include;
     public Pattern exclude;
     public double minwidth;
+    public double grain;
     public int skip;
     public boolean help;
     public boolean reverse;
     public boolean cpu;
     public boolean wall;
     public boolean alloc;
+    public boolean nativemem;
+    public boolean leak;
     public boolean live;
     public boolean lock;
     public boolean threads;

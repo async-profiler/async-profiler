@@ -19,6 +19,7 @@ class CpuEngine : public Engine {
     static long _interval;
     static CStack _cstack;
     static int _signal;
+    static bool _count_overrun;
 
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);

@@ -1,0 +1,195 @@
+name: Test and Publish Nightly Builds
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  RELEASE_FROM_JAVA_VERSION: '11'
+
+jobs:
+  build-jars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Build jars
+        run: make jar
+      - name: Upload async-profiler.jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: async-profiler.jar
+          path: build/jar/async-profiler.jar
+      - name: Upload jfr-converter.jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: jfr-converter.jar
+          path: build/jar/jfr-converter.jar
+  build-binaries-and-test:
+    strategy:
+      matrix:
+        runson:
+          - display: linux-x64,
+            name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
+        java-version: [11, 17, 21, 23]
+        java-distribution: [corretto]
+        include:
+          - runson:
+              display: macos-14-arm64
+              name: macos-14
+            java-version: 11
+            java-distribution: corretto
+          - runson:
+              display: linux-arm64
+              name: "codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}"
+            java-version: 11
+            java-distribution: corretto
+    runs-on: ${{ matrix.runson.name }}
+    name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
+    steps:
+      - name: Setup Java for macOS x64
+        uses: actions/setup-java@v4
+        if: ${{ matrix.runson.name == 'macos-14' }}
+        with:
+          distribution: ${{ matrix.java-distribution }}
+          java-version: ${{ matrix.java-version }}
+          architecture: x64 # set up for x64, as the default arm one will override this later
+      - name: Setup Java for default architecture
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ matrix.java-distribution }}
+          java-version: ${{ matrix.java-version }}
+          # architecture: not specifying this defaults to architecture of the runner
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Build and test
+        id: build
+        run: |
+          # there is no git on the codebuild runner, so it's easier to get it from github.sha
+          HASH=$(echo ${{ github.sha }} | cut -c-7)
+          case "${{ matrix.runson.name }}" in
+            macos*)
+              make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
+            ;;
+            *)
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
+            ;;
+          esac
+          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Coverage
+        id: coverage
+        run: |
+          # there is no git on the codebuild runner, so it's easier to get it from github.sha
+          HASH=$(echo ${{ github.sha }} | cut -c-7)
+          case "${{ matrix.runson.name }}" in
+            macos*)
+              brew install gcovr
+              make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
+            ;;
+            *)
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc coverage -j
+            ;;
+          esac
+      - name: Upload test logs for default architecture
+        uses: actions/upload-artifact@v4
+
+        if: always() # we always want to upload test logs, especially when tests fail
+        with:
+          name: test-logs-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          path: |
+            build/test/logs/
+            hs_err*.log
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: test-coverage-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          path: build/test/coverage/
+      - name: Test macOS x64
+        if: ${{ matrix.runson.name == 'macos-14' }}
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
+
+      - name: Upload async-profiler binaries to workflow
+        uses: actions/upload-artifact@v4
+
+        if: env.RELEASE_FROM_JAVA_VERSION == matrix.java-version
+        with:
+          name: ${{ steps.build.outputs.archive }}
+          path: ${{ steps.build.outputs.archive }}
+      - name: Upload test logs for macOS x64
+        uses: actions/upload-artifact@v4
+
+        if: matrix.runson.name == 'macos-14' && always()
+        with:
+          name: test-logs-macos-14-x64-${{ matrix.java-version }}
+          path: |
+            build/test/logs/
+            hs_err*.log
+  publish-only-on-push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    name: publish (nightly)
+    runs-on: ubuntu-latest
+    needs: [build-jars, build-binaries-and-test]
+    steps:
+      - name: Download async-profiler binaries and jars
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*.*' # download everything except test logs
+          merge-multiple: 'true'
+      - name: Delete previous release and publish new release
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs').promises;
+            const commonOptions = {
+              owner: "async-profiler",
+              repo: "async-profiler",
+            };
+            let previousRelease = undefined;
+            try {
+              previousRelease = await github.rest.repos.getReleaseByTag({
+                ...commonOptions,
+                tag: "nightly",
+              });
+            } catch (e) {
+              console.log("No previous nightly release");
+              // ignore, there was no previous nightly release
+            }
+            if (previousRelease !== undefined) {
+              // delete previous release and nightly tag
+              await github.rest.repos.deleteRelease({
+                ...commonOptions,
+                release_id: previousRelease.data.id,
+              });
+              await github.rest.git.deleteRef({...commonOptions, ref: "tags/nightly"});
+            }
+            // create draft release
+            const newReleaseId = (await github.rest.repos.createRelease({
+              ...commonOptions,
+              tag_name: "nightly",
+              target_commitish: "${{ github.sha }}",
+              name: "Nightly builds",
+              body: "Async-profiler binaries published automatically from the latest sources in `master` upon a successful build.",
+              prerelease: true,
+              draft: true,
+            })).data.id;
+            // upload binaries and jars to draft release
+            for (const archiveName of await fs.readdir(process.cwd())) {
+              await github.rest.repos.uploadReleaseAsset({
+                ...commonOptions,
+                release_id: newReleaseId,
+                name: archiveName,
+                data: await fs.readFile(archiveName),
+              });
+            }
+            // publish release
+            await github.rest.repos.updateRelease({
+              ...commonOptions,
+              release_id: newReleaseId,
+              draft: false,
+            });

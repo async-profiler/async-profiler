@@ -89,7 +89,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
-//     allkernel        - include only kernel-mode events
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     simple           - simple class names instead of FQN
@@ -103,6 +102,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     exclude=PATTERN  - exclude stack traces containing PATTERN
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
 //     end=FUNCTION     - end profiling when FUNCTION is executed
+//     nostop           - do not stop profiling outside --begin/--end window
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree
@@ -215,6 +215,8 @@ Error Arguments::parse(const char* args) {
                     msg = "event must not be empty";
                 } else if (strcmp(value, EVENT_ALLOC) == 0) {
                     if (_alloc < 0) _alloc = 0;
+                } else if (strcmp(value, EVENT_NATIVEMEM) == 0) {
+                    if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
                 } else if (_event != NULL) {
@@ -236,6 +238,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("alloc")
                 _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
+
+            CASE("nativemem")
+                _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
 
             CASE("lock")
                 _lock = value == NULL ? 0 : parseUnits(value, NANOS);
@@ -270,6 +275,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("features")
                 if (value != NULL) {
+                    if (strstr(value, "stats"))    _features.stats = 1;
                     if (strstr(value, "probesp"))  _features.probe_sp = 1;
                     if (strstr(value, "vtable"))   _features.vtable_target = 1;
                     if (strstr(value, "comptask")) _features.comp_task = 1;
@@ -339,20 +345,23 @@ Error Arguments::parse(const char* args) {
             CASE("nobatch")
                 _nobatch = true;
 
-            CASE("allkernel")
-                _ring = RING_KERNEL;
-
             CASE("alluser")
-                _ring = RING_USER;
+                _alluser = true;
 
             CASE("cstack")
                 if (value != NULL) {
-                    switch (value[0]) {
-                        case 'n': _cstack = CSTACK_NO;    break;
-                        case 'd': _cstack = CSTACK_DWARF; break;
-                        case 'l': _cstack = CSTACK_LBR;   break;
-                        case 'v': _cstack = CSTACK_VM;    break;
-                        default:  _cstack = CSTACK_FP;
+                    if (strcmp(value, "fp") == 0) {
+                        _cstack = CSTACK_FP;
+                    } else if (strcmp(value, "dwarf") == 0) {
+                        _cstack = CSTACK_DWARF;
+                    } else if (strcmp(value, "lbr") == 0) {
+                        _cstack = CSTACK_LBR;
+                    } else if (strcmp(value, "vm") == 0) {
+                        _cstack = CSTACK_VM;
+                    } else if (strcmp(value, "vmx") == 0) {
+                        _cstack = CSTACK_VMX;
+                    } else {
+                        _cstack = CSTACK_NO;
                     }
                 }
 
@@ -393,6 +402,9 @@ Error Arguments::parse(const char* args) {
             CASE("end")
                 _end = value;
 
+            CASE("nostop")
+                _nostop = true;
+
             // FlameGraph options
             CASE("title")
                 _title = value;
@@ -413,7 +425,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0) {
         _event = EVENT_CPU;
     }
 
