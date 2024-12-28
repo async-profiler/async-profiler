@@ -5,6 +5,7 @@
 
 package one.heatmap;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import one.convert.Index;
@@ -23,10 +24,8 @@ public class MethodCache {
     private Dictionary<byte[]> symbols;
 
     private final FrameFormatter formatter;
-    private final SymbolTable symbolTable = new SymbolTable();
-    private final int emptyIndex = symbolTable.index(new byte[0]);
-    private final Index<Method> methodIndex =
-            new Index<>(Method.class, new Method(symbolTable.index("all".getBytes()), emptyIndex), 16384);
+    private final Index<String> symbolTable = new Index<>(String.class, "");
+    private final Index<Method> methodIndex = new Index<>(Method.class, new Method(symbolTable.index("all"), 0));
 
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
@@ -114,7 +113,8 @@ public class MethodCache {
 
         ClassRef classRef = classRefs.get(extra);
         byte[] classNameBytes = this.symbols.get(classRef == null ? UNKNOWN_CLASS_REF.name : classRef.name);
-        method = new Method(methodId, symbolTable.indexForJavaClass(classNameBytes), emptyIndex, -1, type, false);
+        String javaClassName = formatter.toJavaClassName(classNameBytes);
+        method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {
@@ -138,15 +138,15 @@ public class MethodCache {
         byte[] methodNameBytes = this.symbols.get(methodRef.name);
 
         int className = formatter.isNativeFrame(type)
-                ? symbolTable.index(classNameBytes)
-                : symbolTable.indexForJavaClass(classNameBytes);
-        int methodName = symbolTable.index(methodNameBytes);
+            ? symbolTable.index(new String(classNameBytes, StandardCharsets.UTF_8))
+            : symbolTable.index(formatter.toJavaClassName(classNameBytes));
+        int methodName = symbolTable.index(new String(methodNameBytes, StandardCharsets.UTF_8));
 
         return new Method(methodId, className, methodName, location, type, firstInStack);
     }
 
     public String[] orderedSymbolTable() {
-        return symbolTable.orderedKeys(formatter);
+        return symbolTable.keys();
     }
 
     public Index<Method> methodsIndex() {
