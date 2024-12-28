@@ -7,9 +7,6 @@ package one.heatmap;
 
 import java.util.Arrays;
 
-/**
- * Fast and compact Object<->int bidirectional map.
- */
 public class StackStorage {
 
     protected static final int INITIAL_CAPACITY = 16 * 1024;
