@@ -1010,9 +1010,11 @@
 			const line = data.nextInt18();
 			const type = data.nextInt6();
 
-			names.push(methodName(cpool[className], cpool[name], bci, line, type));
+			const noline = bci === 0xffff && line === 0xffff;
+
+			names.push(methodName(cpool[className], cpool[name], noline ? 0 : bci, noline ? 0 : line, type));
 			colors.push(getColorStable(palette[type], i + 1));
-			bcis[i + 1] = ", bci: " + bci + ", m: " + (i + 1);
+			bcis[i + 1] = noline ? "" : ", bci: " + bci;
 		}
 
 		return {n: names, c: colors, b: bcis};
