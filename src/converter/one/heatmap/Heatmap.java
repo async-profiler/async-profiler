@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 import one.convert.Arguments;
+import one.convert.Index;
 import one.convert.ResourceProcessor;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
@@ -199,7 +200,7 @@ public class Heatmap {
             int methodId = context.nodeTree.extractMethodId(d);
 
             out.writeVar(synonymTable.nodeIdOrSynonym(parentId));
-            out.writeVar(context.orderedMethods[methodId - 1].frequencyOrNewMethodId);
+            out.writeVar(context.orderedMethods[methodId].frequencyOrNewMethodId);
         }
     }
 
@@ -239,7 +240,7 @@ public class Heatmap {
         }
 
         // restores order
-        context.methods.orderedKeys(context.orderedMethods);
+        context.methods.keys(context.orderedMethods);
     }
 
     private int[] buildLz78TreeAndPrepareData(EvaluationContext context) {
@@ -268,7 +269,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
+                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
                         }
@@ -293,7 +294,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId - 1].frequencyOrNewMethodId++;
+                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
                     }
                 }
             }
@@ -392,8 +393,7 @@ public class Heatmap {
             this.stackTraces = stackTraces;
             this.symbols = symbols;
 
-            orderedMethods = new Method[methods.size()];
-            methods.orderedKeys(orderedMethods);
+            orderedMethods = methods.keys();
         }
     }
 

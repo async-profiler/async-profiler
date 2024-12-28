@@ -7,6 +7,7 @@ package one.heatmap;
 
 import java.util.Arrays;
 
+import one.convert.Index;
 import one.jfr.ClassRef;
 import one.jfr.Dictionary;
 import one.jfr.MethodRef;
@@ -24,11 +25,8 @@ public class MethodCache {
     private final FrameFormatter formatter;
     private final SymbolTable symbolTable = new SymbolTable();
     private final int emptyIndex = symbolTable.index(new byte[0]);
-    private final Index<Method> methodIndex = new Index<>();
-
-    {
-        methodIndex.index(new Method(symbolTable.index("all".getBytes()), emptyIndex));
-    }
+    private final Index<Method> methodIndex =
+            new Index<>(Method.class, new Method(symbolTable.index("all".getBytes()), emptyIndex), 16384);
 
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
