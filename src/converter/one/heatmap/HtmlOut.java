@@ -5,7 +5,6 @@
 
 package one.heatmap;
 
-import java.io.IOException;
 import java.io.PrintStream;
 
 public class HtmlOut {
@@ -22,13 +21,12 @@ public class HtmlOut {
         return pos;
     }
 
-    public void resetPos() {
+    public void reset() {
         pos = 0;
     }
 
-    public void nextByte(int ch) {
-        int c = ch;
-        switch (ch) {
+    public void nextByte(int c) {
+        switch (c) {
             case 0:
                 c = 127;
                 break;
@@ -49,7 +47,7 @@ public class HtmlOut {
         pos++;
     }
 
-    public void writeVar(long v) throws IOException {
+    public void writeVar(long v) {
         while (v >= 61) {
             int b = 61 + (int) (v % 61);
             nextByte(b);
@@ -58,14 +56,14 @@ public class HtmlOut {
         nextByte((int) v);
     }
 
-    public void write6(int v) throws IOException {
-        if ((v & 0xFFFFFFC0) != 0) {
+    public void write6(int v) {
+        if ((v & ~0x3F) != 0) {
             throw new IllegalArgumentException("Value " + v + " is out of bounds");
         }
         nextByte(v);
     }
 
-    public void write18(int v) throws IOException {
+    public void write18(int v) {
         if ((v & ~0x3FFFF) != 0) {
             throw new IllegalArgumentException("Value " + v + " is out of bounds");
         }
@@ -75,18 +73,13 @@ public class HtmlOut {
         }
     }
 
-    public void write30(int v) throws IOException {
-        if ((v & 0xFFFF_FFFF_C000_0000L) != 0) {
+    public void write30(int v) {
+        if ((v & ~0x3FFFFFFF) != 0) {
             throw new IllegalArgumentException("Value " + v + " is out of bounds");
         }
         for (int i = 0; i < 5; i++) {
             nextByte(v & 0x3F);
             v >>>= 6;
         }
-    }
-
-    public void write(byte[] data) throws IOException {
-        out.write(data);
-        pos += data.length;
     }
 }

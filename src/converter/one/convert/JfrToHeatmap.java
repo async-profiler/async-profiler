@@ -32,21 +32,21 @@ public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
     protected EventCollector createCollector(Arguments args) {
         return new EventCollector() {
             @Override
-            public void collect(Event e) {
+            public void collect(Event event) {
                 int extra = 0;
                 byte type = 0;
-                if (e instanceof AllocationSample) {
-                    extra = ((AllocationSample) e).classId;
-                    type = ((AllocationSample) e).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
-                } else if (e instanceof ContendedLock) {
-                    extra = ((ContendedLock) e).classId;
+                if (event instanceof AllocationSample) {
+                    extra = ((AllocationSample) event).classId;
+                    type = ((AllocationSample) event).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
+                } else if (event instanceof ContendedLock) {
+                    extra = ((ContendedLock) event).classId;
                     type = TYPE_KERNEL;
                 }
 
-                long msFromStart = (e.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
+                long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
                 long timeMs = jfr.chunkStartNanos / 1_000_000 + msFromStart;
 
-                heatmap.addEvent(e.stackTraceId, extra, type, timeMs);
+                heatmap.addEvent(event.stackTraceId, extra, type, timeMs);
             }
 
             @Override
@@ -54,8 +54,8 @@ public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
                 heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols);
                 jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
                     @Override
-                    public void visit(long key, StackTrace value) {
-                        heatmap.addStack(key, value.methods, value.locations, value.types, value.methods.length);
+                    public void visit(long key, StackTrace trace) {
+                        heatmap.addStack(key, trace.methods, trace.locations, trace.types, trace.methods.length);
                     }
                 });
             }

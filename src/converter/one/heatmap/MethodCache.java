@@ -31,7 +31,7 @@ public class MethodCache {
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
     // but in most cases all methods should fit nearCache, so less code is better
-    private final Dictionary<Method> farMethods = new Dictionary<>(1024 * 1024);
+    private final Dictionary<Method> farMethods = new Dictionary<>();
 
     public MethodCache(FrameFormatter formatter) {
         this.formatter = formatter;

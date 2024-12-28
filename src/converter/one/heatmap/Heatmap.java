@@ -41,11 +41,6 @@ public class Heatmap {
         state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols);
     }
 
-    public void nextFile() {
-        state.stackTracesCache.clear();
-        state.methodsCache.clear();
-    }
-
     public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
         state.addEvent(stackTraceId, extra, type, timeMs);
     }
@@ -57,7 +52,7 @@ public class Heatmap {
     public void finish(long startMs) {
         this.startMs = startMs;
         assignConstantPool(null, null, null);
-        nextFile();
+        state.stackTracesCache.clear();
     }
 
     private EvaluationContext evaluate() {
@@ -83,6 +78,11 @@ public class Heatmap {
     }
 
     public void dump(PrintStream stream) throws IOException {
+        if (state.sampleList.getRecordsCount() == 0) {
+            // Need a better way to handle this, but we should not throw an exception
+            stream.println("No samples found");
+            return;
+        }
 
         EvaluationContext evaluationContext = evaluate();
 
@@ -95,7 +95,7 @@ public class Heatmap {
         stream.print('E');
 
         tail = ResourceProcessor.printTill(stream, tail, "/*methods:*/");
-        out.resetPos();
+        out.reset();
         stream.print('S');
         printMethods(out, evaluationContext);
         stream.print('E');
