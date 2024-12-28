@@ -24,8 +24,8 @@ public class MethodCache {
     private Dictionary<byte[]> symbols;
 
     private final FrameFormatter formatter;
-    private final Index<String> symbolTable = new Index<>(String.class, "");
-    private final Index<Method> methodIndex = new Index<>(Method.class, new Method(symbolTable.index("all"), 0));
+    private final Index<String> symbolTable = new Index<>(String.class, "", 32768);
+    private final Index<Method> methodIndex = new Index<>(Method.class, new Method(symbolTable.index("all"), 0), 32768);
 
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
