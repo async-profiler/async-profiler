@@ -1010,7 +1010,7 @@
 			const line = data.nextInt18();
 			const type = data.nextInt6();
 
-			names.push(methodName(cpool[className - 1], cpool[name - 1], bci, line, type));
+			names.push(methodName(cpool[className], cpool[name], bci, line, type));
 			colors.push(getColorStable(palette[type], i + 1));
 			bcis[i + 1] = ", bci: " + bci + ", m: " + (i + 1);
 		}

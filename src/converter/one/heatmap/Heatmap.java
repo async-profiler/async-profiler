@@ -66,7 +66,7 @@ public class Heatmap {
         );
     }
 
-    private void compressMethods(HtmlOut out, Method[] methods) throws IOException {
+    private void compressMethods(HtmlOut out, Method[] methods) {
         out.writeVar(methods.length);
         for (Method method : methods) {
             out.writeVar(method.className);
@@ -112,7 +112,7 @@ public class Heatmap {
         stream.print(tail);
     }
 
-    private void printHeatmap(final HtmlOut out, EvaluationContext context) throws IOException {
+    private void printHeatmap(final HtmlOut out, EvaluationContext context) {
         int veryStart = out.pos();
         int wasPos = out.pos();
 
@@ -160,7 +160,7 @@ public class Heatmap {
     }
 
     private void writeSamples(HtmlOut out, SynonymTable synonymTable, EvaluationContext context,
-                              int[] stackChunksBuffer) throws IOException {
+                              int[] stackChunksBuffer) {
         for (int stackId : context.sampleList.stackIds) {
             int chunksStart = stackChunksBuffer[stackId * 2];
             int chunksEnd = stackChunksBuffer[stackId * 2 + 1];
@@ -191,7 +191,7 @@ public class Heatmap {
         return chunksCount;
     }
 
-    private void writeTree(HtmlOut out, SynonymTable synonymTable, EvaluationContext context) throws IOException {
+    private void writeTree(HtmlOut out, SynonymTable synonymTable, EvaluationContext context) {
         long[] data = context.nodeTree.treeData();
         int dataSize = context.nodeTree.treeDataSize();
         for (int i = 0; i < dataSize; i++) {
@@ -204,14 +204,14 @@ public class Heatmap {
         }
     }
 
-    private void writeSynonymsTable(HtmlOut out, SynonymTable synonymTable) throws IOException {
+    private void writeSynonymsTable(HtmlOut out, SynonymTable synonymTable) {
         out.writeVar(synonymTable.synonymsCount());
         for (int i = 0; i < synonymTable.synonymsCount(); i++) {
             out.writeVar(synonymTable.synonymAt(i));
         }
     }
 
-    private void writeStartMethods(HtmlOut out, EvaluationContext context) throws IOException {
+    private void writeStartMethods(HtmlOut out, EvaluationContext context) {
         int startsCount = 0;
         for (Method method : context.orderedMethods) {
             if (method.start) {
@@ -306,7 +306,7 @@ public class Heatmap {
         return stackBuffer;
     }
 
-    private void writeBlockSizes(HtmlOut out, EvaluationContext context) throws IOException {
+    private void writeBlockSizes(HtmlOut out, EvaluationContext context) {
         int[] blockSizeFrequencies = new int[1024];
         int maxBlockSize = 0;
         for (int blockSize : context.sampleList.blockSizes) {
