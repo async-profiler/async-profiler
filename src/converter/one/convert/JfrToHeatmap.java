@@ -5,7 +5,6 @@
 
 package one.convert;
 
-import one.heatmap.FrameFormatter;
 import one.heatmap.Heatmap;
 import one.jfr.Dictionary;
 import one.jfr.JfrReader;
@@ -20,7 +19,7 @@ import java.io.*;
 import static one.convert.Frame.TYPE_INLINED;
 import static one.convert.Frame.TYPE_KERNEL;
 
-public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
+public class JfrToHeatmap extends JfrConverter {
     private final Heatmap heatmap;
 
     public JfrToHeatmap(JfrReader jfr, Arguments args) {
@@ -51,7 +50,7 @@ public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
 
             @Override
             public void beforeChunk() {
-                heatmap.assignConstantPool(jfr.methods, jfr.classes, jfr.symbols);
+                heatmap.beforeChunk();
                 jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
                     @Override
                     public void visit(long key, StackTrace trace) {
@@ -76,16 +75,6 @@ public class JfrToHeatmap extends JfrConverter implements FrameFormatter {
                 throw new AssertionError("Should not be called");
             }
         };
-    }
-
-    @Override
-    public boolean isNativeFrame(byte type) {
-        return super.isNativeFrame(type);
-    }
-
-    @Override
-    public String toJavaClassName(byte[] symbol) {
-        return super.toJavaClassName(symbol);
     }
 
     public void dump(OutputStream out) throws IOException {

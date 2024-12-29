@@ -12,11 +12,9 @@ import java.util.Comparator;
 
 import one.convert.Arguments;
 import one.convert.Index;
+import one.convert.JfrConverter;
 import one.convert.ResourceProcessor;
-import one.jfr.ClassRef;
-import one.jfr.Dictionary;
 import one.jfr.DictionaryInt;
-import one.jfr.MethodRef;
 
 public class Heatmap {
 
@@ -28,17 +26,9 @@ public class Heatmap {
     private State state;
     private long startMs;
 
-    public Heatmap(Arguments args, FrameFormatter formatter) {
+    public Heatmap(Arguments args, JfrConverter converter) {
         this.args = args;
-        this.state = new State(formatter, BLOCK_DURATION_MS);
-    }
-
-    public void assignConstantPool(
-            Dictionary<MethodRef> methodRefs,
-            Dictionary<ClassRef> classRefs,
-            Dictionary<byte[]> symbols
-    ) {
-        state.methodsCache.assignConstantPool(methodRefs, classRefs, symbols);
+        this.state = new State(converter, BLOCK_DURATION_MS);
     }
 
     public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
@@ -49,9 +39,13 @@ public class Heatmap {
         state.addStack(id, methods, locations, types, size);
     }
 
+    public void beforeChunk() {
+        state.methodsCache.clear();
+    }
+
     public void finish(long startMs) {
         this.startMs = startMs;
-        assignConstantPool(null, null, null);
+        state.methodsCache.clear();
         state.stackTracesCache.clear();
     }
 
@@ -410,9 +404,9 @@ public class Heatmap {
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(FrameFormatter formatter, long blockDurationMs) {
+        State(JfrConverter converter, long blockDurationMs) {
             sampleList = new SampleList(blockDurationMs);
-            methodsCache = new MethodCache(formatter);
+            methodsCache = new MethodCache(converter);
         }
 
         public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
