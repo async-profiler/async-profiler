@@ -12,6 +12,11 @@ public class Index<T> extends HashMap<T, Integer> {
     private final Class<T> cls;
 
     public Index(Class<T> cls, T empty) {
+        this(cls, empty, 256);
+    }
+
+    public Index(Class<T> cls, T empty, int initialCapacity) {
+        super(initialCapacity);
         this.cls = cls;
         super.put(empty, 0);
     }
@@ -30,9 +35,13 @@ public class Index<T> extends HashMap<T, Integer> {
     @SuppressWarnings("unchecked")
     public T[] keys() {
         T[] result = (T[]) Array.newInstance(cls, size());
+        keys(result);
+        return result;
+    }
+
+    public void keys(T[] result) {
         for (Entry<T, Integer> entry : entrySet()) {
             result[entry.getValue()] = entry.getKey();
         }
-        return result;
     }
 }

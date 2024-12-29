@@ -13,6 +13,7 @@ import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import static one.convert.Frame.*;
+import static one.convert.ResourceProcessor.*;
 
 public class FlameGraph implements Comparator<Frame> {
     private static final Frame[] EMPTY_FRAME_ARRAY = {};
@@ -199,12 +200,6 @@ public class FlameGraph implements Comparator<Frame> {
         out.print(tail);
     }
 
-    private String printTill(PrintStream out, String data, String till) {
-        int index = data.indexOf(till);
-        out.print(data.substring(0, index));
-        return data.substring(index + till.length());
-    }
-
     private void printCpool(PrintStream out) {
         String[] strings = cpool.keys();
         Arrays.sort(strings);
@@ -375,23 +370,6 @@ public class FlameGraph implements Comparator<Frame> {
         if (s.indexOf('\'') >= 0) s = s.replace("\\'", "'");
         if (s.indexOf('\\') >= 0) s = s.replace("\\\\", "\\");
         return s;
-    }
-
-    private static String getResource(String name) {
-        try (InputStream stream = FlameGraph.class.getResourceAsStream(name)) {
-            if (stream == null) {
-                throw new IOException("No resource found");
-            }
-
-            ByteArrayOutputStream result = new ByteArrayOutputStream();
-            byte[] buffer = new byte[32768];
-            for (int length; (length = stream.read(buffer)) != -1; ) {
-                result.write(buffer, 0, length);
-            }
-            return result.toString("UTF-8");
-        } catch (IOException e) {
-            throw new IllegalStateException("Can't load resource with name " + name);
-        }
     }
 
     @Override

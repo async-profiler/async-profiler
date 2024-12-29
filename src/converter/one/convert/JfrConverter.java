@@ -125,7 +125,7 @@ public abstract class JfrConverter extends Classifier {
     }
 
     @Override
-    protected String getMethodName(long methodId, byte methodType) {
+    public String getMethodName(long methodId, byte methodType) {
         String result = methodNames.get(methodId);
         if (result == null) {
             methodNames.put(methodId, result = resolveMethodName(methodId, methodType));
@@ -155,28 +155,26 @@ public abstract class JfrConverter extends Classifier {
         }
     }
 
-    protected String getClassName(long classId) {
+    public String getClassName(long classId) {
         ClassRef cls = jfr.classes.get(classId);
         if (cls == null) {
             return "null";
         }
-        return toJavaClassName(jfr.symbols.get(cls.name));
-    }
+        byte[] className = jfr.symbols.get(cls.name);
 
-    protected String toJavaClassName(byte[] symbol) {
         int arrayDepth = 0;
-        while (symbol[arrayDepth] == '[') {
+        while (className[arrayDepth] == '[') {
             arrayDepth++;
         }
 
-        String name = toJavaClassName(symbol, arrayDepth, true);
+        String name = toJavaClassName(className, arrayDepth, true);
         while (arrayDepth-- > 0) {
             name = name.concat("[]");
         }
         return name;
     }
 
-    protected String toJavaClassName(byte[] symbol, int start, boolean dotted) {
+    private String toJavaClassName(byte[] symbol, int start, boolean dotted) {
         int end = symbol.length;
         if (start > 0) {
             switch (symbol[start]) {
@@ -231,7 +229,24 @@ public abstract class JfrConverter extends Classifier {
         return dotted ? s.replace('/', '.') : s;
     }
 
-    protected String getThreadName(int tid) {
+    public StackTraceElement getStackTraceElement(long methodId, byte methodType, int location) {
+        MethodRef method = jfr.methods.get(methodId);
+        if (method == null) {
+            return new StackTraceElement("", "unknown", null, 0);
+        }
+
+        ClassRef cls = jfr.classes.get(method.cls);
+        byte[] className = jfr.symbols.get(cls.name);
+        byte[] methodName = jfr.symbols.get(method.name);
+
+        String classStr = className == null || className.length == 0 || isNativeFrame(methodType) ? "" :
+                toJavaClassName(className, 0, args.dot);
+        String methodStr = methodName == null || methodName.length == 0 ? "" :
+                new String(methodName, StandardCharsets.UTF_8);
+        return new StackTraceElement(classStr, methodStr, null, location >>> 16);
+    }
+
+    public String getThreadName(int tid) {
         String threadName = jfr.threads.get(tid);
         return threadName == null ? "[tid=" + tid + ']' :
                 threadName.startsWith("[tid=") ? threadName : '[' + threadName + " tid=" + tid + ']';
