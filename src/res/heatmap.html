@@ -1,159 +1,159 @@
 <!DOCTYPE html>
 <html lang='en'>
 <head>
-	<meta charset='utf-8'>
-	<style>
-		body {
-			margin: 0;
-			padding: 4px 8px 24px;
-			background-color: #ffffff;
-			overflow-y: scroll
-		}
-		h1 {
-			margin: 5px 0 0 0;
-			font-size: 18px;
-			font-weight: normal;
-			text-align: center
-		}
-		header {
-			margin: -24px 0 5px 0;
-			line-height: 24px
-		}
-		button {
-			font: 12px sans-serif;
-			cursor: pointer
-		}
-		p {
-			margin: 5px 0 5px 0
-		}
-		a {
-			color: #0366d6
-		}
-		#hl {
-			position: absolute;
-			display: none;
-			overflow: hidden;
-			white-space: nowrap;
-			pointer-events: none;
-			background-color: #ffffe0;
-			outline: 1px solid #ffc000;
-			height: 15px
-		}
-		#preview_wrapper {
-			position: absolute;
-			display: none;
-			background-color: #ffffe0;
-			outline: 1px solid #ffc000;
-			pointer-events: none;
-		}
-		#hl span {
-			padding: 0 3px 0 3px
-		}
-		#status {
-			overflow: hidden;
-			white-space: nowrap
-		}
-		#match {
-			overflow: hidden;
-			white-space: nowrap;
-			display: none;
-			float: right;
-			text-align: right
-		}
-		#reset {
-			cursor: pointer
-		}
-		#canvas {
-			width: 100%;
-			height: 300px;
-		}
-		.selectionPart {
-			position: absolute;
-			display: none;
-			pointer-events: none;
-			box-sizing: border-box;
-		}
-		.sel {
-			background-color: #dada0040
-		}
-		.act {
-			background-color: #00da0040
-		}
-		.dif {
-			background-color: #00dada40
-		}
-		.top {
-			border-top: .1px solid #000
-		}
-		.left {
-			border-left: .1px solid #000
-		}
-		.bottom {
-			border-bottom: .1px solid #000
-		}
-		.right {
-			border-right: .1px solid #000
-		}
-		#info-tooltip {
-			display: none;
-			position: absolute;
-			top: 10px;
-			right: 48px;
-			width: 204px;
-			border: 1px solid #666666;
-			background: #ffffe0;
-			border-radius: 8px;
-			padding: 4px
-		}
-		#heatmap-height-line {
-			text-decoration: #0366d6 dashed underline;
-			cursor: pointer;
-			font-family: monospace
-		}
-		#heatmap-info {
-			cursor: help
-		}
-		#heatmap-info:hover ~ #info-tooltip {
-			display: block
-		}
-		.toolbarIcon {
-			width: 24px;
-			height: 24px;
-			margin-top: 4px;
-			margin-bottom: 4px;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-		}
-		.toolbarSelected {
-			background-color: #cccccc;
-			outline: 1px solid #999999;
-			border-radius: 4px;
-		}
-		.toolbarIcon:hover {
-			background-color: #ffffe0;
-			outline: 1px solid #ffc000;
-			border-radius: 4px;
-		}
-		.bordered {
-			outline: 1px solid #999999;
-		}
-		.colortip {
-			width: 100px;
-			box-sizing: border-box;
-			padding: 4px;
-			background: linear-gradient(var(--c1), var(--c2))
-		}
-		.status {
-			position: fixed;
-			bottom: 0;
-			padding: 2px 4px;
-			background-color: #ffffe0;
-			border-top: 1px solid #ffc000;
-			border-left: 1px solid #ffc000;
-			border-right: 1px solid #ffc000;
-		}
-	</style>
+<meta charset='utf-8'>
+<style>
+	body {
+		margin: 0;
+		padding: 4px 8px 24px;
+		background-color: #ffffff;
+		overflow-y: scroll
+	}
+	h1 {
+		margin: 5px 0 0 0;
+		font-size: 18px;
+		font-weight: normal;
+		text-align: center
+	}
+	header {
+		margin: -24px 0 5px 0;
+		line-height: 24px
+	}
+	button {
+		font: 12px sans-serif;
+		cursor: pointer
+	}
+	p {
+		margin: 5px 0 5px 0
+	}
+	a {
+		color: #0366d6
+	}
+	#hl {
+		position: absolute;
+		display: none;
+		overflow: hidden;
+		white-space: nowrap;
+		pointer-events: none;
+		background-color: #ffffe0;
+		outline: 1px solid #ffc000;
+		height: 15px
+	}
+	#preview_wrapper {
+		position: absolute;
+		display: none;
+		background-color: #ffffe0;
+		outline: 1px solid #ffc000;
+		pointer-events: none;
+	}
+	#hl span {
+		padding: 0 3px 0 3px
+	}
+	#status {
+		overflow: hidden;
+		white-space: nowrap
+	}
+	#match {
+		overflow: hidden;
+		white-space: nowrap;
+		display: none;
+		float: right;
+		text-align: right
+	}
+	#reset {
+		cursor: pointer
+	}
+	#canvas {
+		width: 100%;
+		height: 300px;
+	}
+	.selectionPart {
+		position: absolute;
+		display: none;
+		pointer-events: none;
+		box-sizing: border-box;
+	}
+	.sel {
+		background-color: #dada0040
+	}
+	.act {
+		background-color: #00da0040
+	}
+	.dif {
+		background-color: #00dada40
+	}
+	.top {
+		border-top: .1px solid #000
+	}
+	.left {
+		border-left: .1px solid #000
+	}
+	.bottom {
+		border-bottom: .1px solid #000
+	}
+	.right {
+		border-right: .1px solid #000
+	}
+	#info-tooltip {
+		display: none;
+		position: absolute;
+		top: 10px;
+		right: 48px;
+		width: 204px;
+		border: 1px solid #666666;
+		background: #ffffe0;
+		border-radius: 8px;
+		padding: 4px
+	}
+	#heatmap-height-line {
+		text-decoration: #0366d6 dashed underline;
+		cursor: pointer;
+		font-family: monospace
+	}
+	#heatmap-info {
+		cursor: help
+	}
+	#heatmap-info:hover ~ #info-tooltip {
+		display: block
+	}
+	.toolbarIcon {
+		width: 24px;
+		height: 24px;
+		margin-top: 4px;
+		margin-bottom: 4px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+	.toolbarSelected {
+		background-color: #cccccc;
+		outline: 1px solid #999999;
+		border-radius: 4px;
+	}
+	.toolbarIcon:hover {
+		background-color: #ffffe0;
+		outline: 1px solid #ffc000;
+		border-radius: 4px;
+	}
+	.bordered {
+		outline: 1px solid #999999;
+	}
+	.colortip {
+		width: 100px;
+		box-sizing: border-box;
+		padding: 4px;
+		background: linear-gradient(var(--c1), var(--c2))
+	}
+	.status {
+		position: fixed;
+		bottom: 0;
+		padding: 2px 4px;
+		background-color: #ffffe0;
+		border-top: 1px solid #ffc000;
+		border-left: 1px solid #ffc000;
+		border-right: 1px solid #ffc000;
+	}
+</style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <div class='bordered' style="display: flex">
@@ -360,11 +360,6 @@
 		[0xe17d00, 30, 30, 0],
 		[0xcce880, 20, 20, 20]
 	];
-
-	function getColor(p) {
-		const v = Math.random();
-		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
-	}
 
 	function getColorStable(p, i) {
 		i = Math.imul(i, 0xcc9e2d51);
@@ -672,22 +667,6 @@
 			return res;
 		}
 
-		nextInt6() {
-			return this.byteAt(this.pos++);
-		}
-
-		nextSymbol() {
-			return this.byteAt(this.pos++);
-		}
-
-		nextInt30() {
-			return this.byteAt(this.pos++) << 0
-				| this.byteAt(this.pos++) << 6
-				| this.byteAt(this.pos++) << 12
-				| this.byteAt(this.pos++) << 18
-				| this.byteAt(this.pos++) << 24;
-		}
-
 		nextBase123() {
 			return (Math.imul(this.byteAt(this.pos++), 1860867)	// 123^3
 				+ Math.imul(this.byteAt(this.pos++), 15129)     // 123^2
@@ -712,6 +691,10 @@
 			return c;
 		}
 
+		nextInt6() {
+			return this.byteAt(this.pos++);
+		}
+
 		nextInt18() {
 			return this.nextInt6() | this.nextInt6() << 6 | this.nextInt6() << 12;
 		}
@@ -727,7 +710,6 @@
 				| this.byteAt(p++) << 18
 				| this.byteAt(p++) << 24;
 		}
-
 	}
 
 	function decodeExecutions(data) {
@@ -813,7 +795,6 @@
 				}
 			}
 		}
-
 
 		let synonymsCount = data.nextVarInt();
 		const synonyms = new Uint32Array(synonymsCount);
@@ -967,7 +948,6 @@
 		min(search) {
 			return search ? this.blocksData.searchMinCounts[this.zoom] : this.blocksData.minCounts[this.zoom];
 		}
-
 	}
 
 	function claimHtml(id) {
@@ -1064,7 +1044,6 @@
 	document.title = titleText;
 
 	const heatCanvas = document.getElementById('heatmap-canvas');
-	const heatStatus = document.getElementById('status');
 	const heatCanvasWrapper = document.getElementById('heatmap-canvas-wrapper');
 	const heatCanvasContainer = document.getElementById('heatmap-canvas-container');
 
@@ -1099,6 +1078,8 @@
 	let nextTask = 0;
 
 	function addTask(id, iteration, afterFrame) {
+		if (!afterFrame) afterFrame = function () {};
+
 		for (let t of bgTasks) {
 			if (t.id === id) {
 				t.f = iteration;
@@ -1295,7 +1276,6 @@
 	function renderTraces(from, to) {
 		addTask('flame', function () {
 			return false;
-		}, function () {
 		});
 		addTask('flamePrepare', () => {
 			let [framesBuffer, sampleToChunkPos, sampleToStorageDelta, longSamplesBuffer] = prepareFrames(from, to);
@@ -1356,10 +1336,7 @@
 					levelToRedraw = levels.length;
 				});
 			return false;
-		}, function () {
-
 		});
-
 	}
 
 	function renderTracesDiff(from, to, baseFrom, baseTo) {
@@ -1442,7 +1419,6 @@
 	function renderTracesReversed(from, to) {
 		addTask('flame', function () {
 			return false;
-		}, function () {
 		});
 		addTask('flamePrepare', () => {
 			let [framesBuffer, sampleToChunkPos, sampleToStorageDelta, longSamplesBuffer] = prepareFramesReversed(from, to);
@@ -1501,10 +1477,7 @@
 					levelToRedraw = levels.length;
 				});
 			return false;
-		}, function () {
-
 		});
-
 	}
 
 	function renderTracesReversedDiff(from, to, baseFrom, baseTo) {
@@ -1589,7 +1562,6 @@
 	function renderSelfDominators(from, to) {
 		addTask('flame', function () {
 			return false;
-		}, function () {
 		});
 		addTask('flamePrepare', () => {
 			const chunksToStorage = currentHeatmap.blocksData.chunksToStorage;
@@ -1633,15 +1605,12 @@
 			}
 			renderWithMatch(levels.length * 16, levels[0][0], 0);
 			return false;
-		}, function () {
 		});
-
 	}
 
 	function renderSelfDominatorsDiff(from, to, baseFrom, baseTo) {
 		addTask('flame', function () {
 			return false;
-		}, function () {
 		});
 		addTask('flamePrepare', () => {
 			const chunksToStorage = currentHeatmap.blocksData.chunksToStorage;
@@ -1710,7 +1679,6 @@
 			}
 			renderWithMatch(levels.length * 16, levels[0][0], 0);
 			return false;
-		}, function () {
 		});
 	}
 
@@ -3691,8 +3659,6 @@
 			let markOffset = markIndex * markPixels - dx;
 
 			let title = new Date(ms).toLocaleTimeString(undefined, timeOptionsTiny);
-
-			let w = heatC.measureText(title).width;
 			let x = markOffset + 4;
 			heatC.fillText(title, x, canvasTimeHeight - 1, markPixels);
 
@@ -4278,8 +4244,6 @@
 	renderHeatmap();
 	// first render of dominators
 	renderFunc = renderTraces;
-	// TODO: if we want this feature to be presented - uncomment
-	// search(/*highlight:*/);
 </script>
 </body>
 </html>

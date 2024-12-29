@@ -77,16 +77,14 @@ public class MethodCache {
         long methodId = (long) extra << 32 | 1L << 63;
         Method method = farMethods.get(methodId);
         Method last = null;
-        if (method != null) {
-            while (method != null) {
-                if (method.originalMethodId == methodId) {
-                    if (method.location == -1 && method.type == type && !method.start) {
-                        return method.index;
-                    }
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == -1 && method.type == type && !method.start) {
+                    return method.index;
                 }
-                last = method;
-                method = method.next;
             }
+            last = method;
+            method = method.next;
         }
 
         String javaClassName = converter.getClassName(extra);

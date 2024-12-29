@@ -5,6 +5,8 @@
 
 package one.heatmap;
 
+import one.convert.Frame;
+
 public class Method {
 
     public final int className;
@@ -21,7 +23,7 @@ public class Method {
     public int index;
 
     Method(int className, int methodName) {
-        this(0, className, methodName, 0, (byte) 3, true);
+        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
     }
 
     Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
