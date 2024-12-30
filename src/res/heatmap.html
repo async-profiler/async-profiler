@@ -1273,10 +1273,19 @@
 		return 'rgb(' + (((dRdg * C) >> 8) + m) + ',' + (((dGdg * C) >> 8) + m) + ',' + (((dBdg * C) >> 8) + m) + ')';
 	}
 
-	function renderTraces(from, to) {
+	function prepareRender() {
+		root = undefined;
+		rootLevel = 0;
+		c.fillStyle = '#ffffff';
+		c.fillRect(0, 0, canvasWidth, canvasHeight);
+		hl.style.display = 'none';
 		addTask('flame', function () {
 			return false;
 		});
+	}
+
+	function renderTraces(from, to) {
+		prepareRender();
 		addTask('flamePrepare', () => {
 			let [framesBuffer, sampleToChunkPos, sampleToStorageDelta, longSamplesBuffer] = prepareFrames(from, to);
 			let nextFramesBuffer = allocateHugeArray();
@@ -1319,7 +1328,7 @@
 						if (levels.length === 0) {
 							levels.push([{left: 0, width: 0, color: methods.c[0], title: methods.n[0], method: 0}]);
 						}
-						renderWithMatch(levels.length * 16, levels[0][0], 0);
+						renderWithMatch(levels.length * 16, root, rootLevel);
 						return false;
 					}
 
@@ -1332,7 +1341,7 @@
 					return true;
 				},
 				() => {
-					renderWithMatch(4096, levels[0][0], 0, levelToRedraw);
+					renderWithMatch(4096, root, rootLevel, levelToRedraw);
 					levelToRedraw = levels.length;
 				});
 			return false;
@@ -1340,6 +1349,7 @@
 	}
 
 	function renderTracesDiff(from, to, baseFrom, baseTo) {
+		prepareRender();
 		let [framesBuffer, sampleToChunkPos, sampleToStorageDelta] = prepareFramesDiff(from, to, baseFrom, baseTo);
 		let nextFramesBuffer = allocateHugeArray();
 
@@ -1386,7 +1396,7 @@
 					if (levels.length === 0) {
 						levels.push([{left: 0, width: 0, color: methods.c[0], title: methods.n[0], method: 0}]);
 					}
-					renderWithMatch(levels.length * 16, levels[0][0], 0);
+					renderWithMatch(levels.length * 16, root, rootLevel);
 					return false;
 				}
 
@@ -1411,15 +1421,13 @@
 				return true;
 			},
 			function () {
-				renderWithMatch(4096, levels[0][0], 0, levelToRedraw);
+				renderWithMatch(4096, root, rootLevel, levelToRedraw);
 				levelToRedraw = levels.length;
 			});
 	}
 
 	function renderTracesReversed(from, to) {
-		addTask('flame', function () {
-			return false;
-		});
+		prepareRender();
 		addTask('flamePrepare', () => {
 			let [framesBuffer, sampleToChunkPos, sampleToStorageDelta, longSamplesBuffer] = prepareFramesReversed(from, to);
 			let nextFramesBuffer = allocateHugeArray();
@@ -1460,7 +1468,7 @@
 						if (levels.length === 0) {
 							levels.push([{left: 0, width: 0, color: methods.c[0], title: methods.n[0], method: 0}]);
 						}
-						renderWithMatch(levels.length * 16, levels[0][0], 0);
+						renderWithMatch(levels.length * 16, root, rootLevel);
 						return false;
 					}
 
@@ -1473,7 +1481,7 @@
 					return true;
 				},
 				() => {
-					renderWithMatch(4096, levels[0][0], 0, levelToRedraw);
+					renderWithMatch(4096, root, rootLevel, levelToRedraw);
 					levelToRedraw = levels.length;
 				});
 			return false;
@@ -1481,9 +1489,8 @@
 	}
 
 	function renderTracesReversedDiff(from, to, baseFrom, baseTo) {
+		prepareRender();
 		let [framesBuffer, sampleToChunkPos, sampleToStorageDelta] = prepareFramesReversedDiff(from, to, baseFrom, baseTo);
-		// Note: it is very random huge number that relies on malloc laziness
-		// real pre-calculation is both non-performant and fragile
 		let nextFramesBuffer = allocateHugeArray();
 
 		levels.length = 0;
@@ -1529,7 +1536,7 @@
 					if (levels.length === 0) {
 						levels.push([{left: 0, width: 0, color: methods.c[0], title: methods.n[0], method: 0}]);
 					}
-					renderWithMatch(levels.length * 16, levels[0][0], 0);
+					renderWithMatch(levels.length * 16, root, rootLevel);
 					return false;
 				}
 
@@ -1554,15 +1561,13 @@
 				return true;
 			},
 			function () {
-				renderWithMatch(4096, levels[0][0], 0, levelToRedraw);
+				renderWithMatch(4096, root, rootLevel, levelToRedraw);
 				levelToRedraw = levels.length;
 			});
 	}
 
 	function renderSelfDominators(from, to) {
-		addTask('flame', function () {
-			return false;
-		});
+		prepareRender();
 		addTask('flamePrepare', () => {
 			const chunksToStorage = currentHeatmap.blocksData.chunksToStorage;
 			const sampleToChunkEnds = currentHeatmap.blocksData.sampleToChunkEnds;
@@ -1603,15 +1608,13 @@
 					method: method
 				}]);
 			}
-			renderWithMatch(levels.length * 16, levels[0][0], 0);
+			renderWithMatch(levels.length * 16, root, rootLevel);
 			return false;
 		});
 	}
 
 	function renderSelfDominatorsDiff(from, to, baseFrom, baseTo) {
-		addTask('flame', function () {
-			return false;
-		});
+		prepareRender();
 		addTask('flamePrepare', () => {
 			const chunksToStorage = currentHeatmap.blocksData.chunksToStorage;
 			const sampleToChunkEnds = currentHeatmap.blocksData.sampleToChunkEnds;
@@ -1677,7 +1680,7 @@
 				let color = diffColor(count, baseCount, minDiff, maxDiff);
 				levels.push([{left: 0, width: count, color: color, title: title, method: method}]);
 			}
-			renderWithMatch(levels.length * 16, levels[0][0], 0);
+			renderWithMatch(levels.length * 16, root, rootLevel);
 			return false;
 		});
 	}
