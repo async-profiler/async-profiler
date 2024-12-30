@@ -3575,7 +3575,7 @@
 	}
 
 	function renderWithMatch(newCanvasHeight, root, level, minLevel) {
-		newCanvasHeight = Math.min(32767, newCanvasHeight);
+		newCanvasHeight = Math.min(16384 / (devicePixelRatio || 1), newCanvasHeight) | 0;
 		if (canvasHeight !== newCanvasHeight) {
 			canvasHeight = newCanvasHeight;
 			canvas.style.height = canvasHeight + 'px';
