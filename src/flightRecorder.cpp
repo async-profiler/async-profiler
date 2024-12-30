@@ -1003,6 +1003,20 @@ class Recording {
         writeLogLevels(buf);
     }
 
+    void writePoolHeader(Buffer* buf, JfrType type, u32 size) {
+        if (size > 0) {
+            buf->putVar32(type);
+            buf->putVar32(size);
+        } else {
+            // JDK's built-in JFR reader does not support empty pools.
+            // Write a dummy String pool of 1 element instead.
+            buf->putVar32(T_STRING);
+            buf->putVar32(1);
+            buf->putVar32(0);
+            buf->put8(0);
+        }
+    }
+
     void writeFrameTypes(Buffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
         buf->putVar32(7);
@@ -1041,8 +1055,7 @@ class Recording {
         std::map<int, jlong>& thread_ids = profiler->_thread_ids;
         char name_buf[32];
 
-        buf->putVar32(T_THREAD);
-        buf->putVar32(threads.size());
+        writePoolHeader(buf, T_THREAD, threads.size());
         for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
             jlong thread_id;
@@ -1073,8 +1086,7 @@ class Recording {
         std::map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
-        buf->putVar32(T_STACK_TRACE);
-        buf->putVar32(traces.size());
+        writePoolHeader(buf, T_STACK_TRACE, traces.size());
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
@@ -1111,8 +1123,7 @@ class Recording {
             }
         }
 
-        buf->putVar32(T_METHOD);
-        buf->putVar32(marked_count);
+        writePoolHeader(buf, T_METHOD, marked_count);
         for (MethodMap::iterator it = method_map->begin(); it != method_map->end(); ++it) {
             MethodInfo& mi = it->second;
             if (mi._mark) {
@@ -1132,8 +1143,7 @@ class Recording {
         std::map<u32, const char*> classes;
         lookup->_classes->collect(classes);
 
-        buf->putVar32(T_CLASS);
-        buf->putVar32(classes.size());
+        writePoolHeader(buf, T_CLASS, classes.size());
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             const char* name = it->second;
             buf->putVar32(it->first);
@@ -1149,8 +1159,7 @@ class Recording {
         std::map<u32, const char*> packages;
         lookup->_packages.collect(packages);
 
-        buf->putVar32(T_PACKAGE);
-        buf->putVar32(packages.size());
+        writePoolHeader(buf, T_PACKAGE, packages.size());
         for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
             buf->putVar64(it->first | _base_id);
             buf->putVar64(lookup->getSymbol(it->second) | _base_id);
@@ -1162,8 +1171,7 @@ class Recording {
         std::map<u32, const char*> symbols;
         lookup->_symbols.collect(symbols);
 
-        buf->putVar32(T_SYMBOL);
-        buf->putVar32(symbols.size());
+        writePoolHeader(buf, T_SYMBOL, symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
             buf->putVar64(it->first | _base_id);
