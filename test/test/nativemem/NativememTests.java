@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import one.jfr.JfrReader;
-import one.jfr.StackTrace;
 import one.jfr.event.MallocEvent;
 
 import one.profiler.test.Assert;

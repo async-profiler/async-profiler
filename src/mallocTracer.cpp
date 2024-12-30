@@ -7,7 +7,6 @@
 #include "assert.h"
 #include "codeCache.h"
 #include "mallocTracer.h"
-#include "os.h"
 #include "profiler.h"
 #include "tsc.h"
 #include <dlfcn.h>
@@ -38,9 +37,7 @@ __attribute__((constructor)) static void getOrigAddresses() {
     _orig_free = ADDRESS_OF(free);
 }
 
-extern "C" {
-
-static void* malloc_hook(size_t size) {
+extern "C" void* malloc_hook(size_t size) {
     void* ret = _orig_malloc(size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
@@ -48,7 +45,7 @@ static void* malloc_hook(size_t size) {
     return ret;
 }
 
-static void* calloc_hook(size_t num, size_t size) {
+extern "C" void* calloc_hook(size_t num, size_t size) {
     void* ret = _orig_calloc(num, size);
     if (MallocTracer::running() && ret && num && size) {
         MallocTracer::recordMalloc(ret, num * size);
@@ -56,7 +53,7 @@ static void* calloc_hook(size_t num, size_t size) {
     return ret;
 }
 
-static void* realloc_hook(void* addr, size_t size) {
+extern "C" void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
         if (addr) {
@@ -69,14 +66,12 @@ static void* realloc_hook(void* addr, size_t size) {
     return ret;
 }
 
-static void free_hook(void* addr) {
+extern "C" void free_hook(void* addr) {
     _orig_free(addr);
     if (MallocTracer::running() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
-
-} // extern "C"
 
 
 u64 MallocTracer::_interval;
@@ -137,19 +132,7 @@ void MallocTracer::recordFree(void* address) {
     Profiler::instance()->recordEventOnly(MALLOC_SAMPLE, &event);
 }
 
-Error MallocTracer::check(Arguments& args) {
-    if (!OS::isLinux()) {
-        return Error("nativemem option is only supported on Linux");
-    }
-    return Error::OK;
-}
-
 Error MallocTracer::start(Arguments& args) {
-    Error error = check(args);
-    if (error) {
-        return error;
-    }
-
     _interval = args._nativemem > 0 ? args._nativemem : 0;
     _allocated_bytes = 0;
 
