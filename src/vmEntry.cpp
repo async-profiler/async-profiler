@@ -45,7 +45,13 @@ static bool isVmRuntimeEntry(const char* blob_name) {
         || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0
         || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0
         || strncmp(blob_name, "_ZN8Runtime1", 12) == 0
+        || strncmp(blob_name, "_ZN13SharedRuntime", 18) == 0
         || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
+}
+
+static bool isZingRuntimeEntry(const char* blob_name) {
+    return strncmp(blob_name, "_ZN14DolphinRuntime", 19) == 0
+        || strncmp(blob_name, "_ZN37JvmtiSampledObjectAllocEventCollector", 42) == 0;
 }
 
 static bool isZeroInterpreterMethod(const char* blob_name) {
@@ -83,6 +89,10 @@ static bool isOpenJ9GcAlloc(const char* blob_name) {
     return strncmp(blob_name, "J9Allocate", 10) == 0;
 }
 
+static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
+    return strcmp(blob_name, "jvmtiHookSampledObjectAlloc") == 0;
+}
+
 static bool isCompilerEntry(const char* blob_name) {
     return strncmp(blob_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0;
 }
@@ -102,13 +112,6 @@ bool VM::init(JavaVM* vm, bool attach) {
     _vm = vm;
     if (_vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0) != 0) {
         return false;
-    }
-
-    Dl_info dl_info;
-    if (dladdr((const void*)resolveMethodId, &dl_info) && dl_info.dli_fname != NULL) {
-        // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
-        // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
-        dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
     }
 
     bool is_hotspot = false;
@@ -148,18 +151,18 @@ bool VM::init(JavaVM* vm, bool attach) {
     _freeMemory = (JVM_MemoryFunc)dlsym(libjvm, "JVM_FreeMemory");
 
     Profiler* profiler = Profiler::instance();
-    profiler->updateSymbols(false);
+    if (VMStructs::libjvm() == NULL) {
+        profiler->updateSymbols(false);
+        VMStructs::init(profiler->findLibraryByAddress((const void*)_asyncGetCallTrace));
+    }
 
     _openj9 = !is_hotspot && J9Ext::initialize(_jvmti, profiler->resolveSymbol("j9thread_self"));
 
-    CodeCache* lib = isOpenJ9()
-        ? profiler->findJvmLibrary("libj9vm")
-        : profiler->findLibraryByAddress((const void*)_asyncGetCallTrace);
+    CodeCache* lib = profiler->findJvmLibrary("libj9vm");
     if (lib == NULL) {
         return false;
     }
 
-    VMStructs::init(lib);
     if (isOpenJ9()) {
         lib->mark(isOpenJ9InterpreterMethod, MARK_INTERPRETER);
         lib->mark(isOpenJ9Resolve, MARK_VM_RUNTIME);
@@ -172,9 +175,15 @@ bool VM::init(JavaVM* vm, bool attach) {
         if (libgc != NULL) {
             libgc->mark(isOpenJ9GcAlloc, MARK_VM_RUNTIME);
         }
+        CodeCache* libjvmti = profiler->findJvmLibrary("libj9jvmti");
+        if (libjvmti != NULL) {
+            libjvmti->mark(isOpenJ9JvmtiAlloc, MARK_VM_RUNTIME);
+        }
     } else {
         lib->mark(isVmRuntimeEntry, MARK_VM_RUNTIME);
-        if (is_zero_vm) {
+        if (isZing()) {
+            lib->mark(isZingRuntimeEntry, MARK_VM_RUNTIME);
+        } else if (is_zero_vm) {
             lib->mark(isZeroInterpreterMethod, MARK_INTERPRETER);
         } else {
             lib->mark(isCompilerEntry, MARK_COMPILER_ENTRY);
@@ -239,7 +248,7 @@ bool VM::init(JavaVM* vm, bool attach) {
         // DebugNonSafepoints is automatically enabled with CompiledMethodLoad,
         // otherwise we set the flag manually
         JVMFlag* f = JVMFlag::find("DebugNonSafepoints");
-        if (f != NULL && f->origin() == 0) {
+        if (f != NULL && f->isDefault()) {
             f->set(1);
         }
     }

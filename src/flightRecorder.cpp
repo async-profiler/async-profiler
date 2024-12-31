@@ -187,9 +187,9 @@ class Lookup {
         char* method_name = NULL;
         char* method_sig = NULL;
 
-        if (jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
-            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
-            jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0) {
+        if (jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0 &&
+            jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
+            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
