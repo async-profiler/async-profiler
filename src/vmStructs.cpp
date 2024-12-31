@@ -125,9 +125,8 @@ uintptr_t VMStructs::readSymbol(const char* symbol_name) {
 
 // Run at agent load time
 void VMStructs::init(CodeCache* libjvm) {
-    _libjvm = libjvm;
-
-    if (!VM::isOpenJ9() && !VM::isZing()) {
+    if (libjvm != NULL) {
+        _libjvm = libjvm;
         initOffsets();
         initJvmFunctions();
     }
@@ -427,6 +426,10 @@ void VMStructs::initOffsets() {
 }
 
 void VMStructs::resolveOffsets() {
+    if (VM::isOpenJ9() || VM::isZing()) {
+        return;
+    }
+
     if (_klass_offset_addr != NULL) {
         _klass = (jfieldID)(uintptr_t)(*_klass_offset_addr << 2 | 2);
     }

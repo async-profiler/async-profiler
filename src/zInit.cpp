@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
+#include "vmStructs.h"
 
 
 // This should be called only after all other statics are initialized.
@@ -14,20 +15,38 @@
 class LateInitializer {
   public:
     LateInitializer() {
-        const char* command = getenv("ASPROF_COMMAND");
-        if (command != NULL && !isJavaApp() && Hooks::init(false)) {
-            startProfiler(command);
+        Dl_info dl_info;
+        if (dladdr((const void*)Hooks::init, &dl_info) && dl_info.dli_fname != NULL) {
+            // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
+            // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
+            dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
+        }
+
+        if (!checkJvmLoaded()) {
+            const char* command = getenv("ASPROF_COMMAND");
+            if (command != NULL && Hooks::init(false)) {
+                startProfiler(command);
+            }
         }
     }
 
   private:
-    bool isJavaApp() {
-        void* libjvm = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
-        if (libjvm != NULL) {
-            dlclose(libjvm);
-            return true;
+    bool checkJvmLoaded() {
+        Profiler* profiler = Profiler::instance();
+        profiler->updateSymbols(false);
+
+        CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
+        if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
+            VMStructs::init(libjvm);
+            if (CollectedHeap::created()) {  // heap is already created => this is dynamic attach
+                JVMFlag* f = JVMFlag::find("EnableDynamicAgentLoading");
+                if (f != NULL && f->isDefault()) {
+                    f->setCmdline();
+                }
+            }
         }
-        return false;
+
+        return libjvm != NULL;
     }
 
     void startProfiler(const char* command) {

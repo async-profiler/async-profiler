@@ -535,6 +535,10 @@ class CodeHeap : VMStructs {
 
 class CollectedHeap : VMStructs {
   public:
+    static bool created() {
+        return _collected_heap_addr != NULL && *_collected_heap_addr != NULL;
+    }
+
     static CollectedHeap* heap() {
         return (CollectedHeap*)_collected_heap;
     }
@@ -549,6 +553,13 @@ class CollectedHeap : VMStructs {
 };
 
 class JVMFlag : VMStructs {
+  private:
+    enum {
+        ORIGIN_DEFAULT = 0,
+        ORIGIN_MASK    = 15,
+        SET_ON_CMDLINE = 1 << 17
+    };
+
   public:
     static JVMFlag* find(const char* name);
 
@@ -560,8 +571,14 @@ class JVMFlag : VMStructs {
         return *(char**) at(_flag_addr_offset);
     }
 
-    char origin() {
-        return _flag_origin_offset >= 0 ? (*(char*) at(_flag_origin_offset)) & 15 : 0;
+    bool isDefault() {
+        return _flag_origin_offset < 0 || (*(int*) at(_flag_origin_offset) & ORIGIN_MASK) == ORIGIN_DEFAULT;
+    }
+
+    void setCmdline() {
+        if (_flag_origin_offset >= 0) {
+            *(int*) at(_flag_origin_offset) |= SET_ON_CMDLINE;
+        }
     }
 
     char get() {

@@ -155,10 +155,10 @@ bool Hooks::init(bool attach) {
         return false;
     }
 
-    Profiler::instance()->updateSymbols(false);
     Profiler::setupSignalHandlers();
 
     if (attach) {
+        Profiler::instance()->updateSymbols(false);
         _orig_pthread_create = ADDRESS_OF(pthread_create);
         _orig_pthread_exit = ADDRESS_OF(pthread_exit);
         _orig_dlopen = ADDRESS_OF(dlopen);
