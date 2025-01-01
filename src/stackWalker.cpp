@@ -31,6 +31,16 @@ static inline bool sameStack(void* hi, void* lo) {
     return (uintptr_t)hi - (uintptr_t)lo < SAME_STACK_DISTANCE;
 }
 
+// AArch64: on Linux, frame link is stored at the top of the frame,
+// while on macOS, frame link is at the bottom.
+static inline uintptr_t defaultSenderSP(uintptr_t sp, uintptr_t fp) {
+#ifdef __APPLE__
+    return sp + 2 * sizeof(void*);
+#else
+    return fp;
+#endif
+}
+
 static inline void fillFrame(ASGCT_CallFrame& frame, ASGCT_CallFrameType type, const char* name) {
     frame.bci = type;
     frame.method_id = (jmethodID)name;
@@ -176,7 +186,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
             } else if (f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
                 pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
-                sp = fp;
+                sp = defaultSenderSP(sp, fp);
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
             } else {
@@ -420,7 +430,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             } else if (f->fp_off != DW_SAME_FP) {
                 // AArch64 default_frame
                 pc = stripPointer(*(void**)(sp + f->pc_off));
-                sp = fp;
+                sp = defaultSenderSP(sp, fp);
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
             } else {
