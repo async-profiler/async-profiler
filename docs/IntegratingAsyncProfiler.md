@@ -39,7 +39,7 @@ profiler.execute("stop");
 ```
 
 `%p` equates to the PID of the process. There are other options as well for filename which
-can be found in [Profiler Options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md).
+can be found in [Profiler Options](ProfilerOptions.md).
 `file` should be specified only once, either in
 `start` command with `jfr` output or in `stop` command with any other format.
 

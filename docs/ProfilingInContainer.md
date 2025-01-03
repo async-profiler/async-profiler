@@ -20,4 +20,4 @@ syscall. There are 3 alternatives to allow profiling in a container:
    or disable it altogether with `--security-opt seccomp=unconfined` option. In
    addition, `--cap-add SYS_ADMIN` may be required.
 2. You can use "fdtransfer": see the help for `--fdtransfer`.
-3. Last, you may fall back to `-e ctimer` profiling mode, see [Troubleshooting](#troubleshooting).
+3. Last, you may fall back to `-e ctimer` profiling mode, see [Troubleshooting](Troubleshooting.md).

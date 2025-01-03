@@ -23,33 +23,21 @@ to learn about more features.
 
 # Download
 
-Current release (3.0):
+### Stable release: [3.0](https://github.com/async-profiler/async-profiler/releases/tag/v3.0)
 
 - Linux x64: [async-profiler-3.0-linux-x64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-x64.tar.gz)
 - Linux arm64: [async-profiler-3.0-linux-arm64.tar.gz](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz)
 - macOS x64/arm64: [async-profiler-3.0-macos.zip](https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-macos.zip)
-- Converters between profile formats: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)
+- Profile converters: [converter.jar](https://github.com/async-profiler/async-profiler/releases/download/v3.0/converter.jar)
 
-  | From      | html | collapsed | pprof | pb.gz |
-  | --------- | ---- | --------- | ----- | ----- |
-  | collapsed | ✅   | ✅        | ❌    | ❌    |
-  | html      | ✅   | ✅        | ❌    | ❌    |
-  | jfr       | ✅   | ✅        | ✅    | ✅    |
+### Nightly builds
 
-[Previous releases](https://github.com/async-profiler/async-profiler/releases)
+[The most recent binaries](https://github.com/async-profiler/async-profiler/releases/tag/nightly) corresponding
+to the latest successful commit in [`master`](https://github.com/async-profiler/async-profiler/commits/master/).
 
-[Nightly releases](https://github.com/async-profiler/async-profiler/releases/tag/nightly) (published on each commit to master)
-
-For the build corresponding to a previous commit, go to
+For a build corresponding to one of the previous commits, go to
 [Nightly Builds](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml),
 click the desired build and scroll down to the artifacts section. These binaries are kept for 30 days.
-
-# Supported platforms
-
-|           | Officially maintained builds | Other available ports                     |
-| --------- | ---------------------------- | ----------------------------------------- |
-| **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
-| **macOS** | x64, arm64                   |                                           |
 
 # Quick start
 
@@ -57,17 +45,45 @@ In a typical use case, profiling a Java application is just a matter of a runnin
 running Java process.
 
 ```
-$ asprof -d 30 -f /tmp/flamegraph.html <PID>
+$ asprof -d 30 -f flamegraph.html <PID>
 ```
 
-The above command translates to: run profiler for 30 seconds and save results to `/tmp/flamegraph.html`
-as an interactive `Flame Graph` that can be viewed in a browser.
+The above command translates to: run profiler for 30 seconds and save results to `flamegraph.html`
+as an interactive [Flame Graph](docs/FlamegraphInterpretation.md) that can be viewed in a browser.
 
 [![FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
-## Build status
+Find more details in the [Getting started guide](docs/GettingStarted.md).
+
+# Building
+
+### Build status
 
 [![Build Status](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml/badge.svg?branch=master)](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml)
+
+### Minimum requirements
+
+- make
+- GCC 7.5.0+ or Clang 7.0.0+
+- JDK 11+
+
+### Now to build
+
+Make sure `gcc`, `g++` and `java` are available on the `PATH`.
+Navigate to the root directory with async-profiler sources and run `make`.
+async-profiler launcher will be available at `build/bin/asprof`.
+
+Other Makefile targets:
+
+- `make test` - run unit and integration tests;
+- `make release` - package async-profiler binaries as `.tar.gz` (Linux) or `.zip` (macOS).
+
+### Supported platforms
+
+|           | Officially maintained builds | Other available ports                     |
+| --------- | ---------------------------- | ----------------------------------------- |
+| **Linux** | x64, arm64                   | x86, arm32, ppc64le, riscv64, loongarch64 |
+| **macOS** | x64, arm64                   |                                           |
 
 # Documentation
 

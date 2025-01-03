@@ -2,13 +2,13 @@
 
 The scope of profiling non-java applications is limited to the case when profiler is controlled
 programmatically from the process being profiled and with LD_PRELOAD. It is worth noting that
-[dynamic attach](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#launching-as-an-agent)
+[dynamic attach](IntegratingAsyncProfiler.md#launching-as-an-agent)
 which is available for Java is not supported for non-Java profiling.
 
 ## C API
 
 Similar to the
-[Java API](https://github.com/async-profiler/async-profiler/blob/master/docs/IntegratingAsyncProfiler.md#using-java-api),
+[Java API](IntegratingAsyncProfiler.md#using-java-api),
 there is a C API for using inside native applications.
 
 ```

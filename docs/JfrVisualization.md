@@ -7,7 +7,7 @@ below:
 
 async-profiler provides a built-in converter which can be used to convert `jfr` output to
 readable formats like `FlameGraph` visualization. More details on the built-in converter usage
-can be found [here](https://github.com/async-profiler/async-profiler/blob/master/docs/ConverterUsage.md).
+can be found [here](ConverterUsage.md).
 
 ## JMC
 
