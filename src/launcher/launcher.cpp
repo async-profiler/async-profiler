@@ -58,7 +58,7 @@ static const char* const* build_cmdline(int argc, char** argv) {
     cmd[count++] = "-Dsun.misc.URLClassPath.disableJarChecking";
 
     for (; argc > 0; argc--, argv++) {
-        if ((strncmp(*argv, "-D", 2) == 0 || strncmp(*argv, "-X", 2) == 0) && (*argv)[2] ||
+        if (((strncmp(*argv, "-D", 2) == 0 || strncmp(*argv, "-X", 2) == 0) && (*argv)[2]) ||
                 strncmp(*argv, "-agent", 6) == 0) {
             cmd[count++] = *argv;
         } else if (strncmp(*argv, "-J", 2) == 0) {

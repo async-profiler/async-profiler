@@ -280,7 +280,7 @@ bool FdTransferServer::runOnce(int pid, const char *path) {
         return false;
     }
 
-    if (!enter_ns(pid, "pid") == -1) {
+    if (enter_ns(pid, "pid") == -1) {
         fprintf(stderr, "Failed to enter the PID NS of target process %d\n", pid);
         return false;
     }
