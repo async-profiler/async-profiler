@@ -6,11 +6,11 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 ## Supported conversions
 
-| Source | html | collapsed | pprof | pb.gz | heatmap |
+| Source    | html | collapsed | pprof | pb.gz | heatmap |
 | --------- | ---- | --------- | ----- | ----- | ------- |
-| jfr       | ✅   | ✅        | ✅    | ✅    | ✅    |
-| html      | ✅   | ✅        | ❌    | ❌    | ❌    |
-| collapsed | ✅   | ✅        | ❌    | ❌    | ❌    |
+| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      |
+| html      | ✅   | ✅        | ❌    | ❌    | ❌      |
+| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      |
 
 ## Usage
 

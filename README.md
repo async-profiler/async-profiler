@@ -33,7 +33,7 @@ to learn about more features.
 ### Nightly builds
 
 [The most recent binaries](https://github.com/async-profiler/async-profiler/releases/tag/nightly) corresponding
-to the latest successful commit in [`master`](https://github.com/async-profiler/async-profiler/commits/master/).
+to the latest successful commit in `master`.
 
 For a build corresponding to one of the previous commits, go to
 [Nightly Builds](https://github.com/async-profiler/async-profiler/actions/workflows/test-and-publish-nightly.yml),

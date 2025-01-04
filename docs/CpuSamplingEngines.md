@@ -59,14 +59,14 @@ profiling interval is 10ms or 4ms respectively.
 
 Here is a summary of advantages and drawbacks of all CPU profiling engines:
 
-| Attribute          | cpu (perf_events) | itimer | ctimer |
-| --------- | :---: | :---: | :---: |
-| Can collect kernel stack traces | ✅  | ❌  | ❌  |
-| High resolution | ✅  | ❌  | ❌  |
-| Accuracy / fairness | ✅  | ❌  | 🆗 |
-| Works in containers by default  | ❌  | ✅  | ✅  |
-| Does not consume file descriptors  | ❌  | ✅  | ✅  |
-| macOS support  | ❌  | ✅  | ❌  |
+| Attribute                         | cpu (perf_events) | itimer | ctimer |
+| --------------------------------- | :---------------: | :----: | :----: |
+| Can collect kernel stack traces   |        ✅         |   ❌   |   ❌   |
+| High resolution                   |        ✅         |   ❌   |   ❌   |
+| Accuracy / fairness               |        ✅         |   ❌   |   🆗   |
+| Works in containers by default    |        ❌         |   ✅   |   ✅   |
+| Does not consume file descriptors |        ❌         |   ✅   |   ✅   |
+| macOS support                     |        ❌         |   ✅   |   ❌   |
 
 When using `-e cpu` on Linux, async-profiler automatically checks for `perf_events` availability
 by trying to create a dummy perf_event. If kernel-space profiling is not available,
