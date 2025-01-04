@@ -2,7 +2,7 @@
 
 ## Display JIT compilation task
 
-Async-profiler samples JIT compiler threads as well as Java threads, and hence can show
+Async-profiler samples JIT compiler threads just the same way as Java threads, and hence can show
 CPU percentage spent on JIT compilation. At the same time, Java methods are different:
 some take more resources to compile, other take less. Furthermore, there are cases when
 a bug in C2 compiler causes a JIT thread to stuck in an infinite loop consuming 100% CPU.

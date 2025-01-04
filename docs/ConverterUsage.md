@@ -6,11 +6,11 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 ## Supported conversions
 
-| From      | html | collapsed | pprof | pb.gz |
-| --------- | ---- | --------- | ----- | ----- |
-| collapsed | ✅   | ✅        | ❌    | ❌    |
-| html      | ✅   | ✅        | ❌    | ❌    |
-| jfr       | ✅   | ✅        | ✅    | ✅    |
+| Source | html | collapsed | pprof | pb.gz | heatmap |
+| --------- | ---- | --------- | ----- | ----- | ------- |
+| jfr       | ✅   | ✅        | ✅    | ✅    | ✅    |
+| html      | ✅   | ✅        | ❌    | ❌    | ❌    |
+| collapsed | ✅   | ✅        | ❌    | ❌    | ❌    |
 
 ## Usage
 
@@ -29,7 +29,7 @@ Conversion options:
                list of frames followed by a counter. This is used by the FlameGraph script to
                generate the FlameGraph visualization of the profile data.
 
-  # flamegraph: Flamegraph is a hierarchical representation of call traces of the profiled
+  # flamegraph: FlameGraph is a hierarchical representation of call traces of the profiled
                 software in a color coded format that helps to identify a particular resource
                 usage like CPU and memory for the application.
 
@@ -37,6 +37,9 @@ Conversion options:
            pprof  on the official github page https://github.com/google/pprof.
 
   # pb.gz: This is a compressed version of pprof output.
+
+  # heatmap: A single page interactive heatmap that allows to explore profiling events
+             on a timeline.
 
 
 JFR options:
@@ -73,12 +76,12 @@ Flame Graph options:
     --grain X          Coarsen Flame Graph to the given grain size
     --skip N           Skip N bottom frames
  -r --reverse          Reverse stack traces (icicle graph)
- -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'jdk\.GC.*' -I 'jdk\.Thread.*'
- -X --exclude REGEX    Exclude stacks with the specified frames, e.g.  -X 'jdk\.GC.*'
+ -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'MyApplication\.main' -I 'VMThread.*'
+ -X --exclude REGEX    Exclude stacks with the specified frames, e.g. -X '.*pthread_cond_(wait|timedwait).*'
     --highlight REGEX  Highlight frames matching the given pattern
 ```
 
-## `jfrconv` Examples
+## jfrconv examples
 
 `jfrconv` utility is provided in `bin` directory of the async-profiler package.
 It requires JRE to be installed on the system.
@@ -116,12 +119,13 @@ jfrconv --cpu foo.jfr foo.html -r --title "Custom Title"
 
 ### Other formats
 
-`jfrconv` supports converting a JFR file to `collapsed`, `pprof` and `pb.gz` formats as well.
+`jfrconv` supports converting a JFR file to `collapsed`, `pprof`, `pb.gz` and `heatmap` formats as well.
 
 ## Standalone converter examples
 
 Standalone converter jar is provided in
-[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download). It accepts the same parameters as `jfrconv`.
+[Download](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#Download).
+It accepts the same parameters as `jfrconv`.
 
 Below is an example usage:
 

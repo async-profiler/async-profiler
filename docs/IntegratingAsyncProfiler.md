@@ -2,7 +2,7 @@
 
 ## Launching as an agent
 
-If you need to profile some code as soon as the JVM starts up, instead of using the `asprof`,
+If you need to profile some code as soon as the JVM starts up, instead of using `asprof`,
 it is possible to attach async-profiler as an agent on the command line. For example:
 
 ```
@@ -18,10 +18,17 @@ Another important use of attaching async-profiler as an agent is for continuous 
 
 ## Using Java API
 
-async-profiler Java API is published to maven central. Like any other dependency, we have to
-just include the
-[dependency](https://mvnrepository.com/artifact/tools.profiler/async-profiler/latest)
-from maven.
+async-profiler can be controlled programmatically using Java API. The corresponding Java library
+is published to Maven Central. You can [include it](https://mvnrepository.com/artifact/tools.profiler/async-profiler/3.0)
+just like any other Maven dependency:
+
+```
+<dependency>
+    <groupId>tools.profiler</groupId>
+    <artifactId>async-profiler</artifactId>
+    <version>X.Y</version>
+</dependency>
+```
 
 ### Example usage with the API
 
@@ -38,7 +45,7 @@ profiler.execute("start,jfr,event=cpu,file=/path/to/%p.jfr");
 profiler.execute("stop");
 ```
 
-`%p` equates to the PID of the process. There are other options as well for filename which
+`%p` equates to the PID of the process. Filename may include other placeholders which
 can be found in [Profiler Options](ProfilerOptions.md).
 `file` should be specified only once, either in
 `start` command with `jfr` output or in `stop` command with any other format.
@@ -46,6 +53,6 @@ can be found in [Profiler Options](ProfilerOptions.md).
 ## Intellij IDEA
 
 Intellij IDEA comes bundled with async-profiler, which can be further configured to our needs
-by selecting the `Java Profiler` menu option at `Settings/Preferences > Build, Execution, Deployment`
-Agent options can be modified for specific use cases and also `Collect native calls` can be checked
+by selecting the `Java Profiler` menu option at `Settings/Preferences > Build, Execution, Deployment`.
+Agent options can be modified for the specific use cases and also `Collect native calls` can be checked
 to monitor non-java threads and native frames in Java stack traces.

@@ -29,8 +29,9 @@
 	// Copyright The async-profiler authors
 	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
-	let root, rootLevel, px, pattern;
+	let root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
+	let nav = [], navIndex, matchval;
 	let reverse = false;
 	const levels = Array(36);
 	for (let h = 0; h < levels.length; h++) {
@@ -66,7 +67,7 @@
 	}
 
 	function f(key, level, left, width, inln, c1, int) {
-		levels[level0 = level].push({left: left0 += left, width: width0 = width || width0,
+		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
 			color: getColor(palette[key & 7]), title: cpool[key >>> 3],
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
@@ -133,19 +134,19 @@
 		}
 
 		pattern = r ? RegExp(r) : undefined;
-		const matched = render(root, rootLevel);
-		document.getElementById('matchval').textContent = pct(matched, root.width) + '%';
+		const matched = render(root, nav = []);
+		navIndex = -1;
+		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
 		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
 	}
 
-	function render(newRoot, newLevel) {
+	function render(newRoot, nav) {
 		if (root) {
 			c.fillStyle = '#ffffff';
 			c.fillRect(0, 0, canvasWidth, canvasHeight);
 		}
 
 		root = newRoot || levels[0][0];
-		rootLevel = newLevel || 0;
 		px = canvasWidth / root.width;
 
 		const x0 = root.left;
@@ -153,7 +154,7 @@
 		const marked = [];
 
 		function mark(f) {
-			return marked[f.left] >= f.width || (marked[f.left] = f.width);
+			return marked[f.left] || (marked[f.left] = f);
 		}
 
 		function totalMarked() {
@@ -161,14 +162,16 @@
 			let left = 0;
 			Object.keys(marked).sort(function(a, b) { return a - b; }).forEach(function(x) {
 				if (+x >= left) {
-					total += marked[x];
-					left = +x + marked[x];
+					const m = marked[x];
+					if (nav) nav.push(m);
+					total += m.width;
+					left = +x + m.width;
 				}
 			});
 			return total;
 		}
 
-		function drawFrame(f, y, alpha) {
+		function drawFrame(f, y) {
 			if (f.left < x1 && f.left + f.width > x0) {
 				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;
 				c.fillRect((f.left - x0) * px, y, f.width * px, 15);
@@ -180,7 +183,7 @@
 					c.fillText(title, Math.max(f.left - x0, 0) * px + 3, y + 12, f.width * px - 6);
 				}
 
-				if (alpha) {
+				if (f.level < root.level) {
 					c.fillStyle = 'rgba(255, 255, 255, 0.5)';
 					c.fillRect((f.left - x0) * px, y, f.width * px, 15);
 				}
@@ -191,7 +194,7 @@
 			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
 			const frames = levels[h];
 			for (let i = 0; i < frames.length; i++) {
-				drawFrame(frames[i], y, h < rootLevel);
+				drawFrame(frames[i], y);
 			}
 		}
 
@@ -218,11 +221,11 @@
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (event.altKey && h >= rootLevel) {
+					if (event.altKey && h >= root.level) {
 						removeStack(f.left, f.width);
-						root.width > f.width ? render(root, rootLevel) : render();
+						root.width > f.width ? render(root) : render();
 					} else if (f !== root) {
-						render(f, h);
+						render(f);
 					}
 					canvas.onmousemove();
 				};
@@ -259,12 +262,18 @@
 		search(false);
 	}
 
-	window.onkeydown = function() {
-		if ((event.ctrlKey || event.metaKey) && event.keyCode === 70) {
+	window.onkeydown = function(event) {
+		if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
 			event.preventDefault();
 			search(true);
-		} else if (event.keyCode === 27) {
+		} else if (event.key === 'Escape') {
 			search(false);
+		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
+			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
+			render(nav[navIndex]);
+			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
+			window.scroll(0, reverse ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+			canvas.onmousemove();
 		}
 	}
 

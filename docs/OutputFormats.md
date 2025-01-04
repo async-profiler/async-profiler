@@ -4,16 +4,26 @@ async-profiler currently supports the below output formats:
 
 - `collapsed` - This is a collection of call stacks, where each line is a semicolon separated list of frames followed
   by a counter. This is used by the FlameGraph script to generate the FlameGraph visualization of the profile data.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/collapsed_example.png)
+
+  ```
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult 21
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult;java/io/DataOutputStream.writeInt 1
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult;java/io/DataOutputStream.writeInt;java/io/ByteArrayOutputStream.write 5
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult;java/io/DataOutputStream.writeUTF;java/io/DataOutputStream.writeUTF 12
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult;java/io/DataOutputStream.writeUTF;java/io/DataOutputStream.writeUTF;java/lang/String.length 3
+  FileConverter.main;FileConverter.convertFile;FileConverter.saveResult;java/io/DataOutputStream.writeUTF;java/io/DataOutputStream.writeUTF;java/io/DataOutputStream.write 6
+  start_thread;thread_native_entry;Thread::call_run;VMThread::run;VMThread::inner_execute;VMThread::evaluate_operation;VM_Operation::evaluate;VM_GenCollectForAllocation::doit;GenCollectedHeap::satisfy_failed_allocation;GenCollectedHeap::do_collection;GenCollectedHeap::collect_generation;DefNewGeneration::collect;DefNewGeneration::FastEvacuateFollowersClosure::do_void 12
+  start_thread;thread_native_entry;Thread::call_run;VMThread::run;VMThread::inner_execute;VMThread::evaluate_operation;VM_Operation::evaluate;VM_GenCollectForAllocation::doit;GenCollectedHeap::satisfy_failed_allocation;GenCollectedHeap::do_collection;GenCollectedHeap::collect_generation;DefNewGeneration::collect;DefNewGeneration::FastEvacuateFollowersClosure::do_void;void ContiguousSpace::oop_since_save_marks_iterate<DefNewScanClosure> 1
+  ```
 
 - `flamegraph` - FlameGraph is a hierarchical representation of call traces of the profiled software in a color coded
-  format that helps to identify a particular resource usage like CPU and memory for the application.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_example.png)
+  format. Read more on the [interpretation](FlamegraphInterpretation.md) of FlameGraphs.
+  [![FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
-- `tree` - Profile output generated in a html format showing a tree view of resource usage beginning with the call stack
+- `tree` - Profile output generated in HTML format showing a tree view of resource usage beginning with the call stack
   with the highest resource usage and then showing other call stacks in descending order of resource usage. Expanding a
   parent frame follows the same hierarchical representation within that frame.
-  ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/treeview_example.png)
+  ![Tree](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/treeview_example.png)
 
 - `text` - If no output format is specified with `-o` and filename has no extension provided, profiled output is
   generated in text format.
@@ -44,7 +54,7 @@ async-profiler currently supports the below output formats:
   [18] sun.launcher.LauncherHelper.checkAndLoadMain
   ```
 
-- `jfr` - Java Flight Recording(JFR) is a widely known tool for profiling Java applications. The `jfr` format collects data
+- `jfr` - profile format used by the JDK Flight Recorder. The `jfr` format collects data
   about the JVM as well as the Java application running on it. async-profiler can generate output in `jfr` format
-  compatible with tools capable of viewing and analyzing `jfr` files. Java Mission Control(JMC) and Intellij IDEA are
+  compatible with tools capable of viewing and analyzing `jfr` files. JDK Mission Control (JMC) and Intellij IDEA are
   some of many options to visualize `jfr` files. More details [here](JfrVisualization.md).

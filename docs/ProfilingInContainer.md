@@ -11,7 +11,8 @@ async-profiler should be run from the host by a privileged user - it will
 automatically switch to the proper pid/mount namespace and change
 user credentials to match the target process. Also make sure that
 the target container can access `libasyncProfiler.so` by the same
-absolute path as on the host.
+absolute path as on the host. Alternatively, specify `--libpath` option
+to override path to `libasyncProfiler.so` in a container.
 
 By default, Docker container restricts the access to `perf_event_open`
 syscall. There are 3 alternatives to allow profiling in a container:

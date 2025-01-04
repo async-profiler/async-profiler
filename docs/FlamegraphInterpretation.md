@@ -1,7 +1,6 @@
 # FlameGraph interpretation
 
-To interpret a flame graph, the best way forward is to understand how they are created. Sampling
-profiling results are a set of stack traces.
+To interpret a flame graph, the best way forward is to understand how it is created.
 
 ## Example application to profile
 
@@ -36,7 +35,9 @@ main() {
 
 ## Profiler sampling
 
-Profiling starts by taking samples x times per second. Whenever a sample is taken, the current call stack for it is saved. The diagram below shows the unsorted sampling view before the sorting and aggregation takes place.
+Profiling starts by taking samples `X` times per second. Whenever a sample is taken,
+the current call stack for it is saved. The diagram below shows the unsorted sampling view
+before the sorting and aggregation takes place.
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSamplings.png)
 
@@ -50,32 +51,35 @@ Below are the sampling numbers:
 
 ## Sorting samples
 
-Samples are then alphabetically sorted at the base level just after root(or main method) of the application.
+Samples are then alphabetically sorted at the base level just after root (or main method) of the application.
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/SortedSamplings.png)
 
+Note that X-axis is no longer a timeline. Flame graph does not preserve information
+on _when_ a particular stack trace was taken, it only indicates _how often_
+a stack trace was observed during profiling.
+
 ## Aggregated view
 
-For the aggregated view, the blocks for the same functions at each
-level of stack depth are stitched together to get the aggregated
-view of the flame graph.
+The blocks for the same functions at each level of stack depth are then stitched together
+to get an aggregated view of the flame graph.
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AggregatedView.png)
 
-In this example, except func4() no other function actually consumes
-any resource at the base level of stack depth. func5(), func6(),
-func7() and func8() are the ones consuming resources, with func8()
+In this example, except `func4()`, no other function actually consumes
+any resource at the base level of stack depth. `func5()`, `func6()`,
+`func7()` and `func8()` are the ones consuming resources, with `func8()`
 being a likely candidate for performance optimization.
 
-CPU utilization is the most common use case for flame graphs, however
+CPU utilization is the most common use case for flame graphs, however,
 there are other modes of profiling like allocation profiling to view
 heap utilization and wall-clock profiling to view latency.
 
-[More on various modes of profiling](https://github.com/async-profiler/async-profiler/?tab=readme-ov-file#profiling-modes)
+[More on various modes of profiling](ProfilingModes.md)
 
 ## Understanding FlameGraph colors
 
-The various colours in a FlameGraph output with their relation to underlying code for a Java application:
+Color is another flame graph dimension that may be used to encode additional information
+about each frame. Colors may have different meaning in various flame graph implementations.
+async-profiler uses the following palette to differentiate frame types:
 
 ![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_colors.png)
-
-Please note the colours in the example diagrams above have no relation to the official FlameGraph colour palette.
