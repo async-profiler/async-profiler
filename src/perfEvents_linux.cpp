@@ -208,7 +208,7 @@ struct PerfEventType {
 
         // Parse access type [:rwx]
         c = strrchr(buf, ':');
-        if (c != NULL && c != name && c[-1] != ':') {
+        if (c != NULL && c != buf && c[-1] != ':') {
             *c++ = 0;
             if (strcmp(c, "rw") == 0 || strcmp(c, "wr") == 0) {
                 bp_type = HW_BREAKPOINT_RW;
