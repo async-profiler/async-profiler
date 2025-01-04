@@ -19,7 +19,7 @@ Another important use of attaching async-profiler as an agent is for continuous 
 ## Using Java API
 
 async-profiler can be controlled programmatically using Java API. The corresponding Java library
-is published to Maven Central. You can [include it](https://mvnrepository.com/artifact/tools.profiler/async-profiler/3.0)
+is published to Maven Central. You can [include it](https://mvnrepository.com/artifact/tools.profiler/async-profiler/latest)
 just like any other Maven dependency:
 
 ```
