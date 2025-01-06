@@ -564,7 +564,7 @@ int main(int argc, const char** argv) {
 
     if (action == "collect") {
         run_fdtransfer(pid, fdtransfer);
-        run_jattach(pid, String("start,file=") << file << "," << output << format << params << ",log=" << logfile);
+        run_jattach(pid, String("start,quiet,file=") << file << "," << output << format << params << ",log=" << logfile);
 
         fprintf(stderr, "Profiling for %d seconds\n", duration);
         end_time = time_micros() + duration * 1000000ULL;

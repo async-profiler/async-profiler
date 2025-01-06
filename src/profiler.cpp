@@ -1734,7 +1734,9 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
             if (error) {
                 return error;
             }
-            out << "Profiling started\n";
+            if (!args._quiet) {
+                out << "Profiling started\n";
+            }
             break;
         }
         case ACTION_STOP: {
@@ -1743,7 +1745,9 @@ Error Profiler::runInternal(Arguments& args, Writer& out) {
                 if (error) {
                     return error;
                 }
-                out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
+                if (!args._quiet) {
+                    out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
+                }
                 break;
             }
             // Fall through
