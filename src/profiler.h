@@ -27,7 +27,7 @@
 
 
 const int MAX_NATIVE_FRAMES = 128;
-const int RESERVED_FRAMES   = 4;
+const int RESERVED_FRAMES   = 10;  // for synthetic frames
 const int CONCURRENCY_LEVEL = 16;
 
 
