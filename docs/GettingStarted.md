@@ -98,7 +98,7 @@ $ jps
 $ asprof -d 30 -f /tmp/flamegraph.html 8983
 ```
 
-[![Example](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
+[![Example](/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
 The flame graph html can be opened in any browser of your choice for further interpretation.
 

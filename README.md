@@ -51,7 +51,7 @@ $ asprof -d 30 -f flamegraph.html <PID>
 The above command translates to: run profiler for 30 seconds and save results to `flamegraph.html`
 as an interactive [Flame Graph](docs/FlamegraphInterpretation.md) that can be viewed in a browser.
 
-[![FlameGraph](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
+[![FlameGraph](/.assets/images/flamegraph.png)](https://htmlpreview.github.io/?https://github.com/async-profiler/async-profiler/blob/master/.assets/html/flamegraph.html)
 
 Find more details in the [Getting started guide](docs/GettingStarted.md).
 

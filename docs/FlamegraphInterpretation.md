@@ -39,7 +39,7 @@ Profiling starts by taking samples `X` times per second. Whenever a sample is ta
 the current call stack for it is saved. The diagram below shows the unsorted sampling view
 before the sorting and aggregation takes place.
 
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/ProfilerSamplings.png)
+![](/.assets/images/ProfilerSamplings.png)
 
 Below are the sampling numbers:
 
@@ -53,7 +53,7 @@ Below are the sampling numbers:
 
 Samples are then alphabetically sorted at the base level just after root (or main method) of the application.
 
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/SortedSamplings.png)
+![](/.assets/images/SortedSamplings.png)
 
 Note that X-axis is no longer a timeline. Flame graph does not preserve information
 on _when_ a particular stack trace was taken, it only indicates _how often_
@@ -63,7 +63,7 @@ a stack trace was observed during profiling.
 
 The blocks for the same functions at each level of stack depth are then stitched together
 to get an aggregated view of the flame graph.
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/AggregatedView.png)
+![](/.assets/images/AggregatedView.png)
 
 In this example, except `func4()`, no other function actually consumes
 any resource at the base level of stack depth. `func5()`, `func6()`,
@@ -82,4 +82,4 @@ Color is another flame graph dimension that may be used to encode additional inf
 about each frame. Colors may have different meaning in various flame graph implementations.
 async-profiler uses the following palette to differentiate frame types:
 
-![](https://github.com/async-profiler/async-profiler/blob/master/.assets/images/flamegraph_colors.png)
+![](/.assets/images/flamegraph_colors.png)

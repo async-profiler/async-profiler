@@ -38,9 +38,9 @@ Usually this happens in one of the following cases:
 2. JVM is started with `-XX:+DisableAttachMechanism` option.
 3. `/tmp` directory of Java process is not physically the same directory
    as `/tmp` of your shell, because Java is running in a container or in
-   `chroot` environment. `jattach` attempts to solve this automatically,
+   `chroot` environment. `asprof` attempts to solve this automatically,
    but it might lack the required permissions to do so.
-   - Check `strace build/jattach PID properties`
+   - Check `strace asprof PID jcmd`
 4. JVM is busy and cannot reach a safepoint. For instance,
    JVM is in the middle of long-running garbage collection.
    - How to check: run `kill -3 PID`. Healthy JVM process should print
