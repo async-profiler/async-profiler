@@ -90,7 +90,8 @@ static bool isOpenJ9GcAlloc(const char* blob_name) {
 }
 
 static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
-    return strcmp(blob_name, "jvmtiHookSampledObjectAlloc") == 0;
+    return strcmp(blob_name, "jvmtiHookSampledObjectAlloc") == 0 ||
+           strcmp(blob_name, "jvmtiHookObjectAllocate") == 0;
 }
 
 static bool isCompilerEntry(const char* blob_name) {

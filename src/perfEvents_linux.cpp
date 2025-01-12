@@ -818,7 +818,6 @@ Error PerfEvents::start(Arguments& args) {
     }
 
     if (VM::isOpenJ9()) {
-        if (_cstack == CSTACK_DEFAULT) _cstack = CSTACK_DWARF;
         OS::installSignalHandler(_signal, signalHandlerJ9);
         Error error = J9StackTraces::start(args);
         if (error) {

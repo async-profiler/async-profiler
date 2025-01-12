@@ -585,21 +585,25 @@ void VMStructs::initThreadBridge() {
     }
 
     JNIEnv* env = VM::jni();
-
-    // Get eetop field - a bridge from Java Thread to VMThread
     jclass thread_class = env->FindClass("java/lang/Thread");
-    if (thread_class == NULL ||
-        (_tid = env->GetFieldID(thread_class, "tid", "J")) == NULL ||
-        (_eetop = env->GetFieldID(thread_class, "eetop", "J")) == NULL) {
-        // No such field - probably not a HotSpot JVM
+    if (thread_class == NULL || (_tid = env->GetFieldID(thread_class, "tid", "J")) == NULL) {
         env->ExceptionClear();
+        return;
+    }
 
+    if (VM::isOpenJ9()) {
         void* j9thread = J9Ext::j9thread_self();
         if (j9thread != NULL) {
             initTLS(j9thread);
         }
     } else {
-        // HotSpot
+        // Get eetop field - a bridge from Java Thread to VMThread
+        if ((_eetop = env->GetFieldID(thread_class, "eetop", "J")) == NULL) {
+            // No such field - probably not a HotSpot JVM
+            env->ExceptionClear();
+            return;
+        }
+
         VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
         if (vm_thread != NULL) {
             _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
