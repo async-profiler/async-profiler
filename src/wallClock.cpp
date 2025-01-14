@@ -63,6 +63,12 @@ class ThreadCpuTimeBuffer {
     ThreadCpuTimeBuffer() : _ringbuf(), _write_ptr(0), _read_ptr(0) {
     }
 
+    void reset() {
+        memset(_ringbuf, 0, sizeof(_ringbuf));
+        _read_ptr = 0;
+        __atomic_store_n(&_write_ptr, 0, __ATOMIC_RELEASE);
+    }
+
     void add(u64 trace) {
         ThreadCpuTime& t = _ringbuf[atomicInc(_write_ptr) & (RINGBUF_SIZE - 1)];
         t.trace = trace;
@@ -126,7 +132,7 @@ void WallClock::signalHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         event._thread_state = getThreadState(ucontext);
         event._samples = 1;
         u64 trace = Profiler::instance()->recordSample(ucontext, _interval, WALL_CLOCK_SAMPLE, &event);
-        if (event._thread_state == THREAD_SLEEPING) {
+        if (event._thread_state == THREAD_SLEEPING && trace != 0) {
             _thread_cpu_time_buf.add(trace);
         }
     } else {
@@ -184,6 +190,7 @@ void WallClock::timerLoop() {
 
     ThreadSleepMap thread_sleep_state;
     ThreadList* thread_list = OS::listThreads();
+    _thread_cpu_time_buf.reset();
     u64 cycle_start_time = OS::nanotime();
 
     while (_running) {
