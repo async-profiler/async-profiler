@@ -220,9 +220,7 @@ output will be overwritten on each iteration.
 asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ```
 
-## Special event types supported on Linux
-
-Below special event types are supported on Linux:
+## perf event types supported on Linux
 
 - `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
   `<func>`. The format of `mem` event is the same as in [`perf-record`](https://man7.org/linux/man-pages/man1/perf-record.1.html).
@@ -236,3 +234,37 @@ Below special event types are supported on Linux:
 - Symbolic name of a dynamic PMU event, e.g. `-e cpu/topdown-fetch-bubbles/`
 - kprobe/kretprobe, e.g. `-e kprobe:do_sys_open`, `-e kretprobe:do_sys_open`
 - uprobe/uretprobe, e.g. `-e uprobe:/usr/lib64/libc-2.17.so+0x114790`
+
+| Event Type              | Usage                                         | Description                                                                                                |
+| ----------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Predefined:             |                                               |                                                                                                            |
+| `cpu`                   | `-e cpu`                                      | Alias for `cpu-clock`                                                                                      |
+| `cpu-clock`             | `-e cpu-clock`                                | Software CPU clock                                                                                         |
+| `page-faults`           | `-e page-faults`                              | Software page faults                                                                                       |
+| `cycles`                | `-e cycles`                                   | CPU cycles                                                                                                 |
+| `instructions`          | `-e instructions`                             | CPU instructions                                                                                           |
+| `cache-references`      | `-e cache-references`                         | Number of total memory accesses to the cache                                                               |
+| `cache-misses`          | `-e cache-misses`                             | Number of total memory accesses requiring fetching data from higher-level cache or main memory             |
+| `branch-instructions`   | `-e branch-instructions`                      | Number of branch instructions retired                                                                      |
+| `branch-misses`         | `-e branch-misses`                            | Number of mispredicted branch instructions retired                                                         |
+| `bus-cycles`            | `-e bus-cycles`                               | Number of cycles processor interacts with the external bus (memory, I/O, ...)                              |
+| `L1-dcache-load-misses` | `-e L1-dcache-load-misses`                    | Cache misses on Level 1 data cache                                                                         |
+| `LLC-load-misses`       | `-e LLC-load-misses`                          | Cache misses on the last level cache (usually L3)                                                          |
+| `dTLB-load-misses`      | `-e dTLB-load-misses`                         | Data load misses on the Translation Lookaside Buffer which causes a page table walk                        |
+| Breakpoint:             |                                               |                                                                                                            |
+| `mem`                   | `-e mem:<addr>`                               | Breakpoint on decimal or hex (0x) address                                                                  |
+|                         | `-e mem:<func>`                               | Breakpoint on public or private symbol                                                                     |
+|                         | `-e mem:<func>[+<offset>][/<len>][:rwx>]`     | Breakpoint on symbol or address with offset, length and rwx. Address, offset and length can be hex or dec. |
+| Tracepoint:             |                                               |                                                                                                            |
+| `trace`                 | `-e trace:<id>`                               | Tracepoint with id.                                                                                        |
+| `<tracepoint>`          | `-e <tracepoint>`: `-e oom:mark_victim`       | Tracepoint with name.                                                                                      |
+| Probes:                 |                                               |                                                                                                            |
+| `kprobe`                | `-e kprobe:<func>[+<offset>]`                 | Kernel probe                                                                                               |
+| `kretprobe`             | `-e kretprobe:<func>[+<offset>]`              | Kernel return probe                                                                                        |
+| `uprobe`                | `-e uprobe:<func>[+<offset>]`                 | Userspace probe                                                                                            |
+| `uretprobe`             | `-e uretprobe:<func>[+<offset>]`              | Userspace return probe                                                                                     |
+| PMU                     |                                               |                                                                                                            |
+| `rNNN`                  | `-e r<NNN>`: `-e r1B0`                        | Raw PMU event for rNNN, meaning is arch dependent                                                          |
+| `<pmu descriptor>`      | `-e <pmu descriptor>`: `-e cpu/cache-misses/` | PMU event descriptor.                                                                                      |
+| Symbol                  |                                               |                                                                                                            |
+| `<symbol>`              | `-e <symbol>`: `-e strcmp`                    | Equivalent to `mem:<symbol>`                                                                               |
