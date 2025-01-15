@@ -20,9 +20,11 @@ CC ?= gcc
 CXX ?= g++
 STRIP ?= strip
 
-CC := $(CROSS_COMPILE)$(CC)
-CXX := $(CROSS_COMPILE)$(CXX)
-STRIP := $(CROSS_COMPILE)$(STRIP)
+ifneq ($(CROSS_COMPILE),)
+CC := $(CROSS_COMPILE)gcc
+CXX := $(CROSS_COMPILE)g++
+STRIP := $(CROSS_COMPILE)strip
+endif
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
