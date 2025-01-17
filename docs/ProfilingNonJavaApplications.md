@@ -17,19 +17,7 @@ All basic functionality remains the same. Profiler can run in `cpu`, `wall`, `na
 modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
 Java-specific events.
 
-### Analyzing native memory leaks
-
-Dump a jfr every 10 minutes, process jfr files with `jfrconv` to generate leak reports:
-
-```
-LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,nativemem,total,loop=10m,cstack=dwarf,file=profile-%t.jfr NativeApp [args]
-```
-
-then generate flamegraphs with memory leaks:
-
-```
-jfrconv --total --nativemem --leak <profile>.jfr <profile>-leak.html
-```
+See [Profiling Modes](ProfilingModes.md) for more examples.
 
 ## Controlling async-profiler via the C API
 
