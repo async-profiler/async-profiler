@@ -182,6 +182,8 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _live;
+    int _livebuffersize;
+    int _live_gc_threshold;
     bool _nobatch;
     bool _nostop;
     bool _alluser;
@@ -235,6 +237,8 @@ class Arguments {
         _threads(false),
         _sched(false),
         _live(false),
+        _livebuffersize(1024),
+        _live_gc_threshold(0),
         _nobatch(false),
         _nostop(false),
         _alluser(false),
