@@ -38,7 +38,7 @@ Error J9ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
     _allocated_bytes = 0;
 
-    initLiveRefs(args._live);
+    initLiveRefs(args._live, args._livebuffersize);
 
     jvmtiEnv* jvmti = VM::jvmti();
     if (jvmti->SetExtensionEventCallback(J9Ext::InstrumentableObjectAlloc_id, (jvmtiExtensionEvent)JavaObjectAlloc) != 0) {

@@ -9,8 +9,6 @@
 #include "profiler.h"
 #include "tsc.h"
 
-#define DEFAULT_LIVE_REFS_COUNT 1024
-
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
@@ -162,10 +160,10 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
     }
 }
 
-void ObjectSampler::initLiveRefs(bool live) {
+void ObjectSampler::initLiveRefs(bool live, int ringsize) {
     _live = live;
     if (_live) {
-        live_refs.init(DEFAULT_LIVE_REFS_COUNT);
+        live_refs.init(ringsize);
     }
 }
 
@@ -178,7 +176,7 @@ void ObjectSampler::dumpLiveRefs() {
 Error ObjectSampler::start(Arguments& args) {
     _interval = args._alloc > 0 ? args._alloc : DEFAULT_ALLOC_INTERVAL;
 
-    initLiveRefs(args._live);
+    initLiveRefs(args._live, args._livebuffersize);
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmti->SetHeapSamplingInterval(_interval);

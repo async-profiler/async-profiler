@@ -346,6 +346,11 @@ Error Arguments::parse(const char* args) {
             CASE("live")
                 _live = true;
 
+            CASE("livebuffersize")
+                if (value == NULL || (_livebuffersize = atoi(value)) < 0) {
+                    msg = "livebuffersize must be >= 0";
+                }
+
             CASE("nobatch")
                 _nobatch = true;
 
