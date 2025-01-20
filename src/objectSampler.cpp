@@ -4,10 +4,12 @@
  */
 
 #include <string.h>
+#include <vector>
 #include "objectSampler.h"
 #include "profiler.h"
 #include "tsc.h"
 
+#define DEFAULT_LIVE_REFS_COUNT 1024
 
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
@@ -36,11 +38,9 @@ struct LiveObjectInfo {
 
 class LiveRefs {
   private:
-    enum { MAX_REFS = 1024 };
-
     SpinLock _lock;
-    jweak _refs[MAX_REFS];
-    LiveObjectInfo _values[MAX_REFS];
+    std::vector<jweak> _refs;
+    std::vector<LiveObjectInfo> _values;
     bool _full;
 
     static inline bool collected(jweak w) {
@@ -48,13 +48,18 @@ class LiveRefs {
     }
 
   public:
-    LiveRefs() : _lock(1) {
+    LiveRefs() :
+        _lock(1),
+        _refs(0),
+        _values(0) {
     }
 
-    void init() {
-        memset(_refs, 0, sizeof(_refs));
-        memset(_values, 0, sizeof(_values));
+    void init(size_t count) {
         _full = false;
+        _refs.clear();
+        _refs.resize(count);
+        _values.clear();
+        _values.resize(count);
         _lock.unlock();
     }
 
@@ -73,7 +78,7 @@ class LiveRefs {
         }
 
         if (_lock.tryLock()) {
-            u32 start = (((uintptr_t)object >> 4) * 31 + ((uintptr_t)jni >> 4) + trace) & (MAX_REFS - 1);
+            u32 start = (((uintptr_t)object >> 4) * 31 + ((uintptr_t)jni >> 4) + trace) & (_refs.size() - 1);
             u32 i = start;
             do {
                 jweak w = _refs[i];
@@ -86,7 +91,7 @@ class LiveRefs {
                     _lock.unlock();
                     return;
                 }
-            } while ((i = (i + 1) & (MAX_REFS - 1)) != start);
+            } while ((i = (i + 1) & (_refs.size() - 1)) != start);
 
             _full = true;
             _lock.unlock();
@@ -104,7 +109,7 @@ class LiveRefs {
         // Reset counters before dumping to collect live objects only.
         profiler->tryResetCounters();
 
-        for (u32 i = 0; i < MAX_REFS; i++) {
+        for (u32 i = 0; i < _refs.size(); i++) {
             if ((i % 32) == 0) jni->PushLocalFrame(64);
 
             jweak w = _refs[i];
@@ -124,7 +129,7 @@ class LiveRefs {
                 jni->DeleteWeakGlobalRef(w);
             }
 
-            if ((i % 32) == 31 || i == MAX_REFS - 1) jni->PopLocalFrame(NULL);
+            if ((i % 32) == 31 || i == _refs.size() - 1) jni->PopLocalFrame(NULL);
         }
     }
 };
@@ -160,7 +165,7 @@ void ObjectSampler::recordAllocation(jvmtiEnv* jvmti, JNIEnv* jni, EventType eve
 void ObjectSampler::initLiveRefs(bool live) {
     _live = live;
     if (_live) {
-        live_refs.init();
+        live_refs.init(DEFAULT_LIVE_REFS_COUNT);
     }
 }
 
