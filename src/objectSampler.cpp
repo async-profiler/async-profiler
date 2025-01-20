@@ -28,6 +28,11 @@ static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
     return class_id;
 }
 
+struct LiveObjectInfo {
+    jlong size;
+    u64 trace;
+    u64 time;
+};
 
 class LiveRefs {
   private:
@@ -35,11 +40,7 @@ class LiveRefs {
 
     SpinLock _lock;
     jweak _refs[MAX_REFS];
-    struct {
-        jlong size;
-        u64 trace;
-        u64 time;
-    } _values[MAX_REFS];
+    LiveObjectInfo _values[MAX_REFS];
     bool _full;
 
     static inline bool collected(jweak w) {
