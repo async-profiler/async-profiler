@@ -70,6 +70,7 @@ static const char USAGE_STRING[] =
     "  --alloc bytes     allocation profiling interval in bytes\n"
     "  --live            build allocation profile from live objects only\n"
     "  --nativemem bytes native allocation profiling interval in bytes\n"
+    "  --nofree          do not collect free calls in native allocation profiling\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
@@ -489,7 +490,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--width" || arg == "--height" || arg == "--minwidth") {
             format << "," << (arg.str() + 2) << "=" << args.next();
 
-        } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live") {
+        } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live" || arg == "--nofree") {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
