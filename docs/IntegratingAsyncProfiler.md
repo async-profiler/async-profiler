@@ -50,6 +50,26 @@ can be found in [Profiler Options](ProfilerOptions.md).
 `file` should be specified only once, either in
 `start` command with `jfr` output or in `stop` command with any other format.
 
+### Example for profile special pid
+```
+public static void profileSpecialProcess(String libPath, String pid, String command) throws Exception {
+    VirtualMachine vm = VirtualMachine.attach(pid);
+    try {
+        vm.loadAgentPath(libPath, command);
+    } finally {
+        vm.detach();
+    }
+}
+
+
+String libPath = "path/to/libasyncProfiler.so";//for linux
+String libPath = "path/to/libasyncProfiler.dylib";//for mac
+profileSpecialProcess(libPath,"70063","start,jfr,event=wall,jfrsync=profile,file=/path/to/%p.jfr");
+//do some meaningful work
+profileSpecialProcess(libPath,"70063","stop");
+```
+
+
 ## Intellij IDEA
 
 Intellij IDEA comes bundled with async-profiler, which can be further configured to our needs
