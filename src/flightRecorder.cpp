@@ -555,9 +555,12 @@ class Recording {
         (void)result;
 
         // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
-        u64 tsc_frequency = TSC::frequency();
+        u64 tsc_frequency;
         if (TSC::enabled()) {
             tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
+        } else {
+            // Not checking frequencyAvailable here since it's only relevant with TSC enabled.
+            tsc_frequency = TSC::frequency();
         }
 
         // Patch chunk header
@@ -751,6 +754,8 @@ class Recording {
         buf->put64(_start_time * 1000);  // start time, ns
         buf->put64(0);                   // duration, ns
         buf->put64(_start_ticks);        // start ticks
+        // the frequency here will be incorrect in TSC node but no JVM. It will be overridden
+        // in finishChunk later.
         buf->put64(TSC::frequency());    // ticks per sec
         buf->put32(1);                   // features
     }

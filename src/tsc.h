@@ -46,6 +46,7 @@ class TSC {
     static bool _initialized;
     static bool _available;
     static bool _enabled;
+    static bool _frequencyAvailable;
     static u64 _offset;
     static u64 _frequency;
 
@@ -58,6 +59,12 @@ class TSC {
 
     static u64 ticks() {
         return enabled() ? rdtsc() - _offset : OS::nanotime();
+    }
+
+    // Frequency is only used for Java lock profiling. When using the TSC with
+    // no JVM, there is no frequency calibration and no frequency available.
+    static bool frequencyAvailable() {
+        return _frequencyAvailable;
     }
 
     static u64 frequency() {
