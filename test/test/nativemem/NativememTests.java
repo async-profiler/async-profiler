@@ -151,6 +151,7 @@ public class NativememTests {
         p.waitForExit();
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"), "--nativemem");
         assert out.contains("JavaMain");
-        assert out.contains("os::malloc");
+        assert out.contains("JVM_");
+        assert out.contains("malloc_hook");
     }
 }
