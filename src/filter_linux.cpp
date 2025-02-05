@@ -23,9 +23,12 @@ HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool 
     this->_clock_id = clock_id(use_realtime_clock, use_unix_clock);
     this->_delay_ns = interval_ns;
     this->_file_path = heartbit_file;
+
+    Log::warn("Init filter: %s / %d / %d", _file_path, _delay_ns, _clock_id);
 }
 
 void HeartBitFilter::start() {
+    Log::warn("Filter: open file %s", this->_file_path);
    this->_fd = open(this->_file_path, O_RDONLY);
     if (this->_fd <= 0) {
         Log::error("Can't open heartbit file %s, %s", this->_file_path, strerror(errno));
@@ -52,6 +55,8 @@ bool HeartBitFilter::shouldProcess() {
     clock_gettime(this->_clock_id, &nano_time);
 
     u64 full_ts = nano_time.tv_sec * NS_IN_1_SEC + nano_time.tv_nsec;
+
+    Log::warn("%d <-> %d", full_ts, profile_after);
 
     return full_ts >= profile_after;
 }
