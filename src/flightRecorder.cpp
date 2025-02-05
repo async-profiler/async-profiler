@@ -1012,8 +1012,8 @@ class Recording {
             // Write a dummy String pool of 1 element instead.
             buf->putVar32(T_STRING);
             buf->putVar32(1);
-            buf->putVar32(0);
-            buf->put8(0);
+            buf->putVar32(1);  // key
+            buf->put8(0);      // null string
         }
     }
 
