@@ -163,7 +163,6 @@ class Arguments {
     long _interval;
     long _alloc;
     long _nativemem;
-    bool _nofree;
     long _lock;
     long _wall;
     int _jstackdepth;
@@ -183,6 +182,7 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _live;
+    bool _nofree;
     bool _nobatch;
     bool _nostop;
     bool _alluser;

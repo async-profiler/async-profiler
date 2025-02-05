@@ -68,11 +68,10 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 
 extern "C" void free_hook(void* addr) {
     _orig_free(addr);
-    if (MallocTracer::running() && addr) {
+    if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
-
 
 u64 MallocTracer::_interval;
 bool MallocTracer::_nofree;
@@ -109,10 +108,7 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_malloc, (void*)malloc_hook);
         cc->patchImport(im_calloc, (void*)calloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
-
-        if(!_nofree) {
-            cc->patchImport(im_free, (void*)free_hook);
-        }
+        cc->patchImport(im_free, (void*)free_hook);
     }
 }
 
