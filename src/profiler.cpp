@@ -611,47 +611,6 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
         }
     }
 }
-/*
-struct Filter {
-private:
-    int shm_fd;
-    void* region_start;
-public:
-    Filter():
-        shm_fd(0),
-        region_start(nullptr)
- {
-   shm_fd = open("/dev/shm/asprof", O_RDONLY);
-      printf("shm_fd: %d\n", shm_fd);
-
-   if (shm_fd <= 0) {
-     printf("err: %d\n", errno);
-   }
-
-        region_start = mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, shm_fd, 0);
-        printf("region start: %p\n", region_start);
-    }
-
-bool shouldRecordSample() {
-    u64* ptr = (u64*)region_start;
-    u64 profile_after = *ptr;
-
-    if (profile_after == 0) {
-      return true;
-    }
-
-
-    struct timespec nano_time={0,0};
-    clock_gettime(CLOCK_MONOTONIC, &nano_time);
-
-    u64 full_ts = nano_time.tv_sec * 1000000000 + nano_time.tv_nsec;
-
-    return full_ts >= profile_after;
-}
-};
-
-static Filter filter;
-*/
 
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     if (this->_filter && !this->_filter->shouldProcess()) {
