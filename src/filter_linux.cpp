@@ -22,10 +22,11 @@ int clock_id(bool use_realtime, bool use_unix) {
 HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool use_unix_clock, bool use_realtime_clock) {
     this->_clock_id = clock_id(use_realtime_clock, use_unix_clock);
     this->_delay_ns = interval_ns;
+    this->_file_path = heartbit_file;
 }
 
 void HeartBitFilter::start() {
-   this->_fd = open(heartbit_file, O_RDONLY);
+   this->_fd = open(this->_file_path, O_RDONLY);
     if (this->_fd <= 0) {
         Log::error("Can't open heartbit file %s, %s", heartbit_file, strerror(errno));
     }
