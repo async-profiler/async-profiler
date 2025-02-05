@@ -134,8 +134,8 @@ void MallocTracer::recordFree(void* address) {
 
 Error MallocTracer::start(Arguments& args) {
     _interval = args._nativemem > 0 ? args._nativemem : 0;
-    _allocated_bytes = 0;
     _nofree = args._nofree;
+    _allocated_bytes = 0;
 
     if (!_initialized) {
         initialize();
