@@ -28,15 +28,15 @@ HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool 
 void HeartBitFilter::start() {
    this->_fd = open(this->_file_path, O_RDONLY);
     if (this->_fd <= 0) {
-        Log::error("Can't open heartbit file %s, %s", heartbit_file, strerror(errno));
+        Log::error("Can't open heartbit file %s, %s", this->_file_path, strerror(errno));
     }
     this->_region_ptr = (u64*)mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, this->_fd, 0);
     if (this->_region_ptr == 0) {
-        Log::error("Can't mmap file file %s, %s", heartbit_file, strerror(errno));
+        Log::error("Can't mmap file file %s, %s", this->_file_path, strerror(errno));
     }
 }
 
-void HertBitInterval::stop() {
+void HeartBitFilter::stop() {
     munmap(this->_region_ptr, sizeof(u64));
     close(this->_fd);
 }
