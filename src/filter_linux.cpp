@@ -11,10 +11,11 @@ const u64 NS_IN_1_SEC = 1000 * 1000 * 1000;
 int clock_id(bool use_realtime, bool use_unix) {
     if (use_realtime) {
         return CLOCK_REALTIME;
-    }else if (use_unix) {
-        return CLOCK_MONOTHONIC;
+    } else if (use_unix) {
+        return CLOCK_MONOTONIC;
     } else {
         Log::error("No clockid set");
+	return -1;
     }
 }
 
@@ -24,16 +25,16 @@ HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool 
     if (this->_fd <= 0) {
         Log::error("Can't open heartbit file %s, %s", heartbit_file, strerror(errno));
     }
-    this->_region_ptr = mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, this->_fd, 0);
+    this->_region_ptr = (u64*)mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, this->_fd, 0);
     if (this->_region_ptr == 0) {
         Log::error("Can't mmap file file %s, %s", heartbit_file, strerror(errno));
     }
 }
 
 bool HeartBitFilter::shouldProcess() {
-	if (!this->_region_ptr) {
-		return false;
-	}
+  if (!this->_region_ptr) {
+    return false;
+  }
     u64 last_heartbit = *(u64*)this->_region_ptr;
     u64 profile_after = last_heartbit + this->_delay_ns;
 

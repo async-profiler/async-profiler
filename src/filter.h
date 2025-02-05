@@ -20,7 +20,7 @@ public:
 
     ~HeartBitFilter();
 
-    operator = (const HeartBitFilter&) = delete;
+    HeartBitFilter& operator = (const HeartBitFilter&) = delete;
     HeartBitFilter(const HeartBitFilter&) = delete;
 };
 
