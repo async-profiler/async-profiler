@@ -30,6 +30,7 @@ public class TestProcess implements Closeable {
     public static final String STDERR = "%err";
     public static final String PROFOUT = "%pout";
     public static final String PROFERR = "%perr";
+    public static final String LIBPROF = "%lib";
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
@@ -67,7 +68,7 @@ public class TestProcess implements Closeable {
         this.logDir = logDir;
         this.inputs = test.inputs();
 
-        List<String> cmd = buildCommandLine(test, currentOs);
+        List<String> cmd = buildCommandLine(test);
         log.log(Level.FINE, "Running " + cmd);
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
@@ -81,7 +82,7 @@ public class TestProcess implements Closeable {
         for (String env : test.env()) {
             String[] keyValue = env.split("=", 2);
             if (keyValue.length == 2) {
-                pb.environment().put(keyValue[0], keyValue[1]);
+                pb.environment().put(keyValue[0], substituteFiles(keyValue[1]));
             }
         }
 
@@ -109,7 +110,7 @@ public class TestProcess implements Closeable {
         return "build/lib/libasyncProfiler." + currentOs.getLibExt();
     }
 
-    private List<String> buildCommandLine(Test test, Os currentOs) {
+    private List<String> buildCommandLine(Test test) {
         List<String> cmd = new ArrayList<>();
 
         String[] sh = test.sh();
@@ -172,11 +173,18 @@ public class TestProcess implements Closeable {
 
         StringBuffer sb = new StringBuffer();
         do {
-            File f = createTempFile(m.group(1), m.group(2));
-            m.appendReplacement(sb, f.getPath());
+            String path = substituteFile(m.group(1), m.group(2));
+            m.appendReplacement(sb, path);
         } while (m.find());
 
         return m.appendTail(sb).toString();
+    }
+
+    private String substituteFile(String fileId, String ext) {
+        if (fileId.equals(LIBPROF)) {
+            return profilerLibPath();
+        }
+        return createTempFile(fileId, ext).getPath();
     }
 
     private File createTempFile(String fileId) {
@@ -309,6 +317,10 @@ public class TestProcess implements Closeable {
 
     public File getFile(String fileId) {
         return tmpFiles.get(fileId);
+    }
+
+    public String getFilePath(String fileId) {
+        return getFile(fileId).getAbsolutePath();
     }
 
     public Output readFile(String fileId) {

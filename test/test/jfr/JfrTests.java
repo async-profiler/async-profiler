@@ -22,7 +22,7 @@ public class JfrTests {
     @Test(mainClass = RegularPeak.class)
     public void regularPeak(TestProcess p) throws Exception {
         Output out = p.profile("-e cpu -d 6 -f %f.jfr");
-        String jfrOutPath = p.getFile("%f").getAbsolutePath();
+        String jfrOutPath = p.getFilePath("%f");
         String peakPattern = "test/jfr/Cache.*calculateTop.*";
 
         out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
@@ -43,7 +43,7 @@ public class JfrTests {
     public void parseRecording(TestProcess p) throws Exception {
         p.profile("-d 3 -e cpu -f %f.jfr");
         StringBuilder builder = new StringBuilder();
-        try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 builder.append(event);
@@ -65,7 +65,7 @@ public class JfrTests {
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         p.waitForExit();
         Map<String, Integer> eventsCount = new HashMap<>();
-        try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
@@ -89,7 +89,7 @@ public class JfrTests {
         p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
 
-        Output out = Output.convertJfrToCollapsed(p.getFile("%f").getAbsolutePath());
+        Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert out.samples("indexOfTest") >= 10;
     }
 
@@ -108,7 +108,7 @@ public class JfrTests {
     private boolean containsSamplesOutsideWindow(TestProcess p) throws Exception {
         TreeMap<Instant, Instant> profilerWindows = new TreeMap<>();
         List<RecordedEvent> samples = new ArrayList<>();
-        try (RecordingFile recordingFile = new RecordingFile(Paths.get(p.getFile("%f").getAbsolutePath()))) {
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 if (event.getEventType().getName().equals("profiler.Window")) {

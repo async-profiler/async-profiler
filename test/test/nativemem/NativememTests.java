@@ -90,7 +90,7 @@ public class NativememTests {
 
     private static void assertNoLeaks(TestProcess p) throws Exception {
         p.waitForExit();
-        String filename = p.getFile("%f").toPath().toString();
+        String filename = p.getFilePath("%f");
 
         boolean nofree = Arrays.asList(p.inputs()).contains("nofree");
         boolean hasFree = false;
@@ -144,5 +144,13 @@ public class NativememTests {
     @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr")
     public void jfrNoFree(TestProcess p) throws Exception {
         assertNoLeaks(p);
+    }
+
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", env = {"LD_PRELOAD=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})
+    public void ldpreload(TestProcess p) throws Exception {
+        p.waitForExit();
+        Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"), "--nativemem");
+        assert out.contains("JavaMain");
+        assert out.contains("os::malloc");
     }
 }
