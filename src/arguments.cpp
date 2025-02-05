@@ -419,6 +419,20 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
+            CASE("heartbitfile")
+                _heartbit_file = value;
+
+            CASE("heartbitns")
+                _heartbit_delay_ns = strtol(value, NULL, 0);
+
+            CASE("heartbit-unix")
+                _heartbit_unix_clock = true;
+                _heartbit_realtime_clock = false;
+
+            CASE("heartbit-realtime")
+                _heartbit_unix_clock = false;
+                _heartbit_realtime_clock = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }

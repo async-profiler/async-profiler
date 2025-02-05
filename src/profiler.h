@@ -16,6 +16,7 @@
 #include "dictionary.h"
 #include "engine.h"
 #include "event.h"
+#include "filter.h"
 #include "flightRecorder.h"
 #include "log.h"
 #include "mutex.h"
@@ -89,6 +90,8 @@ class Profiler {
     bool _add_sched_frame;
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
+
+    HeartBitFilter* _filter;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -166,6 +169,7 @@ class Profiler {
         _timer_id(NULL),
         _max_stack_depth(0),
         _thread_events_state(JVMTI_DISABLE),
+        _filter(NULL),
         _stubs_lock(),
         _runtime_stubs("[stubs]"),
         _native_libs(),
