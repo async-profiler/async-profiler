@@ -1105,9 +1105,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             return Error("Failed to initialize FdTransferClient");
         }
     }
-
-    if (_filter) {
-        _filter->start();
+    if (args._heartbit_file) {
+        _filter = new HeartBitFilter(
+                            args._heartbit_file,
+                            args._heartbit_delay_ns,
+                            args._heartbit_unix_clock,
+                            args._heartbit_realtime_clock);
     }
 
     // Save the arguments for shutdown or restart
@@ -1183,14 +1186,6 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (VM::isOpenJ9() && _cstack == CSTACK_DEFAULT && DWARF_SUPPORTED) {
         // OpenJ9 libs are compiled with frame pointers omitted
         _cstack = CSTACK_DWARF;
-    }
-
-    if (args._heartbit_file) {
-        _filter = new HeartBitFilter(
-                            args._heartbit_file,
-                            args._heartbit_delay_ns,
-                            args._heartbit_unix_clock,
-                            args._heartbit_realtime_clock);
     }
 
     // Kernel symbols are useful only for perf_events without --all-user
@@ -1310,9 +1305,7 @@ Error Profiler::stop(bool restart) {
     _jfr.stop();
     unlockAll();
 
-    if (_filter) {
-        _filter->stop();
-    }
+    delete _filter;
 
     if (!restart) {
         FdTransferClient::closePeer();
