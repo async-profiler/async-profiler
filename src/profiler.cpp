@@ -1106,6 +1106,10 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (_filter) {
+        _filter->start();
+    }
+
     // Save the arguments for shutdown or restart
     args.save();
 
@@ -1305,6 +1309,10 @@ Error Profiler::stop(bool restart) {
     lockAll();
     _jfr.stop();
     unlockAll();
+
+    if (_filter) {
+        _filter->stop();
+    }
 
     if (!restart) {
         FdTransferClient::closePeer();

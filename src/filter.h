@@ -18,7 +18,8 @@ public:
     HeartBitFilter(const char* heartbit_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock);
     bool shouldProcess();
 
-    ~HeartBitFilter();
+    void start();
+    void stop();
 
     HeartBitFilter& operator = (const HeartBitFilter&) = delete;
     HeartBitFilter(const HeartBitFilter&) = delete;
@@ -30,6 +31,8 @@ class HeartBitFilter {
 public:
     HeartBitFilter(const char* heartbit_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock) {
     }
+    void start(){}
+    void stop(){}
     bool shouldProcess() {
         return true;
     }
