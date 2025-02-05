@@ -243,6 +243,9 @@ Error Arguments::parse(const char* args) {
             CASE("nativemem")
                 _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
 
+            CASE("nofree")
+                _nofree = true;
+
             CASE("lock")
                 _lock = value == NULL ? 0 : parseUnits(value, NANOS);
 

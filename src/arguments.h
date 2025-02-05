@@ -182,6 +182,7 @@ class Arguments {
     bool _threads;
     bool _sched;
     bool _live;
+    bool _nofree;
     bool _nobatch;
     bool _nostop;
     bool _alluser;
@@ -235,6 +236,7 @@ class Arguments {
         _threads(false),
         _sched(false),
         _live(false),
+        _nofree(false),
         _nobatch(false),
         _nostop(false),
         _alluser(false),

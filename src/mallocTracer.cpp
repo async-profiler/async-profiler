@@ -56,7 +56,7 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 extern "C" void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
-        if (addr) {
+        if (addr && !MallocTracer::nofree()) {
             MallocTracer::recordFree(addr);
         }
         if (size) {
@@ -68,13 +68,13 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 
 extern "C" void free_hook(void* addr) {
     _orig_free(addr);
-    if (MallocTracer::running() && addr) {
+    if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
 
-
 u64 MallocTracer::_interval;
+bool MallocTracer::_nofree;
 volatile u64 MallocTracer::_allocated_bytes;
 
 Mutex MallocTracer::_patch_lock;
@@ -134,6 +134,7 @@ void MallocTracer::recordFree(void* address) {
 
 Error MallocTracer::start(Arguments& args) {
     _interval = args._nativemem > 0 ? args._nativemem : 0;
+    _nofree = args._nofree;
     _allocated_bytes = 0;
 
     if (!_initialized) {

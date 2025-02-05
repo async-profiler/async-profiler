@@ -5,6 +5,7 @@
 
 package test.nativemem;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,14 +88,12 @@ public class NativememTests {
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
-    public void livenessJfrHasStacks(TestProcess p) throws Exception {
+    private static void assertNoLeaks(TestProcess p) throws Exception {
         p.waitForExit();
         String filename = p.getFile("%f").toPath().toString();
+
+        boolean nofree = Arrays.asList(p.inputs()).contains("nofree");
+        boolean hasFree = false;
 
         try (JfrReader r = new JfrReader(filename)) {
             List<MallocEvent> events = r.readAllEvents(MallocEvent.class);
@@ -114,11 +113,36 @@ public class NativememTests {
                     addresses.put(event.address, event);
                 } else {
                     addresses.remove(event.address);
+                    hasFree = true;
                 }
             }
 
             Assert.isGreater(totalAllocated, 0);
-            Assert.isEqual(addresses.size(), 0);
+
+            if (nofree) {
+                assert !hasFree;
+
+                // nofree cannot track leaks.
+                Assert.isGreater(addresses.size(), 0);
+            } else {
+                assert hasFree;
+                Assert.isEqual(addresses.size(), 0);
+            }
         }
+    }
+
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
+    public void jfrNoLeaks(TestProcess p) throws Exception {
+        assertNoLeaks(p);
+    }
+
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", inputs = "nofree", agentArgs = "start,nativemem,nofree,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr")
+    public void jfrNoFree(TestProcess p) throws Exception {
+        assertNoLeaks(p);
     }
 }
