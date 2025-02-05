@@ -425,12 +425,12 @@ Error Arguments::parse(const char* args) {
             CASE("delayns")
                 _heartbit_delay_ns = strtol(value, NULL, 0);
 
-            CASE("clock-unix") {
+            CASE("clockunix") {
                 _heartbit_unix_clock = true;
                 _heartbit_realtime_clock = false;
             }
 
-            CASE("clock-realtime") {
+            CASE("clockrealtime") {
                 _heartbit_unix_clock = false;
                 _heartbit_realtime_clock = true;
             }
