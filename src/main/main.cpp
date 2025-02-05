@@ -544,11 +544,11 @@ int main(int argc, const char** argv) {
         } else if (arg == "--heartbit-file") {
             params << ",heartbitfile=" << args.next();
         } else if (arg == "--heartbit-interval-ns") {
-            params << ",heartbitns=" << args.next();
+            params << ",delayns=" << args.next();
         } else if (arg == "--heartbit-clock-realtime") {
-            params << ",heartbit-realtime";
+            params << ",clock-realtime";
         } else if (arg == "--heartbit-clock-unix") {
-            params << ",heartbit-unix";
+            params << ",clock-unix";
         } else {
             fprintf(stderr, "Unrecognized option: %s\n", arg.str());
             return 1;

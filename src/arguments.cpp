@@ -422,14 +422,14 @@ Error Arguments::parse(const char* args) {
             CASE("heartbitfile")
                 _heartbit_file = value;
 
-            CASE("heartbitns")
+            CASE("delayns")
                 _heartbit_delay_ns = strtol(value, NULL, 0);
 
-            CASE("heartbit-unix")
+            CASE("clock-unix")
                 _heartbit_unix_clock = true;
                 _heartbit_realtime_clock = false;
 
-            CASE("heartbit-realtime")
+            CASE("clock-realtime")
                 _heartbit_unix_clock = false;
                 _heartbit_realtime_clock = true;
 
