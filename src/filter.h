@@ -1,5 +1,5 @@
 /*
-* Copyright The async-profiler authors
+ * Copyright The async-profiler authors
  * SPDX-License-Identifier: Apache-2.0
  */
 

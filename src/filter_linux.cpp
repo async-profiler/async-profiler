@@ -1,3 +1,9 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+
 #ifdef __linux__
 
 #include <time.h>
