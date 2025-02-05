@@ -546,9 +546,9 @@ int main(int argc, const char** argv) {
         } else if (arg == "--heartbit-interval-ns") {
             params << ",delayns=" << args.next();
         } else if (arg == "--heartbit-clock-realtime") {
-            params << ",clockrealtime";
+            params << ",clock-rt";
         } else if (arg == "--heartbit-clock-unix") {
-            params << ",clockunix";
+            params << ",clock-unix";
         } else {
             fprintf(stderr, "Unrecognized option: %s\n", arg.str());
             return 1;
