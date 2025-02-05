@@ -148,7 +148,8 @@ public class NativememTests {
 
     @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", env = {"LD_PRELOAD=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})
     public void ldpreload(TestProcess p) throws Exception {
-        p.waitForExit();
+        assertNoLeaks(p);
+
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"), "--nativemem");
         assert out.contains("JavaMain");
         assert out.contains("JVM_");
