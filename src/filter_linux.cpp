@@ -36,11 +36,11 @@ HeartBeatFilter::HeartBeatFilter(const char* heartbeat_file, u64 interval_ns, bo
     this->_file_path = heartbeat_file;
     this->_fd = open(this->_file_path, O_RDONLY);
     if (this->_fd <= 0) {
-        printf("Can't open heartbeat file %s, %s", this->_file_path, strerror(errno));
+	Log::error("Can't open heartbeat file %s, %s", this->_file_path, strerror(errno));
     }
     this->_region_ptr = (u64*)mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, this->_fd, 0);
     if (this->_region_ptr == MAP_FAILED) {
-        printf("Can't mmap file file %s, %s\n", this->_file_path, strerror(errno));
+	Log::error("Can't mmap file file %s, %s", this->_file_path, strerror(errno));
     }
 }
 
