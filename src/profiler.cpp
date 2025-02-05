@@ -1105,12 +1105,12 @@ Error Profiler::start(Arguments& args, bool reset) {
             return Error("Failed to initialize FdTransferClient");
         }
     }
-    if (args._heartbit_file) {
-        _filter = new HeartBitFilter(
-                            args._heartbit_file,
-                            args._heartbit_delay_ns,
-                            args._heartbit_unix_clock,
-                            args._heartbit_realtime_clock);
+    if (args._heartbeat_file) {
+        _filter = new HeartBeatFilter(
+                            args._heartbeat_file,
+                            args._heartbeat_delay_ns,
+                            args._heartbeat_unix_clock,
+                            args._heartbeat_realtime_clock);
     }
 
     // Save the arguments for shutdown or restart

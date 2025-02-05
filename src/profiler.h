@@ -91,7 +91,7 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
-    HeartBitFilter* _filter;
+    HeartBeatFilter* _filter;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;

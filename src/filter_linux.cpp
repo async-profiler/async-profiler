@@ -25,18 +25,18 @@ int clock_id(bool use_realtime, bool use_unix) {
     }
 }
 
-HeartBitFilter::~HeartBitFilter() {
+HeartBeatFilter::~HeartBeatFilter() {
     munmap(this->_region_ptr, sizeof(u64));
     close(this->_fd);  
 }
 
-HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool use_unix_clock, bool use_realtime_clock) {
+HeartBeatFilter::HeartBeatFilter(const char* heartbeat_file, u64 interval_ns, bool use_unix_clock, bool use_realtime_clock) {
     this->_clock_id = clock_id(use_realtime_clock, use_unix_clock);
     this->_delay_ns = interval_ns;
-    this->_file_path = heartbit_file;
+    this->_file_path = heartbeat_file;
     this->_fd = open(this->_file_path, O_RDONLY);
     if (this->_fd <= 0) {
-        printf("Can't open heartbit file %s, %s", this->_file_path, strerror(errno));
+        printf("Can't open heartbeat file %s, %s", this->_file_path, strerror(errno));
     }
     this->_region_ptr = (u64*)mmap(NULL, sizeof(u64), PROT_READ, MAP_SHARED, this->_fd, 0);
     if (this->_region_ptr == MAP_FAILED) {
@@ -44,9 +44,9 @@ HeartBitFilter::HeartBitFilter(const char* heartbit_file, u64 interval_ns, bool 
     }
 }
 
-bool HeartBitFilter::shouldProcess() {
-    u64 last_heartbit = *(u64*)this->_region_ptr;
-    u64 profile_after = last_heartbit + this->_delay_ns;
+bool HeartBeatFilter::shouldProcess() {
+    u64 last_heartbeat = *(u64*)this->_region_ptr;
+    u64 profile_after = last_heartbeat + this->_delay_ns;
 
     struct timespec nano_time = {};
     int res = clock_gettime(this->_clock_id, &nano_time);

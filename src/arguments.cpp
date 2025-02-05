@@ -419,20 +419,20 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
-            CASE("heartbitfile")
-                _heartbit_file = value;
+            CASE("hb-file")
+                _heartbeat_file = value;
 
             CASE("delayns")
-                _heartbit_delay_ns = strtol(value, NULL, 0);
+                _heartbeat_delay_ns = strtol(value, NULL, 0);
 
             CASE("clock-unix") {
-                _heartbit_unix_clock = true;
-                _heartbit_realtime_clock = false;
+                _heartbeat_unix_clock = true;
+                _heartbeat_realtime_clock = false;
             }
 
             CASE("clock-rt") {
-                _heartbit_unix_clock = false;
-                _heartbit_realtime_clock = true;
+                _heartbeat_unix_clock = false;
+                _heartbeat_realtime_clock = true;
             }
 
             DEFAULT()

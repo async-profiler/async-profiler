@@ -8,7 +8,7 @@
 
 #ifdef __linux__
 
-class HeartBitFilter {
+class HeartBeatFilter {
 private:
     int _fd;
     u64 *_region_ptr;
@@ -16,19 +16,19 @@ private:
     u64 _delay_ns;
     const char* _file_path;
 public:
-    HeartBitFilter(const char* heartbit_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock);
-  ~HeartBitFilter();
+    HeartBeatFilter(const char* heartbeat_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock);
+  ~HeartBeatFilter();
     bool shouldProcess();
 
-    HeartBitFilter& operator = (const HeartBitFilter&) = delete;
-    HeartBitFilter(const HeartBitFilter&) = delete;
+    HeartBeatFilter& operator = (const HeartBeatFilter&) = delete;
+    HeartBeatFilter(const HeartBeatFilter&) = delete;
 };
 
 #else
 
-class HeartBitFilter {
+class HeartBeatFilter {
 public:
-    HeartBitFilter(const char* heartbit_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock) {
+    HeartBeatFilter(const char* heartbeat_file, u64 delay_ns, bool use_unix_clock, bool use_realtime_clock) {
     }
     bool shouldProcess() {
         return true;
