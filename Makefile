@@ -44,6 +44,7 @@ JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 TEST_LIB_DIR=build/test/lib
+TEST_BIN_DIR=build/test/bin
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -194,7 +195,7 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
 
-build-test-java: all build/$(TEST_JAR) build-test-libs
+build-test-java: all build/$(TEST_JAR) build-test-libs build-test-bins
 
 build-test-cpp: build/test/cpptests build-test-libs
 
@@ -204,6 +205,10 @@ build-test-libs:
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
+
+build-test-bins:
+	@mkdir -p $(TEST_BIN_DIR)
+	$(CC) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/native/bins/malloc_plt_dyn.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
