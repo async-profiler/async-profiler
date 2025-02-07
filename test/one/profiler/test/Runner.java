@@ -140,9 +140,12 @@ public class Runner {
         return TestResult.pass();
     }
 
-    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
+    private static List<RunnableTest> getRunnableTests(Class<?> cls, String methodNameFilter) {
         List<RunnableTest> rts = new ArrayList<>();
         for (Method m : cls.getMethods()) {
+            if (!m.getName().toLowerCase().contains(methodNameFilter.toLowerCase())) {
+                continue;
+            }
             for (Test t : m.getAnnotationsByType(Test.class)) {
                 rts.add(new RunnableTest(m, t));
             }
@@ -150,7 +153,7 @@ public class Runner {
         return rts;
     }
 
-    private static List<RunnableTest> getRunnableTests(String[] args) throws ClassNotFoundException {
+    private static List<RunnableTest> getRunnableTests(String[] args, String methodNameFilter) throws ClassNotFoundException {
         List<RunnableTest> rts = new ArrayList<>();
         for (String arg : args) {
             String testName = arg;
@@ -158,7 +161,7 @@ public class Runner {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            rts.addAll(getRunnableTests(Class.forName(testName)));
+            rts.addAll(getRunnableTests(Class.forName(testName), methodNameFilter));
         }
         return rts;
     }
@@ -219,7 +222,13 @@ public class Runner {
         configureLogging();
         configureSkipTests();
 
-        List<RunnableTest> allTests = getRunnableTests(args);
+        String methodNameFilter = "";
+        if(args.length > 2 && args[0].equals("--method-name")) {
+            methodNameFilter = args[1];
+            args = Arrays.copyOfRange(args, 2, args.length);
+        }
+
+        List<RunnableTest> allTests = getRunnableTests(args, methodNameFilter);
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
