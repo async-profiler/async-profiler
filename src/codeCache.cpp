@@ -170,9 +170,8 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
 
 void CodeCache::saveImport(ImportId id, void** entry) {
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
-        ImportType type = static_cast<ImportType>(ty);
-        if (_imports[id][type] == nullptr) {
-            _imports[id][type] = entry;
+        if (_imports[id][ty] == nullptr) {
+            _imports[id][ty] = entry;
             return;
         }
     }
@@ -234,8 +233,7 @@ void CodeCache::patchImport(ImportId id, void* hook_func) {
     }
 
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
-        ImportType type = static_cast<ImportType>(ty);
-        void** entry = _imports[id][type];
+        void** entry = _imports[id][ty];
         if (entry != NULL) {
             *entry = hook_func;
         }

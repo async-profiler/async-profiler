@@ -209,7 +209,7 @@ build-test-libs:
 build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
 	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/native/bins/malloc_plt_dyn.c
-	gcc -o $(TEST_BIN_DIR)/nativeApi -Isrc -ldl test/test/nativeapi/nativeApi.c
+	gcc -o $(TEST_BIN_DIR)/native_api -Isrc -ldl test/test/c/native_api.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."

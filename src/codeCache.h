@@ -32,7 +32,7 @@ enum ImportId {
 enum ImportType {
     PRIMARY,
     SECONDARY,
-    NUM_IMPORT_TYPES,
+    NUM_IMPORT_TYPES
 };
 
 enum Mark {
