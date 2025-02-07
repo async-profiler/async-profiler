@@ -33,5 +33,5 @@ JNIEXPORT jlong JNICALL Java_test_nativemem_Native_posixMemalign(JNIEnv* env, jc
 }
 
 JNIEXPORT jlong JNICALL Java_test_nativemem_Native_alignedAlloc(JNIEnv* env, jclass clazz, jlong alignment, jlong size) {
-    return (jlong)aligned_alloc((size_t)alignment, (size_t)size);
+    return (jlong)(intptr_t)aligned_alloc((size_t)alignment, (size_t)size);
 }
