@@ -25,3 +25,13 @@ JNIEXPORT jlong JNICALL Java_test_nativemem_Native_realloc(JNIEnv* env, jclass c
 JNIEXPORT void JNICALL Java_test_nativemem_Native_free(JNIEnv* env, jclass clazz, jlong addr) {
     free((void*)(intptr_t)addr);
 }
+
+JNIEXPORT jlong JNICALL Java_test_nativemem_Native_posixMemalign(JNIEnv* env, jclass clazz, jlong alignment, jlong size) {
+    void* ptr;
+    int ret = posix_memalign(&ptr, (size_t)alignment, (size_t)size);
+    return ret != 0 ? 0 : (jlong)(intptr_t)ptr;
+}
+
+JNIEXPORT jlong JNICALL Java_test_nativemem_Native_alignedAlloc(JNIEnv* env, jclass clazz, jlong alignment, jlong size) {
+    return (jlong)aligned_alloc((size_t)alignment, (size_t)size);
+}

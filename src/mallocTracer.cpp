@@ -29,12 +29,20 @@ static realloc_t _orig_realloc = NULL;
 typedef void (*free_t)(void*);
 static free_t _orig_free = NULL;
 
+typedef int (*posix_memalign_t)(void**, size_t, size_t);
+static posix_memalign_t _orig_posix_memalign = NULL;
+
+typedef void* (*aligned_alloc_t)(size_t, size_t);
+static aligned_alloc_t _orig_aligned_alloc = NULL;
+
 __attribute__((constructor)) static void getOrigAddresses() {
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
     _orig_calloc = ADDRESS_OF(calloc);
     _orig_realloc = ADDRESS_OF(realloc);
     _orig_free = ADDRESS_OF(free);
+    _orig_posix_memalign = ADDRESS_OF(posix_memalign);
+    _orig_aligned_alloc = ADDRESS_OF(aligned_alloc);
 }
 
 extern "C" void* malloc_hook(size_t size) {
@@ -73,6 +81,22 @@ extern "C" void free_hook(void* addr) {
     }
 }
 
+extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
+    int ret = _orig_posix_memalign(memptr, alignment, size);
+    if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
+        MallocTracer::recordMalloc(*memptr, size);
+    }
+    return ret;
+}
+
+extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
+    void* ret = _orig_aligned_alloc(alignment, size);
+    if (MallocTracer::running() && ret && size) {
+        MallocTracer::recordMalloc(ret, size);
+    }
+    return ret;
+}
+
 u64 MallocTracer::_interval;
 bool MallocTracer::_nofree;
 volatile u64 MallocTracer::_allocated_bytes;
@@ -109,6 +133,8 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_calloc, (void*)calloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
         cc->patchImport(im_free, (void*)free_hook);
+        cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
     }
 }
 

@@ -170,6 +170,11 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
 
 void CodeCache::addImport(void** entry, const char* name) {
     switch (name[0]) {
+        case 'a':
+            if (strcmp(name, "aligned_alloc") == 0) {
+                _imports[im_aligned_alloc] = entry;
+            }
+            break;
         case 'c':
             if (strcmp(name, "calloc") == 0) {
                 _imports[im_calloc] = entry;
@@ -199,6 +204,8 @@ void CodeCache::addImport(void** entry, const char* name) {
                 _imports[im_pthread_setspecific] = entry;
             } else if (strcmp(name, "poll") == 0) {
                 _imports[im_poll] = entry;
+            } else if (strcmp(name, "posix_memalign") == 0) {
+                _imports[im_posix_memalign] = entry;
             }
             break;
         case 'r':
