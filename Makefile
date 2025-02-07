@@ -56,9 +56,9 @@ JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
-TESTS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
-METHOD_NAME_FILTER ?=
-FILTER_OPTION := $(if $(METHOD_NAME_FILTER),--method-name $(METHOD_NAME_FILTER),)
+TEST_DIRS ?= $(notdir $(patsubst %/,%,$(wildcard test/test/*/)))
+TESTS ?=
+TEST_FILTER ?= $(foreach t,$(TESTS),--filter $(t))
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
 CPP_TEST_INCLUDES := -Isrc -Itest/native
@@ -213,7 +213,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(FILTER_OPTION) $(TESTS)
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TEST_DIRS) $(TEST_FILTER)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage

@@ -24,6 +24,7 @@ public class Runner {
     private static final int currentJvmVersion = detectJvmVersion();
 
     private static final Set<String> skipTests = new HashSet<>();
+    private static final List<String> testFilters = new ArrayList<>();
     private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
@@ -100,9 +101,14 @@ public class Runner {
     }
 
     private static boolean enabled(RunnableTest rt) {
-        return rt.test().enabled() &&
-                !skipTests.contains(rt.className().toLowerCase()) &&
-                !skipTests.contains(rt.method().getName().toLowerCase());
+        if (!rt.test().enabled() ||
+            skipTests.contains(rt.className().toLowerCase()) ||
+            skipTests.contains(rt.method().getName().toLowerCase())) {
+            return false;
+        }
+
+        String fullNameLower = (rt.method().getDeclaringClass().getName() + '.' + rt.method().getName()).toLowerCase();
+        return testFilters.isEmpty() || testFilters.stream().anyMatch(f -> fullNameLower.contains(f.toLowerCase()));
     }
 
     private static boolean applicable(Test test) {
@@ -140,12 +146,9 @@ public class Runner {
         return TestResult.pass();
     }
 
-    private static List<RunnableTest> getRunnableTests(Class<?> cls, String methodNameFilter) {
+    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
         List<RunnableTest> rts = new ArrayList<>();
         for (Method m : cls.getMethods()) {
-            if (!m.getName().toLowerCase().contains(methodNameFilter.toLowerCase())) {
-                continue;
-            }
             for (Test t : m.getAnnotationsByType(Test.class)) {
                 rts.add(new RunnableTest(m, t));
             }
@@ -153,7 +156,7 @@ public class Runner {
         return rts;
     }
 
-    private static List<RunnableTest> getRunnableTests(String[] args, String methodNameFilter) throws ClassNotFoundException {
+    private static List<RunnableTest> getRunnableTests(List<String> args) throws ClassNotFoundException {
         List<RunnableTest> rts = new ArrayList<>();
         for (String arg : args) {
             String testName = arg;
@@ -161,7 +164,7 @@ public class Runner {
                 // Convert package name to class name
                 testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
             }
-            rts.addAll(getRunnableTests(Class.forName(testName), methodNameFilter));
+            rts.addAll(getRunnableTests(Class.forName(testName)));
         }
         return rts;
     }
@@ -222,13 +225,17 @@ public class Runner {
         configureLogging();
         configureSkipTests();
 
-        String methodNameFilter = "";
-        if(args.length > 2 && args[0].equals("--method-name")) {
-            methodNameFilter = args[1];
-            args = Arrays.copyOfRange(args, 2, args.length);
+        List<String> testNameOrDirectory = new ArrayList<>();
+
+        for (int i = 0; i < args.length; i++) {
+            if ("--filter".equals(args[i]) && i + 1 < args.length) {
+                testFilters.add(args[++i]);
+            } else {
+                testNameOrDirectory.add(args[i]);
+            }
         }
 
-        List<RunnableTest> allTests = getRunnableTests(args, methodNameFilter);
+        List<RunnableTest> allTests = getRunnableTests(testNameOrDirectory);
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
