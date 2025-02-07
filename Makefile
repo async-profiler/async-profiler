@@ -123,7 +123,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -208,7 +208,8 @@ build-test-libs:
 
 build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
-	$(CXX) -o $(TEST_BIN_DIR)/malloc_plt_dyn test/native/bins/malloc_plt_dyn.c
+	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/native/bins/malloc_plt_dyn.c
+	gcc -o $(TEST_BIN_DIR)/nativeApi -Isrc -ldl test/test/nativeapi/nativeApi.c
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."

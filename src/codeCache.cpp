@@ -171,8 +171,8 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
 void CodeCache::saveImport(ImportId id, void** entry) {
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
         ImportType type = static_cast<ImportType>(ty);
-        if (getImport(id, type) == nullptr) {
-            setImport(id, type, entry);
+        if (_imports[id][type] == nullptr) {
+            _imports[id][type] = entry;
             return;
         }
     }
@@ -224,7 +224,7 @@ void** CodeCache::findImport(ImportId id) {
         makeImportsPatchable();
         _imports_patchable = true;
     }
-    return getImport(id, PRIMARY);
+    return _imports[id][PRIMARY];
 }
 
 void CodeCache::patchImport(ImportId id, void* hook_func) {
@@ -233,23 +233,25 @@ void CodeCache::patchImport(ImportId id, void* hook_func) {
         _imports_patchable = true;
     }
 
-    void** entry = getImport(id, PRIMARY);
-    if (entry != NULL) {
-        *entry = hook_func;
-    }
-
-    entry = getImport(id, SECONDARY);
-    if (entry != NULL) {
-        *entry = hook_func;
+    for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
+        ImportType type = static_cast<ImportType>(ty);
+        void** entry = _imports[id][type];
+        if (entry != NULL) {
+            *entry = hook_func;
+        }
     }
 }
 
 void CodeCache::makeImportsPatchable() {
     void** min_import = (void**)-1;
     void** max_import = NULL;
-    for (int i = 0; i < NUM_IMPORT_TYPES * NUM_IMPORTS; i++) {
-        if (_imports[i] != NULL && _imports[i] < min_import) min_import = _imports[i];
-        if (_imports[i] != NULL && _imports[i] > max_import) max_import = _imports[i];
+    for (int i = 0; i < NUM_IMPORTS; i++) {
+        for (int j = 0; j < NUM_IMPORT_TYPES; j++) {
+            void** entry = _imports[i][j];
+            if (entry == NULL) continue;
+            if (entry < min_import) min_import = entry;
+            if (entry > max_import) max_import = entry;
+        }
     }
 
     if (max_import != NULL) {

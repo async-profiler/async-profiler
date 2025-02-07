@@ -109,7 +109,7 @@ class CodeCache {
     unsigned int _plt_offset;
     unsigned int _plt_size;
 
-    void** _imports[NUM_IMPORT_TYPES * NUM_IMPORTS];
+    void** _imports[NUM_IMPORTS][NUM_IMPORT_TYPES];
     bool _imports_patchable;
     bool _debug_symbols;
 
@@ -123,14 +123,6 @@ class CodeCache {
     void expand();
     void makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
-
-    inline void** getImport(ImportId id, ImportType type) {
-        return _imports[NUM_IMPORT_TYPES * id + type];
-    }
-
-    inline void setImport(ImportId id, ImportType type, void** entry) {
-        _imports[NUM_IMPORT_TYPES * id + type] = entry;
-    }
 
   public:
     CodeCache(const char* name,
