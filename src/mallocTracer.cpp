@@ -7,6 +7,7 @@
 #include "assert.h"
 #include "codeCache.h"
 #include "mallocTracer.h"
+#include "os.h"
 #include "profiler.h"
 #include "tsc.h"
 #include <dlfcn.h>
@@ -39,7 +40,6 @@ static aligned_alloc_t _orig_aligned_alloc = NULL;
 // If in_musl_posix_memalign, do not recordMalloc in aligned_alloc_hook.
 // If in_musl_aligned_alloc, do not recordMalloc in malloc_hook.
 // Do not access thread_local variables in non-musl.
-static bool is_musl = false;
 static thread_local bool in_musl_posix_memalign = false;
 static thread_local bool in_musl_aligned_alloc = false;
 
@@ -55,7 +55,7 @@ __attribute__((constructor)) static void getOrigAddresses() {
 
 extern "C" void* malloc_hook(size_t size) {
     void* ret = _orig_malloc(size);
-    if ((!is_musl || !in_musl_aligned_alloc) && MallocTracer::running() && ret && size) {
+    if ((!OS::isMusl() || !in_musl_aligned_alloc) && MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -90,11 +90,11 @@ extern "C" void free_hook(void* addr) {
 }
 
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    if (is_musl) {
+    if (OS::isMusl()) {
         in_musl_posix_memalign = true;
     }
     int ret = _orig_posix_memalign(memptr, alignment, size);
-    if (is_musl) {
+    if (OS::isMusl()) {
         in_musl_posix_memalign = false;
     }
 
@@ -105,15 +105,15 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    if (is_musl) {
+    if (OS::isMusl()) {
         in_musl_aligned_alloc = true;
     }
     void* ret = _orig_aligned_alloc(alignment, size);
-    if (is_musl) {
+    if (OS::isMusl()) {
         in_musl_aligned_alloc = false;
     }
 
-    if ((!is_musl || !in_musl_posix_memalign) && MallocTracer::running() && ret && size) {
+    if ((!OS::isMusl() || !in_musl_posix_memalign) && MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -142,9 +142,6 @@ void MallocTracer::initialize() {
                 || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
-
-    // _CS_GNU_LIBC_VERSION is not defined on musl
-    is_musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
 }
 
 void MallocTracer::patchLibraries() {
