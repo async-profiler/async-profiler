@@ -35,6 +35,14 @@ static posix_memalign_t _orig_posix_memalign = NULL;
 typedef void* (*aligned_alloc_t)(size_t, size_t);
 static aligned_alloc_t _orig_aligned_alloc = NULL;
 
+// In musl, posix_memalign calls aligned_alloc and it in turns calls malloc.
+// If in_musl_posix_memalign, do not recordMalloc in aligned_alloc_hook.
+// If in_musl_aligned_alloc, do not recordMalloc in malloc_hook.
+// Do not access thread_local variables in non-musl.
+static bool is_musl = false;
+static thread_local bool in_musl_posix_memalign = false;
+static thread_local bool in_musl_aligned_alloc = false;
+
 __attribute__((constructor)) static void getOrigAddresses() {
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
@@ -47,7 +55,7 @@ __attribute__((constructor)) static void getOrigAddresses() {
 
 extern "C" void* malloc_hook(size_t size) {
     void* ret = _orig_malloc(size);
-    if (MallocTracer::running() && ret && size) {
+    if ((!is_musl || !in_musl_aligned_alloc) && MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -81,14 +89,14 @@ extern "C" void free_hook(void* addr) {
     }
 }
 
-static thread_local bool in_posix_memalign_hook = false;
-
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    printf("tid: %ld posix_memalign_hook: in_posix_memalign_hook: %d, memptr: %p, alignment: %zu, size: %zu\n", pthread_self(), in_posix_memalign_hook ? 1 : 0, memptr, alignment, size);
-
-    in_posix_memalign_hook = true;
+    if (is_musl) {
+        in_musl_posix_memalign = true;
+    }
     int ret = _orig_posix_memalign(memptr, alignment, size);
-    in_posix_memalign_hook = false;
+    if (is_musl) {
+        in_musl_posix_memalign = false;
+    }
 
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
@@ -97,10 +105,15 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    printf("tid: %ld aligned_alloc_hook: in_posix_memalign_hook: %d, alignment: %zu, size: %zu\n", pthread_self(), in_posix_memalign_hook ? 1 : 0, alignment, size);
-
+    if (is_musl) {
+        in_musl_aligned_alloc = true;
+    }
     void* ret = _orig_aligned_alloc(alignment, size);
-    if (!in_posix_memalign_hook && MallocTracer::running() && ret && size) {
+    if (is_musl) {
+        in_musl_aligned_alloc = false;
+    }
+
+    if ((!is_musl || !in_musl_posix_memalign) && MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -129,6 +142,9 @@ void MallocTracer::initialize() {
                 || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
+
+    // _CS_GNU_LIBC_VERSION is not defined on musl
+    is_musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
 }
 
 void MallocTracer::patchLibraries() {
