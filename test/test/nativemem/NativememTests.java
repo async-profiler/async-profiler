@@ -165,7 +165,7 @@ public class NativememTests {
     public void malloc_plt_dyn(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 
-        Assert.isEqual(sizeCounts.getOrDefault((long)MALLOC_SIZE, 0L), 1);
-        Assert.isEqual(sizeCounts.getOrDefault((long)MALLOC_DYN_SIZE, 0L), 1);
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_DYN_SIZE, 0L), 1);
     }
 }
