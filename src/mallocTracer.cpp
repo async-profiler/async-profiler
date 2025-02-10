@@ -81,8 +81,15 @@ extern "C" void free_hook(void* addr) {
     }
 }
 
+static thread_local bool in_posix_memalign_hook = false;
+
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
+    printf("tid: %ld posix_memalign_hook: in_posix_memalign_hook: %d, memptr: %p, alignment: %zu, size: %zu\n", pthread_self(), in_posix_memalign_hook ? 1 : 0, memptr, alignment, size);
+
+    in_posix_memalign_hook = true;
     int ret = _orig_posix_memalign(memptr, alignment, size);
+    in_posix_memalign_hook = false;
+
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
     }
@@ -90,8 +97,10 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
+    printf("tid: %ld aligned_alloc_hook: in_posix_memalign_hook: %d, alignment: %zu, size: %zu\n", pthread_self(), in_posix_memalign_hook ? 1 : 0, alignment, size);
+
     void* ret = _orig_aligned_alloc(alignment, size);
-    if (MallocTracer::running() && ret && size) {
+    if (!in_posix_memalign_hook && MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -115,7 +124,9 @@ void MallocTracer::initialize() {
             return strcmp(s, "malloc_hook") == 0
                 || strcmp(s, "calloc_hook") == 0
                 || strcmp(s, "realloc_hook") == 0
-                || strcmp(s, "free_hook") == 0;
+                || strcmp(s, "free_hook") == 0
+                || strcmp(s, "posix_memalign_hook") == 0
+                || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
 }
