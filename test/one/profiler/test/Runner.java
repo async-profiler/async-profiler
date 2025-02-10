@@ -24,7 +24,6 @@ public class Runner {
     private static final int currentJvmVersion = detectJvmVersion();
 
     private static final Set<String> skipTests = new HashSet<>();
-    private static final List<String> testFilters = new ArrayList<>();
     private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
@@ -100,15 +99,14 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(RunnableTest rt) {
+    private static boolean enabled(RunnableTest rt, RunnerDeclaration decl) {
         if (!rt.test().enabled() ||
             skipTests.contains(rt.className().toLowerCase()) ||
             skipTests.contains(rt.method().getName().toLowerCase())) {
             return false;
         }
 
-        String fullNameLower = (rt.method().getDeclaringClass().getName() + '.' + rt.method().getName()).toLowerCase();
-        return testFilters.isEmpty() || testFilters.stream().anyMatch(f -> fullNameLower.contains(f.toLowerCase()));
+        return decl.isFilterMatch(rt.method());
     }
 
     private static boolean applicable(Test test) {
@@ -122,8 +120,8 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(RunnableTest rt) {
-        if (!enabled(rt)) {
+    private static TestResult run(RunnableTest rt, RunnerDeclaration decl) {
+        if (!enabled(rt, decl)) {
             return TestResult.skipDisabled();
         }
         if (!applicable(rt.test())) {
@@ -156,16 +154,17 @@ public class Runner {
         return rts;
     }
 
-    private static List<RunnableTest> getRunnableTests(List<String> args) throws ClassNotFoundException {
+    private static List<RunnableTest> getRunnableTests(RunnerDeclaration decl) throws ClassNotFoundException {
         List<RunnableTest> rts = new ArrayList<>();
-        for (String arg : args) {
-            String testName = arg;
-            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
-                // Convert package name to class name
-                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
-            }
-            rts.addAll(getRunnableTests(Class.forName(testName)));
+        for (String dir : decl.directories()) {
+            String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
+            rts.addAll(getRunnableTests(Class.forName(className)));
         }
+
+        for (String className : decl.classNames()) {
+            rts.addAll(getRunnableTests(Class.forName(className)));
+        }
+
         return rts;
     }
 
@@ -216,6 +215,55 @@ public class Runner {
         System.out.println("TOTAL: " + testCount);
     }
 
+    private static RunnerDeclaration parseRunnerDeclaration(String[] args) {
+        List<String> testNames = new ArrayList<>();
+        List<String> testDirectories = new ArrayList<>();
+        List<String> testFilters = new ArrayList<>();
+
+        // If 'arg' contains a period and not starts with a lowercase character, treat it as a testName.
+        // Otherwise, if it is an existing directory, consider it a directory.
+        // Else, treat it as a filter.
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+
+            if(arg.indexOf('.') >= 0 && !Character.isLowerCase(arg.charAt(0))) {
+                try {
+                    Class.forName(arg);
+                    testNames.add(arg);
+                    continue;
+                } catch(ClassNotFoundException _e) {
+                    testFilters.add(args[i]);
+                    continue;
+                }
+            }
+
+            File f = new File("test/test/" + args[i]);
+            if (!f.exists() || !f.isDirectory()) {
+                testFilters.add(args[i]);
+            } else {
+                testDirectories.add(args[i]);
+            }
+        }
+
+        if(testDirectories.isEmpty()) {
+            // Add all folders in test/test.
+            File[] files = new File("test/test").listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        testDirectories.add(file.getName());
+                    }
+                }
+            }
+        }
+
+        log.log(Level.FINE, "Test Directories: " + testDirectories);
+        log.log(Level.FINE, "Test Names: " + testNames);
+        log.log(Level.FINE, "Test Filters: " + testFilters);
+
+        return new RunnerDeclaration(testDirectories, testNames, testFilters);
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: java " + Runner.class.getName() + " TestName ...");
@@ -225,17 +273,8 @@ public class Runner {
         configureLogging();
         configureSkipTests();
 
-        List<String> testNameOrDirectory = new ArrayList<>();
-
-        for (int i = 0; i < args.length; i++) {
-            if ("--filter".equals(args[i]) && i + 1 < args.length) {
-                testFilters.add(args[++i]);
-            } else {
-                testNameOrDirectory.add(args[i]);
-            }
-        }
-
-        List<RunnableTest> allTests = getRunnableTests(testNameOrDirectory);
+        RunnerDeclaration decl = parseRunnerDeclaration(args);
+        List<RunnableTest> allTests = getRunnableTests(decl);
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
@@ -243,7 +282,7 @@ public class Runner {
         EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
-            TestResult result = run(rt);
+            TestResult result = run(rt, decl);
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;
