@@ -31,6 +31,12 @@ enum ImportId {
     NUM_IMPORTS
 };
 
+enum ImportType {
+    PRIMARY,
+    SECONDARY,
+    NUM_IMPORT_TYPES
+};
+
 enum Mark {
     MARK_VM_RUNTIME = 1,
     MARK_INTERPRETER = 2,
@@ -105,7 +111,7 @@ class CodeCache {
     unsigned int _plt_offset;
     unsigned int _plt_size;
 
-    void** _imports[NUM_IMPORTS];
+    void** _imports[NUM_IMPORTS][NUM_IMPORT_TYPES];
     bool _imports_patchable;
     bool _debug_symbols;
 
@@ -118,6 +124,7 @@ class CodeCache {
 
     void expand();
     void makeImportsPatchable();
+    void saveImport(ImportId id, void** entry);
 
   public:
     CodeCache(const char* name,

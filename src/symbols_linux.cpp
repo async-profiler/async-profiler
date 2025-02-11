@@ -391,21 +391,6 @@ void ElfParser::parseDynamicSection() {
         }
 
         const char* base = this->base();
-        if (rel != NULL && relsz != 0) {
-            // If a shared library is built without PLT (-fno-plt), relocation entries for imports
-            // can be found in .rela.dyn. However, if both sections exist, .rela.plt entries
-            // should take precedence, that's why we parse .rela.dyn first.
-            for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
-                ElfRelocation* r = (ElfRelocation*)(rel + offs);
-                if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_ABS64) {
-                    ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
-                    if (sym->st_name != 0) {
-                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
-                    }
-                }
-            }
-        }
-
         if (jmprel != NULL && pltrelsz != 0) {
             // Parse .rela.plt table
             for (size_t offs = 0; offs < pltrelsz; offs += relent) {
@@ -413,6 +398,21 @@ void ElfParser::parseDynamicSection() {
                 ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
                 if (sym->st_name != 0) {
                     _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
+                }
+            }
+        }
+
+        if (rel != NULL && relsz != 0) {
+            // Relocation entries for imports can be found in .rela.dyn, for example
+            // if a shared library is built without PLT (-fno-plt). However, if both
+            // entries exist, addImport saves them both.
+            for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_ABS64) {
+                    ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
+                    if (sym->st_name != 0) {
+                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
+                    }
                 }
             }
         }

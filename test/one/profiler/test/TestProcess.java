@@ -31,6 +31,7 @@ public class TestProcess implements Closeable {
     public static final String PROFOUT = "%pout";
     public static final String PROFERR = "%perr";
     public static final String LIBPROF = "%lib";
+    public static final String TESTBIN = "%testbin";
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
@@ -110,6 +111,10 @@ public class TestProcess implements Closeable {
         return "build/lib/libasyncProfiler." + currentOs.getLibExt();
     }
 
+    public String testBinPath() {
+        return "build/test/bin";
+    }
+
     private List<String> buildCommandLine(Test test) {
         List<String> cmd = new ArrayList<>();
 
@@ -183,6 +188,9 @@ public class TestProcess implements Closeable {
     private String substituteFile(String fileId, String ext) {
         if (fileId.equals(LIBPROF)) {
             return profilerLibPath();
+        }
+        if (fileId.equals(TESTBIN)) {
+            return testBinPath();
         }
         return createTempFile(fileId, ext).getPath();
     }
