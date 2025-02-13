@@ -171,7 +171,7 @@ public class NativememTests {
         assert out.contains("malloc_hook");
     }
 
-    @Test(sh = "%testbin/malloc_plt_dyn", os = Os.LINUX, env = {"LD_PRELOAD=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})
+    @Test(sh = "LD_PRELOAD=%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_plt_dyn", os = Os.LINUX)
     public void malloc_plt_dyn(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 
