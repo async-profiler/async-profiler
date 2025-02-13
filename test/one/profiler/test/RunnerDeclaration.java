@@ -7,16 +7,21 @@ package one.profiler.test;
 
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class RunnerDeclaration {
+    private static final Logger log = Logger.getLogger(RunnerDeclaration.class.getName());
+
     private final List<String> directories;
     private final List<String> classNames;
-    private final List<String> filters;
+    private final List<Filter> filters;
 
     public RunnerDeclaration(List<String> directories, List<String> classNames, List<String> filters) {
         this.directories = directories;
         this.classNames = classNames;
-        this.filters = filters;
+        this.filters = filters.stream().map(Filter::from).collect(Collectors.toList());
     }
 
     public List<String> classNames() {
@@ -27,12 +32,17 @@ public class RunnerDeclaration {
         return directories;
     }
 
-    public List<String> filters() {
+    private List<Filter> filters() {
         return filters;
     }
 
     public boolean isFilterMatch(Method m) {
-        String fullNameLower = (m.getDeclaringClass().getName() + '.' + m.getName()).toLowerCase();
-        return filters().isEmpty() || filters().stream().anyMatch(f -> fullNameLower.contains(f.toLowerCase()));
+        String name = (m.getDeclaringClass().getSimpleName() + '.' + m.getName());
+
+        if (!filters().isEmpty()) {
+            log.log(Level.FINE, "Filter test name " + name + " with: " + filters());
+        }
+
+        return filters().isEmpty() || filters().stream().anyMatch(f -> f.isMatch(name));
     }
 }

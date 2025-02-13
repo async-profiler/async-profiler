@@ -226,7 +226,7 @@ public class Runner {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
 
-            if(arg.indexOf('.') >= 0 && !Character.isLowerCase(arg.charAt(0))) {
+            if (arg.indexOf('.') >= 0 && !Character.isLowerCase(arg.charAt(0))) {
                 try {
                     Class.forName(arg);
                     testNames.add(arg);
@@ -245,7 +245,7 @@ public class Runner {
             }
         }
 
-        if(testDirectories.isEmpty()) {
+        if (testDirectories.isEmpty()) {
             // Add all folders in test/test.
             File[] files = new File("test/test").listFiles();
             if (files != null) {
