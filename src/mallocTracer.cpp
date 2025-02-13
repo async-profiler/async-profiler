@@ -36,13 +36,6 @@ static posix_memalign_t _orig_posix_memalign = NULL;
 typedef void* (*aligned_alloc_t)(size_t, size_t);
 static aligned_alloc_t _orig_aligned_alloc = NULL;
 
-// In musl, posix_memalign calls aligned_alloc and it in turns calls malloc.
-// If in_musl_posix_memalign, do not recordMalloc in aligned_alloc_hook.
-// If in_musl_aligned_alloc, do not recordMalloc in malloc_hook.
-// Do not access thread_local variables in non-musl.
-static thread_local bool in_musl_posix_memalign = false;
-static thread_local bool in_musl_aligned_alloc = false;
-
 __attribute__((constructor)) static void getOrigAddresses() {
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
@@ -55,7 +48,7 @@ __attribute__((constructor)) static void getOrigAddresses() {
 
 extern "C" void* malloc_hook(size_t size) {
     void* ret = _orig_malloc(size);
-    if ((!OS::isMusl() || !in_musl_aligned_alloc) && MallocTracer::running() && ret && size) {
+    if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -90,14 +83,7 @@ extern "C" void free_hook(void* addr) {
 }
 
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    if (OS::isMusl()) {
-        in_musl_posix_memalign = true;
-    }
     int ret = _orig_posix_memalign(memptr, alignment, size);
-    if (OS::isMusl()) {
-        in_musl_posix_memalign = false;
-    }
-
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
     }
@@ -105,15 +91,8 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    if (OS::isMusl()) {
-        in_musl_aligned_alloc = true;
-    }
     void* ret = _orig_aligned_alloc(alignment, size);
-    if (OS::isMusl()) {
-        in_musl_aligned_alloc = false;
-    }
-
-    if ((!OS::isMusl() || !in_musl_posix_memalign) && MallocTracer::running() && ret && size) {
+    if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
     return ret;
@@ -144,6 +123,10 @@ void MallocTracer::initialize() {
         MARK_ASYNC_PROFILER);
 }
 
+// To avoid complexity in hooking and tracking reentrancy, a TLS-based approach is not used.
+// Reentrant allocation calls would result in double-accounting. However, this does not impact
+// the leak detector, as it correctly tracks memory as freed regardless of how many times
+// recordMalloc is called with the same address.
 void MallocTracer::patchLibraries() {
     MutexLocker ml(_patch_lock);
 
@@ -157,7 +140,14 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_calloc, (void*)calloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
         cc->patchImport(im_free, (void*)free_hook);
-        cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+
+        if (!OS::isMusl()) {
+            // In musl, posix_memalign internally calls aligned_alloc. Hooking posix_memalign would
+            // therefore lead to double-accounting of allocations. To prevent this, we simply avoid
+            // hooking posix_memalign in musl.
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        }
+
         cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
     }
 }
