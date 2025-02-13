@@ -22,6 +22,7 @@ import one.profiler.test.TestProcess;
 public class NativememTests {
 
     private static final int MALLOC_SIZE = 1999993;
+    private static final int MALLOC_DYN_SIZE = 2000003;
     private static final int CALLOC_SIZE = 2000147;
     private static final int REALLOC_SIZE = 30000170;
 
@@ -88,12 +89,13 @@ public class NativememTests {
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
     }
 
-    private static void assertNoLeaks(TestProcess p) throws Exception {
+    private static Map<Long, Long> assertNoLeaks(TestProcess p) throws Exception {
         p.waitForExit();
         String filename = p.getFilePath("%f");
 
         boolean nofree = Arrays.asList(p.inputs()).contains("nofree");
         boolean hasFree = false;
+        Map<Long, Long> sizeCounts = new HashMap<>();
 
         try (JfrReader r = new JfrReader(filename)) {
             List<MallocEvent> events = r.readAllEvents(MallocEvent.class);
@@ -104,13 +106,14 @@ public class NativememTests {
             for (MallocEvent event : events) {
                 // only interested in specific sizes.
                 if (event.size != 0 && event.size != MALLOC_SIZE && event.size != CALLOC_SIZE
-                        && event.size != REALLOC_SIZE) {
+                        && event.size != REALLOC_SIZE && event.size != MALLOC_DYN_SIZE) {
                     continue;
                 }
 
                 totalAllocated += event.size;
                 if (event.size > 0) {
                     addresses.put(event.address, event);
+                    sizeCounts.merge(event.size, 1L, Long::sum);
                 } else {
                     addresses.remove(event.address);
                     hasFree = true;
@@ -129,6 +132,8 @@ public class NativememTests {
                 Assert.isEqual(addresses.size(), 0);
             }
         }
+
+        return sizeCounts;
     }
 
     @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
@@ -154,5 +159,13 @@ public class NativememTests {
         assert out.contains("JavaMain");
         assert out.contains("JVM_");
         assert out.contains("malloc_hook");
+    }
+
+    @Test(sh = "LD_PRELOAD=%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_plt_dyn", os = Os.LINUX)
+    public void malloc_plt_dyn(TestProcess p) throws Exception {
+        Map<Long, Long> sizeCounts = assertNoLeaks(p);
+
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_DYN_SIZE, 0L), 1);
     }
 }
