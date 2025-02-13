@@ -25,6 +25,8 @@ public class NativememTests {
     private static final int MALLOC_DYN_SIZE = 2000003;
     private static final int CALLOC_SIZE = 2000147;
     private static final int REALLOC_SIZE = 30000170;
+    private static final int POSIX_MEMALIGN_SIZE = 30000193;
+    private static final int ALIGNED_ALLOC_SIZE = 30002009;
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
@@ -80,13 +82,20 @@ public class NativememTests {
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
         long samplesCalloc = out.samples("Java_test_nativemem_Native_calloc");
         long samplesRealloc = out.samples("Java_test_nativemem_Native_realloc");
+        long samplesPosixMemalign = out.samples("Java_test_nativemem_Native_posixMemalign");
+        long samplesAlignedAlloc = out.samples("Java_test_nativemem_Native_alignedAlloc");
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);
         Assert.isGreater(samplesRealloc, 0);
+        Assert.isGreater(samplesPosixMemalign, 0);
+        Assert.isGreater(samplesAlignedAlloc, 0);
+
         Assert.isEqual(samplesMalloc % MALLOC_SIZE, 0);
         Assert.isEqual(samplesCalloc % CALLOC_SIZE, 0);
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
+        Assert.isEqual(samplesPosixMemalign % POSIX_MEMALIGN_SIZE, 0);
+        Assert.isEqual(samplesAlignedAlloc % ALIGNED_ALLOC_SIZE, 0);
     }
 
     private static Map<Long, Long> assertNoLeaks(TestProcess p) throws Exception {
@@ -106,7 +115,8 @@ public class NativememTests {
             for (MallocEvent event : events) {
                 // only interested in specific sizes.
                 if (event.size != 0 && event.size != MALLOC_SIZE && event.size != CALLOC_SIZE
-                        && event.size != REALLOC_SIZE && event.size != MALLOC_DYN_SIZE) {
+                        && event.size != REALLOC_SIZE && event.size != MALLOC_DYN_SIZE
+                        && event.size != POSIX_MEMALIGN_SIZE && event.size != ALIGNED_ALLOC_SIZE) {
                     continue;
                 }
 

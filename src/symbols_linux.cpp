@@ -173,7 +173,6 @@ typedef Elf32_Dyn  ElfDyn;
 #endif
 
 
-static bool musl = false;
 static char _debuginfod_cache_buf[PATH_MAX] = {0};
 
 class ElfParser {
@@ -750,7 +749,7 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
                 // If last_inode is set, image_base is known to be valid and readable
                 ElfParser::parseFile(cc, image_base, map.file(), true);
                 // Parse program headers after the file to ensure debug symbols are parsed first
-                ElfParser::parseProgramHeaders(cc, image_base, map_end, musl);
+                ElfParser::parseProgramHeaders(cc, image_base, map_end, OS::isMusl());
             } else if ((unsigned long)map_start > map_offs) {
                 // Unlikely case when image_base has not been found.
                 // Be careful: executable file is not always ELF, e.g. classes.jsa
@@ -773,11 +772,6 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
-
-    if (array->count() == 0) {
-        // _CS_GNU_LIBC_VERSION is not defined on musl
-        musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
-    }
 
     if (kernel_symbols && !haveKernelSymbols()) {
         CodeCache* cc = new CodeCache("[kernel]");

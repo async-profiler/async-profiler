@@ -26,6 +26,8 @@ enum ImportId {
     im_calloc,
     im_realloc,
     im_free,
+    im_posix_memalign,
+    im_aligned_alloc,
     NUM_IMPORTS
 };
 
