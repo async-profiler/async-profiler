@@ -75,8 +75,8 @@ struct TestCase {
             std::is_same<decltype(val2), const char*>::value || std::is_same<decltype(val2), char*>::value;          \
         if (is_string) {                                                                                             \
             if ((std::string(#op) == "==") || (std::string(#op) == "!=")) {                                          \
-                const char* str1 = reinterpret_cast<const char*>(val1);                                              \
-                const char* str2 = reinterpret_cast<const char*>(val2);                                              \
+                const char* str1 = (const char*)(intptr_t)(val1);                                                    \
+                const char* str2 = (const char*)(intptr_t)(val2);                                                    \
                 if ((std::string(#op) == "==" && (str1 != str2) && !(str1 && str2 && strcmp(str1, str2) == 0)) ||    \
                     (std::string(#op) == "!=" && (str1 == str2 || (str1 && str2 && strcmp(str1, str2) == 0)))) {     \
                     printf("Assertion failed: (%s %s %s),\n\tactual values: %s = \"%s\", %s = \"%s\"\n\tat %s:%d\n", \
