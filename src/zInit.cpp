@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dlfcn.h>
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
@@ -15,13 +14,6 @@
 class LateInitializer {
   public:
     LateInitializer() {
-        Dl_info dl_info;
-        if (dladdr((const void*)Hooks::init, &dl_info) && dl_info.dli_fname != NULL) {
-            // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
-            // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
-            dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
-        }
-
         if (!checkJvmLoaded()) {
             const char* command = getenv("ASPROF_COMMAND");
             if (command != NULL && Hooks::init(false)) {
