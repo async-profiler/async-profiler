@@ -141,13 +141,6 @@ bool VM::init(JavaVM* vm, bool attach) {
         _jvmti->Deallocate((unsigned char*)prop);
     }
 
-    Dl_info dl_info;
-    if (dladdr((const void*)VM::init, &dl_info) && dl_info.dli_fname != NULL) {
-        // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
-        // Don't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
-        dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
-    }
-
     // JVM symbols are globally visible on macOS
     void* libjvm = RTLD_DEFAULT;
     if (OS::isLinux() && (libjvm = dlopen("libjvm.so", RTLD_LAZY)) == NULL) {
