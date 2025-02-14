@@ -13,9 +13,9 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#define ADDRESS_OF(sym) ({               \
-    void* addr = dlsym(RTLD_NEXT, #sym); \
-    addr != NULL ? (sym##_t)addr : sym;  \
+#define ADDRESS_OF(sym) ({                  \
+    void* addr = dlsym(RTLD_DEFAULT, #sym); \
+    addr != NULL ? (sym##_t)addr : sym;     \
 })
 
 typedef void* (*malloc_t)(size_t);
@@ -193,3 +193,5 @@ void MallocTracer::stop() {
     // in the view of library unloading. Consider using dl_iterate_phdr.
     _running = false;
 }
+
+#undef ADDRESS_OF

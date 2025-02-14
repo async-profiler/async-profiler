@@ -187,3 +187,5 @@ void Hooks::patchLibraries() {
         cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
     }
 }
+
+#undef ADDRESS_OF
