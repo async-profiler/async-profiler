@@ -45,9 +45,11 @@ void TSC::enable(Clock clock) {
             env->ExceptionClear();
             _initialized = true;
         } else {
-            _offset = 0;
-            _frequencyAvailable = false; // frequency not available when using TSC with no JVM.
-            _available = true;
+            if (cpuHasGoodTimestampCounter()) {
+                _offset = 0;
+                _frequencyAvailable = false; // frequency not available when using TSC with no JVM.
+                _available = true;
+            }
         }
     }
 
