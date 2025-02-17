@@ -9,7 +9,6 @@
 
 bool TSC::_initialized = false;
 bool TSC::_available = false;
-bool TSC::_frequencyAvailable = true;
 bool TSC::_enabled = false;
 u64 TSC::_offset = 0;
 u64 TSC::_frequency = NANOTIME_FREQ;
@@ -41,13 +40,11 @@ void TSC::enable(Clock clock) {
                 }
             }
 
-            _frequencyAvailable = true;
             env->ExceptionClear();
             _initialized = true;
         } else {
             if (cpuHasGoodTimestampCounter()) {
                 _offset = 0;
-                _frequencyAvailable = false; // frequency not available when using TSC with no JVM.
                 _available = true;
             }
         }

@@ -559,7 +559,7 @@ class Recording {
         if (TSC::enabled()) {
             tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
         } else {
-            // Not checking frequencyAvailable here since it's only relevant with TSC enabled.
+            // TSC is not enabled, so frequency can be used to get the constant clock tick frequency
             tsc_frequency = TSC::frequency();
         }
 
