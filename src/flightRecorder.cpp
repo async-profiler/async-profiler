@@ -57,7 +57,6 @@ static jmethodID _stop_method;
 static jmethodID _box_method;
 
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
-static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
 
 struct CpuTime {
@@ -806,7 +805,7 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", SETTING_CLOCK[args._clock]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", TSC::enabled() ? "tsc" : "monotonic");
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
