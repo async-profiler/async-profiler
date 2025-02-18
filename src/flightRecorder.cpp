@@ -754,8 +754,8 @@ class Recording {
         buf->put64(_start_time * 1000);  // start time, ns
         buf->put64(0);                   // duration, ns
         buf->put64(_start_ticks);        // start ticks
-        // the frequency here will be incorrect in TSC node but no JVM. It will be overridden
-        // in finishChunk later.
+        // A frequency here may be inaccurate when using TSC clock.
+        // It will be overwritten with a correct value in finishChunk later.
         buf->put64(TSC::frequency());    // ticks per sec
         buf->put32(1);                   // features
     }

@@ -7,6 +7,7 @@
 #include "tsc.h"
 #include "vmEntry.h"
 
+
 bool TSC::_initialized = false;
 bool TSC::_available = false;
 bool TSC::_enabled = false;
@@ -41,11 +42,9 @@ void TSC::enable(Clock clock) {
             }
 
             env->ExceptionClear();
-        } else {
-            if (cpuHasGoodTimestampCounter()) {
-                _offset = 0;
-                _available = true;
-            }
+        } else if (cpuHasGoodTimestampCounter()) {
+            _offset = 0;
+            _available = true;
         }
 
         _initialized = true;
