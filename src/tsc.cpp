@@ -41,13 +41,14 @@ void TSC::enable(Clock clock) {
             }
 
             env->ExceptionClear();
-            _initialized = true;
         } else {
             if (cpuHasGoodTimestampCounter()) {
                 _offset = 0;
                 _available = true;
             }
         }
+
+        _initialized = true;
     }
 
     _enabled = _available;
