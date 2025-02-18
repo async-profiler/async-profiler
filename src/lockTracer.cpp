@@ -36,6 +36,7 @@ UnsafeParkFunc LockTracer::_orig_unsafe_park = NULL;
 
 
 Error LockTracer::start(Arguments& args) {
+    // There is a JVM here, so TSC::frequency is calibrated from it
     _ticks_to_nanos = 1e9 / TSC::frequency();
     _interval = (u64)(args._lock * (TSC::frequency() / 1e9));
     _total_duration = 0;

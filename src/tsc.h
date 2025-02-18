@@ -13,30 +13,49 @@
 const u64 NANOTIME_FREQ = 1000000000;
 
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__i386__)
+
+#include <cpuid.h>
 
 #define TSC_SUPPORTED true
 
 static inline u64 rdtsc() {
+#if defined(__x86_64__)
     u32 lo, hi;
     asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
     return ((u64)hi << 32) | lo;
-}
-
-#elif defined(__i386__)
-
-#define TSC_SUPPORTED true
-
-static inline u64 rdtsc() {
+#else
     u64 result;
     asm volatile("rdtsc" : "=A" (result));
     return result;
+#endif
+}
+
+// Returns true if this CPU has a good ("invariant") timestamp counter
+static bool cpuHasGoodTimestampCounter() {
+    unsigned int eax, ebx, ecx, edx;
+
+    // Check if CPUID supports misc feature flags
+    __cpuid(0x80000000, eax, ebx, ecx, edx);
+    if (eax < 0x80000007) {
+        return 0;
+    }
+
+    // Get misc feature flags
+    __cpuid(0x80000007, eax, ebx, ecx, edx);
+
+    // Bit 8 of EDX indicates invariant TSC
+    return (edx & (1 << 8)) != 0;
 }
 
 #else
 
 #define TSC_SUPPORTED false
 #define rdtsc() 0
+
+static bool cpuHasGoodTimestampCounter() {
+    return false;
+}
 
 #endif
 
@@ -60,6 +79,9 @@ class TSC {
         return enabled() ? rdtsc() - _offset : OS::nanotime();
     }
 
+    // Frequency is only used for Java lock profiling. When using the TSC with
+    // no JVM, since there is no calibration, this function will return
+    // an incorrect value.
     static u64 frequency() {
         return enabled() ? _frequency : NANOTIME_FREQ;
     }
