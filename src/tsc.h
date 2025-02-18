@@ -48,6 +48,21 @@ static bool cpuHasGoodTimestampCounter() {
     return (edx & (1 << 8)) != 0;
 }
 
+#elif defined(__aarch64__)
+
+#define TSC_SUPPORTED true
+
+static inline u64 rdtsc() {
+    u64 value;
+    asm volatile("mrs %0, cntvct_el0" : "=r"(value));
+    return value;
+}
+
+static bool cpuHasGoodTimestampCounter() {
+    // AARCH64 always has a good timestamp counter.
+    return true;
+}
+
 #else
 
 #define TSC_SUPPORTED false
