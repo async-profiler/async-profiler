@@ -198,7 +198,11 @@ void WallClock::timerLoop() {
 
         for (int signaled_threads = 0; signaled_threads < THREADS_PER_TICK && thread_list->hasNext(); ) {
             int thread_id = thread_list->next();
-            if (thread_id == self || (thread_filter_enabled && !thread_filter->accept(thread_id))) {
+            if (thread_id == self || thread_id <= 0) {
+                // On macOS, task_threads() may sporadically return 0 or -1 among thread IDs
+                continue;
+            }
+            if (thread_filter_enabled && !thread_filter->accept(thread_id)) {
                 continue;
             }
 
