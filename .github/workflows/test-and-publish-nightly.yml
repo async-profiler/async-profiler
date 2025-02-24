@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
-      options: --security-opt seccomp=unconfined --cap-add SYS_ADMIN
+      options: --security-opt seccomp=unconfined --cap-add SYS_ADMIN --sysctl kernel.perf_event_paranoid=1
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Setup Java for macOS x64
@@ -72,8 +72,6 @@ jobs:
           # architecture: not specifying this defaults to architecture of the runner
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Enable perf event paranoid kernel flag
-        run: sudo sysctl kernel.perf_event_paranoid = 1
       - name: Build and test
         id: build
         run: |
