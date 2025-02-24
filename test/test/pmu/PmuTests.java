@@ -21,7 +21,7 @@ public class PmuTests {
     public void cycles(TestProcess p) throws Exception {
         try {
             System.out.println("Error file location: " + TestProcess.PROFERR);
-            p.profile("-e cycles -d 3 -o collapsed -f %f");
+            p.profile("-e cycles -d 10 -o collapsed -f %f");
             Output out = p.readFile("%f");
             System.out.println("Error output: " + p.readFile(TestProcess.PROFERR));
             double ratio16K = out.ratio("test/pmu/Dictionary.test16K");
