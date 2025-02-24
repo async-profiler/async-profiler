@@ -23,7 +23,7 @@ public class PmuTests {
             System.out.println("Error file location: " + TestProcess.PROFERR);
             p.profile("-e cycles -d 10 -o collapsed -f %f");
             Output out = p.readFile("%f");
-            System.out.println("Error output: " + p.readFile(TestProcess.PROFERR));
+            System.out.println("output: " + out);
             double ratio16K = out.ratio("test/pmu/Dictionary.test16K");
             double ratio8M = out.ratio("test/pmu/Dictionary.test8M");
             System.out.println("Ratio 16K: " + ratio16K);
