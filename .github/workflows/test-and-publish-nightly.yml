@@ -52,7 +52,9 @@ jobs:
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.runson.name }}
-    container: ${{ matrix.container }}
+    container:
+      image: ${{ matrix.container }}
+      options: --security-opt seccomp=unconfined
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Setup Java for macOS x64
