@@ -37,14 +37,14 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 23]
         java-distribution: [corretto]
-        container: "public.ecr.aws/async-profiler/asprof-builder-x86:latest"
+        container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - runson:
               display: macos-14-arm64
               name: macos-14
             java-version: 11
             java-distribution: corretto
-            container: null
+            container: ""
           - runson:
               display: linux-arm64
               name: ubuntu-24.04-arm
