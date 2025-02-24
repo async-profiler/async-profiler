@@ -37,18 +37,22 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 23]
         java-distribution: [corretto]
+        container: "public.ecr.aws/async-profiler/asprof-builder-x86:latest"
         include:
           - runson:
               display: macos-14-arm64
               name: macos-14
             java-version: 11
             java-distribution: corretto
+            container: null
           - runson:
               display: linux-arm64
               name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
+            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.runson.name }}
+    container: ${{ matrix.container }}
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Setup Java for macOS x64
@@ -69,7 +73,6 @@ jobs:
       - name: Build and test
         id: build
         run: |
-          # there is no git on the codebuild runner, so it's easier to get it from github.sha
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.name }}" in
             macos*)
@@ -83,7 +86,6 @@ jobs:
       - name: Coverage
         id: coverage
         run: |
-          # there is no git on the codebuild runner, so it's easier to get it from github.sha
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.name }}" in
             macos*)
