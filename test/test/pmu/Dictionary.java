@@ -27,6 +27,7 @@ public class Dictionary {
         }
 
         long endTime = System.nanoTime();
+        System.out.println("Bound: " + bound);
         System.out.printf("Time spent: %.3f\n", (endTime - startTime) / 1e9);
     }
 
