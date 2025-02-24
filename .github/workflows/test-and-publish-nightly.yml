@@ -54,7 +54,7 @@ jobs:
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
-      options: --privileged --security-opt seccomp=unconfined --cap-add SYS_ADMIN
+      options: --privileged
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Setup Java for macOS x64
