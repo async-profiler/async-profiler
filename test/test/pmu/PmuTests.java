@@ -20,8 +20,10 @@ public class PmuTests {
     @Test(mainClass = Dictionary.class, os = Os.LINUX)
     public void cycles(TestProcess p) throws Exception {
         try {
+            System.out.println("Error file location: " + TestProcess.PROFERR);
             p.profile("-e cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
+            System.out.println("Error output: " + p.readFile(TestProcess.PROFERR));
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {
