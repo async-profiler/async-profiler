@@ -47,7 +47,7 @@ jobs:
             container: ""
           - runson:
               display: linux-arm64
-              name: ubuntu-latest
+              name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
