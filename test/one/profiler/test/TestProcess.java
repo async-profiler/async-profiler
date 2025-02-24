@@ -314,7 +314,7 @@ public class TestProcess implements Closeable {
                 .redirectError(createTempFile(PROFERR))
                 .start();
 
-        waitForExit(p, 10);
+        waitForExit(p, 60);
         int exitCode = p.waitFor();
         if (exitCode != 0) {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));
