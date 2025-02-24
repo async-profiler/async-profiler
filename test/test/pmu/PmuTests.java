@@ -24,6 +24,10 @@ public class PmuTests {
             p.profile("-e cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
             System.out.println("Error output: " + p.readFile(TestProcess.PROFERR));
+            double ratio16K = out.ratio("test/pmu/Dictionary.test16K");
+            double ratio8M = out.ratio("test/pmu/Dictionary.test8M");
+            System.out.println("Ratio 16K: " + ratio16K);
+            System.out.println("Ratio 8M: " + ratio8M);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {

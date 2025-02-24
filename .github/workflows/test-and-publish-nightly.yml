@@ -31,26 +31,33 @@ jobs:
           path: build/jar/jfr-converter.jar
   build-binaries-and-test:
     strategy:
+#      matrix:
+#        runson:
+#          - display: linux-x64
+#            name: ubuntu-latest
+#        java-version: [11, 17, 21, 23]
+#        java-distribution: [corretto]
+#        container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
+#        include:
+#          - runson:
+#              display: macos-14-arm64
+#              name: macos-14
+#            java-version: 11
+#            java-distribution: corretto
+#            container: ""
+#          - runson:
+#              display: linux-arm64
+#              name: ubuntu-22.04-arm
+#            java-version: 11
+#            java-distribution: corretto
+#            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
       matrix:
         runson:
-          - display: linux-x64
-            name: ubuntu-latest
-        java-version: [11, 17, 21, 23]
+          - display: linux-arm64
+            name: ubuntu-22.04-arm
+        java-version: [11]
         java-distribution: [corretto]
-        container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
-        include:
-          - runson:
-              display: macos-14-arm64
-              name: macos-14
-            java-version: 11
-            java-distribution: corretto
-            container: ""
-          - runson:
-              display: linux-arm64
-              name: ubuntu-22.04-arm
-            java-version: 11
-            java-distribution: corretto
-            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+        container: ["public.ecr.aws/async-profiler/asprof-builder-arm:latest"]
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
