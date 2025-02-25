@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -309,7 +310,8 @@ public class TestProcess implements Closeable {
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
         File outputFile = createTempFile(PROFOUT);
-        System.out.println("Out file name: " + outputFile.toString());
+        String identifier = String.valueOf(ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE));
+        System.out.println("Out file name: " + outputFile.toString() + " identifier: " + identifier);
         Process p = new ProcessBuilder(cmd)
                 .redirectOutput(outputFile)
                 .redirectError(createTempFile(PROFERR))
@@ -322,7 +324,7 @@ public class TestProcess implements Closeable {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));
         }
 
-        return readFile(PROFOUT);
+        return readFile(PROFOUT, identifier);
     }
 
     public File getFile(String fileId) {
@@ -335,11 +337,17 @@ public class TestProcess implements Closeable {
 
     public Output readFile(String fileId) {
         File f = getFile(fileId);
+        System.out.println("file name: " + f.toString());
         try (Stream<String> stream = Files.lines(f.toPath())) {
             return new Output(stream.toArray(String[]::new));
         } catch (IOException | UncheckedIOException e) {
             System.out.println("Failed to read file: " + e.getMessage());
             return new Output(new String[0]);
         }
+    }
+
+    public Output readFile(String fileId, String identifier) {
+        System.out.println("identifier: " + identifier);
+        return readFile(fileId);
     }
 }
