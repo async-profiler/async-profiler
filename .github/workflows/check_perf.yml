@@ -1,0 +1,28 @@
+name: Check Performance Counter Support
+on: [push]
+
+jobs:
+  check-perf-support:
+    runs-on: your-runner-label
+    steps:
+      - name: Check perf tools installation
+        run: |
+          if ! command -v perf &> /dev/null; then
+            echo "perf is not installed"
+            exit 1
+          fi
+
+      - name: Check CPU cycles support
+        run: |
+          # Try to list available events
+          perf list 2>&1 | grep -i cycles || echo "Cycles event not found"
+          
+          # Attempt to count cycles
+          sudo perf stat -e cycles -a sleep 1 2>&1 || echo "Cannot count cycles"
+
+      - name: Check kernel configuration
+        run: |
+          # Check if performance counters are enabled in the kernel
+          zcat /proc/config.gz 2>/dev/null | grep -i perf || \
+          cat /boot/config-$(uname -r) 2>/dev/null | grep -i perf || \
+          echo "Kernel config not accessible"
