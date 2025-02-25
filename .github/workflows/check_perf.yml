@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   check-perf-support:
-    runs-on: your-runner-label
+    runs-on: ubuntu-22.04-arm
     steps:
       - name: Check perf tools installation
         run: |
