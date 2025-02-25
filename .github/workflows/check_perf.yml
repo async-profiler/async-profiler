@@ -3,7 +3,7 @@ on: [push]
 
 jobs:
   check-perf-support:
-    runs-on: ubuntu-22.04-arm
+    runs-on: codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check perf tools installation
         run: |
