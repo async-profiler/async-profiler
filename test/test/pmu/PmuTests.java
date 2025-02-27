@@ -19,13 +19,18 @@ public class PmuTests {
 
     @Test(mainClass = Dictionary.class, os = Os.LINUX)
     public void cycles(TestProcess p) throws Exception {
+        Double ratio16K;
+        Double ratio8M;
         try {
             p.profile("-e cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
-            Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
-            Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
+            ratio16K = out.ratio("test/pmu/Dictionary.test16K");
+            ratio8M = out.ratio("test/pmu/Dictionary.test8M");
+            Assert.isGreater(ratio16K, 0.4);
+            Assert.isGreater(ratio8M, 0.4);
         } catch (Exception e) {
-            System.out.println("Full exception: " + e);
+            System.out.println("Exception caught in PmuTests.cycles: " + e);
+            System.out.println("Value of 16K ratio: " + String.valueOf(ratio16K) + " , Value of 8M Ratio: " + String.valueOf(ratio8M));
             if (!p.readFile(TestProcess.PROFERR).contains("Perf events unavailable")) {
                 throw e;
             }
