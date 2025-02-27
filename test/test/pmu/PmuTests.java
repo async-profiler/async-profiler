@@ -25,6 +25,7 @@ public class PmuTests {
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {
+            System.out.println("Full exception: " + e);
             if (!p.readFile(TestProcess.PROFERR).contains("Perf events unavailable")) {
                 throw e;
             }
