@@ -19,8 +19,8 @@ public class PmuTests {
 
     @Test(mainClass = Dictionary.class, os = Os.LINUX)
     public void cycles(TestProcess p) throws Exception {
-        Double ratio16K;
-        Double ratio8M;
+        Double ratio16K = null;
+        Double ratio8M = null;
         try {
             p.profile("-e cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
