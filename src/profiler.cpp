@@ -1458,13 +1458,17 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-
+    // Print the total number of samples
+    printf("Total samples collected: %d\n", samples.size());
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (counter == 0) continue;
+        if (counter == 0) {
+            printf("Counter value: %llu\n", counter);
+            continue;
+        }
 
         for (int j = trace->num_frames - 1; j >= 0; j--) {
             const char* frame_name = fn.name(trace->frames[j]);
