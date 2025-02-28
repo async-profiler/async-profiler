@@ -1,6 +1,6 @@
 name: Test and Publish Nightly Builds
 
-on:
+on:  # We are very liberal in terms of triggering builds. This should be revisited if we start seeing a lot of queueing
   - push
   - pull_request
 

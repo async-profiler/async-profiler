@@ -25,7 +25,7 @@ public class PmuTests {
     public void cycles(TestProcess p) throws Exception {
         try {
             // We are skipping the test in one case, for more details: https://github.com/actions/runner-images/issues/11689
-            if (isOsARMBased() && System.getProperty(GITHUB_ACTIONS_ENV_VAR, "false").equals("true")) {
+            if (isOsARMBased() && isRunningOnGithubActions()) {
                 System.out.println("Skipping the test PmuTests.cycles on ARM in GitHub Actions");
                 return;
             }
@@ -68,5 +68,9 @@ public class PmuTests {
     private boolean isOsARMBased() {
         String arch = System.getProperty(OS_ARCH_ENV_VAR);
         return arch.contains(AARCH64) || arch.equals(ARM);
+    }
+
+    private boolean isRunningOnGithubActions() {
+        return System.getenv(GITHUB_ACTIONS_ENV_VAR) != null && System.getenv(GITHUB_ACTIONS_ENV_VAR).equals("true");
     }
 }
