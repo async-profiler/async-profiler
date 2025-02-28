@@ -44,6 +44,12 @@ enum Mark {
     MARK_ASYNC_PROFILER = 4, // async-profiler internals such as native hooks.
 };
 
+enum ImageBaseStatus {
+    IMAGE_BASE_STATUS_UNKNOWN,
+    IMAGE_BASE_VALID,
+    IMAGE_BASE_NOT_FOUND,
+};
+
 
 class NativeFunc {
   private:
@@ -106,6 +112,8 @@ class CodeCache {
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
+    unsigned long _map_offset;
+    ImageBaseStatus _imageBaseStatus;
     const char* _text_base;
 
     unsigned int _plt_offset;
@@ -131,7 +139,9 @@ class CodeCache {
               short lib_index = -1,
               bool imports_patchable = false,
               const void* min_address = NO_MIN_ADDRESS,
-              const void* max_address = NO_MAX_ADDRESS);
+              const void* max_address = NO_MAX_ADDRESS,
+              unsigned long map_offset = 0,
+              ImageBaseStatus imageBaseStatus = IMAGE_BASE_STATUS_UNKNOWN);
 
     ~CodeCache();
 
@@ -145,6 +155,14 @@ class CodeCache {
 
     const void* maxAddress() const {
         return _max_address;
+    }
+
+    const ImageBaseStatus imageBaseStatus() const {
+        return _imageBaseStatus;
+    }
+
+    const unsigned long mapOffset() const {
+        return _map_offset;
     }
 
     bool contains(const void* address) const {

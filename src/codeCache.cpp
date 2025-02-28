@@ -29,11 +29,14 @@ size_t NativeFunc::usedMemory(const char* name) {
 
 
 CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
-                     const void* min_address, const void* max_address) {
+                     const void* min_address, const void* max_address,
+                     unsigned long map_offset, ImageBaseStatus imageBaseStatus) {
     _name = NativeFunc::create(name, -1);
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
+    _map_offset = map_offset;
+    _imageBaseStatus = imageBaseStatus;
     _text_base = NULL;
 
     _plt_offset = 0;

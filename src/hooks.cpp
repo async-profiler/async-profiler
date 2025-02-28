@@ -33,6 +33,15 @@ static pthread_create_t _orig_pthread_create = NULL;
 typedef void (*pthread_exit_t)(void*);
 static pthread_exit_t _orig_pthread_exit = NULL;
 
+typedef void* (*dlopen_t)(const char*, int);
+static dlopen_t _orig_dlopen = NULL;
+
+__attribute__((constructor)) static void saveOrigAddresses() {
+    _orig_dlopen = ADDRESS_OF(dlopen);
+    _orig_pthread_exit = ADDRESS_OF(pthread_exit);
+    _orig_pthread_create = ADDRESS_OF(pthread_create);
+}
+
 static void unblock_signals() {
     sigset_t set;
     sigemptyset(&set);
@@ -86,10 +95,6 @@ static void pthread_exit_hook(void* retval) {
     _orig_pthread_exit(retval);
 }
 
-
-typedef void* (*dlopen_t)(const char*, int);
-static dlopen_t _orig_dlopen = NULL;
-
 static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
     Log::debug("dlopen: %s", filename);
     void* result = _orig_dlopen(filename, flags);
@@ -107,14 +112,15 @@ static void* dlopen_hook(const char* filename, int flags) {
     return dlopen_hook_impl(filename, flags, true);
 }
 
+void* dlopen_no_hook(const char* filename, int flags) {
+    return _orig_dlopen(filename, flags);
+}
+
 
 // LD_PRELOAD hooks
 
 extern "C" WEAK DLLEXPORT
 int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
-    if (_orig_pthread_create == NULL) {
-        _orig_pthread_create = ADDRESS_OF(pthread_create);
-    }
     if (Hooks::initialized()) {
         return pthread_create_hook(thread, attr, start_routine, arg);
     }
@@ -123,9 +129,6 @@ int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc sta
 
 extern "C" WEAK DLLEXPORT
 void pthread_exit(void* retval) {
-    if (_orig_pthread_exit == NULL) {
-        _orig_pthread_exit = ADDRESS_OF(pthread_exit);
-    }
     if (Hooks::initialized()) {
         pthread_exit_hook(retval);
     } else {
@@ -136,9 +139,6 @@ void pthread_exit(void* retval) {
 
 extern "C" WEAK DLLEXPORT
 void* dlopen(const char* filename, int flags) {
-    if (_orig_dlopen == NULL) {
-        _orig_dlopen = ADDRESS_OF(dlopen);
-    }
     if (Hooks::initialized()) {
         return dlopen_hook_impl(filename, flags, false);
     }
@@ -159,9 +159,6 @@ bool Hooks::init(bool attach) {
 
     if (attach) {
         Profiler::instance()->updateSymbols(false);
-        _orig_pthread_create = ADDRESS_OF(pthread_create);
-        _orig_pthread_exit = ADDRESS_OF(pthread_exit);
-        _orig_dlopen = ADDRESS_OF(dlopen);
         patchLibraries();
     }
 
