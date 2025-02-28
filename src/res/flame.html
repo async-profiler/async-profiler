@@ -15,7 +15,7 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
-	#legendDetail div {width: 200px; margin-left: 20px; padding: 2px;}
+	.legendDetail div {width: 200px; margin-left: 20px; padding: 2px;}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
@@ -28,14 +28,32 @@
 	<button id='legend' title='Legend'>&#x1f6c8;</button>
 </header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
-<div id="legendDetail" style="display: none">Legend:
-	<div>interpreted</div>
-	<div>jitted</div>
-	<div>inlined</div>
-	<div>native</div>
-	<div>cpp</div>
-	<div>kernel</div>
-	<div>c1 compiled</div>
+<div id="legendDetail-default" class="legendDetail" style="display: none">Legend:
+	<div style="background-color: #e17d00;">Kernel</div>
+	<div style="background-color: #e15a5a;">Native</div>
+	<div style="background-color: #c8c83c;">C++</div>
+	<div style="background-color: #50e150;">Java compiled</div>
+	<div style="background-color: #cce880;">Java C1 compiled</div>
+	<div style="background-color: #50cccc;">Java inlined</div>
+	<div style="background-color: #b2e1b2;">Interpreted</div>
+</div>
+<div id="legendDetail-alloc" class="legendDetail" style="display: none">Legend:
+    <div style="background-color: #50cccc;">Allocated object</div>
+	<div style="background-color: #e17d00;">Allocation outside TLAB</div>
+	<div style="background-color: #e15a5a;">Native</div>
+	<div style="background-color: #c8c83c;">C++</div>
+	<div style="background-color: #50e150;">Java compiled</div>
+	<div style="background-color: #cce880;">Java C1 compiled</div>
+    <div style="background-color: #b2e1b2;">Interpreted</div>
+</div>
+<div id="legendDetail-lock" class="legendDetail" style="display: none">Legend:
+	<div style="background-color: #50cccc;">Locked object</div>
+	<div style="background-color: #e17d00;">Kernel</div>
+	<div style="background-color: #e15a5a;">Native</div>
+	<div style="background-color: #c8c83c;">C++</div>
+	<div style="background-color: #50e150;">Java compiled</div>
+	<div style="background-color: #cce880;">Java C1 compiled</div>
+    <div style="background-color: #b2e1b2;">Interpreted</div>
 </div>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
@@ -55,6 +73,12 @@
 		levels[h] = [];
 	}
 
+    // default, lock, alloc.
+    const flamegraphType = '/*flamegraphType:*/';
+    const legendDetailId = 'legendDetail-' + flamegraphType;
+    const legendDetail = document.getElementById(legendDetailId)
+        ? document.getElementById(legendDetailId)
+        : document.getElementById("legendDetail-default");
 	const canvas = document.getElementById('canvas');
 	const c = canvas.getContext('2d');
 	const hl = document.getElementById('hl');
@@ -81,12 +105,6 @@
 	function getColor(p) {
 		const v = Math.random();
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
-	}
-
-	const legendDetail = document.getElementById('legendDetail');
-	const legendItems = legendDetail.getElementsByTagName('div');
-	for(let i = 0; i < palette.length; i++) {
-		legendItems[i].style.backgroundColor = getColor(palette[i]);
 	}
 
 	function f(key, level, left, width, inln, c1, int) {

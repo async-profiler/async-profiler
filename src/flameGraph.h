@@ -57,6 +57,34 @@ class Trie {
     }
 };
 
+enum FlameGraphType {
+    FLAME_GRAPH_TYPE_DEFAULT,
+    FLAME_GRAPH_TYPE_LOCK,
+    FLAME_GRAPH_TYPE_ALLOC,
+};
+
+class FlameGraphTypeConverter {
+public:
+    static FlameGraphType from(const char* str) {
+        printf("FlameGraphType from: %s\n", str);
+
+        if (strcmp(str, "lock_tracer") == 0) return FLAME_GRAPH_TYPE_LOCK;
+        if (strcmp(str, "alloc_tracer") == 0
+            || strcmp(str, "object_sampler") == 0
+            || strcmp(str, "j9_object_sampler") == 0
+            ) return FLAME_GRAPH_TYPE_ALLOC;
+
+        return FLAME_GRAPH_TYPE_DEFAULT;
+    }
+
+    static const char* toString(FlameGraphType ty) {
+        switch (ty) {
+            case FLAME_GRAPH_TYPE_LOCK: return "lock";
+            case FLAME_GRAPH_TYPE_ALLOC: return "alloc";
+            default: return "default";
+        }
+    }
+};
 
 class FlameGraph {
   private:
@@ -74,6 +102,7 @@ class FlameGraph {
     int _last_level;
     u64 _last_x;
     u64 _last_total;
+    FlameGraphType _type;
 
     void printFrame(Writer& out, u32 key, const Trie& f, int level, u64 x);
     void printTreeFrame(Writer& out, const Trie& f, int level, const char** names);
@@ -81,9 +110,10 @@ class FlameGraph {
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
-    FlameGraph(const char* title, Counter counter, double minwidth, bool reverse) :
+    FlameGraph(FlameGraphType type, const char* title, Counter counter, double minwidth, bool reverse) :
         _root(),
         _cpool(),
+        _type(type),
         _title(title),
         _counter(counter),
         _minwidth(minwidth),
