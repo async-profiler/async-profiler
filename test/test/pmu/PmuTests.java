@@ -67,7 +67,7 @@ public class PmuTests {
 
     private boolean isOsARMBased() {
         String arch = System.getProperty(OS_ARCH_ENV_VAR);
-        return arch.contains(AARCH64) || arch.equals(ARM);
+        return arch.contains(AARCH64) || arch.contains(ARM);
     }
 
     private boolean isRunningOnGithubActions() {
