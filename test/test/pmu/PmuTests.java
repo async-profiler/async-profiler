@@ -71,6 +71,7 @@ public class PmuTests {
     }
 
     private boolean isRunningOnGithubActions() {
+
         return System.getenv(GITHUB_ACTIONS_ENV_VAR) != null && System.getenv(GITHUB_ACTIONS_ENV_VAR).equals("true");
     }
 }
