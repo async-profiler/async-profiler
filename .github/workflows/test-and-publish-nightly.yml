@@ -99,7 +99,7 @@ jobs:
 
         if: always() # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          name: test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: |
             build/test/logs/
             hs_err*.log
@@ -107,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
 
         with:
-          name: test-coverage-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          name: test-coverage-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: build/test/coverage/
       - name: Test macOS x64
         if: ${{ matrix.runson.name == 'macos-14' }}
