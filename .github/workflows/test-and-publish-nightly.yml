@@ -43,7 +43,7 @@ jobs:
             container: ""  # Not using container for mac-os as we have images only for linux
           - runson:
               display: linux-arm64
-              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+              name: ubuntu-24-04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
