@@ -24,6 +24,8 @@ public class LockTests {
     @Test(mainClass = RaceToLock.class, inputs = "0", output = true)
     @Test(mainClass = RaceToLock.class, inputs = "10000", output = true)
     @Test(mainClass = RaceToLock.class, inputs = "1000000", output = true)
+    @Test(mainClass = RaceToLock.class, inputs = "10000000", output = true)
+    @Test(mainClass = RaceToLock.class, inputs = "100000000", output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
