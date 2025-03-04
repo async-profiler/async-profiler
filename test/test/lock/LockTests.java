@@ -28,7 +28,7 @@ public class LockTests {
     @Test(mainClass = RaceToLock.class, inputs = "100000000", output = true)
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
-        Output out = p.profile("--lock " + interval + " --threads -o collapsed -d 10");
+        Output out = p.profile("--lock " + interval + " --threads -o collapsed");
         Output stdout = p.readFile(TestProcess.STDOUT);
 
         Assert.isGreater(out.samples("\\[random1"), 0, "sampled all threads 1/4");
