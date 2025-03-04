@@ -74,7 +74,7 @@ public class RaceToLock {
             t.start();
         }
 
-        Thread.sleep(1);
+        Thread.sleep(1500);
         app.exitRequested = true;
         for (Thread t : threads) {
             t.join();
