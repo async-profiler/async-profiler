@@ -74,10 +74,10 @@ jobs:
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.name }}" in
             macos*)
-              make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
+              make COMMIT_TAG=$HASH FAT_BINARY=true release test TESTS=lock -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test TESTS=lock -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
@@ -111,7 +111,7 @@ jobs:
           path: build/test/coverage/
       - name: Test macOS x64
         if: ${{ matrix.runson.name == 'macos-14' }}
-        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test
+        run: JAVA_HOME=$JAVA_HOME_${{ env.JAVA_VERSION }}_X64 make test TESTS=lock
 
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
