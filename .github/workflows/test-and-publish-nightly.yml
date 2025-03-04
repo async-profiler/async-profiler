@@ -1,12 +1,8 @@
 name: Test and Publish Nightly Builds
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+on:  # We are very liberal in terms of triggering builds. This should be revisited if we start seeing a lot of queueing
+  - push
+  - pull_request
 
 env:
   RELEASE_FROM_JAVA_VERSION: '11'
@@ -33,22 +29,28 @@ jobs:
     strategy:
       matrix:
         runson:
-          - display: linux-x64,
-            name: "codebuild-async-profiler-nightly-builds-x86-${{ github.run_id }}-${{ github.run_attempt }}"
+          - display: linux-x64
+            name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
         java-version: [11, 17, 21, 23]
         java-distribution: [corretto]
+        container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - runson:
               display: macos-14-arm64
               name: macos-14
             java-version: 11
             java-distribution: corretto
+            container: ""  # Not using container for mac-os as we have images only for linux
           - runson:
               display: linux-arm64
-              name: "codebuild-async-profiler-nightly-builds-${{ github.run_id }}-${{ github.run_attempt }}"
+              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
             java-version: 11
             java-distribution: corretto
+            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.runson.name }}
+    container:
+      image: ${{ matrix.container }}
+      options: --privileged
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Setup Java for macOS x64
@@ -69,7 +71,6 @@ jobs:
       - name: Build and test
         id: build
         run: |
-          # there is no git on the codebuild runner, so it's easier to get it from github.sha
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.name }}" in
             macos*)
@@ -83,7 +84,6 @@ jobs:
       - name: Coverage
         id: coverage
         run: |
-          # there is no git on the codebuild runner, so it's easier to get it from github.sha
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.name }}" in
             macos*)
@@ -99,7 +99,7 @@ jobs:
 
         if: always() # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          name: test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: |
             build/test/logs/
             hs_err*.log
@@ -107,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
 
         with:
-          name: test-coverage-${{ matrix.runson.name }}-${{ matrix.java-version }}
+          name: test-coverage-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: build/test/coverage/
       - name: Test macOS x64
         if: ${{ matrix.runson.name == 'macos-14' }}
