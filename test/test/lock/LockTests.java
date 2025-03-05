@@ -43,6 +43,7 @@ public class LockTests {
             Assert.isLess(sharedDiff, 0.1, "sharedDiff < 0.1");
         }
         System.out.println("sharedWaitTime: " + stdout.samples("sharedWaitTime") + " randomWaitTime: " + stdout.samples("randomWaitTime"));
+        System.out.println("difference: " + (stdout.samples("sharedWaitTime") - stdout.samples("randomWaitTime")));
         Assert.isGreater(stdout.samples("sharedWaitTime"), stdout.samples("randomWaitTime"), "sharedWaitTime > randomWaitTime");
     }
 }
