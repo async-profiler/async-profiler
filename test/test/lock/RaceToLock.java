@@ -45,7 +45,7 @@ public class RaceToLock {
 
     private void runRandomCounter() {
         while (!exitRequested) {
-            Lock lock = randomLocks[random.nextInt(3)];
+            Lock lock = randomLocks[random.nextInt(randomLocks.length)];
 
             long start = System.nanoTime();
             lock.lock();
