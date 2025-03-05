@@ -16,8 +16,11 @@ public class RaceToLock {
     private long sharedWaitTime = 0;
 
     private final Random random = new Random();
-    private final Lock lock1 = new ReentrantLock(true);
-    private final Lock lock2 = new ReentrantLock(true);
+    private final Lock[] randomLocks = {
+            new ReentrantLock(true),
+            new ReentrantLock(true),
+            new ReentrantLock(true)
+    };
     private volatile long randomWaitTime;
 
     private volatile boolean exitRequested;
@@ -42,7 +45,7 @@ public class RaceToLock {
 
     private void runRandomCounter() {
         while (!exitRequested) {
-            Lock lock = random.nextBoolean() ? lock1 : lock2;
+            Lock lock = randomLocks[random.nextInt(3)];
 
             long start = System.nanoTime();
             lock.lock();
