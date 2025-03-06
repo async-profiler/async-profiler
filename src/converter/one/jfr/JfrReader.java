@@ -158,7 +158,7 @@ public class JfrReader implements Closeable {
             int size = getVarint();
             int type = getVarint();
 
-            if (type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
+            if (pos+4 <= buf.limit() && type == 'L' && buf.getInt(pos) == CHUNK_SIGNATURE) {
                 if (state != STATE_NEW_CHUNK && stopAtNewChunk) {
                     buf.position(pos);
                     state = STATE_NEW_CHUNK;
