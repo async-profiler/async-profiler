@@ -10,11 +10,11 @@ public class Native {
         System.loadLibrary("jnimalloc");
     }
 
-    public static native long malloc(int size);
+    public static native long malloc(long size);
 
-    public static native long realloc(long addr, int size);
+    public static native long realloc(long addr, long size);
 
-    public static native long calloc(long num, int size);
+    public static native long calloc(long num, long size);
 
     public static native long free(long addr);
 
