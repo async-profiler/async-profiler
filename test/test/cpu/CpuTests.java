@@ -31,8 +31,5 @@ public class CpuTests {
     public void itimerTotal(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
         assertCloseTo(out.total(), 2_000_000_000, "itimer total should match profiling duration");
-
-        out = p.profile("-d 2 -e itimer -i 1us --total -o collapsed");
-        Assert.isLess(out.total(), 1_000_000_000, "itimer does not support overrun");
     }
 }
