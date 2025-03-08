@@ -45,6 +45,10 @@ struct f_owner_ex {
 };
 #endif // F_SETOWN_EX
 
+// Introduced in kernel 3.14
+#ifndef PERF_FLAG_FD_CLOEXEC
+#define PERF_FLAG_FD_CLOEXEC  8
+#endif // PERF_FLAG_FD_CLOEXEC
 
 enum {
     HW_BREAKPOINT_R  = 1,
@@ -150,6 +154,24 @@ static void adjustFDLimit() {
     }
 }
 
+static bool is_kernel_gte_3_14() {
+    struct utsname uts;
+
+    if (uname(&uts) != 0) {
+        return false;
+    }
+
+    int major, minor;
+    if (sscanf(uts.release, "%d.%d", &major, &minor) != 2) {
+        return false;
+    }
+
+    return (major > 3 || (major == 3 && minor >= 14));
+}
+
+// Useful to close perf_event fds on exec to avoid issues in child processes.
+// Skip if not supported.
+static int CLOEXEC_FLAG = is_kernel_gte_3_14() ? PERF_FLAG_FD_CLOEXEC : 0;
 
 struct FunctionWithCounter {
     const char* name;
@@ -591,7 +613,7 @@ int PerfEvents::createForThread(int tid) {
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, &attr);
     } else {
-        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, CLOEXEC_FLAG);
     }
 
     if (fd == -1) {
@@ -768,7 +790,7 @@ Error PerfEvents::check(Arguments& args) {
     }
 #endif
 
-    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, CLOEXEC_FLAG);
     if (fd == -1) {
         return Error(strerror(errno));
     }
@@ -963,7 +985,7 @@ bool PerfEvents::supported() {
     attr.sample_type = PERF_SAMPLE_CALLCHAIN;
     attr.disabled = 1;
 
-    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, CLOEXEC_FLAG);
     if (fd == -1) {
         return false;
     }
