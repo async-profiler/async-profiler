@@ -146,7 +146,7 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
         }
     }
     if (samples.size() == initialSize) {
-        Log::warn("No samples collected");
+        Log::info("No samples collected");
     }
 }
 
@@ -165,7 +165,7 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
         }
     }
     if (!samplesCollected) {
-        Log::warn("No samples collected");
+        Log::info("No samples collected");
     }
 }
 
