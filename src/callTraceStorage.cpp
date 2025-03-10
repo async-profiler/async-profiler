@@ -133,6 +133,7 @@ void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
 }
 
 void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
+    size_t initialSize = samples.size();
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -143,6 +144,9 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
                 samples.push_back(&values[slot]);
             }
         }
+    }
+    if (samples.size() == initialSize) {
+        Log::warn("No samples collected");
     }
 }
 
