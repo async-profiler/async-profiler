@@ -114,6 +114,8 @@ class VMStructs {
     static jfieldID _tid;
     static jfieldID _klass;
     static int _tls_index;
+    static void* _java_thread_vtbl;
+    static intptr_t _env_offset;
 
     typedef void (*LockFunc)(void*);
     static LockFunc _lock_func;
@@ -344,6 +346,14 @@ class VMThread : VMStructs {
     }
 
     static int nativeThreadId(JNIEnv* jni, jthread thread);
+
+    bool isJavaThread() {
+        return *(void**)this == _java_thread_vtbl;
+    }
+
+    JNIEnv* jni() {
+        return isJavaThread() ? (JNIEnv*) at(_env_offset) : NULL;
+    }
 
     int osThreadId() {
         const char* osthread = *(const char**) at(_thread_osthread_offset);

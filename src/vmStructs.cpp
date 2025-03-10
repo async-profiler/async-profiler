@@ -109,6 +109,8 @@ jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
 jfieldID VMStructs::_klass = NULL;
 int VMStructs::_tls_index = -1;
+void* VMStructs::_java_thread_vtbl = NULL;
+intptr_t VMStructs::_env_offset = -1;
 
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
@@ -606,6 +608,8 @@ void VMStructs::initThreadBridge() {
 
         VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
         if (vm_thread != NULL) {
+            _java_thread_vtbl = *(void**)vm_thread;
+            _env_offset = (intptr_t)env - (intptr_t)vm_thread;
             _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
             initTLS(vm_thread);
         }
