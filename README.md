@@ -65,6 +65,7 @@ Find more details in the [Getting started guide](docs/GettingStarted.md).
 
 - make
 - GCC 7.5.0+ or Clang 7.0.0+
+- Static version of libstdc++ (e.g. on Amazon Linux 2023: `yum install libstdc++-static`)
 - JDK 11+
 
 ### How to build
