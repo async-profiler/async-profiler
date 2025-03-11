@@ -208,7 +208,7 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    public int stackTracesSize() throws IOException {
+    public int stackTracesSize() {
        return stackTraces.getSize();
     }
 
