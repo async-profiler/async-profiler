@@ -11,8 +11,6 @@
 #include "arch.h"
 #include "linearAllocator.h"
 #include "vmEntry.h"
-#include "log.h"
-
 
 class LongHashTable;
 
