@@ -7,6 +7,7 @@
 #define _ASPROF_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __clang__
 #  define DLLEXPORT __attribute__((visibility("default")))
@@ -37,6 +38,9 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
 
+// Gets the thread-local sample counter, which increments (not necessarily by 1) every time a signal handler is run.
+DLLEXPORT uintptr_t asprof_get_sample_counter(void);
+typedef uintptr_t (*asprof_get_sample_counter_t)(void);
 
 #ifdef __cplusplus
 }

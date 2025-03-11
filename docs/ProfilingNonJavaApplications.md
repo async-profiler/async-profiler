@@ -27,6 +27,10 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 // for the profiler output. Returns an error code or NULL on success.
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
+
+// Gets the thread-local sample counter, which increments (not necessarily by 1) every time a signal handler is run.
+DLLEXPORT uintptr_t asprof_get_sample_counter(void);
+typedef uintptr_t (*asprof_get_sample_counter_t)(void);
 ```
 
 To use it in a C/C++ application, include `asprof.h`. Below is an example showing how to invoke async-profiler with the API:
@@ -92,3 +96,15 @@ LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,event=cpu,file=prof
 All basic functionality remains the same. Profiler can run in `cpu`, `wall` and other perf_events
 modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
 Java-specific events.
+
+### Advanced Sampling
+
+The `asprof_get_sample_counter` function increments every time there is a sample. This gives native
+code an easy way to detect when a sample event had occurred, and to log metadata about what the
+program was doing when the event happened.
+
+### Interaction with a JVM
+
+If you are using the native API to use async-profiler on a program that embeds a JVM and calls into it,
+async-profiler will not attach to that JVM, and stack traces involving (JITted) Java code will be mostly
+a single `.unknown` frame.

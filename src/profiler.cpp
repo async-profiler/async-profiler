@@ -59,6 +59,9 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+// A key for the sample counter, which increments by 1 every time
+// a signal is received to allow the application to detect samples.
+static volatile pthread_key_t _sample_counter_key = -1;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -82,10 +85,26 @@ struct MethodSample {
 
 typedef std::pair<std::string, MethodSample> NamedMethodSample;
 
+static void incrementSampleCounter() {
+    // over-paranoia - access the sample key once to avoid weird signal races
+    pthread_key_t sample_counter_key = _sample_counter_key;
+    if (sample_counter_key == -1) return;
+
+    uintptr_t counter = (uintptr_t)pthread_getspecific(sample_counter_key);
+    counter++;
+    pthread_setspecific(sample_counter_key, (void*)counter);
+}
+
+DLLEXPORT uintptr_t asprof_get_sample_counter(void) {
+    pthread_key_t sample_counter_key = _sample_counter_key;
+    if (sample_counter_key == -1) return 0;
+
+    return (uintptr_t)pthread_getspecific(sample_counter_key);
+}
+
 static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b) {
     return a.second.counter > b.second.counter;
 }
-
 
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
@@ -614,6 +633,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
+    incrementSampleCounter();
 
     int tid = fastThreadId();
     u32 lock_index = getLockIndex(tid);
@@ -1071,6 +1091,19 @@ Error Profiler::checkJvmCapabilities() {
     return Error::OK;
 }
 
+static void initThreadLocalKey() {
+    if (_sample_counter_key != -1) {
+        return; // already initialized
+    }
+
+    pthread_key_t sample_counter;
+    int status;
+    if ((status = pthread_key_create(&sample_counter, NULL)) != 0) {
+        return;
+    }
+    _sample_counter_key = sample_counter;
+}
+
 Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
     if (_state > IDLE) {
@@ -1176,6 +1209,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         // OpenJ9 libs are compiled with frame pointers omitted
         _cstack = CSTACK_DWARF;
     }
+
+    initThreadLocalKey();
 
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
