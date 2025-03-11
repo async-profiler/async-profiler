@@ -134,6 +134,23 @@ class Profiler {
     void stopTimer();
     void timerLoop(void* timer_id);
 
+    void logIfNoSamples(Arguments& args, u64 excluded_samples) {
+        // Skip logging if profiling is invoked with --loop mode
+        if (args._loop) {
+            return;
+        }
+        // If total samples are 0 - we log a message
+        if (_total_samples == 0) {
+            Log::info("No samples were collected");
+            return;
+        }
+        // Check if all samples were filtered out by comparing with total samples
+        if (excluded_samples == _total_samples) {
+            Log::info("All %lld samples are filtered out", _total_samples);
+            return;
+        }
+    }
+
     static void jvmtiTimerEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         instance()->timerLoop(arg);
     }

@@ -12,6 +12,7 @@
 #include "linearAllocator.h"
 #include "vmEntry.h"
 
+
 class LongHashTable;
 
 struct CallTrace {
