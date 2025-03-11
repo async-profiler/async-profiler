@@ -208,10 +208,6 @@ public class JfrReader implements Closeable {
         return null;
     }
 
-    public int stackTracesSize() {
-       return stackTraces.getSize();
-    }
-
     private ExecutionSample readExecutionSample(boolean hasSamples) {
         long time = getVarlong();
         int tid = getVarint();

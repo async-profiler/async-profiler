@@ -32,7 +32,7 @@ public class Dictionary<T> {
         size = 0;
     }
 
-    public int getSize() {
+    public int size() {
        return size;
     }
 
