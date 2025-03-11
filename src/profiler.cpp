@@ -612,6 +612,23 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
     }
 }
 
+void Profiler::logIfNoSamples(Arguments& args, u64 excluded_samples) {
+    // Skip logging if profiling is invoked with --loop mode
+    if (args._loop) {
+        return;
+    }
+    // If total samples are 0 - we log a message
+    if (_total_samples == 0) {
+        Log::info("No samples were collected");
+        return;
+    }
+    // Check if all samples were filtered out by comparing with total samples
+    if (excluded_samples == _total_samples) {
+        Log::info("All %lld samples are filtered out", _total_samples);
+        return;
+    }
+}
+
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
 
@@ -1458,10 +1475,14 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-
+    u64 filtered_sample_count = 0;
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace)) continue;
+        if (trace == NULL) continue;
+        if (excludeTrace(&fn, trace)) {
+            filtered_sample_count++;
+            continue;
+        }
 
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
         if (counter == 0) continue;
@@ -1473,6 +1494,7 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
         // Beware of locale-sensitive conversion
         out.write(buf, snprintf(buf, sizeof(buf), "%llu\n", counter));
     }
+    logIfNoSamples(args, filtered_sample_count)
 
     if (!out.good()) {
         Log::warn("Output file may be incomplete");
@@ -1497,10 +1519,15 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
 
         std::vector<CallTraceSample*> samples;
         _call_trace_storage.collectSamples(samples);
+        u64 filtered_sample_count = 0;
 
         for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
             CallTrace* trace = (*it)->acquireTrace();
-            if (trace == NULL || excludeTrace(&fn, trace)) continue;
+            if (trace == NULL) continue;
+            if (excludeTrace(&fn, trace)) {
+                filtered_sample_count++;
+                continue;
+            }
 
             u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
             if (counter == 0) continue;
@@ -1534,6 +1561,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
             f->_total += counter;
             f->_self += counter;
         }
+        logIfNoSamples(args, filtered_sample_count)
     }
 
     flamegraph.dump(out, tree);
@@ -1546,6 +1574,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     std::vector<CallTraceSample> samples;
     u64 total_counter = 0;
     {
+        u64 filtered_sample_count = 0;
         std::map<u64, CallTraceSample> map;
         _call_trace_storage.collectSamples(map);
         samples.reserve(map.size());
@@ -1556,9 +1585,14 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             if (trace == NULL || counter == 0) continue;
 
             total_counter += counter;
-            if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
+            if (trace->num_frames == 0) continue;
+            if (excludeTrace(&fn, trace)) {
+                filtered_sample_count++;
+                continue;
+            }
             samples.push_back(it->second);
         }
+        logIfNoSamples(args, filtered_sample_count)
     }
 
     // Print summary
