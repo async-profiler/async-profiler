@@ -1558,7 +1558,6 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
             total_counter += counter;
             if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
-
             samples.push_back(it->second);
         }
     }
