@@ -14,7 +14,6 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import java.io.IOException;
-import java.util.Set;
 
 /**
  * Obtain the CPU time of a process using the Attach API
@@ -34,12 +33,7 @@ class CpuTimeService implements AutoCloseable {
     }
 
     long getProcessCpuTimeNanos() throws Exception {
-        Set<ObjectName> mbeans = mbeanServer.queryNames(new ObjectName("java.lang:type=OperatingSystem"), null);
-        if (mbeans.isEmpty()) {
-            throw new Exception("No OperatingSystem MBean found");
-        }
-        ObjectName osMBean = mbeans.iterator().next();
-        return (long) mbeanServer.getAttribute(osMBean, "ProcessCpuTime");
+       return (long)mbeanServer.getAttribute(new ObjectName("java.lang:type=OperatingSystem"), "ProcessCpuTime");
     }
 
     @Override
