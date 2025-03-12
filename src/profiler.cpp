@@ -1458,14 +1458,10 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-    u64 filtered_sample_count = 0;
+    u64 printed_sample_count = 0;
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
-        if (trace == NULL) continue;
-        if (excludeTrace(&fn, trace)) {
-            filtered_sample_count++;
-            continue;
-        }
+        if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
         u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
         if (counter == 0) continue;
@@ -1476,12 +1472,9 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
         }
         // Beware of locale-sensitive conversion
         out.write(buf, snprintf(buf, sizeof(buf), "%llu\n", counter));
+        printed_sample_count++;
     }
-    logIfNoSamples(args, filtered_sample_count);
-
-    if (!out.good()) {
-        Log::warn("Output file may be incomplete");
-    }
+    logSampleCollectionStatus(args, printed_sample_count, out);
 }
 
 void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
@@ -1502,15 +1495,11 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
 
         std::vector<CallTraceSample*> samples;
         _call_trace_storage.collectSamples(samples);
-        u64 filtered_sample_count = 0;
+        u64 printed_sample_count = 0;
 
         for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
             CallTrace* trace = (*it)->acquireTrace();
-            if (trace == NULL) continue;
-            if (excludeTrace(&fn, trace)) {
-                filtered_sample_count++;
-                continue;
-            }
+            if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
             u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
             if (counter == 0) continue;
@@ -1543,8 +1532,9 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
             }
             f->_total += counter;
             f->_self += counter;
+            printed_sample_count++;
         }
-        logIfNoSamples(args, filtered_sample_count);
+        logSampleCollectionStatus(args, printed_sample_count, out);
     }
 
     flamegraph.dump(out, tree);
@@ -1557,7 +1547,6 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     std::vector<CallTraceSample> samples;
     u64 total_counter = 0;
     {
-        u64 filtered_sample_count = 0;
         std::map<u64, CallTraceSample> map;
         _call_trace_storage.collectSamples(map);
         samples.reserve(map.size());
@@ -1568,14 +1557,10 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             if (trace == NULL || counter == 0) continue;
 
             total_counter += counter;
-            if (trace->num_frames == 0) continue;
-            if (excludeTrace(&fn, trace)) {
-                filtered_sample_count++;
-                continue;
-            }
+            if (trace->num_frames == 0 || excludeTrace(&fn, trace)) continue;
+
             samples.push_back(it->second);
         }
-        logIfNoSamples(args, filtered_sample_count);
     }
 
     // Print summary
@@ -1745,6 +1730,26 @@ void Profiler::timerLoop(void* timer_id) {
         }
 
         sleep_until = current_micros + 1000000;
+    }
+}
+
+void Profiler::logSampleCollectionStatus(Arguments& args, u64 printed_samples_count, Writer& out) {
+    if (!out.good()) {
+        Log::warn("Output file may be incomplete");
+    }
+    // Skip logging if profiling is invoked with --loop mode
+    if (args._loop) {
+        return;
+    }
+    // If total samples count match the samples which were skipped - we log a message
+    if (_total_samples == _failures[-ticks_skipped]) {
+        Log::info("No samples were collected");
+        return;
+    }
+    // If some samples where collected but nothing was printed - we log a message
+    if (printed_samples_count == 0) {
+        Log::info("All samples were filtered out");
+        return;
     }
 }
 
