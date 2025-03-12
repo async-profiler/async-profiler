@@ -59,8 +59,15 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-// A key for the sample counter, which increments by 1 every time
-// a signal is received to allow the application to detect samples.
+// A key that points to a malloc'd uint64_t* sample counter, which
+// increments by 1 every time a signal is received to allow the
+// application to detect samples.
+//
+// The per-thread counter is lazily initialized in `asprof_get_sample_counter`,
+// and is NULL until `asprof_get_sample_counter` is called. This matches the API
+// since the sample counter only needs to start running the first time
+// `asprof_get_sample_counter` is called, and allows us to avoid calling `malloc`
+// in weird places.
 static volatile pthread_key_t _sample_counter_key = -1;
 
 // The same constants are used in JfrSync
@@ -90,16 +97,33 @@ static void incrementSampleCounter() {
     pthread_key_t sample_counter_key = _sample_counter_key;
     if (sample_counter_key == -1) return;
 
-    uintptr_t counter = (uintptr_t)pthread_getspecific(sample_counter_key);
-    counter++;
-    pthread_setspecific(sample_counter_key, (void*)counter);
+    uint64_t *counter = (uint64_t *)pthread_getspecific(sample_counter_key);
+    if (counter != NULL) {
+        (*counter)++;
+    }
 }
 
-DLLEXPORT uintptr_t asprof_get_sample_counter(void) {
+DLLEXPORT uint64_t asprof_get_sample_counter(void) {
     pthread_key_t sample_counter_key = _sample_counter_key;
     if (sample_counter_key == -1) return 0;
 
-    return (uintptr_t)pthread_getspecific(sample_counter_key);
+    volatile uint64_t *val = (uint64_t*)pthread_getspecific(sample_counter_key);
+    if (val == NULL) {
+        // Initialize. Since this is a thread-local, it is not racy.
+        val = (uint64_t*) malloc(sizeof(uint64_t));
+        if (val == NULL) {
+            // would rather not insert random aborts into code. This
+            // will make the code try again next time, which is fine.
+            return 0;
+        }
+        *val = 0;
+        if (pthread_setspecific(sample_counter_key, (void*)val) < 0) {
+            free((void*)val);
+            return 0;
+        }
+    }
+
+    return *val;
 }
 
 static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b) {
@@ -1097,8 +1121,7 @@ static void initThreadLocalKey() {
     }
 
     pthread_key_t sample_counter;
-    int status;
-    if ((status = pthread_key_create(&sample_counter, NULL)) != 0) {
+    if (pthread_key_create(&sample_counter, free) != 0) {
         return;
     }
     _sample_counter_key = sample_counter;

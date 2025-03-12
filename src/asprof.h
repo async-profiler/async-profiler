@@ -38,9 +38,16 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
 
-// Gets the thread-local sample counter, which increments (not necessarily by 1) every time a signal handler is run.
-DLLEXPORT uintptr_t asprof_get_sample_counter(void);
-typedef uintptr_t (*asprof_get_sample_counter_t)(void);
+// Gets the thread-local sample counter, which increments (not necessarily by 1) every time a
+// stack profiling sample is taken using a profiling signal.
+//
+// The counter might be initialized lazily, only starting counting from 0 the first time
+// `asprof_get_sample_counter` is called on a given thread. Further calls to
+// `asprof_get_sample_counter` on a given thread will of course not reset the counter.
+//
+// This function is *not* async-signal safe.
+DLLEXPORT uint64_t asprof_get_sample_counter(void);
+typedef uint64_t (*asprof_get_sample_counter_t)(void);
 
 #ifdef __cplusplus
 }
