@@ -19,13 +19,13 @@ import java.util.Set;
 /**
  * Obtain the CPU time of a process using the Attach API
  */
-class CPUTimeService implements AutoCloseable {
+class CpuTimeService implements AutoCloseable {
 
     private final VirtualMachine vm;
     private final MBeanServerConnection mbeanServer;
     private final JMXConnector jmxConnector;
 
-    CPUTimeService(long pid) throws IOException, AttachNotSupportedException {
+    CpuTimeService(long pid) throws IOException, AttachNotSupportedException {
         vm = VirtualMachine.attach(pid + "");
         String connectorAddress = vm.startLocalManagementAgent();
         JMXServiceURL url = new JMXServiceURL(connectorAddress);
@@ -33,7 +33,7 @@ class CPUTimeService implements AutoCloseable {
         mbeanServer = jmxConnector.getMBeanServerConnection();
     }
 
-    long getProcessCPUTimeNanos() throws Exception {
+    long getProcessCpuTimeNanos() throws Exception {
         Set<ObjectName> mbeans = mbeanServer.queryNames(new ObjectName("java.lang:type=OperatingSystem"), null);
         if (mbeans.isEmpty()) {
             throw new Exception("No OperatingSystem MBean found");

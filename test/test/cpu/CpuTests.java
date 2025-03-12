@@ -31,10 +31,10 @@ public class CpuTests {
     public void itimerTotal(TestProcess p) throws Exception {
         Output out;
         long cpuTime;
-        try (CPUTimeService timeService = new CPUTimeService(p.pid())) {
-            cpuTime = timeService.getProcessCPUTimeNanos();
+        try (CpuTimeService timeService = new CpuTimeService(p.pid())) {
+            cpuTime = timeService.getProcessCpuTimeNanos();
             out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
-            cpuTime = timeService.getProcessCPUTimeNanos() - cpuTime;
+            cpuTime = timeService.getProcessCpuTimeNanos() - cpuTime;
         }
         assertCloseTo(out.total(), cpuTime, "itimer total should match CPU time spent in the process during profiling");
     }
