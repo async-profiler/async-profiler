@@ -29,7 +29,13 @@ public class CpuTests {
 
     @Test(mainClass = CpuBurner.class)
     public void itimerTotal(TestProcess p) throws Exception {
-        Output out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
-        assertCloseTo(out.total(), 2_000_000_000, "itimer total should match profiling duration");
+        Output out;
+        long cpuTime;
+        try (CPUTimeService timeService = new CPUTimeService(p.pid())) {
+            cpuTime = timeService.getProcessCPUTimeNanos();
+            out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
+            cpuTime = timeService.getProcessCPUTimeNanos() - cpuTime;
+        }
+        assertCloseTo(out.total(), cpuTime, "itimer total should match CPU time spent in the process during profiling");
     }
 }
