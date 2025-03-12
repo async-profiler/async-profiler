@@ -12,7 +12,7 @@ public class CpuBurner {
 
     static void burn() {
         long n = random.nextLong();
-        if (Long.toString(n).hashCode() == 0) {
+        if (Math.pow(n, Math.log(Math.abs(n) + 1)) == 0) {
             System.out.println(n);
         }
     }
