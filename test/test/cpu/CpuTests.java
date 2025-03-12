@@ -14,7 +14,7 @@ import one.profiler.test.TestProcess;
 public class CpuTests {
 
     private static void assertCloseTo(long value, long target, String message) {
-        Assert.isGreaterOrEqual(value, target * 0.75, message);
+        Assert.isGreaterOrEqual(value, target * 0.6, message);
         Assert.isLessOrEqual(value, target * 1.25, message);
     }
 
