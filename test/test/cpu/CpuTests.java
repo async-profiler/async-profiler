@@ -40,7 +40,7 @@ public class CpuTests {
             wallTime = System.nanoTime() - wallTime;
         }
         double ratio = (double)cpuTime / wallTime;
-        long actual = out.total();
+        long actual = out.total() + 100_000_000; // include the end of the last slice, as the total time is always 100ms less than the actual profiling duration
         System.out.println("CPU time / wall time ratio: " + ratio);
         System.out.println("itimer total: " + actual / 1_000_000 + " cpu " + cpuTime / 1_000_000 + " wall " + wallTime / 1_000_000 + " expected " + (long)(2_000 * ratio));
 
