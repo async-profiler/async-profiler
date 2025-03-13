@@ -33,13 +33,18 @@ public class CpuTests {
         long cpuTime;
         long wallTime;
         try (CpuTimeService timeService = new CpuTimeService(p.pid())) {
-            wallTime = System.nanoTime();
+            wallTime = System.currentTimeMillis();
             cpuTime = timeService.getProcessCpuTimeNanos();
             out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
             cpuTime = timeService.getProcessCpuTimeNanos() - cpuTime;
-            wallTime = System.nanoTime() - wallTime;
+            wallTime = (System.currentTimeMillis() - wallTime) * 1_000_000;
         }
         double ratio = (double)cpuTime / wallTime;
+        if (ratio < 0.5) {
+            System.err.println("Warning: CPU time / wall time ratio is too low: " + ratio);
+            System.err.println("Your system has too high load to run the itimer test properly");
+            System.err.println("Therefore the test is skipped");
+        }
         long actual = out.total() + 100_000_000; // include the end of the last slice, as the total time is always 100ms less than the actual profiling duration
         System.out.println("CPU time / wall time ratio: " + ratio);
         System.out.println("itimer total: " + actual / 1_000_000 + " cpu " + cpuTime / 1_000_000 + " wall " + wallTime / 1_000_000 + " expected " + (long)(2_000 * ratio));
