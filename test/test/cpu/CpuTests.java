@@ -14,7 +14,7 @@ import one.profiler.test.TestProcess;
 public class CpuTests {
 
     private static void assertCloseTo(long value, long target, String message) {
-        Assert.isGreaterOrEqual(value, target * 0.6, message);
+        Assert.isGreaterOrEqual(value, target * 0.75, message);
         Assert.isLessOrEqual(value, target * 1.25, message);
     }
 
@@ -31,11 +31,19 @@ public class CpuTests {
     public void itimerTotal(TestProcess p) throws Exception {
         Output out;
         long cpuTime;
+        long wallTime;
         try (CpuTimeService timeService = new CpuTimeService(p.pid())) {
+            wallTime = System.nanoTime();
             cpuTime = timeService.getProcessCpuTimeNanos();
             out = p.profile("-d 2 -e itimer -i 100ms --total -o collapsed");
             cpuTime = timeService.getProcessCpuTimeNanos() - cpuTime;
+            wallTime = System.nanoTime() - wallTime;
         }
-        assertCloseTo(out.total(), cpuTime, "itimer total should match CPU time spent in the process during profiling");
+        double ratio = (double)cpuTime / wallTime;
+        long actual = out.total();
+        System.out.println("CPU time / wall time ratio: " + ratio);
+        System.out.println("itimer total: " + actual / 1_000_000 + " cpu " + cpuTime / 1_000_000 + " wall " + wallTime / 1_000_000 + " expected " + (long)(2_000 * ratio));
+
+        assertCloseTo(actual, (long)(2_000_000_000 * ratio), "itimer total should match CPU time spent in the process during profiling");
     }
 }
