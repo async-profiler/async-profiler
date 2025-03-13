@@ -147,8 +147,8 @@ void FlameGraph::dump(Writer& out, bool tree) {
         tail = printTill(out, tail, "/*title:*/");
         out << _title;
 
-        tail = printTill(out, tail, "/*reverse:*/false");
-        out << (_reverse ? "true" : "false");
+        tail = printTill(out, tail, "/*inverted:*/false");
+        out << (_inverted ? "true" : "false");
 
         tail = printTill(out, tail, "/*depth:*/0");
         out << depth;

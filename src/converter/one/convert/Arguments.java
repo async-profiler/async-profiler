@@ -22,6 +22,7 @@ public class Arguments {
     public int skip;
     public boolean help;
     public boolean reverse;
+    public boolean inverted;
     public boolean cpu;
     public boolean wall;
     public boolean alloc;
@@ -42,6 +43,7 @@ public class Arguments {
     public final List<String> files = new ArrayList<>();
 
     public Arguments(String... args) {
+        boolean invertedSet = false;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             String fieldName;
@@ -52,6 +54,9 @@ public class Arguments {
             } else {
                 files.add(arg);
                 continue;
+            }
+            if ("inverted".equals(fieldName)) {
+                invertedSet = true;
             }
 
             try {
@@ -64,7 +69,8 @@ public class Arguments {
                 if (type == String.class) {
                     f.set(this, args[++i]);
                 } else if (type == boolean.class) {
-                    f.setBoolean(this, true);
+                    boolean value = ("inverted".equals(fieldName)) ? Boolean.parseBoolean(args[++i]) : true;
+                    f.setBoolean(this, value);
                 } else if (type == int.class) {
                     f.setInt(this, Integer.parseInt(args[++i]));
                 } else if (type == double.class) {
@@ -78,6 +84,9 @@ public class Arguments {
                 throw new IllegalArgumentException(arg);
             }
         }
+        if (reverse && !invertedSet) {
+            inverted = true;
+        }
     }
 
     private static String alias(char c) {
@@ -88,6 +97,8 @@ public class Arguments {
                 return "output";
             case 'r':
                 return "reverse";
+            case 'i':
+                return "inverted";
             case 'I':
                 return "include";
             case 'X':

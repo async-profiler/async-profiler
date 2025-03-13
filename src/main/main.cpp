@@ -64,7 +64,8 @@ static const char USAGE_STRING[] =
     "\n"
     "  --title string    FlameGraph title\n"
     "  --minwidth pct    skip frames smaller than pct%%\n"
-    "  --reverse         generate stack-reversed FlameGraph / Call tree\n"
+    "  --reverse         generate stack-reversed FlameGraph / Call tree (implies --inverted true)\n"
+    "  --inverted BOOL   display graph top-down instead of bottom-up (i.e. icicle graph): true | false\n"
     "\n"
     "  --loop time       run profiler in a loop\n"
     "  --alloc bytes     allocation profiling interval in bytes\n"
@@ -492,6 +493,9 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live" || arg == "--nofree") {
             format << "," << (arg.str() + 2);
+
+        } else if (arg == "--inverted") {
+            params << ",inverted=" << args.next();
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
