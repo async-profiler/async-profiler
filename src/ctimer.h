@@ -15,7 +15,7 @@ class CTimer : public CpuEngine {
     static int _max_timers;
     static int* _timers;
 
-    int createForThread(int tid);
+    int createForThread(int tid, int cpu);
     void destroyForThread(int tid);
 
   public:

@@ -533,7 +533,7 @@ PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
 
-int PerfEvents::createForThread(int tid) {
+int PerfEvents::createForThread(int tid, int cpu) {
     if (tid >= _max_events) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_events);
         return -1;
@@ -594,10 +594,10 @@ int PerfEvents::createForThread(int tid) {
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, &attr);
     } else {
-        fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, PERF_FLAG_FD_CLOEXEC);
+        fd = syscall(__NR_perf_event_open, &attr, tid, cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (fd == -1 && errno == EINVAL) {
             // Try again without CLOEXEC, it's not supported in very old kernels
-            fd = syscall(__NR_perf_event_open, &attr, tid, -1, -1, 0);
+            fd = syscall(__NR_perf_event_open, &attr, tid, cpu, -1, 0);
         }
     }
 

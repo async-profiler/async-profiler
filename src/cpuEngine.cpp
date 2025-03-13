@@ -44,7 +44,7 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
 void CpuEngine::onThreadStart() {
     CpuEngine* current = __atomic_load_n(&_current, __ATOMIC_ACQUIRE);
     if (current != NULL) {
-        current->createForThread(OS::threadId());
+        current->createForThread(OS::threadId(), _global_args._cpu);
     }
 }
 
@@ -98,7 +98,7 @@ int CpuEngine::createForAllThreads() {
     ThreadList* thread_list = OS::listThreads();
     while (thread_list->hasNext()) {
         int tid = thread_list->next();
-        int err = createForThread(tid);
+        int err = createForThread(tid, _global_args._cpu);
         if (isResourceLimit(err)) {
             result = err;
             break;

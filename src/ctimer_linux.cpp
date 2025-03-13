@@ -28,9 +28,14 @@ static inline clockid_t thread_cpu_clock(unsigned int tid) {
 int CTimer::_max_timers = 0;
 int* CTimer::_timers = NULL;
 
-int CTimer::createForThread(int tid) {
+int CTimer::createForThread(int tid, int cpu) {
     if (tid >= _max_timers) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_timers);
+        return -1;
+    }
+
+    if (cpu != -1) {
+        Log::warn("cpu != -1 is not supported with CTimer CPU sampling");
         return -1;
     }
 

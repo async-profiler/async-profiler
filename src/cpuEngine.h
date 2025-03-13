@@ -33,7 +33,7 @@ class CpuEngine : public Engine {
 
     int createForAllThreads();
 
-    virtual int createForThread(int tid) { return -1; }
+    virtual int createForThread(int tid, int cpu) { return -1; }
     virtual void destroyForThread(int tid) {}
 
   public:
