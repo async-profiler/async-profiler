@@ -47,10 +47,11 @@ bool FdTransferClient::connectToServer(const char *path) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(int *tid, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(int *tid, int target_cpu, struct perf_event_attr *attr) {
     struct perf_fd_request request;
     request.header.type = PERF_FD;
     request.tid = *tid;
+    request.target_cpu;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
     if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {

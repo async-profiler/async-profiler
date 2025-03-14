@@ -592,7 +592,7 @@ int PerfEvents::createForThread(int tid) {
 
     int fd;
     if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(&tid, &attr);
+        fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr);
     } else {
         fd = syscall(__NR_perf_event_open, &attr, tid, _target_cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (fd == -1 && errno == EINVAL) {
