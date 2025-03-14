@@ -26,7 +26,7 @@ class FdTransferClient {
         }
     }
 
-    static int requestPerfFd(int *tid, struct perf_event_attr *attr);
+    static int requestPerfFd(int *tid, int target_cpu, struct perf_event_attr *attr);
     static int requestKallsymsFd();
 };
 
