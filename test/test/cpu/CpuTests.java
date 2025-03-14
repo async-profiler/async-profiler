@@ -36,19 +36,19 @@ public class CpuTests {
         assertCloseTo(out.total(), 2_000_000_000, "itimer total should match profiling duration");
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX, cpu = 1, jvm = Jvm.HOTSPOT)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsWrongTargetCpu(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 2");
         assertCloseTo(out.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX, cpu = 1, jvm = Jvm.HOTSPOT)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsRightTargetCpu(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1");
         assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
 
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX, cpu = 1, jvm = Jvm.HOTSPOT)
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsRightTargetCpuWithFdTransfer(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1 --fdtransfer");
         assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
