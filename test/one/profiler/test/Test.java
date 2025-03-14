@@ -36,7 +36,7 @@ public @interface Test {
 
     Os[] os() default {};
 
-    int[] cpu() default {};
+    int cpu() default -1;
 
     Arch[] arch() default {};
 
