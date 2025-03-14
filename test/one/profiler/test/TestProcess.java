@@ -118,13 +118,18 @@ public class TestProcess implements Closeable {
     private List<String> buildCommandLine(Test test) {
         List<String> cmd = new ArrayList<>();
 
+        List<String> cpuSelectionCommand = buildCpuSelectionCommand(test);
+
         String[] sh = test.sh();
         if (sh.length > 0) {
             cmd.add("/bin/sh");
             cmd.add("-e");
             cmd.add("-c");
-            cmd.add(substituteFiles(String.join(";", sh)));
+
+            String joinedCmd = substituteFiles(String.join(";", sh));
+            cmd.add(String.join(" ", cpuSelectionCommand));
         } else {
+            cmd.addAll(cpuSelectionCommand);
             cmd.add(System.getProperty("java.home") + "/bin/java");
             cmd.add("-cp");
             cmd.add(System.getProperty("java.class.path"));
@@ -142,6 +147,28 @@ public class TestProcess implements Closeable {
             addArgs(cmd, test.args());
         }
 
+        return cmd;
+    }
+
+    private List<String> buildCpuSelectionCommand(Test test) {
+        List<String> cmd = new ArrayList<>();
+        if (test.cpu().length == 0) {
+            return cmd;
+        }
+
+        Set<Os> requestedOs = new HashSet<>(Arrays.asList(test.os()));
+        if (!requestedOs.equals(Collections.singleton(Os.LINUX))) {
+            throw new IllegalArgumentException("CPU selection is only supported on Linux");
+        }
+
+        List<String> cpuStrings = new ArrayList<>();
+        for (int cpu : test.cpu()) {
+            cpuStrings.add(String.valueOf(cpu));
+        }
+
+        cmd.add("taskset");
+        cmd.add("--cpu-list");
+        cmd.add(String.join(",", cpuStrings));
         return cmd;
     }
 
