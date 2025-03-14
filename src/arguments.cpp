@@ -107,7 +107,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree
-//     target-cpu=CPU   - the cpu to profile (default: -1)
+//     target-cpu=CPU   - sample threads on a specific CPU (`-e cpu` only, default: -1)
 //
 // It is possible to specify multiple dump options at the same time
 
