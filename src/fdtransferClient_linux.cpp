@@ -51,7 +51,7 @@ int FdTransferClient::requestPerfFd(int *tid, int target_cpu, struct perf_event_
     struct perf_fd_request request;
     request.header.type = PERF_FD;
     request.tid = *tid;
-    request.target_cpu;
+    request.target_cpu = target_cpu;
     memcpy(&request.attr, attr, sizeof(request.attr));
 
     if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
