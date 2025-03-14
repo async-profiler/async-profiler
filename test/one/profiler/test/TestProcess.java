@@ -127,7 +127,8 @@ public class TestProcess implements Closeable {
             cmd.add("-c");
 
             String joinedCmd = substituteFiles(String.join(";", sh));
-            cmd.add(String.join(" ", cpuSelectionCommand));
+            String joinedCpuSelectionCmd = String.join(" ", cpuSelectionCommand);
+            cmd.add(String.format("%s %s", joinedCpuSelectionCmd, joinedCmd));
         } else {
             cmd.addAll(cpuSelectionCommand);
             cmd.add(System.getProperty("java.home") + "/bin/java");
