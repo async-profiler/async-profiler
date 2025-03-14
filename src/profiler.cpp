@@ -1455,10 +1455,11 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
     FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
+    u64 printed_sample_count = 0;
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
-    u64 printed_sample_count = 0;
+
     for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
@@ -1474,7 +1475,7 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
         out.write(buf, snprintf(buf, sizeof(buf), "%llu\n", counter));
         printed_sample_count++;
     }
-    logSampleCollectionStatus(args, printed_sample_count, out);
+    logEmptyOutput(args, printed_sample_count, out);
 }
 
 void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
@@ -1489,13 +1490,13 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
     }
 
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
+    u64 printed_sample_count = 0;
 
     {
         FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
 
         std::vector<CallTraceSample*> samples;
         _call_trace_storage.collectSamples(samples);
-        u64 printed_sample_count = 0;
 
         for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
             CallTrace* trace = (*it)->acquireTrace();
@@ -1534,10 +1535,10 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
             f->_self += counter;
             printed_sample_count++;
         }
-        logSampleCollectionStatus(args, printed_sample_count, out);
     }
 
     flamegraph.dump(out, tree);
+    logEmptyOutput(args, printed_sample_count, out);
 }
 
 void Profiler::dumpText(Writer& out, Arguments& args) {
@@ -1732,20 +1733,18 @@ void Profiler::timerLoop(void* timer_id) {
     }
 }
 
-void Profiler::logSampleCollectionStatus(Arguments& args, u64 printed_samples_count, Writer& out) {
+void Profiler::logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer& out) {
     if (!out.good()) {
         Log::warn("Output file may be incomplete");
+        return;
     }
-    // Skip logging if profiling is invoked with --loop mode
     if (args._loop) {
         return;
     }
-    // If total samples count match the samples which were skipped - we log a message
-    if (_total_samples == _failures[-ticks_skipped]) {
+    if (_total_samples - _failures[-ticks_skipped] == 0) {
         Log::info("No samples were collected");
         return;
     }
-    // If some samples where collected but nothing was printed - we log a message
     if (printed_samples_count == 0) {
         Log::info("All samples were filtered out");
         return;

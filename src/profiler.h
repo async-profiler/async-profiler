@@ -134,7 +134,7 @@ class Profiler {
     void stopTimer();
     void timerLoop(void* timer_id);
 
-    void logSampleCollectionStatus(Arguments& args, u64 printed_samples_count, Writer& out);
+    void logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer& out);
 
     static void jvmtiTimerEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         instance()->timerLoop(arg);
