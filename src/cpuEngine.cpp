@@ -21,7 +21,7 @@ CStack CpuEngine::_cstack;
 int CpuEngine::_signal;
 bool CpuEngine::_count_overrun;
 
-int CpuEngine::_cpu = -1;
+int CpuEngine::_target_cpu = -1;
 
 // Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
 // HotSpot puts VMThread into TLS on thread start, and resets on thread end.

@@ -24,8 +24,8 @@ Error ITimer::check(Arguments& args) {
 }
 
 Error ITimer::start(Arguments& args) {
-    if (args._cpu != -1) {
-        return Error("'cpu' argument != -1 is not supported by ITimer CPU sampling");
+    if (args._target_cpu != -1) {
+        return Error("target-cpu != -1 is not supported by ITimer CPU sampling");
     }
 
     if (args._interval < 0) {

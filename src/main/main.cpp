@@ -87,7 +87,7 @@ static const char USAGE_STRING[] =
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
-    "  --cpu             sample threads on a specific CPU (`-e cpu` only), defaults to -1\n"
+    "  --target-cpu      sample threads on a specific CPU (`-e cpu` only), defaults to -1\n"
     "                    from the non-privileged target\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
@@ -527,6 +527,9 @@ int main(int argc, const char** argv) {
             snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
             fdtransfer = buf;
             params << ",fdtransfer=" << fdtransfer;
+
+        } else if (arg == "--target-cpu") {
+            params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg.str()[0] >= '0' && arg.str()[0] <= '9' && pid == 0) {
             pid = atoi(arg.str());

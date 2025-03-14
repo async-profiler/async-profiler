@@ -423,9 +423,9 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
-            CASE("cpu")
-                if (value == NULL || (_cpu = atoi(value)) < 0)
-                    _cpu = -1;
+            CASE("target-cpu")
+                if (value == NULL || (_target_cpu = atoi(value)) < 0)
+                    _target_cpu = -1;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;

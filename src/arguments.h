@@ -206,7 +206,7 @@ class Arguments {
     const char* _title;
     double _minwidth;
     bool _reverse;
-    int _cpu;
+    int _target_cpu;
 
     Arguments() :
         _buf(NULL),
@@ -260,7 +260,7 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _cpu(-1) {
+        _target_cpu(-1) {
     }
 
     ~Arguments();

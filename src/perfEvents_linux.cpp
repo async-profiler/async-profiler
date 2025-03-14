@@ -594,10 +594,10 @@ int PerfEvents::createForThread(int tid) {
     if (FdTransferClient::hasPeer()) {
         fd = FdTransferClient::requestPerfFd(&tid, &attr);
     } else {
-        fd = syscall(__NR_perf_event_open, &attr, tid, _cpu, -1, PERF_FLAG_FD_CLOEXEC);
+        fd = syscall(__NR_perf_event_open, &attr, tid, _target_cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (fd == -1 && errno == EINVAL) {
             // Try again without CLOEXEC, it's not supported in very old kernels
-            fd = syscall(__NR_perf_event_open, &attr, tid, _cpu, -1, 0);
+            fd = syscall(__NR_perf_event_open, &attr, tid, _target_cpu, -1, 0);
         }
     }
 
@@ -796,7 +796,7 @@ Error PerfEvents::start(Arguments& args) {
         return Error("Could not set pthread hook");
     }
     
-    _cpu = args._cpu;
+    _target_cpu = args._target_cpu;
 
     if (args._interval < 0) {
         return Error("interval must be positive");
