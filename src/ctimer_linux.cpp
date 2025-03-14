@@ -28,14 +28,9 @@ static inline clockid_t thread_cpu_clock(unsigned int tid) {
 int CTimer::_max_timers = 0;
 int* CTimer::_timers = NULL;
 
-int CTimer::createForThread(int tid, int cpu) {
+int CTimer::createForThread(int tid) {
     if (tid >= _max_timers) {
         Log::warn("tid[%d] > pid_max[%d]. Restart profiler after changing pid_max", tid, _max_timers);
-        return -1;
-    }
-
-    if (cpu != -1) {
-        Log::warn("cpu != -1 is not supported with CTimer CPU sampling");
         return -1;
     }
 
@@ -95,6 +90,10 @@ Error CTimer::check(Arguments& args) {
 Error CTimer::start(Arguments& args) {
     if (!setupThreadHook()) {
         return Error("Could not set pthread hook");
+    }
+
+    if (args._cpu != -1) {
+        return Error("'cpu' argument != -1 is not supported by CTimer CPU sampling");
     }
 
     if (args._interval < 0) {

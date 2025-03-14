@@ -21,6 +21,8 @@ class CpuEngine : public Engine {
     static int _signal;
     static bool _count_overrun;
 
+    static int _cpu;
+
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
@@ -33,7 +35,7 @@ class CpuEngine : public Engine {
 
     int createForAllThreads();
 
-    virtual int createForThread(int tid, int cpu) { return -1; }
+    virtual int createForThread(int tid) { return -1; }
     virtual void destroyForThread(int tid) {}
 
   public:

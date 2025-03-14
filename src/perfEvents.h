@@ -27,7 +27,7 @@ class PerfEvents : public CpuEngine {
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 
-    int createForThread(int tid, int cpu);
+    int createForThread(int tid);
     void destroyForThread(int tid);
 
   public:

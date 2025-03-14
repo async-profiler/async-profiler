@@ -9,7 +9,6 @@
 #include "os.h"
 #include "vmEntry.h"
 
-
 Error ITimer::check(Arguments& args) {
     OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
 
@@ -25,6 +24,10 @@ Error ITimer::check(Arguments& args) {
 }
 
 Error ITimer::start(Arguments& args) {
+    if (args._cpu != -1) {
+        return Error("'cpu' argument != -1 is not supported by ITimer CPU sampling");
+    }
+
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
