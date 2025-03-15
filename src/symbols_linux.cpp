@@ -22,6 +22,7 @@
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
+#include "hooks.h"
 
 
 #ifdef __x86_64__
@@ -640,7 +641,8 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
-static std::set<const void*> _parsed_libraries;
+static std::set<const void*> _map_parsed_libraries;
+static std::set<const void*> _elf_parsed_libraries;
 static std::set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -688,10 +690,10 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* data) {
+static void parseMaps(CodeCacheArray* data) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
-        return 1;
+        return;
     }
 
     CodeCacheArray* array = (CodeCacheArray*)data;
@@ -719,15 +721,15 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
             last_inode = u64(map.dev()) << 32 | map.inode();
         }
 
-        if (!map.isExecutable() || !_parsed_libraries.insert(map_start).second) {
+        if (!map.isExecutable() || !_map_parsed_libraries.insert(map_start).second) {
             // Not an executable segment or it has been already parsed
             continue;
         }
 
         const char* map_end = map.end();
         u64 inode = u64(map.dev()) << 32 | map.inode();
+        // Do not parse the same executable twice
         if (inode != 0 && !_parsed_inodes.insert(inode).second) {
-            // Do not parse the same executable twice
             if (inode == cc_inode) {
                 cc->updateBounds(map_start, map_end);
             }
@@ -739,35 +741,20 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
             break;
         }
 
-        cc = new CodeCache(map.file(), count, false, map_start, map_end);
+        // If last_inode is set, image_base is known to be valid and readable
+        ImageBaseStatus imageBaseStatus = inode != 0 && inode == last_inode
+            ? IMAGE_BASE_VALID : (unsigned long)map_start > map_offs
+            ? IMAGE_BASE_NOT_FOUND : IMAGE_BASE_STATUS_UNKNOWN;
+
+        // Create CodeCache, do not parse the file yet.
+        cc = new CodeCache(map.file(), count, false, map_start, map_end, map_offs, imageBaseStatus);
         cc_inode = inode;
 
-        if (strchr(map.file(), ':') != NULL) {
-            // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
-        } else if (inode != 0) {
-            if (inode == last_inode) {
-                // If last_inode is set, image_base is known to be valid and readable
-                ElfParser::parseFile(cc, image_base, map.file(), true);
-                // Parse program headers after the file to ensure debug symbols are parsed first
-                ElfParser::parseProgramHeaders(cc, image_base, map_end, OS::isMusl());
-            } else if ((unsigned long)map_start > map_offs) {
-                // Unlikely case when image_base has not been found.
-                // Be careful: executable file is not always ELF, e.g. classes.jsa
-                ElfParser::parseFile(cc, map_start - map_offs, map.file(), true);
-            }
-        } else if (strcmp(map.file(), "[vdso]") == 0) {
-            ElfParser::parseProgramHeaders(cc, map_start, map_end, true);
-        }
-
-        cc->sort();
-        applyPatch(cc);
         array->add(cc);
     }
 
     free(str);
     fclose(f);
-
-    return 1;
 }
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
@@ -785,10 +772,53 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
     }
 
-    // In glibc, dl_iterate_phdr() holds dl_load_write_lock, therefore preventing
-    // concurrent loading and unloading of shared libraries.
-    // Without it, we may access memory of a library that is being unloaded.
-    dl_iterate_phdr(parseLibrariesCallback, array);
+    // Parse vm maps to find bounds.
+    parseMaps(array);
+
+    int lib_count = array->count();
+    for (int i = 0; i < lib_count; i++) {
+        // We only parse libraries that were detected in parseMaps as loaded.
+        CodeCache* cc = (*array)[i];
+        const char* image_base = (const char*)((const char*)cc->minAddress() - (const char*)cc->mapOffset());
+
+        // Do not parse same library more than once.
+        if (_elf_parsed_libraries.find(image_base) != _elf_parsed_libraries.end()) {
+            continue;
+        }
+
+        if (strchr(cc->name(), ':') != NULL) {
+            // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
+        } else if (strcmp(cc->name(), "[vdso]") == 0) {
+            ElfParser::parseProgramHeaders(cc, (const char*)cc->minAddress(), (const char*)cc->maxAddress(), true);
+        } else {
+            // dlopen while parsing to prevent unloading the library and to make sure it is done loading.
+            // dlopen may fail opening the main executable and dynamic linker, which we ignore.
+            // Using dlopen instead of dlopen_no_hook may cause recursion.
+            void* handle = dlopen_no_hook(cc->name(), RTLD_LAZY);
+
+            if (cc->imageBaseStatus() == IMAGE_BASE_VALID) {
+                ElfParser::parseFile(cc, image_base, cc->name(), true);
+
+                // Parse program headers after the file to ensure debug symbols are parsed first
+                ElfParser::parseProgramHeaders(cc, image_base, (const char*)cc->maxAddress(), OS::isMusl());
+            } else if (cc->imageBaseStatus() == IMAGE_BASE_NOT_FOUND) {
+                // Unlikely case when image_base has not been found.
+                // Be careful: executable file is not always ELF, e.g. classes.jsa
+                ElfParser::parseFile(cc, image_base, cc->name(), true);
+            } else {
+                Log::warn("Skip parsing: unknown image_base status for %s", cc->name());
+            }
+
+            cc->sort();
+            applyPatch(cc);
+
+            if(handle) {
+                dlclose(handle);
+            }
+        }
+
+        _elf_parsed_libraries.insert(image_base);
+    }
 }
 
 #endif // __linux__

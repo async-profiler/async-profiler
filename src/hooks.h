@@ -8,6 +8,7 @@
 
 #include "mutex.h"
 
+void* dlopen_no_hook(const char* filename, int flags);
 
 class Hooks {
   private:
