@@ -75,8 +75,9 @@ Flame Graph options:
     --minwidth X       Skip frames smaller than X%
     --grain X          Coarsen Flame Graph to the given grain size
     --skip N           Skip N bottom frames
- -r --reverse          Reverse stack traces (implies `--inverted true`)
- -i --inverted BOOL    Display graph top-down instead of bottom-up (icicle graph): true | false
+ -r --reverse          Reverse stack traces (defaults to icicle graph)
+ -i --inverted         Toggels the layout for reversed stacktraces from icicle to flamegraph
+                       and for default stacktraces from flamegraph to icicle
  -I --include REGEX    Include only stacks with the specified frames, e.g. -I 'MyApplication\.main' -I 'VMThread.*'
  -X --exclude REGEX    Exclude stacks with the specified frames, e.g. -X '.*pthread_cond_(wait|timedwait).*'
     --highlight REGEX  Highlight frames matching the given pattern

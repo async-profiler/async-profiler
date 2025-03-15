@@ -120,8 +120,9 @@ public class Main {
                 "     --minwidth X       Skip frames smaller than X%\n" +
                 "     --grain X          Coarsen Flame Graph to the given grain size\n" +
                 "     --skip N           Skip N bottom frames\n" +
-                "  -r --reverse          Reverse stack traces (implies --inverted=true)\n" +
-                "  -i --inverted BOOL    Display graph top-down instead of bottom-up (icicle graph): true | false\n" +
+                "  -r --reverse          Reverse stack traces (defaults to icicle graph)\n" +
+                "  -i --inverted         Toggels the layout for reversed stacktraces from icicle to flamegraph\n" +
+                "                        and for default stacktraces from flamegraph to icicle\n" +
                 "  -I --include REGEX    Include only stacks with the specified frames\n" +
                 "  -X --exclude REGEX    Exclude stacks with the specified frames\n" +
                 "     --highlight REGEX  Highlight frames matching the given pattern\n");

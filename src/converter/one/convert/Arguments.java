@@ -43,7 +43,6 @@ public class Arguments {
     public final List<String> files = new ArrayList<>();
 
     public Arguments(String... args) {
-        boolean invertedSet = false;
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             String fieldName;
@@ -54,9 +53,6 @@ public class Arguments {
             } else {
                 files.add(arg);
                 continue;
-            }
-            if ("inverted".equals(fieldName)) {
-                invertedSet = true;
             }
 
             try {
@@ -69,8 +65,7 @@ public class Arguments {
                 if (type == String.class) {
                     f.set(this, args[++i]);
                 } else if (type == boolean.class) {
-                    boolean value = ("inverted".equals(fieldName)) ? Boolean.parseBoolean(args[++i]) : true;
-                    f.setBoolean(this, value);
+                    f.setBoolean(this, true);
                 } else if (type == int.class) {
                     f.setInt(this, Integer.parseInt(args[++i]));
                 } else if (type == double.class) {
@@ -83,9 +78,6 @@ public class Arguments {
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 throw new IllegalArgumentException(arg);
             }
-        }
-        if (reverse && !invertedSet) {
-            inverted = true;
         }
     }
 

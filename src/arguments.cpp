@@ -106,8 +106,9 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     nostop           - do not stop profiling outside --begin/--end window
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
-//     reverse          - generate stack-reversed FlameGraph / Call tree (implies 'inverted=true'))
-//     inverted=BOOL    - display graph top-down instead of bottom-up (i.e. icicle graph): true | false
+//     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
+//     inverted         - toggels the layout for reversed stacktraces from icicle to flamegraph
+//                        and for default stacktraces from flamegraph to icicle
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -125,7 +126,6 @@ Error Arguments::parse(const char* args) {
     char* args_copy = strcpy(_buf + EXTRA_BUF_SIZE, args);
 
     const char* msg = NULL;
-    bool inverted_set = false;
 
     for (char* arg = strtok(args_copy, ","); arg != NULL; arg = strtok(NULL, ",")) {
         char* value = strchr(arg, '=');
@@ -425,20 +425,11 @@ Error Arguments::parse(const char* args) {
                 _reverse = true;
 
             CASE("inverted")
-                if (value == NULL || !((strcmp(value, "false") == 0) || (strcmp(value, "true") == 0))) {
-                    msg = "inverted must be \"true\" or \"false\"";
-                } else {
-                    _inverted = (bool)strcmp(value, "false");
-                    inverted_set = true;
-                }
+                _inverted = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }
-    }
-
-    if (_reverse && !inverted_set) {
-        _inverted = true;
     }
 
     // Return error only after parsing all arguments, when 'log' is already set

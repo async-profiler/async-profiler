@@ -67,7 +67,7 @@ public class FlameGraph implements Comparator<Frame> {
         Frame[] levels = new Frame[128];
         int level = 0;
         long total = 0;
-        boolean needRebuild = args.reverse || args.inverted || args.include != null || args.exclude != null;
+        boolean needRebuild = args.reverse || args.include != null || args.exclude != null;
 
         try (BufferedReader br = new BufferedReader(in)) {
             while (!br.readLine().startsWith("const cpool")) ;
@@ -181,8 +181,10 @@ public class FlameGraph implements Comparator<Frame> {
         tail = printTill(out, tail, "/*title:*/");
         out.print(args.title);
 
+        // inverted toggels the layout for reversed stacktraces from icicle to flamegraph
+        // and for default stacktraces from flamegraphs to icicle.
         tail = printTill(out, tail, "/*inverted:*/false");
-        out.print(args.inverted);
+        out.print(args.reverse ? !args.inverted : args.inverted);
 
         tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
