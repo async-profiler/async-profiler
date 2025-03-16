@@ -148,9 +148,9 @@ void FlameGraph::dump(Writer& out, bool tree) {
         out << _title;
 
         tail = printTill(out, tail, "/*inverted:*/false");
-        // _inverted toggels the layout for reversed stacktraces from icicle to flamegraph
+        // _inverted toggles the layout for reversed stacktraces from icicle to flamegraph
         // and for default stacktraces from flamegraphs to icicle.
-        out << (_reverse ? (_inverted ? "false" : "true") : (_inverted ? "true" : "false"));
+        out << (_reverse ^ _inverted ? "true" : "false");
 
         tail = printTill(out, tail, "/*depth:*/0");
         out << depth;

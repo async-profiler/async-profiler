@@ -69,12 +69,12 @@ The below options are `action`s for async-profiler and common for both `asprof` 
 
 ## Options applicable to FlameGraph and Tree view outputs only
 
-| asprof               | Launch as agent    | Description                                                                                                                       |
-| -------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `--title TITLE`      | `title=TITLE`      | Custom title of a FlameGraph.<br>Example: `asprof -f profile.html --title "Sample CPU profile" 8983`                              |
-| `--minwidth PERCENT` | `minwidth=PERCENT` | Minimum frame width as a percentage. Smaller frames will not be visible.<br>Example: `asprof -f profile.html --minwidth 0.5 8983` |
-| `--reverse`          | `reverse`          | Reverse stack traces (defaults to icicle graph).<br>Example: `asprof -f profile.html --reverse 8983`                              |
-| `--inverted`         | `inverted`         | Toggels the layout for reversed stacktraces from icicle to flamegraph and for default stacktraces from flamegraph to icicle.<br>Example: `asprof -f profile.html --inverted 8983`|
+| asprof               | Launch as agent    | Description                                                                                                                                                                       |
+| -------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--title TITLE`      | `title=TITLE`      | Custom title of a FlameGraph.<br>Example: `asprof -f profile.html --title "Sample CPU profile" 8983`                                                                              |
+| `--minwidth PERCENT` | `minwidth=PERCENT` | Minimum frame width as a percentage. Smaller frames will not be visible.<br>Example: `asprof -f profile.html --minwidth 0.5 8983`                                                 |
+| `--reverse`          | `reverse`          | Reverse stack traces (defaults to icicle graph).<br>Example: `asprof -f profile.html --reverse 8983`                                                                              |
+| `--inverted`         | `inverted`         | Toggels the layout for reversed stacktraces from icicle to flamegraph and for default stacktraces from flamegraph to icicle.<br>Example: `asprof -f profile.html --inverted 8983` |
 
 Notice that `--reverse` and `--inverted` are orthogonal settings. By default, flamegraphs grow from bottom to top (because flames grow from bottom to top). The outermost frames (e.g. the `main()` function) are shown at the bottom while the innermost, leaf frames are shown at the top. If such a flame graph is mirrored on the y-axis, it becomes an icicle graph (icicles grow top-down). The default setting for this layout can be toggeled with the `--inverted` option when the graph is created or changed later with the `Invert` button which is located in the upper-left corner of the generated HTML page, when the graph is displayed.
 

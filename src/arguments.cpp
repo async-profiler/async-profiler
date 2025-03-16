@@ -107,7 +107,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
-//     inverted         - toggels the layout for reversed stacktraces from icicle to flamegraph
+//     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
 //                        and for default stacktraces from flamegraph to icicle
 //
 // It is possible to specify multiple dump options at the same time
