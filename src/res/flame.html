@@ -19,7 +19,7 @@
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>/*title:*/</h1>
-<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: left'><button id='inverted' title='Invert'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
@@ -32,7 +32,7 @@
 	let root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
-	let reverse = /*reverse:*/false;
+	let inverted = /*inverted:*/false;
 	const levels = Array(/*depth:*/0);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
@@ -191,7 +191,7 @@
 		}
 
 		for (let h = 0; h < levels.length; h++) {
-			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
+			const y = inverted ? h * 16 : canvasHeight - (h + 1) * 16;
 			const frames = levels[h];
 			for (let i = 0; i < frames.length; i++) {
 				drawFrame(frames[i], y);
@@ -208,14 +208,14 @@
 	}
 
 	canvas.onmousemove = function() {
-		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+		const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
 		if (h >= 0 && h < levels.length) {
 			const f = findFrame(levels[h], event.offsetX / px + root.left);
 			if (f) {
 				if (f !== root) getSelection().removeAllRanges();
 				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
-				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
+				hl.style.top = ((inverted ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
@@ -249,8 +249,8 @@
 		getSelection().selectAllChildren(hl);
 	}
 
-	document.getElementById('reverse').onclick = function() {
-		reverse = !reverse;
+	document.getElementById('inverted').onclick = function() {
+		inverted = !inverted;
 		render();
 	}
 
@@ -272,7 +272,7 @@
 			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
 			render(nav[navIndex]);
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
-			window.scroll(0, reverse ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
 			canvas.onmousemove();
 		}
 	}

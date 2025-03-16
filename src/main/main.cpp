@@ -64,7 +64,9 @@ static const char USAGE_STRING[] =
     "\n"
     "  --title string    FlameGraph title\n"
     "  --minwidth pct    skip frames smaller than pct%%\n"
-    "  --reverse         generate stack-reversed FlameGraph / Call tree\n"
+    "  --reverse         generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)\n"
+    "  --inverted        toggles the layout for reversed stacktraces from icicle to flamegraph\n"
+    "                    and for default stacktraces from flamegraph to icicle\n"
     "\n"
     "  --loop time       run profiler in a loop\n"
     "  --alloc bytes     allocation profiling interval in bytes\n"
@@ -490,7 +492,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--width" || arg == "--height" || arg == "--minwidth") {
             format << "," << (arg.str() + 2) << "=" << args.next();
 
-        } else if (arg == "--reverse" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live" || arg == "--nofree") {
+        } else if (arg == "--reverse" || arg == "--inverted" || arg == "--samples" || arg == "--total" || arg == "--sched" || arg == "--live" || arg == "--nofree") {
             format << "," << (arg.str() + 2);
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
