@@ -27,10 +27,6 @@ typedef const char* (*asprof_error_str_t)(asprof_error_t err);
 // for the profiler output. Returns an error code or NULL on success.
 DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
 typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
-
-// Gets the thread-local sample counter, which increments (not necessarily by 1) every time a signal handler is run.
-DLLEXPORT uint64_t asprof_get_sample_counter(void);
-typedef uint64_t (*asprof_get_sample_counter_t)(void);
 ```
 
 To use it in a C/C++ application, include `asprof.h`. Below is an example showing how to invoke async-profiler with the API:
@@ -97,8 +93,15 @@ All basic functionality remains the same. Profiler can run in `cpu`, `wall` and 
 modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
 Java-specific events.
 
+## Unstable APIs
+
+These APIs are unstable and might change or be removed in the next version of async profiler.
+
 ### Advanced Sampling
 
-The `asprof_get_sample_counter` function increments every time there is a sample. This gives native
-code an easy way to detect when a sample event had occurred, and to log metadata about what the
+The `asprof_unstable_get_thread_local_data` function returns a pointer to async-profiler's
+thread-local data structure. The structure is guaranteed to live as long as the thread.
+
+The returned structure contains a pointer that increments every time there is a sample. This gives
+native code an easy way to detect when a sample event had occurred, and to log metadata about what the
 program was doing when the event happened.

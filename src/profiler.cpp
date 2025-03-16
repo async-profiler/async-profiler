@@ -59,16 +59,6 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-// A key that points to a malloc'd uint64_t* sample counter, which
-// increments by 1 every time a signal is received to allow the
-// application to detect samples.
-//
-// The per-thread counter is lazily initialized in `asprof_get_sample_counter`,
-// and is NULL until `asprof_get_sample_counter` is called. This matches the API
-// since the sample counter only needs to start running the first time
-// `asprof_get_sample_counter` is called, and allows us to avoid calling `malloc`
-// in weird places.
-static volatile pthread_key_t _sample_counter_key = -1;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -92,43 +82,10 @@ struct MethodSample {
 
 typedef std::pair<std::string, MethodSample> NamedMethodSample;
 
-static void incrementSampleCounter() {
-    // over-paranoia - access the sample key once to avoid weird signal races
-    pthread_key_t sample_counter_key = _sample_counter_key;
-    if (sample_counter_key == -1) return;
-
-    uint64_t *counter = (uint64_t *)pthread_getspecific(sample_counter_key);
-    if (counter != NULL) {
-        (*counter)++;
-    }
-}
-
-DLLEXPORT uint64_t asprof_get_sample_counter(void) {
-    pthread_key_t sample_counter_key = _sample_counter_key;
-    if (sample_counter_key == -1) return 0;
-
-    volatile uint64_t *val = (uint64_t*)pthread_getspecific(sample_counter_key);
-    if (val == NULL) {
-        // Initialize. Since this is a thread-local, it is not racy.
-        val = (uint64_t*) malloc(sizeof(uint64_t));
-        if (val == NULL) {
-            // would rather not insert random aborts into code. This
-            // will make the code try again next time, which is fine.
-            return 0;
-        }
-        *val = 0;
-        if (pthread_setspecific(sample_counter_key, (void*)val) < 0) {
-            free((void*)val);
-            return 0;
-        }
-    }
-
-    return *val;
-}
-
 static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b) {
     return a.second.counter > b.second.counter;
 }
+
 
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
@@ -657,7 +614,6 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
-    incrementSampleCounter();
 
     int tid = fastThreadId();
     u32 lock_index = getLockIndex(tid);
@@ -1115,18 +1071,6 @@ Error Profiler::checkJvmCapabilities() {
     return Error::OK;
 }
 
-static void initThreadLocalKey() {
-    if (_sample_counter_key != -1) {
-        return; // already initialized
-    }
-
-    pthread_key_t sample_counter;
-    if (pthread_key_create(&sample_counter, free) != 0) {
-        return;
-    }
-    _sample_counter_key = sample_counter;
-}
-
 Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
     if (_state > IDLE) {
@@ -1232,8 +1176,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         // OpenJ9 libs are compiled with frame pointers omitted
         _cstack = CSTACK_DWARF;
     }
-
-    initThreadLocalKey();
 
     // Kernel symbols are useful only for perf_events without --all-user
     updateSymbols(_engine == &perf_events && !args._alluser);
