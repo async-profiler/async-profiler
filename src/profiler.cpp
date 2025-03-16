@@ -1489,7 +1489,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
         }
     }
 
-    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
+    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse, args._inverted);
     u64 printed_sample_count = 0;
 
     {
