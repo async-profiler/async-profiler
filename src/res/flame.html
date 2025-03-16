@@ -15,12 +15,28 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
+	#legendDetail div {width: 200px; margin-left: 20px; padding: 2px;}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>/*title:*/</h1>
-<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
+<header style='text-align: left'>
+	<button id='reverse' title='Reverse'>&#x1f53b;</button>
+	&nbsp;&nbsp;
+	<button id='search' title='Search'>&#x1f50d;</button>
+	&nbsp;&nbsp;
+	<button id='legend' title='Legend'>&#x1f6c8;</button>
+</header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
+<div id="legendDetail" style="display: none">Legend:
+	<div>interpreted</div>
+	<div>jitted</div>
+	<div>inlined</div>
+	<div>native</div>
+	<div>cpp</div>
+	<div>kernel</div>
+	<div>c1 compiled</div>
+</div>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
 <p id='status'></p>
@@ -33,6 +49,7 @@
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
 	let reverse = /*reverse:*/false;
+	let legend = false;
 	const levels = Array(/*depth:*/0);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
@@ -64,6 +81,12 @@
 	function getColor(p) {
 		const v = Math.random();
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
+	}
+
+	const legendDetail = document.getElementById('legendDetail');
+	const legendItems = legendDetail.getElementsByTagName('div');
+	for(let i = 0; i < palette.length; i++) {
+		legendItems[i].style.backgroundColor = getColor(palette[i]);
 	}
 
 	function f(key, level, left, width, inln, c1, int) {
@@ -256,6 +279,11 @@
 
 	document.getElementById('search').onclick = function() {
 		search(true);
+	}
+
+	document.getElementById('legend').onclick = function() {
+		legend = !legend;
+		legendDetail.style.display = legend ? "block" : "none";
 	}
 
 	document.getElementById('reset').onclick = function() {
