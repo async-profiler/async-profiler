@@ -21,8 +21,6 @@ class CpuEngine : public Engine {
     static int _signal;
     static bool _count_overrun;
 
-    static int _target_cpu;
-
     static void signalHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext);
 

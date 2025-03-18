@@ -60,7 +60,7 @@ public class CpuTests {
             Output out = p.profile("-e itimer --target-cpu 1");
             throw new IllegalStateException("Profiling should have failed");
         } catch (IOException expectedException) {
-            assert expectedException.getMessage().contains("target-cpu != -1 is not supported");
+            assert expectedException.getMessage().contains("target-cpu != -1 is only supported by PerfEvents CPU sampling");
         }
     }
 
@@ -70,7 +70,7 @@ public class CpuTests {
             Output out = p.profile("-e ctimer --target-cpu 1");
             throw new IllegalStateException("Profiling should have failed");
         } catch (IOException expectedException) {
-            assert expectedException.getMessage().contains("target-cpu != -1 is not supported");
+            assert expectedException.getMessage().contains("target-cpu != -1 is only supported by PerfEvents CPU sampling");
         }
     }
 }

@@ -92,10 +92,6 @@ Error CTimer::start(Arguments& args) {
         return Error("Could not set pthread hook");
     }
 
-    if (args._target_cpu != -1) {
-        return Error("target-cpu != -1 is not supported by CTimer CPU sampling");
-    }
-
     if (args._interval < 0) {
         return Error("interval must be positive");
     }
