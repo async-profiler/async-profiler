@@ -92,6 +92,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
+//     target-cpu=CPU   - sample threads on a specific CPU (`-e cpu` only, default: -1)
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas
@@ -109,7 +110,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
 //     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
 //                        and for default stacktraces from flamegraph to icicle
-//     target-cpu=CPU   - sample threads on a specific CPU (`-e cpu` only, default: -1)
 //
 // It is possible to specify multiple dump options at the same time
 

@@ -145,14 +145,6 @@ public class TestProcess implements Closeable {
         return cmd;
     }
 
-    public void pinCpu(int cpu) throws Exception {
-        String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
-        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
-        if (cpuPinPb.start().waitFor() != 0) {
-            throw new RuntimeException("Could not set CPU list for the test process");
-        }
-    }
-
     private String getExtFromFile(File file) {
         try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
             byte[] header = new byte[16];

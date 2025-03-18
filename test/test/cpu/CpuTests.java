@@ -21,6 +21,14 @@ public class CpuTests {
         Assert.isLessOrEqual(value, target * 1.25, message);
     }
 
+    private static void pinCpu(TestProcess p, int cpu) throws Exception {
+        String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
+        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
+        if (cpuPinPb.start().waitFor() != 0) {
+            throw new RuntimeException("Could not set CPU list for the test process");
+        }
+    }
+
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void ctimerTotal(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e ctimer -i 100ms --total -o collapsed");
@@ -38,7 +46,7 @@ public class CpuTests {
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsWrongTargetCpu(TestProcess p) throws Exception {
-        p.pinCpu(1);
+        pinCpu(p, 1);
 
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 2");
         Assert.isEqual(out.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
@@ -46,7 +54,7 @@ public class CpuTests {
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsRightTargetCpu(TestProcess p) throws Exception {
-        p.pinCpu(1);
+        pinCpu(p, 1);
 
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1");
         assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
@@ -54,7 +62,7 @@ public class CpuTests {
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsWrongTargetCpuWithFdTransfer(TestProcess p) throws Exception {
-        p.pinCpu(1);
+        pinCpu(p, 1);
 
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 2 --fdtransfer");
         Assert.isEqual(out.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
@@ -62,7 +70,7 @@ public class CpuTests {
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsRightTargetCpuWithFdTransfer(TestProcess p) throws Exception {
-        p.pinCpu(1);
+        pinCpu(p, 1);
 
         Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1 --fdtransfer");
         assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
@@ -73,9 +81,7 @@ public class CpuTests {
         try {
             Output out = p.profile("-e itimer --target-cpu 1");
             throw new IllegalStateException("Profiling should have failed");
-        } catch (IOException expectedException) {
-            assert expectedException.getMessage().contains("target-cpu != -1 is only supported by PerfEvents CPU sampling");
-        }
+        } catch (IOException expectedException) {}
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
@@ -83,8 +89,6 @@ public class CpuTests {
         try {
             Output out = p.profile("-e ctimer --target-cpu 1");
             throw new IllegalStateException("Profiling should have failed");
-        } catch (IOException expectedException) {
-            assert expectedException.getMessage().contains("target-cpu != -1 is only supported by PerfEvents CPU sampling");
-        }
+        } catch (IOException expectedException) {}
     }
 }

@@ -187,6 +187,7 @@ class Arguments {
     bool _nostop;
     bool _alluser;
     bool _fdtransfer;
+    int _target_cpu;
     const char* _fdtransfer_path;
     int _style;
     StackWalkFeatures _features;
@@ -207,7 +208,6 @@ class Arguments {
     double _minwidth;
     bool _reverse;
     bool _inverted;
-    int _target_cpu;
 
     Arguments() :
         _buf(NULL),
@@ -244,6 +244,7 @@ class Arguments {
         _alluser(false),
         _fdtransfer(false),
         _fdtransfer_path(NULL),
+        _target_cpu(-1),
         _style(0),
         _features(),
         _cstack(CSTACK_DEFAULT),
@@ -261,8 +262,7 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _inverted(false),
-        _target_cpu(-1) {
+        _inverted(false) {
     }
 
     ~Arguments();
