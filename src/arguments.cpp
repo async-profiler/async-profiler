@@ -106,7 +106,9 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     nostop           - do not stop profiling outside --begin/--end window
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
-//     reverse          - generate stack-reversed FlameGraph / Call tree
+//     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
+//     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
+//                        and for default stacktraces from flamegraph to icicle
 //     target-cpu=CPU   - sample threads on a specific CPU (`-e cpu` only, default: -1)
 //
 // It is possible to specify multiple dump options at the same time
@@ -427,6 +429,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
+
+            CASE("inverted")
+                _inverted = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;

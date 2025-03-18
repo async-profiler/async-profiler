@@ -1455,6 +1455,7 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
 void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
     FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names);
     char buf[32];
+    u64 printed_sample_count = 0;
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1472,11 +1473,9 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
         }
         // Beware of locale-sensitive conversion
         out.write(buf, snprintf(buf, sizeof(buf), "%llu\n", counter));
+        printed_sample_count++;
     }
-
-    if (!out.good()) {
-        Log::warn("Output file may be incomplete");
-    }
+    logEmptyOutput(args, printed_sample_count, out);
 }
 
 void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
@@ -1490,7 +1489,8 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
         }
     }
 
-    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
+    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse, args._inverted);
+    u64 printed_sample_count = 0;
 
     {
         FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
@@ -1533,10 +1533,12 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
             }
             f->_total += counter;
             f->_self += counter;
+            printed_sample_count++;
         }
     }
 
     flamegraph.dump(out, tree);
+    logEmptyOutput(args, printed_sample_count, out);
 }
 
 void Profiler::dumpText(Writer& out, Arguments& args) {
@@ -1728,6 +1730,24 @@ void Profiler::timerLoop(void* timer_id) {
         }
 
         sleep_until = current_micros + 1000000;
+    }
+}
+
+void Profiler::logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer& out) {
+    if (!out.good()) {
+        Log::warn("Output file may be incomplete");
+        return;
+    }
+    if (args._loop) {
+        return;
+    }
+    if (_total_samples - _failures[-ticks_skipped] == 0) {
+        Log::info("No samples were collected");
+        return;
+    }
+    if (printed_samples_count == 0) {
+        Log::info("All samples were filtered out");
+        return;
     }
 }
 

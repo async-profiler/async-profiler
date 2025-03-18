@@ -181,8 +181,10 @@ public class FlameGraph implements Comparator<Frame> {
         tail = printTill(out, tail, "/*title:*/");
         out.print(args.title);
 
-        tail = printTill(out, tail, "/*reverse:*/false");
-        out.print(args.reverse);
+        // inverted toggles the layout for reversed stacktraces from icicle to flamegraph
+        // and for default stacktraces from flamegraphs to icicle.
+        tail = printTill(out, tail, "/*inverted:*/false");
+        out.print(args.reverse ^ args.inverted);
 
         tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
