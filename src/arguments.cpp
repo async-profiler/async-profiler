@@ -382,6 +382,11 @@ Error Arguments::parse(const char* args) {
                     }
                 }
 
+            CASE("target-cpu")
+                if (value == NULL || (_target_cpu = atoi(value)) < 0) {
+                    _target_cpu = -1;
+                }
+
             // Output style modifiers
             CASE("simple")
                 _style |= STYLE_SIMPLE;
@@ -422,10 +427,6 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
-
-            CASE("target-cpu")
-                if (value == NULL || (_target_cpu = atoi(value)) < 0)
-                    _target_cpu = -1;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
