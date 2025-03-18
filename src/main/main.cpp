@@ -498,7 +498,8 @@ int main(int argc, const char** argv) {
 
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
-                   arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end") {
+                   arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
+                   arg == "--target-cpu") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
@@ -529,9 +530,6 @@ int main(int argc, const char** argv) {
             snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
             fdtransfer = buf;
             params << ",fdtransfer=" << fdtransfer;
-
-        } else if (arg == "--target-cpu") {
-            params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg.str()[0] >= '0' && arg.str()[0] <= '9' && pid == 0) {
             pid = atoi(arg.str());
