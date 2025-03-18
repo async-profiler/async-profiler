@@ -9,6 +9,7 @@
 #include "os.h"
 #include "vmEntry.h"
 
+
 Error ITimer::check(Arguments& args) {
     OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);
 
