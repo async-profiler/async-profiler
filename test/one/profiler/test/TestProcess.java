@@ -93,14 +93,6 @@ public class TestProcess implements Closeable {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
-
-        if (test.cpu() > 0) {
-            String[] tasksetCmd = {"taskset", "-acp", String.valueOf(test.cpu()), String.valueOf(p.pid())};
-            ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
-            if (cpuPinPb.start().waitFor() != 0) {
-                throw new RuntimeException("Could not set CPU list for the test process");
-            }
-        }
     }
 
     public Test test() {
@@ -151,6 +143,14 @@ public class TestProcess implements Closeable {
         }
 
         return cmd;
+    }
+
+    public void pinCpu(int cpu) throws Exception {
+        String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
+        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
+        if (cpuPinPb.start().waitFor() != 0) {
+            throw new RuntimeException("Could not set CPU list for the test process");
+        }
     }
 
     private String getExtFromFile(File file) {
