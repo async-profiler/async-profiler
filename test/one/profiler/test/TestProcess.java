@@ -95,13 +95,8 @@ public class TestProcess implements Closeable {
         }
 
         if (test.cpu() > 0) {
-            List<String> pinCpuCmd = new ArrayList<>();
-            pinCpuCmd.add("taskset");
-            pinCpuCmd.add("-acp");
-            pinCpuCmd.add(String.valueOf(test.cpu()));
-            pinCpuCmd.add(String.valueOf(p.pid()));
-
-            ProcessBuilder cpuPinPb = new ProcessBuilder(pinCpuCmd).inheritIO();
+            String[] tasksetCmd = {"taskset", "-acp", String.valueOf(test.cpu()), String.valueOf(p.pid())};
+            ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
             if (cpuPinPb.start().waitFor() != 0) {
                 throw new RuntimeException("Could not set CPU list for the test process");
             }
