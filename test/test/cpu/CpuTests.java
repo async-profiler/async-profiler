@@ -45,35 +45,25 @@ public class CpuTests {
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
-    public void perfEventsWrongTargetCpu(TestProcess p) throws Exception {
-        pinCpu(p, 1);
-
-        Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0");
-        Assert.isEqual(out.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
-    }
-
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
-    public void perfEventsRightTargetCpu(TestProcess p) throws Exception {
+    public void perfEventsTargetCpuEventsCount(TestProcess p) throws Exception {
         pinCpu(p, 0);
 
-        Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0");
-        assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
+        Output outWrongCpu = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1");
+        Assert.isEqual(outWrongCpu.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
+
+        Output outRightCpu = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0");
+        assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
-    public void perfEventsWrongTargetCpuWithFdTransfer(TestProcess p) throws Exception {
-        pinCpu(p, 1);
-
-        Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0 --fdtransfer");
-        Assert.isEqual(out.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
-    }
-
-    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
-    public void perfEventsRightTargetCpuWithFdTransfer(TestProcess p) throws Exception {
+    public void perfEventsTargetCpuWithFdtransferEventsCount(TestProcess p) throws Exception {
         pinCpu(p, 0);
 
-        Output out = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0 --fdtransfer");
-        assertCloseTo(out.total(), 2_000_000_000, "perf_events total should match profiling duration");
+        Output outWrongCpu = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 1 --fdtransfer");
+        Assert.isEqual(outWrongCpu.total(), 0, "perf_events total should be 0 when the wrong CPU is targeted");
+
+        Output outRightCpu = p.profile("-d 2 -e cpu -i 100ms --total -o collapsed --target-cpu 0 --fdtransfer");
+        assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
