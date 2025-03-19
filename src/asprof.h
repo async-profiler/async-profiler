@@ -44,22 +44,24 @@ typedef struct {
     // stack profiling sample is taken using a profiling signal.
     //
     // The counter might be initialized lazily, only starting counting from 0 the first time
-    // `asprof_unstable_get_thread_local_data` is called on a given thread. Further calls to
-    // `asprof_unstable_get_thread_local_data` on a given thread will of course not reset the counter.
+    // `asprof_get_thread_local_data` is called on a given thread. Further calls to
+    // `asprof_get_thread_local_data` on a given thread will of course not reset the counter.
     volatile uint64_t sample_counter;
-} asprof_unstable_thread_local_data;
+} asprof_thread_local_data;
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 //
-// Gets a pointer to asprof's thread-local data structure, see `asprof_unstable_thread_local_data`'s
+// Gets a pointer to asprof's thread-local data structure, see `asprof_thread_local_data`'s
 // documentation for the details of each field. This function might lazily initialize that
 // structure.
 //
-// This function can return NULL in case of an allocation failure.
+// This function can return NULL either if the profiler is not yet initializer, or in
+// case of an allocation failure.
 //
-// This function is *not* async-signal safe.
-DLLEXPORT asprof_unstable_thread_local_data *asprof_unstable_get_thread_local_data(void);
-typedef asprof_unstable_thread_local_data *(*asprof_unstable_get_thread_local_data_t)(void);
+// This function is *not* async-signal-safe. However, it is safe to call concurrently
+// with async-profiler operations, including initialization.
+DLLEXPORT asprof_thread_local_data *asprof_get_thread_local_data(void);
+typedef asprof_thread_local_data *(*asprof_unstable_get_thread_local_data_t)(void);
 
 #ifdef __cplusplus
 }

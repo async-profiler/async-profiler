@@ -21,10 +21,10 @@
 #include "dictionary.h"
 #include "os.h"
 #include "profiler.h"
-#include "asprofPrivate.h"
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
+#include "threadLocalData.h"
 #include "tsc.h"
 #include "vmStructs.h"
 
@@ -1346,10 +1346,15 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         return Error("Flight Recorder output file is not specified");
     }
 
+    Error error = ThreadLocalData::initThreadLocalData();
+    if (error) {
+        return error;
+    }
+
     char* filename_tmp = NULL;
     const char* master_recording_file = NULL;
     if (args._jfr_sync != NULL) {
-        Error error = startMasterRecording(args, master_recording_file = filename);
+        error = startMasterRecording(args, master_recording_file = filename);
         if (error) {
             return error;
         }
@@ -1495,7 +1500,7 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
     if (_rec != NULL) {
         // Recording an event, increment the sample counter to allow
         // user code to attach metadata.
-        asprofIncrementThreadLocalSampleCounter();
+        ThreadLocalData::incrementSampleCounter();
 
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
