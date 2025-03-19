@@ -92,7 +92,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
-//     target-cpu=CPU   - sample threads on a specific CPU (PerfEvents only, default: -1)
+//     target-cpu=CPU   - sample threads on a specific CPU (perf_events only, default: -1)
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas

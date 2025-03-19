@@ -1162,7 +1162,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (_engine == &wall_clock && args._wall >= 0) {
         return Error("Cannot start wall clock with the selected event");
     } else if (_engine != &perf_events && args._target_cpu != -1) {
-        return Error("target-cpu != -1 is only supported by PerfEvents");
+        return Error("target-cpu != -1 is only supported in perf_events profiling mode");
     }
 
     _cstack = args._cstack;
