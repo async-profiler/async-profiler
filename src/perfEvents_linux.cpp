@@ -57,8 +57,6 @@ enum {
     HW_BREAKPOINT_X  = 4
 };
 
-int PerfEvents::_target_cpu = 0;
-
 static int fetchInt(const char* file_name) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
@@ -533,6 +531,7 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
+int PerfEvents::_target_cpu = 0;
 
 int PerfEvents::createForThread(int tid) {
     if (tid >= _max_events) {
