@@ -775,7 +775,7 @@ Error PerfEvents::check(Arguments& args) {
     }
 #endif
 
-    int fd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, 0);
+    int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
     if (fd == -1) {
         return Error(strerror(errno));
     }
