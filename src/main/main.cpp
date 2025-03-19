@@ -89,7 +89,7 @@ static const char USAGE_STRING[] =
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --libpath path    full path to libasyncProfiler.so in the container\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
-    "  --target-cpu      sample threads on a specific CPU (only perf_events, default: -1)\n"
+    "  --target-cpu cpu  sample threads on a specific CPU (perf_events only, default: -1)\n"
     "                    from the non-privileged target\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"

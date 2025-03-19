@@ -187,8 +187,8 @@ class Arguments {
     bool _nostop;
     bool _alluser;
     bool _fdtransfer;
-    int _target_cpu;
     const char* _fdtransfer_path;
+    int _target_cpu;
     int _style;
     StackWalkFeatures _features;
     CStack _cstack;
