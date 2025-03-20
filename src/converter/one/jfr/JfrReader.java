@@ -188,7 +188,7 @@ public class JfrReader implements Closeable {
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
             } else if (type == span) {
-                if (cls == null || cls == Span.class) return (E) readSpan();
+                if (cls == null || cls == SpanEvent.class) return (E) readSpan();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
@@ -261,12 +261,12 @@ public class JfrReader implements Closeable {
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
 
-    private Span readSpan() {
+    private SpanEvent readSpan() {
         long time = getVarlong();
         long duration = getVarlong();
         int tid = getVarint();
         String tag = getString();
-        return new Span(time, tid, duration, tag);
+        return new SpanEvent(time, tid, duration, tag);
     }
 
     private void readActiveSetting() {
