@@ -7,8 +7,6 @@
 #include "hooks.h"
 #include "profiler.h"
 #include "threadLocalData.h"
-#include <mutex>
-#include <atomic>
 
 static asprof_error_t asprof_error(const char* msg) {
     return (asprof_error_t)msg;
@@ -52,6 +50,6 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
     return asprof_error(error.message());
 }
 
-DLLEXPORT asprof_thread_local_data *asprof_get_thread_local_data(void) {
+DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void) {
     return ThreadLocalData::getThreadLocalData();
 }

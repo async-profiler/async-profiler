@@ -1346,15 +1346,10 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
         return Error("Flight Recorder output file is not specified");
     }
 
-    Error error = ThreadLocalData::initThreadLocalData();
-    if (error) {
-        return error;
-    }
-
     char* filename_tmp = NULL;
     const char* master_recording_file = NULL;
     if (args._jfr_sync != NULL) {
-        error = startMasterRecording(args, master_recording_file = filename);
+        Error error = startMasterRecording(args, master_recording_file = filename);
         if (error) {
             return error;
         }

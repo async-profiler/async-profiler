@@ -60,8 +60,8 @@ typedef struct {
 //
 // This function is *not* async-signal-safe. However, it is safe to call concurrently
 // with async-profiler operations, including initialization.
-DLLEXPORT asprof_thread_local_data *asprof_get_thread_local_data(void);
-typedef asprof_thread_local_data *(*asprof_unstable_get_thread_local_data_t)(void);
+DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void);
+typedef asprof_thread_local_data* (*asprof_get_thread_local_data_t)(void);
 
 #ifdef __cplusplus
 }
