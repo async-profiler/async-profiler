@@ -62,6 +62,7 @@ enum JfrType {
     T_WALL_CLOCK_SAMPLE = 118,
     T_MALLOC = 119,
     T_FREE = 120,
+    T_SPAN = 121,
 
     T_ANNOTATION = 200,
     T_LABEL = 201,

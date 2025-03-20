@@ -75,6 +75,7 @@ public class JfrReader implements Closeable {
     private int activeSetting;
     private int malloc;
     private int free;
+    private int span;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -186,6 +187,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == span) {
+                if (cls == null || cls == Span.class) return (E) readSpan();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
@@ -256,6 +259,14 @@ public class JfrReader implements Closeable {
         long until = getVarlong();
         long address = getVarlong();
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
+    }
+
+    private Span readSpan() {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        String tag = getString();
+        return new Span(time, tid, duration, tag);
     }
 
     private void readActiveSetting() {
@@ -557,6 +568,7 @@ public class JfrReader implements Closeable {
         activeSetting = getTypeId("jdk.ActiveSetting");
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
+        span = getTypeId("profiler.Span");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);

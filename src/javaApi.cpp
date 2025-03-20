@@ -117,15 +117,37 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_AsyncProfiler_getThreadLocalBuffer(JNIEnv* env, jclass unused) {
+    void* tld = ThreadLocalData::getThreadLocalData();
+    return tld == NULL ? NULL : env->NewDirectByteBuffer(tld, sizeof(asprof_thread_local_data));
+}
+
+extern "C" DLLEXPORT void JNICALL
+Java_one_profiler_AsyncProfiler_emitSpan(JNIEnv* env, jclass unused, jlong start_time, jlong end_time, jstring tag) {
+    SpanEvent event;
+    event._start_time = start_time;
+    event._end_time = end_time;
+    event._tag = tag != NULL ? env->GetStringUTFChars(tag, NULL) : NULL;
+
+    // TODO: Replace with a mutex-guarded buffer
+    Profiler::instance()->recordEventOnly(SPAN, &event);
+
+    if (tag != NULL) {
+        env->ReleaseStringUTFChars(tag, event._tag);
+    }
+}
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,        "(Ljava/lang/String;JZ)V"),
-    F(stop0,         "()V"),
-    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,    "()J"),
-    F(filterThread0, "(Ljava/lang/Thread;Z)V"),
+    F(start0,               "(Ljava/lang/String;JZ)V"),
+    F(stop0,                "()V"),
+    F(execute0,             "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples,           "()J"),
+    F(filterThread0,        "(Ljava/lang/Thread;Z)V"),
+    F(getThreadLocalBuffer, "()Ljava/nio/ByteBuffer;"),
+    F(emitSpan,             "(JJLjava/lang/String;)V"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];
