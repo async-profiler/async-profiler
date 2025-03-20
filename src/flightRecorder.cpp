@@ -24,6 +24,7 @@
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
+#include "threadLocalData.h"
 #include "tsc.h"
 #include "vmStructs.h"
 
@@ -1492,6 +1493,10 @@ void FlightRecorder::stopMasterRecording() {
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                                  EventType event_type, Event* event) {
     if (_rec != NULL) {
+        // Recording an event, increment the sample counter to allow
+        // user code to attach metadata.
+        ThreadLocalData::incrementSampleCounter();
+
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
             case PERF_SAMPLE:
