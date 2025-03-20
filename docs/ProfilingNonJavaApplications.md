@@ -95,7 +95,7 @@ Java-specific events.
 
 ## Unstable APIs
 
-These APIs are unstable and might change or be removed in the next version of async profiler.
+These APIs are unstable and might change or be removed in the next version of async-profiler.
 
 ### Advanced Sampling
 

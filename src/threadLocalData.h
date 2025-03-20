@@ -10,10 +10,10 @@
 #include <pthread.h>
 
 class ThreadLocalData {
-public:
-    // increment the thread-local sample counter. See the `asprof_thread_local_data` docs.
+  public:
+    // Increment the thread-local sample counter. See the `asprof_thread_local_data` docs.
     //
-    // this function *is* async-signal safe, and therefore will not initialize the thread-local
+    // This function *is* async-signal safe, and therefore will not initialize the thread-local
     // storage by itself, but will rather do nothing if it's not initialized already. This works
     // fine with the `sample_counter` API since only changes in `sample_counter` matter.
     static void incrementSampleCounter(void)  {
@@ -38,10 +38,10 @@ public:
 
         return val;
     }
-private:
+
+  private:
     static asprof_thread_local_data* initThreadLocalData(pthread_key_t profiler_data_key);
     static pthread_key_t _profiler_data_key;
 };
 
 #endif // _ASPROF_THREAD_LOCAL_H
-

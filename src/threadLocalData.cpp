@@ -36,4 +36,3 @@ asprof_thread_local_data* ThreadLocalData::initThreadLocalData(pthread_key_t pro
     }
     return val;
 }
-
