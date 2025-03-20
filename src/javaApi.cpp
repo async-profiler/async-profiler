@@ -10,6 +10,7 @@
 #include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
+#include "threadLocalData.h"
 #include "vmStructs.h"
 
 
@@ -119,8 +120,8 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
 
 extern "C" DLLEXPORT jobject JNICALL
 Java_one_profiler_AsyncProfiler_getThreadLocalBuffer(JNIEnv* env, jclass unused) {
-    void* tld = ThreadLocalData::getThreadLocalData();
-    return tld == NULL ? NULL : env->NewDirectByteBuffer(tld, sizeof(asprof_thread_local_data));
+    asprof_thread_local_data* tld = ThreadLocalData::get();
+    return tld == NULL ? NULL : env->NewDirectByteBuffer(tld, sizeof(*tld));
 }
 
 extern "C" DLLEXPORT void JNICALL

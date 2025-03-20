@@ -1508,7 +1508,10 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
     if (_rec != NULL) {
         // Recording an event, increment the sample counter to allow
         // user code to attach metadata.
-        ThreadLocalData::incrementSampleCounter();
+        asprof_thread_local_data* tld = ThreadLocalData::getIfPresent();
+        if (tld != NULL) {
+            tld->sample_counter = event->_start_time;
+        }
 
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
