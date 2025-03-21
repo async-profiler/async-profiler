@@ -1640,7 +1640,8 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-int32_t getIdxOrAddToStringTable(std::map<std::string, int32_t> *string_idx_map, opentelemetry::proto::profiles::v1development::Profile *profile, std::string s) {
+static inline int32_t getIdxOrAddToStringTable(std::map<std::string, int32_t> *string_idx_map, opentelemetry::proto::profiles::v1development::Profile *profile, std::string s) {
+    // TODO: is this efficient?
     if (string_idx_map->find(s) == string_idx_map->end()) {
         profile->add_string_table(s);
         string_idx_map->insert({s, profile->string_table_size() - 1});
@@ -1648,6 +1649,9 @@ int32_t getIdxOrAddToStringTable(std::map<std::string, int32_t> *string_idx_map,
     return (*string_idx_map)[s];
 }
 
+// TODO: If this feature goes to production, we need to add two things somewhere:
+//  - GOOGLE_PROTOBUF_VERIFY_VERSION;
+//  - google::protobuf::ShutdownProtobufLibrary()
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace opentelemetry::proto::profiles::v1development;
     Profile profile;
@@ -1726,9 +1730,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     // TODO: either disk or domain socket in binary format
-    std::string output;
-    google::protobuf::util::MessageToJsonString(profile, &output);
-    out << output.data();
 }
 
 time_t Profiler::addTimeout(time_t start, int timeout) {
