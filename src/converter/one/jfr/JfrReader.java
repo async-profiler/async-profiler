@@ -39,6 +39,7 @@ public class JfrReader implements Closeable {
     private ByteBuffer buf;
     private final long fileSize;
     private long filePosition;
+    private long rewindPosition;
     private byte state;
 
     public long startNanos = Long.MAX_VALUE;
@@ -133,6 +134,11 @@ public class JfrReader implements Closeable {
     // Similar to eof(), but parses the next chunk header
     public boolean hasMoreChunks() throws IOException {
         return state == STATE_NEW_CHUNK ? readChunk(buf.position()) : state == STATE_READING;
+    }
+
+    public void rewindChunk() throws IOException {
+        seek(rewindPosition);
+        state = STATE_READING;
     }
 
     public List<Event> readAllEvents() throws IOException {
@@ -321,7 +327,8 @@ public class JfrReader implements Closeable {
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
 
-        seek(chunkStart + CHUNK_HEADER_SIZE);
+        rewindPosition = chunkStart + CHUNK_HEADER_SIZE;
+        seek(rewindPosition);
         state = STATE_READING;
         return true;
     }

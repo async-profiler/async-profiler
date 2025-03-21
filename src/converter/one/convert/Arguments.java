@@ -17,6 +17,7 @@ public class Arguments {
     public String state;
     public Pattern include;
     public Pattern exclude;
+    public String filter;
     public double minwidth;
     public double grain;
     public int skip;
