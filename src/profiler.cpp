@@ -1678,8 +1678,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     ValueType *sample_type = profile.add_sample_type();
     sample_type->set_type_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "samples"));
     sample_type->set_unit_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "count"));
-    // TODO: Is this correct?
-    sample_type->set_aggregation_temporality(AGGREGATION_TEMPORALITY_CUMULATIVE);
+    sample_type->set_aggregation_temporality(AGGREGATION_TEMPORALITY_DELTA);
 
     ValueType *period_type = profile.mutable_period_type();
     period_type->set_type_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "cpu"));
