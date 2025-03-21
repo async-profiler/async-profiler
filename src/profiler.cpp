@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -1665,6 +1667,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         profile.set_profile_id(uuid);
     }
 
+    // TODO: Pyroscope needs this, but it's optional according to OTLP
+    Mapping* default_mapping = profile.add_mapping_table();
+
     std::map<std::string, int32_t> string_idx_map;
     std::map<std::string, int32_t> function_idx_map;
 
@@ -1719,7 +1724,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             }
 
             Location *loc = profile.add_location_table();
-            profile.add_location_indices(profile.location_table_size());
+            profile.add_location_indices(profile.location_table_size() - 1);
+            loc->set_mapping_index(0);
 
             Line *line = loc->add_line();
             line->set_function_index(function_idx_map[frame_name]);
@@ -1731,8 +1737,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         locations_count += num_frames;
     }
 
+    if (args.file() == NULL) {
+        Log::error("OTLP output is only supported with file output at the moment");
+        return;
+    }
+
     // TODO: Would be nice if Writer behaved like std::ostream*
-    out << profile.SerializeAsString().data();
+    std::fstream file(args.file(), std::ios::binary|std::ios::out);
+    profile.SerializeToOstream(&file);
+    file.close();
 }
 
 time_t Profiler::addTimeout(time_t start, int timeout) {
