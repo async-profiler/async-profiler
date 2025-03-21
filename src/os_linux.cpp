@@ -23,6 +23,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "os.h"
+#include <cerrno>
 
 
 #ifdef __LP64__
