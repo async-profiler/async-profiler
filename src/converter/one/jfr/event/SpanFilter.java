@@ -10,6 +10,7 @@ import one.jfr.JfrReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,22 +19,32 @@ public class SpanFilter implements EventCollector {
     private final Map<Integer, List<SpanEvent>> spans = new HashMap<>();
     private final JfrReader jfr;
     private final EventCollector wrapped;
+    private final SpanFilterCriteria spanFilterCriteria;
 
     public SpanFilter(JfrReader jfr, EventCollector wrapped, String filter) {
         this.jfr = jfr;
         this.wrapped = wrapped;
-
-        // TODO: parse filter
-    }
-
-    private boolean matchesFilter(String tag, long duration) {
-        // TODO: check if span matches filter
-        return false;
+        this.spanFilterCriteria = new SpanFilterCriteria(filter);
     }
 
     private boolean shouldCollect(int tid, long time) {
-        // TODO: check if tid/time falls into any of spans
-        return false;
+        List<SpanEvent> threadSpans = spans.get(tid);
+        if (threadSpans == null || threadSpans.isEmpty()) {
+            return false;
+        }
+
+        int index = Collections.binarySearch(
+                threadSpans,
+                null,
+                (span1, span2) -> {
+                    if (time >= span1.time && time <= span1.time + span1.duration) {
+                        return 0;
+                    }
+                    return Long.compare(span1.time, time);
+                }
+        );
+
+        return index >= 0;
     }
 
     @Override
@@ -47,8 +58,14 @@ public class SpanFilter implements EventCollector {
     public void beforeChunk() {
         try {
             for (SpanEvent event; (event = jfr.readEvent(SpanEvent.class)) != null; ) {
-                if (matchesFilter(event.tag, event.duration)) {
-                    spans.computeIfAbsent(event.tid, tid -> new ArrayList<>()).add(event);
+                if (spanFilterCriteria.matches(event)) {
+                    spans.computeIfAbsent(event.tid, tid -> new ArrayList<>())
+                            .add(Collections.binarySearch(
+                                            spans.get(event.tid),
+                                            event,
+                                            (e1, e2) -> Long.compare(e1.time, e2.time)
+                                    ) * -1 - 1,
+                                    event);
                 }
             }
             jfr.rewindChunk();
