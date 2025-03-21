@@ -1656,12 +1656,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace opentelemetry::proto::profiles::v1development;
     Profile profile;
 
-    uuid_t binuuid;
-    uuid_generate_random(binuuid);
-    // 37 is the length of a UUID (36 characters), plus '\0'
-    char uuid[37];
-    uuid_unparse_lower(binuuid, uuid);
-    profile.set_profile_id(uuid);
+    {
+        uuid_t binuuid;
+        uuid_generate_random(binuuid);
+        // 37 is the length of a UUID (36 characters), plus '\0'
+        char uuid[37];
+        uuid_unparse_lower(binuuid, uuid);
+        profile.set_profile_id(uuid);
+    }
 
     std::map<std::string, int32_t> string_idx_map;
     std::map<std::string, int32_t> function_idx_map;
