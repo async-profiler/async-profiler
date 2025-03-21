@@ -1731,7 +1731,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         locations_count += num_frames;
     }
 
-    // TODO: either disk or domain socket in binary format
+    // TODO: Would be nice if Writer behaved like std::ostream*
+    out << profile.SerializeAsString().data();
 }
 
 time_t Profiler::addTimeout(time_t start, int timeout) {
