@@ -151,6 +151,7 @@ class Profiler {
     void dumpCollapsed(Writer& out, Arguments& args);
     void dumpFlameGraph(Writer& out, Arguments& args, bool tree);
     void dumpText(Writer& out, Arguments& args);
+    void dumpOtlp(Writer& out, Arguments& args);
 
     static Profiler* const _instance;
 
