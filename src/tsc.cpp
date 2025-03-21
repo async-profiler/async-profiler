@@ -15,7 +15,8 @@ u64 TSC::_offset = 0;
 u64 TSC::_frequency = NANOTIME_FREQ;
 
 void TSC::enable(Clock clock) {
-    if (!TSC_SUPPORTED || clock == CLK_MONOTONIC) {
+    // TODO: support TSC clock with context events
+    if (!TSC_SUPPORTED || clock == CLK_MONOTONIC || true) {
         _enabled = false;
         return;
     }

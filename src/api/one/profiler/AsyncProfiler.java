@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -272,4 +273,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
+
+    static native ByteBuffer getThreadLocalBuffer();
+
+    static native void emitSpan(long startTime, long endTime, String payload);
 }

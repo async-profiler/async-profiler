@@ -39,6 +39,7 @@ public class JfrReader implements Closeable {
     private ByteBuffer buf;
     private final long fileSize;
     private long filePosition;
+    private long rewindPosition;
     private byte state;
 
     public long startNanos = Long.MAX_VALUE;
@@ -75,6 +76,7 @@ public class JfrReader implements Closeable {
     private int activeSetting;
     private int malloc;
     private int free;
+    private int span;
 
     public JfrReader(String fileName) throws IOException {
         this.ch = FileChannel.open(Paths.get(fileName), StandardOpenOption.READ);
@@ -134,6 +136,11 @@ public class JfrReader implements Closeable {
         return state == STATE_NEW_CHUNK ? readChunk(buf.position()) : state == STATE_READING;
     }
 
+    public void rewindChunk() throws IOException {
+        seek(rewindPosition);
+        state = STATE_READING;
+    }
+
     public List<Event> readAllEvents() throws IOException {
         return readAllEvents(null);
     }
@@ -186,6 +193,8 @@ public class JfrReader implements Closeable {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(false);
             } else if (type == threadPark) {
                 if (cls == null || cls == ContendedLock.class) return (E) readContendedLock(true);
+            } else if (type == span) {
+                if (cls == null || cls == SpanEvent.class) return (E) readSpan();
             } else if (type == activeSetting) {
                 readActiveSetting();
             } else {
@@ -258,6 +267,14 @@ public class JfrReader implements Closeable {
         return new ContendedLock(time, tid, stackTraceId, duration, classId);
     }
 
+    private SpanEvent readSpan() {
+        long time = getVarlong();
+        long duration = getVarlong();
+        int tid = getVarint();
+        String tag = getString();
+        return new SpanEvent(time, tid, duration, tag);
+    }
+
     private void readActiveSetting() {
         for (JfrField field : typesByName.get("jdk.ActiveSetting").fields) {
             getVarlong();
@@ -310,7 +327,8 @@ public class JfrReader implements Closeable {
         readConstantPool(chunkStart + cpOffset);
         cacheEventTypes();
 
-        seek(chunkStart + CHUNK_HEADER_SIZE);
+        rewindPosition = chunkStart + CHUNK_HEADER_SIZE;
+        seek(rewindPosition);
         state = STATE_READING;
         return true;
     }
@@ -557,6 +575,7 @@ public class JfrReader implements Closeable {
         activeSetting = getTypeId("jdk.ActiveSetting");
         malloc = getTypeId("profiler.Malloc");
         free = getTypeId("profiler.Free");
+        span = getTypeId("profiler.Span");
 
         registerEvent("jdk.CPULoad", CPULoad.class);
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);

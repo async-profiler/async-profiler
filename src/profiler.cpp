@@ -57,7 +57,7 @@ static CTimer ctimer;
 static ITimer itimer;
 static Instrument instrument;
 
-static ProfilingWindow profiling_window;
+static SpanEvent profiling_window;
 
 
 // The same constants are used in JfrSync
