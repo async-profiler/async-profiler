@@ -1658,6 +1658,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace opentelemetry::proto::profiles::v1development;
     Profile profile;
 
+    // TODO: Set stuff like service name
+
     {
         uuid_t binuuid;
         uuid_generate_random(binuuid);
