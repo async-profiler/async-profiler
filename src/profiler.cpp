@@ -1694,7 +1694,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         int num_frames = trace->num_frames;
         for (int j = 0; j < num_frames; j++) {
             const char* frame_name = fn.name(trace->frames[j]);
-            FrameTypeId frame_type = fn.type(trace->frames[j]);
+
+            // TODO: Can we use this information?
+            //  FrameTypeId frame_type = fn.type(trace->frames[j]);
 
             if (function_idx_map.find(frame_name) == function_idx_map.end()) {
                 Function *function = profile.add_function_table();
@@ -1723,6 +1725,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         locations_count += num_frames;
     }
 
+    // TODO: either disk or domain socket in binary format
     std::string output;
     google::protobuf::util::MessageToJsonString(profile, &output);
     out << output.data();
