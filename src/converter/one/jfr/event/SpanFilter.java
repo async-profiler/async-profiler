@@ -59,15 +59,11 @@ public class SpanFilter implements EventCollector {
         try {
             for (SpanEvent event; (event = jfr.readEvent(SpanEvent.class)) != null; ) {
                 if (spanFilterCriteria.matches(event)) {
-                    spans.computeIfAbsent(event.tid, tid -> new ArrayList<>())
-                            .add(Collections.binarySearch(
-                                            spans.get(event.tid),
-                                            event,
-                                            (e1, e2) -> Long.compare(e1.time, e2.time)
-                                    ) * -1 - 1,
-                                    event);
+                    spans.computeIfAbsent(event.tid, tid -> new ArrayList<>()).add(event);
                 }
             }
+            spans.forEach((tid, spanList) -> Collections.sort(spanList));
+
             jfr.rewindChunk();
         } catch (IOException e) {
             throw new UncheckedIOException(e);

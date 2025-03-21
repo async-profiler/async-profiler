@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class SpanFilterCriteria {
     private final String tag;
     private final String operator;
-    private final long duration;
+    private final Long duration;
 
     public SpanFilterCriteria(String filter) {
         String[] parts = filter.split(",");
@@ -60,20 +60,25 @@ public class SpanFilterCriteria {
     }
 
     public boolean matches(SpanEvent event) {
-        if (!event.tag.equals(tag)) {
+        boolean isMatch = true;
+
+        if (tag != null && !event.tag.equals(tag)) {
             return false;
         }
 
-        long durationMs = event.duration;
-
-        switch (operator) {
-            case ">=": return durationMs >= duration;
-            case "<=": return durationMs <= duration;
-            case ">": return durationMs > duration;
-            case "<": return durationMs < duration;
-            case "=": return durationMs == duration;
-            default: return false;
+        if (duration != null) {
+            Long durationMs = event.duration;
+            switch (operator) {
+                case ">=": isMatch = durationMs >= duration; break;
+                case "<=": isMatch = durationMs <= duration; break;
+                case ">":  isMatch = durationMs > duration; break;
+                case "<":  isMatch = durationMs < duration; break;
+                case "=":  isMatch = durationMs == duration; break;
+                default:   isMatch = false;
+            }
         }
+
+        return isMatch;
     }
 }
 
