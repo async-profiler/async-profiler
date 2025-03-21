@@ -13,7 +13,11 @@ public class Span {
     private static final ThreadLocal<ByteBuffer> LAST_SAMPLE = new ThreadLocal<ByteBuffer>() {
         @Override
         protected ByteBuffer initialValue() {
-            return AsyncProfiler.getThreadLocalBuffer().order(ByteOrder.nativeOrder());
+            try {
+                return AsyncProfiler.getThreadLocalBuffer().order(ByteOrder.nativeOrder());
+            } catch (UnsatisfiedLinkError e) {
+                return ByteBuffer.allocate(8).order(ByteOrder.nativeOrder());
+            }
         }
     };
 
