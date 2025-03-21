@@ -197,6 +197,9 @@ Error Arguments::parse(const char* args) {
                 _output = OUTPUT_TEXT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
+            CASE("otlp")
+                _output = OUTPUT_OTLP;
+
             CASE("samples")
                 _counter = COUNTER_SAMPLES;
 
