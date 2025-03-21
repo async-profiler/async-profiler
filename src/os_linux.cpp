@@ -22,7 +22,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
-#include <cerrno>
+#include <errno.h>
 #include "os.h"
 
 
