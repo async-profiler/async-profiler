@@ -20,6 +20,7 @@ public class FlameGraph implements Comparator<Frame> {
     private static final String[] FRAME_SUFFIX = {"_[0]", "_[j]", "_[i]", "", "", "_[k]", "_[1]"};
     private static final byte HAS_SUFFIX = (byte) 0x80;
     private static final int FLUSH_THRESHOLD = 15000;
+    private static final Pattern TID_FRAME_PATTERN = Pattern.compile("\\[(.* )?tid=\\d+]");
 
     private final Arguments args;
     private final Index<String> cpool = new Index<>(String.class, "");
@@ -150,7 +151,13 @@ public class FlameGraph implements Comparator<Frame> {
 
         Frame frame = root;
         if (args.reverse) {
-            for (int i = stack.size; --i >= args.skip; ) {
+            // Retain by-thread grouping, unless thread frame is skipped
+            int skip = args.skip;
+            if (skip == 0 && stack.size > 0 && isThreadFrame(stack.names[0], stack.types[0])) {
+                frame = addChild(frame, stack.names[0], stack.types[0], ticks);
+                skip = 1;
+            }
+            for (int i = stack.size; --i >= skip; ) {
                 frame = addChild(frame, stack.names[i], stack.types[i], ticks);
             }
         } else {
@@ -350,6 +357,10 @@ public class FlameGraph implements Comparator<Frame> {
         } else {
             return TYPE_NATIVE;
         }
+    }
+
+    private static boolean isThreadFrame(String name, byte type) {
+        return type == TYPE_NATIVE && name.startsWith("[") && TID_FRAME_PATTERN.matcher(name).matches();
     }
 
     private static int getCommonPrefix(String a, String b) {
