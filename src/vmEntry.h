@@ -8,6 +8,7 @@
 
 #include <jvmti.h>
 #include "arch.h"
+#include "mutex.h"
 
 
 enum FrameTypeId {
@@ -98,6 +99,12 @@ class VM {
     static JavaVM* _vm;
     static jvmtiEnv* _jvmti;
 
+    static Mutex _patch_lock;
+    static int _patched_libs;
+
+    static jint (*_JNI_GetCreatedJavaVMs_func)(JavaVM **, jsize, jsize *);
+    static void (*_original_JVM_StartThread)(JNIEnv*, jobject);
+
     static int _hotspot_version;
     static bool _openj9;
     static bool _zing;
@@ -177,6 +184,16 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+
+    /**
+     * When Async Profiler is run on a None Java application that has a running JVM instance
+     * That JVM instance isn't visible to the profiler by default
+     * This method will be used to try to manually attach the JVM to the profiler
+     * @param loadJniFunction If true, the profiler will attempt to load the JNI_GetCreatedJavaVMs function if not already loaded
+     */
+    static void VMManualLoad(bool loadJniFunction);
+    static void JVM_StartThread_hook(JNIEnv *env, jobject thread);
+    static void installHooksLibJava(void* libHandle);
 };
 
 #endif // _VMENTRY_H

@@ -222,6 +222,10 @@ void CodeCache::addImport(void** entry, const char* name) {
                 saveImport(im_realloc, entry);
             }
             break;
+        case 'J':
+            if (strcmp(name, "JVM_StartThread") == 0) {
+                saveImport(im_JVM_StartThread, entry);
+            }
     }
 }
 
