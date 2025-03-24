@@ -15,7 +15,15 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
-	.legendDetail div {width: 200px; margin-left: 20px; padding: 2px;}
+    .popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; }
+    .popup-content { background: #fff; padding: 20px; border-radius: 5px; text-align: center; width: 200px; }
+    .popup:target { display: flex; }
+    .popup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .popup-content { background: #fff; padding: 20px; border-radius: 5px; text-align: center; width: 300px; position: relative; }
+    .legend-item { padding: 5px; margin: 5px 0; color: #000; font-weight: bold; }
+    .button-container { margin: 20px; text-align: center; }
+    button { background-color: #95fbff; padding: 10px 15px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+    .close-btn { background-color: #f44336; color: white; position: absolute; top: 5px; right: 5px; padding: 5px 10px; font-size: 16px; }
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
@@ -25,35 +33,46 @@
 	&nbsp;&nbsp;
 	<button id='search' title='Search'>&#x1f50d;</button>
 	&nbsp;&nbsp;
-	<button id='legend' title='Legend'>&#x1f6c8;</button>
+	<button id='legend' title='Legend'>&#x2139;</button>
 </header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
-<div id="legendDetail-default" class="legendDetail" style="display: none">Legend:
-	<div style="background-color: #e17d00;">Kernel</div>
-	<div style="background-color: #e15a5a;">Native</div>
-	<div style="background-color: #c8c83c;">C++</div>
-	<div style="background-color: #50e150;">Java compiled</div>
-	<div style="background-color: #cce880;">Java C1 compiled</div>
-	<div style="background-color: #50cccc;">Java inlined</div>
-	<div style="background-color: #b2e1b2;">Interpreted</div>
-</div>
-<div id="legendDetail-alloc" class="legendDetail" style="display: none">Legend:
-    <div style="background-color: #50cccc;">Allocated object</div>
-	<div style="background-color: #e17d00;">Allocation outside TLAB</div>
-	<div style="background-color: #e15a5a;">Native</div>
-	<div style="background-color: #c8c83c;">C++</div>
-	<div style="background-color: #50e150;">Java compiled</div>
-	<div style="background-color: #cce880;">Java C1 compiled</div>
-    <div style="background-color: #b2e1b2;">Interpreted</div>
-</div>
-<div id="legendDetail-lock" class="legendDetail" style="display: none">Legend:
-	<div style="background-color: #50cccc;">Locked object</div>
-	<div style="background-color: #e17d00;">Kernel</div>
-	<div style="background-color: #e15a5a;">Native</div>
-	<div style="background-color: #c8c83c;">C++</div>
-	<div style="background-color: #50e150;">Java compiled</div>
-	<div style="background-color: #cce880;">Java C1 compiled</div>
-    <div style="background-color: #b2e1b2;">Interpreted</div>
+<div id="popupDiv" class="popup">
+    <div id="legendDetail-default" class="popup-content" style="display: none;">
+        <button class="close-btn">×</button>
+        <h3>Legend</h3>
+        <div class="legend-item" style="background-color: #e17d00;">Kernel</div>
+        <div class="legend-item" style="background-color: #e15a5a;">Native</div>
+        <div class="legend-item" style="background-color: #c8c83c;">C++</div>
+        <div class="legend-item" style="background-color: #50e150;">Java compiled (jitted C2/JVMCI)</div>
+        <div class="legend-item" style="background-color: #cce880;">Java C1 compiled (jitted)</div>
+        <div class="legend-item" style="background-color: #50cccc;">Java inlined</div>
+        <div class="legend-item" style="background-color: #6a3d9a;">Interpreted</div>
+        <div class="legend-item" style="background-color: #ee00ee;">Matches search term</div>
+    </div>
+    <div id="legendDetail-alloc" class="popup-content" style="display: none;">
+        <button class="close-btn">×</button>
+        <h3>Allocation Legend</h3>
+        <div class="legend-item" style="background-color: #50cccc;">Allocated object</div>
+        <div class="legend-item" style="background-color: #e17d00;">Allocation outside TLAB</div>
+        <div class="legend-item" style="background-color: #e15a5a;">Native</div>
+        <div class="legend-item" style="background-color: #c8c83c;">C++</div>
+        <div class="legend-item" style="background-color: #50e150;">Java compiled (jitted C2/JVMCI)</div>
+        <div class="legend-item" style="background-color: #cce880;">Java C1 compiled (jitted)</div>
+        <div class="legend-item" style="background-color: #6a3d9a;">Interpreted</div>
+        <div class="legend-item" style="background-color: #ee00ee;">Matches search term</div>
+    </div>
+    <div id="legendDetail-lock" class="popup-content" style="display: none;">
+        <button class="close-btn">×</button>
+        <h3>Lock Legend</h3>
+        <div class="legend-item" style="background-color: #50cccc;">Locked object</div>
+        <div class="legend-item" style="background-color: #e17d00;">Kernel</div>
+        <div class="legend-item" style="background-color: #e15a5a;">Native</div>
+        <div class="legend-item" style="background-color: #c8c83c;">C++</div>
+        <div class="legend-item" style="background-color: #50e150;">Java compiled (jitted C2/JVMCI)</div>
+        <div class="legend-item" style="background-color: #cce880;">Java C1 compiled (JIT)</div>
+        <div class="legend-item" style="background-color: #6a3d9a;">Interpreted</div>
+        <div class="legend-item" style="background-color: #ee00ee;">Matches search term</div>
+    </div>
 </div>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
@@ -93,7 +112,7 @@
 	c.font = document.body.style.font;
 
 	const palette = [
-		[0xb2e1b2, 20, 20, 20],
+		[0x6a3d9a, 20, 20, 20],
 		[0x50e150, 30, 30, 30],
 		[0x50cccc, 30, 30, 30],
 		[0xe15a5a, 30, 40, 40],
@@ -301,12 +320,25 @@
 
 	document.getElementById('legend').onclick = function() {
 		legend = !legend;
-		legendDetail.style.display = legend ? "block" : "none";
+		legendDetail.style.display = legend ? 'block' : 'none';
+        popupDiv.style.display = legend ? 'flex' : 'none';
 	}
 
 	document.getElementById('reset').onclick = function() {
 		search(false);
 	}
+
+    document.querySelectorAll('.close-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            popupDiv.style.display = 'none';
+        });
+    });
+
+    popupDiv.addEventListener('click', function(event) {
+        if (event.target === this) {
+            this.style.display = 'none';
+        }
+    });
 
 	window.onkeydown = function(event) {
 		if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
