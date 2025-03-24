@@ -16,6 +16,7 @@
 class MallocTracer : public Engine {
   private:
     static u64 _interval;
+    static bool _nofree;
     static volatile u64 _allocated_bytes;
 
     static Mutex _patch_lock;
@@ -50,6 +51,10 @@ class MallocTracer : public Engine {
         if (running()) {
             patchLibraries();
         }
+    }
+
+    static inline bool nofree() {
+        return _nofree;
     }
 
     static void recordMalloc(void* address, size_t size);

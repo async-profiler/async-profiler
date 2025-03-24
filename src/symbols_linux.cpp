@@ -22,6 +22,7 @@
 #include "dwarf.h"
 #include "fdtransferClient.h"
 #include "log.h"
+#include "os.h"
 
 
 #ifdef __x86_64__
@@ -173,7 +174,6 @@ typedef Elf32_Dyn  ElfDyn;
 #endif
 
 
-static bool musl = false;
 static char _debuginfod_cache_buf[PATH_MAX] = {0};
 
 class ElfParser {
@@ -392,21 +392,6 @@ void ElfParser::parseDynamicSection() {
         }
 
         const char* base = this->base();
-        if (rel != NULL && relsz != 0) {
-            // If a shared library is built without PLT (-fno-plt), relocation entries for imports
-            // can be found in .rela.dyn. However, if both sections exist, .rela.plt entries
-            // should take precedence, that's why we parse .rela.dyn first.
-            for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
-                ElfRelocation* r = (ElfRelocation*)(rel + offs);
-                if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_ABS64) {
-                    ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
-                    if (sym->st_name != 0) {
-                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
-                    }
-                }
-            }
-        }
-
         if (jmprel != NULL && pltrelsz != 0) {
             // Parse .rela.plt table
             for (size_t offs = 0; offs < pltrelsz; offs += relent) {
@@ -414,6 +399,21 @@ void ElfParser::parseDynamicSection() {
                 ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
                 if (sym->st_name != 0) {
                     _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
+                }
+            }
+        }
+
+        if (rel != NULL && relsz != 0) {
+            // Relocation entries for imports can be found in .rela.dyn, for example
+            // if a shared library is built without PLT (-fno-plt). However, if both
+            // entries exist, addImport saves them both.
+            for (size_t offs = relcount * relent; offs < relsz; offs += relent) {
+                ElfRelocation* r = (ElfRelocation*)(rel + offs);
+                if (ELF_R_TYPE(r->r_info) == R_GLOB_DAT || ELF_R_TYPE(r->r_info) == R_ABS64) {
+                    ElfSymbol* sym = (ElfSymbol*)(symtab + ELF_R_SYM(r->r_info) * syment);
+                    if (sym->st_name != 0) {
+                        _cc->addImport((void**)(base + r->r_offset), strtab + sym->st_name);
+                    }
                 }
             }
         }
@@ -750,7 +750,7 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
                 // If last_inode is set, image_base is known to be valid and readable
                 ElfParser::parseFile(cc, image_base, map.file(), true);
                 // Parse program headers after the file to ensure debug symbols are parsed first
-                ElfParser::parseProgramHeaders(cc, image_base, map_end, musl);
+                ElfParser::parseProgramHeaders(cc, image_base, map_end, OS::isMusl());
             } else if ((unsigned long)map_start > map_offs) {
                 // Unlikely case when image_base has not been found.
                 // Be careful: executable file is not always ELF, e.g. classes.jsa
@@ -773,11 +773,6 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
-
-    if (array->count() == 0) {
-        // _CS_GNU_LIBC_VERSION is not defined on musl
-        musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 0;
-    }
 
     if (kernel_symbols && !haveKernelSymbols()) {
         CodeCache* cc = new CodeCache("[kernel]");

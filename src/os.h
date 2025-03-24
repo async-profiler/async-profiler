@@ -85,6 +85,7 @@ class OS {
     static ThreadList* listThreads();
 
     static bool isLinux();
+    static bool isMusl();
 
     static SigAction installSignalHandler(int signo, SigAction action, SigHandler handler = NULL);
     static SigAction replaceCrashHandler(SigAction action);

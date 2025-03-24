@@ -96,3 +96,16 @@ int main() {
     return 0;
 }
 ```
+
+## Unstable APIs
+
+These APIs are unstable and might change or be removed in the next version of async-profiler.
+
+### Advanced Sampling
+
+The `asprof_get_thread_local_data` function returns a pointer to async-profiler's
+thread-local data structure. The structure is guaranteed to live as long as the thread.
+
+The returned structure contains a pointer that increments every time there is a sample. This gives
+native code an easy way to detect when a sample event had occurred, and to log metadata about what the
+program was doing when the event happened.

@@ -7,6 +7,7 @@
 #include "assert.h"
 #include "codeCache.h"
 #include "mallocTracer.h"
+#include "os.h"
 #include "profiler.h"
 #include "tsc.h"
 #include <dlfcn.h>
@@ -29,12 +30,20 @@ static realloc_t _orig_realloc = NULL;
 typedef void (*free_t)(void*);
 static free_t _orig_free = NULL;
 
+typedef int (*posix_memalign_t)(void**, size_t, size_t);
+static posix_memalign_t _orig_posix_memalign = NULL;
+
+typedef void* (*aligned_alloc_t)(size_t, size_t);
+static aligned_alloc_t _orig_aligned_alloc = NULL;
+
 __attribute__((constructor)) static void getOrigAddresses() {
     // Store these addresses, regardless of MallocTracer being enabled or not.
     _orig_malloc = ADDRESS_OF(malloc);
     _orig_calloc = ADDRESS_OF(calloc);
     _orig_realloc = ADDRESS_OF(realloc);
     _orig_free = ADDRESS_OF(free);
+    _orig_posix_memalign = ADDRESS_OF(posix_memalign);
+    _orig_aligned_alloc = ADDRESS_OF(aligned_alloc);
 }
 
 extern "C" void* malloc_hook(size_t size) {
@@ -56,7 +65,7 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 extern "C" void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
-        if (addr) {
+        if (addr && !MallocTracer::nofree()) {
             MallocTracer::recordFree(addr);
         }
         if (size) {
@@ -68,13 +77,29 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 
 extern "C" void free_hook(void* addr) {
     _orig_free(addr);
-    if (MallocTracer::running() && addr) {
+    if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
 
+extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
+    int ret = _orig_posix_memalign(memptr, alignment, size);
+    if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
+        MallocTracer::recordMalloc(*memptr, size);
+    }
+    return ret;
+}
+
+extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
+    void* ret = _orig_aligned_alloc(alignment, size);
+    if (MallocTracer::running() && ret && size) {
+        MallocTracer::recordMalloc(ret, size);
+    }
+    return ret;
+}
 
 u64 MallocTracer::_interval;
+bool MallocTracer::_nofree;
 volatile u64 MallocTracer::_allocated_bytes;
 
 Mutex MallocTracer::_patch_lock;
@@ -91,11 +116,17 @@ void MallocTracer::initialize() {
             return strcmp(s, "malloc_hook") == 0
                 || strcmp(s, "calloc_hook") == 0
                 || strcmp(s, "realloc_hook") == 0
-                || strcmp(s, "free_hook") == 0;
+                || strcmp(s, "free_hook") == 0
+                || strcmp(s, "posix_memalign_hook") == 0
+                || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
 }
 
+// To avoid complexity in hooking and tracking reentrancy, a TLS-based approach is not used.
+// Reentrant allocation calls would result in double-accounting. However, this does not impact
+// the leak detector, as it correctly tracks memory as freed regardless of how many times
+// recordMalloc is called with the same address.
 void MallocTracer::patchLibraries() {
     MutexLocker ml(_patch_lock);
 
@@ -109,6 +140,15 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_calloc, (void*)calloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
         cc->patchImport(im_free, (void*)free_hook);
+
+        if (!OS::isMusl()) {
+            // In musl, posix_memalign internally calls aligned_alloc. Hooking posix_memalign would
+            // therefore lead to double-accounting of allocations. To prevent this, we simply avoid
+            // hooking posix_memalign in musl.
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        }
+
+        cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
     }
 }
 
@@ -134,6 +174,7 @@ void MallocTracer::recordFree(void* address) {
 
 Error MallocTracer::start(Arguments& args) {
     _interval = args._nativemem > 0 ? args._nativemem : 0;
+    _nofree = args._nofree;
     _allocated_bytes = 0;
 
     if (!_initialized) {

@@ -24,6 +24,7 @@
 #include "spinLock.h"
 #include "symbols.h"
 #include "threadFilter.h"
+#include "threadLocalData.h"
 #include "tsc.h"
 #include "vmStructs.h"
 
@@ -57,7 +58,6 @@ static jmethodID _stop_method;
 static jmethodID _box_method;
 
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
-static const char* const SETTING_CLOCK[] = {NULL, "tsc", "monotonic"};
 
 
 struct CpuTime {
@@ -555,9 +555,12 @@ class Recording {
         (void)result;
 
         // Workaround for JDK-8191415: compute actual TSC frequency, in case JFR is wrong
-        u64 tsc_frequency = TSC::frequency();
+        u64 tsc_frequency;
         if (TSC::enabled()) {
             tsc_frequency = (u64)(double(_stop_ticks - _start_ticks) / double(_stop_time - _start_time) * 1000000);
+        } else {
+            // TSC is not enabled, so frequency can be used to get the constant clock tick frequency
+            tsc_frequency = TSC::frequency();
         }
 
         // Patch chunk header
@@ -751,6 +754,8 @@ class Recording {
         buf->put64(_start_time * 1000);  // start time, ns
         buf->put64(0);                   // duration, ns
         buf->put64(_start_ticks);        // start ticks
+        // A frequency here may be inaccurate when using TSC clock.
+        // It will be overwritten with a correct value in finishChunk later.
         buf->put64(TSC::frequency());    // ticks per sec
         buf->put32(1);                   // features
     }
@@ -806,7 +811,7 @@ class Recording {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
-        writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", SETTING_CLOCK[args._clock]);
+        writeStringSetting(buf, T_ACTIVE_RECORDING, "clock", TSC::enabled() ? "tsc" : "monotonic");
         writeStringSetting(buf, T_ACTIVE_RECORDING, "event", args._event);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "filter", args._filter);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "begin", args._begin);
@@ -1012,8 +1017,8 @@ class Recording {
             // Write a dummy String pool of 1 element instead.
             buf->putVar32(T_STRING);
             buf->putVar32(1);
-            buf->putVar32(0);
-            buf->put8(0);
+            buf->putVar32(1);  // key
+            buf->put8(0);      // null string
         }
     }
 
@@ -1488,6 +1493,10 @@ void FlightRecorder::stopMasterRecording() {
 void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                                  EventType event_type, Event* event) {
     if (_rec != NULL) {
+        // Recording an event, increment the sample counter to allow
+        // user code to attach metadata.
+        ThreadLocalData::incrementSampleCounter();
+
         Buffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
             case PERF_SAMPLE:

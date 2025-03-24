@@ -65,9 +65,10 @@ Find more details in the [Getting started guide](docs/GettingStarted.md).
 
 - make
 - GCC 7.5.0+ or Clang 7.0.0+
+- Static version of libstdc++ (e.g. on Amazon Linux 2023: `yum install libstdc++-static`)
 - JDK 11+
 
-### Now to build
+### How to build
 
 Make sure `gcc`, `g++` and `java` are available on the `PATH`.
 Navigate to the root directory with async-profiler sources and run `make`.

@@ -102,7 +102,7 @@ public class AllocTests {
     @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
     public void livenessJfrHasStacks(TestProcess p) throws Exception {
         p.waitForExit();
-        String filename = p.getFile("%f").toPath().toString();
+        String filename = p.getFilePath("%f");
         try (JfrReader r = new JfrReader(filename)) {
             List<AllocationSample> events = r.readAllEvents(AllocationSample.class);
             assert !events.isEmpty() : "No AllocationSample events found in JFR output";

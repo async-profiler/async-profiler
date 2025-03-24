@@ -16,9 +16,15 @@ API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
 
-CC=$(CROSS_COMPILE)gcc
-CXX=$(CROSS_COMPILE)g++
-STRIP=$(CROSS_COMPILE)strip
+CC ?= gcc
+CXX ?= g++
+STRIP ?= strip
+
+ifneq ($(CROSS_COMPILE),)
+CC := $(CROSS_COMPILE)gcc
+CXX := $(CROSS_COMPILE)g++
+STRIP := $(CROSS_COMPILE)strip
+endif
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
@@ -38,6 +44,7 @@ JAVA_TARGET=8
 JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 TEST_LIB_DIR=build/test/lib
+TEST_BIN_DIR=build/test/bin
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -116,7 +123,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -188,7 +195,7 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) $(CPP_TEST_INCLUDES) -fPIC -o $@ $(SOURCES) $(CPP_TEST_SOURCES) $(LIBS)
 endif
 
-build-test-java: all build/$(TEST_JAR) build-test-libs
+build-test-java: all build/$(TEST_JAR) build-test-libs build-test-bins
 
 build-test-cpp: build/test/cpptests build-test-libs
 
@@ -198,6 +205,11 @@ build-test-libs:
 	@mkdir -p $(TEST_LIB_DIR)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
+
+build-test-bins:
+	@mkdir -p $(TEST_BIN_DIR)
+	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
+	gcc -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."

@@ -199,6 +199,10 @@ bool OS::isLinux() {
     return false;
 }
 
+bool OS::isMusl() {
+    return false;
+}
+
 SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handler) {
     struct sigaction sa;
     struct sigaction oldsa;

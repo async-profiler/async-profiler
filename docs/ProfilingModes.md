@@ -101,6 +101,8 @@ Example:
 asprof start -e nativemem -f app.jfr <YourApp>
 # or
 asprof start --nativemem N -f app.jfr <YourApp>
+# or if only allocation calls are interesting, do not collect free calls:
+asprof start --nativemem N --nofree -f app.jfr <YourApp>
 
 asprof stop <YourApp>
 ```
@@ -115,7 +117,7 @@ jfrconv --total --nativemem --leak app.jfr app-leak.html
 jfrconv --total --nativemem app.jfr app-malloc.html
 ```
 
-When `--leak` option is used, the generated flame graph will show allocations without matching `free` calls:
+When `--leak` option is used, the generated flame graph will show allocations without matching `free` calls. If `-nofree` is specified, every allocation will be reported as a leak:
 
 ![nativemem flamegraph](../.assets/images/nativemem_flamegraph.png)
 
