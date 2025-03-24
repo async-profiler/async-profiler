@@ -31,7 +31,7 @@ jobs:
         runson:
           - display: linux-x64
             name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
-        java-version: [11, 17, 21, 23]
+        java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
         container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
