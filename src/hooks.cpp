@@ -99,6 +99,11 @@ static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
             Hooks::patchLibraries();
         }
         MallocTracer::installHooks();
+
+        // only install Java hooks if needed
+        if (!VM::loaded() && strstr(filename, OS::isLinux() ? "libjava.so" : "libjava.dylib" ) != NULL) {
+            VM::installHooksLibJava(result);
+        }
     }
     return result;
 }
