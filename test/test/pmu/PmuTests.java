@@ -22,6 +22,13 @@ public class PmuTests {
         try {
             p.profile("-e cycles -d 3 -o collapsed -f %f");
             Output out = p.readFile("%f");
+            // We are skipping the test in one case, for more details: https://github.com/actions/runner-images/issues/11689
+            if (out.total() == 0 &&
+                    System.getProperty("os.arch").contains("aarch64") &&
+                    "true".equals(System.getenv("GITHUB_ACTIONS"))) {
+                System.out.println("Skipping the test PmuTests.cycles on ARM64 in GitHub Actions as no samples have been collected");
+                return;
+            }
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test16K"), 0.4);
             Assert.isGreater(out.ratio("test/pmu/Dictionary.test8M"), 0.4);
         } catch (Exception e) {

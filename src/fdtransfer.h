@@ -32,6 +32,7 @@ struct fd_request {
 struct perf_fd_request {
     struct fd_request header;
     int tid;
+    int target_cpu;
     struct perf_event_attr attr;
 };
 

@@ -118,7 +118,7 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             // In pid == 0 mode, allow all perf_event_open requests.
             // Otherwise, verify the thread belongs to PID.
             if (peer_pid == 0 || syscall(__NR_tgkill, peer_pid, request->tid, 0) == 0) {
-                perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, -1, -1, 0);
+                perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, request->target_cpu, -1, 0);
                 error = perf_fd < 0 ? errno : 0;
             } else {
                 fprintf(stderr, "Target has requested perf_event_open for TID %d which is not a thread of process %d\n", request->tid, peer_pid);

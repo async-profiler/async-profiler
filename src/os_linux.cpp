@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <byteswap.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>

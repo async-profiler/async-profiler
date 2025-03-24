@@ -98,6 +98,7 @@ class FlameGraph {
     Counter _counter;
     double _minwidth;
     bool _reverse;
+    bool _inverted;
 
     int _last_level;
     u64 _last_x;
@@ -110,7 +111,7 @@ class FlameGraph {
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
-    FlameGraph(FlameGraphType type, const char* title, Counter counter, double minwidth, bool reverse) :
+    FlameGraph(FlameGraphType type, const char* title, Counter counter, double minwidth, bool reverse, bool inverted) :
         _root(),
         _cpool(),
         _type(type),
@@ -118,6 +119,7 @@ class FlameGraph {
         _counter(counter),
         _minwidth(minwidth),
         _reverse(reverse),
+        _inverted(inverted),
         _last_level(0),
         _last_x(0),
         _last_total(0) {

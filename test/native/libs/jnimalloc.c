@@ -3,6 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// For aligned_alloc
+#ifndef _ISOC11_SOURCE
+#define _ISOC11_SOURCE
+#endif
+
 #include <jni.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,7 +18,7 @@ JNIEXPORT jlong JNICALL Java_test_nativemem_Native_malloc(JNIEnv* env, jclass cl
 }
 
 JNIEXPORT jlong JNICALL Java_test_nativemem_Native_calloc(JNIEnv* env, jclass clazz, jlong num, jlong size) {
-    void* ptr = calloc(num, (size_t)size);
+    void* ptr = calloc((size_t)num, (size_t)size);
     return (jlong)(intptr_t)ptr;
 }
 

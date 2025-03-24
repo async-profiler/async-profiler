@@ -92,6 +92,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
+//     target-cpu=CPU   - sample threads on a specific CPU (perf_events only, default: -1)
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas
@@ -106,7 +107,9 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     nostop           - do not stop profiling outside --begin/--end window
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
-//     reverse          - generate stack-reversed FlameGraph / Call tree
+//     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
+//     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
+//                        and for default stacktraces from flamegraph to icicle
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -381,6 +384,11 @@ Error Arguments::parse(const char* args) {
                     }
                 }
 
+            CASE("target-cpu")
+                if (value == NULL || (_target_cpu = atoi(value)) < 0) {
+                    _target_cpu = -1;
+                }
+
             // Output style modifiers
             CASE("simple")
                 _style |= STYLE_SIMPLE;
@@ -421,6 +429,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("reverse")
                 _reverse = true;
+
+            CASE("inverted")
+                _inverted = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;

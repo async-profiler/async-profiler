@@ -243,6 +243,11 @@ void VMStructs::initOffsets() {
                 if (strcmp(field, "_klass_offset") == 0) {
                     _klass_offset_addr = *(int**)(entry + address_offset);
                 }
+            } else if (strcmp(type, "Thread") == 0) {
+                // Since JDK 25, _osthread field belongs to Thread rather than JavaThread
+                if (strcmp(field, "_osthread") == 0) {
+                    _thread_osthread_offset = *(int*)(entry + offset_offset);
+                }
             } else if (strcmp(type, "JavaThread") == 0) {
                 if (strcmp(field, "_osthread") == 0) {
                     _thread_osthread_offset = *(int*)(entry + offset_offset);
