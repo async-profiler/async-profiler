@@ -691,7 +691,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static void parseMaps(CodeCacheArray* data) {
+static void parseMaps(CodeCacheArray* data, int parsed) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
         return;
@@ -738,7 +738,7 @@ static void parseMaps(CodeCacheArray* data) {
         }
 
         int count = array->count();
-        if (count >= MAX_NATIVE_LIBS) {
+        if (parsed + count >= MAX_NATIVE_LIBS) {
             break;
         }
 
@@ -758,7 +758,7 @@ static void parseMaps(CodeCacheArray* data) {
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* mainArray, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
     if (kernel_symbols && !haveKernelSymbols()) {
@@ -767,19 +767,20 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         if (haveKernelSymbols()) {
             cc->sort();
-            array->add(cc);
+            mainArray->add(cc);
         } else {
             delete cc;
         }
     }
 
     // Parse vm maps to find bounds.
-    parseMaps(array);
+    CodeCacheArray array;
+    parseMaps(&array, mainArray->count());
 
-    int lib_count = array->count();
+    int lib_count = array.count();
     for (int i = 0; i < lib_count; i++) {
         // We only parse libraries that were detected in parseMaps as loaded.
-        CodeCache* cc = (*array)[i];
+        CodeCache* cc = array[i];
         const char* image_base = (const char*)((const char*)cc->minAddress() - (const char*)cc->mapOffset());
 
         // Do not parse same library more than once.
@@ -795,7 +796,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // dlopen while parsing to prevent unloading the library and to make sure it is done loading.
             // dlopen may fail opening the main executable and dynamic linker, which we ignore.
             // Using dlopen instead of dlopen_no_hook may cause recursion.
-            void* handle = dlopen_no_hook(cc->name(), RTLD_LAZY);
+            void* handle = dlopen_no_hook(cc->name(), RTLD_NOLOAD);
 
             if (cc->imageBaseStatus() == IMAGE_BASE_VALID) {
                 ElfParser::parseFile(cc, image_base, cc->name(), true);
@@ -819,6 +820,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
 
         _elf_parsed_libraries.insert(image_base);
+    }
+
+    int count = array.count();
+    for (int i = 0; i < count; i++) {
+        mainArray->add(array[i]);
     }
 }
 
