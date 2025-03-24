@@ -22,6 +22,7 @@ public class Arguments {
     public int skip;
     public boolean help;
     public boolean reverse;
+    public boolean inverted;
     public boolean cpu;
     public boolean wall;
     public boolean alloc;
@@ -88,6 +89,8 @@ public class Arguments {
                 return "output";
             case 'r':
                 return "reverse";
+            case 'i':
+                return "inverted";
             case 'I':
                 return "include";
             case 'X':

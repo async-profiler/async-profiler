@@ -21,8 +21,9 @@
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
-#include "log.h"
 #include "hooks.h"
+#include "log.h"
+#include "os.h"
 
 
 #ifdef __x86_64__
