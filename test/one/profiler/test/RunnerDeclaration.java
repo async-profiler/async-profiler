@@ -10,13 +10,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class RunnerDeclaration {
     private static final Logger log = Logger.getLogger(RunnerDeclaration.class.getName());
 
     private final List<String> directories;
     private final List<String> classNames;
-    private final List<Filter> filters;
+    private final List<Pattern> filters;
 
     public RunnerDeclaration(List<String> directories, List<String> classNames, List<String> filters) {
         this.directories = directories;
@@ -32,7 +33,7 @@ public class RunnerDeclaration {
         return directories;
     }
 
-    private List<Filter> filters() {
+    private List<Pattern> filters() {
         return filters;
     }
 
@@ -43,6 +44,6 @@ public class RunnerDeclaration {
             log.log(Level.FINE, "Filter test name " + name + " with: " + filters());
         }
 
-        return filters().isEmpty() || filters().stream().anyMatch(f -> f.isMatch(name));
+        return filters().isEmpty() || filters().stream().anyMatch(f -> f.matcher(name).matches());
     }
 }
