@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import java.util.Comparator;
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -23,7 +23,6 @@ public class Runner {
     private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
 
-    private static final Set<String> skipTests = new HashSet<>();
     private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
@@ -100,13 +99,7 @@ public class Runner {
     }
 
     private static boolean enabled(RunnableTest rt, RunnerDeclaration decl) {
-        if (!rt.test().enabled() ||
-            skipTests.contains(rt.className().toLowerCase()) ||
-            skipTests.contains(rt.method().getName().toLowerCase())) {
-            return false;
-        }
-
-        return decl.isFilterMatch(rt.method());
+        return rt.test().enabled() && decl.matches(rt.method());
     }
 
     private static boolean applicable(Test test) {
@@ -154,17 +147,22 @@ public class Runner {
         return rts;
     }
 
+    private static List<RunnableTest> getRunnableTests(String dir) throws ClassNotFoundException {
+        String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
+        return getRunnableTests(Class.forName(className));
+    }
+
     private static List<RunnableTest> getRunnableTests(RunnerDeclaration decl) throws ClassNotFoundException {
         List<RunnableTest> rts = new ArrayList<>();
-        for (String dir : decl.directories()) {
-            String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
-            rts.addAll(getRunnableTests(Class.forName(className)));
+        File[] files = new File("test/test").listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    rts.addAll(getRunnableTests(file.getName()));
+                }
+            }
         }
-
-        for (String className : decl.classNames()) {
-            rts.addAll(getRunnableTests(Class.forName(className)));
-        }
-
+        rts.sort(Comparator.comparing(RunnableTest::testName));
         return rts;
     }
 
@@ -183,15 +181,6 @@ public class Runner {
             logger.setLevel(level);
             for (Handler handler : logger.getHandlers()) {
                 handler.setLevel(level);
-            }
-        }
-    }
-
-    private static void configureSkipTests() {
-        String skipProperty = System.getProperty("skip");
-        if (skipProperty != null && !skipProperty.isEmpty()) {
-            for (String skip : skipProperty.split(",")) {
-                skipTests.add(skip.toLowerCase());
             }
         }
     }
@@ -216,52 +205,38 @@ public class Runner {
     }
 
     private static RunnerDeclaration parseRunnerDeclaration(String[] args) {
-        List<String> testNames = new ArrayList<>();
+        // All available directories.
         List<String> testDirectories = new ArrayList<>();
+
+        // If directories are specified, they are considered an exact match.
+        List<String> includeDirs = new ArrayList<>();
+
+        // Glob filters matching "ClassName.methodName".
         List<String> testFilters = new ArrayList<>();
 
-        // If 'arg' contains a period and not starts with a lowercase character, treat it as a testName.
-        // Otherwise, if it is an existing directory, consider it a directory.
-        // Else, treat it as a filter.
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
-
-            if (arg.indexOf('.') >= 0 && !Character.isLowerCase(arg.charAt(0))) {
-                try {
-                    Class.forName(arg);
-                    testNames.add(arg);
-                    continue;
-                } catch(ClassNotFoundException _e) {
-                    testFilters.add(args[i]);
-                    continue;
-                }
-            }
-
-            File f = new File("test/test/" + args[i]);
+            File f = new File("test/test/" + arg);
             if (!f.exists() || !f.isDirectory()) {
-                testFilters.add(args[i]);
+                testFilters.add(arg);
             } else {
-                testDirectories.add(args[i]);
+                includeDirs.add(arg);
             }
         }
 
-        if (testDirectories.isEmpty()) {
-            // Add all folders in test/test.
-            File[] files = new File("test/test").listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isDirectory()) {
-                        testDirectories.add(file.getName());
-                    }
-                }
+        List<String> skipFilters = new ArrayList<>();
+        String skipProperty = System.getProperty("skip");
+        if (skipProperty != null && !skipProperty.isEmpty()) {
+            for (String skip : skipProperty.split(" ")) {
+                skipFilters.add(skip);
             }
         }
 
-        log.log(Level.FINE, "Test Directories: " + testDirectories);
-        log.log(Level.FINE, "Test Names: " + testNames);
+        log.log(Level.FINE, "Selected directories: " + includeDirs);
         log.log(Level.FINE, "Test Filters: " + testFilters);
+        log.log(Level.FINE, "Skip Filters: " + skipFilters);
 
-        return new RunnerDeclaration(testDirectories, testNames, testFilters);
+        return new RunnerDeclaration(includeDirs, testFilters, skipFilters);
     }
 
     public static void main(String[] args) throws Exception {
@@ -271,7 +246,6 @@ public class Runner {
         }
 
         configureLogging();
-        configureSkipTests();
 
         RunnerDeclaration decl = parseRunnerDeclaration(args);
         List<RunnableTest> allTests = getRunnableTests(decl);
