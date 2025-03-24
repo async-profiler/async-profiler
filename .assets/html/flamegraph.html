@@ -15,27 +15,11 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: 576px}
-    #legendDetail div {width: 200px; margin-left: 20px; padding: 2px;}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>CPU profile</h1>
-<header style='text-align: left'>
-    <button id='reverse' title='Reverse'>&#x1f53b;</button>
-    &nbsp;&nbsp;
-    <button id='search' title='Search'>&#x1f50d;</button>
-    &nbsp;&nbsp;
-    <button id='legend' title='Legend'>&#x1f6c8;</button>
-    <div id="legendDetail" style="display: none">Legend:
-        <div>PALETTE 1</div>
-        <div>PALETTE 2</div>
-        <div>PALETTE 3</div>
-        <div>PALETTE 4</div>
-        <div>PALETTE 5</div>
-        <div>PALETTE 6</div>
-        <div>PALETTE 7</div>
-    </div>
-</header>
+<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
 <canvas id='canvas'></canvas>
 <div id='hl'><span></span></div>
@@ -49,13 +33,12 @@
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
 	let reverse = false;
-	let legend = false;
 	const levels = Array(36);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
 	}
 
-    const canvas = document.getElementById('canvas');
+	const canvas = document.getElementById('canvas');
 	const c = canvas.getContext('2d');
 	const hl = document.getElementById('hl');
 	const status = document.getElementById('status');
@@ -82,12 +65,6 @@
 		const v = Math.random();
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
-
-    const legendDetail = document.getElementById('legendDetail');
-    const legendItems = legendDetail.getElementsByTagName('div');
-    for(let i = 0; i < palette.length; i++) {
-        legendItems[i].style.backgroundColor = getColor(palette[i]);
-    }
 
 	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
@@ -279,11 +256,6 @@
 
 	document.getElementById('search').onclick = function() {
 		search(true);
-	}
-
-    document.getElementById('legend').onclick = function() {
-        legend = !legend;
-		legendDetail.style = "display: " + (legend ? "block" : "none");
 	}
 
 	document.getElementById('reset').onclick = function() {
