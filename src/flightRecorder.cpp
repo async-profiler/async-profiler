@@ -26,6 +26,7 @@
 #include "threadFilter.h"
 #include "threadLocalData.h"
 #include "tsc.h"
+#include "userEvents.h"
 #include "vmStructs.h"
 
 
@@ -389,6 +390,13 @@ class Buffer {
         put8(3);
         putVar32(len);
         put(v, len);
+    }
+
+    void putByteString(const uint8_t *v, size_t len) {
+        put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
+        u32 truncated_len = len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH;
+        putVar32(truncated_len);
+        put((const char *)v, truncated_len);
     }
 
     void put8(int offset, char v) {
@@ -993,7 +1001,7 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(10);
+        buf->putVar32(11);
 
         Lookup lookup(&_method_map, Profiler::instance()->classMap());
         writeFrameTypes(buf);
@@ -1006,6 +1014,7 @@ class Recording {
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
         writeLogLevels(buf);
+        writeUserEventTypes(buf);
     }
 
     void writePoolHeader(Buffer* buf, JfrType type, u32 size) {
@@ -1193,6 +1202,18 @@ class Recording {
         }
     }
 
+    void writeUserEventTypes(Buffer* buf) {
+        std::map<u32, const char*> events;
+        UserEvents::collect(events);
+
+        writePoolHeader(buf, T_USER_EVENT_TYPE, events.size());
+        for (std::map<u32, const char*>::const_iterator it = events.begin(); it != events.end(); ++it) {
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
+            buf->putVar64(it->first);
+            buf->putUtf8(it->second);
+        }
+    }
+
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
@@ -1248,6 +1269,16 @@ class Recording {
             buf->putVar64(event->_size);
         }
         buf->put8(start, buf->offset() - start);
+    }
+
+    void recordUserEvent(Buffer* buf, int tid, UserEvent *event) {
+        int start = buf->skip(5);
+        buf->put8(T_USER_EVENT);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar64(event->_key);
+        buf->putByteString(event->_data, event->_len);
+        buf->putVar32(start, buf->offset() - start);
     }
 
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
@@ -1527,6 +1558,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case PROFILING_WINDOW:
                 _rec->recordWindow(buf, tid, (ProfilingWindow*)event);
+                break;
+            case USER_EVENT:
+                _rec->recordUserEvent(buf, tid, (UserEvent*)event);
                 break;
         }
         _rec->flushIfNeeded(buf);

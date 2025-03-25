@@ -63,6 +63,30 @@ typedef struct {
 DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void);
 typedef asprof_thread_local_data* (*asprof_get_thread_local_data_t)(void);
 
+
+typedef int asprof_user_jfr_key;
+
+// This API is UNSTABLE and might change or be removed in the next version of async-profiler.
+//
+// Return a asprof_user_jfr_key identifier for a user-defined JFR key.
+// That identifier can then be used in `asprof_emit_user_jfr
+//
+// Returns -1 on failure.
+DLLEXPORT asprof_user_jfr_key asprof_create_user_jfr_key(const char *name);
+typedef asprof_user_jfr_key (*asprof_create_user_jfr_key_t)(const char *name);
+
+
+#define ASPROF_MAX_USER_JFR_LENGTH 8191
+
+// This API is UNSTABLE and might change or be removed in the next version of async-profiler.
+//
+// Emits user-defined JFR data. The key should be created via `asprof_create_user_jfr_key`.
+// The data can be arbitrary binary data, with size <= ASPROF_MAX_USER_JFR_LENGTH.
+//
+// returns 0 on success, -1 on failure
+DLLEXPORT int asprof_emit_user_jfr(asprof_user_jfr_key key, const uint8_t *data, size_t len);
+typedef int (*asprof_emit_user_jfr_t)(asprof_user_jfr_key key, const uint8_t *data, size_t len);
+
 #ifdef __cplusplus
 }
 #endif
