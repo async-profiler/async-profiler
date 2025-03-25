@@ -244,6 +244,19 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("address", T_LONG, "Address", F_ADDRESS))
 
+            << (type("profiler.UserEventType", T_USER_EVENT_TYPE, "User Event Type", true)
+                << field("string", T_STRING, "String"))
+
+            << (type("profiler.UserEvent", T_USER_EVENT, "User Event")
+                << category("Java Virtual Machine", "Profiling")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("sampledThread", T_THREAD, "Thread", F_CPOOL)
+                << field("type", T_USER_EVENT_TYPE, "User Event Type", F_CPOOL)
+                // Using T_STRING with a Latin-1 string to encode raw bytes as user data.q
+                // This is not type-correct, but `jfr print` has a NullPointerException
+                // when encountering a T_BYTE/F_ARRAY.
+                << field("data", T_STRING, "User Data"))
+
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))
 

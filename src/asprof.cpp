@@ -6,7 +6,9 @@
 #include "asprof.h"
 #include "hooks.h"
 #include "profiler.h"
+#include "tsc.h"
 #include "threadLocalData.h"
+#include "userEvents.h"
 
 static asprof_error_t asprof_error(const char* msg) {
     return (asprof_error_t)msg;
@@ -52,4 +54,18 @@ DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t out
 
 DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void) {
     return ThreadLocalData::getThreadLocalData();
+}
+
+DLLEXPORT asprof_user_jfr_key asprof_create_user_jfr_key(const char *name) {
+    return UserEvents::registerEvent(name);
+}
+
+DLLEXPORT int asprof_emit_user_jfr(asprof_user_jfr_key key, const uint8_t *data, size_t len) {
+    UserEvent event;
+    event._start_time = TSC::ticks();
+    event._key = key;
+    event._data = data;
+    event._len = len;
+    Profiler::instance()->recordEventOnly(USER_EVENT, &event);
+    return 0;
 }
