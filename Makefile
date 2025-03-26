@@ -221,7 +221,6 @@ build-test-bins:
 	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	gcc -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
 	$(CXX) -o $(TEST_BIN_DIR)/java_first_none_native_app $(CPP_TEST_INCLUDES) $(INCLUDES) $(LIBS) test/test/nonenative/java_first_none_native_app.cpp -Wl,-rpath,$(JAVA_HOME)/lib/server -L$(JAVA_HOME)/lib/server -ljvm
-	$(CXX) -o $(TEST_BIN_DIR)/async_profiler_first_none_native_app $(CPP_TEST_INCLUDES) $(INCLUDES) $(LIBS) test/test/nonenative/async_profiler_first_none_native_app.cpp -Wl,-rpath,$(JAVA_HOME)/lib/server -L$(JAVA_HOME)/lib/server -ljvm
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."

@@ -20,7 +20,6 @@
 #include "log.h"
 #include "vmStructs.h"
 
-
 // JVM TI agent return codes
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
@@ -31,12 +30,6 @@ jvmtiEnv* VM::_jvmti = NULL;
 int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
-
-Mutex VM::_patch_lock;
-int VM::_patched_libs = 0;
-
-jint (*VM::_JNI_GetCreatedJavaVMs_func)(JavaVM **, jsize, jsize *) = NULL;
-void (*VM::_original_JVM_StartThread)(JNIEnv*, jobject) = NULL;
 
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -474,55 +467,22 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
     }
 }
 
-void VM::VMManualLoad(bool loadJniFunction) {
+void VM::VMManualLoad() {
     JavaVM* jvm;
     jsize nVMs;
 
-    if (_JNI_GetCreatedJavaVMs_func == NULL && loadJniFunction) {
-        _JNI_GetCreatedJavaVMs_func = (jint (*)(JavaVM **, jsize, jsize *))dlsym(RTLD_DEFAULT, "JNI_GetCreatedJavaVMs");
-    }
+    jint (*handle)(JavaVM **, jsize, jsize *) = (jint (*)(JavaVM **, jsize, jsize *))dlsym(RTLD_DEFAULT, "JNI_GetCreatedJavaVMs");
 
-    if (_JNI_GetCreatedJavaVMs_func == NULL) {
-        Log::debug("JNI_GetCreatedJavaVMs_func is not loaded");
+    if (handle == NULL) {
+        Log::debug("JNI_GetCreatedJavaVMs is not loaded");
         return;
     }
 
-    jint result = _JNI_GetCreatedJavaVMs_func(&jvm, 1, &nVMs);
+    jint result = handle(&jvm, 1, &nVMs);
     // No JVM is detected
     if (result != JNI_OK || nVMs != 1) {
         Log::debug("No JVM is yet detected in manual load");
         return;
     }
     VM::init(jvm, true);
-}
-
-void VM::JVM_StartThread_hook(JNIEnv *env, jobject thread) {
-    if (!VM::loaded()) {
-        VM::VMManualLoad(false);
-    }
-    _original_JVM_StartThread(env, thread);
-}
-
-void VM::installHooksLibJava(void* libHandle) {
-    MutexLocker ml(_patch_lock);
-
-    Log::debug("Installing libjava hooks");
-
-    // Find the JNI_GetCreatedJavaVMs & JVM_StartThread from the lib & save them for future use
-    _JNI_GetCreatedJavaVMs_func = (jint (*)(JavaVM **, jsize, jsize *))dlsym(libHandle, "JNI_GetCreatedJavaVMs");
-    _original_JVM_StartThread = (void (*)(JNIEnv*, jobject)) dlsym(libHandle, "JVM_StartThread");
-
-    // if either function is not found skip the flow
-    if (_original_JVM_StartThread == NULL || _JNI_GetCreatedJavaVMs_func == NULL) {
-        Log::warn("Couldn't find JVM_StartThread, JNI_GetCreatedJavaVMs");
-        return;
-    }
-
-    CodeCacheArray* native_libs = Profiler::instance()->nativeLibs();
-    int native_lib_count = native_libs->count();
-
-    while (_patched_libs < native_lib_count) {
-        CodeCache* cc = (*native_libs)[_patched_libs++];
-        cc->patchImport(im_JVM_StartThread, (void*)VM::JVM_StartThread_hook);
-    }
 }
