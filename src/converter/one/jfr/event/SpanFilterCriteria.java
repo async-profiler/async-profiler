@@ -8,7 +8,7 @@ package one.jfr.event;
 public class SpanFilterCriteria {
     private final String tag;
     private final String operator;
-    private final Long duration;
+    private final long duration;
 
     public SpanFilterCriteria(String filter) {
         validateFilter(filter);
@@ -16,7 +16,7 @@ public class SpanFilterCriteria {
 
         String parsedTag = null;
         String parsedOperator = null;
-        Long parsedDuration = null;
+        long parsedDuration = 0;
 
         for (String part : parts) {
             part = part.trim();
@@ -26,7 +26,7 @@ public class SpanFilterCriteria {
                 }
                 parsedTag = parseTag(part);
             } else if (part.startsWith("duration")) {
-                if (parsedDuration != null) {
+                if (parsedOperator != null) {
                     throw new IllegalArgumentException("Duration parameter specified multiple times");
                 }
                 parsedOperator = parseOperator(part);
@@ -81,7 +81,7 @@ public class SpanFilterCriteria {
             return false;
         }
 
-        if (duration != null) {
+        if (duration > 0) {
             Long durationMs = event.duration;
             switch (operator) {
                 case ">=": return durationMs >= duration;
