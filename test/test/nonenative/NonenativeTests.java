@@ -20,14 +20,4 @@ public class NonenativeTests {
         out = p.readFile("%s");
         assert out.contains(".cpuHeavyTask");
     }
-
-    // TODO: Make work on MacOs (Problem in symbol parsing [symbols_macos.cpp])
-    @Test(sh = "%testbin/async_profiler_first_none_native_app %s.html", output = true, os = Os.LINUX)
-    public void asyncProfilerFirstNoneNativeAppTest(TestProcess p) throws Exception {
-        Output out = p.waitForExit(TestProcess.STDOUT);
-        assert p.exitCode() == 0;
-
-        out = p.readFile("%s");
-        assert out.contains(".cpuHeavyTask");
-    }
 }

@@ -28,7 +28,6 @@ enum ImportId {
     im_free,
     im_posix_memalign,
     im_aligned_alloc,
-    im_JVM_StartThread,
     NUM_IMPORTS
 };
 
