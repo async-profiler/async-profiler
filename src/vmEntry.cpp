@@ -473,7 +473,7 @@ void VM::tryAttach() {
     jsize nVMs;
 
     if (_getJvm == NULL) {
-        void* libHandle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY);
+        void* libHandle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
         _getJvm = (GetJvm)dlsym(libHandle, "JNI_GetCreatedJavaVMs");
     }
     
