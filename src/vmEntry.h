@@ -92,6 +92,7 @@ typedef struct {
     jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
 
+typedef jint (*GetJvm)(JavaVM **, jsize, jsize *);
 
 class VM {
   private:
@@ -101,6 +102,8 @@ class VM {
     static int _hotspot_version;
     static bool _openj9;
     static bool _zing;
+
+    static GetJvm _getJvm;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -183,7 +186,7 @@ class VM {
      * That JVM instance isn't visible to the profiler by default
      * This method will be used to try to manually attach the JVM to the profiler
      */
-    static void VMManualLoad();
+    static void tryAttach();
 };
 
 #endif // _VMENTRY_H
