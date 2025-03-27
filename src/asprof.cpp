@@ -14,11 +14,6 @@ static asprof_error_t asprof_error(const char* msg) {
 
 
 DLLEXPORT void asprof_init() {
-    // Try loading JVM if not already loaded
-    if (!VM::loaded()) {
-        VM::VMManualLoad();
-    }
-
     Hooks::init(true);
 }
 

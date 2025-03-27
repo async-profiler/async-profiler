@@ -38,6 +38,7 @@ AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
+GetJvm VM::_getJvm = NULL;
 
 static bool isVmRuntimeEntry(const char* blob_name) {
     return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
@@ -467,19 +468,22 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
     }
 }
 
-void VM::VMManualLoad() {
+void VM::tryAttach() {
     JavaVM* jvm;
     jsize nVMs;
 
-    jint (*handle)(JavaVM **, jsize, jsize *) = (jint (*)(JavaVM **, jsize, jsize *))dlsym(RTLD_DEFAULT, "JNI_GetCreatedJavaVMs");
-
-    if (handle == NULL) {
+    if (_getJvm == NULL) {
+        void* libHandle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY);
+        _getJvm = (GetJvm)dlsym(libHandle, "JNI_GetCreatedJavaVMs");
+    }
+    
+    if (_getJvm == NULL) {
         Log::debug("JNI_GetCreatedJavaVMs is not loaded");
         return;
     }
 
-    jint result = handle(&jvm, 1, &nVMs);
-    // No JVM is detected
+    // Try actually loading the JVM
+    jint result = _getJvm(&jvm, 1, &nVMs);
     if (result != JNI_OK || nVMs != 1) {
         Log::debug("No JVM is yet detected in manual load");
         return;
