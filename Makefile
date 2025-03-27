@@ -45,7 +45,6 @@ JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
-TEST_BIN_COMPILE_DIR=build/test/bin/compile
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -219,7 +218,6 @@ endif
 
 build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
-	@mkdir -p $(TEST_BIN_COMPILE_DIR)
 	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	gcc -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
 	$(CXX) -o $(TEST_BIN_DIR)/non_java_app $(CPP_TEST_INCLUDES) $(INCLUDES) $(LIBS) test/test/nonjava/*.cpp -Itest/test/nonjava -ldl
