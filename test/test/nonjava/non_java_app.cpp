@@ -7,7 +7,7 @@
 
 void validateArgsCount(int argc, int exepected, std::string context) {
     if (argc < exepected) {
-        fprintf(stderr, "Too few arguments: %s\n", context);
+        fprintf(stderr, "Too few arguments: %s\n", (char*) context.c_str());
         exit(1);
     }  
 }
