@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <map>
+#include <unordered_map>
 #include "j9StackTraces.h"
 #include "j9Ext.h"
 #include "profiler.h"
@@ -84,7 +84,7 @@ void J9StackTraces::timerLoop() {
 
     jvmtiEnv* jvmti = VM::jvmti();
     char notification_buf[65536];
-    std::map<void*, jthread> known_threads;
+    std::unordered_map<void*, jthread> known_threads;
 
     int max_frames = _max_stack_depth + MAX_J9_NATIVE_FRAMES + RESERVED_FRAMES;
     ASGCT_CallFrame* frames = (ASGCT_CallFrame*)malloc(max_frames * sizeof(ASGCT_CallFrame));

@@ -37,7 +37,7 @@ struct ThreadSleepState {
     u32 counter;
 };
 
-typedef std::map<int, ThreadSleepState> ThreadSleepMap;
+typedef std::unordered_map<int, ThreadSleepState> ThreadSleepMap;
 
 struct ThreadCpuTime {
     u64 cpu_time;

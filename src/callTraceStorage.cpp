@@ -109,7 +109,7 @@ size_t CallTraceStorage::usedMemory() {
     return bytes;
 }
 
-void CallTraceStorage::collectTraces(std::map<u32, CallTrace*>& map) {
+void CallTraceStorage::collectTraces(std::unordered_map<u32, CallTrace*>& map) {
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();
@@ -146,7 +146,7 @@ void CallTraceStorage::collectSamples(std::vector<CallTraceSample*>& samples) {
     }
 }
 
-void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
+void CallTraceStorage::collectSamples(std::unordered_map<u64, CallTraceSample>& map) {
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         u64* keys = table->keys();
         CallTraceSample* values = table->values();

@@ -131,7 +131,7 @@ void FlameGraph::dump(Writer& out, bool tree) {
         tail = printTill(out, tail, "/*tree:*/");
 
         const char** names = new const char*[_cpool.size() + 1];
-        for (std::map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
+        for (std::unordered_map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
             names[it->second] = it->first.c_str();
         }
         printTreeFrame(out, _root, 0, names);
@@ -203,7 +203,7 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
 
     std::vector<Node> children;
     children.reserve(f._children.size());
-    for (std::map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
+    for (std::unordered_map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
         children.push_back(Node(it->first, _name_order[f.nameIndex(it->first)], it->second));
     }
     std::sort(children.begin(), children.end(), Node::orderByName);
@@ -222,7 +222,7 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
 void FlameGraph::printTreeFrame(Writer& out, const Trie& f, int level, const char** names) {
     std::vector<Node> children;
     children.reserve(f._children.size());
-    for (std::map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
+    for (std::unordered_map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
         children.push_back(Node(it->first, 0, it->second));
     }
     std::sort(children.begin(), children.end(), Node::orderByTotal);
@@ -271,7 +271,7 @@ void FlameGraph::printCpool(Writer& out) {
 
     std::string prev;
     u32 index = 0;
-    for (std::map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
+    for (std::unordered_map<std::string, u32>::const_iterator it = _cpool.begin(); it != _cpool.end(); ++it) {
         if (_name_order[it->second]) {
             _name_order[it->second] = ++index;
 
@@ -291,7 +291,7 @@ void FlameGraph::printCpool(Writer& out) {
     }
 
     // Release cpool memory, since frame names are never used beyond this point
-    _cpool = std::map<std::string, u32>();
+    _cpool = std::unordered_map<std::string, u32>();
 }
 
 const char* FlameGraph::printTill(Writer& out, const char* data, const char* till) {

@@ -6,7 +6,7 @@
 #ifndef _CALLTRACESTORAGE_H
 #define _CALLTRACESTORAGE_H
 
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include "arch.h"
 #include "linearAllocator.h"
@@ -60,9 +60,9 @@ class CallTraceStorage {
     void clear();
     size_t usedMemory();
 
-    void collectTraces(std::map<u32, CallTrace*>& map);
+    void collectTraces(std::unordered_map<u32, CallTrace*>& map);
     void collectSamples(std::vector<CallTraceSample*>& samples);
-    void collectSamples(std::map<u64, CallTraceSample>& map);
+    void collectSamples(std::unordered_map<u64, CallTraceSample>& map);
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
     void add(u32 call_trace_id, u64 samples, u64 counter);

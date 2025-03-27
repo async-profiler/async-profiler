@@ -6,7 +6,7 @@
 #ifndef _FLAMEGRAPH_H
 #define _FLAMEGRAPH_H
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include "arch.h"
 #include "arguments.h"
@@ -16,7 +16,7 @@
 
 class Trie {
   public:
-    std::map<u32, Trie> _children;
+    std::unordered_map<u32, Trie> _children;
     u64 _total;
     u64 _self;
     u64 _inlined, _c1_compiled, _interpreted;
@@ -46,7 +46,7 @@ class Trie {
 
     int depth(u64 cutoff, u32* name_order) const {
         int max_depth = 0;
-        for (std::map<u32, Trie>::const_iterator it = _children.begin(); it != _children.end(); ++it) {
+        for (std::unordered_map<u32, Trie>::const_iterator it = _children.begin(); it != _children.end(); ++it) {
             if (it->second._total >= cutoff) {
                 name_order[nameIndex(it->first)] = 1;
                 int d = it->second.depth(cutoff, name_order);
@@ -61,7 +61,7 @@ class Trie {
 class FlameGraph {
   private:
     Trie _root;
-    std::map<std::string, u32> _cpool;
+    std::unordered_map<std::string, u32> _cpool;
     u32* _name_order;
     u64 _mintotal;
     char _buf[4096];

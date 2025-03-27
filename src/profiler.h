@@ -6,7 +6,7 @@
 #ifndef _PROFILER_H
 #define _PROFILER_H
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <time.h>
 #include "arch.h"
@@ -57,8 +57,8 @@ class Profiler {
     bool _nostop;
     Mutex _thread_names_lock;
     // TODO: single map?
-    std::map<int, std::string> _thread_names;
-    std::map<int, jlong> _thread_ids;
+    std::unordered_map<int, std::string> _thread_names;
+    std::unordered_map<int, jlong> _thread_ids;
     Dictionary _class_map;
     Dictionary _symbol_map;
     ThreadFilter _thread_filter;
