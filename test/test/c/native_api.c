@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
 
     void* lib = dlopen(profiler_lib_path, RTLD_NOW);
     if (lib == NULL) {
-        fail("Failed to load libasyncProfiler Lib");
+        fail("Failed to load libasyncProfiler");
     }
 
     asprof_init_t asprof_init = dlsym(lib, "asprof_init");
