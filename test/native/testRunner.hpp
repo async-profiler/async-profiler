@@ -29,7 +29,7 @@ struct TestCase {
 
 class TestRunner {
   private:
-    std::unordered_map<std::string, TestCase> _test_cases;
+    std::map<std::string, TestCase> _test_cases;
 
     TestRunner(const TestRunner&) = delete;
     TestRunner& operator=(const TestRunner&) = delete;
@@ -40,7 +40,7 @@ class TestRunner {
 
     static TestRunner* instance();
 
-    inline std::unordered_map<std::string, TestCase>& testCases() {
+    inline std::map<std::string, TestCase>& testCases() {
         return _test_cases;
     }
 
