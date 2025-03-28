@@ -1077,6 +1077,11 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
+    // Try to detect a running JVM instance & attach to the profiler
+    if (!VM::loaded()) {
+        VM::tryAttach();
+    }
+
     Error error = checkJvmCapabilities();
     if (error) {
         return error;

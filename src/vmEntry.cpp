@@ -20,7 +20,6 @@
 #include "log.h"
 #include "vmStructs.h"
 
-
 // JVM TI agent return codes
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
@@ -39,6 +38,7 @@ AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
+GetJvm VM::_getJvm = NULL;
 
 static bool isVmRuntimeEntry(const char* blob_name) {
     return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
@@ -466,4 +466,27 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
     if (profiler != NULL) {
         profiler->stop();
     }
+}
+
+// Try to find a running JVM instance & attach it to the profiler
+void VM::tryAttach() {
+    JavaVM* jvm;
+    jsize nVMs;
+
+    if (_getJvm == NULL) {
+        void* lib_handle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
+        _getJvm = lib_handle != NULL ? (GetJvm)dlsym(lib_handle, "JNI_GetCreatedJavaVMs") : NULL;
+    }
+    
+    if (_getJvm == NULL) {
+        Log::debug("JNI_GetCreatedJavaVMs is not loaded");
+        return;
+    }
+
+    jint result = _getJvm(&jvm, 1, &nVMs);
+    if (result != JNI_OK || nVMs != 1) {
+        Log::debug("No JVM is yet detected in manual load");
+        return;
+    }
+    VM::init(jvm, true);
 }
