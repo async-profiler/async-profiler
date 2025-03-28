@@ -10,6 +10,13 @@
 #include <time.h>
 #include "asprof.h"
 
+#ifdef __linux__
+const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
+const char profiler_start_cmd[] = "start,event=cpu,interval=1ms,wall=10ms,cstack=dwarf,loglevel=debug,file=%s";
+#else
+const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
+const char profiler_start_cmd[] = "start,event=cpu,interval=1ms,cstack=dwarf,loglevel=debug,file=%s";
+#endif
 
 static void fail(const char* msg) {
     fprintf(stderr, "%s\n", msg);
@@ -27,16 +34,16 @@ int main(int argc, char** argv) {
         fail("Too few arguments");
     }
 
-    void* lib = dlopen("build/lib/libasyncProfiler.so", RTLD_NOW);
+    void* lib = dlopen(profiler_lib_path, RTLD_NOW);
     if (lib == NULL) {
-        fail("Failed to load libasyncProfiler.so");
+        fail("Failed to load libasyncProfiler");
     }
 
     asprof_init_t asprof_init = dlsym(lib, "asprof_init");
     asprof_init();
 
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "start,event=cpu,interval=1ms,wall=10ms,cstack=dwarf,loglevel=debug,file=%s", argv[1]);
+    snprintf(cmd, sizeof(cmd), profiler_start_cmd, argv[1]);
 
     printf("Starting profiler\n");
     asprof_execute_t asprof_execute = dlsym(lib, "asprof_execute");
