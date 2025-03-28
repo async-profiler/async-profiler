@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -100,7 +100,7 @@ class MethodInfo {
     }
 };
 
-class MethodMap : public std::map<jmethodID, MethodInfo> {
+class MethodMap : public std::unordered_map<jmethodID, MethodInfo> {
   public:
     MethodMap() {
     }
@@ -1056,15 +1056,15 @@ class Recording {
 
         Profiler* profiler = Profiler::instance();
         MutexLocker ml(profiler->_thread_names_lock);
-        std::map<int, std::string>& thread_names = profiler->_thread_names;
-        std::map<int, jlong>& thread_ids = profiler->_thread_ids;
+        std::unordered_map<int, std::string>& thread_names = profiler->_thread_names;
+        std::unordered_map<int, jlong>& thread_ids = profiler->_thread_ids;
         char name_buf[32];
 
         writePoolHeader(buf, T_THREAD, threads.size());
         for (int i = 0; i < threads.size(); i++) {
             const char* thread_name;
             jlong thread_id;
-            std::map<int, std::string>::const_iterator it = thread_names.find(threads[i]);
+            std::unordered_map<int, std::string>::const_iterator it = thread_names.find(threads[i]);
             if (it != thread_names.end()) {
                 thread_name = it->second.c_str();
                 thread_id = thread_ids[threads[i]];
@@ -1088,11 +1088,11 @@ class Recording {
     }
 
     void writeStackTraces(Buffer* buf, Lookup* lookup) {
-        std::map<u32, CallTrace*> traces;
+        std::unordered_map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
         writePoolHeader(buf, T_STACK_TRACE, traces.size());
-        for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
+        for (std::unordered_map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
             buf->putVar32(0);  // truncated
@@ -1145,11 +1145,11 @@ class Recording {
     }
 
     void writeClasses(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> classes;
+        std::unordered_map<u32, const char*> classes;
         lookup->_classes->collect(classes);
 
         writePoolHeader(buf, T_CLASS, classes.size());
-        for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
+        for (std::unordered_map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             const char* name = it->second;
             buf->putVar32(it->first);
             buf->putVar32(0);  // classLoader
@@ -1161,11 +1161,11 @@ class Recording {
     }
 
     void writePackages(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> packages;
+        std::unordered_map<u32, const char*> packages;
         lookup->_packages.collect(packages);
 
         writePoolHeader(buf, T_PACKAGE, packages.size());
-        for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
+        for (std::unordered_map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
             buf->putVar64(it->first | _base_id);
             buf->putVar64(lookup->getSymbol(it->second) | _base_id);
             flushIfNeeded(buf);
@@ -1173,11 +1173,11 @@ class Recording {
     }
 
     void writeSymbols(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> symbols;
+        std::unordered_map<u32, const char*> symbols;
         lookup->_symbols.collect(symbols);
 
         writePoolHeader(buf, T_SYMBOL, symbols.size());
-        for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+        for (std::unordered_map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
             buf->putVar64(it->first | _base_id);
             buf->putUtf8(it->second);

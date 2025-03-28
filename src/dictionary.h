@@ -6,7 +6,7 @@
 #ifndef _DICTIONARY_H
 #define _DICTIONARY_H
 
-#include <map>
+#include <unordered_map>
 #include <stddef.h>
 
 
@@ -43,7 +43,7 @@ class Dictionary {
 
     static unsigned int hash(const char* key, size_t length);
 
-    static void collect(std::map<unsigned int, const char*>& map, DictTable* table);
+    static void collect(std::unordered_map<unsigned int, const char*>& map, DictTable* table);
 
   public:
     Dictionary();
@@ -55,7 +55,7 @@ class Dictionary {
     unsigned int lookup(const char* key);
     unsigned int lookup(const char* key, size_t length);
 
-    void collect(std::map<unsigned int, const char*>& map);
+    void collect(std::unordered_map<unsigned int, const char*>& map);
 };
 
 #endif // _DICTIONARY_H
