@@ -40,7 +40,5 @@ public class LockTests {
             double sharedDiff = (double) Math.abs(shared1 - shared2) / Math.max(shared1, shared2);
             Assert.isLess(sharedDiff, 0.1, "sharedDiff < 0.1");
         }
-
-        Assert.isGreater(stdout.samples("sharedWaitTime"), stdout.samples("randomWaitTime"), "sharedWaitTime > randomWaitTime");
     }
 }

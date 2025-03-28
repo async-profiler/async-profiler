@@ -1507,7 +1507,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
 
             int num_frames = trace->num_frames;
 
-            std::shared_ptr<Trie> f = flamegraph.root();
+            Trie* f = flamegraph.root();
             if (args._reverse) {
                 // Thread frames always come first
                 if (_add_sched_frame) {
