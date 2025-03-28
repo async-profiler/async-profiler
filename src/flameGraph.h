@@ -47,7 +47,7 @@ class Trie {
     }
 
     Trie* child(u32 name_index, FrameTypeId type) {
-        auto ptr = &_children[name_index | type << 28];
+        Trie** ptr = &_children[name_index | type << 28];
         if (*ptr == nullptr) {
             *ptr = new Trie();
         }
