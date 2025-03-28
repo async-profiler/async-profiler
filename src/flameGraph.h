@@ -12,11 +12,12 @@
 #include "arguments.h"
 #include "vmEntry.h"
 #include "writer.h"
+#include <memory>
 
 
 class Trie {
   public:
-    std::unordered_map<u32, Trie> _children;
+    std::unordered_map<u32, std::shared_ptr<Trie>> _children;
     u64 _total;
     u64 _self;
     u64 _inlined, _c1_compiled, _interpreted;
@@ -40,16 +41,20 @@ class Trie {
         return key & ((1 << 28) - 1);
     }
 
-    Trie* child(u32 name_index, FrameTypeId type) {
-        return &_children[name_index | type << 28];
+    std::shared_ptr<Trie> child(u32 name_index, FrameTypeId type) {
+        auto &ptr = _children[name_index | type << 28];
+        if (!ptr) {
+            ptr.reset(new Trie());
+        }
+        return ptr;
     }
 
     int depth(u64 cutoff, u32* name_order) const {
         int max_depth = 0;
-        for (std::unordered_map<u32, Trie>::const_iterator it = _children.begin(); it != _children.end(); ++it) {
-            if (it->second._total >= cutoff) {
+        for (auto it = _children.begin(); it != _children.end(); ++it) {
+            if (it->second->_total >= cutoff) {
                 name_order[nameIndex(it->first)] = 1;
-                int d = it->second.depth(cutoff, name_order);
+                int d = it->second->depth(cutoff, name_order);
                 if (d > max_depth) max_depth = d;
             }
         }
@@ -60,7 +65,7 @@ class Trie {
 
 class FlameGraph {
   private:
-    Trie _root;
+    std::shared_ptr<Trie> _root;
     std::unordered_map<std::string, u32> _cpool;
     u32* _name_order;
     u64 _mintotal;
@@ -76,14 +81,14 @@ class FlameGraph {
     u64 _last_x;
     u64 _last_total;
 
-    void printFrame(Writer& out, u32 key, const Trie& f, int level, u64 x);
-    void printTreeFrame(Writer& out, const Trie& f, int level, const char** names);
+    void printFrame(Writer& out, u32 key, std::shared_ptr<const Trie> f, int level, u64 x);
+    void printTreeFrame(Writer& out, std::shared_ptr<const Trie> f, int level, const char** names);
     void printCpool(Writer& out);
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
     FlameGraph(const char* title, Counter counter, double minwidth, bool reverse, bool inverted) :
-        _root(),
+        _root(std::make_shared<Trie>()),
         _cpool(),
         _title(title),
         _counter(counter),
@@ -96,11 +101,11 @@ class FlameGraph {
         _buf[sizeof(_buf) - 1] = 0;
     }
 
-    Trie* root() {
-        return &_root;
+    std::shared_ptr<Trie> root() {
+        return _root;
     }
 
-    Trie* addChild(Trie* f, const char* name, FrameTypeId type, u64 value);
+    std::shared_ptr<Trie> addChild(std::shared_ptr<Trie> f, const char* name, FrameTypeId type, u64 value);
 
     void dump(Writer& out, bool tree);
 };

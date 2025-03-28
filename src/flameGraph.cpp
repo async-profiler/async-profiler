@@ -69,9 +69,9 @@ class Node {
   public:
     u32 _key;
     u32 _order;
-    const Trie* _trie;
+    std::shared_ptr<const Trie> _trie;
 
-    Node(u32 key, u32 order, const Trie& trie) : _key(key), _order(order), _trie(&trie) {
+    Node(u32 key, u32 order, std::shared_ptr<const Trie> trie) : _key(key), _order(order), _trie(trie) {
     }
 
     static bool orderByName(const Node& a, const Node& b) {
@@ -84,7 +84,7 @@ class Node {
 };
 
 
-Trie* FlameGraph::addChild(Trie* f, const char* name, FrameTypeId type, u64 value) {
+std::shared_ptr<Trie> FlameGraph::addChild(std::shared_ptr<Trie> f, const char* name, FrameTypeId type, u64 value) {
     size_t len = strlen(name);
     bool has_suffix = len > 4 && name[len - 4] == '_' && name[len - 3] == '[' && name[len - 1] == ']';
     std::string s(name, has_suffix ? len - 4 : len);
@@ -113,8 +113,8 @@ Trie* FlameGraph::addChild(Trie* f, const char* name, FrameTypeId type, u64 valu
 
 void FlameGraph::dump(Writer& out, bool tree) {
     _name_order = new u32[_cpool.size() + 1]();
-    _mintotal = _minwidth == 0 && tree ? _root._total / 1000 : (u64)(_root._total * _minwidth / 100);
-    int depth = _root.depth(_mintotal, _name_order);
+    _mintotal = _minwidth == 0 && tree ? _root->_total / 1000 : (u64)(_root->_total * _minwidth / 100);
+    int depth = _root->depth(_mintotal, _name_order);
 
     if (tree) {
         const char* tail = TREE_TEMPLATE;
@@ -126,7 +126,7 @@ void FlameGraph::dump(Writer& out, bool tree) {
         out << (_counter == COUNTER_SAMPLES ? "samples" : "counter");
 
         tail = printTill(out, tail, "/*count:*/");
-        out << Format().thousands(_root._total);
+        out << Format().thousands(_root->_total);
 
         tail = printTill(out, tail, "/*tree:*/");
 
@@ -169,10 +169,10 @@ void FlameGraph::dump(Writer& out, bool tree) {
     delete[] _name_order;
 }
 
-void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 x) {
-    u32 name_and_type = _name_order[f.nameIndex(key)] << 3 | f.type(key);
-    bool has_extra_types = (f._inlined | f._c1_compiled | f._interpreted) &&
-                           f._inlined < f._total && f._interpreted < f._total;
+void FlameGraph::printFrame(Writer& out, u32 key, std::shared_ptr<const Trie> f, int level, u64 x) {
+    u32 name_and_type = _name_order[f->nameIndex(key)] << 3 | f->type(key);
+    bool has_extra_types = (f->_inlined | f->_c1_compiled | f->_interpreted) &&
+                           f->_inlined < f->_total && f->_interpreted < f->_total;
 
     char* p = _buf;
     if (level == _last_level + 1 && x == _last_x) {
@@ -183,10 +183,10 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
         p += snprintf(p, 100, "f(%u,%d,%llu", name_and_type, level, x - _last_x);
     }
 
-    if (f._total != _last_total || has_extra_types) {
-        p += snprintf(p, 100, ",%llu", f._total);
+    if (f->_total != _last_total || has_extra_types) {
+        p += snprintf(p, 100, ",%llu", f->_total);
         if (has_extra_types) {
-            p += snprintf(p, 100, ",%llu,%llu,%llu", f._inlined, f._c1_compiled, f._interpreted);
+            p += snprintf(p, 100, ",%llu,%llu,%llu", f->_inlined, f->_c1_compiled, f->_interpreted);
         }
     }
 
@@ -195,42 +195,42 @@ void FlameGraph::printFrame(Writer& out, u32 key, const Trie& f, int level, u64 
 
     _last_level = level;
     _last_x = x;
-    _last_total = f._total;
+    _last_total = f->_total;
 
-    if (f._children.empty()) {
+    if (f->_children.empty()) {
         return;
     }
 
     std::vector<Node> children;
-    children.reserve(f._children.size());
-    for (std::unordered_map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
-        children.push_back(Node(it->first, _name_order[f.nameIndex(it->first)], it->second));
+    children.reserve(f->_children.size());
+    for (auto it = f->_children.begin(); it != f->_children.end(); ++it) {
+        children.push_back(Node(it->first, _name_order[f->nameIndex(it->first)], it->second));
     }
     std::sort(children.begin(), children.end(), Node::orderByName);
 
-    x += f._self;
+    x += f->_self;
     for (size_t i = 0; i < children.size(); i++) {
         u32 key = children[i]._key;
-        const Trie* trie = children[i]._trie;
+        std::shared_ptr<const Trie> trie = children[i]._trie;
         if (trie->_total >= _mintotal) {
-            printFrame(out, key, *trie, level + 1, x);
+            printFrame(out, key, trie, level + 1, x);
         }
         x += trie->_total;
     }
 }
 
-void FlameGraph::printTreeFrame(Writer& out, const Trie& f, int level, const char** names) {
+void FlameGraph::printTreeFrame(Writer& out, std::shared_ptr<const Trie> f, int level, const char** names) {
     std::vector<Node> children;
-    children.reserve(f._children.size());
-    for (std::unordered_map<u32, Trie>::const_iterator it = f._children.begin(); it != f._children.end(); ++it) {
+    children.reserve(f->_children.size());
+    for (auto it = f->_children.begin(); it != f->_children.end(); ++it) {
         children.push_back(Node(it->first, 0, it->second));
     }
     std::sort(children.begin(), children.end(), Node::orderByTotal);
 
-    double pct = 100.0 / _root._total;
+    double pct = 100.0 / _root->_total;
     for (size_t i = 0; i < children.size(); i++) {
         u32 key = children[i]._key;
-        const Trie* trie = children[i]._trie;
+        std::shared_ptr<const Trie> trie = children[i]._trie;
 
         u32 type = trie->type(key);
         std::string name = names[trie->nameIndex(key)];
@@ -257,7 +257,7 @@ void FlameGraph::printTreeFrame(Writer& out, const Trie& f, int level, const cha
         if (trie->_children.size() > 0) {
             out << "<ul>\n";
             if (trie->_total >= _mintotal) {
-                printTreeFrame(out, *trie, level + 1, names);
+                printTreeFrame(out, trie, level + 1, names);
             } else {
                 out << "<li>...\n";
             }
