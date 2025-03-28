@@ -468,13 +468,14 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
     }
 }
 
+// Try to find a running JVM instance & attach it to the profiler
 void VM::tryAttach() {
     JavaVM* jvm;
     jsize nVMs;
 
     if (_getJvm == NULL) {
-        void* libHandle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
-        _getJvm = (GetJvm)dlsym(libHandle, "JNI_GetCreatedJavaVMs");
+        void* lib_handle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
+        _getJvm = lib_handle != NULL ? (GetJvm)dlsym(lib_handle, "JNI_GetCreatedJavaVMs") : NULL;
     }
     
     if (_getJvm == NULL) {
@@ -482,7 +483,6 @@ void VM::tryAttach() {
         return;
     }
 
-    // Try actually loading the JVM
     jint result = _getJvm(&jvm, 1, &nVMs);
     if (result != JNI_OK || nVMs != 1) {
         Log::debug("No JVM is yet detected in manual load");

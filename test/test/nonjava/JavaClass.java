@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import java.lang.Math;
-
 public class JavaClass {
-    public void cpuHeavyTask() {
+    public static double cpuHeavyTask() {
+        double sum = 0;
         for (int i = 0; i < 100000; i++) {
-            Math.sqrt(Math.random());
-            Math.pow(Math.random(), Math.random());
+            sum += Math.sqrt(Math.random());
+            sum += Math.pow(Math.random(), Math.random());
         }
+        return sum;
     }
 }
