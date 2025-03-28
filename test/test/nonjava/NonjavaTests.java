@@ -12,8 +12,9 @@ import one.profiler.test.TestProcess;
 
 public class NonjavaTests {
 
+    // jvm is loaded before the profiling session is started
     @Test(sh = "%testbin/non_java_app 1 %s.html", output = true)
-    public void jvmLoadedBeforeSessionStartTest(TestProcess p) throws Exception {
+    public void jvmFirstTest(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
@@ -21,8 +22,9 @@ public class NonjavaTests {
         assert out.contains(".cpuHeavyTask");
     }
 
+    // jvm is loaded after the profiling session is started
     @Test(sh = "%testbin/non_java_app 2 %s.html", output = true)
-    public void jvmLoadedAfterSessionStartTest(TestProcess p) throws Exception {
+    public void profilerFirstTest(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
@@ -30,8 +32,9 @@ public class NonjavaTests {
         assert !out.contains(".cpuHeavyTask");
     }
 
+    // jvm is loaded between two profiling sessions
     @Test(sh = "%testbin/non_java_app 3 %f.html %s.html", output = true)
-    public void jvmLoadedAfterFirstSessionButBeforeSecondSessionTest(TestProcess p) throws Exception {
+    public void jvmInBetweenTest(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 

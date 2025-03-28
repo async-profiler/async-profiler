@@ -33,7 +33,7 @@ void outputCallback(const char* buffer, size_t size) {
 }
 
 void loadProfiler() {  
-    void* lib = dlopen("build/lib/libasyncProfiler.so", RTLD_NOW | RTLD_GLOBAL);
+    void* lib = dlopen(profiler_lib_path, RTLD_NOW | RTLD_GLOBAL);
     if (lib == NULL) {
         std::cerr << dlerror() << std::endl;
         exit(1);
