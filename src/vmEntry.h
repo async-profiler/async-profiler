@@ -181,11 +181,6 @@ class VM {
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
 
-    /**
-     * When Async Profiler is run on a None Java application that has a running JVM instance
-     * That JVM instance isn't visible to the profiler by default
-     * This method will be used to try to manually attach the JVM to the profiler
-     */
     static void tryAttach();
 };
 

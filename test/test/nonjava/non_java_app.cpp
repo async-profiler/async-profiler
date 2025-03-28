@@ -3,11 +3,149 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "common_non_java.h"
+#include <dlfcn.h>
+#include <jni.h>
+#include <unistd.h>
+#include <iostream>
+#include "asprof.h"
+ 
+#ifdef __linux__
+const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
+const char jvm_lib_path[] = "lib/server/libjvm.so";
+#else
+const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
+const char jvm_lib_path[] = "lib/server/libjvm.dylib";
+#endif
+
+typedef jint (*CreateJvm)(JavaVM **, void **, void *);
+
+asprof_init_t _asprof_init;
+asprof_execute_t _asprof_execute;
+asprof_error_str_t _asprof_error_str;
+
+JavaVM* _jvm;
+JNIEnv* _env;
+
+void* _jvm_lib;
+
+void outputCallback(const char* buffer, size_t size) {
+    fwrite(buffer, sizeof(char), size, stderr);
+}
+
+void loadProfiler() {  
+    void* lib = dlopen("build/lib/libasyncProfiler.so", RTLD_NOW | RTLD_GLOBAL);
+    if (lib == NULL) {
+        std::cerr << dlerror() << std::endl;
+        exit(1);
+    }
+
+    _asprof_init = (asprof_init_t)dlsym(lib, "asprof_init");
+    _asprof_execute = (asprof_execute_t)dlsym(lib, "asprof_execute");
+    _asprof_error_str = (asprof_error_str_t)dlsym(lib, "asprof_error_str");
+
+    _asprof_init();
+}
+
+void startProfiler() {
+    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=dwarf", outputCallback);
+    if (err != NULL) {
+        std::cerr << _asprof_error_str(err) << std::endl;
+        exit(1);
+    }
+}
+
+void stopProfiler(char* outputFile) {
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "stop,file=%s", outputFile);
+    asprof_error_t err = _asprof_execute(cmd, outputCallback);
+    if (err != NULL) {
+        std::cerr << _asprof_error_str(err) << std::endl;
+        exit(1);
+    }
+}
+
+void loadJvmLib() {
+    char* java_home = getenv("JAVA_HOME");
+    if (java_home == NULL) {
+        std::cerr << "JAVA_HOME is not set" << std::endl;
+        exit(1);
+    }
+    char lib_path[4096];
+    snprintf(lib_path, sizeof(lib_path), "%s/%s", java_home, jvm_lib_path);
+    _jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW);
+    if (_jvm_lib == NULL) {
+        std::cerr << "Unable to find: " << lib_path << ", Error: " << dlerror() << std::endl;
+        exit(1);
+    }
+}
+
+void startJvm() {
+    // Start JVM
+    JavaVMInitArgs vm_args;
+    JavaVMOption options[2];
+    int pid = getpid();
+
+    options[0].optionString = const_cast<char*>("-Djava.class.path=build/test");
+    options[1].optionString = const_cast<char*>("-Xcheck:jni");
+
+    // Configure JVM
+    vm_args.version = JNI_VERSION_10;
+    vm_args.nOptions = 2;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = true;
+
+    CreateJvm createJvm = (CreateJvm)dlsym(_jvm_lib, "JNI_CreateJavaVM");
+    if (createJvm == NULL) {
+        std::cerr << "Unable to find: JNI_CreateJavaVM" << std::endl;
+        exit(1);
+    }
+
+    // Create the JVM
+    jint rc = createJvm(&_jvm, (void**)&_env, &vm_args);
+    if (rc != JNI_OK) {
+        std::cerr << "Failed to create JVM" << std::endl;
+        exit(1);
+    }
+}
+
+void executeJvmTask() {
+    jclass customClass = _env->FindClass("JavaClass");
+    if (customClass == nullptr) {
+        std::cerr << "Can't find JavaClass" << std::endl;
+        exit(1);
+    }
+
+    jmethodID cpuHeavyTask = _env->GetStaticMethodID(customClass, "cpuHeavyTask", "()D");
+    if (cpuHeavyTask == nullptr) {
+        std::cerr << "Can't find cpuHeavyTask" << std::endl;
+        exit(1);
+    }
+
+    for (int i = 0; i < 100; ++i) {
+        jdouble result = _env->CallStaticDoubleMethod(customClass, cpuHeavyTask);
+        if (_env->ExceptionCheck()) {
+            jthrowable exception = _env->ExceptionOccurred();
+            _env->ExceptionDescribe();
+            _env->ExceptionClear();
+            std::cerr << "Exception in cpuHeavyTask" << std::endl;
+            exit(1);
+        }
+        std::cout << "Result: " << result << std::endl;
+    }
+    _env->DeleteLocalRef(customClass);
+}
+
+void stopJvm() {
+    jint rc = _jvm->DestroyJavaVM();
+    if (rc != JNI_OK) {
+        std::cerr << "Failed to destroy JVM" << std::endl;
+        exit(1);
+    }
+}
 
 void validateArgsCount(int argc, int exepected, std::string context) {
     if (argc < exepected) {
-        fprintf(stderr, "Too few arguments: %s\n", (char*) context.c_str());
+        std::cerr << "Too few arguments: " << context << std::endl;
         exit(1);
     }  
 }
@@ -29,19 +167,19 @@ Explaination:
 The JVM is loaded and started before the profiling session is started so it's attached correctly at the session start
 */
 void testFlow1(int argc, char** argv) {
-    CommonNonJava::loadProfiler();
+    loadProfiler();
 
-    CommonNonJava::loadJvmLib();
+    loadJvmLib();
 
-    CommonNonJava::startJvm();
+    startJvm();
 
-    CommonNonJava::startProfiler();
+    startProfiler();
 
-    CommonNonJava::executeJvmTask();
+    executeJvmTask();
 
-    CommonNonJava::stopProfiler(argv[2]);
+    stopProfiler(argv[2]);
 
-    CommonNonJava::stopJvm();
+    stopJvm();
 }
 
 /*
@@ -61,19 +199,19 @@ Explaination:
 The JVM is started after the profiling session is started so it's not attached correctly at the session start
 */
 void testFlow2(int argc, char** argv) {
-    CommonNonJava::loadProfiler();
+    loadProfiler();
 
-    CommonNonJava::loadJvmLib();
+    loadJvmLib();
 
-    CommonNonJava::startProfiler();
+    startProfiler();
 
-    CommonNonJava::startJvm();
+    startJvm();
 
-    CommonNonJava::executeJvmTask();
+    executeJvmTask();
 
-    CommonNonJava::stopProfiler(argv[2]);
+    stopProfiler(argv[2]);
 
-    CommonNonJava::stopJvm();
+    stopJvm();
 }
 
 /*
@@ -100,25 +238,25 @@ However the second profiling session is started after the JVM is started so it's
 void testFlow3(int argc, char** argv) {
     validateArgsCount(argc, 4, "Test requires 4 arguments");
 
-    CommonNonJava::loadProfiler();
+    loadProfiler();
 
-    CommonNonJava::loadJvmLib();
+    loadJvmLib();
 
-    CommonNonJava::startProfiler();
+    startProfiler();
 
-    CommonNonJava::startJvm();
+    startJvm();
 
-    CommonNonJava::executeJvmTask();
+    executeJvmTask();
 
-    CommonNonJava::stopProfiler(argv[2]);
+    stopProfiler(argv[2]);
 
-    CommonNonJava::startProfiler();
+    startProfiler();
 
-    CommonNonJava::executeJvmTask();
+    executeJvmTask();
 
-    CommonNonJava::stopProfiler(argv[3]);
+    stopProfiler(argv[3]);
 
-    CommonNonJava::stopJvm();
+    stopJvm();
 }
 
 int main(int argc, char** argv) {
@@ -137,7 +275,7 @@ int main(int argc, char** argv) {
             testFlow3(argc, argv);
             break;
         default:
-            fprintf(stderr, "Unknown flow: %c\n", flow[0]);
+            std::cerr << "Unknown flow: " << flow[0] << std::endl;
             exit(1);
     }
     
