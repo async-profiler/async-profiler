@@ -6,7 +6,7 @@
 #ifndef _FLAMEGRAPH_H
 #define _FLAMEGRAPH_H
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include "arch.h"
 #include "arguments.h"
@@ -16,7 +16,7 @@
 
 class Trie {
   public:
-    std::map<u32, Trie*> _children;
+    std::unordered_map<u32, Trie*> _children;
     u64 _total;
     u64 _self;
     u64 _inlined, _c1_compiled, _interpreted;
@@ -71,7 +71,7 @@ class Trie {
 class FlameGraph {
   private:
     Trie _root;
-    std::map<std::string, u32> _cpool;
+    std::unordered_map<std::string, u32> _cpool;
     u32* _name_order;
     u64 _mintotal;
     char _buf[4096];
