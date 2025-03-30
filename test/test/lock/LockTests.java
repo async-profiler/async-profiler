@@ -27,12 +27,15 @@ public class LockTests {
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
-        Output stdout = p.readFile(TestProcess.STDOUT);
 
         Assert.isGreater(out.samples("\\[random1"), 0, "sampled all threads 1/4");
         Assert.isGreater(out.samples("\\[random2"), 0, "sampled all threads 2/4");
         Assert.isGreater(out.samples("\\[shared1"), 0, "sampled all threads 3/4");
         Assert.isGreater(out.samples("\\[shared2"), 0, "sampled all threads 4/4");
+
+        long maxSamplesRandom = Math.min(out.samples("\\[random1"), out.samples("\\[random2"));
+        long minSamplesShared = Math.min(out.samples("\\[shared1"), out.samples("\\[shared2"));
+        Assert.isGreater(minSamplesShared, maxSamplesRandom, "threads with shared lock are sampled more frequently");
 
         if (interval == 0) {
             long shared1 = out.samples("\\[shared1");

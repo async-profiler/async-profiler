@@ -8,34 +8,26 @@ package test.lock;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.LockSupport;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class RaceToLock {
 
     private final Lock sharedLock = new ReentrantLock(true);
-    private long sharedWaitTime = 0;
-
-    private final Random random = new Random();
     private final Lock[] locks = {
             new ReentrantLock(true),
             new ReentrantLock(true),
             new ReentrantLock(true)
     };
-    private volatile long randomWaitTime;
-
     private volatile boolean exitRequested;
 
-    private void doWork() {
+    private static void doWork() {
         LockSupport.parkNanos(1);
     }
 
     private void runSharedCounter() {
         while (!exitRequested) {
-            long start = System.nanoTime();
-            sharedLock.lock();
-            sharedWaitTime += System.nanoTime() - start;
-
             try {
+                sharedLock.lock();
                 doWork();
             } finally {
                 sharedLock.unlock();
@@ -44,24 +36,16 @@ public class RaceToLock {
     }
 
     private void runRandomCounter() {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
         while (!exitRequested) {
             Lock lock = locks[random.nextInt(locks.length)];
-
-            long start = System.nanoTime();
-            lock.lock();
-            randomWaitTime += System.nanoTime() - start;
             try {
+                lock.lock();
                 doWork();
             } finally {
                 lock.unlock();
             }
         }
-    }
-
-    public void dump() {
-        // Referred to from tests.
-        System.out.println("sharedWaitTime: " + sharedWaitTime);
-        System.out.println("randomWaitTime: " + randomWaitTime);
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -82,7 +66,5 @@ public class RaceToLock {
         for (Thread t : threads) {
             t.join();
         }
-
-        app.dump();
     }
 }
