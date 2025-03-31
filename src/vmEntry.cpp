@@ -107,12 +107,19 @@ static void* resolveMethodIdEnd() {
 }
 
 
-bool VM::init(JavaVM* vm, bool attach) {
+bool VM::init(JavaVM* vm, bool attach, bool attach_thread) {
     if (_jvmti != NULL) return true;
 
     _vm = vm;
     if (_vm->GetEnv((void**)&_jvmti, JVMTI_VERSION_1_0) != 0) {
         return false;
+    }
+
+    if (attach_thread) {
+        JNIEnv* env = nullptr;
+        if (_vm->AttachCurrentThreadAsDaemon((void**)&env, NULL) != JNI_OK) {
+            return false;
+        }
     }
 
     bool is_hotspot = false;
@@ -410,7 +417,7 @@ Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {
         }
     }
 
-    if (!VM::init(vm, false)) {
+    if (!VM::init(vm, false, false)) {
         Log::error("JVM does not support Tool Interface");
         return COMMAND_ERROR;
     }
@@ -430,7 +437,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
         return ARGUMENTS_ERROR;
     }
 
-    if (!VM::init(vm, true)) {
+    if (!VM::init(vm, true, false)) {
         Log::error("JVM does not support Tool Interface");
         return COMMAND_ERROR;
     }
@@ -452,7 +459,7 @@ Agent_OnAttach(JavaVM* vm, char* options, void* reserved) {
 
 extern "C" DLLEXPORT jint JNICALL
 JNI_OnLoad(JavaVM* vm, void* reserved) {
-    if (!VM::init(vm, true)) {
+    if (!VM::init(vm, true, false)) {
         return 0;
     }
 
@@ -487,5 +494,5 @@ void VM::tryAttach() {
     if (result != JNI_OK || nVMs != 1) {
         return;
     }
-    VM::init(jvm, true);
+    VM::init(jvm, true, true);
 }
