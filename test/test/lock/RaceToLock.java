@@ -13,17 +13,19 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RaceToLock {
 
     // Every SHARED_LOCK_INTERVAL iterations of the loop in runSemiShared, we try to lock a shared lock instead of an uncontended lock
-    private static final long SHARED_LOCK_INTERVAL = 2;
-    private static final long ITERATIONS_COUNT = 10_000;
+    private static final long SHARED_LOCK_INTERVAL = 5;
+    private static final long DURATION_MS = 2000;
 
     private static final Lock sharedLock = new ReentrantLock(true);
+
+    private static volatile boolean exitRequested = false;
 
     private static void doWork() {
         LockSupport.parkNanos(1);
     }
 
     private static void runShared() {
-        for (long count = 0; count < ITERATIONS_COUNT; ++count) {
+        while (!exitRequested) {
             try {
                 sharedLock.lock();
                 doWork();
@@ -34,8 +36,9 @@ public class RaceToLock {
     }
 
     private static void runSemiShared() {
+        long count = 0;
         Lock nonsharedLock = new ReentrantLock(true);
-        for (long count = 0; count < ITERATIONS_COUNT; ++count) {
+        while (!exitRequested) {
             Lock lock = count % SHARED_LOCK_INTERVAL == 0 ? sharedLock : nonsharedLock;
 
             try {
@@ -60,6 +63,9 @@ public class RaceToLock {
         for (Thread t : threads) {
             t.start();
         }
+
+        Thread.sleep(DURATION_MS);
+        exitRequested = true;
         for (Thread t : threads) {
             t.join();
         }
