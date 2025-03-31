@@ -28,10 +28,10 @@ public class LockTests {
         int interval = Integer.parseInt(p.inputs()[0]);
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
 
-        Assert.isGreater(out.samples("\\[shared1"), 0, "sampled all threads 3/4");
-        Assert.isGreater(out.samples("\\[shared2"), 0, "sampled all threads 4/4");
-        Assert.isGreater(out.samples("\\[semiShared1"), 0, "sampled all threads 1/4");
-        Assert.isGreater(out.samples("\\[semiShared2"), 0, "sampled all threads 2/4");
+        Assert.isGreater(out.samples("\\[shared1"), 0, "sampled all threads");
+        Assert.isGreater(out.samples("\\[shared2"), 0, "sampled all threads");
+        Assert.isGreater(out.samples("\\[semiShared1"), 0, "sampled all threads");
+        Assert.isGreater(out.samples("\\[semiShared2"), 0, "sampled all threads");
 
         long maxSamplesSemiShared = Math.min(out.samples("\\[semiShared1"), out.samples("\\[semiShared2"));
         long minSamplesShared = Math.min(out.samples("\\[shared1"), out.samples("\\[shared2"));
