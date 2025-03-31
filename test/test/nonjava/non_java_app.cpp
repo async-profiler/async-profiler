@@ -7,14 +7,41 @@
 #include <jni.h>
 #include <unistd.h>
 #include <iostream>
+#include <limits.h>
 #include "asprof.h"
  
 #ifdef __linux__
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
 const char jvm_lib_path[] = "lib/server/libjvm.so";
+const char jvm8_lib_path[] = "jre/lib/amd64/server/libjvm.so";
 #else
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
 const char jvm_lib_path[] = "lib/server/libjvm.dylib";
+const char jvm8_lib_path[] = "jre/lib/server/libjvm.dylib";
+#endif
+
+#ifndef JNI_VERSION_9
+#define JNI_VERSION_9   0x00090000
+#endif
+
+#ifndef JNI_VERSION_10
+#define JNI_VERSION_10  0x000a0000
+#endif
+
+#ifndef JNI_VERSION_19
+#define JNI_VERSION_19  0x00130000
+#endif
+
+#ifndef JNI_VERSION_20
+#define JNI_VERSION_20  0x00140000
+#endif
+
+#ifndef JNI_VERSION_21
+#define JNI_VERSION_21  0x00150000
+#endif
+
+#ifndef JNI_VERSION_24
+#define JNI_VERSION_24  0x00180000
 #endif
 
 typedef jint (*CreateJvm)(JavaVM **, void **, void *);
@@ -27,6 +54,8 @@ JavaVM* _jvm;
 JNIEnv* _env;
 
 void* _jvm_lib;
+
+jint java_version = 0;
 
 void outputCallback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stderr);
@@ -65,18 +94,56 @@ void stopProfiler(char* outputFile) {
 }
 
 void loadJvmLib() {
-    char* java_home = getenv("JAVA_HOME");
+    // Get Java home
+    char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
-        std::cerr << "JAVA_HOME is not set" << std::endl;
+        std::cerr << "TEST_JAVA_HOME is not set" << std::endl;
         exit(1);
     }
-    char lib_path[4096];
-    snprintf(lib_path, sizeof(lib_path), "%s/%s", java_home, jvm_lib_path);
+    // Get Java version
+    char* version = getenv("TEST_JAVA_VERSION");
+    if (version == NULL) {
+        std::cerr << "TEST_JAVA_VERSION is not set" << std::endl;
+        exit(1);
+    }
+    // Java 8 or higher
+    java_version = std::stoi(version);
+    if (java_version < 8) {
+        std::cerr << "Unsupported Java version: " << version << std::endl;
+        exit(1);
+    }
+
+    char lib_path[PATH_MAX];
+    snprintf(lib_path, sizeof(lib_path), "%s/%s", java_home, java_version == 8 ? jvm8_lib_path : jvm_lib_path);
     _jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW);
     if (_jvm_lib == NULL) {
         std::cerr << "Unable to find: " << lib_path << ", Error: " << dlerror() << std::endl;
         exit(1);
     }
+}
+
+int getJniVersion() {
+    if (java_version == 8) {
+        return JNI_VERSION_1_8;
+    }
+
+    if (java_version == 9) {
+        return JNI_VERSION_9;
+    }
+
+    if (java_version >= 10 && java_version <= 18) {
+        return JNI_VERSION_10;
+    }
+
+    if (java_version == 19) {
+        return JNI_VERSION_19;
+    }
+
+    if (java_version >= 20 && java_version <= 23) {
+        return JNI_VERSION_20;
+    }
+
+    return JNI_VERSION_24;
 }
 
 void startJvm() {
@@ -89,7 +156,7 @@ void startJvm() {
     options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
     // Configure JVM
-    vm_args.version = JNI_VERSION_10;
+    vm_args.version = getJniVersion();;
     vm_args.nOptions = 2;
     vm_args.options = options;
     vm_args.ignoreUnrecognized = true;
@@ -124,9 +191,7 @@ void executeJvmTask() {
     for (int i = 0; i < 100; ++i) {
         jdouble result = _env->CallStaticDoubleMethod(customClass, cpuHeavyTask);
         if (_env->ExceptionCheck()) {
-            jthrowable exception = _env->ExceptionOccurred();
             _env->ExceptionDescribe();
-            _env->ExceptionClear();
             std::cerr << "Exception in cpuHeavyTask" << std::endl;
             exit(1);
         }

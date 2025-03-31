@@ -485,7 +485,6 @@ void VM::tryAttach() {
 
     jint result = _getJvm(&jvm, 1, &nVMs);
     if (result != JNI_OK || nVMs != 1) {
-        Log::debug("No JVM is yet detected in manual load");
         return;
     }
     VM::init(jvm, true);

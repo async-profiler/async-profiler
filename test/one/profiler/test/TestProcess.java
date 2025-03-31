@@ -33,6 +33,19 @@ public class TestProcess implements Closeable {
     public static final String LIBPROF = "%lib";
     public static final String TESTBIN = "%testbin";
 
+    private static final String JAVA_HOME = System.getProperty("java.home");
+    private static final String JAVA_VERSION;
+
+    static {
+        String[] javaVersionParts = System.getProperty("java.version").split("\\.");
+        // JAVA 8 & lower are reported as 1.X... while higher versions are reported as X....
+        if (javaVersionParts[0].equals("1")) {
+            JAVA_VERSION = javaVersionParts[1];
+        } else {
+            JAVA_VERSION = javaVersionParts[0];
+        }
+    }
+
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
@@ -86,6 +99,8 @@ public class TestProcess implements Closeable {
                 pb.environment().put(keyValue[0], substituteFiles(keyValue[1]));
             }
         }
+        pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
+        pb.environment().put("TEST_JAVA_VERSION", JAVA_VERSION);
 
         this.p = pb.start();
 
