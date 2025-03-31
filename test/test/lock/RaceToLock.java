@@ -13,8 +13,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class RaceToLock {
 
     // Every SHARED_LOCK_INTERVAL iterations of the loop in runSemiShared, we try to lock a shared lock instead of an uncontended lock
-    private static final long SHARED_LOCK_INTERVAL = 5;
-    private static final long DURATION_MS = 2000;
+    private static final long SHARED_LOCK_INTERVAL = 10;
+    private static final long DURATION_MS = 4000;
 
     private static final Lock sharedLock = new ReentrantLock(true);
 
