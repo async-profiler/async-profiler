@@ -13,11 +13,11 @@
 #ifdef __linux__
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
 const char jvm_lib_path[] = "lib/server/libjvm.so";
-const char jvm8_lib_path[] = "jre/lib/amd64/server/libjvm.so";
+const char jvm8_lib_path[] = "lib/amd64/server/libjvm.so";
 #else
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
 const char jvm_lib_path[] = "lib/server/libjvm.dylib";
-const char jvm8_lib_path[] = "jre/lib/server/libjvm.dylib";
+const char jvm8_lib_path[] = "lib/server/libjvm.dylib";
 #endif
 
 #ifndef JNI_VERSION_9
@@ -149,15 +149,15 @@ int getJniVersion() {
 void startJvm() {
     // Start JVM
     JavaVMInitArgs vm_args;
-    JavaVMOption options[2];
+    JavaVMOption options[1];
     int pid = getpid();
 
     options[0].optionString = const_cast<char*>("-Djava.class.path=build/test");
-    options[1].optionString = const_cast<char*>("-Xcheck:jni");
+    //options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
     // Configure JVM
     vm_args.version = getJniVersion();;
-    vm_args.nOptions = 2;
+    vm_args.nOptions = 1;
     vm_args.options = options;
     vm_args.ignoreUnrecognized = true;
 
@@ -188,7 +188,7 @@ void executeJvmTask() {
         exit(1);
     }
 
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 300; ++i) {
         jdouble result = _env->CallStaticDoubleMethod(customClass, cpuHeavyTask);
         if (_env->ExceptionCheck()) {
             _env->ExceptionDescribe();
