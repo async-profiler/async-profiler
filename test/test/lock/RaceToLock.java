@@ -12,20 +12,18 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class RaceToLock {
 
-    private final Lock sharedLock = new ReentrantLock(true);
-    private final Lock[] locks = {
-            new ReentrantLock(true),
-            new ReentrantLock(true),
-            new ReentrantLock(true)
-    };
-    private volatile boolean exitRequested;
+    // Every SHARED_LOCK_INTERVAL iterations of the loop in runSemiShared, we try to lock a shared lock instead of an uncontended lock
+    private static final long SHARED_LOCK_INTERVAL = 2;
+    private static final long ITERATIONS_COUNT = 10_000;
+
+    private static final Lock sharedLock = new ReentrantLock(true);
 
     private static void doWork() {
         LockSupport.parkNanos(1);
     }
 
-    private void runSharedCounter() {
-        while (!exitRequested) {
+    private static void runShared() {
+        for (long count = 0; count < ITERATIONS_COUNT; ++count) {
             try {
                 sharedLock.lock();
                 doWork();
@@ -35,34 +33,33 @@ public class RaceToLock {
         }
     }
 
-    private void runRandomCounter() {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-        while (!exitRequested) {
-            Lock lock = locks[random.nextInt(locks.length)];
+    private static void runSemiShared() {
+        Lock nonsharedLock = new ReentrantLock(true);
+        for (long count = 0; count < ITERATIONS_COUNT; ++count) {
+            Lock lock = count % SHARED_LOCK_INTERVAL == 0 ? sharedLock : nonsharedLock;
+
             try {
                 lock.lock();
                 doWork();
             } finally {
                 lock.unlock();
             }
+
+            ++count;
         }
     }
 
     public static void main(String[] args) throws InterruptedException {
-        RaceToLock app = new RaceToLock();
         Thread[] threads = {
-                new Thread(null, app::runSharedCounter, "shared1"),
-                new Thread(null, app::runSharedCounter, "shared2"),
+                new Thread(null, RaceToLock::runShared, "shared1"),
+                new Thread(null, RaceToLock::runShared, "shared2"),
 
-                new Thread(null, app::runRandomCounter, "random1"),
-                new Thread(null, app::runRandomCounter, "random2")
+                new Thread(null, RaceToLock::runSemiShared, "semiShared1"),
+                new Thread(null, RaceToLock::runSemiShared, "semiShared2")
         };
         for (Thread t : threads) {
             t.start();
         }
-
-        Thread.sleep(2000);
-        app.exitRequested = true;
         for (Thread t : threads) {
             t.join();
         }
