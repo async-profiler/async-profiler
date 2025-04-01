@@ -34,17 +34,7 @@ public class TestProcess implements Closeable {
     public static final String TESTBIN = "%testbin";
 
     private static final String JAVA_HOME = System.getProperty("java.home");
-    private static final String JAVA_VERSION;
-
-    static {
-        String[] javaVersionParts = System.getProperty("java.version").split("\\.");
-        // JAVA 8 & lower are reported as 1.X... while higher versions are reported as X....
-        if (javaVersionParts[0].equals("1")) {
-            JAVA_VERSION = javaVersionParts[1];
-        } else {
-            JAVA_VERSION = javaVersionParts[0];
-        }
-    }
+    private static final String JAVA_VERSION = Runner.detectJvmVersion() + "";
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
