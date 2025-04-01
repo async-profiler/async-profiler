@@ -9,39 +9,28 @@
 #include <iostream>
 #include <limits.h>
 #include "asprof.h"
+
+// detect arch for java 8
+#if defined(__x86_64__) || defined(_M_X64)
+#  define JAVA8_ARCH_PATH "amd64/"
+#elif defined(__i386) || defined(_M_IX86)
+#  define JAVA8_ARCH_PATH "i386/"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#  define JAVA8_ARCH_PATH "aarch64/"
+#elif defined(__arm__) || defined(_M_ARM)
+#  define JAVA8_ARCH_PATH "arm/"
+#else
+#  define JAVA8_ARCH_PATH "/"
+#endif
  
 #ifdef __linux__
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
 const char jvm_lib_path[] = "lib/server/libjvm.so";
-const char jvm8_lib_path[] = "lib/amd64/server/libjvm.so";
+const char jvm8_lib_path[] = "lib/" JAVA8_ARCH_PATH "server/libjvm.so";
 #else
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
 const char jvm_lib_path[] = "lib/server/libjvm.dylib";
 const char jvm8_lib_path[] = "lib/server/libjvm.dylib";
-#endif
-
-#ifndef JNI_VERSION_9
-#define JNI_VERSION_9   0x00090000
-#endif
-
-#ifndef JNI_VERSION_10
-#define JNI_VERSION_10  0x000a0000
-#endif
-
-#ifndef JNI_VERSION_19
-#define JNI_VERSION_19  0x00130000
-#endif
-
-#ifndef JNI_VERSION_20
-#define JNI_VERSION_20  0x00140000
-#endif
-
-#ifndef JNI_VERSION_21
-#define JNI_VERSION_21  0x00150000
-#endif
-
-#ifndef JNI_VERSION_24
-#define JNI_VERSION_24  0x00180000
 #endif
 
 typedef jint (*CreateJvm)(JavaVM **, void **, void *);
@@ -122,30 +111,6 @@ void loadJvmLib() {
     }
 }
 
-int getJniVersion() {
-    if (java_version == 8) {
-        return JNI_VERSION_1_8;
-    }
-
-    if (java_version == 9) {
-        return JNI_VERSION_9;
-    }
-
-    if (java_version >= 10 && java_version <= 18) {
-        return JNI_VERSION_10;
-    }
-
-    if (java_version == 19) {
-        return JNI_VERSION_19;
-    }
-
-    if (java_version >= 20 && java_version <= 23) {
-        return JNI_VERSION_20;
-    }
-
-    return JNI_VERSION_24;
-}
-
 void startJvm() {
     // Start JVM
     JavaVMInitArgs vm_args;
@@ -156,7 +121,7 @@ void startJvm() {
     //options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
     // Configure JVM
-    vm_args.version = getJniVersion();;
+    vm_args.version = JNI_VERSION_1_6;
     vm_args.nOptions = 1;
     vm_args.options = options;
     vm_args.ignoreUnrecognized = true;

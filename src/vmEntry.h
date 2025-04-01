@@ -118,7 +118,7 @@ class VM {
     static JVM_MemoryFunc _totalMemory;
     static JVM_MemoryFunc _freeMemory;
 
-    static bool init(JavaVM* vm, bool attach, bool attach_thread);
+    static bool init(JavaVM* vm, bool attach);
 
     static bool loaded() {
         return _jvmti != NULL;
