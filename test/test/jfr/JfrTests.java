@@ -12,6 +12,9 @@ import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -84,7 +87,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class)
+    @Test(mainClass = Ttsp.class, waitWarmupOutput = Ttsp.WARMUP_COMPLETED_OUTPUT)
     public void ttsp(TestProcess p) throws Exception {
         p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
@@ -99,7 +102,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class)
+    @Test(mainClass = Ttsp.class, waitWarmupOutput = Ttsp.WARMUP_COMPLETED_OUTPUT)
     public void ttspNostop(TestProcess p) throws Exception {
         p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";

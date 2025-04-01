@@ -32,6 +32,8 @@ public @interface Test {
 
     boolean output() default false;
 
+    String waitWarmupOutput() default "";
+
     boolean error() default false;
 
     Os[] os() default {};

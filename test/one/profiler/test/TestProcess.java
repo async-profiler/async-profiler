@@ -74,8 +74,14 @@ public class TestProcess implements Closeable {
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
         if (test.output()) {
+            if (!test.waitWarmupOutput().isEmpty()) {
+                throw new IllegalArgumentException("TODO");
+            }
             pb.redirectOutput(createTempFile(STDOUT));
+        } else if (!test.waitWarmupOutput().isEmpty()) {
+            pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
         }
+
         if (test.error()) {
             pb.redirectError(createTempFile(STDERR));
         }
@@ -89,7 +95,17 @@ public class TestProcess implements Closeable {
 
         this.p = pb.start();
 
-        if (cmd.get(0).endsWith("java")) {
+        if (!test.waitWarmupOutput().isEmpty()) {
+            try (InputStream is = p.getInputStream();
+                 InputStreamReader isr = new InputStreamReader(is);
+                 BufferedReader br = new BufferedReader(isr)
+            ) {
+                String output = br.readLine();
+                if (!test.waitWarmupOutput().equals(output)) {
+                    throw new AssertionError("Warmup did not complete: " + output);
+                }
+            }
+        } else if (cmd.get(0).endsWith("java")) {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
