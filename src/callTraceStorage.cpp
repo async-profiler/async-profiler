@@ -279,6 +279,10 @@ void CallTraceStorage::add(u32 call_trace_id, u64 samples, u64 counter) {
         return;
     }
 
+    if (call_trace_id >= _current_table->capacity() * 2 - INITIAL_CAPACITY) {
+        return;
+    }
+
     call_trace_id += (INITIAL_CAPACITY - 1);
     for (LongHashTable* table = _current_table; table != NULL; table = table->prev()) {
         if (call_trace_id >= table->capacity()) {
