@@ -21,9 +21,9 @@ public class LockTests {
         assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
     }
 
-    @Test(mainClass = RaceToLock.class, inputs = "0", output = true)
-    @Test(mainClass = RaceToLock.class, inputs = "10000", output = true)
-    @Test(mainClass = RaceToLock.class, inputs = "1000000", output = true)
+    @Test(mainClass = RaceToLock.class, inputs = "0")
+    @Test(mainClass = RaceToLock.class, inputs = "10000")
+    @Test(mainClass = RaceToLock.class, inputs = "1000000")
     public void raceToLocks(TestProcess p) throws Exception {
         int interval = Integer.parseInt(p.inputs()[0]);
         Output out = p.profile("--lock " + interval + " --threads -o collapsed");
