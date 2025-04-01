@@ -25,8 +25,8 @@ public class RaceToLock {
 
     private static void runShared() {
         while (!exitRequested) {
+            sharedLock.lock();
             try {
-                sharedLock.lock();
                 doWork();
             } finally {
                 sharedLock.unlock();
@@ -40,8 +40,8 @@ public class RaceToLock {
         while (!exitRequested) {
             Lock lock = count % SHARED_LOCK_INTERVAL == 0 ? sharedLock : nonsharedLock;
 
+            lock.lock();
             try {
-                lock.lock();
                 doWork();
             } finally {
                 lock.unlock();
