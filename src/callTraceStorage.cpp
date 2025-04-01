@@ -275,11 +275,10 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
 }
 
 void CallTraceStorage::add(u32 call_trace_id, u64 samples, u64 counter) {
-    if (call_trace_id == OVERFLOW_TRACE_ID) {
-        return;
-    }
+    const bool is_overflow = (call_trace_id == OVERFLOW_TRACE_ID);
+    const bool exceeds_capacity = (call_trace_id >= _current_table->capacity() * 2 - INITIAL_CAPACITY);
 
-    if (call_trace_id >= _current_table->capacity() * 2 - INITIAL_CAPACITY) {
+    if (is_overflow || exceeds_capacity) {
         return;
     }
 
