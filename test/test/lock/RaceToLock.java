@@ -17,7 +17,7 @@ public class RaceToLock {
 
     private static final Lock sharedLock = new ReentrantLock(true);
 
-    private static volatile boolean exitRequested = false;
+    private static volatile boolean exitRequested;
 
     private static void doWork() {
         LockSupport.parkNanos(1);
