@@ -12,9 +12,6 @@ import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
