@@ -73,10 +73,9 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Running " + cmd);
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
-        if (test.output() || !test.waitWarmupOutput().isEmpty()) {
+        if (test.output()) {
             pb.redirectOutput(createTempFile(STDOUT));
         }
-
         if (test.error()) {
             pb.redirectError(createTempFile(STDERR));
         }
@@ -90,17 +89,7 @@ public class TestProcess implements Closeable {
 
         this.p = pb.start();
 
-        if (!test.waitWarmupOutput().isEmpty()) {
-            try (InputStream is = new FileInputStream(getFile(STDOUT));
-                 InputStreamReader isr = new InputStreamReader(is);
-                 BufferedReader br = new BufferedReader(isr)
-            ) {
-                String output = br.readLine();
-                if (!test.waitWarmupOutput().equals(output)) {
-                    throw new AssertionError("Warmup did not complete: " + output);
-                }
-            }
-        } else if (cmd.get(0).endsWith("java")) {
+        if (cmd.get(0).endsWith("java")) {
             // Give the JVM some time to initialize
             Thread.sleep(700);
         }
@@ -288,6 +277,10 @@ public class TestProcess implements Closeable {
 
     public int exitCode() {
         return p.exitValue();
+    }
+
+    public boolean processIsAlive() {
+        return p.isAlive();
     }
 
     public void waitForExit() throws TimeoutException, InterruptedException {
