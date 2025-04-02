@@ -113,7 +113,7 @@ jobs:
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
 
-        if: {{ env.RELEASE_FROM_JAVA_VERSION == matrix.java-version && matrix.runson.name != "macos-13" }}
+        if: ${{ env.RELEASE_FROM_JAVA_VERSION == matrix.java-version && matrix.runson.name != "macos-13" }}
         with:
           name: ${{ steps.build.outputs.archive }}
           path: ${{ steps.build.outputs.archive }}
