@@ -73,13 +73,8 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Running " + cmd);
 
         ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
-        if (test.output()) {
-            if (!test.waitWarmupOutput().isEmpty()) {
-                throw new IllegalArgumentException("TODO");
-            }
+        if (test.output() || !test.waitWarmupOutput().isEmpty()) {
             pb.redirectOutput(createTempFile(STDOUT));
-        } else if (!test.waitWarmupOutput().isEmpty()) {
-            pb.redirectOutput(ProcessBuilder.Redirect.PIPE);
         }
 
         if (test.error()) {
@@ -96,7 +91,7 @@ public class TestProcess implements Closeable {
         this.p = pb.start();
 
         if (!test.waitWarmupOutput().isEmpty()) {
-            try (InputStream is = p.getInputStream();
+            try (InputStream is = new FileInputStream(getFile(STDOUT));
                  InputStreamReader isr = new InputStreamReader(is);
                  BufferedReader br = new BufferedReader(isr)
             ) {
