@@ -122,6 +122,7 @@ void VM::initWrapper(JavaVM* vm) {
     // Work around for JDK-8308341, as JNI might return a none initialized VM so we check for the existence of certain VM threads 
     // "VM Thread" and "Service Thread" in this case are used as indication that the VM is in a good enough state to be used
     char thread_name[4096];
+    int thread_name_offset = 0;
     bool vm_thread = false, service_thread = false;
 
     ThreadList* list = OS::listThreads();
@@ -130,9 +131,14 @@ void VM::initWrapper(JavaVM* vm) {
             continue;
         }
 
-        if (thread_name[0] == 'V' && strcmp(thread_name, "VM Thread") == 0) {
+        // For MacOs Thread name starts with "Java: "
+        if (!OS::isLinux() && thread_name[0] == 'J' && strncmp(thread_name, "Java: ", 6) == 0) {
+            thread_name_offset = 6;
+        }
+
+        if (thread_name[thread_name_offset] == 'V' && strcmp(thread_name + thread_name_offset, "VM Thread") == 0) {
             vm_thread = true;
-        } else if (thread_name[0] == 'S' && strcmp(thread_name, "Service Thread") == 0) {
+        } else if (thread_name[thread_name_offset] == 'S' && strcmp(thread_name + thread_name_offset, "Service Thread") == 0) {
             service_thread = true;
         }
     }
