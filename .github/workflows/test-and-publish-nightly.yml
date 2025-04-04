@@ -64,6 +64,7 @@ jobs:
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
+          PACKAGE_NAME_EXTRA="${{ matrix.java-version }}-${{ matrix.architecture }}"
           case "${{ matrix.name }}" in
             macos*)
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
@@ -104,7 +105,6 @@ jobs:
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
 
-        if: ${{ matrix.java-version == '11' && matrix.name != 'macos-13' }}
         with:
           name: ${{ steps.build.outputs.archive }}
           path: ${{ steps.build.outputs.archive }}
