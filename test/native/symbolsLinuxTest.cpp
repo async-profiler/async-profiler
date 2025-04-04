@@ -51,4 +51,13 @@ TEST_CASE(VirtAddrDifferentLoadAddr) {
     ASSERT_EQ(square(5), 25);
 }
 
+TEST_CASE(MappedTwiceAtZeroOffset) {
+    const void* sym = resolveSymbol("libtwiceatzero.so", "twiceatzero_hello");
+    // Resolving the symbol without crashing is enough for this test case.
+    ASSERT(sym);
+
+    void (*hello)() = (void (*)())sym;
+    hello();
+}
+
 #endif // __linux__
