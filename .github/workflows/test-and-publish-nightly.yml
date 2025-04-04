@@ -4,9 +4,6 @@ on:  # We are very liberal in terms of triggering builds. This should be revisit
   - push
   - pull_request
 
-env:
-  RELEASE_FROM_JAVA_VERSION: '11'
-
 jobs:
   build-jars:
     runs-on: ubuntu-latest
@@ -113,7 +110,7 @@ jobs:
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
 
-        if: ${{ env.RELEASE_FROM_JAVA_VERSION == matrix.java-version && matrix.runson.name != 'macos-13' }}
+        if: ${{ matrix.java-version == '11' && matrix.runson.name != 'macos-13' }}
         with:
           name: ${{ steps.build.outputs.archive }}
           path: ${{ steps.build.outputs.archive }}
