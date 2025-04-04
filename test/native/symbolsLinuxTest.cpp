@@ -10,6 +10,16 @@
 #include "testRunner.hpp"
 #include <dlfcn.h>
 
+const void* resolveSymbol(const char* lib, const char* name) {
+    void* result = dlopen(lib, RTLD_NOW);
+    if (!result) {
+        printf("%s\n", dlerror());
+        return nullptr;
+    }
+    Profiler::instance()->updateSymbols(false);
+    return Profiler::instance()->resolveSymbol(name);
+}
+
 #define ASSERT_RESOLVE(id)                                                             \
     {                                                                                  \
         void* result = dlopen("libreladyn.so", RTLD_NOW); /* see reladyn.c */          \
@@ -34,14 +44,7 @@ TEST_CASE(ResolveFromRela_dyn_R_ABS64) {
 }
 
 TEST_CASE(VirtAddrDifferentLoadAddr) {
-    void* result = dlopen("libvaddrdif.so", RTLD_NOW);
-    if (!result) {
-        printf("%s\n", dlerror());
-    }
-    ASSERT(result);
-    Profiler::instance()->updateSymbols(false);
-
-    const void* sym = Profiler::instance()->resolveSymbol("vaddrdif_square");
+    const void* sym = resolveSymbol("libvaddrdif.so", "vaddrdif_square");
     ASSERT(sym);
 
     int (*square)(int) = (int (*)(int))sym;
