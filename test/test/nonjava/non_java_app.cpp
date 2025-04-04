@@ -9,6 +9,7 @@
 #include <iostream>
 #include <limits.h>
 #include "asprof.h"
+#include <pthread.h>
 
 // detect arch for java 8
 #if defined(__x86_64__) || defined(_M_X64)
@@ -266,7 +267,7 @@ The JVM is started after the profiling session is started so it's not attached c
 However the second profiling session is started after the JVM is started so it's attached correctly at the session start
 */
 void testFlow3(int argc, char** argv) {
-    validateArgsCount(argc, 4, "Test requires 4 arguments");
+    validateArgsCount(argc, 4, "Test requires 3 arguments");
 
     loadProfiler();
 
@@ -289,8 +290,53 @@ void testFlow3(int argc, char** argv) {
     stopJvm();
 }
 
+void* jvmThreadWrapper(void* arg) {
+    loadJvmLib();
+
+    startJvm();
+
+    while(1) executeJvmTask();
+
+    return NULL;
+}
+
+/*
+Here is the flow of the test:
+1. Load the profiler
+2. Load the JVM library
+3. Start the JVM on  a different thread
+4. Start the profiler
+5. Execute the JVM task
+6. Stop the profiler
+7. Stop the JVM
+
+Expected output:
+The profiler should be able to profile the JVM task
+
+Explaination:
+The JVM is loaded and started before the profiling session is started so it's attached correctly at the session start
+*/
+void testFlow4(int argc, char** argv) {
+    validateArgsCount(argc, 3, "Minimum Arguments is 2");
+
+    loadProfiler();
+
+    pthread_t thread;
+    pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
+   
+    // busy wait for JVM to start on the thread
+    for (int i = 0; i < 10; i++) for (int i = 0; i < 1000000000; ++i) {}
+
+    startProfiler();
+
+    // busy wait for profiler to sample JVM
+    for (int i = 0; i < 10; i++) for (int i = 0; i < 1000000000; ++i) {}
+
+    stopProfiler(argv[2]);
+}
+
 int main(int argc, char** argv) {
-    validateArgsCount(argc, 3, "Minimum Arguments is 3");
+    validateArgsCount(argc, 3, "Minimum Arguments is 2");
 
     // Check which test to run
     char* flow = argv[1];
@@ -303,6 +349,9 @@ int main(int argc, char** argv) {
             break;
         case '3': 
             testFlow3(argc, argv);
+            break;
+        case '4':
+            testFlow4(argc, argv);
             break;
         default:
             std::cerr << "Unknown flow: " << flow[0] << std::endl;

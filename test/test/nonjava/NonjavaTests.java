@@ -43,4 +43,14 @@ public class NonjavaTests {
         out = p.readFile("%s");
         assert out.contains(".cpuHeavyTask");
     }
+
+    // jvm is loaded before the profiling session is started on a different thread
+    @Test(sh = "%testbin/non_java_app 4 %s.html", output = true)
+    public void differentThread(TestProcess p) throws Exception {
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert p.exitCode() == 0;
+
+        out = p.readFile("%s");
+        assert out.contains(".cpuHeavyTask");
+    }
 }
