@@ -28,6 +28,7 @@ jobs:
         name: [ubuntu-latest] # Using "latest" here as the build and test will any ways run inside a container which we control
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
+        architecture: [x64]
         container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - name: macos-13
@@ -43,6 +44,7 @@ jobs:
           - name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
             java-version: 11
             java-distribution: corretto
+            architecture: arm64
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.name }}
     container:
