@@ -45,7 +45,7 @@ jobs:
           - runson:
               display: macos-14
               name: macos-14
-            java-version: 11
+            java-version: 21
             java-distribution: corretto
             architecture: arm64
             container: ""  # Not using container for mac-os as we have images only for linux
