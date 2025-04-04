@@ -64,7 +64,7 @@ jobs:
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          PACKAGE_NAME_SUFFIX="${{ matrix.java-version }}-${{ matrix.architecture }}"
+          PACKAGE_NAME_SUFFIX="jdk${{ matrix.java-version }}"
           make PACKAGE_NAME_EXTRA=$PACKAGE_NAME_SUFFIX COMMIT_TAG=$HASH release test -j
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Coverage
