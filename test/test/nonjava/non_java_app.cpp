@@ -325,12 +325,12 @@ void testFlow4(int argc, char** argv) {
     pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
    
     // busy wait for JVM to start on the thread
-    for (int i = 0; i < 10; i++) for (int i = 0; i < 1000000000; ++i) {}
+    for (int i = 0; i < 3; i++) for (int i = 0; i < 1000000000; ++i) {}
 
     startProfiler();
 
     // busy wait for profiler to sample JVM
-    for (int i = 0; i < 10; i++) for (int i = 0; i < 1000000000; ++i) {}
+    for (int i = 0; i < 3; i++) for (int i = 0; i < 1000000000; ++i) {}
 
     stopProfiler(argv[2]);
 }
