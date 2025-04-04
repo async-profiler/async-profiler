@@ -50,7 +50,7 @@ jobs:
     container:
       image: ${{ matrix.container }}
       options: --privileged
-    name: "test (${{ matrix.name }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }}${{ matrix.architecture && ' ' || '' }}${{ matrix.architecture }}"
+    name: "test (${{ matrix.name }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }} ${{ matrix.architecture }}"
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -91,7 +91,7 @@ jobs:
 
         if: always() # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.name }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
+          name: test-logs-${{ matrix.name }}-${{ matrix.java-version }}-${{ matrix.architecture }}
           path: |
             build/test/logs/
             hs_err*.log
@@ -99,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
 
         with:
-          name: test-coverage-${{ matrix.name }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
+          name: test-coverage-${{ matrix.name }}-${{ matrix.java-version }}-${{ matrix.architecture }}
           path: build/test/coverage/
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
