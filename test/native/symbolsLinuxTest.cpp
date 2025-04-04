@@ -41,10 +41,10 @@ TEST_CASE(VirtAddrDifferentLoadAddr) {
     ASSERT(result);
     Profiler::instance()->updateSymbols(false);
 
-    PerfEventType* event_type = PerfEventType::forName("vaddrdif_square");
-    ASSERT(event_type);
+    const void* sym = Profiler::instance()->resolveSymbol("vaddrdif_square");
+    ASSERT(sym);
 
-    int (*square)(int) = (int (*)(int))event_type->config1;
+    int (*square)(int) = (int (*)(int))sym;
     ASSERT_EQ(square(5), 25);
 }
 
