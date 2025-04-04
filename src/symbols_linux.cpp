@@ -215,7 +215,7 @@ class ElfParser {
     }
 
     const char* base() {
-        return _header->e_type == ET_EXEC ? NULL : _base;
+        return _header->e_type == ET_EXEC ? NULL : _vaddr_diff;
     }
 
     char* dyn_ptr(ElfDyn* dyn) {
@@ -293,6 +293,7 @@ bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name
     } else {
         ElfParser elf(cc, base, addr, file_name, false);
         if (elf.validHeader()) {
+            elf.calcVirtualLoadAddress();
             elf.loadSymbols(use_debug);
         }
         munmap(addr, length);
@@ -471,7 +472,7 @@ void ElfParser::loadSymbols(bool use_debug) {
             _cc->setPlt(plt->sh_addr, plt->sh_size);
             ElfSection* reltab = findSection(SHT_RELA, ".rela.plt");
             if (reltab != NULL || (reltab = findSection(SHT_REL, ".rel.plt")) != NULL) {
-                addRelocationSymbols(reltab, _base + plt->sh_addr + PLT_HEADER_SIZE);
+                addRelocationSymbols(reltab, base() + plt->sh_addr + PLT_HEADER_SIZE);
             }
         }
     }
@@ -751,10 +752,10 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
                 ElfParser::parseFile(cc, image_base, map.file(), true);
                 // Parse program headers after the file to ensure debug symbols are parsed first
                 ElfParser::parseProgramHeaders(cc, image_base, map_end, OS::isMusl());
-            } else if ((unsigned long)map_start > map_offs) {
+            } else {
                 // Unlikely case when image_base has not been found.
                 // Be careful: executable file is not always ELF, e.g. classes.jsa
-                ElfParser::parseFile(cc, map_start - map_offs, map.file(), true);
+                ElfParser::parseFile(cc, map_start, map.file(), true);
             }
         } else if (strcmp(map.file(), "[vdso]") == 0) {
             ElfParser::parseProgramHeaders(cc, map_start, map_end, true);
