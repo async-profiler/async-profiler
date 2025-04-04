@@ -25,38 +25,30 @@ jobs:
   build-binaries-and-test:
     strategy:
       matrix:
-        runson:
-          - display: linux-x64
-            name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
+        name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
         container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
-          - runson:
-              display: macos-13
-              name: macos-13
+          - name: macos-13
             java-version: 11
             java-distribution: corretto
             architecture: x64
             container: ""  # Not using container for mac-os as we have images only for linux
-          - runson:
-              display: macos-14
-              name: macos-14
+          - name: macos-14
             java-version: 21
             java-distribution: corretto
             architecture: arm64
             container: ""  # Not using container for mac-os as we have images only for linux
-          - runson:
-              display: linux-arm64
-              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+          - name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
-    runs-on: ${{ matrix.runson.name }}
+    runs-on: ${{ matrix.name }}
     container:
       image: ${{ matrix.container }}
       options: --privileged
-    name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }}${{ matrix.architecture && ' ' || '' }}${{ matrix.architecture }}"
+    name: "test (${{ matrix.name }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }}${{ matrix.architecture && ' ' || '' }}${{ matrix.architecture }}"
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -70,7 +62,7 @@ jobs:
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.name }}" in
             macos*)
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
@@ -83,7 +75,7 @@ jobs:
         id: coverage
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.name }}" in
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
@@ -97,7 +89,7 @@ jobs:
 
         if: always() # we always want to upload test logs, especially when tests fail
         with:
-          name: test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
+          name: test-logs-${{ matrix.name }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
           path: |
             build/test/logs/
             hs_err*.log
@@ -105,12 +97,12 @@ jobs:
         uses: actions/upload-artifact@v4
 
         with:
-          name: test-coverage-${{ matrix.runson.display }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
+          name: test-coverage-${{ matrix.name }}-${{ matrix.java-version }}${{ matrix.architecture && '-' || '' }}${{ matrix.architecture }}
           path: build/test/coverage/
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
 
-        if: ${{ matrix.java-version == '11' && matrix.runson.name != 'macos-13' }}
+        if: ${{ matrix.java-version == '11' && matrix.name != 'macos-13' }}
         with:
           name: ${{ steps.build.outputs.archive }}
           path: ${{ steps.build.outputs.archive }}
