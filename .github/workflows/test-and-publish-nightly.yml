@@ -64,13 +64,13 @@ jobs:
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          PACKAGE_NAME_EXTRA="${{ matrix.java-version }}-${{ matrix.architecture }}"
+          PACKAGE_NAME_SUFFIX="${{ matrix.java-version }}-${{ matrix.architecture }}"
           case "${{ matrix.name }}" in
             macos*)
-              make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
+              make PACKAGE_NAME_EXTRA=$PACKAGE_NAME_SUFFIX COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
+              make PACKAGE_NAME_EXTRA=$PACKAGE_NAME_SUFFIX COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
