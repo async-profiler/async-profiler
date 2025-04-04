@@ -50,7 +50,8 @@ LOG_LEVEL=
 SKIP=
 TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip=$(SKIP)
 
-SOURCES := $(wildcard src/*.cpp)
+# always sort SOURCES so zInit is last.
+SOURCES := $(sort $(wildcard src/*.cpp))
 HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
