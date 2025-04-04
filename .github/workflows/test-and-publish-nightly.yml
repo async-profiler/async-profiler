@@ -25,22 +25,22 @@ jobs:
   build-binaries-and-test:
     strategy:
       matrix:
-        name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
+        name: 'ubuntu-latest' # Using "latest" here as the build and test will any ways run inside a container which we control
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
         container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
-          - name: macos-13
+          - name: 'macos-13'
             java-version: 11
             java-distribution: corretto
             architecture: x64
             container: ""  # Not using container for mac-os as we have images only for linux
-          - name: macos-14
+          - name: 'macos-14'
             java-version: 21
             java-distribution: corretto
             architecture: arm64
             container: ""  # Not using container for mac-os as we have images only for linux
-          - name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+          - name: 'ubuntu-24.04-arm' # There is no "latest" tag available (yet) as ARM runners are still in public preview
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
