@@ -714,10 +714,11 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
 
         const char* map_start = map.addr();
         unsigned long map_offs = map.offs();
+        u64 inode = u64(map.dev()) << 32 | map.inode();
 
-        if (map_offs == 0) {
+        if (map_offs == 0 && inode != last_inode) {
             image_base = map_start;
-            last_inode = u64(map.dev()) << 32 | map.inode();
+            last_inode = inode;
         }
 
         if (!map.isExecutable() || !_parsed_libraries.insert(map_start).second) {
@@ -726,7 +727,6 @@ static int parseLibrariesCallback(struct dl_phdr_info* info, size_t size, void* 
         }
 
         const char* map_end = map.end();
-        u64 inode = u64(map.dev()) << 32 | map.inode();
         if (inode != 0 && !_parsed_inodes.insert(inode).second) {
             // Do not parse the same executable twice
             if (inode == cc_inode) {
