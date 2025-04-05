@@ -281,7 +281,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
 }
 
 void CallTraceStorage::add(u32 call_trace_id, u64 samples, u64 counter) {
-    if (call_trace_id >= capacity()) {  // this also covers call_trace_id == OVERFLOW_TRACE_ID
+    if (call_trace_id > capacity()) {  // this also covers call_trace_id == OVERFLOW_TRACE_ID
         return;
     }
 
