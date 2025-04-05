@@ -155,6 +155,9 @@ void FlameGraph::dump(Writer& out, bool tree) {
         tail = printTill(out, tail, "/*depth:*/0");
         out << depth;
 
+        tail = printTill(out, tail, "/*flamegraphType:*/");
+        out << FlameGraphTypeConverter::toString(_type);
+
         tail = printTill(out, tail, "/*cpool:*/");
         printCpool(out);
 
