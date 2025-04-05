@@ -6,7 +6,7 @@
 SECTIONS
 {
   . = ALIGN(0x1000);
-  .text 0x2000 : AT(0xbeef0000)
+  .text 0xfe000 : AT(0x1000)
   {
     *(.text)
     *(.text.*)
