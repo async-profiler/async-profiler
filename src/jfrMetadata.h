@@ -7,7 +7,7 @@
 #define _JFRMETADATA_H
 
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <stdio.h>
 #include <string.h>
@@ -89,7 +89,7 @@ class Attribute {
 
 class Element {
   protected:
-    static std::map<std::string, int> _string_map;
+    static std::unordered_map<std::string, int> _string_map;
     static std::vector<std::string> _strings;
 
     static int getId(const char* s) {

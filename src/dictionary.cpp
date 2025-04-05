@@ -111,11 +111,11 @@ unsigned int Dictionary::lookup(const char* key, size_t length) {
     }
 }
 
-void Dictionary::collect(std::map<unsigned int, const char*>& map) {
+void Dictionary::collect(std::unordered_map<unsigned int, const char*>& map) {
     collect(map, _table);
 }
 
-void Dictionary::collect(std::map<unsigned int, const char*>& map, DictTable* table) {
+void Dictionary::collect(std::unordered_map<unsigned int, const char*>& map, DictTable* table) {
     for (int i = 0; i < ROWS; i++) {
         DictRow* row = &table->rows[i];
         for (int j = 0; j < CELLS; j++) {
