@@ -5,7 +5,7 @@
 
 #ifdef __APPLE__
 
-#include <set>
+#include <unordered_set>
 #include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
@@ -126,7 +126,7 @@ class MachOParser {
 
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
-static std::set<const void*> _parsed_libraries;
+static std::unordered_set<const void*> _parsed_libraries;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
