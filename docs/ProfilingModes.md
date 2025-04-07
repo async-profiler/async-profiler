@@ -238,9 +238,9 @@ output will be overwritten on each iteration.
 asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ```
 
-## Perf event types supported on Linux
+## perf event types supported on Linux
 
-| Usage                                     | Description                                                                                                                                                                                                                                        -|
+| Usage                                     | Description                                                                                                                                                                                                                                        |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Predefined:                               |                                                                                                                                                                                                                                                    |
 | `-e cpu-clock`                            | High-resolution per-CPU timer. Similar to `-e cpu` but forces using perf_events.                                                                                                                                                                   |
