@@ -126,6 +126,22 @@ but is usually small enough even for production use. If required, the overhead c
 by configuring the profiling interval. E.g. if you add `nativemem=1m` profiler option,
 allocation samples will be limited to at most one sample per allocated megabyte.
 
+### Using LD_PRELOAD for finding native memory leaks
+
+Similar to Java applications, `nativemem` mode can be also used with [non-Java processes](ProfilingNonJavaApplications.md).
+
+Run an application with `nativemem` profiler that dumps recordings in JFR format every 10 minutes:
+
+```
+LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,nativemem,total,loop=10m,cstack=dwarf,file=profile-%t.jfr NativeApp [args]
+```
+
+Then run `jfrconv` to generate memory leak reports as flame graphs:
+
+```
+jfrconv --total --nativemem --leak <profile>.jfr <profile>-leak.html
+```
+
 ## Wall-clock profiling
 
 `-e wall` option tells async-profiler to sample all threads equally every given
@@ -222,19 +238,37 @@ output will be overwritten on each iteration.
 asprof --loop 1h -f /var/log/profile-%t.jfr 8983
 ```
 
-## Special event types supported on Linux
+## perf event types supported on Linux
 
-Below special event types are supported on Linux:
-
-- `-e mem:<func>[:rwx]` sets read/write/exec breakpoint at function
-  `<func>`. The format of `mem` event is the same as in [`perf-record`](https://man7.org/linux/man-pages/man1/perf-record.1.html).
-  Execution breakpoints can be also specified by the function name,
-  e.g. `-e malloc` will trace all calls of native `malloc` function.
-- `-e trace:<id>` sets a kernel tracepoint. It is possible to specify
-  tracepoint symbolic name, e.g. `-e syscalls:sys_enter_open` will trace
-  all `open` syscalls.
-- Raw PMU event, e.g. `-e r4d2` selects `MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM` event, which corresponds to event 0xd2, umask 0x4
-- PMU event descriptor, e.g. `-e cpu/event=0xd2,umask=4/`. The same syntax can be used for uncore and vendor-specific events, e.g. `amd_l3/event=0x01,umask=0x80/`
-- Symbolic name of a dynamic PMU event, e.g. `-e cpu/topdown-fetch-bubbles/`
-- kprobe/kretprobe, e.g. `-e kprobe:do_sys_open`, `-e kretprobe:do_sys_open`
-- uprobe/uretprobe, e.g. `-e uprobe:/usr/lib64/libc-2.17.so+0x114790`
+| Usage                                     | Description                                                                                                                                                                                                                                        |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Predefined:                               |                                                                                                                                                                                                                                                    |
+| `-e cpu-clock`                            | High-resolution per-CPU timer. Similar to `-e cpu` but forces using perf_events.                                                                                                                                                                   |
+| `-e page-faults`                          | Software page faults                                                                                                                                                                                                                               |
+| `-e context-switches`                     | Context switches                                                                                                                                                                                                                                   |
+| `-e cycles`                               | Total CPU cycles                                                                                                                                                                                                                                   |
+| `-e instructions`                         | Retired CPU instructions                                                                                                                                                                                                                           |
+| `-e cache-references`                     | Cache accesses (usually Last Level Cache, but may depend on the architecture)                                                                                                                                                                      |
+| `-e cache-misses`                         | Cache accesses requiring fetching data from a higher-level cache or main memory                                                                                                                                                                    |
+| `-e branch-instructions`                  | Retired branch instructions                                                                                                                                                                                                                        |
+| `-e branch-misses`                        | Mispredicted branch instructions                                                                                                                                                                                                                   |
+| `-e bus-cycles`                           | Bus cycles                                                                                                                                                                                                                                         |
+| `-e L1-dcache-load-misses`                | Cache misses on Level 1 Data Cache                                                                                                                                                                                                                 |
+| `-e LLC-load-misses`                      | Cache misses on the Last Level Cache                                                                                                                                                                                                               |
+| `-e dTLB-load-misses`                     | Data load misses on the Translation Lookaside Buffer                                                                                                                                                                                               |
+| Breakpoint:                               |                                                                                                                                                                                                                                                    |
+| `-e mem:<addr>`                           | Breakpoint on a decimal or hex (0x) address                                                                                                                                                                                                        |
+| `-e mem:<func>`                           | Breakpoint on a public or a private symbol                                                                                                                                                                                                         |
+| `-e mem:<func>[+<offset>][/<len>][:rwx>]` | Breakpoint on a symbol or an address with offset, length and read/write/exec. Address, offset and length can be hex or dec. The format of `mem` event is the same as in [`perf-record`](https://man7.org/linux/man-pages/man1/perf-record.1.html). |
+| `-e <symbol>`                             | Equivalent to an execution breakpoint on a symbol: `mem:<symbol>:x`. Example: `-e strcmp` will trace all calls of native `strcmp` function.                                                                                                        |
+| Tracepoint:                               |                                                                                                                                                                                                                                                    |
+| `-e trace:<id>`                           | Kernel tracepoint with the given numeric id                                                                                                                                                                                                        |
+| `-e <tracepoint>`                         | Kernel tracepoint with the specified name. Example: `-e syscalls:sys_enter_open` will trace all `open` syscalls.                                                                                                                                   |
+| Probes:                                   |                                                                                                                                                                                                                                                    |
+| `-e kprobe:<func>[+<offset>]`             | Kernel probe. Example: `-e kprobe:do_sys_open`.                                                                                                                                                                                                    |
+| `-e kretprobe:<func>[+<offset>]`          | Kernel return probe. Example: `-e kretprobe:do_sys_open`.                                                                                                                                                                                          |
+| `-e uprobe:<func>[+<offset>]`             | Userspace probe. Example: `-e uprobe:/usr/lib64/libc-2.17.so+0x114790`.                                                                                                                                                                            |
+| `-e uretprobe:<func>[+<offset>]`          | Userspace return probe                                                                                                                                                                                                                             |
+| PMU:                                      |                                                                                                                                                                                                                                                    |
+| `-e r<NNN>`                               | Architecture-specific PMU event with the given number. Example: `-e r4d2` selects `MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM` event, which corresponds to event 0xd2, umask 0x4.                                                                           |
+| `-e <pmu descriptor>`                     | PMU event descriptor. Example: `-e cpu/cache-misses/`, `-e cpu/event=0xd2,umask=4/`. The same syntax can be used for uncore and vendor-specific events, e.g. `amd_l3/event=0x01,umask=0x80/`                                                       |
