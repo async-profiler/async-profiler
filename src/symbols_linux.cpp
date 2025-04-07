@@ -651,6 +651,7 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
+bool Symbols::_libs_limit_reported = false;
 static std::unordered_set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -799,6 +800,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
+            dlerror();  // reset any error from previous dl function calls
+
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
             // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
@@ -816,6 +819,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         cc->sort();
         applyPatch(cc);
         array->add(cc);
+    }
+
+    if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
+        Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
+        _libs_limit_reported = true;
     }
 }
 

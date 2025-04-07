@@ -126,6 +126,7 @@ class MachOParser {
 
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
+bool Symbols::_libs_limit_reported = false;
 static std::unordered_set<const void*> _parsed_libraries;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -143,6 +144,10 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         int count = array->count();
         if (count >= MAX_NATIVE_LIBS) {
+            if (!_libs_limit_reported) {
+                Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
+                _libs_limit_reported = true;
+            }
             break;
         }
 
