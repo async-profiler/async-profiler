@@ -8,33 +8,24 @@ package test.lock;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.LockSupport;
-import java.util.Random;
 
 public class RaceToLock {
 
-    private final Lock sharedLock = new ReentrantLock(true);
-    private long sharedWaitTime = 0;
+    // Every SHARED_LOCK_INTERVAL iterations of the loop in runSemiShared, we try to lock a shared lock instead of an uncontended lock
+    private static final long SHARED_LOCK_INTERVAL = 10;
+    private static final long DURATION_MS = 4000;
 
-    private final Random random = new Random();
-    private final Lock[] locks = {
-            new ReentrantLock(true),
-            new ReentrantLock(true),
-            new ReentrantLock(true)
-    };
-    private volatile long randomWaitTime;
+    private static final Lock sharedLock = new ReentrantLock(true);
 
-    private volatile boolean exitRequested;
+    private static volatile boolean exitRequested;
 
-    private void doWork() {
+    private static void doWork() {
         LockSupport.parkNanos(1);
     }
 
-    private void runSharedCounter() {
+    private static void runShared() {
         while (!exitRequested) {
-            long start = System.nanoTime();
             sharedLock.lock();
-            sharedWaitTime += System.nanoTime() - start;
-
             try {
                 doWork();
             } finally {
@@ -43,46 +34,39 @@ public class RaceToLock {
         }
     }
 
-    private void runRandomCounter() {
+    private static void runSemiShared() {
+        long count = 0;
+        Lock nonsharedLock = new ReentrantLock(true);
         while (!exitRequested) {
-            Lock lock = locks[random.nextInt(locks.length)];
+            Lock lock = count % SHARED_LOCK_INTERVAL == 0 ? sharedLock : nonsharedLock;
 
-            long start = System.nanoTime();
             lock.lock();
-            randomWaitTime += System.nanoTime() - start;
             try {
                 doWork();
             } finally {
                 lock.unlock();
             }
+
+            ++count;
         }
     }
 
-    public void dump() {
-        // Referred to from tests.
-        System.out.println("sharedWaitTime: " + sharedWaitTime);
-        System.out.println("randomWaitTime: " + randomWaitTime);
-    }
-
     public static void main(String[] args) throws InterruptedException {
-        RaceToLock app = new RaceToLock();
         Thread[] threads = {
-                new Thread(null, app::runSharedCounter, "shared1"),
-                new Thread(null, app::runSharedCounter, "shared2"),
+                new Thread(null, RaceToLock::runShared, "shared1"),
+                new Thread(null, RaceToLock::runShared, "shared2"),
 
-                new Thread(null, app::runRandomCounter, "random1"),
-                new Thread(null, app::runRandomCounter, "random2")
+                new Thread(null, RaceToLock::runSemiShared, "semiShared1"),
+                new Thread(null, RaceToLock::runSemiShared, "semiShared2")
         };
         for (Thread t : threads) {
             t.start();
         }
 
-        Thread.sleep(2000);
-        app.exitRequested = true;
+        Thread.sleep(DURATION_MS);
+        exitRequested = true;
         for (Thread t : threads) {
             t.join();
         }
-
-        app.dump();
     }
 }
