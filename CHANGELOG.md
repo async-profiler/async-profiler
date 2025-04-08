@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.0] - Early Access
+## [4.0]
 
 ### Features
  - #895, #905: `jfrconv` binary and numerous converter enhancements
@@ -70,13 +70,13 @@
  - Implement test framework; add new integration tests
  - Unit test framework for C++ code
  - Run CI on all supported platforms
- - Test Corretto 11, 17, 21, 23 in CI
+ - Test multiple JDK versions in CI
  - Add GHA to validate license headers
  - Add Markdown checker and formatter
  - Add Issue and Pull Request templates
  - Add Contributing Guidelines and Code of Conduct
  - Run static analyzer and fix found issues (#1034, #1039, #1049, #1051, #1098)
- - Provide Docker image for building async-profiler release packages
+ - Provide Dockerfile for building async-profiler release packages
  - Publish nightly builds automatically
 
 ## [3.0] - 2024-01-20
