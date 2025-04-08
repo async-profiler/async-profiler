@@ -106,48 +106,32 @@ static void* resolveMethodIdEnd() {
     return NULL;
 }
 
-void VM::initWrapper(JavaVM* vm) {
-    JNIEnv* env;
-
-    jint get_env_result = vm->GetEnv((void**)&env, JNI_VERSION_1_6);
-    if (get_env_result == JNI_OK) {
-        VM::init(vm, true);
-        return;
-    } else if (get_env_result != JNI_EDETACHED) {
-        return;
-    }
-
-    // VM exists but not attached to current thread    
-
-    // Work around for JDK-8308341, as JNI might return a none initialized VM so we check for the existence of certain VM threads 
-    // "VM Thread" and "Service Thread" in this case are used as indication that the VM is in a good enough state to be used
-    char thread_name[4096];
+// Work around for JDK-8308341, as JNI might return a none initialized VM so we check for the existence of certain VM threads 
+// "VM Thread" and "Service Thread" in this case are used as indication that the VM is in a good enough state to be used
+bool VM::checkJvmThreads() {
+    char thread_name[20];
     int thread_name_offset = 0;
     bool vm_thread = false, service_thread = false;
 
     ThreadList* list = OS::listThreads();
     while (list->hasNext()) {
-        if (!OS::threadName(list->next(), thread_name, 4096)) {
+        if (!OS::threadName(list->next(), thread_name, sizeof(thread_name))) {
             continue;
         }
 
         // For MacOs Thread name starts with "Java: "
-        if (!OS::isLinux() && thread_name[0] == 'J' && strncmp(thread_name, "Java: ", 6) == 0) {
+        if (strncmp(thread_name, "Java: ", 6) == 0) {
             thread_name_offset = 6;
         }
 
-        if (thread_name[thread_name_offset] == 'V' && strcmp(thread_name + thread_name_offset, "VM Thread") == 0) {
+        if (strcmp(thread_name + thread_name_offset, "VM Thread") == 0) {
             vm_thread = true;
-        } else if (thread_name[thread_name_offset] == 'S' && strcmp(thread_name + thread_name_offset, "Service Thread") == 0) {
+        } else if (strcmp(thread_name + thread_name_offset, "Service Thread") == 0) {
             service_thread = true;
         }
     }
 
-    // Check that VM is in a good state to attach the thread
-    if (service_thread && vm_thread && vm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
-        VM::init(vm, true);
-        return;
-    }
+    return vm_thread && service_thread;
 }
 
 bool VM::init(JavaVM* vm, bool attach) {
@@ -514,6 +498,7 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
 // Try to find a running JVM instance & attach it to the profiler
 void VM::tryAttach() {
     JavaVM* jvm;
+    JNIEnv* env;
     jsize nVMs;
 
     if (_getJvm == NULL) {
@@ -530,5 +515,18 @@ void VM::tryAttach() {
     if (result != JNI_OK || nVMs != 1) {
         return;
     }
-    VM::initWrapper(jvm);
+
+    // Check the current JNI environment status
+    jint get_env_result = jvm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (get_env_result == JNI_OK) {
+        VM::init(jvm, true);
+        return;
+    } else if (get_env_result != JNI_EDETACHED) {
+        return;
+    }
+
+    // Here JVM exists but is not attached to current thread    
+    if (VM::checkJvmThreads() && jvm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
+        VM::init(jvm, true);
+    }
 }
