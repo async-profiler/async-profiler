@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.0]
+## [4.0] - 2025-04-08
 
 ### Features
  - #895, #905: `jfrconv` binary and numerous converter enhancements
@@ -53,7 +53,6 @@
  - #934: Fix crash on Zing in a native thread
  - #843: Fix race between parsing and concurrent unloading of shared libraries
  - #1147, #1151: Deadlocks with jemalloc and tcmalloc profilers
- - #1162: Deadlock in JNI GetEnv
  - Stack walking fixes for ARM64
  - Converter fixes for `jfrsync` profiles
  - Fixed parsing non-PIC executables and shared objects with non-standard section layout
