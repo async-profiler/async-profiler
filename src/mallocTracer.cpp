@@ -137,18 +137,16 @@ void MallocTracer::patchLibraries() {
         CodeCache* cc = (*native_libs)[_patched_libs++];
 
         cc->patchImport(im_malloc, (void*)malloc_hook);
-        cc->patchImport(im_calloc, (void*)calloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
         cc->patchImport(im_free, (void*)free_hook);
+        cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
 
         if (!OS::isMusl()) {
-            // In musl, posix_memalign internally calls aligned_alloc. Hooking posix_memalign would
-            // therefore lead to double-accounting of allocations. To prevent this, we simply avoid
-            // hooking posix_memalign in musl.
+            // On musl, calloc() calls malloc() internally, and posix_memalign() calls aligned_alloc().
+            // Skip the following hooks to prevent double-accounting.
+            cc->patchImport(im_calloc, (void*)calloc_hook);
             cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
         }
-
-        cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
     }
 }
 
