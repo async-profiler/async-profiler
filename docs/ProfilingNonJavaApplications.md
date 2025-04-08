@@ -1,11 +1,25 @@
 # Profiling Non-Java applications
 
 The scope of profiling non-Java applications is limited to the case when profiler is controlled
-programmatically from the process being profiled or with LD_PRELOAD. It is worth noting that
+programmatically from the process being profiled or with `LD_PRELOAD`. It is worth noting that
 [dynamic attach](IntegratingAsyncProfiler.md#launching-as-an-agent)
 which is available for Java is not supported for non-Java profiling.
 
-## C API
+## LD_PRELOAD
+
+async-profiler can be injected into a native application through the `LD_PRELOAD` mechanism:
+
+```
+LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,event=cpu,file=profile.jfr NativeApp [args]
+```
+
+All basic functionality remains the same. Profiler can run in `cpu`, `wall`, `nativemem` and other perf_events
+modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
+Java-specific events.
+
+See [Profiling Modes](ProfilingModes.md) for more examples.
+
+## Controlling async-profiler via the C API
 
 Similar to the
 [Java API](IntegratingAsyncProfiler.md#using-java-api),
@@ -82,16 +96,6 @@ int main() {
     return 0;
 }
 ```
-
-In addition, async-profiler can be injected into a native application through LD_PRELOAD mechanism:
-
-```
-LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,event=cpu,file=profile.jfr NativeApp [args]
-```
-
-All basic functionality remains the same. Profiler can run in `cpu`, `wall` and other perf_events
-modes. Flame Graph and JFR output formats are supported, although JFR files will obviously lack
-Java-specific events.
 
 ## Unstable APIs
 

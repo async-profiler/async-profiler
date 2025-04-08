@@ -12,8 +12,7 @@ import one.profiler.test.TestProcess;
 
 public class CTests {
 
-    // TODO: Make the test work on macOS
-    @Test(sh = "%testbin/native_api %f.jfr", output = true, os = Os.LINUX)
+    @Test(sh = "%testbin/native_api %f.jfr", output = true)
     public void nativeApi(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;

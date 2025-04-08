@@ -58,6 +58,7 @@ class CallTraceStorage {
     ~CallTraceStorage();
 
     void clear();
+    u32 capacity();
     size_t usedMemory();
 
     void collectTraces(std::map<u32, CallTrace*>& map);
