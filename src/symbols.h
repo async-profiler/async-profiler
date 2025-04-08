@@ -14,6 +14,7 @@ class Symbols {
   private:
     static Mutex _parse_lock;
     static bool _have_kernel_symbols;
+    static bool _libs_limit_reported;
 
   public:
     static void parseKernelSymbols(CodeCache* cc);
