@@ -109,7 +109,7 @@ static void* resolveMethodIdEnd() {
 // Work around for JDK-8308341, as JNI might return a none initialized VM so we check for the existence of certain VM threads 
 // "VM Thread" and "Service Thread" in this case are used as indication that the VM is in a good enough state to be used
 bool VM::checkJvmThreads() {
-    char thread_name[20];
+    char thread_name[30];
     int thread_name_offset = 0;
     bool vm_thread = false, service_thread = false;
 
