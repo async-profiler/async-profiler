@@ -121,7 +121,6 @@ void startJvm() {
     // Start JVM
     JavaVMInitArgs vm_args;
     JavaVMOption options[1];
-    int pid = getpid();
 
     options[0].optionString = const_cast<char*>("-Djava.class.path=build/test");
     //options[1].optionString = const_cast<char*>("-Xcheck:jni");

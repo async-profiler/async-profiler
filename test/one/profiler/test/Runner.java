@@ -91,7 +91,7 @@ public class Runner {
         return Jvm.HOTSPOT;
     }
 
-    protected static int detectJvmVersion() {
+    private static int detectJvmVersion() {
         String prop = System.getProperty("java.vm.specification.version");
         if (prop.startsWith("1.")) {
             prop = prop.substring(2);
