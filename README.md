@@ -102,6 +102,7 @@ Other Makefile targets:
 - [FlameGraph Interpretation](docs/FlamegraphInterpretation.md)
 - [JFR Visualization](docs/JfrVisualization.md)
 - [Converter Usage](docs/ConverterUsage.md)
+- [Heatmap](docs/Heatmap.md)
 
 ## Advanced usage
 
