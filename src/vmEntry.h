@@ -113,7 +113,7 @@ class VM {
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
 
-    static void initWrapper(JavaVM* vm);
+    static bool checkJvmThreads();
 
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;

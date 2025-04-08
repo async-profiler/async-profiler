@@ -10,28 +10,16 @@
 #include <limits.h>
 #include "asprof.h"
 #include <pthread.h>
-
-// detect arch for java 8
-#if defined(__x86_64__) || defined(_M_X64)
-#  define JAVA8_ARCH_PATH "amd64/"
-#elif defined(__i386) || defined(_M_IX86)
-#  define JAVA8_ARCH_PATH "i386/"
-#elif defined(__aarch64__) || defined(_M_ARM64)
-#  define JAVA8_ARCH_PATH "aarch64/"
-#elif defined(__arm__) || defined(_M_ARM)
-#  define JAVA8_ARCH_PATH "arm/"
-#else
-#  define JAVA8_ARCH_PATH "/"
-#endif
+#include <time.h>
+#include <dirent.h>
+#include <string.h>
  
 #ifdef __linux__
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
-const char jvm_lib_path[] = "lib/server/libjvm.so";
-const char jvm8_lib_path[] = "lib/" JAVA8_ARCH_PATH "server/libjvm.so";
+const char jvm_lib_path[] = "server/libjvm.so";
 #else
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
-const char jvm_lib_path[] = "lib/server/libjvm.dylib";
-const char jvm8_lib_path[] = "lib/server/libjvm.dylib";
+const char jvm_lib_path[] = "server/libjvm.dylib";
 #endif
 
 typedef jint (*CreateJvm)(JavaVM **, void **, void *);
@@ -44,8 +32,6 @@ JavaVM* _jvm;
 JNIEnv* _env;
 
 void* _jvm_lib;
-
-jint java_version = 0;
 
 void outputCallback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stderr);
@@ -84,30 +70,49 @@ void stopProfiler(char* outputFile) {
 }
 
 void loadJvmLib() {
+    char lib_path[PATH_MAX];    
+
     // Get Java home
     char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
         std::cerr << "TEST_JAVA_HOME is not set" << std::endl;
         exit(1);
     }
-    // Get Java version
-    char* version = getenv("TEST_JAVA_VERSION");
-    if (version == NULL) {
-        std::cerr << "TEST_JAVA_VERSION is not set" << std::endl;
-        exit(1);
+
+    // check that libjvm is found under the standard path
+    snprintf(lib_path, sizeof(lib_path), "%s/%s/%s", java_home, "lib", jvm_lib_path);
+    if ((_jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW)) != NULL) {
+        return;
     }
-    // Java 8 or higher
-    java_version = std::stoi(version);
-    if (java_version < 8) {
-        std::cerr << "Unsupported Java version: " << version << std::endl;
+
+    char java_lib_home[PATH_MAX];
+    struct dirent* entry;
+    DIR* dir;
+
+    // libjvm wasn't found under standard path, this could happen in JDK 8 where the path is formated like:
+    // ${TEST_JAVA_HOME}/lib/${ARCH}/server/libjvm.(so|dylib)
+    snprintf(java_lib_home, sizeof(java_lib_home), "%s/lib", java_home);
+    dir = opendir(java_lib_home);
+    if (dir == NULL) {
+        std::cerr << "Error opening directory: " << java_lib_home << std::endl;
         exit(1);
     }
 
-    char lib_path[PATH_MAX];
-    snprintf(lib_path, sizeof(lib_path), "%s/%s", java_home, java_version == 8 ? jvm8_lib_path : jvm_lib_path);
-    _jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW);
+    while((entry = readdir(dir)) != NULL) {
+        // Skip .. & .
+        if (strcmp(entry->d_name, "..") == 0 || strcmp(entry->d_name, ".") == 0) {
+            continue;
+        }
+       
+        snprintf(lib_path, sizeof(lib_path), "%s/%s/%s", java_lib_home, entry->d_name, jvm_lib_path);
+        if ((_jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW)) != NULL) {
+            break;
+        }
+    }
+
+    // libjvm was never found
     if (_jvm_lib == NULL) {
-        std::cerr << "Unable to find: " << lib_path << ", Error: " << dlerror() << std::endl;
+        std::cerr << "Unable to find: libjvm" << std::endl;
         exit(1);
     }
 }
@@ -317,6 +322,8 @@ Explaination:
 The JVM is loaded and started before the profiling session is started so it's attached correctly at the session start
 */
 void testFlow4(int argc, char** argv) {
+    struct timespec wait_time = {(time_t)(2), 0L};
+
     validateArgsCount(argc, 3, "Minimum Arguments is 2");
 
     loadProfiler();
@@ -325,12 +332,12 @@ void testFlow4(int argc, char** argv) {
     pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
    
     // busy wait for JVM to start on the thread
-    for (int i = 0; i < 3; i++) for (int i = 0; i < 1000000000; ++i) {}
+    nanosleep(&wait_time, NULL);
 
     startProfiler();
 
     // busy wait for profiler to sample JVM
-    for (int i = 0; i < 3; i++) for (int i = 0; i < 1000000000; ++i) {}
+    nanosleep(&wait_time, NULL);
 
     stopProfiler(argv[2]);
 }
