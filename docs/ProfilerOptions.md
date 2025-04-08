@@ -101,15 +101,15 @@ By default, async-profiler merges stack traces starting from the outermost (e.g.
 `fmt` can be one of the following options:
 
 - `traces[=N]` - dump call traces (at most N samples);
-- `flat[=N]` - dump flat profile (top N hot methods);  
-  can be combined with `traces`, e.g. `traces=200,flat=200`
+- `flat[=N]` - dump flat profile (top N hot methods);
+  - can be combined with `traces`, e.g. `traces=200,flat=200`
 - `jfr` - dump events in JDK Flight Recorder format readable by JDK Mission Control.
 - `collapsed` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by a counter.
 - `flamegraph` - produce Flame Graph in HTML format.
-- `tree` - produce Call Tree in HTML format.  
-  `--reverse` option will generate backtrace view.
+- `tree` - produce Call Tree in HTML format.
+  - `--reverse` option will generate backtrace view.
 
 It is possible to specify multiple dump options at the same time.
