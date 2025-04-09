@@ -79,10 +79,10 @@ retain stacks with matching frames only. All other stacks will be filtered out.
 
 ![](/.assets/images/heatmap6.png)
 
-### Producing heatmaps
+## Producing heatmaps
 
-Use [`jfrconv`](ConverterUsage.md) tool with `-o heatmap` option
-to generate heatmap from a recording in JFR format.
+Heatmaps can only be generated from recordings in JFR format.
+Run [`jfrconv`](ConverterUsage.md) tool with `-o heatmap` option.
 
 Standard `jfrconv` options (`--cpu`, `--alloc`, `--from`/`--to`, `--simple`, etc.)
 are also applicable to heatmaps.
