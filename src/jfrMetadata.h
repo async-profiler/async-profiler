@@ -40,7 +40,9 @@ enum JfrType {
     T_SYMBOL = 31,
     T_GC_WHEN = 32,
     T_LOG_LEVEL = 33,
+    T_USER_EVENT_TYPE = 34,
 
+    // types between T_EVENT and T_ANNOTATION inherit from jdk.jfr.Event, see JfrMetadata::type
     T_EVENT = 100,
     T_EXECUTION_SAMPLE = 101,
     T_ALLOC_IN_NEW_TLAB = 102,
@@ -62,7 +64,9 @@ enum JfrType {
     T_WALL_CLOCK_SAMPLE = 118,
     T_MALLOC = 119,
     T_FREE = 120,
+    T_USER_EVENT = 121,
 
+    // types after T_ANNOTATION inherit from java.lang.annotation.Annotation, see JfrMetadata::type
     T_ANNOTATION = 200,
     T_LABEL = 201,
     T_CATEGORY = 202,
