@@ -92,6 +92,7 @@ typedef struct {
     jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
 
+typedef jint (*GetJvm)(JavaVM **, jsize, jsize *);
 
 class VM {
   private:
@@ -102,6 +103,8 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
+    static GetJvm _getJvm;
+
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
@@ -109,6 +112,8 @@ class VM {
     static void applyPatch(char* func, const char* patch, const char* end_patch);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
+
+    static bool checkJvmThreads();
 
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;
@@ -177,6 +182,8 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
+
+    static void tryAttach();
 };
 
 #endif // _VMENTRY_H
