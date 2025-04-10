@@ -53,6 +53,8 @@ class VMStructs {
     static int _frame_complete_offset;
     static int _code_offset;
     static int _data_offset;
+    static int _mutable_data_offset;
+    static int _relocation_size_offset;
     static int _scopes_pcs_offset;
     static int _scopes_data_offset;
     static int _nmethod_name_offset;
@@ -488,7 +490,11 @@ class NMethod : VMStructs {
     }
 
     VMMethod** metadata() {
-        if (_data_offset > 0) {
+        if (_mutable_data_offset >= 0) {
+            // Since JDK 25
+            return (VMMethod**) (*(char**) at(_mutable_data_offset) + *(int*) at(_relocation_size_offset));
+        } else if (_data_offset > 0) {
+            // since JDK 23
             return (VMMethod**) at(*(int*) at(_data_offset) + *(unsigned short*) at(_nmethod_metadata_offset));
         }
         return (VMMethod**) at(*(int*) at(_nmethod_metadata_offset));
