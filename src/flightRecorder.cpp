@@ -392,11 +392,11 @@ class Buffer {
         put(v, len);
     }
 
-    void putByteString(const uint8_t *v, size_t len) {
+    void putByteString(const uint8_t* v, size_t len) {
         put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
         u32 truncated_len = len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH;
         putVar32(truncated_len);
-        put((const char *)v, truncated_len);
+        put((const char*)v, truncated_len);
     }
 
     void put8(int offset, char v) {
@@ -1013,8 +1013,11 @@ class Recording {
         writeClasses(buf, &lookup);
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
-        writeLogLevels(buf);
         writeUserEventTypes(buf);
+        // Write log levels last. The order does not affect the JFR's validity,
+        // but log levels have an easily-visible format that makes it easy
+        // to see if a JFR file has been accidentally truncated.
+        writeLogLevels(buf);
     }
 
     void writePoolHeader(Buffer* buf, JfrType type, u32 size) {
@@ -1188,7 +1191,7 @@ class Recording {
         writePoolHeader(buf, T_SYMBOL, symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar64(it->first | _base_id);
+            buf->putVar32(it->first | _base_id);
             buf->putUtf8(it->second);
         }
     }
@@ -1271,12 +1274,12 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordUserEvent(Buffer* buf, int tid, UserEvent *event) {
+    void recordUserEvent(Buffer* buf, int tid, UserEvent* event) {
         int start = buf->skip(5);
         buf->put8(T_USER_EVENT);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
-        buf->putVar64(event->_key);
+        buf->putVar32(event->_type);
         buf->putByteString(event->_data, event->_len);
         buf->putVar32(start, buf->offset() - start);
     }
