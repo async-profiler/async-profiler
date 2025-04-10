@@ -88,8 +88,8 @@ class MallocEvent : public Event {
 class UserEvent : public Event {
   public:
     u64 _start_time;
-    asprof_user_jfr_key _key;
-    const uint8_t *_data;
+    asprof_user_jfr_key _type;
+    const uint8_t* _data;
     size_t _len;
 };
 

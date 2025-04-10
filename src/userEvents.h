@@ -5,18 +5,16 @@
 
 #ifndef _USEREVENT_H
 #define _USEREVENT_H
- 
+
 #include <map>
 #include <stddef.h>
-#include "mutex.h"
 #include "dictionary.h"
 
 class UserEvents {
   public:
-    static int registerEvent(const char *event);
+    static int registerEvent(const char* event);
     static void collect(std::map<unsigned int, const char*>& map);
   private:
-    static Mutex _state_lock;
     static Dictionary _dict;
 };
 
