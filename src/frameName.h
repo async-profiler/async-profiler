@@ -8,7 +8,7 @@
 
 #include <jvmti.h>
 #include <locale.h>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include "arguments.h"
@@ -20,9 +20,9 @@
 #endif
 
 
-typedef std::map<jmethodID, std::string> JMethodCache;
-typedef std::map<int, std::string> ThreadMap;
-typedef std::map<unsigned int, const char*> ClassMap;
+typedef std::unordered_map<jmethodID, std::string> JMethodCache;
+typedef std::unordered_map<int, std::string> ThreadMap;
+typedef std::unordered_map<unsigned int, const char*> ClassMap;
 
 
 enum MatchType {

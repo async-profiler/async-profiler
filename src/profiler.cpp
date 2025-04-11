@@ -960,11 +960,9 @@ void Profiler::updateNativeThreadNames() {
         while (thread_list->hasNext()) {
             int tid = thread_list->next();
             MutexLocker ml(_thread_names_lock);
-            std::map<int, std::string>::iterator it = _thread_names.lower_bound(tid);
-            if (it == _thread_names.end() || it->first != tid) {
-                if (OS::threadName(tid, name_buf, sizeof(name_buf))) {
-                    _thread_names.insert(it, std::map<int, std::string>::value_type(tid, name_buf));
-                }
+            std::unordered_map<int, std::string>::iterator it = _thread_names.find(tid);
+            if (it == _thread_names.end() && OS::threadName(tid, name_buf, sizeof(name_buf))) {
+                _thread_names.insert(it, std::unordered_map<int, std::string>::value_type(tid, name_buf));
             }
         }
 
@@ -1550,11 +1548,11 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     std::vector<CallTraceSample> samples;
     u64 total_counter = 0;
     {
-        std::map<u64, CallTraceSample> map;
+        std::unordered_map<u64, CallTraceSample> map;
         _call_trace_storage.collectSamples(map);
         samples.reserve(map.size());
 
-        for (std::map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
+        for (std::unordered_map<u64, CallTraceSample>::const_iterator it = map.begin(); it != map.end(); ++it) {
             CallTrace* trace = it->second.trace;
             u64 counter = it->second.counter;
             if (trace == NULL || counter == 0) continue;
@@ -1610,7 +1608,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
     // Print top methods
     if (args._dump_flat > 0) {
-        std::map<std::string, MethodSample> histogram;
+        std::unordered_map<std::string, MethodSample> histogram;
         for (std::vector<CallTraceSample>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
             const char* frame_name = fn.name(it->trace->frames[0]);
             histogram[frame_name].add(it->samples, it->counter);
