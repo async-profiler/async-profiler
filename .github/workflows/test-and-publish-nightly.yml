@@ -53,7 +53,7 @@ jobs:
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
           - runson:
               display: alpine
-              name: alpine
+              name: ubuntu-latest
             java-version: 11
             java-distribution: corretto
             container: alpine
