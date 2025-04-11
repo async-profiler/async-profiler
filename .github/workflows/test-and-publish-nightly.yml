@@ -69,6 +69,9 @@ jobs:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
+      - name: Setup Alpine:
+        run: |
+          apk add --no-cache make gcc g++ perf_event musl-dev
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
@@ -80,7 +83,7 @@ jobs:
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
+              make COMMIT_TAG=$HASH release test -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
@@ -94,7 +97,7 @@ jobs:
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc coverage -j
+              make COMMIT_TAG=$HASH coverage -j
             ;;
           esac
       - name: Upload test logs
