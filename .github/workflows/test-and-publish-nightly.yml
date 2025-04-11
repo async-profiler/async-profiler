@@ -69,7 +69,8 @@ jobs:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
-      - name: Setup Alpine:
+      - name: Setup Alpine
+        if: matrix.container == 'alpine'
         run: |
           apk add --no-cache make gcc g++ perf_event musl-dev
       - name: Checkout sources
