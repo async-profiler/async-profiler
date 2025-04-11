@@ -66,13 +66,13 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: matrix.display != 'alpine'
+        if: matrix.runson.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
       - name: Setup Alpine
-        if: matrix.display == 'alpine'
+        if: matrix.runson.display == 'alpine'
         run: |
           apk add --no-cache make gcc g++ linux-headers musl-dev util-linux
       - name: Checkout sources
