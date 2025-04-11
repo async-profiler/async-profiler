@@ -55,7 +55,7 @@ jobs:
               display: alpine
               name: ubuntu-latest
             java-version: 11
-            java-distribution: corretto
+            java-distribution: openjdk
             container: alpine
     runs-on: ${{ matrix.runson.name }}
     container:
@@ -74,7 +74,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.container == 'alpine'
         run: |
-          apk add --no-cache make gcc g++ linux-headers musl-dev openjdk11
+          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux ${{ matrix.java-distribution }}${{ matrix.java-version }}
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
