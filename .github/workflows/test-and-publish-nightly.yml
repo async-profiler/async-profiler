@@ -65,6 +65,8 @@ jobs:
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
+        if: matrix.container != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
@@ -72,7 +74,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.container == 'alpine'
         run: |
-          apk add --no-cache make gcc g++ linux-headers musl-dev
+          apk add --no-cache make gcc g++ linux-headers musl-dev openjdk11
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
