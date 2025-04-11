@@ -54,6 +54,9 @@ jobs:
           - runson:
               display: alpine
               name: ubuntu-latest
+            # JDK comes from the Docker image, the two fields below are only specified for UI purposes
+            java-version: 11
+            java-distribution: corretto
             container: amazoncorretto:11-alpine-jdk
     runs-on: ${{ matrix.runson.name }}
     container:
