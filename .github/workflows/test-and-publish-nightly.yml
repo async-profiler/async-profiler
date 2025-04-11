@@ -56,7 +56,7 @@ jobs:
               name: ubuntu-latest
             java-version: 11
             java-distribution: openjdk
-            container: alpine
+            container: 11-alpine-jdk
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
@@ -66,15 +66,15 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: matrix.container != 'alpine'
+        if: matrix.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
       - name: Setup Alpine
-        if: matrix.container == 'alpine'
+        if: matrix.display == 'alpine'
         run: |
-          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux ${{ matrix.java-distribution }}${{ matrix.java-version }}
+          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
