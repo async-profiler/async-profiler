@@ -51,6 +51,12 @@ jobs:
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+          - runson:
+              display: alpine
+              name: alpine
+            java-version: 11
+            java-distribution: corretto
+            container: alpine
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
