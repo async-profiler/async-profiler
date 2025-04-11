@@ -56,7 +56,7 @@ jobs:
               name: ubuntu-latest
             java-version: 11
             java-distribution: openjdk
-            container: 11-alpine-jdk
+            container: amazoncorretto:11-alpine-jdk
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
