@@ -54,8 +54,6 @@ jobs:
           - runson:
               display: alpine
               name: ubuntu-latest
-            java-version: 11
-            java-distribution: openjdk
             container: amazoncorretto:11-alpine-jdk
     runs-on: ${{ matrix.runson.name }}
     container:
