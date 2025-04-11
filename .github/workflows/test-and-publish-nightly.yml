@@ -72,7 +72,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.container == 'alpine'
         run: |
-          apk add --no-cache make gcc g++ perf_event musl-dev
+          apk add --no-cache make gcc g++ linux-headers musl-dev
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and test
