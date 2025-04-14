@@ -1,4 +1,4 @@
-PROFILER_VERSION ?= 3.0
+PROFILER_VERSION ?= 4.0
 
 ifeq ($(COMMIT_TAG),true)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(shell git rev-parse --short=8 HEAD)
@@ -50,7 +50,8 @@ LOG_LEVEL=
 SKIP=
 TEST_FLAGS=-DlogDir=$(LOG_DIR) -DlogLevel=$(LOG_LEVEL) -Dskip=$(SKIP)
 
-SOURCES := $(wildcard src/*.cpp)
+# always sort SOURCES so zInit is last.
+SOURCES := $(sort $(wildcard src/*.cpp))
 HEADERS := $(wildcard src/*.h)
 RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
@@ -74,7 +75,7 @@ ifeq ($(OS),Darwin)
   PACKAGE_EXT=zip
   OS_TAG=macos
   ifeq ($(FAT_BINARY),true)
-    FAT_BINARY_FLAGS=-arch x86_64 -arch arm64 -mmacos-version-min=10.12
+    FAT_BINARY_FLAGS=-arch x86_64 -arch arm64 -mmacos-version-min=10.15
     CFLAGS += $(FAT_BINARY_FLAGS)
     CXXFLAGS += $(FAT_BINARY_FLAGS)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
@@ -123,7 +124,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -203,13 +204,23 @@ build-test: build-test-cpp build-test-java
 
 build-test-libs:
 	@mkdir -p $(TEST_LIB_DIR)
+
+ifeq ($(OS_TAG),linux)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c
 	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
+
+	$(CC) -c -shared -fPIC -o $(TEST_LIB_DIR)/vaddrdif.o test/native/libs/vaddrdif.c
+	$(LD) -N -shared -o $(TEST_LIB_DIR)/libvaddrdif.$(SOEXT) $(TEST_LIB_DIR)/vaddrdif.o -T test/native/libs/vaddrdif.ld
+
+	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
+	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
+endif
 
 build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
 	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	gcc -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
+	$(CXX) -o $(TEST_BIN_DIR)/non_java_app $(INCLUDES) $(CPP_TEST_INCLUDES) test/test/nonjava/non_java_app.cpp $(LIBS)
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -232,12 +243,6 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
-
-native:
-	mkdir -p native/linux-x64 native/linux-arm64 native/macos
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
-	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
 
 check-md:
 	prettier -c README.md "docs/**/*.md"

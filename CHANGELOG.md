@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.0] - Early Access
+## [4.0] - 2025-04-08
 
 ### Features
  - #895, #905: `jfrconv` binary and numerous converter enhancements
@@ -9,6 +9,7 @@
  - #1002: An option to display instruction addresses
  - #1007: Optimize wall clock profiling
  - #1073: Productize VMStructs-based stack walker: `--cstack vm/vmx`
+ - #1169: C API for accessing thread-local profiling context
 
 ### Improvements
  - #923: Support JDK 23+
@@ -16,6 +17,7 @@
  - #955: `--libpath` option to specify path to `libasyncProfiler.so` in a container
  - #1018: `--grain` converter option to coarsen flame graphs
  - #1046: `--nostop` option to continue profiling outside `--begin`/`--end` window
+ - #1178: `--inverted` option to flip flame graphs vertically
  - #1009: Allows collecting allocation and live object traces at the same time
  - #925: An option to accumulate JFR events in memory instead of flushing to a file
  - #929: Load symbols from debuginfod cache
@@ -23,8 +25,12 @@
  - #993: Filter native frames in allocation profile
  - #896: FlameGraph: `Alt+Click` to remove stacks
  - #1097: FlameGraph: `N`/`Shift+N` to navigate through search results
+ - #1182: Retain by-thread grouping when reversing FlameGraph
+ - #1167: Log when no samples are collected
  - #1044: Fall back to `ctimer` for CPU profiling when perf_events are unavailable
  - #1068: Count missed samples when estimating total CPU time in `ctimer` mode
+ - #1142: Use counter-timer register for timestamps on ARM64
+ - #1123: Support `clock=tsc` without a JVM
  - #1070: Demangle Rust v0 symbols
  - #1007: Use `ExecutionSample` event for CPU profiling and `WallClockSample` for Wall clock profiling
  - #1011: Obtain `can_generate_sampled_object_alloc_events` JVMTI capability only when needed
@@ -36,6 +42,8 @@
  - Suppress dynamic attach warning on JDK 21+
 
 ### Bug fixes
+ - #1143: Crash on macOS when using thread filter
+ - #1125: Fixed parsing concurrently loaded libraries
  - #1095: jfr print fails when a recording has empty pools
  - #1084: Fixed Logging related races
  - #1074: Parse both .rela.dyn and .rela.plt sections
@@ -44,12 +52,14 @@
  - #981: Avoid JVM crash by deleting JNI refs after `GetMethodDeclaringClass`
  - #934: Fix crash on Zing in a native thread
  - #843: Fix race between parsing and concurrent unloading of shared libraries
+ - #1147, #1151: Deadlocks with jemalloc and tcmalloc profilers
  - Stack walking fixes for ARM64
  - Converter fixes for `jfrsync` profiles
- - Fixed parsing non-PIC executables
+ - Fixed parsing non-PIC executables and shared objects with non-standard section layout
  - Fixed recursion in `pthread_create` when using native profiling API
  - Fixed crashes on Alpine when profiling native apps
  - Fixed warnings with `-Xcheck:jni`
+ - Fixed "Unsupported JVM" on OpenJ9 JDK 21
  - Fixed DefineClass crash on OpenJ9
  - JfrReader should handle custom events properly
  - Handle truncated JFRs
@@ -59,13 +69,13 @@
  - Implement test framework; add new integration tests
  - Unit test framework for C++ code
  - Run CI on all supported platforms
- - Test Corretto 11, 17, 21, 23 in CI
+ - Test multiple JDK versions in CI
  - Add GHA to validate license headers
  - Add Markdown checker and formatter
  - Add Issue and Pull Request templates
  - Add Contributing Guidelines and Code of Conduct
  - Run static analyzer and fix found issues (#1034, #1039, #1049, #1051, #1098)
- - Provide Docker image for building async-profiler release packages
+ - Provide Dockerfile for building async-profiler release packages
  - Publish nightly builds automatically
 
 ## [3.0] - 2024-01-20

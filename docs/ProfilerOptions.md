@@ -37,6 +37,7 @@ The below options are `action`s for async-profiler and common for both `asprof` 
 | `--nativemem N`    | `nativemem=N`     | Native memory allocation profiling. N, if specified is the interval in bytes or in other units, if N is followed by `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). Default N is 0.                                                                                                                                                                                                                                                                                                                                                   |
 | `--nofree`         | `nofree`          | Will not record free calls in native memory allocation profiling. This is relevant when tracking memory leaks is not important and there are lots of free calls.                                                                                                                                                                                                                                                                                                                                                                            |
 | `--lock DURATION`  | `lock=DURATION`   | In lock profiling mode, sample contended locks when total lock duration overflows the threshold.                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `--wall INTERVAL`  | `wall=INTERVAL`   | Wall clock profiling interval. Use this option instead of `-e wall` to enable wall clock profiling with another event, typically `cpu`.<br>Example: `asprof -e cpu --wall 100ms -f combined.jfr 8983`.                                                                                                                                                                                                                                                                                                                                      |
 | `-j N`             | `jstackdepth=N`   | Sets the maximum stack depth. The default is 2048.<br>Example: `asprof -j 30 8983`                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `-I PATTERN`       | `include=PATTERN` | Filter stack traces by the given pattern(s). `-I` defines the name pattern that _must_ be present in the stack traces. `-I` can be specified multiple times. A pattern may begin or end with a star `*` that denotes any (possibly empty) sequence of characters.<br>Example: `asprof -I 'Primes.*' -I 'java/*' 8983`                                                                                                                                                                                                                       |
 | `-X PATTERN`       | `exclude=PATTERN` | Filter stack traces by the given pattern(s). `-X` defines the name pattern that _must not_ occur in any of stack traces in the output. `-X` can be specified multiple times. A pattern may begin or end with a star `*` that denotes any (possibly empty) sequence of characters.<br>Example: `asprof -X '*Unsafe.park*' 8983`                                                                                                                                                                                                              |
@@ -101,15 +102,15 @@ By default, async-profiler merges stack traces starting from the outermost (e.g.
 `fmt` can be one of the following options:
 
 - `traces[=N]` - dump call traces (at most N samples);
-- `flat[=N]` - dump flat profile (top N hot methods);  
-  can be combined with `traces`, e.g. `traces=200,flat=200`
+- `flat[=N]` - dump flat profile (top N hot methods);
+  - can be combined with `traces`, e.g. `traces=200,flat=200`
 - `jfr` - dump events in JDK Flight Recorder format readable by JDK Mission Control.
 - `collapsed` - dump collapsed call traces in the format used by
   [FlameGraph](https://github.com/brendangregg/FlameGraph) script. This is
   a collection of call stacks, where each line is a semicolon separated list
   of frames followed by a counter.
 - `flamegraph` - produce Flame Graph in HTML format.
-- `tree` - produce Call Tree in HTML format.  
-  `--reverse` option will generate backtrace view.
+- `tree` - produce Call Tree in HTML format.
+  - `--reverse` option will generate backtrace view.
 
 It is possible to specify multiple dump options at the same time.
