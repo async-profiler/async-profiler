@@ -1077,6 +1077,11 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Profiler already started");
     }
 
+    // If profiler is started from a native app, try to detect a running JVM and attach to it
+    if (!VM::loaded()) {
+        VM::tryAttach();
+    }
+
     Error error = checkJvmCapabilities();
     if (error) {
         return error;
