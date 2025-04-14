@@ -1095,7 +1095,7 @@ class Recording {
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
-            buf->putVar32(0);  // truncated
+            buf->put8(trace->truncated);
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);

@@ -711,7 +711,8 @@ void PerfEvents::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) 
         u64 counter = readCounter(siginfo, ucontext);
         J9StackTraceNotification notif;
         StackContext java_ctx;
-        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx);
+        bool truncated = false;
+        notif.num_frames = _cstack == CSTACK_NO ? 0 : walk(OS::threadId(), ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx, &truncated);
         J9StackTraces::checkpoint(counter, &notif);
     } else {
         resetBuffer(OS::threadId());
@@ -862,7 +863,7 @@ void PerfEvents::stop() {
     J9StackTraces::stop();
 }
 
-int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool* truncated) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
         return 0;  // the event is being destroyed
@@ -937,9 +938,9 @@ stack_complete:
     event->unlock();
 
     if (_cstack == CSTACK_FP) {
-        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkFP(ucontext, callchain + depth, max_depth - depth, java_ctx, truncated);
     } else if (_cstack == CSTACK_DWARF) {
-        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, java_ctx);
+        depth += StackWalker::walkDwarf(ucontext, callchain + depth, max_depth - depth, java_ctx, truncated);
     }
 
     return depth;

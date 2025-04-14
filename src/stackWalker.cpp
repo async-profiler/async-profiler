@@ -62,7 +62,7 @@ static jmethodID getMethodId(VMMethod* method) {
 }
 
 
-int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool* truncated) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -82,8 +82,13 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
     int depth = 0;
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth) {
+    while (true) {
+        if (depth == max_depth) {
+            *truncated = true;
+            break;
+        }
         if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
+            *truncated = true;
             java_ctx->set(pc, sp, fp);
             break;
         }
@@ -92,16 +97,19 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
 
         // Check if the next frame is below on the current stack
         if (fp < sp || fp >= sp + MAX_FRAME_SIZE || fp >= bottom) {
+            *truncated = fp != 0x0;
             break;
         }
 
         // Frame pointer must be word aligned
         if (!aligned(fp)) {
+            *truncated = true;
             break;
         }
 
         pc = stripPointer(SafeAccess::load((void**)fp + FRAME_PC_SLOT));
         if (inDeadZone(pc)) {
+            *truncated = pc != NULL;
             break;
         }
 
@@ -112,7 +120,7 @@ int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, S
     return depth;
 }
 
-int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
+int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool* truncated) {
     const void* pc;
     uintptr_t fp;
     uintptr_t sp;
@@ -133,10 +141,15 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     Profiler* profiler = Profiler::instance();
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth) {
+    while (true) {
+        if (depth == max_depth) {
+            *truncated = true;
+            break;
+        }
         if (CodeHeap::contains(pc) && !(depth == 0 && frame.unwindAtomicStub(pc))) {
             // Don't dereference pc as it may point to unreadable memory
             // frame.adjustSP(page_start, pc, sp);
+            *truncated = true;
             java_ctx->set(pc, sp, fp);
             break;
         }
@@ -156,16 +169,19 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         } else if (cfa_reg == DW_REG_PLT) {
             sp += ((uintptr_t)pc & 15) >= 11 ? cfa_off * 2 : cfa_off;
         } else {
+            *truncated = true;
             break;
         }
 
         // Check if the next frame is below on the current stack
         if (sp < prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
+            *truncated = sp != 0x0;
             break;
         }
 
         // Stack pointer must be word aligned
         if (!aligned(sp)) {
+            *truncated = true;
             break;
         }
 
@@ -183,6 +199,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
                 pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
                 sp = defaultSenderSP(sp, fp);
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    *truncated = true;
                     break;
                 }
             } else if (depth <= 1) {
@@ -194,6 +211,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         }
 
         if (inDeadZone(pc)) {
+            *truncated = pc != NULL;
             break;
         }
     }
@@ -201,18 +219,18 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     return depth;
 }
 
-int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail) {
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail, bool* truncated) {
     if (ucontext == NULL) {
         return walkVM(ucontext, frames, max_depth, detail,
-                      callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP());
+                      callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP(), truncated);
     } else {
         StackFrame frame(ucontext);
         return walkVM(ucontext, frames, max_depth, detail,
-                      (const void*)frame.pc(), frame.sp(), frame.fp());
+                      (const void*)frame.pc(), frame.sp(), frame.fp(), truncated);
     }
 }
 
-int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor) {
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor, bool* truncated) {
     uintptr_t sp = anchor->lastJavaSP();
     if (sp == 0) {
         return 0;
@@ -228,11 +246,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         pc = ((const void**)sp)[-1];
     }
 
-    return walkVM(ucontext, frames, max_depth, VM_BASIC, pc, sp, fp);
+    return walkVM(ucontext, frames, max_depth, VM_BASIC, pc, sp, fp, truncated);
 }
 
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                        StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp) {
+                        StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp, bool* truncated) {
     StackFrame frame(ucontext);
     uintptr_t bottom = (uintptr_t)&frame + MAX_WALK_SIZE;
 
@@ -258,7 +276,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     }
 
     // Walk until the bottom of the stack or until the first Java frame
-    while (depth < max_depth) {
+    while (true) {
+        if (depth == max_depth) {
+            *truncated = true;
+            break;
+        }
         if (CodeHeap::contains(pc)) {
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
@@ -298,6 +320,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 break;
             } else if (nm->isInterpreter()) {
                 if (vm_thread != NULL && vm_thread->inDeopt()) {
+                    *truncated = true;
                     fillFrame(frames[depth++], BCI_ERROR, "break_deopt");
                     break;
                 }
@@ -340,11 +363,13 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     }
                 }
 
+                *truncated = true;
                 fillFrame(frames[depth++], BCI_ERROR, "break_interpreted");
                 break;
             } else if (detail < VM_EXPERT && nm->isEntryFrame(pc)) {
                 JavaFrameAnchor* anchor = JavaFrameAnchor::fromEntryFrame(fp);
                 if (anchor == NULL) {
+                    *truncated = true;
                     fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
                     break;
                 }
@@ -357,6 +382,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     break;
                 }
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    *truncated = true;
                     fillFrame(frames[depth++], BCI_ERROR, "break_entry_frame");
                     break;
                 }
@@ -408,6 +434,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
         // Stack pointer must be word aligned
         if (!aligned(sp)) {
+            *truncated = true;
             break;
         }
 
@@ -425,6 +452,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 pc = stripPointer(*(void**)(sp + f->pc_off));
                 sp = defaultSenderSP(sp, fp);
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    *truncated = true;
                     break;
                 }
             } else if (depth <= 1) {
@@ -436,6 +464,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         }
 
         if (inDeadZone(pc)) {
+            *truncated = pc != NULL;
             break;
         }
     }
