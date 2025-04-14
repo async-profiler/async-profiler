@@ -20,6 +20,7 @@
 #include "log.h"
 #include "vmStructs.h"
 
+
 // JVM TI agent return codes
 const int ARGUMENTS_ERROR = 100;
 const int COMMAND_ERROR = 200;
@@ -31,14 +32,14 @@ int VM::_hotspot_version = 0;
 bool VM::_openj9 = false;
 bool VM::_zing = false;
 
+GetCreatedJavaVMs VM::_getCreatedJavaVMs = NULL;
+
 jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
 jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
-
-GetJvm VM::_getJvm = NULL;
 
 static bool isVmRuntimeEntry(const char* blob_name) {
     return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
@@ -106,32 +107,29 @@ static void* resolveMethodIdEnd() {
     return NULL;
 }
 
-// Work around for JDK-8308341, as JNI might return a none initialized VM so we check for the existence of certain VM threads 
-// "VM Thread" and "Service Thread" in this case are used as indication that the VM is in a good enough state to be used
-bool VM::checkJvmThreads() {
-    char thread_name[30];
-    int thread_name_offset = 0;
-    bool vm_thread = false, service_thread = false;
+// Workaround for JDK-8308341: since JNI_GetCreatedJavaVMs may return an uninitialized JVM,
+// we verify the readiness of the JVM by presence of "VM Thread" and "Service Thread".
+bool VM::hasJvmThreads() {
+    char thread_name[32];
+    int threads_found = 0;
 
     ThreadList* list = OS::listThreads();
-    while (list->hasNext()) {
+    while (list->hasNext() && threads_found != 3) {
         if (!OS::threadName(list->next(), thread_name, sizeof(thread_name))) {
             continue;
         }
 
-        // For MacOs Thread name starts with "Java: "
-        if (strncmp(thread_name, "Java: ", 6) == 0) {
-            thread_name_offset = 6;
-        }
+        // On macOS, Java thread names start with "Java: "
+        int thread_name_offset = strncmp(thread_name, "Java: ", 6) == 0 ? 6 : 0;
 
         if (strcmp(thread_name + thread_name_offset, "VM Thread") == 0) {
-            vm_thread = true;
+            threads_found |= 1;
         } else if (strcmp(thread_name + thread_name_offset, "Service Thread") == 0) {
-            service_thread = true;
+            threads_found |= 2;
         }
     }
 
-    return vm_thread && service_thread;
+    return threads_found == 3;
 }
 
 bool VM::init(JavaVM* vm, bool attach) {
@@ -300,6 +298,38 @@ bool VM::init(JavaVM* vm, bool attach) {
     }
 
     return true;
+}
+
+// Try to find a running JVM instance and attach to it
+void VM::tryAttach() {
+    if (_getCreatedJavaVMs == NULL) {
+        void* lib_handle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
+        if (lib_handle != NULL) {
+            _getCreatedJavaVMs = (GetCreatedJavaVMs)dlsym(lib_handle, "JNI_GetCreatedJavaVMs");
+            dlclose(lib_handle);
+        }
+        if (_getCreatedJavaVMs == NULL) {
+            return;
+        }
+    }
+
+    JavaVM* vm;
+    jsize nVMs;
+    if (_getCreatedJavaVMs(&vm, 1, &nVMs) != JNI_OK || nVMs != 1) {
+        return;
+    }
+
+    JNIEnv* env;
+    jint get_env_result = vm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (get_env_result == JNI_OK) {
+        // Current thread already belongs to the running JVM
+        VM::init(vm, true);
+    } else if (get_env_result == JNI_EDETACHED) {
+        // There is a running JVM, but we need to check it is initialized
+        if (hasJvmThreads() && vm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
+            VM::init(vm, true);
+        }
+    }
 }
 
 // Run late initialization when JVM is ready
@@ -492,41 +522,5 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
     Profiler* profiler = Profiler::instance();
     if (profiler != NULL) {
         profiler->stop();
-    }
-}
-
-// Try to find a running JVM instance & attach it to the profiler
-void VM::tryAttach() {
-    JavaVM* jvm;
-    JNIEnv* env;
-    jsize nVMs;
-
-    if (_getJvm == NULL) {
-        void* lib_handle = dlopen(OS::isLinux() ? "libjvm.so" : "libjvm.dylib", RTLD_LAZY | RTLD_NOLOAD);
-        _getJvm = lib_handle != NULL ? (GetJvm)dlsym(lib_handle, "JNI_GetCreatedJavaVMs") : NULL;
-    }
-    
-    if (_getJvm == NULL) {
-        Log::debug("JNI_GetCreatedJavaVMs is not loaded");
-        return;
-    }
-
-    jint result = _getJvm(&jvm, 1, &nVMs);
-    if (result != JNI_OK || nVMs != 1) {
-        return;
-    }
-
-    // Check the current JNI environment status
-    jint get_env_result = jvm->GetEnv((void**)&env, JNI_VERSION_1_6);
-    if (get_env_result == JNI_OK) {
-        VM::init(jvm, true);
-        return;
-    } else if (get_env_result != JNI_EDETACHED) {
-        return;
-    }
-
-    // Here JVM exists but is not attached to current thread    
-    if (VM::checkJvmThreads() && jvm->AttachCurrentThreadAsDaemon((void**)&env, NULL) == JNI_OK) {
-        VM::init(jvm, true);
     }
 }

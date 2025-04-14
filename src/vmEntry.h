@@ -85,6 +85,8 @@ typedef void (*AsyncGetCallTrace)(ASGCT_CallTrace*, jint, void*);
 
 typedef jlong (*JVM_MemoryFunc)();
 
+typedef jint (*GetCreatedJavaVMs)(JavaVM**, jsize, jsize*);
+
 typedef struct {
     void* unused1[86];
     jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
@@ -92,7 +94,6 @@ typedef struct {
     jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
 
-typedef jint (*GetJvm)(JavaVM **, jsize, jsize *);
 
 class VM {
   private:
@@ -103,7 +104,7 @@ class VM {
     static bool _openj9;
     static bool _zing;
 
-    static GetJvm _getJvm;
+    static GetCreatedJavaVMs _getCreatedJavaVMs;
 
     static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
@@ -112,8 +113,7 @@ class VM {
     static void applyPatch(char* func, const char* patch, const char* end_patch);
     static void loadMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass);
     static void loadAllMethodIDs(jvmtiEnv* jvmti, JNIEnv* jni);
-
-    static bool checkJvmThreads();
+    static bool hasJvmThreads();
 
   public:
     static AsyncGetCallTrace _asyncGetCallTrace;
@@ -121,6 +121,8 @@ class VM {
     static JVM_MemoryFunc _freeMemory;
 
     static bool init(JavaVM* vm, bool attach);
+
+    static void tryAttach();
 
     static bool loaded() {
         return _jvmti != NULL;
@@ -182,8 +184,6 @@ class VM {
 
     static jvmtiError JNICALL RedefineClassesHook(jvmtiEnv* jvmti, jint class_count, const jvmtiClassDefinition* class_definitions);
     static jvmtiError JNICALL RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const jclass* classes);
-
-    static void tryAttach();
 };
 
 #endif // _VMENTRY_H

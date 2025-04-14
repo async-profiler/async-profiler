@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dlfcn.h>
-#include <jni.h>
-#include <unistd.h>
-#include <iostream>
-#include <limits.h>
-#include "asprof.h"
-#include <pthread.h>
-#include <time.h>
 #include <dirent.h>
+#include <dlfcn.h>
+#include <iostream>
+#include <jni.h>
+#include <limits.h>
+#include <pthread.h>
 #include <string.h>
- 
+#include <time.h>
+#include <unistd.h>
+#include "asprof.h"
+
 #ifdef __linux__
 const char profiler_lib_path[] = "build/lib/libasyncProfiler.so";
 const char jvm_lib_path[] = "server/libjvm.so";
@@ -22,7 +22,7 @@ const char profiler_lib_path[] = "build/lib/libasyncProfiler.dylib";
 const char jvm_lib_path[] = "server/libjvm.dylib";
 #endif
 
-typedef jint (*CreateJvm)(JavaVM **, void **, void *);
+typedef jint (*CreateJvm)(JavaVM**, void**, void*);
 
 asprof_init_t _asprof_init;
 asprof_execute_t _asprof_execute;
@@ -37,7 +37,7 @@ void outputCallback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stderr);
 }
 
-void loadProfiler() {  
+void loadProfiler() {
     void* lib = dlopen(profiler_lib_path, RTLD_NOW | RTLD_GLOBAL);
     if (lib == NULL) {
         std::cerr << dlerror() << std::endl;
@@ -59,9 +59,9 @@ void startProfiler() {
     }
 }
 
-void stopProfiler(char* outputFile) {
+void stopProfiler(char* output_file) {
     char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "stop,file=%s", outputFile);
+    snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
     asprof_error_t err = _asprof_execute(cmd, outputCallback);
     if (err != NULL) {
         std::cerr << _asprof_error_str(err) << std::endl;
@@ -70,47 +70,43 @@ void stopProfiler(char* outputFile) {
 }
 
 void loadJvmLib() {
-    char lib_path[PATH_MAX];    
-
-    // Get Java home
     char* java_home = getenv("TEST_JAVA_HOME");
     if (java_home == NULL) {
         std::cerr << "TEST_JAVA_HOME is not set" << std::endl;
         exit(1);
     }
 
-    // check that libjvm is found under the standard path
+    // Check that libjvm is found under the standard path
+    char lib_path[PATH_MAX + 280];
     snprintf(lib_path, sizeof(lib_path), "%s/%s/%s", java_home, "lib", jvm_lib_path);
     if ((_jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW)) != NULL) {
         return;
     }
 
-    char java_lib_home[PATH_MAX];
-    struct dirent* entry;
-    DIR* dir;
-
-    // libjvm wasn't found under standard path, this could happen in JDK 8 where the path is formated like:
+    // JDK 8 has different directory layout. libjvm path will be the following:
     // ${TEST_JAVA_HOME}/lib/${ARCH}/server/libjvm.(so|dylib)
+    char java_lib_home[PATH_MAX];
     snprintf(java_lib_home, sizeof(java_lib_home), "%s/lib", java_home);
-    dir = opendir(java_lib_home);
+
+    DIR* dir = opendir(java_lib_home);
     if (dir == NULL) {
         std::cerr << "Error opening directory: " << java_lib_home << std::endl;
         exit(1);
     }
 
-    while((entry = readdir(dir)) != NULL) {
-        // Skip .. & .
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
         if (strcmp(entry->d_name, "..") == 0 || strcmp(entry->d_name, ".") == 0) {
             continue;
         }
-       
+
         snprintf(lib_path, sizeof(lib_path), "%s/%s/%s", java_lib_home, entry->d_name, jvm_lib_path);
         if ((_jvm_lib = dlopen(lib_path, RTLD_LOCAL | RTLD_NOW)) != NULL) {
             break;
         }
     }
+    closedir(dir);
 
-    // libjvm was never found
     if (_jvm_lib == NULL) {
         std::cerr << "Unable to find: libjvm" << std::endl;
         exit(1);
@@ -118,7 +114,6 @@ void loadJvmLib() {
 }
 
 void startJvm() {
-    // Start JVM
     JavaVMInitArgs vm_args;
     JavaVMOption options[1];
 
@@ -146,7 +141,7 @@ void startJvm() {
 }
 
 void executeJvmTask() {
-    jclass customClass = _env->FindClass("JavaClass");
+    jclass customClass = _env->FindClass("test/nonjava/JavaClass");
     if (customClass == nullptr) {
         std::cerr << "Can't find JavaClass" << std::endl;
         exit(1);
@@ -178,11 +173,11 @@ void stopJvm() {
     }
 }
 
-void validateArgsCount(int argc, int exepected, std::string context) {
-    if (argc < exepected) {
-        std::cerr << "Too few arguments: " << context << std::endl;
+void validateArgsCount(int argc, int expected) {
+    if (argc < expected) {
+        std::cerr << "Test requires " << (expected - 1) << " arguments" << std::endl;
         exit(1);
-    }  
+    }
 }
 
 /*
@@ -196,10 +191,11 @@ Here is the flow of the test:
 7. Stop the JVM
 
 Expected output:
-The profiler should be able to profile the JVM task
+The profiler should be able to profile the JVM task.
 
-Explaination:
-The JVM is loaded and started before the profiling session is started so it's attached correctly at the session start
+Explanation:
+The JVM is loaded and started before the profiling session,
+so profiler correctly detects the JVM when the profiling session starts.
 */
 void testFlow1(int argc, char** argv) {
     loadProfiler();
@@ -228,10 +224,11 @@ Here is the flow of the test:
 7. Stop the JVM
 
 Expected output:
-The profiler will not be able to sample the JVM stacks correctly
+The profiler will not be able to sample JVM stacks correctly.
 
-Explaination:
-The JVM is started after the profiling session is started so it's not attached correctly at the session start
+Explanation:
+The JVM is not yet created when the profiling session starts,
+so the profiler does not attach to the JVM.
 */
 void testFlow2(int argc, char** argv) {
     loadProfiler();
@@ -263,15 +260,15 @@ Here is the flow of the test:
 10. Stop the JVM
 
 Expected output:
-The profiler will not be able to sample the JVM stacks correctly on the first session
-But will be able to sample the JVM stacks correctly on the second session
+The profiler will not be able to sample JVM stacks correctly during the first session,
+but it will do during the second session.
 
-Explaination:
-The JVM is started after the profiling session is started so it's not attached correctly at the session start
-However the second profiling session is started after the JVM is started so it's attached correctly at the session start
+Explanation:
+It is a combination of the first two flows. The JVM is not yet started
+before the first session, but it is started before the second session.
 */
 void testFlow3(int argc, char** argv) {
-    validateArgsCount(argc, 4, "Test requires 3 arguments");
+    validateArgsCount(argc, 4);
 
     loadProfiler();
 
@@ -299,7 +296,7 @@ void* jvmThreadWrapper(void* arg) {
 
     startJvm();
 
-    while(1) executeJvmTask();
+    while (1) executeJvmTask();
 
     return NULL;
 }
@@ -308,41 +305,37 @@ void* jvmThreadWrapper(void* arg) {
 Here is the flow of the test:
 1. Load the profiler
 2. Load the JVM library
-3. Start the JVM on  a different thread
+3. Start the JVM on a different thread
 4. Start the profiler
 5. Execute the JVM task
 6. Stop the profiler
 7. Stop the JVM
 
 Expected output:
-The profiler should be able to profile the JVM task
+The profiler should be able to profile the JVM task.
 
-Explaination:
-The JVM is loaded and started before the profiling session is started so it's attached correctly at the session start
+Explanation:
+The same as flow 1, except that profiler will have to attach the caller thread to the JVM.
 */
 void testFlow4(int argc, char** argv) {
     struct timespec wait_time = {(time_t)(2), 0L};
-
-    validateArgsCount(argc, 3, "Minimum Arguments is 2");
 
     loadProfiler();
 
     pthread_t thread;
     pthread_create(&thread, NULL, jvmThreadWrapper, NULL);
-   
-    // busy wait for JVM to start on the thread
+
     nanosleep(&wait_time, NULL);
 
     startProfiler();
 
-    // busy wait for profiler to sample JVM
     nanosleep(&wait_time, NULL);
 
     stopProfiler(argv[2]);
 }
 
 int main(int argc, char** argv) {
-    validateArgsCount(argc, 3, "Minimum Arguments is 2");
+    validateArgsCount(argc, 3);
 
     // Check which test to run
     char* flow = argv[1];
@@ -350,10 +343,10 @@ int main(int argc, char** argv) {
         case '1':
             testFlow1(argc, argv);
             break;
-        case '2': 
+        case '2':
             testFlow2(argc, argv);
             break;
-        case '3': 
+        case '3':
             testFlow3(argc, argv);
             break;
         case '4':
@@ -363,6 +356,6 @@ int main(int argc, char** argv) {
             std::cerr << "Unknown flow: " << flow[0] << std::endl;
             exit(1);
     }
-    
+
     return 0;
 }
