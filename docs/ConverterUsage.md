@@ -29,9 +29,9 @@ Conversion options:
                list of frames followed by a counter. This is used by the FlameGraph script to
                generate the FlameGraph visualization of the profile data.
 
-  # flamegraph: FlameGraph is a hierarchical representation of call traces of the profiled
-                software in a color coded format that helps to identify a particular resource
-                usage like CPU and memory for the application.
+  # html: FlameGraph is a hierarchical representation of call traces of the profiled
+          software in a color coded format that helps to identify a particular resource
+          usage like CPU and memory for the application.
 
   # pprof: pprof is a profiling visualization and analysis tool from Google. More details on
            pprof  on the official github page https://github.com/google/pprof.
@@ -108,7 +108,7 @@ during a conversion.
 jfrconv --cpu foo.jfr
 
 # which is equivalent to:
-# jfrconv --cpu -o flamegraph foo.jfr foo.html
+# jfrconv --cpu -o html foo.jfr foo.html
 ```
 
 for HTML output as HTML is the default format for conversion from JFR.
