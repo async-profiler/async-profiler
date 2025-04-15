@@ -78,7 +78,7 @@ DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name);
 typedef asprof_jfr_event_key (*asprof_register_jfr_event_t)(const char* name);
 
 
-#define ASPROF_MAX_USER_JFR_LENGTH 4000
+#define ASPROF_MAX_USER_JFR_LENGTH 2048
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 //

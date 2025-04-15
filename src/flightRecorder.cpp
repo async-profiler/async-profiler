@@ -1275,12 +1275,20 @@ class Recording {
     }
 
     void recordUserEvent(Buffer* buf, int tid, UserEvent* event) {
+        // estimate of size of non-string fields of this event
+        const size_t event_non_string_size_limit = 64;
+        // when calling recordUserEvent, the buffer can be up to RECORDING_BUFFER_LIMIT bytes
+        // full. Check that the buffer is not exceeded.
+        static_assert(RECORDING_BUFFER_LIMIT + event_non_string_size_limit + ASPROF_MAX_USER_JFR_LENGTH
+            <= RECORDING_BUFFER_SIZE, "output must fit within recording buffer");
+
         int start = buf->skip(5);
         buf->put8(T_USER_EVENT);
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(event->_type);
-        buf->putByteString(event->_data, event->_len);
+        buf->putByteString(event->_data,
+            event->_len > ASPROF_MAX_USER_JFR_LENGTH ? ASPROF_MAX_USER_JFR_LENGTH : event->_len);
         buf->putVar32(start, buf->offset() - start);
     }
 
