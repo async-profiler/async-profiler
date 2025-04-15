@@ -64,25 +64,25 @@ DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void);
 typedef asprof_thread_local_data* (*asprof_get_thread_local_data_t)(void);
 
 
-typedef int asprof_user_jfr_key;
+typedef int asprof_jfr_event_key;
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 //
-// Return a asprof_user_jfr_key identifier for a user-defined JFR key.
-// That identifier can then be used in `asprof_emit_user_jfr`
+// Return a asprof_jfr_event_key identifier for a user-defined JFR key.
+// That identifier can then be used in `asprof_emit_jfr_event`
 //
 // The name is required to be valid (since it's a C string, NUL-free) UTF-8.
 //
 // Returns -1 on failure.
-DLLEXPORT asprof_user_jfr_key asprof_create_user_jfr_key(const char* name);
-typedef asprof_user_jfr_key (*asprof_create_user_jfr_key_t)(const char* name);
+DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name);
+typedef asprof_jfr_event_key (*asprof_register_jfr_event_t)(const char* name);
 
 
-#define ASPROF_MAX_USER_JFR_LENGTH 8191
+#define ASPROF_MAX_USER_JFR_LENGTH 4000
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 //
-// Emits a custom, user-defined JFR event. The key should be created via `asprof_create_user_jfr_key`.
+// Emits a custom, user-defined JFR event. The key should be created via `asprof_register_jfr_event`.
 // The data can be arbitrary binary data, with size <= ASPROF_MAX_USER_JFR_LENGTH.
 //
 // User-defined events are included in the JFR under a `profiler.UserEvent` event type. That type will contain
@@ -95,9 +95,9 @@ typedef asprof_user_jfr_key (*asprof_create_user_jfr_key_t)(const char* name);
 //    The Latin-1 encoding is used as a way to stuff the arbitrary byte input into something
 //    that JFR supports (JFR technically supports byte arrays, but `jfr print` doesn't).
 //
-// returns 0 on success, -1 on failure
-DLLEXPORT int asprof_emit_user_jfr(asprof_user_jfr_key type, const uint8_t* data, size_t len, uint64_t flags);
-typedef int (*asprof_emit_user_jfr_t)(asprof_user_jfr_key type, const uint8_t* data, size_t len, uint64_t flags);
+// returns an error code or NULL on success.
+DLLEXPORT asprof_error_t asprof_emit_jfr_event(asprof_jfr_event_key type, const uint8_t* data, size_t len);
+typedef asprof_error_t (*asprof_emit_jfr_event_t)(asprof_jfr_event_key type, const uint8_t* data, size_t len);
 
 #ifdef __cplusplus
 }

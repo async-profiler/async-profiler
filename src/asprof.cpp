@@ -56,16 +56,22 @@ DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void) {
     return ThreadLocalData::getThreadLocalData();
 }
 
-DLLEXPORT asprof_user_jfr_key asprof_create_user_jfr_key(const char* name) {
+DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name) {
     return UserEvents::registerEvent(name);
 }
 
-DLLEXPORT int asprof_emit_user_jfr(asprof_user_jfr_key type, const uint8_t* data, size_t len, uint64_t _flags) {
+#define asprof_str(s) #s
+
+DLLEXPORT asprof_error_t asprof_emit_jfr_event(asprof_jfr_event_key type, const uint8_t* data, size_t len) {
+    if (len > ASPROF_MAX_USER_JFR_LENGTH) {
+        return asprof_error("unable to emit JFR event larger than " asprof_str(ASPROF_MAX_USER_JFR_LENGTH) " bytes");
+    }
+
     UserEvent event;
     event._start_time = TSC::ticks();
     event._type = type;
     event._data = data;
     event._len = len;
     Profiler::instance()->recordEventOnly(USER_EVENT, &event);
-    return 0;
+    return NULL;
 }

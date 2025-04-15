@@ -1191,7 +1191,7 @@ class Recording {
         writePoolHeader(buf, T_SYMBOL, symbols.size());
         for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar32(it->first | _base_id);
+            buf->putVar64(it->first | _base_id);
             buf->putUtf8(it->second);
         }
     }
@@ -1212,7 +1212,7 @@ class Recording {
         writePoolHeader(buf, T_USER_EVENT_TYPE, events.size());
         for (std::map<u32, const char*>::const_iterator it = events.begin(); it != events.end(); ++it) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar64(it->first);
+            buf->putVar32(it->first);
             buf->putUtf8(it->second);
         }
     }
