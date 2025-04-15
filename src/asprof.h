@@ -78,24 +78,24 @@ DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name);
 typedef asprof_jfr_event_key (*asprof_register_jfr_event_t)(const char* name);
 
 
-#define ASPROF_MAX_USER_JFR_LENGTH 2048
+#define ASPROF_MAX_JFR_EVENT_LENGTH 2048
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
 //
 // Emits a custom, user-defined JFR event. The key should be created via `asprof_register_jfr_event`.
-// The data can be arbitrary binary data, with size <= ASPROF_MAX_USER_JFR_LENGTH.
+// The data can be arbitrary binary data, with size <= ASPROF_MAX_JFR_EVENT_LENGTH.
 //
 // User-defined events are included in the JFR under a `profiler.UserEvent` event type. That type will contain
 // (at least) the following fields:
 // 1. `startTime` [Long] - the emitted event's time in ticks.
 // 2. `eventThread` [java.lang.Thread] - the thread that emitted the events.
-// 3. `type` [profiler.types.UserEventType] - the event's type.
-//    A `profiler.types.UserEventType` contains a single `name` field of type String.
+// 3. `type` [profiler.types.UserEventType] - the event's type,
+//    where `profiler.types.UserEventType` is an indexed string from the JFR constant pool.
 // 4. `data` [String] - the event data. This is the Latin-1 encoded version of the inputted data.
 //    The Latin-1 encoding is used as a way to stuff the arbitrary byte input into something
 //    that JFR supports (JFR technically supports byte arrays, but `jfr print` doesn't).
 //
-// returns an error code or NULL on success.
+// Returns an error code or NULL on success.
 DLLEXPORT asprof_error_t asprof_emit_jfr_event(asprof_jfr_event_key type, const uint8_t* data, size_t len);
 typedef asprof_error_t (*asprof_emit_jfr_event_t)(asprof_jfr_event_key type, const uint8_t* data, size_t len);
 

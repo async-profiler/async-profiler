@@ -7,7 +7,7 @@
 
 Dictionary UserEvents::_dict;
 
-// no (extra) lock is needed here since Dictionary is thread-safe.
+// No (extra) lock is needed here since Dictionary is thread-safe.
 
 int UserEvents::registerEvent(const char* event) {
     return _dict.lookup(event);

@@ -392,11 +392,10 @@ class Buffer {
         put(v, len);
     }
 
-    void putByteString(const uint8_t* v, size_t len) {
+    void putByteString(const char* v, u32 len) {
         put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
-        u32 truncated_len = len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH;
-        putVar32(truncated_len);
-        put((const char*)v, truncated_len);
+        putVar32(len);
+        put(v, len);
     }
 
     void put8(int offset, char v) {
@@ -1287,7 +1286,7 @@ class Recording {
         buf->putVar64(event->_start_time);
         buf->putVar32(tid);
         buf->putVar32(event->_type);
-        buf->putByteString(event->_data,
+        buf->putByteString((const char*)event->_data,
             event->_len > ASPROF_MAX_USER_JFR_LENGTH ? ASPROF_MAX_USER_JFR_LENGTH : event->_len);
         buf->putVar32(start, buf->offset() - start);
     }

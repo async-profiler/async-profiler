@@ -63,8 +63,8 @@ DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name) {
 #define asprof_str(s) #s
 
 DLLEXPORT asprof_error_t asprof_emit_jfr_event(asprof_jfr_event_key type, const uint8_t* data, size_t len) {
-    if (len > ASPROF_MAX_USER_JFR_LENGTH) {
-        return asprof_error("unable to emit JFR event larger than " asprof_str(ASPROF_MAX_USER_JFR_LENGTH) " bytes");
+    if (len > ASPROF_MAX_JFR_EVENT_LENGTH) {
+        return asprof_error("Unable to emit JFR event larger than " asprof_str(ASPROF_MAX_JFR_EVENT_LENGTH) " bytes");
     }
 
     UserEvent event;
