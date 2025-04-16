@@ -808,15 +808,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             if (handle == NULL) {
                 char *dlerror_output = dlerror();
                 // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror()
-                // returns NULL for them.
-                if (dlerror_output != NULL) {
-                    char buffer[1024];
-                    // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2167
-                    sprintf(buffer, "Library %s is not already loaded", lib.file);
-                    if (strcmp(dlerror_output, buffer) != 0) {
-                        Log::info(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
-                        continue;
-                    }
+                // returns NULL for them. musl does not support library unloading, thus we can
+                // safely ignore dlerror().
+                if (dlerror_output != NULL && !OS::isMusl()) {
+                    Log::info(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
+                    continue;
                 }
             }
 
