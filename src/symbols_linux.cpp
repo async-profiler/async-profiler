@@ -811,7 +811,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                 // returns NULL for them. musl does not support library unloading, thus we can
                 // safely ignore dlerror().
                 if (dlerror_output != NULL) {
-                    Log::info(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
+                    Log::info("dlerror '%s': '%s'", lib.file, dlerror_output);
                     continue;
                 }
             }
