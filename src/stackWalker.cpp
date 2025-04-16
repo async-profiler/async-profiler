@@ -144,11 +144,6 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         callchain[depth++] = pc;
 
         uintptr_t prev_sp = sp;
-        if (prev_sp == 0) {
-            // Reached the initial frame
-            break;
-        }
-
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
 
@@ -187,6 +182,9 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
                 // AArch64 default_frame
                 pc = stripPointer(SafeAccess::load((void**)(sp + f->pc_off)));
                 sp = defaultSenderSP(sp, fp);
+                if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    break;
+                }
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
             } else {
@@ -388,11 +386,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         }
 
         uintptr_t prev_sp = sp;
-        if (prev_sp == 0) {
-            // Reached the initial frame
-            break;
-        }
-
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
 
@@ -431,6 +424,9 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 // AArch64 default_frame
                 pc = stripPointer(*(void**)(sp + f->pc_off));
                 sp = defaultSenderSP(sp, fp);
+                if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
+                    break;
+                }
             } else if (depth <= 1) {
                 pc = (const void*)frame.link();
             } else {

@@ -124,7 +124,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test native clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
@@ -220,6 +220,7 @@ build-test-bins:
 	@mkdir -p $(TEST_BIN_DIR)
 	gcc -o $(TEST_BIN_DIR)/malloc_plt_dyn test/test/nativemem/malloc_plt_dyn.c
 	gcc -o $(TEST_BIN_DIR)/native_api -Isrc test/test/c/native_api.c -ldl
+	$(CXX) -o $(TEST_BIN_DIR)/non_java_app $(INCLUDES) $(CPP_TEST_INCLUDES) test/test/nonjava/non_java_app.cpp $(LIBS)
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
@@ -242,12 +243,6 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
-
-native:
-	mkdir -p native/linux-x64 native/linux-arm64 native/macos
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-x64.tar.gz */build/libasyncProfiler.so > native/linux-x64/libasyncProfiler.so
-	tar xfO async-profiler-$(PROFILER_VERSION)-linux-arm64.tar.gz */build/libasyncProfiler.so > native/linux-arm64/libasyncProfiler.so
-	unzip -p async-profiler-$(PROFILER_VERSION)-macos.zip */build/libasyncProfiler.dylib > native/macos/libasyncProfiler.dylib
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
