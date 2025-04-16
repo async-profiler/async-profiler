@@ -10,6 +10,7 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
+import test.cpu.CpuBurner;
 
 public class CstackTests {
     private static final String PROFILE_COMMAND = "-e cpu -i 10ms -d 1 -o collapsed -a ";
@@ -40,5 +41,11 @@ public class CstackTests {
         assert out.contains("InstanceKlass::initialize");
         assert out.contains("call_stub");
         assert out.contains("JavaMain");
+    }
+
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX, jvmArgs = "-Xint")
+    public void interpreter(TestProcess p) throws Exception {
+        Output out = p.profile("-d 2 -e cpu -i 10ms -o collapsed --cstack vm");
+        assert out.ratio("\\[unknown\\]") < 0.02;
     }
 }
