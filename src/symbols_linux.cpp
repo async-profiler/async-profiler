@@ -814,8 +814,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
                     // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2167
                     sprintf(buffer, "Library %s is not already loaded", lib.file);
                     if (strcmp(dlerror_output, buffer) != 0) {
-                        sprintf(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
-                        Log::info(buffer);
+                        Log::info(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
                         continue;
                     }
                 }
