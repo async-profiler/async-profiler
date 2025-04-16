@@ -29,7 +29,7 @@ endif
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
 CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fno-optimize-sibling-calls -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
