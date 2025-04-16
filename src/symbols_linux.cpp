@@ -804,25 +804,26 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-
-            char *dlerror_output = dlerror();
-            char dlerror_expected_output_buffer[100];
-            bool dlerror_ok;
-            if (dlerror_output != NULL) {
-                // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2167
-                sprintf(dlerror_expected_output_buffer, "Library %s is not already loaded", lib.file);
-                dlerror_ok = strcmp(dlerror_output, dlerror_expected_output_buffer) == 0;
-            } else {
-                dlerror_ok = false;
+            if (handle == NULL) {
+                char *dlerror_output = dlerror();
+                // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror()
+                // returns NULL for them.
+                if (dlerror_output != NULL) {
+                    char buffer[1024];
+                    // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2167
+                    sprintf(buffer, "Library %s is not already loaded", lib.file);
+                    if (strcmp(dlerror_output, buffer) != 0) {
+                        sprintf(buffer, "dlerror '%s': '%s'", lib.file, dlerror_output);
+                        Log::info(buffer);
+                        continue;
+                    }
+                }
             }
 
-            if (handle != NULL || dlerror_ok) {
-                ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
-                if (handle != NULL) {
-                    dlclose(handle);
-                }
+            ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
+            if (handle != NULL) {
+                dlclose(handle);
             }
         }
 
