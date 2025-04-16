@@ -806,7 +806,19 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Also, dlopen() ensures the library is fully loaded.
             // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            if (handle != NULL || dlerror() == NULL) {
+
+            char *dlerror_output = dlerror();
+            char dlerror_expected_output_buffer[100];
+            bool dlerror_ok;
+            if (dlerror_output != NULL) {
+                // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2167
+                sprintf(dlerror_expected_output_buffer, "Library %s is not already loaded", lib.file);
+                dlerror_ok = strcmp(dlerror_output, dlerror_expected_output_buffer) == 0;
+            } else {
+                dlerror_ok = false;
+            }
+
+            if (handle != NULL || dlerror_ok) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
                 if (handle != NULL) {
                     dlclose(handle);
