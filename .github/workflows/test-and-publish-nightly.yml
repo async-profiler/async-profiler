@@ -66,7 +66,8 @@ jobs:
       - name: Setup
         run: |
           if [[ "${{ matrix.container }}" == "amazonlinux:"* ]]; then
-              yum update -y && yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar
+              yum update -y
+              yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar
           fi
       - name: Setup Java
         uses: actions/setup-java@v4
