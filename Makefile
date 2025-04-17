@@ -156,20 +156,32 @@ build/%:
 	mkdir -p $@
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
+ifeq ($(BINARIES_DIRECTORY),)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
+else
+	cp $(BINARIES_DIRECTORY)/$(ASPROF) $@
+endif
 
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
+ifeq ($(BINARIES_DIRECTORY),)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp
 	$(STRIP) $@
 	cat build/$(CONVERTER_JAR) >> $@
+else
+	cp $(BINARIES_DIRECTORY)/$(JFRCONV) $@
+endif
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+ifeq ($(BINARIES_DIRECTORY),)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+endif
+else
+	cp $(BINARIES_DIRECTORY)/$(LIB_PROFILER) $@
 endif
 
 build/$(API_JAR): $(API_SOURCES)
