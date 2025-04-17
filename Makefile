@@ -228,7 +228,6 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against build"
-	export PROFILER_LIB_PATH=build/$(LIB_PROFILER)
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/jar/*" one.profiler.test.Runner $(TESTS)
 
 test-java-from-release: build-test-libs build-test-bins
@@ -239,8 +238,7 @@ ifeq ($(JARS_DIRECTORY),)
 	$(error JARS_DIRECTORY is empty)
 endif
 	echo "Running tests against $(BINARIES_DIRECTORY)"
-	export PROFILER_LIB_PATH=$(BINARIES_DIRECTORY)/$(LIB_PROFILER)
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*" one.profiler.test.Runner $(TESTS)
+	PROFILER_BINARIES_PATH=$(BINARIES_DIRECTORY) $(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
