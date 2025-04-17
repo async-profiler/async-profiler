@@ -806,7 +806,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Also, dlopen() ensures the library is fully loaded.
             // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            if (handle != NULL || dlerror() == NULL) {
+            if (handle != NULL || dlerror() == NULL || OS::isMusl()) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
                 if (handle != NULL) {
                     dlclose(handle);

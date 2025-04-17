@@ -62,6 +62,12 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
     return ret;
 }
 
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
+extern "C" __attribute__((optimize("O1")))
+void* calloc_hook_dummy(size_t num, size_t size) {
+    return _orig_calloc(num, size);
+}
+
 extern "C" void* realloc_hook(void* addr, size_t size) {
     void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
@@ -88,6 +94,12 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
         MallocTracer::recordMalloc(*memptr, size);
     }
     return ret;
+}
+
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
+extern "C" __attribute__((optimize("O1")))
+int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
+    return _orig_posix_memalign(memptr, alignment, size);
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
@@ -141,9 +153,13 @@ void MallocTracer::patchLibraries() {
         cc->patchImport(im_free, (void*)free_hook);
         cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
 
-        if (!OS::isMusl()) {
+        if (OS::isMusl()) {
             // On musl, calloc() calls malloc() internally, and posix_memalign() calls aligned_alloc().
-            // Skip the following hooks to prevent double-accounting.
+            // Use dummy hooks to prevent double-accounting. Dummy frames from AP are introduced
+            // to preserve the frame link to the original caller (see #1226).
+            cc->patchImport(im_calloc, (void*)calloc_hook_dummy);
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook_dummy);
+        } else {
             cc->patchImport(im_calloc, (void*)calloc_hook);
             cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
         }
