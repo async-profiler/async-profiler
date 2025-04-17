@@ -128,7 +128,7 @@ endif
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
 
-jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
+jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR) build/$(TEST_JAR)
 
 release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
