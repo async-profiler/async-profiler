@@ -228,7 +228,7 @@ test-cpp: build-test-cpp
 	echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
-test-java: build-test-java
+test-java: build/$(TEST_JAR) build-test-java
 	echo "Running tests against build"
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/jar/*" one.profiler.test.Runner $(TESTS)
 
@@ -251,7 +251,7 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+build/$(TEST_JAR): $(TEST_SOURCES) jar
 ifeq ($(JARS_DIRECTORY),)
 	JARS_DIRECTORY=build/jar
 endif
