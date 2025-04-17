@@ -116,7 +116,7 @@ public class TestProcess implements Closeable {
     }
 
     public String profilerLibPath() {
-        return String.format("%s/%s", binariesPath(), "lib/libasyncProfiler.so");
+        return String.format("%s/%s.%s", binariesPath(), "lib/libasyncProfiler", currentOs.getLibExt());
     }
 
     private String profilerExecutablePath() {
