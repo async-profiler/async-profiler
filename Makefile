@@ -234,8 +234,11 @@ test-java-from-release: build/$(TEST_JAR) build-test-libs build-test-bins
 ifeq ($(BINARIES_DIRECTORY),)
 	$(error BINARIES_DIRECTORY is empty)
 endif
+ifeq ($(JARS_DIRECTORY),)
+	$(error JARS_DIRECTORY is empty)
+endif
 	echo "Running tests against $(BINARIES_DIRECTORY)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:$(BINARIES_DIRECTORY)/lib/*" one.profiler.test.Runner $(TESTS)
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*:$(BINARIES_DIRECTORY)/lib/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
