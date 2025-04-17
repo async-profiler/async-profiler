@@ -18,6 +18,14 @@
     addr != NULL ? (sym##_t)addr : sym;  \
 })
 
+#if defined(__clang__)
+  #define NO_OPTIMIZE __attribute__((optnone))
+#elif defined(__GNUC__)
+  #define NO_OPTIMIZE __attribute__((optimize("O0")))
+#else
+  #define NO_OPTIMIZE
+#endif
+
 typedef void* (*malloc_t)(size_t);
 static malloc_t _orig_malloc = NULL;
 
@@ -63,8 +71,7 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 }
 
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls).
-// optimize("O0") is supported both by GCC and clang.
-extern "C" __attribute__((optimize("O0")))
+extern "C" NO_OPTIMIZE
 void* calloc_hook_dummy(size_t num, size_t size) {
     return _orig_calloc(num, size);
 }
@@ -98,7 +105,7 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
-extern "C" __attribute__((optimize("O0")))
+extern "C" NO_OPTIMIZE
 int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
     return _orig_posix_memalign(memptr, alignment, size);
 }
