@@ -62,8 +62,9 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
     return ret;
 }
 
-// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
-extern "C" __attribute__((optimize("O1")))
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls).
+// optimize("O0") is supported both by GCC and clang.
+extern "C" __attribute__((optimize("O0")))
 void* calloc_hook_dummy(size_t num, size_t size) {
     return _orig_calloc(num, size);
 }
@@ -97,7 +98,7 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
-extern "C" __attribute__((optimize("O1")))
+extern "C" __attribute__((optimize("O0")))
 int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
     return _orig_posix_memalign(memptr, alignment, size);
 }
