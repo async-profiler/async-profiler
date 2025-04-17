@@ -230,6 +230,13 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
+test-java-from-release: build/$(TEST_JAR) build-test-libs build-test-bins
+ifeq ($(BINARIES_DIRECTORY),)
+	$(error BINARIES_DIRECTORY is empty)
+endif
+	echo "Running tests against $(BINARIES_DIRECTORY)"
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:$(BINARIES_DIRECTORY)/lib/*" one.profiler.test.Runner $(TESTS)
+
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
 	$(MAKE) test-cpp CXXFLAGS_EXTRA="-fprofile-arcs -ftest-coverage -fPIC -O0 --coverage"
