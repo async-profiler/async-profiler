@@ -775,6 +775,19 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
+    char* exePath = realpath("/proc/self/exe", NULL);
+    if (exePath == NULL) {
+        char buf[PATH_MAX];
+
+        // realpath() may fail for a path like /proc/[pid]/root/bin/asprof
+        // In this case, resolve the link as is.
+        ssize_t size = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (size >= 0) {
+            buf[size] = 0;
+            exePath = buf;
+        }
+    }
+
     for (auto& it : libs) {
         u64 inode = it.first;
         _parsed_inodes.insert(inode);
@@ -804,13 +817,20 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
+            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() "in some cases" returns NULL for them.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            if (handle != NULL || dlerror() == NULL || OS::isMusl()) {
+            const char* dlerror_str = dlerror();
+
+            // Main executable will return NULL from handle, we need to parse it anyway.
+            // dlopen is not required in this case as the main exe cannot be unloaded.
+            bool isMainExe = handle == NULL && exePath != NULL && strcmp(lib.file, exePath) == 0;
+            bool dlopenSuccess = handle != NULL || dlerror_str == NULL || OS::isMusl();
+            if (isMainExe || dlopenSuccess) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
-                if (handle != NULL) {
-                    dlclose(handle);
-                }
+            }
+
+            if (handle != NULL) {
+                dlclose(handle);
             }
         }
 
@@ -820,6 +840,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         applyPatch(cc);
         array->add(cc);
     }
+
+    free(exePath);
 
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
         Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
