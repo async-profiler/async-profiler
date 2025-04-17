@@ -232,7 +232,7 @@ test-java: build-test-java
 	echo "Running tests against build"
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/jar/*" one.profiler.test.Runner $(TESTS)
 
-test-java-from-release: build-test-libs build-test-bins
+test-java-from-release: build/$(TEST_JAR) build-test-libs build-test-bins
 ifeq ($(BINARIES_DIRECTORY),)
 	$(error BINARIES_DIRECTORY is empty)
 endif
@@ -252,8 +252,11 @@ coverage: clean-coverage
 test: test-cpp test-java
 
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+ifeq ($(JARS_DIRECTORY),)
+	JARS_DIRECTORY=build/jar
+endif
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "$(JARS_DIRECTORY)/*" -d build/test $(TEST_SOURCES)
 	mkdir -p build/jar
 	$(JAR) cf $@ -C build/test .
 
