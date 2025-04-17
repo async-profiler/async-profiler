@@ -804,21 +804,13 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
+            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            if (handle == NULL && !OS::isMusl()) {
-                char *dlerror_output = dlerror();
-                // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror()
-                // returns NULL for them. musl does not support library unloading, thus we can
-                // safely ignore dlerror().
-                if (dlerror_output != NULL) {
-                    Log::info("dlerror '%s': '%s'", lib.file, dlerror_output);
-                    continue;
+            if (handle != NULL || dlerror() == NULL || OS::isMusl()) {
+                ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
+                if (handle != NULL) {
+                    dlclose(handle);
                 }
-            }
-
-            ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
-            if (handle != NULL) {
-                dlclose(handle);
             }
         }
 
