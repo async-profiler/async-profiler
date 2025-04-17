@@ -57,12 +57,6 @@ jobs:
             java-version: 11
             java-distribution: corretto
             container: "amazonlinux:2023"
-          - runson:
-              display: amazonlinux:2
-              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
-            java-version: 11
-            java-distribution: corretto
-            container: "amazonlinux:2"
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
