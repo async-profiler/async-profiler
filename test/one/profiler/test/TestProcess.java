@@ -111,7 +111,11 @@ public class TestProcess implements Closeable {
     }
 
     public String profilerLibPath() {
-        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
+        String path = System.getenv("PROFILER_LIB_PATH");
+        if (path == null) {
+            throw new IllegalStateException("Environment variable 'PROFILER_LIB_PATH' is empty");
+        }
+        return path;
     }
 
     public String testBinPath() {
