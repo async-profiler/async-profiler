@@ -230,7 +230,7 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
-test-java-from-release: build/$(TEST_JAR) build-test-libs build-test-bins
+test-java-from-release: build-test-libs build-test-bins
 ifeq ($(BINARIES_DIRECTORY),)
 	$(error BINARIES_DIRECTORY is empty)
 endif
