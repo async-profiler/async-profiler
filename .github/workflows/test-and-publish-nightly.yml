@@ -51,12 +51,29 @@ jobs:
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+          - runson:
+              display: amazonlinux:2023
+              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+            java-version: 11
+            java-distribution: corretto
+            container: "amazonlinux:2023"
+          - runson:
+              display: amazonlinux:2
+              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+            java-version: 11
+            java-distribution: corretto
+            container: "amazonlinux:2"
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
       options: --privileged
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
+      - name: Setup
+        run: |
+          if [[ "${{ matrix.container }}" == "amazonlinux:"* ]]; then
+              dnf install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux
+          fi
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
