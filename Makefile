@@ -156,11 +156,11 @@ build/%:
 	mkdir -p $@
 
 build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
 
 build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp
 	$(STRIP) $@
 	cat build/$(CONVERTER_JAR) >> $@
 
@@ -175,12 +175,14 @@ endif
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
@@ -252,6 +254,7 @@ test: test-cpp test-java
 build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cf $@ -C build/test .
 
 check-md:
