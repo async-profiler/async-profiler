@@ -14,7 +14,7 @@ JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
-TEST_JAR=test.jar
+TEST_JAR=jar/test.jar
 
 CC ?= gcc
 CXX ?= g++
@@ -227,8 +227,9 @@ test-cpp: build-test-cpp
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
 test-java: build-test-java
-	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+	echo "Running tests against build"
+	export PROFILER_LIB_PATH=build/$(LIB_PROFILER)
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/jar/*" one.profiler.test.Runner $(TESTS)
 
 test-java-from-release: build-test-libs build-test-bins
 ifeq ($(BINARIES_DIRECTORY),)
@@ -238,7 +239,8 @@ ifeq ($(JARS_DIRECTORY),)
 	$(error JARS_DIRECTORY is empty)
 endif
 	echo "Running tests against $(BINARIES_DIRECTORY)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*:$(BINARIES_DIRECTORY)/lib/*" one.profiler.test.Runner $(TESTS)
+	export PROFILER_LIB_PATH=$(BINARIES_DIRECTORY)/$(LIB_PROFILER)
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
