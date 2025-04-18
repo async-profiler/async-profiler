@@ -87,7 +87,7 @@ jobs:
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
             *)
-              make COMMIT_TAG=$HASH release test -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
@@ -101,7 +101,7 @@ jobs:
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
             ;;
             *)
-              make COMMIT_TAG=$HASH coverage -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc coverage -j
             ;;
           esac
       - name: Upload test logs
