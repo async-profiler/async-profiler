@@ -90,6 +90,8 @@ jobs:
           yum install -y ${{ matrix.java-package }}
       - name: Checkout sources
         uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       - name: Build and test
         id: build
         run: |
