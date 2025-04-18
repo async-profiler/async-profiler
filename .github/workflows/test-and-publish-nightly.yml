@@ -95,9 +95,13 @@ jobs:
         run: |
           git clone https://${{ github.token }}@github.com/${{ github.repository }}.git
           cd ${{ github.event.repository.name }}
+          ls
+          pwd
       - name: Build and test
         id: build
         run: |
+          ls
+          pwd
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.display }}" in
             macos*)
