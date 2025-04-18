@@ -48,6 +48,8 @@ int VMStructs::_frame_size_offset = -1;
 int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_code_offset = -1;
 int VMStructs::_data_offset = -1;
+int VMStructs::_mutable_data_offset = -1;
+int VMStructs::_relocation_size_offset = -1;
 int VMStructs::_scopes_pcs_offset = -1;
 int VMStructs::_scopes_data_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
@@ -109,7 +111,6 @@ jfieldID VMStructs::_eetop;
 jfieldID VMStructs::_tid;
 jfieldID VMStructs::_klass = NULL;
 int VMStructs::_tls_index = -1;
-intptr_t VMStructs::_env_offset = -1;
 
 VMStructs::LockFunc VMStructs::_lock_func;
 VMStructs::LockFunc VMStructs::_unlock_func;
@@ -302,6 +303,10 @@ void VMStructs::initOffsets() {
                     _code_offset = - *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_data_offset") == 0) {
                     _data_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_mutable_data") == 0) {
+                    _mutable_data_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_relocation_size") == 0) {
+                    _relocation_size_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_name") == 0) {
                     _nmethod_name_offset = *(int*)(entry + offset_offset);
                 }
@@ -509,7 +514,7 @@ void VMStructs::resolveOffsets() {
             && _data_offset >= 0
             && _scopes_data_offset != -1
             && _scopes_pcs_offset >= 0
-            && _nmethod_metadata_offset >= 0
+            && ((_mutable_data_offset >= 0 && _relocation_size_offset >= 0) || _nmethod_metadata_offset >= 0)
             && _thread_vframe_offset >= 0
             && _thread_exception_offset >= 0
             && _constmethod_size >= 0;
@@ -612,10 +617,6 @@ void VMStructs::initThreadBridge() {
 
         VMThread* vm_thread = VMThread::fromJavaThread(env, thread);
         if (vm_thread != NULL) {
-            if (VM::hotspot_version() >= 11) {
-                // Earlier JDK does not check if JNIEnv* passed to AsyncGetCallTrace belongs to a JavaThread
-                _env_offset = (intptr_t)env - (intptr_t)vm_thread;
-            }
             _has_native_thread_id = _thread_osthread_offset >= 0 && _osthread_id_offset >= 0;
             initTLS(vm_thread);
         }
@@ -624,11 +625,6 @@ void VMStructs::initThreadBridge() {
 
 VMThread* VMThread::current() {
     return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : NULL;
-}
-
-JNIEnv* VMThread::jni() {
-    // If possible, avoid calling JNI GetEnv in a signal handler, since it may allocate
-    return _env_offset >= 0 ? (JNIEnv*) at(_env_offset) : VM::jni();
 }
 
 int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {

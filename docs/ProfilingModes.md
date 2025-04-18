@@ -136,7 +136,7 @@ Run an application with `nativemem` profiler that dumps recordings in JFR format
 LD_PRELOAD=/path/to/libasyncProfiler.so ASPROF_COMMAND=start,nativemem,total,loop=10m,cstack=dwarf,file=profile-%t.jfr NativeApp [args]
 ```
 
-Then run `jfrconv` to generate memory leak reports as flame graphs:
+Then run `jfrconv` to generate memory leak report as a flame graph:
 
 ```
 jfrconv --total --nativemem --leak <profile>.jfr <profile>-leak.html

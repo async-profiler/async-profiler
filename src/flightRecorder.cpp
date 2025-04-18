@@ -26,6 +26,7 @@
 #include "threadFilter.h"
 #include "threadLocalData.h"
 #include "tsc.h"
+#include "userEvents.h"
 #include "vmStructs.h"
 
 
@@ -387,6 +388,12 @@ class Buffer {
 
     void putUtf8(const char* v, u32 len) {
         put8(3);
+        putVar32(len);
+        put(v, len);
+    }
+
+    void putByteString(const char* v, u32 len) {
+        put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
         putVar32(len);
         put(v, len);
     }
@@ -993,7 +1000,7 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(1);
 
-        buf->putVar32(10);
+        buf->putVar32(11);
 
         Lookup lookup(&_method_map, Profiler::instance()->classMap());
         writeFrameTypes(buf);
@@ -1005,6 +1012,10 @@ class Recording {
         writeClasses(buf, &lookup);
         writePackages(buf, &lookup);
         writeSymbols(buf, &lookup);
+        writeUserEventTypes(buf);
+        // Write log levels last. The order does not affect the JFR's validity,
+        // but log levels have an easily-visible format that makes it easy
+        // to see if a JFR file has been accidentally truncated.
         writeLogLevels(buf);
     }
 
@@ -1193,6 +1204,18 @@ class Recording {
         }
     }
 
+    void writeUserEventTypes(Buffer* buf) {
+        std::map<u32, const char*> events;
+        UserEvents::collect(events);
+
+        writePoolHeader(buf, T_USER_EVENT_TYPE, events.size());
+        for (std::map<u32, const char*>::const_iterator it = events.begin(); it != events.end(); ++it) {
+            flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
+            buf->putVar32(it->first);
+            buf->putUtf8(it->second);
+        }
+    }
+
     void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
@@ -1248,6 +1271,24 @@ class Recording {
             buf->putVar64(event->_size);
         }
         buf->put8(start, buf->offset() - start);
+    }
+
+    void recordUserEvent(Buffer* buf, int tid, UserEvent* event) {
+        // estimate of size of non-string fields of this event
+        const size_t event_non_string_size_limit = 64;
+        // When calling recordUserEvent, the buffer can be up to RECORDING_BUFFER_LIMIT bytes full.
+        // Check that the buffer is not exceeded.
+        static_assert(RECORDING_BUFFER_LIMIT + event_non_string_size_limit + ASPROF_MAX_JFR_EVENT_LENGTH
+            <= RECORDING_BUFFER_SIZE, "output must fit within recording buffer");
+
+        int start = buf->skip(5);
+        buf->put8(T_USER_EVENT);
+        buf->putVar64(event->_start_time);
+        buf->putVar32(tid);
+        buf->putVar32(event->_type);
+        buf->putByteString((const char*)event->_data,
+            event->_len > ASPROF_MAX_JFR_EVENT_LENGTH ? ASPROF_MAX_JFR_EVENT_LENGTH : event->_len);
+        buf->putVar32(start, buf->offset() - start);
     }
 
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
@@ -1527,6 +1568,9 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
                 break;
             case PROFILING_WINDOW:
                 _rec->recordWindow(buf, tid, (ProfilingWindow*)event);
+                break;
+            case USER_EVENT:
+                _rec->recordUserEvent(buf, tid, (UserEvent*)event);
                 break;
         }
         _rec->flushIfNeeded(buf);

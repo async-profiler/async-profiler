@@ -7,6 +7,7 @@
 #define _EVENT_H
 
 #include <stdint.h>
+#include "asprof.h"
 #include "os.h"
 
 
@@ -23,6 +24,7 @@ enum EventType {
     LOCK_SAMPLE,
     PARK_SAMPLE,
     PROFILING_WINDOW,
+    USER_EVENT,
 };
 
 class Event {
@@ -81,6 +83,14 @@ class MallocEvent : public Event {
     u64 _start_time;
     uintptr_t _address;
     u64 _size;
+};
+
+class UserEvent : public Event {
+  public:
+    u64 _start_time;
+    asprof_jfr_event_key _type;
+    const uint8_t* _data;
+    size_t _len;
 };
 
 #endif // _EVENT_H

@@ -11,7 +11,7 @@ $ java -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,file=profile.html
 
 Agent library is configured through the JVMTI argument interface.
 The format of the arguments string is described
-[in the source code](https://github.com/async-profiler/async-profiler/blob/v3.0/src/arguments.cpp#L44).
+[in the source code](https://github.com/async-profiler/async-profiler/blob/v4.0/src/arguments.cpp#L44).
 `asprof` actually converts command line arguments to that format.
 
 Another important use of attaching async-profiler as an agent is for continuous profiling.

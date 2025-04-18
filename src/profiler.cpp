@@ -396,7 +396,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         return 0;
     }
 
-    JNIEnv* jni = vm_thread->jni();
+    JNIEnv* jni = VM::jni();
     if (jni == NULL) {
         // Not a Java thread
         return 0;
@@ -1075,6 +1075,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     MutexLocker ml(_state_lock);
     if (_state > IDLE) {
         return Error("Profiler already started");
+    }
+
+    // If profiler is started from a native app, try to detect a running JVM and attach to it
+    if (!VM::loaded()) {
+        VM::tryAttach();
     }
 
     Error error = checkJvmCapabilities();
