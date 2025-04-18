@@ -63,7 +63,7 @@ jobs:
             java-version: 11
             java-distribution: corretto
             # Make sure this is in sync with java-version/distribution for UX purposes
-            java-package: java-11-amazon-corretto-devel
+            java-package: java-11-amazon-corretto
             container: amazonlinux:2
     runs-on: ${{ matrix.runson.name }}
     container:
