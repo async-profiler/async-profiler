@@ -82,7 +82,7 @@ jobs:
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.runson.display }}" in
             macos*)
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
             ;;
@@ -98,7 +98,7 @@ jobs:
         id: coverage
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
