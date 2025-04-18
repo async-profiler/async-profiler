@@ -75,12 +75,8 @@ jobs:
         run: |
           if [[ "${{ matrix.container }}" == "amazonlinux:"* ]]; then
               yum update -y
-              yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar
+              yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar git
           fi
-      - uses: actions/setup-node@v4
-        if: matrix.runson.display == 'amazonlinux:2'
-        with:
-          node-version: 16
       - name: Setup Java
         uses: actions/setup-java@v4
         if: matrix.runson.display != 'amazonlinux:2'
@@ -90,10 +86,15 @@ jobs:
           architecture: ${{ matrix.architecture }}
       - name: Setup Java on amazonlinux:2
         if: matrix.runson.display == 'amazonlinux:2'
-        run: |
-          yum install -y ${{ matrix.java-package }}
+        run: yum install -y ${{ matrix.java-package }}
       - name: Checkout sources
+        if: matrix.runson.display != 'amazonlinux:2'
         uses: actions/checkout@v4
+      - name: Checkout sources on amazonlinux:2
+        if: matrix.runson.display == 'amazonlinux:2'
+        run: |
+          git clone https://${{ github.token }}@github.com/${{ github.repository }}.git
+          cd ${{ github.event.repository.name }}
       - name: Build and test
         id: build
         run: |
@@ -112,6 +113,7 @@ jobs:
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Coverage
         id: coverage
+        if: matrix.runson.display != 'amazonlinux:2'
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
           case "${{ matrix.runson.display }}" in
@@ -128,8 +130,7 @@ jobs:
           esac
       - name: Upload test logs
         uses: actions/upload-artifact@v4
-
-        if: always() # we always want to upload test logs, especially when tests fail
+        if: matrix.runson.display != 'amazonlinux:2'
         with:
           name: test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: |
@@ -137,13 +138,12 @@ jobs:
             hs_err*.log
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
-
+        if: matrix.runson.display != 'amazonlinux:2'
         with:
           name: test-coverage-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: build/test/coverage/
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
-
         if: |
           matrix.java-version == 11 &&
           (
