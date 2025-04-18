@@ -11,6 +11,7 @@
 #include "stackFrame.h"
 #include "safeAccess.h"
 #include "vmStructs.h"
+#include "vmEntry.h"
 
 
 #ifdef __APPLE__
