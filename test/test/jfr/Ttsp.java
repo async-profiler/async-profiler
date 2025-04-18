@@ -9,6 +9,8 @@ import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 
 public class Ttsp {
+    public static final String WARMUP_COMPLETED_OUTPUT = "warmup completed";
+
     static volatile int sink;
 
     // String.indexOf is a JVM intrinsic. When JIT-compiled, it has no safepoint check inside
@@ -34,6 +36,7 @@ public class Ttsp {
     public static void main(String[] args) throws Exception {
         // Warmup with small input to force JIT-compilation of indexOfTest
         spoiler(10, 1000000);
+        System.out.println(WARMUP_COMPLETED_OUTPUT);
 
         // Run actual workload with large input to cause long time-to-safepoint pauses
         new Thread(() -> spoiler(1000, Long.MAX_VALUE)).start();

@@ -282,6 +282,10 @@ public class TestProcess implements Closeable {
         return p.exitValue();
     }
 
+    public boolean processIsAlive() {
+        return p.isAlive();
+    }
+
     public void waitForExit() throws TimeoutException, InterruptedException {
         waitForExit(p, timeout);
     }
