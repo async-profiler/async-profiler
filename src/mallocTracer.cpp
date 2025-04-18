@@ -19,9 +19,9 @@
 })
 
 #if defined(__clang__)
-  #define NO_OPTIMIZE __attribute__((optnone))
+#define NO_OPTIMIZE __attribute__((optnone))
 #elif defined(__GNUC__)
-  #define NO_OPTIMIZE __attribute__((optimize("O1")))
+#define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
 typedef void* (*malloc_t)(size_t);
