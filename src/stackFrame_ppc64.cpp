@@ -145,7 +145,7 @@ bool StackFrame::checkInterruptedSyscall() {
 }
 
 void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
-    pc = stripPointer(*(void**)sp);
+    pc = (uintptr_t)stripPointer(*(void**)sp);
     sp = frame.senderSP();
 }
 
