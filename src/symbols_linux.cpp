@@ -775,18 +775,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
-    char* exePath = realpath("/proc/self/exe", NULL);
-    if (exePath == NULL) {
-        char buf[PATH_MAX];
-
-        // realpath() may fail for a path like /proc/[pid]/root/bin/asprof
-        // In this case, resolve the link as is.
-        ssize_t size = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
-        if (size >= 0) {
-            buf[size] = 0;
-            exePath = buf;
-        }
-    }
+    const void* main_phdr = NULL;
+    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
+        *(const void**)data = info->dlpi_phdr;
+        return 1;
+    }, &main_phdr);
 
     for (auto& it : libs) {
         u64 inode = it.first;
@@ -823,8 +816,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Main executable will return NULL from handle, we need to parse it anyway.
             // dlopen is not required in this case as the main exe cannot be unloaded.
-            bool isMainExe = handle == NULL && exePath != NULL && strcmp(lib.file, exePath) == 0;
-            bool dlopenSuccess = handle != NULL || dlerror_str == NULL || OS::isMusl();
+            bool isMainExe = handle == NULL && main_phdr >= lib.image_base && main_phdr < lib.map_end;
+            bool dlopenSuccess = handle != NULL || dlerror_str == NULL;
             if (isMainExe || dlopenSuccess) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
@@ -840,8 +833,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         applyPatch(cc);
         array->add(cc);
     }
-
-    free(exePath);
 
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
         Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);

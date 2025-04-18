@@ -9,20 +9,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ASSERT_NO_DLERROR()  \
-    err = dlerror();         \
-    if (err != NULL) {       \
-        printf("%s\n", err); \
-        exit(1);             \
+#define ASSERT_NO_DLERROR()           \
+    err = dlerror();                  \
+    if (err != NULL) {                \
+        fprintf(stderr, "%s\n", err); \
+        exit(1);                      \
     }
 
-#define ASSERT_NO_ASPROF_ERR(err)               \
-    if (err != NULL) {                          \
-        printf("%s\n", _asprof_error_str(err)); \
-        exit(1);                                \
+#define ASSERT_NO_ASPROF_ERR(err)                       \
+    if (err != NULL) {                                  \
+        fprintf(stderr, "%s\n", asprof_error_str(err)); \
+        exit(1);                                        \
     }
-
-asprof_error_str_t _asprof_error_str;
 
 typedef void* (*call_malloc_t)(size_t);
 
@@ -36,7 +34,7 @@ int main(int argc, char** argv) {
 
     // first arg is the filename and required.
     if (argc < 3) {
-        printf("Usage: %s <dlopen_first | profile_first> <output.jfr>\n", argv[0]);
+        fprintf(stderr, "Usage: %s <dlopen_first | profile_first> <output.jfr>\n", argv[0]);
         exit(1);
     }
 
@@ -52,7 +50,7 @@ int main(int argc, char** argv) {
     asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(libprof, "asprof_execute");
     ASSERT_NO_DLERROR();
 
-    _asprof_error_str = (asprof_error_str_t)dlsym(libprof, "asprof_error_str");
+    asprof_error_str_t asprof_error_str = (asprof_error_str_t)dlsym(libprof, "asprof_error_str");
     ASSERT_NO_DLERROR();
 
     // Load libcallsmalloc.so before or after starting the profiler, based on args.
