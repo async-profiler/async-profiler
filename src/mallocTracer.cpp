@@ -22,8 +22,6 @@
   #define NO_OPTIMIZE __attribute__((optnone))
 #elif defined(__GNUC__)
   #define NO_OPTIMIZE __attribute__((optimize("O1")))
-#else
-  #define NO_OPTIMIZE
 #endif
 
 typedef void* (*malloc_t)(size_t);
