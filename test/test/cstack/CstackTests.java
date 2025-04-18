@@ -44,7 +44,7 @@ public class CstackTests {
     }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX, jvmArgs = "-Xint", jvm = Jvm.HOTSPOT)
-    public void interpretedOnlyModeHasLowUnknownRatio(TestProcess p) throws Exception {
+    public void interpreter(TestProcess p) throws Exception {
         Output out = p.profile("-d 2 -e cpu -i 10ms -o collapsed --cstack vm");
         assert out.ratio("\\[unknown\\]") < 0.02;
     }
