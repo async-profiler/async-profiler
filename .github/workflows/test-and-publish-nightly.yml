@@ -94,6 +94,7 @@ jobs:
         if: matrix.runson.display == 'amazonlinux-2'
         run: |
           git clone https://${{ github.token }}@github.com/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
       - name: Build and test
         id: build
         run: |
