@@ -77,6 +77,10 @@ jobs:
               yum update -y
               yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar
           fi
+      - uses: actions/setup-node@v4
+        if: matrix.runson.display == 'amazonlinux:2'
+        with:
+          node-version: 16
       - name: Setup Java
         uses: actions/setup-java@v4
         if: matrix.runson.display != 'amazonlinux:2'
@@ -90,8 +94,6 @@ jobs:
           yum install -y ${{ matrix.java-package }}
       - name: Checkout sources
         uses: actions/checkout@v4
-        env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       - name: Build and test
         id: build
         run: |
