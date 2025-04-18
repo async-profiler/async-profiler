@@ -50,6 +50,7 @@ public class RunnerDeclaration {
         String methodName = m.getName();
         String name = className + '.' + methodName;
 
+        // Empty includeDirs matches all dirs.
         if (!includeDirs.isEmpty()) {
             String packageName = m.getDeclaringClass().getPackage().getName();
             if (packageName.startsWith("test.") && includeDirs.contains(packageName.substring(5))) {
