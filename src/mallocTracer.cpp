@@ -18,10 +18,10 @@
     addr != NULL ? (sym##_t)addr : sym;  \
 })
 
-#if defined(__clang__)
-#define NO_OPTIMIZE __attribute__((optnone))
-#elif defined(__GNUC__)
-#define NO_OPTIMIZE __attribute__((optimize("O1")))
+#ifdef __clang__
+#  define NO_OPTIMIZE __attribute__((optnone))
+#else
+#  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
 typedef void* (*malloc_t)(size_t);
@@ -68,7 +68,7 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
     return ret;
 }
 
-// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls).
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
 extern "C" NO_OPTIMIZE
 void* calloc_hook_dummy(size_t num, size_t size) {
     return _orig_calloc(num, size);
