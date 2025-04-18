@@ -13,7 +13,6 @@ import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Comparator;
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -98,7 +97,7 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(RunnableTest rt, RunnerDeclaration decl) {
+    private static boolean enabled(RunnableTest rt, TestDeclaration decl) {
         return rt.test().enabled() && decl.matches(rt.method());
     }
 
@@ -113,7 +112,7 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(RunnableTest rt, RunnerDeclaration decl) {
+    private static TestResult run(RunnableTest rt, TestDeclaration decl) {
         if (!enabled(rt, decl)) {
             return TestResult.skipDisabled();
         }
@@ -135,35 +134,6 @@ public class Runner {
         }
 
         return TestResult.pass();
-    }
-
-    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
-        List<RunnableTest> rts = new ArrayList<>();
-        for (Method m : cls.getMethods()) {
-            for (Test t : m.getAnnotationsByType(Test.class)) {
-                rts.add(new RunnableTest(m, t));
-            }
-        }
-        return rts;
-    }
-
-    private static List<RunnableTest> getRunnableTests(String dir) throws ClassNotFoundException {
-        String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
-        return getRunnableTests(Class.forName(className));
-    }
-
-    private static List<RunnableTest> getRunnableTests(RunnerDeclaration decl) throws ClassNotFoundException {
-        List<RunnableTest> rts = new ArrayList<>();
-        File[] files = new File("test/test").listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isDirectory()) {
-                    rts.addAll(getRunnableTests(file.getName()));
-                }
-            }
-        }
-        rts.sort(Comparator.comparing(RunnableTest::testName));
-        return rts;
     }
 
     private static void configureLogging() {
@@ -204,45 +174,11 @@ public class Runner {
         System.out.println("TOTAL: " + testCount);
     }
 
-    private static RunnerDeclaration parseRunnerDeclaration(String[] args) {
-        // All available directories.
-        List<String> testDirectories = new ArrayList<>();
-
-        // If directories are specified, they are considered an exact match.
-        List<String> includeDirs = new ArrayList<>();
-
-        // Glob filters matching "ClassName.methodName".
-        List<String> testFilters = new ArrayList<>();
-
-        for (String arg : args) {
-            File f = new File("test/test/" + arg);
-            if (!f.exists() || !f.isDirectory()) {
-                testFilters.add(arg);
-            } else {
-                includeDirs.add(arg);
-            }
-        }
-
-        List<String> skipFilters = new ArrayList<>();
-        String skipProperty = System.getProperty("skip");
-        if (skipProperty != null && !skipProperty.isEmpty()) {
-            for (String skip : skipProperty.split(" ")) {
-                skipFilters.add(skip);
-            }
-        }
-
-        log.log(Level.FINE, "Selected directories: " + includeDirs);
-        log.log(Level.FINE, "Test Filters: " + testFilters);
-        log.log(Level.FINE, "Skip Filters: " + skipFilters);
-
-        return new RunnerDeclaration(includeDirs, testFilters, skipFilters);
-    }
-
     public static void main(String[] args) throws Exception {
         configureLogging();
 
-        RunnerDeclaration decl = parseRunnerDeclaration(args);
-        List<RunnableTest> allTests = getRunnableTests(decl);
+        TestDeclaration decl = TestDeclaration.parse(args);
+        List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
