@@ -14,7 +14,7 @@ JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
-TEST_JAR=test.jar
+TEST_JAR=jar/test.jar
 
 CC ?= gcc
 CXX ?= g++
@@ -175,12 +175,14 @@ endif
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/api $(API_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
 build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
 	mkdir -p build/converter
 	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 
@@ -228,9 +230,19 @@ test-cpp: build-test-cpp
 	echo "Running cpp tests..."
 	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
-test-java: build-test-java
-	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
+test-java: build/$(TEST_JAR) build-test-java
+	echo "Running tests against build"
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/jar/*" one.profiler.test.Runner $(TESTS)
+
+test-java-from-release: build/$(TEST_JAR) build-test-libs build-test-bins
+ifeq ($(BINARIES_DIRECTORY),)
+	$(error BINARIES_DIRECTORY is empty)
+endif
+ifeq ($(JARS_DIRECTORY),)
+	$(error JARS_DIRECTORY is empty)
+endif
+	echo "Running tests against $(BINARIES_DIRECTORY)"
+	PROFILER_BINARIES_PATH=$(BINARIES_DIRECTORY) $(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "$(JARS_DIRECTORY)/*" one.profiler.test.Runner $(TESTS)
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -241,9 +253,13 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+build/$(TEST_JAR): $(TEST_SOURCES) jar
+ifeq ($(JARS_DIRECTORY),)
+	JARS_DIRECTORY=build/jar
+endif
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "$(JARS_DIRECTORY)/*" -d build/test $(TEST_SOURCES)
+	mkdir -p build/jar
 	$(JAR) cf $@ -C build/test .
 
 check-md:

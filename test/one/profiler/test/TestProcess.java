@@ -110,8 +110,17 @@ public class TestProcess implements Closeable {
         return this.currentOs;
     }
 
+    private String binariesPath() {
+        String path = System.getenv("PROFILER_BINARIES_PATH");
+        return path == null ? "build" : path;
+    }
+
     public String profilerLibPath() {
-        return "build/lib/libasyncProfiler." + currentOs.getLibExt();
+        return String.format("%s/%s.%s", binariesPath(), "lib/libasyncProfiler", currentOs.getLibExt());
+    }
+
+    private String profilerExecutablePath() {
+        return String.format("%s/%s", binariesPath(), "bin/asprof");
     }
 
     public String testBinPath() {
@@ -307,7 +316,7 @@ public class TestProcess implements Closeable {
         if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
         }
-        cmd.add("build/bin/asprof");
+        cmd.add(profilerExecutablePath());
         addArgs(cmd, args);
         cmd.add(Long.toString(pid()));
         log.log(Level.FINE, "Profiling " + cmd);
