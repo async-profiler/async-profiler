@@ -304,8 +304,8 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         default: {
             const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
 
-            JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
-            if (it != _cache.end() && it->first == frame.method_id) {
+            JMethodCache::iterator it = _cache.find(frame.method_id);
+            if (it != _cache.end()) {
                 it->second[0] = _cache_epoch;
                 const char* name = it->second.c_str() + 1;
                 if (type_suffix != NULL) {
