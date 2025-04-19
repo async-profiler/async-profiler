@@ -18,6 +18,8 @@
 #  define REG(l, m)  _ucontext->uc_mcontext.gregs[REG_##l]
 #endif
 
+const u32 EPILOGUE = 0xec8b4855; // push %rbp, mov %rsp,%rbp
+
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)REG(RIP, rip);
@@ -84,7 +86,7 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
         return true;
-    } else if (entry != NULL && *(unsigned int*)entry == 0xec8b4855) {
+    } else if (entry != NULL && *(unsigned int*)entry == EPILOGUE) {
         // The stub begins with
         //   push rbp
         //   mov  rbp, rsp
@@ -221,8 +223,28 @@ bool StackFrame::checkInterruptedSyscall() {
 #endif
 }
 
+// Though the frame is not complete, but according to the analysis of the instructions, we can use fp to unwind.
+// see https://github.com/async-profiler/async-profiler/pull/1234
+void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    if (isSenderSPOnStack((instruction_t*)pc, false)) {
+        sp = ((uintptr_t*)fp)[InterpreterFrame::sender_sp_offset];
+    } else {
+        sp = senderSP();
+    }
+
+    pc = ((uintptr_t*)fp)[FRAME_PC_SLOT];
+    fp = *(uintptr_t*)fp;
+}
+
 bool StackFrame::isSyscall(instruction_t* pc) {
     return pc[0] == 0x0f && pc[1] == 0x05;
 }
 
+bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
+    // On x64, if is_plausible_interpreter_frame is true, it means sender sp is on the stack.
+    // if is_plausible_interpreter_frame is false and the current instruction is to push sender sp onto stack,
+    // then return false, otherwise return true.
+    // push %rbp; mov %rsp,%rbp; push %r13
+    return is_plausible_interpreter_frame || !(*pc == 0x41 && *(pc + 1) == 0x55 && *(u32*)(pc - 4) == EPILOGUE);
+}
 #endif // __x86_64__

@@ -18,7 +18,6 @@ const intptr_t MAX_FRAME_SIZE = 0x40000;
 const intptr_t MAX_INTERPRETER_FRAME_SIZE = 0x1000;
 const intptr_t DEAD_ZONE = 0x1000;
 
-
 static inline bool aligned(uintptr_t ptr) {
     return (ptr & (sizeof(uintptr_t) - 1)) == 0;
 }
@@ -314,8 +313,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                         const char* bcp = ((const char**)fp)[bcp_offset];
                         int bci = bytecode_start == NULL || bcp < bytecode_start ? 0 : bcp - bytecode_start;
                         fillFrame(frames[depth++], FRAME_INTERPRETED, bci, method_id);
-
-                        sp = ((uintptr_t*)fp)[InterpreterFrame::sender_sp_offset];
+                        if (StackFrame::isSenderSPOnStack((instruction_t*)pc, true)) {
+                            sp = ((uintptr_t*)fp)[InterpreterFrame::sender_sp_offset];
+                        } else {
+                            sp = frame.senderSP();
+                        }
                         pc = stripPointer(((void**)fp)[FRAME_PC_SLOT]);
                         fp = *(uintptr_t*)fp;
                         continue;
@@ -333,8 +335,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                             sp = frame.senderSP();
                             fp = *(uintptr_t*)fp;
                         } else {
-                            pc = stripPointer(*(void**)sp);
-                            sp = frame.senderSP();
+                            frame.unwindIncompleteFrame((uintptr_t&)pc, sp, fp);
                         }
                         continue;
                     }
