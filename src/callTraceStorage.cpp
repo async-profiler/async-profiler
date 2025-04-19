@@ -79,7 +79,7 @@ class LongHashTable {
     }
 };
 
-CallTrace CallTraceStorage::_overflow_trace = {1, {BCI_ERROR, LP64_ONLY(0 COMMA) (jmethodID)"storage_overflow"}};
+CallTrace CallTraceStorage::_overflow_trace = {false, 1, {BCI_ERROR, LP64_ONLY(0 COMMA) (jmethodID)"storage_overflow"}};
 
 CallTraceStorage::CallTraceStorage() : _allocator(CALL_TRACE_CHUNK) {
     _current_table = LongHashTable::allocate(NULL, INITIAL_CAPACITY);
@@ -167,12 +167,12 @@ void CallTraceStorage::collectSamples(std::map<u64, CallTraceSample>& map) {
 }
 
 // Adaptation of MurmurHash64A by Austin Appleby
-u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames) {
+u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames, bool truncated) {
     const u64 M = 0xc6a4a7935bd1e995ULL;
     const int R = 47;
 
     int len = num_frames * sizeof(ASGCT_CallFrame);
-    u64 h = len * M;
+    u64 h = len * M * (truncated ? 1 : 2);
 
     const u64* data = (const u64*)frames;
     const u64* end = data + len / 8;
@@ -198,7 +198,7 @@ u64 CallTraceStorage::calcHash(int num_frames, ASGCT_CallFrame* frames) {
     return h;
 }
 
-CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* frames) {
+CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* frames, bool truncated) {
     const size_t header_size = sizeof(CallTrace) - sizeof(ASGCT_CallFrame);
     CallTrace* buf = (CallTrace*)_allocator.alloc(header_size + num_frames * sizeof(ASGCT_CallFrame));
     if (buf != NULL) {
@@ -207,6 +207,7 @@ CallTrace* CallTraceStorage::storeCallTrace(int num_frames, ASGCT_CallFrame* fra
         for (int i = 0; i < num_frames; i++) {
             buf->frames[i] = frames[i];
         }
+        buf->truncated = truncated;
     }
     return buf;
 }
@@ -230,8 +231,8 @@ CallTrace* CallTraceStorage::findCallTrace(LongHashTable* table, u64 hash) {
     return table->values()[slot].trace;
 }
 
-u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) {
-    u64 hash = calcHash(num_frames, frames);
+u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, bool truncated, u64 counter) {
+    u64 hash = calcHash(num_frames, frames, truncated);
 
     LongHashTable* table = _current_table;
     u64* keys = table->keys();
@@ -256,7 +257,7 @@ u32 CallTraceStorage::put(int num_frames, ASGCT_CallFrame* frames, u64 counter) 
             // Migrate from a previous table to save space
             CallTrace* trace = table->prev() == NULL ? NULL : findCallTrace(table->prev(), hash);
             if (trace == NULL) {
-                trace = storeCallTrace(num_frames, frames);
+                trace = storeCallTrace(num_frames, frames, truncated);
             }
             table->values()[slot].setTrace(trace);
             break;
