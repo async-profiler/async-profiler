@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    int dlopenFirst = strcmp(argv[1], "dlopen_first") == 0 ? 1 : 0;
+    int dlopen_first = strcmp(argv[1], "dlopen_first") == 0 ? 1 : 0;
     const char* filename = argv[2];
 
     void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
     ASSERT_NO_DLERROR();
 
     // Load libcallsmalloc.so before or after starting the profiler, based on args.
-    if (dlopenFirst) {
+    if (dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
         ASSERT_NO_DLERROR();
     }
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     asprof_error_t asprof_err = asprof_execute(start_cmd, outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
 
-    if (!dlopenFirst) {
+    if (!dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
         ASSERT_NO_DLERROR();
     }

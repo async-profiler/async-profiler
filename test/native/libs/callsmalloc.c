@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 
-__attribute__((visibility("default"))) void* call_malloc(size_t size) {
+__attribute__((visibility("default")))
+void* call_malloc(size_t size) {
     return malloc(size);
 }

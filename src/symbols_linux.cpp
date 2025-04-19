@@ -810,11 +810,10 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() "in some cases" returns NULL for them.
+            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
 
-            // Main executable will return NULL from handle, we need to parse it anyway.
-            // dlopen is not required in this case as the main exe cannot be unloaded.
+            // Parse main executable regardless of dlopen result, since it cannot be unloaded.
             bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
             if (handle != NULL || dlerror() == NULL || is_main_exe) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
