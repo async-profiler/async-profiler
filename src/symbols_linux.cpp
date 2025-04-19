@@ -775,6 +775,12 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
+    const void* main_phdr = NULL;
+    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
+        *(const void**)data = info->dlpi_phdr;
+        return 1;
+    }, &main_phdr);
+
     for (auto& it : libs) {
         u64 inode = it.first;
         _parsed_inodes.insert(inode);
@@ -804,13 +810,17 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them.
+            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            if (handle != NULL || dlerror() == NULL || OS::isMusl()) {
+
+            // Parse main executable regardless of dlopen result, since it cannot be unloaded.
+            bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
+            if (handle != NULL || dlerror() == NULL || is_main_exe) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
-                if (handle != NULL) {
-                    dlclose(handle);
-                }
+            }
+
+            if (handle != NULL) {
+                dlclose(handle);
             }
         }
 

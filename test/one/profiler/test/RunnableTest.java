@@ -25,7 +25,9 @@ public class RunnableTest {
     }
 
     public String testName() {
-        return className() + '.' + m.getName();
+        return test.nameSuffix().isEmpty()
+            ? className() + '.' + m.getName()
+            : className() + '.' + m.getName() + '/' + test.nameSuffix();
     }
 
     public String className() {
