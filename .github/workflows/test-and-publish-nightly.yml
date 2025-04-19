@@ -51,27 +51,60 @@ jobs:
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+          - runson:
+              display: amazonlinux-2023 # Use dash instead of colon, because GHA artifacts cannot contain colons
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            container: amazonlinux:2023
+          - runson:
+              display: amazonlinux-2
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            # Make sure this is in sync with java-version/distribution for UX purposes
+            java-package: java-11-amazon-corretto
+            container: amazonlinux:2
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
       options: --privileged
     name: "test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
+      - name: Setup
+        run: |
+          if [[ "${{ matrix.container }}" == "amazonlinux"* ]]; then
+              yum update -y
+              yum install -y make gcc-c++ libstdc++-devel libstdc++-static util-linux tar git patchelf
+          fi
       - name: Setup Java
         uses: actions/setup-java@v4
+        if: matrix.runson.display != 'amazonlinux-2'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
+      - name: Setup Java on amazonlinux-2
+        if: matrix.runson.display == 'amazonlinux-2'
+        run: yum install -y ${{ matrix.java-package }}
       - name: Checkout sources
+        if: matrix.runson.display != 'amazonlinux-2'
         uses: actions/checkout@v4
+      - name: Checkout sources on amazonlinux-2
+        if: matrix.runson.display == 'amazonlinux-2'
+        run: |
+          git clone https://${{ github.token }}@github.com/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
       - name: Build and test
         id: build
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.runson.display }}" in
             macos*)
               make COMMIT_TAG=$HASH FAT_BINARY=true release test -j
+            ;;
+            amazonlinux*)
+              make COMMIT_TAG=$HASH release test -j
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test -j
@@ -80,12 +113,18 @@ jobs:
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Coverage
         id: coverage
+        if: matrix.runson.display != 'amazonlinux-2'
         run: |
           HASH=$(echo ${{ github.sha }} | cut -c-7)
-          case "${{ matrix.runson.name }}" in
+          case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
+            ;;
+            amazonlinux*)
+              python3 -m ensurepip
+              python3 -m pip install gcovr
+              make COMMIT_TAG=$HASH coverage -j
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc coverage -j
@@ -93,8 +132,7 @@ jobs:
           esac
       - name: Upload test logs
         uses: actions/upload-artifact@v4
-
-        if: always() # we always want to upload test logs, especially when tests fail
+        if: matrix.runson.display != 'amazonlinux-2'
         with:
           name: test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: |
@@ -102,13 +140,12 @@ jobs:
             hs_err*.log
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
-
+        if: matrix.runson.display != 'amazonlinux-2'
         with:
           name: test-coverage-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: build/test/coverage/
       - name: Upload async-profiler binaries to workflow
         uses: actions/upload-artifact@v4
-
         if: |
           matrix.java-version == 11 &&
           (
