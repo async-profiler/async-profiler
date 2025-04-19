@@ -13,7 +13,7 @@ import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import java.util.Comparator;
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -23,7 +23,6 @@ public class Runner {
     private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
 
-    private static final Set<String> skipTests = new HashSet<>();
     private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
@@ -99,10 +98,8 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(RunnableTest rt) {
-        return rt.test().enabled() &&
-                !skipTests.contains(rt.className().toLowerCase()) &&
-                !skipTests.contains(rt.method().getName().toLowerCase());
+    private static boolean enabled(RunnableTest rt, RunnerDeclaration decl) {
+        return rt.test().enabled() && decl.matches(rt.method());
     }
 
     private static boolean applicable(Test test) {
@@ -116,8 +113,8 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(RunnableTest rt) {
-        if (!enabled(rt)) {
+    private static TestResult run(RunnableTest rt, RunnerDeclaration decl) {
+        if (!enabled(rt, decl)) {
             return TestResult.skipDisabled();
         }
         if (!applicable(rt.test())) {
@@ -150,16 +147,22 @@ public class Runner {
         return rts;
     }
 
-    private static List<RunnableTest> getRunnableTests(String[] args) throws ClassNotFoundException {
+    private static List<RunnableTest> getRunnableTests(String dir) throws ClassNotFoundException {
+        String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
+        return getRunnableTests(Class.forName(className));
+    }
+
+    private static List<RunnableTest> getRunnableTests(RunnerDeclaration decl) throws ClassNotFoundException {
         List<RunnableTest> rts = new ArrayList<>();
-        for (String arg : args) {
-            String testName = arg;
-            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
-                // Convert package name to class name
-                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
+        File[] files = new File("test/test").listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    rts.addAll(getRunnableTests(file.getName()));
+                }
             }
-            rts.addAll(getRunnableTests(Class.forName(testName)));
         }
+        rts.sort(Comparator.comparing(RunnableTest::testName));
         return rts;
     }
 
@@ -178,15 +181,6 @@ public class Runner {
             logger.setLevel(level);
             for (Handler handler : logger.getHandlers()) {
                 handler.setLevel(level);
-            }
-        }
-    }
-
-    private static void configureSkipTests() {
-        String skipProperty = System.getProperty("skip");
-        if (skipProperty != null && !skipProperty.isEmpty()) {
-            for (String skip : skipProperty.split(",")) {
-                skipTests.add(skip.toLowerCase());
             }
         }
     }
@@ -210,6 +204,41 @@ public class Runner {
         System.out.println("TOTAL: " + testCount);
     }
 
+    private static RunnerDeclaration parseRunnerDeclaration(String[] args) {
+        // All available directories.
+        List<String> testDirectories = new ArrayList<>();
+
+        // If directories are specified, they are considered an exact match.
+        List<String> includeDirs = new ArrayList<>();
+
+        // Glob filters matching "ClassName.methodName".
+        List<String> testFilters = new ArrayList<>();
+
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            File f = new File("test/test/" + arg);
+            if (!f.exists() || !f.isDirectory()) {
+                testFilters.add(arg);
+            } else {
+                includeDirs.add(arg);
+            }
+        }
+
+        List<String> skipFilters = new ArrayList<>();
+        String skipProperty = System.getProperty("skip");
+        if (skipProperty != null && !skipProperty.isEmpty()) {
+            for (String skip : skipProperty.split(" ")) {
+                skipFilters.add(skip);
+            }
+        }
+
+        log.log(Level.FINE, "Selected directories: " + includeDirs);
+        log.log(Level.FINE, "Test Filters: " + testFilters);
+        log.log(Level.FINE, "Skip Filters: " + skipFilters);
+
+        return new RunnerDeclaration(includeDirs, testFilters, skipFilters);
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: java " + Runner.class.getName() + " TestName ...");
@@ -217,9 +246,9 @@ public class Runner {
         }
 
         configureLogging();
-        configureSkipTests();
 
-        List<RunnableTest> allTests = getRunnableTests(args);
+        RunnerDeclaration decl = parseRunnerDeclaration(args);
+        List<RunnableTest> allTests = getRunnableTests(decl);
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
@@ -227,7 +256,7 @@ public class Runner {
         EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
-            TestResult result = run(rt);
+            TestResult result = run(rt, decl);
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;
