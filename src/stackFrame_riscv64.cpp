@@ -109,9 +109,4 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     // calls, so this might technically mismatch.
     return (*pc) == 0x00000073;
 }
-
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // return is_plausible_interpreter_frame to make the code behave the same as before
-    return is_plausible_interpreter_frame;
-}
 #endif // riscv

@@ -153,9 +153,4 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     // sc/svc
     return (*pc & 0x1f) == 17;
 }
-
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // return is_plausible_interpreter_frame to make the code behave the same as before
-    return is_plausible_interpreter_frame;
-}
 #endif // defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)

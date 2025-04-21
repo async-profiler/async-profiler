@@ -249,39 +249,4 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     // svc #0 or svc #80
     return (*pc & 0xffffefff) == 0xd4000001;
 }
-
-// On aarch64, for [method entry point], is_plausible_interpreter_frame is always true,
-// so we need to parse the instructions to determine whether sender sp is on the stack.
-// If the instruction is in the range of (set fp = sp, push sender sp], then sender sp is not on the stack.
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // Bellow OpenJDK 20
-    // 0x0000ffff873184e4:   stp	x29, x30, [sp, #80]     <- push fp, lr    // 0xa9057bfd
-    // 0x0000ffff873184e8:   add	x29, sp, #0x50          <- set fp = sp    // 0x910143fd
-    // 0x0000ffff873184ec:   stp	xzr, x13, [sp, #64]     <- push sender sp // 0xa90437ff
-
-    // OpenJDK 20 and above
-    // 0x0000ffffac4e76f4:   stp	x20, x22, [sp, #-96]! <- push java expression stack pointer, bcp
-    // 0x0000ffffac4e76f8:   stp	xzr, x12, [sp, #48]   <- push Method*
-    // 0x0000ffffac4e76fc:   stp	x29, x30, [sp, #80]   <- push fp, lr  // 0xa9057bfd
-    // 0x0000ffffac4e7700:   add	x29, sp, #0x50        <- set fp = sp  // 0x910143fd
-    // 0x0000ffffac4e7704:   ldr	x26, [x12, #8]                        // 0xf940059a
-    // 0x0000ffffac4e7708:   ldr	x26, [x26, #8]                        // 0xf940075a
-    // 0x0000ffffac4e770c:   ldr	x26, [x26, #16]                       // 0xf9400b5a
-    // 0x0000ffffac4e7710:   sub	x8, x24, x29                          // 0xcb1d0308
-    // 0x0000ffffac4e7714:   lsr	x8, x8, #3                            // 0xd343fd08
-    // 0x0000ffffac4e7718:   stp	x8, x26, [sp, #16]                    // 0xa9016be8
-    // 0x0000ffffac4e771c:   stp	xzr, x19, [sp, #64] <- push sender sp // 0xa9044fff
-
-    instruction_t v = *pc;
-    return !(
-        (v == 0xf940059a && *(pc - 1) == 0x910143fd) || // check the current and the [set fp = sp] instruction
-        (v == 0xf940075a && *(pc - 2) == 0x910143fd) ||
-        (v == 0xf9400b5a && *(pc - 3) == 0x910143fd) ||
-        (v == 0xcb1d0308 && *(pc - 4) == 0x910143fd) ||
-        (v == 0xd343fd08 && *(pc - 5) == 0x910143fd) ||
-        (v == 0xa9016be8 && *(pc - 6) == 0x910143fd) ||
-        (v == 0xa9044fff && *(pc - 7) == 0x910143fd) ||
-        (v == 0xa90437ff && *(pc - 1) == 0x910143fd)
-        );
-}
 #endif // __aarch64__

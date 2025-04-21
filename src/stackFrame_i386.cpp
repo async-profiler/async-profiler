@@ -142,9 +142,4 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     // int 0x80
     return pc[0] == 0xcd && pc[1] == 0x80;
 }
-
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // return is_plausible_interpreter_frame to make the code behave the same as before
-    return is_plausible_interpreter_frame;
-}
 #endif // __i386__

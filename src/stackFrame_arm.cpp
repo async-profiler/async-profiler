@@ -127,9 +127,4 @@ bool StackFrame::isSyscall(instruction_t* pc) {
     // swi #0
     return *pc == 0xef000000;
 }
-
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // return is_plausible_interpreter_frame to make the code behave the same as before
-    return is_plausible_interpreter_frame;
-}
 #endif // defined(__arm__) || defined(__thumb__)

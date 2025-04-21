@@ -107,9 +107,4 @@ void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& 
 bool StackFrame::isSyscall(instruction_t* pc) {
     return (*pc) == 0x002b0000;
 }
-
-bool StackFrame::isSenderSPOnStack(instruction_t* pc, bool is_plausible_interpreter_frame) {
-    // return is_plausible_interpreter_frame to make the code behave the same as before
-    return is_plausible_interpreter_frame;
-}
 #endif // __loongarch_lp64
