@@ -60,4 +60,15 @@ TEST_CASE(MappedTwiceAtZeroOffset) {
     hello();
 }
 
+TEST_CASE(MultipleMatchingSymbols) {
+    const void* sym = resolveSymbol("multiplematching.so", "Class::function");
+    ASSERT(sym);
+
+    const void* symOk = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv");
+    ASSERT_EQ(sym, symOk);
+
+    const void* symCold = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv.cold");
+    ASSERT_NE(sym, symCold);
+}
+
 #endif // __linux__
