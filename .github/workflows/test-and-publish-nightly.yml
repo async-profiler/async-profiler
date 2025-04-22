@@ -138,11 +138,11 @@ jobs:
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
-      - name: Download async-profiler binary artifact
+      - name: Download async-profiler release artifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
-          path: binary_artifacts
+          path: async_profiler_release
       - name: Download async-profiler JAR artifacts
         uses: actions/download-artifact@v4
         with:
@@ -151,13 +151,13 @@ jobs:
       - name: Extract async-profiler artifact
         id: extract_artifact
         run: |
-          archive=$(basename $(find binary_artifacts -type f -iname "async-profiler-*" ))
+          release_archive=$(basename $(find async_profiler_release -type f -iname "async-profiler-*" ))
           case "${{ matrix.runson.name }}" in
             macos*)
-              unzip binary_artifacts/$archive
+              unzip async_profiler_release/$release_archive
             ;;
             *)
-              tar xvf binary_artifacts/$archive
+              tar xvf async_profiler_release/$release_archive
             ;;
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
