@@ -161,9 +161,9 @@ jobs:
             ;;
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
-          echo "binaries_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+          echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Run integration tests
-        run: make test-java-from-release -j BINARIES_DIRECTORY=${{ steps.extract_artifact.outputs.binaries_directory }} JARS_DIRECTORY=${{ steps.extract_artifact.outputs.jars_directory }}
+        run: make test-java-from-release -j RELEASE_DIRECTORY=${{ steps.extract_artifact.outputs.release_directory }} JARS_DIRECTORY=${{ steps.extract_artifact.outputs.jars_directory }}
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
