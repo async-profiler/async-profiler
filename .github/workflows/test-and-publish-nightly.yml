@@ -88,7 +88,7 @@ jobs:
           name: test-coverage-${{ matrix.runson.display }}
           path: build/test/coverage/
           if-no-files-found: error
-  test:
+  integration-tests:
     needs: build-and-upload-binaries
     strategy:
       matrix:
@@ -176,7 +176,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
     runs-on: ubuntu-latest
-    needs: [build-jars, test]
+    needs: [build-jars, integration-tests]
     steps:
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4
