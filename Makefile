@@ -214,6 +214,9 @@ ifeq ($(OS_TAG),linux)
 	$(CC) -c -shared -fPIC -o $(TEST_LIB_DIR)/vaddrdif.o test/native/libs/vaddrdif.c
 	$(LD) -N -shared -o $(TEST_LIB_DIR)/libvaddrdif.$(SOEXT) $(TEST_LIB_DIR)/vaddrdif.o -T test/native/libs/vaddrdif.ld
 
+	$(AS) -o $(TEST_LIB_DIR)/multiplematching.o test/native/libs/multiplematching.s
+	$(LD) -shared -o $(TEST_LIB_DIR)/multiplematching.$(SOEXT) $(TEST_LIB_DIR)/multiplematching.o
+
 	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
 	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
 endif
