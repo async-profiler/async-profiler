@@ -29,11 +29,11 @@ jobs:
         include:
           - runson:
               display: linux-arm64
-              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+              name: ubuntu-24.04-arm
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
           - runson:
               display: linux-x64
-              name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
+              name: ubuntu-latest
             container: public.ecr.aws/async-profiler/asprof-builder-x86:latest
           - runson:
               display: macos-arm64
