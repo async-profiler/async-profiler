@@ -239,7 +239,9 @@ const void* Profiler::resolveSymbol(const char* name) {
     int native_lib_count = _native_libs.count();
     if (len > 0 && name[len - 1] == '*') {
         for (int i = 0; i < native_lib_count; i++) {
-            const void* address = _native_libs[i]->findSymbolByPrefix(name, len - 1);
+            // Multiple symbols could match: we preferrably choose those not containing a dot
+            // https://github.com/async-profiler/async-profiler/issues/1247
+            const void* address = _native_libs[i]->findSymbolByPrefix(name, len - 1, '.');
             if (address != NULL) {
                 return address;
             }

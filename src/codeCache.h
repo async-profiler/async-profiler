@@ -197,6 +197,7 @@ class CodeCache {
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
+    const void* findSymbolByPrefix(const char* prefix, int prefix_len, char second_choice_if_contains);
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
