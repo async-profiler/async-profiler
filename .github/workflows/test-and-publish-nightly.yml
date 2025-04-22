@@ -44,7 +44,7 @@ jobs:
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.container }}
-    name: "Build (${{ matrix.runson.display }})"
+    name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -53,7 +53,7 @@ jobs:
           java-version: ${{ matrix.java-version || env.java_default_version }}
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Build and test
+      - name: Build and unit test
         id: build
         run: |
           set -x
