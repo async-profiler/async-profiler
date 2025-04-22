@@ -163,7 +163,13 @@ jobs:
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Run integration tests
-        run: make test-java-from-release -j RELEASE_DIRECTORY=${{ steps.extract_artifact.outputs.release_directory }} JARS_DIRECTORY=${{ steps.extract_artifact.outputs.jars_directory }}
+        run: |
+          mkdir -p build/jar
+          cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
+          make build/test.jar
+          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
+          cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
+          make test-java -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         if: always() # we always want to upload test logs, especially when tests fail
