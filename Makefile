@@ -232,7 +232,7 @@ test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
 	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(TESTS)
 
-test-java-from-release:
+test-java-from-release: build-test-libs build-test-bins
 	mkdir -p build/jar
 	cp $(JARS_DIRECTORY)/* build/jar
 	$(MAKE) build/$(TEST_JAR)
