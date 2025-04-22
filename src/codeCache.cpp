@@ -159,27 +159,17 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix) {
 }
 
 const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
+    const void* result = NULL;
     for (int i = 0; i < _count; i++) {
         const char* blob_name = _blobs[i]._name;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
-            return _blobs[i]._start;
-        }
-    }
-    return NULL;
-}
-
-const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len, char second_choice_if_contains) {
-    int second_choice = -1;
-    for (int i = 0; i < _count; i++) {
-        const char* blob_name = _blobs[i]._name;
-        if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
-            if (strchr(blob_name, second_choice_if_contains) == NULL) {
-                return _blobs[i]._start;
+            result = _blobs[i]._start;
+            if (strchr(blob_name + prefix_len, '.') == NULL) {
+                return result;
             }
-            second_choice = i;
         }
     }
-    return second_choice >= 0 ? _blobs[second_choice]._start : NULL;
+    return result;
 }
 
 void CodeCache::saveImport(ImportId id, void** entry) {
