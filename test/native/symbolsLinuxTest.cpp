@@ -64,11 +64,11 @@ TEST_CASE(MultipleMatchingSymbols) {
     const void* sym = resolveSymbol("multiplematching.so", "Class::function");
     ASSERT(sym);
 
-    const void* symOk = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv");
-    ASSERT_EQ(sym, symOk);
+    const void* sym_ok = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv");
+    ASSERT_EQ(sym, sym_ok);
 
-    const void* symCold = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv.cold");
-    ASSERT_NE(sym, symCold);
+    const void* sym_cold = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv.cold");
+    ASSERT_NE(sym, sym_cold);
 }
 
 #endif // __linux__

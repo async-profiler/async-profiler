@@ -164,6 +164,8 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
         const char* blob_name = _blobs[i]._name;
         if (blob_name != NULL && strncmp(blob_name, prefix, prefix_len) == 0) {
             result = _blobs[i]._start;
+            // Symbols which contain a dot are only patched if no alternative is found,
+            // see #1247
             if (strchr(blob_name + prefix_len, '.') == NULL) {
                 return result;
             }
