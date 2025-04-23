@@ -104,6 +104,7 @@ jobs:
               make COMMIT_TAG=$HASH FAT_BINARY=true coverage -j
             ;;
             alpine*)
+              apk add gcovr
               make COMMIT_TAG=$HASH coverage -j
             ;;
             *)
