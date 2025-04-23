@@ -16,7 +16,6 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.io.*;
 
 public class JfrTests {
 
@@ -79,35 +78,14 @@ public class JfrTests {
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 
-    private static void waitTtspWarmupOutput(TestProcess p) throws Exception {
-        while (true) {
-            try (FileReader isr = new FileReader(p.getFile(TestProcess.STDOUT));
-                BufferedReader br = new BufferedReader(isr)
-            ) {
-                String output = br.readLine();
-                if (output == null && p.processIsAlive()) {
-                    // File is empty, but the process may still output something
-                    Thread.sleep(200);
-                    continue;
-                }
-                if (Ttsp.WARMUP_COMPLETED_OUTPUT.equals(output)) {
-                    break;
-                }
-                throw new AssertionError("Warmup did not complete: " + output);
-            }
-        }
-    }
-
     /**
      * Test to validate time to safepoint profiling
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class, output = true)
+    @Test(mainClass = Ttsp.class)
     public void ttsp(TestProcess p) throws Exception {
-        waitTtspWarmupOutput(p);
-
         p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
 
@@ -121,10 +99,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class, output = true)
+    @Test(mainClass = Ttsp.class)
     public void ttspNostop(TestProcess p) throws Exception {
-        waitTtspWarmupOutput(p);
-
         p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
