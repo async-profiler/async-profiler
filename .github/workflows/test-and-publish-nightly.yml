@@ -91,7 +91,8 @@ jobs:
       matrix:
         runson:
           - display: linux-x64
-            name: ubuntu-latest # Using "latest" here as the build and test will any ways run inside a container which we control
+            # Using "latest" here as the build and test will any ways run inside a container which we control
+            name: ubuntu-latest
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
         container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
@@ -101,7 +102,8 @@ jobs:
               name: macos-14
             java-version: 11
             java-distribution: corretto
-            container: ""  # Not using container for mac-os as we have images only for linux
+            # Not using container for mac-os as we have images only for linux
+            container: ""
             # ARM MacOS should take fat binaries built on ARM
             asprof-binaries-job: macos
           - runson:
@@ -115,7 +117,8 @@ jobs:
             asprof-binaries-job: macos
           - runson:
               display: linux-arm64
-              name: ubuntu-24.04-arm # There is no "latest" tag available (yet) as ARM runners are still in public preview
+              # There is no "latest" tag available (yet) as ARM runners are still in public preview
+              name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
             container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
@@ -173,7 +176,8 @@ jobs:
           make test-java -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
-        if: always() # we always want to upload test logs, especially when tests fail
+        # Always upload, especially after test failure
+        if: always()
         with:
           name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
           path: |
