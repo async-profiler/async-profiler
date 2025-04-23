@@ -67,12 +67,11 @@ int main(int argc, char** argv) {
 
     asprof_error_t asprof_err = asprof_execute(start_cmd, outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
+    dlerror();
 
     if (!dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
         ASSERT_NO_DLERROR();
-    } else {
-        dlerror();
     }
 
     call_malloc_t call_malloc = (call_malloc_t)dlsym(lib, "call_malloc");
