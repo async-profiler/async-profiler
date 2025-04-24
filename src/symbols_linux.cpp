@@ -778,7 +778,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     const char* ld_base = (const char*)getauxval(AT_BASE);
     if (!ld_base) {
-        Log::warn("Cannot determine base address of the loader.");
+        Log::warn("Cannot determine base address of the loader");
     }
 
     const void* main_phdr = NULL;
