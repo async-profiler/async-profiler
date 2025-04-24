@@ -12,6 +12,7 @@ PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
+ASPROF_HEADER=include/asprof.h
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
 TEST_JAR=test.jar
@@ -124,9 +125,9 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 
-.PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
+.PHONY: all headers jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
-all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV)
+all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/include build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
@@ -148,9 +149,9 @@ endif
 
 $(PACKAGE_DIR): all LICENSE README.md
 	mkdir -p $(PACKAGE_DIR)
-	cp -RP build/bin build/lib LICENSE README.md $(PACKAGE_DIR)/
+	cp -RP build/bin build/lib build/include LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
-	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
+	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/include/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
 
 build/%:
 	mkdir -p $@
@@ -171,6 +172,9 @@ ifeq ($(MERGE),true)
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
+
+build/$(ASPROF_HEADER): src/asprof.h
+	cp -f src/asprof.h $@
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
