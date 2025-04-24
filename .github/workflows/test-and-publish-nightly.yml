@@ -129,16 +129,18 @@ jobs:
           architecture: ${{ matrix.architecture }}
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Set artifact name
-        id: set_artifact_name
-        run: echo "artifact_name=async-profiler-${{ matrix.asprof-binaries-job || matrix.runson.display }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+      - name: Set variables
+        id: set_variables
+        run: |
+          echo "short_sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "artifact_name=async-profiler-${{ matrix.asprof-binaries-job || matrix.runson.display }}-${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
       - name: Download async-profiler release artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ steps.set_artifact_name.outputs.artifact_name }}
+          name: ${{ steps.set_variables.outputs.artifact_name }}
           path: async_profiler_release
       - name: Download async-profiler JAR artifacts
         uses: actions/download-artifact@v4
@@ -172,7 +174,7 @@ jobs:
         # Always upload, especially after test failure
         if: always()
         with:
-          name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}
+          name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}-${{ steps.set_variables.outputs.short_sha }}
           path: |
             build/test/logs/
             hs_err*.log
