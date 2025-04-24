@@ -30,17 +30,17 @@ jobs:
           - runson:
               display: linux-arm64
               name: ubuntu-24.04-arm
-            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
           - runson:
               display: linux-x64
               name: ubuntu-latest
-            container: public.ecr.aws/async-profiler/asprof-builder-x86:latest
+            image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
           - runson:
               display: macos
               name: macos-14
     runs-on: ${{ matrix.runson.name }}
     container:
-      image: ${{ matrix.container }}
+      image: ${{ matrix.image }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Setup Java
@@ -95,7 +95,7 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
-        container: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
+        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - runson:
               display: macos-arm64
@@ -103,7 +103,7 @@ jobs:
             java-version: 11
             java-distribution: corretto
             # Not using container for mac-os as we have images only for linux
-            container: ""
+            image: ""
             # ARM MacOS should take fat binaries built on ARM
             asprof-binaries-job: macos
           - runson:
@@ -112,7 +112,7 @@ jobs:
             java-version: 11
             java-distribution: corretto
             architecture: x64
-            container: ""
+            image: ""
             # x64 MacOS should take fat binaries built on ARM
             asprof-binaries-job: macos
           - runson:
@@ -121,10 +121,10 @@ jobs:
               name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
-            container: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.runson.name }}
     container:
-      image: ${{ matrix.container }}
+      image: ${{ matrix.image }}
       options: --privileged
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
