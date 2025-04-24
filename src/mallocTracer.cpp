@@ -15,6 +15,7 @@
 
 #define ADDRESS_OF(sym) ({               \
     void* addr = dlsym(RTLD_NEXT, #sym); \
+    dlerror();                           \
     addr != NULL ? (sym##_t)addr : sym;  \
 })
 
