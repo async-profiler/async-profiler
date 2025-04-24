@@ -10,6 +10,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "tsc.h"
+#include "symbols.h"
 #include <dlfcn.h>
 #include <string.h>
 
@@ -123,6 +124,11 @@ void MallocTracer::patchLibraries() {
 
         if (cc->contains((const void*)MallocTracer::initialize)) {
             // Let libasyncProfiler always use original allocation methods
+            continue;
+        }
+
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
             continue;
         }
 

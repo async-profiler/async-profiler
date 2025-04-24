@@ -100,13 +100,18 @@ class CodeBlob {
 
 class FrameDesc;
 
+class UnloadProtection;
+
 class CodeCache {
+  friend UnloadProtection;
+
   private:
     char* _name;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
     const char* _text_base;
+    const char* _image_base;
 
     unsigned int _plt_offset;
     unsigned int _plt_size;
@@ -131,7 +136,8 @@ class CodeCache {
               short lib_index = -1,
               bool imports_patchable = false,
               const void* min_address = NO_MIN_ADDRESS,
-              const void* max_address = NO_MAX_ADDRESS);
+              const void* max_address = NO_MAX_ADDRESS,
+              const char* image_base = NULL);
 
     ~CodeCache();
 
@@ -145,6 +151,10 @@ class CodeCache {
 
     const void* maxAddress() const {
         return _max_address;
+    }
+
+    const char* imageBase() const {
+        return _image_base;
     }
 
     bool contains(const void* address) const {
