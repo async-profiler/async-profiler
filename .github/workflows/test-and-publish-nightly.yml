@@ -119,7 +119,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
       options: --privileged
-    name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
+    name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution || env.java_default_distribution }} ${{ matrix.java-version || env.java_default_version }})"
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -174,7 +174,7 @@ jobs:
         # Always upload, especially after test failure
         if: always()
         with:
-          name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version }}-${{ steps.set_variables.outputs.short_sha }}
+          name: integration-test-logs-${{ matrix.runson.display }}-${{ matrix.java-version || env.java_default_version }}-${{ steps.set_variables.outputs.short_sha }}
           path: |
             build/test/logs/
             hs_err*.log
