@@ -44,10 +44,8 @@ int main(int argc, char** argv) {
     void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
     ASSERT_NO_DLERROR();
 
-    asprof_init_t init_func = (asprof_init_t) dlsym(libprof, "asprof_init");
+    ((asprof_init_t)dlsym(libprof, "asprof_init"))();
     ASSERT_NO_DLERROR();
-    init_func();
-    dlerror();
 
     asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(libprof, "asprof_execute");
     ASSERT_NO_DLERROR();
@@ -67,7 +65,6 @@ int main(int argc, char** argv) {
 
     asprof_error_t asprof_err = asprof_execute(start_cmd, outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
-    dlerror();
 
     if (!dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
