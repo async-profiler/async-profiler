@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <link.h>
 #include <linux/limits.h>
+#include <sys/auxv.h>
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
@@ -775,6 +776,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
+    const char* ld_base = (const char*)getauxval(AT_BASE);
+    if (!ld_base) {
+        Log::warn("Cannot determine base address of the loader");
+    }
+
     const void* main_phdr = NULL;
     dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
         *(const void**)data = info->dlpi_phdr;
@@ -813,9 +819,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
 
-            // Parse main executable regardless of dlopen result, since it cannot be unloaded.
+            // Parse main executable and the loader (ld.so) regardless of dlopen result, since they cannot be unloaded.
             bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
-            if (handle != NULL || dlerror() == NULL || is_main_exe) {
+            bool is_loader = ld_base == lib.image_base;
+
+            if (handle != NULL || is_main_exe || is_loader) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
 
