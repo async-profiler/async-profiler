@@ -3,7 +3,7 @@ FROM amazonlinux:2
 RUN amazon-linux-extras enable python3.8
 
 RUN yum update -y
-RUN yum install -y git make python38 gcc10.x86_64 gcc10-c++.x86_64 binutils
+RUN yum install -y git make python38 gcc10 gcc10-c++ binutils
 
 RUN git clone --branch v22.x --depth 1 https://github.com/nodejs/node.git
 ENV CC=gcc10-cc
