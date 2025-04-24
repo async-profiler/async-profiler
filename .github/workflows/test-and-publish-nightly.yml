@@ -37,7 +37,7 @@ jobs:
             image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
           - runson:
               display: macos
-              name: macos-14
+              name: macos-15
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -99,7 +99,7 @@ jobs:
         include:
           - runson:
               display: macos-arm64
-              name: macos-14
+              name: macos-15
             java-version: 11
             java-distribution: corretto
             # Not using container for mac-os as we have images only for linux
