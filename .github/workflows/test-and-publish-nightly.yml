@@ -94,14 +94,11 @@ jobs:
             # Using "latest" here as the build and test will any ways run inside a container which we control
             name: ubuntu-latest
         java-version: [11, 17, 21, 24]
-        java-distribution: [corretto]
         image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - runson:
               display: macos-arm64
               name: macos-15
-            java-version: 11
-            java-distribution: corretto
             # Not using container for mac-os as we have images only for linux
             image: ""
             # ARM MacOS should take fat binaries built on ARM
@@ -109,8 +106,6 @@ jobs:
           - runson:
               display: macos-x64
               name: macos-13
-            java-version: 11
-            java-distribution: corretto
             architecture: x64
             image: ""
             # x64 MacOS should take fat binaries built on ARM
@@ -119,8 +114,6 @@ jobs:
               display: linux-arm64
               # There is no "latest" tag available (yet) as ARM runners are still in public preview
               name: ubuntu-24.04-arm
-            java-version: 11
-            java-distribution: corretto
             image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
     runs-on: ${{ matrix.runson.name }}
     container:
@@ -131,8 +124,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: ${{ matrix.java-distribution }}
-          java-version: ${{ matrix.java-version }}
+          distribution: ${{ matrix.java-distribution || env.java_default_distribution }}
+          java-version: ${{ matrix.java-version || env.java_default_version }}
           architecture: ${{ matrix.architecture }}
       - name: Checkout sources
         uses: actions/checkout@v4
