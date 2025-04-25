@@ -78,6 +78,6 @@ heap utilization and wall-clock profiling to view latency.
 
 ## Understanding FlameGraph colors
 
-A legend for frame types is available from the "i" (information) button in the generated html, which is repeated here:
+A legend for frame types is available from the information tooltip in the generated html, which is repeated here:
 
 ![](/.assets/images/flamegraph_legend.png)
