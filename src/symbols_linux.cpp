@@ -821,6 +821,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             bool original_handle = false;
             struct link_map* map;
 
+            // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
             if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
                 original_handle = lib.image_base == (const char*)map->l_addr;
             }
