@@ -20,7 +20,6 @@
 #include <fcntl.h>
 #include <link.h>
 #include <linux/limits.h>
-#include <sys/auxv.h>
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
@@ -64,6 +63,18 @@ static void applyPatch(CodeCache* cc) {}
 
 #endif
 
+Symbols::Symbols() {
+    _ld_base = (const char*)getauxval(AT_BASE);
+    if (!_ld_base) {
+        Log::warn("Cannot determine base address of the loader");
+    }
+
+    _main_phdr = NULL;
+    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
+        *(const void**)data = info->dlpi_phdr;
+        return 1;
+    }, &_main_phdr);
+}
 
 class SymbolDesc {
   private:
@@ -653,6 +664,8 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
+const void* Symbols::_main_phdr = NULL;
+const char* Symbols::_ld_base = NULL;
 static std::unordered_set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -776,23 +789,12 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
-    const char* ld_base = (const char*)getauxval(AT_BASE);
-    if (!ld_base) {
-        Log::warn("Cannot determine base address of the loader");
-    }
-
-    const void* main_phdr = NULL;
-    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
-        *(const void**)data = info->dlpi_phdr;
-        return 1;
-    }, &main_phdr);
-
     for (auto& it : libs) {
         u64 inode = it.first;
         _parsed_inodes.insert(inode);
 
         SharedLibrary& lib = it.second;
-        CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end);
+        CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
 
         // Strip " (deleted)" suffix so that removed library can be reopened
         size_t len = strlen(lib.file);
@@ -812,25 +814,9 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
-            dlerror();  // reset any error from previous dl function calls
-
-            // Protect library from unloading while parsing in-memory ELF program headers.
-            // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
-            void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-            bool original_handle = false;
-            struct link_map* map;
-
-            // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
-            if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
-                original_handle = lib.image_base == (const char*)map->l_addr;
-            }
-
+            void* handle;
             // Parse main executable and the loader (ld.so) regardless of dlopen result, since they cannot be unloaded.
-            bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
-            bool is_loader = ld_base == lib.image_base;
-
-            if (original_handle || is_main_exe || is_loader) {
+            if (Symbols::isSafeToPatch(cc, &handle)) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
 

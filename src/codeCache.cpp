@@ -10,6 +10,7 @@
 #include "codeCache.h"
 #include "dwarf.h"
 #include "os.h"
+#include "symbols.h"
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
@@ -29,12 +30,14 @@ size_t NativeFunc::usedMemory(const char* name) {
 
 
 CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
-                     const void* min_address, const void* max_address) {
+                     const void* min_address, const void* max_address,
+                     const char* image_base) {
     _name = NativeFunc::create(name, -1);
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
     _text_base = NULL;
+    _image_base = image_base;
 
     _plt_offset = 0;
     _plt_size = 0;

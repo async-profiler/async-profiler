@@ -14,6 +14,10 @@
 #include "symbols.h"
 #include "log.h"
 
+Symbols::Symbols() {
+    _ld_base = NULL;
+    main_phdr = NULL;
+}
 
 class MachOParser {
   private:

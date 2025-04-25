@@ -8,6 +8,7 @@
 #include "hooks.h"
 #include "profiler.h"
 #include "vmStructs.h"
+#include "symbols.h"
 
 
 // This should be called only after all other statics are initialized.

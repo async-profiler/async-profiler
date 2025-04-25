@@ -7,6 +7,8 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
+#include <dlfcn.h>
+#include <link.h>
 
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
@@ -107,6 +109,8 @@ class CodeCache {
     const void* _min_address;
     const void* _max_address;
     const char* _text_base;
+    // TODO: Cleanup usages of lib.image_base
+    const char* _image_base;
 
     unsigned int _plt_offset;
     unsigned int _plt_size;
@@ -122,6 +126,9 @@ class CodeCache {
     int _count;
     CodeBlob* _blobs;
 
+    bool _is_main_executable;
+    bool _is_linker;
+
     void expand();
     void makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
@@ -131,7 +138,8 @@ class CodeCache {
               short lib_index = -1,
               bool imports_patchable = false,
               const void* min_address = NO_MIN_ADDRESS,
-              const void* max_address = NO_MAX_ADDRESS);
+              const void* max_address = NO_MAX_ADDRESS,
+              const char* image_base = NULL);
 
     ~CodeCache();
 
@@ -147,10 +155,15 @@ class CodeCache {
         return _max_address;
     }
 
+    const char* imageBase() const {
+        return _image_base;
+    }
+
     bool contains(const void* address) const {
         return address >= _min_address && address < _max_address;
     }
 
+    // TODO: Maybe in ctor
     void setTextBase(const char* text_base) {
         _text_base = text_base;
     }
@@ -200,6 +213,19 @@ class CodeCache {
 
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
+
+    bool isValidHandle(void* handle) const {
+#ifdef __linux__
+        struct link_map* map;
+        // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
+        if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
+            return _image_base == (const char*)map->l_addr;
+        }
+        return false;
+#else
+        return handle != NULL;
+#endif
+    }
 
     size_t usedMemory();
 };
