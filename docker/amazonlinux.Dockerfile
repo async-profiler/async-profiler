@@ -18,7 +18,7 @@ RUN ./configure
 RUN make -j4 -s > /dev/null
 RUN make install
 
-FROM amazonlinux:2
+FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
 RUN yum update -y && \
