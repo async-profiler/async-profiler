@@ -16,7 +16,7 @@
 
 Symbols::Symbols() {
     _ld_base = NULL;
-    main_phdr = NULL;
+    _main_phdr = NULL;
 }
 
 class MachOParser {

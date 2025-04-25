@@ -8,6 +8,7 @@
 
 #include "codeCache.h"
 #include "mutex.h"
+#include <dlfcn.h>
 
 
 class Symbols {

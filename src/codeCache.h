@@ -7,9 +7,9 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
+#include <dlfcn.h>
 
 #ifdef __linux__
-#include <dlfcn.h>
 #include <link.h>
 #endif
 
