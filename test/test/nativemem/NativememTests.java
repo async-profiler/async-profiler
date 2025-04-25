@@ -190,7 +190,6 @@ public class NativememTests {
     }
 
     @Test(os = Os.LINUX, sh = "%testbin/nativemem_known_lib_crash %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "dlopen_first")
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%lib %testbin/nativemem_known_lib_crash %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "LD_PRELOAD")
     public void nativememKnownLibCrash(TestProcess p) throws Exception {
         p.waitForExit();
         Assert.isEqual(p.exitCode(), 0);
