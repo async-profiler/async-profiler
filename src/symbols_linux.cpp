@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <link.h>
 #include <linux/limits.h>
+#include <sys/auxv.h>
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"

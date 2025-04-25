@@ -8,7 +8,6 @@
 
 #include "codeCache.h"
 #include "mutex.h"
-#include <sys/auxv.h>
 
 
 class Symbols {
