@@ -47,6 +47,9 @@ jobs:
       image: ${{ matrix.image }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
+      - name: Update PATH
+        if: matrix.runson.display == 'amazonlinux2'
+        run: echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -143,6 +146,9 @@ jobs:
       options: --privileged
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
+      - name: Update PATH
+        if: matrix.runson.display == 'amazonlinux2'
+        run: echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
