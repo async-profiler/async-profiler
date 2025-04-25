@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <dlfcn.h>
 #include <elf.h>
 #include <errno.h>
 #include <unistd.h>
