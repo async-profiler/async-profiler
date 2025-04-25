@@ -84,6 +84,9 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << (type("profiler.types.LogLevel", T_LOG_LEVEL, "Log Level", true)
                 << field("name", T_STRING, "Name"))
 
+            << (type("profiler.types.UserEventType", T_USER_EVENT_TYPE, "User-Defined Event Type", true)
+                << field("name", T_STRING, "Name"))
+
             << (type("jdk.ExecutionSample", T_EXECUTION_SAMPLE, "Method Profiling Sample")
                 << category("Java Virtual Machine", "Profiling")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
@@ -243,6 +246,16 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("stackTrace", T_STACK_TRACE, "Stack Trace", F_CPOOL)
                 << field("address", T_LONG, "Address", F_ADDRESS))
+
+            << (type("profiler.UserEvent", T_USER_EVENT, "User-Defined Event")
+                << category("Profiler")
+                << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
+                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
+                << field("type", T_USER_EVENT_TYPE, "User Event Type", F_CPOOL)
+                // Using T_STRING with a Latin-1 string to encode raw bytes as user data.
+                // This is not type-correct, but `jfr print` has a NullPointerException
+                // when encountering a T_BYTE/F_ARRAY.
+                << field("data", T_STRING, "User Data"))
 
             << (type("jdk.jfr.Label", T_LABEL, NULL)
                 << field("value", T_STRING))

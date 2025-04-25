@@ -46,4 +46,6 @@ public @interface Test {
 
     // Optional inputs to the test method.
     String[] inputs() default {};
+
+    String nameSuffix() default "";
 }

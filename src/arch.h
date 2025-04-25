@@ -184,18 +184,20 @@ const int PERF_REG_PC = 0;      // PERF_REG_LOONGARCH_PC
 #endif
 
 
-// Return address signing support.
-// Apple M1 has 47 bit virtual addresses.
+// On Apple M1 and later processors, memory is either writable or executable (W^X)
 #if defined(__aarch64__) && defined(__APPLE__)
-#  define ADDRESS_BITS 47
-#  define WX_MEMORY    true
+#  define WX_MEMORY  true
 #else
-#  define WX_MEMORY    false
+#  define WX_MEMORY  false
 #endif
 
-#ifdef ADDRESS_BITS
+// Pointer authentication (PAC) support.
+// Only 48-bit virtual addresses are currently supported.
+#ifdef __aarch64__
+const unsigned long PAC_MASK = WX_MEMORY ? 0x7fffffffffffUL : 0xffffffffffffUL;
+
 static inline const void* stripPointer(const void* p) {
-    return (const void*) ((unsigned long)p & ((1UL << ADDRESS_BITS) - 1));
+    return (const void*) ((unsigned long)p & PAC_MASK);
 }
 #else
 #  define stripPointer(p)  (p)
