@@ -64,7 +64,7 @@ public class TestDeclaration {
         return new TestDeclaration(allTestDirs, filters, skipFilters);
     }
 
-    private static Stream<RunnableTest> getRunnableTests(String dir) {
+    private static List<RunnableTest> getRunnableTests(String dir) {
         String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
         try {
             List<RunnableTest> rts = new ArrayList<>();
@@ -73,7 +73,7 @@ public class TestDeclaration {
                     rts.add(new RunnableTest(m, t));
                 }
             }
-            return rts.stream();
+            return rts;
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -81,7 +81,7 @@ public class TestDeclaration {
 
     public List<RunnableTest> getRunnableTests() {
         return allDirs.stream()
-            .flatMap(g -> getRunnableTests(g))
+            .flatMap(g -> getRunnableTests(g).stream())
             .sorted(Comparator.comparing(RunnableTest::testName))
             .collect(Collectors.toList());
     }
@@ -114,10 +114,13 @@ public class TestDeclaration {
         return Pattern.compile("^" + Pattern.quote(s) + "$");
     }
 
-    private static List<Pattern> filterFromGlobs(List<String> globs) {
+    private List<Pattern> filterFromGlobs(List<String> globs) {
         Set<String> result = new HashSet<>();
         for (String g : globs) {
-            if (g.contains(".") || g.contains("*")) {
+            if (allDirs.contains(g)) {
+                // all lowercase, folder name.
+                result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
+            } else if (g.contains(".") || g.contains("*")) {
                 result.add(g);
             } else if (Character.isUpperCase(g.charAt(0))) {
                 // Looks like class name.
@@ -125,10 +128,6 @@ public class TestDeclaration {
             } else if (Character.isLowerCase(g.charAt(0))) {
                 // Looks like method name.
                 result.add("*." + g.toLowerCase());
-                continue;
-            } else if (g.equals(g.toLowerCase())) {
-                // all lowercase, folder name.
-                result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
             } else {
                 throw new RuntimeException("Unknown glob type: " + g);
             }
