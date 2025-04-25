@@ -63,6 +63,7 @@ jobs:
       - name: Build and unit test
         id: build
         run: |
+          set -x
           case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
