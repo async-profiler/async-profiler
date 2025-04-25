@@ -64,31 +64,26 @@ public class TestDeclaration {
         return new TestDeclaration(allTestDirs, filters, skipFilters);
     }
 
-    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
-        List<RunnableTest> rts = new ArrayList<>();
-        for (Method m : cls.getMethods()) {
-            for (Test t : m.getAnnotationsByType(Test.class)) {
-                rts.add(new RunnableTest(m, t));
-            }
-        }
-        return rts;
-    }
-
-    private static List<RunnableTest> getRunnableTests(String dir) {
+    private static Stream<RunnableTest> getRunnableTests(String dir) {
         String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
         try {
-            return getRunnableTests(Class.forName(className));
+            List<RunnableTest> rts = new ArrayList<>();
+            for (Method m : Class.forName(className).getMethods()) {
+                for (Test t : m.getAnnotationsByType(Test.class)) {
+                    rts.add(new RunnableTest(m, t));
+                }
+            }
+            return rts.stream();
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private List<RunnableTest> getRunnableTests(List<String> globs) {
-        return globs.stream().filter(g -> g.equals(g.toLowerCase())).flatMap(g -> getRunnableTests(g).stream()).sorted(Comparator.comparing(RunnableTest::testName)).collect(Collectors.toList());
-    }
-
     public List<RunnableTest> getRunnableTests() {
-        return getRunnableTests(allDirs);
+        return allDirs.stream()
+            .flatMap(g -> getRunnableTests(g))
+            .sorted(Comparator.comparing(RunnableTest::testName))
+            .collect(Collectors.toList());
     }
 
     public boolean matches(Method m) {
@@ -123,21 +118,16 @@ public class TestDeclaration {
         Set<String> result = new HashSet<>();
         for (String g : globs) {
             if (!g.contains(".") && !g.contains("*")) {
-                // all lowercase, folder name.
-                if (g.equals(g.toLowerCase())) {
-                    result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
-                }
-
                 if (Character.isUpperCase(g.charAt(0))) {
                     // Looks like class name.
                     result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + ".*");
-                    continue;
-                }
-
-                if (Character.isLowerCase(g.charAt(0))) {
+                } else if (Character.isLowerCase(g.charAt(0))) {
                     // Looks like method name.
                     result.add("*." + g.toLowerCase());
                     continue;
+                } else if (g.equals(g.toLowerCase())) {
+                    // all lowercase, folder name.
+                    result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
                 }
             }
 
