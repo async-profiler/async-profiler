@@ -130,6 +130,8 @@ class MachOParser {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
+const void* Symbols::_main_phdr = NULL;
+const char* Symbols::_ld_base = NULL;
 static std::unordered_set<const void*> _parsed_libraries;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
