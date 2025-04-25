@@ -126,9 +126,6 @@ class CodeCache {
     int _count;
     CodeBlob* _blobs;
 
-    bool _is_main_executable;
-    bool _is_linker;
-
     void expand();
     void makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
