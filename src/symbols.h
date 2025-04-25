@@ -24,7 +24,7 @@ class Symbols {
     }
 
     static bool isLoader(const char* image_base) {
-      return image_base != NULL && _ld_base == image_base;
+      return _ld_base != NULL && _ld_base == image_base;
     }
 
   public:
