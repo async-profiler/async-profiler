@@ -7,8 +7,11 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
+
+#ifdef __linux__
 #include <dlfcn.h>
 #include <link.h>
+#endif
 
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
