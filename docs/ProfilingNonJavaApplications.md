@@ -23,27 +23,11 @@ See [Profiling Modes](ProfilingModes.md) for more examples.
 
 Similar to the
 [Java API](IntegratingAsyncProfiler.md#using-java-api),
-there is a C API for using profiler inside a native application.
+There is a C API for using profiler inside a native application.
 
-```
-typedef const char* asprof_error_t;
-typedef void (*asprof_writer_t)(const char* buf, size_t size);
+This API is bundled with the async-profiler release under `include/asprof.h`
 
-// Should be called once prior to any other API functions
-DLLEXPORT void asprof_init();
-typedef void (*asprof_init_t)();
-
-// Returns an error message for the given error code or NULL if there is no error
-DLLEXPORT const char* asprof_error_str(asprof_error_t err);
-typedef const char* (*asprof_error_str_t)(asprof_error_t err);
-
-// Executes async-profiler command using output_callback as an optional sink
-// for the profiler output. Returns an error code or NULL on success.
-DLLEXPORT asprof_error_t asprof_execute(const char* command, asprof_writer_t output_callback);
-typedef asprof_error_t (*asprof_execute_t)(const char* command, asprof_writer_t output_callback);
-```
-
-To use it in a C/C++ application, include `asprof.h`. Below is an example showing how to invoke async-profiler with the API:
+To use it in a C/C++ application, include the mentioned `asprof.h`. Below is an example showing how to invoke async-profiler with the API:
 
 ```
 #include "asprof.h"

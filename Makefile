@@ -174,7 +174,7 @@ else
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h
-	cp -f src/asprof.h $@
+	cp -f $< $@
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
