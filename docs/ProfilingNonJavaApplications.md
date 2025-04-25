@@ -25,7 +25,7 @@ Similar to the
 [Java API](IntegratingAsyncProfiler.md#using-java-api),
 there is a C API for using profiler inside a native application.
 
-This API is bundled with the async-profiler release under `include/asprof.h`
+`Header file for the API is bundled in the async-profiler release package under [`include/asprof.h`](src/asprof.h).
 
 To use it in a C/C++ application, include the mentioned `asprof.h`. Below is an example showing how to invoke async-profiler with the API:
 
