@@ -8,6 +8,7 @@
 
 #include <jvmti.h>
 
+
 #define NO_MIN_ADDRESS  ((const void*)-1)
 #define NO_MAX_ADDRESS  ((const void*)0)
 
