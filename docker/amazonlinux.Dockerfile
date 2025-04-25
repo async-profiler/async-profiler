@@ -4,9 +4,9 @@ RUN amazon-linux-extras enable python3.8
 
 RUN yum update -y && yum install -y git make python38 gcc10 gcc10-c++ binutils tar
 
-RUN curl -L --output node.tar.gz https://github.com/nodejs/node/archive/refs/tags/v22.15.0.tar.gz && \
-    mkdir /node && \
-    tar xf node.tar.gz -C /node --strip-components=1
+RUN curl -L --output node.tar.gz https://github.com/nodejs/node/archive/refs/tags/v22.15.0.tar.gz
+RUN mkdir /node
+RUN tar xf node.tar.gz -C /node --strip-components=1
 WORKDIR /node
 
 ENV CC=gcc10-cc
