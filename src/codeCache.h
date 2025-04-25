@@ -213,18 +213,7 @@ class CodeCache {
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
 
-    bool isValidHandle(void* handle) const {
-#ifdef __linux__
-        struct link_map* map;
-        // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
-        if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
-            return _image_base == (const char*)map->l_addr;
-        }
-        return false;
-#else
-        return handle != NULL;
-#endif
-    }
+    bool isValidHandle(void* handle) const;
 
     size_t usedMemory();
 };
