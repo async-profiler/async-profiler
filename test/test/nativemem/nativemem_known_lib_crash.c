@@ -4,13 +4,9 @@
  */
 
 #include "asprof.h"
-#include <pthread.h>
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-typedef void *(*my_malloc_t)(size_t);
-typedef void (*my_free_t)(void *);
 
 #define ASSERT_NO_DLERROR()           \
     err = dlerror();                  \
