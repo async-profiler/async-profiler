@@ -158,7 +158,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.runson.display == 'alpine'
         run: |
-          apk add --no-cache make tar bash
+          apk add --no-cache make tar bash gcc g++ linux-headers musl-dev util-linux
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set variables
