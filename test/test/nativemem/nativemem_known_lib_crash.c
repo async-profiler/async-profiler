@@ -33,7 +33,7 @@ void outputCallback(const char* buffer, size_t size) {
 Idea of the test (the behavior defined above applies as of 0c72a8d):
 - We load libcallsmalloc.so
 - We start AP without nativemem mode
-    => 'malloc' is not hooked)
+    => 'malloc' is not hooked
 - We dlclose libcallsmalloc.so
     => The previously accessible memory location dedicated to libcallsmalloc.so becomes inaccessible
 - We restart AP in nativemem mode 
