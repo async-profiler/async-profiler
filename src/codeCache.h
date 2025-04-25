@@ -7,12 +7,6 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
-#include <dlfcn.h>
-
-#ifdef __linux__
-#include <link.h>
-#endif
-
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
 #define NO_MAX_ADDRESS  ((const void*)0)
