@@ -57,7 +57,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.runson.display == 'alpine'
         run: |
-          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux patchelf gcovr
+          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux patchelf gcovr bash
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and unit test
@@ -158,7 +158,7 @@ jobs:
       - name: Setup Alpine
         if: matrix.runson.display == 'alpine'
         run: |
-          apk add --no-cache make tar
+          apk add --no-cache make tar bash
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set variables
