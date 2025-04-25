@@ -13,6 +13,7 @@
 #include "cpuEngine.h"
 #include "mallocTracer.h"
 #include "profiler.h"
+#include "symbols.h"
 
 
 #define ADDRESS_OF(sym) ({ \
