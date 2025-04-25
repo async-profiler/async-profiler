@@ -23,7 +23,7 @@ See [Profiling Modes](ProfilingModes.md) for more examples.
 
 Similar to the
 [Java API](IntegratingAsyncProfiler.md#using-java-api),
-There is a C API for using profiler inside a native application.
+there is a C API for using profiler inside a native application.
 
 This API is bundled with the async-profiler release under `include/asprof.h`
 
