@@ -117,21 +117,21 @@ public class TestDeclaration {
     private static List<Pattern> filterFromGlobs(List<String> globs) {
         Set<String> result = new HashSet<>();
         for (String g : globs) {
-            if (!g.contains(".") && !g.contains("*")) {
-                if (Character.isUpperCase(g.charAt(0))) {
-                    // Looks like class name.
-                    result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + ".*");
-                } else if (Character.isLowerCase(g.charAt(0))) {
-                    // Looks like method name.
-                    result.add("*." + g.toLowerCase());
-                    continue;
-                } else if (g.equals(g.toLowerCase())) {
-                    // all lowercase, folder name.
-                    result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
-                }
+            if (g.contains(".") || g.contains("*")) {
+                result.add(g);
+            } else if (Character.isUpperCase(g.charAt(0))) {
+                // Looks like class name.
+                result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + ".*");
+            } else if (Character.isLowerCase(g.charAt(0))) {
+                // Looks like method name.
+                result.add("*." + g.toLowerCase());
+                continue;
+            } else if (g.equals(g.toLowerCase())) {
+                // all lowercase, folder name.
+                result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
+            } else {
+                throw new RuntimeException("Unknown glob type: " + g);
             }
-
-            result.add(g);
         }
         return result.stream().map(TestDeclaration::filterFrom).collect(Collectors.toList());
     }
