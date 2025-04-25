@@ -160,7 +160,6 @@ class CodeCache {
         return address >= _min_address && address < _max_address;
     }
 
-    // TODO: Maybe in ctor
     void setTextBase(const char* text_base) {
         _text_base = text_base;
     }
