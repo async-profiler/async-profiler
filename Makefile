@@ -127,7 +127,7 @@ endif
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
-all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/include build/$(ASPROF_HEADER)
+all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
@@ -174,7 +174,8 @@ else
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h
-	cp -f $< $@
+	mkdir -p build/include
+	cp -f $< build/include
 
 build/$(API_JAR): $(API_SOURCES)
 	mkdir -p build/api
