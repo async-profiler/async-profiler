@@ -10,7 +10,6 @@
 #include "codeCache.h"
 #include "dwarf.h"
 #include "os.h"
-#include "symbols.h"
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
