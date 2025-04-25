@@ -10,6 +10,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "tsc.h"
+#include "symbols.h"
 #include <dlfcn.h>
 #include <string.h>
 
@@ -153,6 +154,10 @@ void MallocTracer::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
+        void* handle;
+        if (!Symbols::isSafeToPatch(cc, &handle)) {
+            continue;
+        }
 
         cc->patchImport(im_malloc, (void*)malloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
@@ -168,6 +173,10 @@ void MallocTracer::patchLibraries() {
         } else {
             cc->patchImport(im_calloc, (void*)calloc_hook);
             cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        }
+
+        if (handle != NULL) {
+            dlclose(handle);
         }
     }
 }

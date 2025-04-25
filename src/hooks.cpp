@@ -182,11 +182,20 @@ void Hooks::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
+        void* handle;
+        if (!Symbols::isSafeToPatch(cc, &handle)) {
+            continue;
+        }
+
         if (!cc->contains((const void*)Hooks::init)) {
             // Let libasyncProfiler always use original dlopen
             cc->patchImport(im_dlopen, (void*)dlopen_hook);
         }
         cc->patchImport(im_pthread_create, (void*)pthread_create_hook);
         cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
+
+        if (handle != NULL) {
+            dlclose(handle);
+        }
     }
 }
