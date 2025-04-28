@@ -39,15 +39,15 @@ jobs:
       - name: ln
         if: matrix.runson.display == 'amazonlinux2'
         run: |
-          echo "/usr/local/bin/node\n$(cat $GITHUB_PATH)" > "$GITHUB_PATH"
+          echo "/usr/local/bin/node:$(cat $GITHUB_PATH)" > "$GITHUB_PATH"
       - name: path
         if: matrix.runson.display == 'amazonlinux2'
         run: |
           echo "$PATH"
-      - name: GITHUB_PATH
+      - name: path
         if: matrix.runson.display == 'amazonlinux2'
         run: |
-          cat "$GITHUB_PATH"
+          node --version
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
