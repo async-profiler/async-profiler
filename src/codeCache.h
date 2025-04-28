@@ -111,6 +111,11 @@ class PatchingHandle {
     PatchingHandle() : _cc(nullptr), _lib_handle(nullptr) {}
     PatchingHandle(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
     PatchingHandle(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
+    PatchingHandle(PatchingHandle&& other) {
+        _cc = other._cc;
+        _lib_handle = other._lib_handle;
+        other._lib_handle = nullptr;
+    }
 
     ~PatchingHandle();
 
