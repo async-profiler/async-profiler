@@ -38,7 +38,7 @@ jobs:
           - runson:
               display: alpine
               name: ubuntu-latest
-            image: public.ecr.aws/docker/library/amazoncorretto:11-alpine-jdk
+            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
           - runson:
               display: macos
               name: macos-15
@@ -54,10 +54,6 @@ jobs:
         with:
           distribution: ${{ matrix.java-distribution || env.java_default_distribution }}
           java-version: ${{ matrix.java-version || env.java_default_version }}
-      - name: Setup Alpine
-        if: matrix.runson.display == 'alpine'
-        run: |
-          apk add --no-cache make gcc g++ linux-headers musl-dev util-linux patchelf gcovr bash
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build and unit test
@@ -137,11 +133,10 @@ jobs:
             image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
           - runson:
               display: alpine
-              # There is no "latest" tag available (yet) as ARM runners are still in public preview
               name: ubuntu-latest
             java-version: 11
             java-distribution: corretto
-            image: public.ecr.aws/docker/library/amazoncorretto:11-alpine-jdk
+            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -155,10 +150,6 @@ jobs:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
           architecture: ${{ matrix.architecture }}
-      - name: Setup Alpine
-        if: matrix.runson.display == 'alpine'
-        run: |
-          apk add --no-cache make tar bash gcc g++ linux-headers musl-dev util-linux
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Set variables
