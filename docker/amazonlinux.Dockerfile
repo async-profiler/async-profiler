@@ -21,8 +21,10 @@ RUN make install
 FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
-RUN yum update -y && \
-    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar && \
+RUN amazon-linux-extras enable python3.8 && \
+    yum update -y && \
+    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar python38 && \
     yum clean all && \
-    python3 -m ensurepip && \
-    python3 -m pip install gcovr
+    rm -rf /var/cache/yum && \
+    python -m ensurepip && \
+    python -m pip install gcovr
