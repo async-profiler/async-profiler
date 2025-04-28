@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Build JARs
     steps:
-      - name: Path
-        run: echo "export PATH=/usr/local/bin:\$PATH" >> $GITHUB_ENV
       - name: Verify Node.js version
         run: echo $PATH && node --version
       - name: Checkout sources
@@ -49,10 +47,13 @@ jobs:
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
+      volumes:
+      - /tmp/node20:/__e/node20
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
-      - name: Path
-        run: echo "export PATH=/usr/local/bin:\$PATH" >> $GITHUB_ENV
+      - name: ln
+        if: matrix.runson.display == 'amazonlinux2'
+        run: ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Verify Node.js version
         run: echo $PATH && node --version
       - name: Setup Java
