@@ -23,4 +23,6 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
 RUN yum update -y && \
     yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar && \
-    yum clean all
+    yum clean all && \
+    python3 -m ensurepip && \
+    python3 -m pip install gcovr

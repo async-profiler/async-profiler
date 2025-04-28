@@ -67,8 +67,6 @@ jobs:
               make COMMIT_TAG=${GITHUB_SHA:0:7} FAT_BINARY=true release coverage -j
             ;;
             amazonlinux*)
-              python3 -m ensurepip
-              python3 -m pip install gcovr
               make COMMIT_TAG=$HASH coverage -j
             ;;
             *)
