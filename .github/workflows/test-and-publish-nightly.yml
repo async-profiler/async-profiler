@@ -46,6 +46,8 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
+      # We need to write on /__e/node20 if we're on amazonlinux2
+      # Otherwise we mount a dummy location
       - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
@@ -145,6 +147,8 @@ jobs:
       image: ${{ matrix.image }}
       options: --privileged
       volumes:
+      # We need to write on /__e/node20 if we're on amazonlinux2
+      # Otherwise we mount a dummy location
       - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
