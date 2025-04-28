@@ -28,6 +28,16 @@ jobs:
       matrix:
         include:
           - runson:
+              display: linux-arm64
+              name: ubuntu-24.04-arm
+            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+          - runson:
+              display: linux-x64
+            image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
+          - runson:
+              display: macos
+              name: macos-15
+          - runson:
               display: amazonlinux2
               name: ubuntu-latest
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
@@ -38,6 +48,11 @@ jobs:
       - /tmp/node20:/__e/node20
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
+      - name: ln
+        if: matrix.runson.display == 'amazonlinux2'
+        run: |
+          mkdir -p /__e/node20/bin/
+          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
