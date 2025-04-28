@@ -45,8 +45,6 @@ jobs:
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
-        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
-        if: matrix.runson.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution || env.java_default_distribution }}
           java-version: ${{ matrix.java-version || env.java_default_version }}
@@ -61,9 +59,6 @@ jobs:
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
-            ;;
-            alpine*)
-              make COMMIT_TAG=$HASH release coverage -j
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
