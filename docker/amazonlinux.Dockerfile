@@ -4,8 +4,8 @@ RUN amazon-linux-extras enable python3.8
 
 RUN yum update -y && yum install -y git make python38 gcc10 gcc10-c++ binutils tar
 
-ARG node_version=22.15.0
-ARG node_sha256=4f2515e143ffd73f069916ecc5daf503e7a05166c0ae4f1c1f8afdc8ab2f8a82
+ARG node_version=20.19.1
+ARG node_sha256=babcd5b9e3216510b89305e6774bcdb2905ca98ff60028b67f163eb8296b6665
 RUN curl -L --output node.tar.gz https://github.com/nodejs/node/archive/refs/tags/v${node_version}.tar.gz
 RUN echo ${node_sha256} node.tar.gz | sha256sum -c
 RUN mkdir /node
