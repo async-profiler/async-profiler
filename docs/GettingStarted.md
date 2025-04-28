@@ -23,6 +23,7 @@ For example, to list all Java process IDs with their full command lines, run
 async-profiler works in the context of the target Java application,
 i.e. it runs as an agent in the process being profiled.
 `asprof` is a tool to attach and control the agent.
+It is highly recommended to start the JVM with the `-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints` flags to improve accuracy, see [Known Limitations](Troubleshooting.md#known-limitations).
 
 A typical workflow would be to launch your Java application, attach
 the agent and start profiling, exercise your performance scenario, and
