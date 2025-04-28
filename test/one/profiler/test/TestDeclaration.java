@@ -17,7 +17,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class TestDeclaration {
     private static final Logger log = Logger.getLogger(TestDeclaration.class.getName());
@@ -37,18 +36,13 @@ public class TestDeclaration {
     }
 
     public static TestDeclaration parse(String[] args) {
-        // All available directories.
-        List<String> testDirectories = new ArrayList<>();
-
         // Glob filters matching "ClassName.methodName".
         List<String> filters = Arrays.asList(args);
 
         List<String> skipFilters = new ArrayList<>();
         String skipProperty = System.getProperty("skip");
         if (skipProperty != null && !skipProperty.isEmpty()) {
-            for (String skip : skipProperty.split(" ")) {
-                skipFilters.add(skip);
-            }
+            skipFilters.addAll(Arrays.asList(skipProperty.split(" ")));
         }
 
         List<String> allTestDirs = new ArrayList<>();
@@ -90,7 +84,7 @@ public class TestDeclaration {
         String name = m.getDeclaringClass().getSimpleName() + '.' + m.getName();
 
         if (includeGlobs.isEmpty() || includeGlobs.stream().anyMatch(f -> f.matcher(name).matches())) {
-            return skipGlobs.isEmpty() || !skipGlobs.stream().anyMatch(f -> f.matcher(name).matches());
+            return skipGlobs.isEmpty() || skipGlobs.stream().noneMatch(f -> f.matcher(name).matches());
         }
 
         return false;
@@ -124,10 +118,10 @@ public class TestDeclaration {
                 result.add(g);
             } else if (Character.isUpperCase(g.charAt(0))) {
                 // Looks like class name.
-                result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + ".*");
+                result.add(g + ".*");
             } else if (Character.isLowerCase(g.charAt(0))) {
                 // Looks like method name.
-                result.add("*." + g.toLowerCase());
+                result.add("*." + g);
             } else {
                 throw new RuntimeException("Unknown glob type: " + g);
             }
