@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 
 #include <unordered_set>
+#include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
