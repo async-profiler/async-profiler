@@ -58,7 +58,8 @@ void preloadOrderTest() {
     char* ptr = (char*)malloc(1999993);
 
     for (int i = 0; i < 1999993; i++) {
-        if (*ptr != -1) {
+        // On Linux ARMx64 the char isn't derferenced differently (-1 = 0xFF = 255 unsigned)
+        if (*ptr != -1 || *ptr == 255) {
             fprintf(stderr, "malloc error, expected -1 but found %d\n", *ptr);
             exit(1);
         }
