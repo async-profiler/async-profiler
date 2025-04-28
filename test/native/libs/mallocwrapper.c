@@ -3,13 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
- #include <stdlib.h>
- #include <string.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dlfcn.h>
 
- __attribute__((visibility("default")))
- void* malloc(size_t size) {
-     void* ptr = calloc(1, size);
-     memset(ptr, 0xFF, size);
-     return ptr;
- }
- 
+typedef void* (*malloc_t)(size_t);
+static malloc_t _orig_malloc = NULL;
+
+__attribute__((visibility("default")))
+void* malloc(size_t size) {
+    if (_orig_malloc == NULL) {
+        _orig_malloc = (malloc_t) dlsym(((void *) -1l), "malloc");
+    }
+    void* ptr = _orig_malloc(size);
+    memset(ptr, 0xFF, size);
+    return ptr;
+}

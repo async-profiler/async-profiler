@@ -197,7 +197,6 @@ public class NativememTests {
     public void mallocWrapper(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 
-        // The output here will be 2 as the custom malloc internally calls calloc which results in both being recorded
-        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 2);
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
 }
