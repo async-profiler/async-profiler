@@ -119,6 +119,14 @@ class PatchingHandle {
 
     ~PatchingHandle();
 
+    PatchingHandle& operator=(PatchingHandle&& other) {
+        _cc = other._cc;
+        _lib_handle = other._lib_handle;
+        other._lib_handle = nullptr;
+        return *this;
+    }
+    PatchingHandle& operator=(const PatchingHandle& other) = delete;
+
     void patchImport(ImportId id, void* hook_func) const;
     bool isValid() const { return _cc != nullptr; }
 };
