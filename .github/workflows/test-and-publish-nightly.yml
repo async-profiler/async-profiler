@@ -36,13 +36,14 @@ jobs:
       image: ${{ matrix.image }}
       volumes:
       - /tmp/node20:/__e/node20
+      - /tmp/node22:/__e/node22
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: ln
         if: matrix.runson.display == 'amazonlinux2'
         run: |
-          mkdir -p /__e/node20/bin/
-          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
+          echo "$GITHUB_PATH"
+          echo "/usr/local/bin/node" >> "$GITHUB_PATH"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
