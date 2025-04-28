@@ -33,6 +33,7 @@ jobs:
             image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
           - runson:
               display: linux-x64
+              name: ubuntu-latest
             image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
           - runson:
               display: macos
