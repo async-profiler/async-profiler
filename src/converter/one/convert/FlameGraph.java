@@ -32,7 +32,6 @@ public class FlameGraph implements Comparator<Frame> {
     private long lastX;
     private long lastTotal;
     private long mintotal;
-    private FlameGraphType type;
 
     public FlameGraph(Arguments args) {
         this.args = args;
@@ -196,9 +195,6 @@ public class FlameGraph implements Comparator<Frame> {
 
         tail = printTill(out, tail, "/*depth:*/0");
         out.print(depth);
-
-        tail = printTill(out, tail, "/*flamegraphType:*/");
-        out.print(type);
 
         tail = printTill(out, tail, "/*cpool:*/");
         printCpool(out);

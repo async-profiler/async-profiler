@@ -1487,8 +1487,8 @@ void Profiler::dumpCollapsed(Writer& out, Arguments& args) {
 
 void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
     char title[64];
-    Engine* active_engine = activeEngine();
     if (args._title == NULL) {
+        Engine* active_engine = activeEngine();
         if (args._counter == COUNTER_SAMPLES) {
             strcpy(title, active_engine->title());
         } else {
@@ -1496,8 +1496,7 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
         }
     }
 
-    FlameGraphType type = FlameGraphTypeConverter::from(active_engine->type());
-    FlameGraph flamegraph(type, args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse, args._inverted);
+    FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse, args._inverted);
     u64 printed_sample_count = 0;
 
     {
