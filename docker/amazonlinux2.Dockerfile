@@ -29,9 +29,4 @@ RUN amazon-linux-extras enable python3.8 && \
     python -m ensurepip && \
     python -m pip install gcovr
 
-RUN <<EOF cat >> /root/.profile
-if [ -d /__e/node20 ]; then
-    mkdir -p "/__e/node20/bin"
-    ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
-fi
-EOF
+COPY amazonlinux2-setup.sh /root/setup.sh
