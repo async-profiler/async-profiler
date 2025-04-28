@@ -147,7 +147,7 @@ jobs:
       image: ${{ matrix.image }}
       options: --privileged
       volumes:
-      - ${{ display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
+      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Symlink /__e/node20 to Node.js in Docker image
