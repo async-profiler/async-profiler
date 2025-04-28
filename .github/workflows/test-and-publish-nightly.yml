@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Build JARs
     steps:
+      - name: Verify Node.js version
+        run: node --version
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build JARs
@@ -47,9 +49,8 @@ jobs:
       image: ${{ matrix.image }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
-      - name: Update PATH
-        if: matrix.runson.display == 'amazonlinux2'
-        run: echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Verify Node.js version
+        run: node --version
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
