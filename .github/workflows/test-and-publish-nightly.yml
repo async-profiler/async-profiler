@@ -71,7 +71,7 @@ jobs:
               make COMMIT_TAG=${GITHUB_SHA:0:7} FAT_BINARY=true release coverage -j
             ;;
             amazonlinux*)
-              make COMMIT_TAG=$HASH coverage -j
+              make COMMIT_TAG=$HASH release coverage -j
             ;;
             *)
               make COMMIT_TAG=${GITHUB_SHA:0:7} CC=/usr/local/musl/bin/musl-gcc release coverage -j
