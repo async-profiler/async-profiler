@@ -7,13 +7,11 @@ package one.profiler.test;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 public class Runner {
     private static final Logger log = Logger.getLogger(Runner.class.getName());
@@ -23,7 +21,6 @@ public class Runner {
     private static final Jvm currentJvm = detectJvm();
     private static final int currentJvmVersion = detectJvmVersion();
 
-    private static final Set<String> skipTests = new HashSet<>();
     private static final String logDir = System.getProperty("logDir", "");
 
     private static Os detectOs() {
@@ -99,10 +96,8 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(RunnableTest rt) {
-        return rt.test().enabled() &&
-                !skipTests.contains(rt.className().toLowerCase()) &&
-                !skipTests.contains(rt.method().getName().toLowerCase());
+    private static boolean enabled(RunnableTest rt, TestDeclaration decl) {
+        return rt.test().enabled() && decl.matches(rt.method());
     }
 
     private static boolean applicable(Test test) {
@@ -116,8 +111,8 @@ public class Runner {
                 (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
     }
 
-    private static TestResult run(RunnableTest rt) {
-        if (!enabled(rt)) {
+    private static TestResult run(RunnableTest rt, TestDeclaration decl) {
+        if (!enabled(rt, decl)) {
             return TestResult.skipDisabled();
         }
         if (!applicable(rt.test())) {
@@ -140,29 +135,6 @@ public class Runner {
         return TestResult.pass();
     }
 
-    private static List<RunnableTest> getRunnableTests(Class<?> cls) {
-        List<RunnableTest> rts = new ArrayList<>();
-        for (Method m : cls.getMethods()) {
-            for (Test t : m.getAnnotationsByType(Test.class)) {
-                rts.add(new RunnableTest(m, t));
-            }
-        }
-        return rts;
-    }
-
-    private static List<RunnableTest> getRunnableTests(String[] args) throws ClassNotFoundException {
-        List<RunnableTest> rts = new ArrayList<>();
-        for (String arg : args) {
-            String testName = arg;
-            if (testName.indexOf('.') < 0 && Character.isLowerCase(testName.charAt(0))) {
-                // Convert package name to class name
-                testName = "test." + testName + "." + Character.toUpperCase(testName.charAt(0)) + testName.substring(1) + "Tests";
-            }
-            rts.addAll(getRunnableTests(Class.forName(testName)));
-        }
-        return rts;
-    }
-
     private static void configureLogging() {
         if (System.getProperty("java.util.logging.ConsoleHandler.formatter") == null) {
             System.setProperty("java.util.logging.ConsoleHandler.formatter", "java.util.logging.SimpleFormatter");
@@ -178,15 +150,6 @@ public class Runner {
             logger.setLevel(level);
             for (Handler handler : logger.getHandlers()) {
                 handler.setLevel(level);
-            }
-        }
-    }
-
-    private static void configureSkipTests() {
-        String skipProperty = System.getProperty("skip");
-        if (skipProperty != null && !skipProperty.isEmpty()) {
-            for (String skip : skipProperty.split(",")) {
-                skipTests.add(skip.toLowerCase());
             }
         }
     }
@@ -211,15 +174,10 @@ public class Runner {
     }
 
     public static void main(String[] args) throws Exception {
-        if (args.length == 0) {
-            System.out.println("Usage: java " + Runner.class.getName() + " TestName ...");
-            System.exit(1);
-        }
-
         configureLogging();
-        configureSkipTests();
 
-        List<RunnableTest> allTests = getRunnableTests(args);
+        TestDeclaration decl = TestDeclaration.parse(args);
+        List<RunnableTest> allTests = decl.getRunnableTests();
         final int testCount = allTests.size();
         int i = 1;
         long totalTestDuration = 0;
@@ -227,7 +185,7 @@ public class Runner {
         EnumMap<TestStatus, Integer> statusCounts = new EnumMap<>(TestStatus.class);
         for (RunnableTest rt : allTests) {
             long start = System.nanoTime();
-            TestResult result = run(rt);
+            TestResult result = run(rt, decl);
             long durationNs = System.nanoTime() - start;
 
             totalTestDuration += durationNs;
