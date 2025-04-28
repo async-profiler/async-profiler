@@ -67,6 +67,7 @@ class Trie {
     }
 };
 
+
 class FlameGraph {
   private:
     Trie _root;
