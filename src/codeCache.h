@@ -7,7 +7,6 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
-#include <dlfcn.h>
 
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
@@ -113,11 +112,7 @@ class PatchingHandle {
     PatchingHandle(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
     PatchingHandle(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
 
-    ~PatchingHandle() {
-        if (_lib_handle) {
-            dlclose(_lib_handle);
-        }
-    }
+    ~PatchingHandle();
 
     void patchImport(ImportId id, void* hook_func) const;
     bool isValid() const { return _cc != nullptr; }

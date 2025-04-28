@@ -322,6 +322,12 @@ bool CodeCache::isValidHandle(void* handle) const {
 #endif
 }
 
+PatchingHandle::~PatchingHandle() {
+    if (_lib_handle) {
+        dlclose(_lib_handle);
+    }
+}
+
 PatchingHandle CodeCache::makePatchingHandle() {
     if (!_imports_patchable) {
         makeImportsPatchable();
