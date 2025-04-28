@@ -46,7 +46,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
-      - ${{ display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
+      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Symlink /__e/node20 to Node.js in Docker image
