@@ -49,7 +49,7 @@ jobs:
       - /tmp/node20:/__e/node20
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
-      - name: ln
+      - name: Symlink /__e/node20 to Node.js in Docker image
         if: matrix.runson.display == 'amazonlinux2'
         run: |
           mkdir -p /__e/node20/bin/
@@ -146,11 +146,15 @@ jobs:
     container:
       image: ${{ matrix.image }}
       options: --privileged
+      volumes:
+      - /tmp/node20:/__e/node20
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
-      - name: Update PATH
+      - name: Symlink /__e/node20 to Node.js in Docker image
         if: matrix.runson.display == 'amazonlinux2'
-        run: echo "/usr/local/bin" >> $GITHUB_PATH
+        run: |
+          mkdir -p /__e/node20/bin/
+          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
