@@ -10,6 +10,7 @@
 #include "codeCache.h"
 #include "dwarf.h"
 #include "os.h"
+#include "symbols.h"
 #include <dlfcn.h>
 
 #ifdef __linux__
@@ -185,6 +186,7 @@ void CodeCache::saveImport(ImportId id, void** entry) {
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
         if (_imports[id][ty] == nullptr) {
             _imports[id][ty] = entry;
+            _imports_patchable = false;
             return;
         }
     }
@@ -241,26 +243,12 @@ void CodeCache::addImport(void** entry, const char* name) {
 void** CodeCache::findImport(ImportId id) {
     if (!_imports_patchable) {
         makeImportsPatchable();
-        _imports_patchable = true;
     }
     return _imports[id][PRIMARY];
 }
 
-void CodeCache::patchImport(ImportId id, void* hook_func) {
-    if (!_imports_patchable) {
-        makeImportsPatchable();
-        _imports_patchable = true;
-    }
-
-    for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
-        void** entry = _imports[id][ty];
-        if (entry != NULL) {
-            *entry = hook_func;
-        }
-    }
-}
-
 void CodeCache::makeImportsPatchable() {
+#ifdef __linux__
     void** min_import = (void**)-1;
     void** max_import = NULL;
     for (int i = 0; i < NUM_IMPORTS; i++) {
@@ -277,6 +265,8 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
     }
+#endif
+    _imports_patchable = true;
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
@@ -330,4 +320,37 @@ bool CodeCache::isValidHandle(void* handle) const {
 #else
     return handle != NULL;
 #endif
+}
+
+PatchingHandle CodeCache::makePatchingHandle() {
+    if (!_imports_patchable) {
+        makeImportsPatchable();
+    }
+
+    if (Symbols::isMainExecutable(_image_base, _max_address) || Symbols::isLoader(_image_base)) {
+      return PatchingHandle(this);
+    }
+
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    void* handle_ptr = dlopen(_name, RTLD_LAZY | RTLD_NOLOAD);
+    if (isValidHandle(handle_ptr)) {
+      return PatchingHandle(this, handle_ptr);
+    }
+
+    // Could not create a valid patching handle, return an empty one
+    return PatchingHandle();
+}
+
+void PatchingHandle::patchImport(ImportId id, void* hook_func) const {
+    if (!_cc) {
+        return;
+    }
+
+    for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
+        void** entry = _cc->_imports[id][ty];
+        if (entry != NULL) {
+            *entry = hook_func;
+        }
+    }
 }

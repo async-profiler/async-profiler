@@ -7,6 +7,7 @@
 #define _CODECACHE_H
 
 #include <jvmti.h>
+#include <dlfcn.h>
 
 
 #define NO_MIN_ADDRESS  ((const void*)-1)
@@ -100,6 +101,28 @@ class CodeBlob {
 
 class FrameDesc;
 
+class CodeCache;
+
+class PatchingHandle {
+  private:
+    CodeCache* _cc;
+    void* _lib_handle;
+
+  public:
+    PatchingHandle() : _cc(nullptr), _lib_handle(nullptr) {}
+    PatchingHandle(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
+    PatchingHandle(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
+
+    ~PatchingHandle() {
+        if (_lib_handle) {
+            dlclose(_lib_handle);
+        }
+    }
+
+    void patchImport(ImportId id, void* hook_func) const;
+    bool isValid() { return _cc != nullptr; }
+};
+
 class CodeCache {
   private:
     char* _name;
@@ -127,6 +150,7 @@ class CodeCache {
     void expand();
     void makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
+    bool isValidHandle(void* handle) const;
 
   public:
     CodeCache(const char* name,
@@ -148,10 +172,6 @@ class CodeCache {
 
     const void* maxAddress() const {
         return _max_address;
-    }
-
-    const char* imageBase() const {
-        return _image_base;
     }
 
     bool contains(const void* address) const {
@@ -196,7 +216,7 @@ class CodeCache {
 
     void addImport(void** entry, const char* name);
     void** findImport(ImportId id);
-    void patchImport(ImportId, void* hook_func);
+    void patchImport(ImportId id, void* hook_func);
 
     CodeBlob* findBlob(const char* name);
     CodeBlob* findBlobByAddress(const void* address);
@@ -208,11 +228,11 @@ class CodeCache {
     void setDwarfTable(FrameDesc* table, int length);
     FrameDesc* findFrameDesc(const void* pc);
 
-    bool isValidHandle(void* handle) const;
-
     size_t usedMemory();
-};
 
+    PatchingHandle makePatchingHandle();
+    friend void PatchingHandle::patchImport(ImportId id, void* hook_func) const;
+};
 
 class CodeCacheArray {
   private:
