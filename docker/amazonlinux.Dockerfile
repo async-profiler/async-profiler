@@ -28,3 +28,7 @@ RUN amazon-linux-extras enable python3.8 && \
     rm -rf /var/cache/yum && \
     python -m ensurepip && \
     python -m pip install gcovr
+
+COPY amazonlinux-entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

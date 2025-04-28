@@ -49,11 +49,6 @@ jobs:
       - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
-      - name: Symlink /__e/node20 to Node.js in Docker image
-        if: matrix.runson.display == 'amazonlinux2'
-        run: |
-          mkdir -p /__e/node20/bin/
-          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -150,11 +145,6 @@ jobs:
       - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
-      - name: Symlink /__e/node20 to Node.js in Docker image
-        if: matrix.runson.display == 'amazonlinux2'
-        run: |
-          mkdir -p /__e/node20/bin/
-          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
