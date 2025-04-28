@@ -141,7 +141,7 @@ jobs:
               name: ubuntu-latest
             java-version: 11
             java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:al2
+            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
