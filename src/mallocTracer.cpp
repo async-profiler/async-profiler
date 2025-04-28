@@ -13,11 +13,6 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#define ADDRESS_OF(sym) ({               \
-    void* addr = dlsym(RTLD_NEXT, #sym); \
-    addr != NULL ? (sym##_t)addr : sym;  \
-})
-
 #ifdef __clang__
 #  define NO_OPTIMIZE __attribute__((optnone))
 #else

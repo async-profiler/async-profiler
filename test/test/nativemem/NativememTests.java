@@ -188,4 +188,16 @@ public class NativememTests {
 
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
+
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%lib %testlib/libmallocwrapper.so\" ASPROF_COMMAND=start,nativemem,cstack=dwarf,file=%f.jfr %testbin/malloc_wrapper preload %f.jfr",
+            output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="LD_PRELOAD+profiler_first")
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%testlib/libmallocwrapper.so %lib\" ASPROF_COMMAND=start,nativemem,cstack=dwarf,file=%f.jfr %testbin/malloc_wrapper preload %f.jfr",
+            output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="LD_PRELOAD+profiler_second")
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%testlib/libmallocwrapper.so %testbin/malloc_wrapper api %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="api_test")
+    public void mallocWrapper(TestProcess p) throws Exception {
+        Map<Long, Long> sizeCounts = assertNoLeaks(p);
+
+        // The output here will be 2 as the custom malloc internally calls calloc which results in both being recorded
+        Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 2);
+    }
 }
