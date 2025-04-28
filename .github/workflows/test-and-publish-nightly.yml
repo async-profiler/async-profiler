@@ -60,16 +60,17 @@ jobs:
         id: build
         run: |
           set -x
+          HASH=${GITHUB_SHA:0:7}
           case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
-              make COMMIT_TAG=${GITHUB_SHA:0:7} FAT_BINARY=true release coverage -j
+              make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
             ;;
             alpine*)
               make COMMIT_TAG=$HASH release coverage -j
             ;;
             *)
-              make COMMIT_TAG=${GITHUB_SHA:0:7} CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
             ;;
           esac
           echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
