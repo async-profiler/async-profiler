@@ -35,7 +35,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
-      - /tmp/node20:/__e/node20
+      - ""
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: ln
