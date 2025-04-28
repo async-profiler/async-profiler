@@ -40,7 +40,9 @@ jobs:
     steps:
       - name: ln
         if: matrix.runson.display == 'amazonlinux2'
-        run: ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
+        run: |
+          mkdir -p /__e/node20/bin/
+          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
