@@ -46,7 +46,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
-      - /tmp/node20:/__e/node20
+      - ${{ display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Symlink /__e/node20 to Node.js in Docker image
@@ -147,7 +147,7 @@ jobs:
       image: ${{ matrix.image }}
       options: --privileged
       volumes:
-      - /tmp/node20:/__e/node20
+      - ${{ display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Symlink /__e/node20 to Node.js in Docker image
