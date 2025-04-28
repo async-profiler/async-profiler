@@ -13,8 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     name: Build JARs
     steps:
+      - name: Path
+        run: echo "export PATH=/usr/local/bin:\$PATH" >> $GITHUB_ENV
       - name: Verify Node.js version
-        run: node --version
+        run: echo $PATH && node --version
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build JARs
@@ -49,8 +51,10 @@ jobs:
       image: ${{ matrix.image }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
+      - name: Path
+        run: echo "export PATH=/usr/local/bin:\$PATH" >> $GITHUB_ENV
       - name: Verify Node.js version
-        run: node --version
+        run: echo $PATH && node --version
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
