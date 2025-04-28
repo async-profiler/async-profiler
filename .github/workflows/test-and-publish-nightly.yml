@@ -145,6 +145,7 @@ jobs:
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
         if: matrix.runson.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
