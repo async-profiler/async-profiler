@@ -219,7 +219,7 @@ jobs:
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4
         with:
-          pattern: '*.*' # download everything except test logs
+          pattern: 'async-profiler-*'
           merge-multiple: 'true'
       - name: Delete previous release and publish new release
         uses: actions/github-script@v7

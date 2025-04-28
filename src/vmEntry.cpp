@@ -309,8 +309,6 @@ void VM::tryAttach() {
             dlclose(lib_handle);
         }
         if (_getCreatedJavaVMs == NULL) {
-            // Reset buffer quietly, not an error
-            dlerror();
             return;
         }
     }
