@@ -112,7 +112,7 @@ public class TestDeclaration {
         Set<String> result = new HashSet<>();
         for (String g : globs) {
             if (allDirs.contains(g)) {
-                // all lowercase, folder name.
+                // Convert test directory name to class name.
                 result.add(g.substring(0, 1).toUpperCase() + g.substring(1).toLowerCase() + "Tests.*");
             } else if (g.contains(".") || g.contains("*")) {
                 result.add(g);
