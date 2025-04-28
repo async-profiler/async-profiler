@@ -35,7 +35,7 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
-      - ""
+      - "${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp/foo:/foo' }}"
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: ln
