@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     name: Build JARs
     steps:
-      - name: Verify Node.js version
-        run: echo $PATH && node --version
       - name: Checkout sources
         uses: actions/checkout@v4
       - name: Build JARs
@@ -54,8 +52,6 @@ jobs:
       - name: ln
         if: matrix.runson.display == 'amazonlinux2'
         run: ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
-      - name: Verify Node.js version
-        run: echo $PATH && node --version
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
