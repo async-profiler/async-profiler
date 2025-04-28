@@ -46,14 +46,14 @@ jobs:
     container:
       image: ${{ matrix.image }}
       volumes:
-      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node22' || '/tmp:/foo' }}
+      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
-      - name: Symlink /__e/node22 to Node.js in Docker image
+      - name: Symlink /__e/node20 to Node.js in Docker image
         if: matrix.runson.display == 'amazonlinux2'
         run: |
-          mkdir -p /__e/node22/bin/
-          ln --force --symbolic /usr/local/bin/node /__e/node22/bin/node
+          mkdir -p /__e/node20/bin/
+          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -147,16 +147,14 @@ jobs:
       image: ${{ matrix.image }}
       options: --privileged
       volumes:
-      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node22' || '/tmp:/foo' }}
+      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
-      - name: Symlink /__e/node22 to Node.js in Docker image
+      - name: Symlink /__e/node20 to Node.js in Docker image
         if: matrix.runson.display == 'amazonlinux2'
         run: |
-          mkdir -p /__e/node22/bin/
-          ln --force --symbolic /usr/local/bin/node /__e/node22/bin/node
-          echo "ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION=node22" >> "$GITHUB_ENV"
-          echo "ACTIONS_RUNNER_FORCED_INTERNAL_NODE_VERSION=node22" >> "$GITHUB_ENV"
+          mkdir -p /__e/node20/bin/
+          ln --force --symbolic /usr/local/bin/node /__e/node20/bin/node
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
