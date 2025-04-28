@@ -120,7 +120,7 @@ class PatchingHandle {
     }
 
     void patchImport(ImportId id, void* hook_func) const;
-    bool isValid() { return _cc != nullptr; }
+    bool isValid() const { return _cc != nullptr; }
 };
 
 class CodeCache {
