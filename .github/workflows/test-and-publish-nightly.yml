@@ -30,7 +30,7 @@ jobs:
           - runson:
               display: amazonlinux2
               name: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:al2
+            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
