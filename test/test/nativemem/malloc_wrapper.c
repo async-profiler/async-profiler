@@ -55,12 +55,11 @@ void initAsyncProfiler() {
 }
 
 void preloadOrderTest() {
-    char* ptr = (char*)malloc(1999993);
+    unsigned char* ptr = (unsigned char*)malloc(1999993);
 
     for (int i = 0; i < 1999993; i++) {
-        // On Linux ARMx64 the char is dereferenced differently (-1 = 0xFF = 255 unsigned)
-        if (*ptr != -1 && *ptr != 255) {
-            fprintf(stderr, "malloc error, expected -1 but found %d\n", *ptr);
+        if (*ptr != 255) {
+            fprintf(stderr, "malloc error, expected 255 but found %d\n", *ptr);
             exit(1);
         }
     }
