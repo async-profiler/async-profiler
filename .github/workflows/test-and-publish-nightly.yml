@@ -36,10 +36,6 @@ jobs:
               name: ubuntu-latest
             image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
           - runson:
-              display: alpine
-              name: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
-          - runson:
               display: macos
               name: macos-15
     runs-on: ${{ matrix.runson.name }}
@@ -137,6 +133,7 @@ jobs:
               name: ubuntu-latest
             java-version: 11
             java-distribution: corretto
+            asprof-binaries-job: linux-x64
             image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
     runs-on: ${{ matrix.runson.name }}
     container:
