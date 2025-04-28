@@ -343,7 +343,7 @@ PatchingHandle CodeCache::makePatchingHandle() {
 }
 
 void PatchingHandle::patchImport(ImportId id, void* hook_func) const {
-    if (!_cc) {
+    if (!isValid()) {
         return;
     }
 
