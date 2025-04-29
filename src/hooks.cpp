@@ -183,7 +183,7 @@ void Hooks::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        UnloadProtection handle = UnloadProtection(cc);
+        UnloadProtection handle(cc);
 
         if (!cc->contains((const void*)Hooks::init)) {
             // Let libasyncProfiler always use original dlopen
