@@ -13,7 +13,7 @@ static malloc_t _orig_malloc = NULL;
 __attribute__((visibility("default")))
 void* malloc(size_t size) {
     if (_orig_malloc == NULL) {
-        _orig_malloc = (malloc_t) dlsym(((void *) -1l), "malloc");
+        _orig_malloc = (malloc_t) dlsym(RTLD_NEXT, "malloc");
     }
     void* ptr = _orig_malloc(size);
     memset(ptr, 0xFF, size);
