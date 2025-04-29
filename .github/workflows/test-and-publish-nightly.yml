@@ -141,6 +141,13 @@ jobs:
             java-distribution: corretto
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
             volumes: '["/tmp/node20:/__e/node20"]'
+          - runson:
+              display: amazonlinux2023
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            image: public.ecr.aws/amazonlinux/amazonlinux:2023
+            asprof-binaries-job: linux-x64
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
