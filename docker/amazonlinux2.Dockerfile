@@ -29,4 +29,9 @@ RUN amazon-linux-extras enable python3.8 && \
     python -m ensurepip && \
     python -m pip install gcovr
 
-COPY amazonlinux2-setup.sh /root/setup.sh
+ENV NODE_JS_LOCATION=/__e/node20
+RUN cat <<EOF > /root/setup.sh
+#!/bin/sh
+mkdir -p "$NODE_JS_LOCATION/bin"
+ln --force --symbolic "/usr/local/bin/node" "$NODE_JS_LOCATION/bin/node"
+EOF
