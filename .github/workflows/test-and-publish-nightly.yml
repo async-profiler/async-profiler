@@ -50,7 +50,7 @@ jobs:
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Run container setup
-        run: /root/setup.sh || true
+        run: "[ -f /root/setup.sh ] && { /root/setup.sh; exit $?; }; exit 0"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -149,7 +149,7 @@ jobs:
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Run container setup
-        run: /root/setup.sh || true
+        run: "[ -f /root/setup.sh ] && { /root/setup.sh; exit $?; }; exit 0"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
