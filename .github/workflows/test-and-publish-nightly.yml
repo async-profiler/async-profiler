@@ -107,7 +107,7 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
-        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
+        image: [public.ecr.aws/async-profiler/asprof-builder-x86:latest]
         include:
           - runson:
               display: macos-arm64
@@ -133,7 +133,14 @@ jobs:
               name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
-            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+            image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
+          - runson:
+              display: alpine
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            asprof-binaries-job: linux-x64
+            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
           - runson:
               display: amazonlinux2
               name: ubuntu-latest
@@ -159,6 +166,8 @@ jobs:
         run: "[ -f /root/setup.sh ] && { /root/setup.sh; exit $?; }; exit 0"
       - name: Setup Java
         uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
+        if: matrix.runson.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}

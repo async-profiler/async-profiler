@@ -9,12 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ASSERT_NO_DLERROR()           \
-    err = dlerror();                  \
-    if (err != NULL) {                \
-        fprintf(stderr, "%s\n", err); \
-        exit(1);                      \
-    }
+#define ASSERT_NO_DLERROR(sym)            \
+    if (sym == NULL) {                    \
+        err = dlerror();                  \
+        if (err != NULL) {                \
+            fprintf(stderr, "%s\n", err); \
+            exit(1);                      \
+        }                                 \
+    }                                     \
 
 #define ASSERT_NO_ASPROF_ERR(err)                       \
     if (err != NULL) {                                  \
@@ -42,21 +44,22 @@ int main(int argc, char** argv) {
     const char* filename = argv[2];
 
     void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(libprof);
 
-    ((asprof_init_t)dlsym(libprof, "asprof_init"))();
-    ASSERT_NO_DLERROR();
+    asprof_init_t asprof_init = ((asprof_init_t)dlsym(libprof, "asprof_init"));
+    ASSERT_NO_DLERROR(asprof_init);
+    asprof_init();
 
     asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(libprof, "asprof_execute");
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(asprof_execute);
 
     asprof_error_str_t asprof_error_str = (asprof_error_str_t)dlsym(libprof, "asprof_error_str");
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(asprof_error_str);
 
     // Load libcallsmalloc.so before or after starting the profiler, based on args.
     if (dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
-        ASSERT_NO_DLERROR();
+        ASSERT_NO_DLERROR(lib);
     }
 
     // Start profiler.
@@ -68,11 +71,11 @@ int main(int argc, char** argv) {
 
     if (!dlopen_first) {
         lib = dlopen("libcallsmalloc.so", RTLD_NOW);
-        ASSERT_NO_DLERROR();
+        ASSERT_NO_DLERROR(lib);
     }
 
     call_malloc_t call_malloc = (call_malloc_t)dlsym(lib, "call_malloc");
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(call_malloc);
 
     free(call_malloc(1999993));
 
