@@ -104,15 +104,13 @@ class CodeCache;
 
 class UnloadProtection {
   private:
-    CodeCache* _cc;
+    CodeCache* _protected_cc;
     void* _lib_handle;
 
   public:
-    UnloadProtection() : _cc(nullptr), _lib_handle(nullptr) {}
-    UnloadProtection(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
-    UnloadProtection(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
+    UnloadProtection(CodeCache *cc);
     UnloadProtection(UnloadProtection&& other) {
-        _cc = other._cc;
+        _protected_cc = other._protected_cc;
         _lib_handle = other._lib_handle;
         other._lib_handle = nullptr;
     }
@@ -122,7 +120,7 @@ class UnloadProtection {
     UnloadProtection& operator=(const UnloadProtection& other) = delete;
 
     void patchImport(ImportId id, void* hook_func) const;
-    bool isValid() const { return _cc != nullptr; }
+    bool isValid() const { return _protected_cc != nullptr; }
 };
 
 class CodeCache {
@@ -232,7 +230,7 @@ class CodeCache {
 
     size_t usedMemory();
 
-    UnloadProtection makeUnloadProtection();
+    friend UnloadProtection::UnloadProtection(CodeCache *cc);
     friend void UnloadProtection::patchImport(ImportId id, void* hook_func) const;
 };
 

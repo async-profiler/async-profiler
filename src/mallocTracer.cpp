@@ -154,7 +154,7 @@ void MallocTracer::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        UnloadProtection handle = cc->makeUnloadProtection();
+        UnloadProtection handle = UnloadProtection(cc);
 
         handle.patchImport(im_malloc, (void*)malloc_hook);
         handle.patchImport(im_realloc, (void*)realloc_hook);

@@ -328,24 +328,26 @@ UnloadProtection::~UnloadProtection() {
     }
 }
 
-UnloadProtection CodeCache::makeUnloadProtection() {
-    if (!_imports_patchable) {
-        makeImportsPatchable();
+UnloadProtection::UnloadProtection(CodeCache *cc) {
+    _protected_cc = nullptr;
+    _lib_handle = nullptr;
+
+    if (!cc->_imports_patchable) {
+        cc->makeImportsPatchable();
     }
 
-    if (Symbols::isMainExecutable(_image_base, _max_address) || Symbols::isLoader(_image_base)) {
-      return UnloadProtection(this);
+    if (Symbols::isMainExecutable(cc->_image_base, cc->_max_address) || Symbols::isLoader(cc->_image_base)) {
+        _protected_cc = cc;
+        return;
     }
 
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
-    void* handle_ptr = dlopen(_name, RTLD_LAZY | RTLD_NOLOAD);
-    if (isValidHandle(handle_ptr)) {
-      return UnloadProtection(this, handle_ptr);
+    void* handle_ptr = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    if (cc->isValidHandle(handle_ptr)) {
+        _protected_cc = cc;
+        _lib_handle = handle_ptr;
     }
-
-    // Could not create a valid patching handle, return an empty one
-    return UnloadProtection();
 }
 
 void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
@@ -354,7 +356,7 @@ void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
     }
 
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
-        void** entry = _cc->_imports[id][ty];
+        void** entry = _protected_cc->_imports[id][ty];
         if (entry != NULL) {
             *entry = hook_func;
         }
