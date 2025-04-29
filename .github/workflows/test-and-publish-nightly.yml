@@ -42,6 +42,8 @@ jobs:
               display: amazonlinux2
               name: ubuntu-latest
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            # GHA provides Node.js by attaching a volume to the container. The container path is
+            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
             volumes: '["/tmp/node20:/__e/node20"]'
     runs-on: ${{ matrix.runson.name }}
     container:
