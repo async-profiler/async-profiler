@@ -42,13 +42,11 @@ jobs:
               display: amazonlinux2
               name: ubuntu-latest
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            volumes: '["/tmp/node20:/__e/node20"]'
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
-      volumes:
-      # We need to write on /__e/node20 if we're on amazonlinux2
-      # Otherwise we mount a dummy location
-      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
+      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Run container setup
@@ -142,14 +140,12 @@ jobs:
             java-version: 11
             java-distribution: corretto
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            volumes: '["/tmp/node20:/__e/node20"]'
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
       options: --privileged
-      volumes:
-      # We need to write on /__e/node20 if we're on amazonlinux2
-      # Otherwise we mount a dummy location
-      - ${{ matrix.runson.display == 'amazonlinux2' && '/tmp/node20:/__e/node20' || '/tmp:/foo' }}
+      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Run container setup
