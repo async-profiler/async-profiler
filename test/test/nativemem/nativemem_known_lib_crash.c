@@ -8,12 +8,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define ASSERT_NO_DLERROR()           \
-    err = dlerror();                  \
-    if (err != NULL) {                \
-        fprintf(stderr, "%s\n", err); \
-        exit(1);                      \
-    }
+#define ASSERT_NO_DLERROR(sym)            \
+    if (sym == NULL) {                    \
+        err = dlerror();                  \
+        if (err != NULL) {                \
+            fprintf(stderr, "%s\n", err); \
+            exit(1);                      \
+        }                                 \
+    }                                     \
 
 #define ASSERT_NO_ASPROF_ERR(err)                       \
     if (err != NULL) {                                  \
@@ -42,20 +44,20 @@ int main() {
     char *err;
 
     void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(libprof);
 
-    // TODO: Fix for Alpine when discussion is settled
-    ((asprof_init_t)dlsym(libprof, "asprof_init"))();
-    ASSERT_NO_DLERROR();
+    asprof_init_t asprof_init = (asprof_init_t)dlsym(libprof, "asprof_init");
+    ASSERT_NO_DLERROR(asprof_init);
+    asprof_init();
 
     asprof_execute_t asprof_execute = (asprof_execute_t)dlsym(libprof, "asprof_execute");
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(asprof_execute);
 
     asprof_error_str_t asprof_error_str = (asprof_error_str_t)dlsym(libprof, "asprof_error_str");
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(asprof_error_str);
 
     void* lib = dlopen("libcallsmalloc.so", RTLD_NOW | RTLD_GLOBAL);
-    ASSERT_NO_DLERROR();
+    ASSERT_NO_DLERROR(lib);
 
     asprof_error_t asprof_err = asprof_execute("start,cstack=dwarf,collapsed", outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
