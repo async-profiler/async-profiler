@@ -109,12 +109,6 @@ class UnloadProtection {
 
   public:
     UnloadProtection(CodeCache *cc);
-    UnloadProtection(UnloadProtection&& other) {
-        _protected_cc = other._protected_cc;
-        _lib_handle = other._lib_handle;
-        other._lib_handle = nullptr;
-    }
-
     ~UnloadProtection();
 
     UnloadProtection& operator=(const UnloadProtection& other) = delete;
