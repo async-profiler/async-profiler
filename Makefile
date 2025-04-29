@@ -21,18 +21,21 @@ TEST_JAR=test.jar
 CC ?= gcc
 CXX ?= g++
 STRIP ?= strip
+OBJCOPY ?= objcopy
 
 ifneq ($(CROSS_COMPILE),)
 CC := $(CROSS_COMPILE)gcc
 CXX := $(CROSS_COMPILE)g++
 STRIP := $(CROSS_COMPILE)strip
+OBJCOPY := $(CROSS_COMPILE)objcopy
 endif
 
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
 CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
-CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
 CPPFLAGS=
+CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
+LIB_PROFILER_CXXFLAGS=$(CXXFLAGS)
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
@@ -125,6 +128,9 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+ifeq ($(OS_TAG),linux)
+  LIB_PROFILER_CXXFLAGS := -ggdb $(LIB_PROFILER_CXXFLAGS)
+endif
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -169,9 +175,15 @@ build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
+	$(CXX) $(CPPFLAGS) $(LIB_PROFILER_CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+	$(CXX) $(CPPFLAGS) $(LIB_PROFILER_CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
+endif
+
+ifeq ($(OS_TAG),linux)
+	$(STRIP) --only-keep-debug $@ -o $@.debug
+	$(STRIP) -g $@
+	$(OBJCOPY) --add-gnu-debuglink=$@.debug $@
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h
