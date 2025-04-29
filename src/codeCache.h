@@ -102,24 +102,24 @@ class FrameDesc;
 
 class CodeCache;
 
-class PatchingHandle {
+class UnloadProtection {
   private:
     CodeCache* _cc;
     void* _lib_handle;
 
   public:
-    PatchingHandle() : _cc(nullptr), _lib_handle(nullptr) {}
-    PatchingHandle(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
-    PatchingHandle(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
-    PatchingHandle(PatchingHandle&& other) {
+    UnloadProtection() : _cc(nullptr), _lib_handle(nullptr) {}
+    UnloadProtection(CodeCache *cc) : _cc(cc), _lib_handle(nullptr) {}
+    UnloadProtection(CodeCache *cc, void* handle) : _cc(cc), _lib_handle(handle) {}
+    UnloadProtection(UnloadProtection&& other) {
         _cc = other._cc;
         _lib_handle = other._lib_handle;
         other._lib_handle = nullptr;
     }
 
-    ~PatchingHandle();
+    ~UnloadProtection();
 
-    PatchingHandle& operator=(const PatchingHandle& other) = delete;
+    UnloadProtection& operator=(const UnloadProtection& other) = delete;
 
     void patchImport(ImportId id, void* hook_func) const;
     bool isValid() const { return _cc != nullptr; }
@@ -232,8 +232,8 @@ class CodeCache {
 
     size_t usedMemory();
 
-    PatchingHandle makePatchingHandle();
-    friend void PatchingHandle::patchImport(ImportId id, void* hook_func) const;
+    UnloadProtection makeUnloadProtection();
+    friend void UnloadProtection::patchImport(ImportId id, void* hook_func) const;
 };
 
 class CodeCacheArray {

@@ -51,7 +51,7 @@ static void applyPatch(CodeCache* cc) {
     if (patch_libnet) {
         size_t len = strlen(cc->name());
         if (len >= 10 && strcmp(cc->name() + len - 10, "/libnet.so") == 0) {
-            PatchingHandle handle = cc->makePatchingHandle();
+            UnloadProtection handle = cc->makeUnloadProtection();
             handle.patchImport(im_poll, (void*)poll_hook);
             patch_libnet = false;
         }
@@ -815,7 +815,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
-            PatchingHandle handle = cc->makePatchingHandle();
+            UnloadProtection handle = cc->makeUnloadProtection();
             if (handle.isValid()) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }

@@ -322,33 +322,33 @@ bool CodeCache::isValidHandle(void* handle) const {
 #endif
 }
 
-PatchingHandle::~PatchingHandle() {
+UnloadProtection::~UnloadProtection() {
     if (_lib_handle) {
         dlclose(_lib_handle);
     }
 }
 
-PatchingHandle CodeCache::makePatchingHandle() {
+UnloadProtection CodeCache::makeUnloadProtection() {
     if (!_imports_patchable) {
         makeImportsPatchable();
     }
 
     if (Symbols::isMainExecutable(_image_base, _max_address) || Symbols::isLoader(_image_base)) {
-      return PatchingHandle(this);
+      return UnloadProtection(this);
     }
 
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
     void* handle_ptr = dlopen(_name, RTLD_LAZY | RTLD_NOLOAD);
     if (isValidHandle(handle_ptr)) {
-      return PatchingHandle(this, handle_ptr);
+      return UnloadProtection(this, handle_ptr);
     }
 
     // Could not create a valid patching handle, return an empty one
-    return PatchingHandle();
+    return UnloadProtection();
 }
 
-void PatchingHandle::patchImport(ImportId id, void* hook_func) const {
+void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
     if (!isValid()) {
         return;
     }
