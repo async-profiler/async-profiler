@@ -186,7 +186,6 @@ void CodeCache::saveImport(ImportId id, void** entry) {
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
         if (_imports[id][ty] == nullptr) {
             _imports[id][ty] = entry;
-            _imports_patchable = false;
             return;
         }
     }
@@ -248,7 +247,6 @@ void** CodeCache::findImport(ImportId id) {
 }
 
 void CodeCache::makeImportsPatchable() {
-#ifdef __linux__
     void** min_import = (void**)-1;
     void** max_import = NULL;
     for (int i = 0; i < NUM_IMPORTS; i++) {
@@ -265,8 +263,6 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
     }
-#endif
-    _imports_patchable = true;
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
@@ -332,10 +328,6 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
     _protected_cc = nullptr;
     _lib_handle = nullptr;
 
-    if (!cc->_imports_patchable) {
-        cc->makeImportsPatchable();
-    }
-
     if (Symbols::isMainExecutable(cc->_image_base, cc->_max_address) || Symbols::isLoader(cc->_image_base)) {
         _protected_cc = cc;
         return;
@@ -353,6 +345,10 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
 void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
     if (!isValid()) {
         return;
+    }
+
+    if (!_protected_cc->_imports_patchable) {
+        _protected_cc->makeImportsPatchable();
     }
 
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {

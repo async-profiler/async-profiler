@@ -165,7 +165,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             continue;
         }
 
-        CodeCache* cc = new CodeCache(path, count);
+        CodeCache* cc = new CodeCache(path, count, true);
         MachOParser parser(cc, image_base);
         if (!parser.parse()) {
             Log::warn("Could not parse symbols from %s", path);
