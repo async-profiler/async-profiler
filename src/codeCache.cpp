@@ -263,6 +263,8 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
     }
+
+    _imports_patchable = true;
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
