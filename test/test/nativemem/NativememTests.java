@@ -189,11 +189,11 @@ public class NativememTests {
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
 
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%lib %testlib/libmallocwrapper.so\" ASPROF_COMMAND=start,nativemem,cstack=dwarf,file=%f.jfr %testbin/malloc_wrapper preload %f.jfr",
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%lib %testlib/libmalloc.so\" ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_reference preload %f.jfr",
             output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="LD_PRELOAD+profiler_first")
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%testlib/libmallocwrapper.so %lib\" ASPROF_COMMAND=start,nativemem,cstack=dwarf,file=%f.jfr %testbin/malloc_wrapper preload %f.jfr",
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=\"%testlib/libmalloc.so %lib\" ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_reference preload %f.jfr",
             output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="LD_PRELOAD+profiler_second")
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%testlib/libmallocwrapper.so %testbin/malloc_wrapper api %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="api_test")
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%testlib/libmalloc.so %testbin/malloc_reference api %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/lib"}, nameSuffix="api_test")
     public void mallocWrapper(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 

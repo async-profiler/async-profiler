@@ -56,10 +56,11 @@ void initAsyncProfiler() {
 
 void preloadOrderTest() {
     unsigned char* ptr = (unsigned char*)malloc(1999993);
+    int size = 1999993 / sizeof(unsigned char);
 
-    for (int i = 0; i < 1999993; i++) {
-        if (*ptr != 255) {
-            fprintf(stderr, "malloc error, expected 255 but found %d\n", *ptr);
+    for (int i = 0; i < size; i++) {
+        if (ptr[i] != 0xff) {
+            fprintf(stderr, "malloc error, expected 0xff but found 0x%x\n", ptr[i]);
             exit(1);
         }
     }
@@ -70,7 +71,7 @@ void apiTest(char* filename) {
     initAsyncProfiler();
     
     char start_cmd[2048] = {0};
-    snprintf(start_cmd, sizeof(start_cmd), "start,nativemem,cstack=dwarf,file=%s", filename);
+    snprintf(start_cmd, sizeof(start_cmd), "start,nativemem,file=%s", filename);
     executeAsyncProfilerCommand(start_cmd);
 
     preloadOrderTest();
