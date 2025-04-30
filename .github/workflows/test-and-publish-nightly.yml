@@ -63,7 +63,8 @@ jobs:
               make COMMIT_TAG=${GITHUB_SHA:0:7} CC=/usr/local/musl/bin/musl-gcc release coverage -j
             ;;
           esac
-          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-sym*" -exec basename {} \; || echo "")" >> $GITHUB_OUTPUT
+          echo "sym_archive=$(find . -type f -name "async-profiler-*-sym*" -exec basename {} \; | awk '{print; exit} END{if(NR==0) print "IGNORE"}')" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -79,6 +80,12 @@ jobs:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
           path: ${{ steps.build.outputs.archive }}
           if-no-files-found: error
+      - name: Upload symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-sym
+          path: ${{ steps.build.outputs.sym_archive }}
+          if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:

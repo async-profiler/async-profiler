@@ -9,6 +9,8 @@ endif
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
+SYM_PACKAGE_NAME=$(PACKAGE_NAME)-sym
+SYM_PACKAGE_DIR=$(PACKAGE_DIR)-sym
 
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
@@ -86,7 +88,7 @@ ifeq ($(OS),Darwin)
     MERGE=false
   endif
 else
-  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections
+  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
@@ -127,22 +129,26 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
-ifeq ($(OS_TAG),linux)
-  CXXFLAGS += -ggdb
-endif
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
-all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
+all: build/bin build/lib build/sym build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: $(PACKAGE_NAME).$(PACKAGE_EXT)
+release: $(PACKAGE_NAME).$(PACKAGE_EXT) $(SYM_PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	patchelf --remove-needed ld-linux-x86-64.so.2 --remove-needed ld-linux-aarch64.so.1 $(PACKAGE_DIR)/$(LIB_PROFILER)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
-	rm -r $(PACKAGE_DIR)
+#	rm -r $(PACKAGE_DIR)
+
+$(SYM_PACKAGE_NAME).tar.gz: $(SYM_PACKAGE_DIR)
+	tar czf $@ -C $(SYM_PACKAGE_DIR)/.. $(SYM_PACKAGE_NAME)
+#	rm -r $(SYM_PACKAGE_DIR)
+
+$(SYM_PACKAGE_NAME).zip:
+	: macos symbols not supported, ignoring
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
@@ -158,6 +164,11 @@ $(PACKAGE_DIR): all LICENSE README.md
 	cp -RP build/bin build/lib build/include LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/include/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
+
+$(SYM_PACKAGE_DIR): all
+	mkdir -p $(SYM_PACKAGE_DIR)
+	cp -RP build/sym $(SYM_PACKAGE_DIR)/
+	chmod 644 $(SYM_PACKAGE_DIR)/sym/*
 
 build/%:
 	mkdir -p $@
@@ -180,9 +191,9 @@ else
 endif
 
 ifeq ($(OS_TAG),linux)
-	$(STRIP) --only-keep-debug $@ -o $@.debug
+	$(STRIP) --only-keep-debug $@ -o build/sym/$(@F).debug
 	$(STRIP) -g $@
-	$(OBJCOPY) --add-gnu-debuglink=$@.debug $@
+	$(OBJCOPY) --add-gnu-debuglink=build/sym/$(@F).debug $@
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h
