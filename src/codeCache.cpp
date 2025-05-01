@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include "codeCache.h"
 #include "dwarf.h"
+#include "log.h"
 #include "os.h"
 #include "symbols.h"
 #include <dlfcn.h>
@@ -327,11 +328,12 @@ UnloadProtection::~UnloadProtection() {
 }
 
 UnloadProtection::UnloadProtection(CodeCache *cc) {
-    _protected_cc = nullptr;
+    _protected_cc = cc;
     _lib_handle = nullptr;
+    _valid = false;
 
     if (Symbols::isMainExecutable(cc->_image_base, cc->_max_address) || Symbols::isLoader(cc->_image_base)) {
-        _protected_cc = cc;
+        _valid = true;
         return;
     }
 
@@ -341,11 +343,13 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
     if (cc->isValidHandle(handle_ptr)) {
         _protected_cc = cc;
         _lib_handle = handle_ptr;
+        _valid = true;
     }
 }
 
 void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
     if (!isValid()) {
+        Log::info("Could not patch '%d' for '%s', unload protection failed", id, _protected_cc->name());
         return;
     }
 

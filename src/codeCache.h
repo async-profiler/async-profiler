@@ -106,6 +106,7 @@ class UnloadProtection {
   private:
     CodeCache* _protected_cc;
     void* _lib_handle;
+    bool _valid;
 
   public:
     UnloadProtection(CodeCache *cc);
@@ -114,7 +115,7 @@ class UnloadProtection {
     UnloadProtection& operator=(const UnloadProtection& other) = delete;
 
     void patchImport(ImportId id, void* hook_func) const;
-    bool isValid() const { return _protected_cc != nullptr; }
+    bool isValid() const { return _valid; }
 };
 
 class CodeCache {
