@@ -52,7 +52,7 @@ jobs:
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
       - name: Run container setup
-        run: "[ -f /root/setup.sh ] && { /root/setup.sh; exit $?; }; exit 0"
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -165,7 +165,7 @@ jobs:
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
       - name: Run container setup
-        run: "[ -f /root/setup.sh ] && { /root/setup.sh; exit $?; }; exit 0"
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
