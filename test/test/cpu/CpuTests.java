@@ -24,7 +24,9 @@ public class CpuTests {
 
     private static void pinCpu(TestProcess p, int cpu) throws Exception {
         String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
-        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).redirectError(Redirect.INHERIT);
+        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd)
+            .redirectError(Redirect.INHERIT)
+            .redirectOutput(Redirect.DISCARD);
         if (cpuPinPb.start().waitFor() != 0) {
             throw new RuntimeException("Could not set CPU list for the test process");
         }
