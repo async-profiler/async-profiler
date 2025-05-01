@@ -54,13 +54,14 @@ jobs:
         id: build
         run: |
           set -x
-          case "${{ matrix.runson.name }}" in
+          HASH=${GITHUB_SHA:0:7}
+          case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
-              make COMMIT_TAG=${GITHUB_SHA:0:7} FAT_BINARY=true release coverage -j
+              make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
             ;;
             *)
-              make COMMIT_TAG=${GITHUB_SHA:0:7} CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
             ;;
           esac
           echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-sym*" -exec basename {} \; || echo "")" >> $GITHUB_OUTPUT
@@ -102,7 +103,7 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
-        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
+        image: [public.ecr.aws/async-profiler/asprof-builder-x86:latest]
         include:
           - runson:
               display: macos-arm64
@@ -128,7 +129,14 @@ jobs:
               name: ubuntu-24.04-arm
             java-version: 11
             java-distribution: corretto
-            image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
+            image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
+          - runson:
+              display: alpine
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            asprof-binaries-job: linux-x64
+            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -137,6 +145,8 @@ jobs:
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
+        # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
+        if: matrix.runson.display != 'alpine'
         with:
           distribution: ${{ matrix.java-distribution }}
           java-version: ${{ matrix.java-version }}
