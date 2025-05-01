@@ -15,8 +15,7 @@ DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
-LIB_PROFILER_DEBUG=debug/libasyncProfiler.$(SOEXT).debug
-LIB_STAMP=lib/libasyncProfiler.$(SOEXT).stamp
+LIB_PROFILER_DEBUG=libasyncProfiler.$(SOEXT).debug
 ASPROF_HEADER=include/asprof.h
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
@@ -134,23 +133,19 @@ endif
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
-all: build/bin build/lib build/debug build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
+all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: $(PACKAGE_NAME).$(PACKAGE_EXT) $(DEBUG_PACKAGE_NAME).$(PACKAGE_EXT)
+release: $(PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	patchelf --remove-needed ld-linux-x86-64.so.2 --remove-needed ld-linux-aarch64.so.1 $(PACKAGE_DIR)/$(LIB_PROFILER)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
-$(DEBUG_PACKAGE_NAME).tar.gz: $(DEBUG_PACKAGE_DIR)
-	tar czf $@ -C $</.. $(DEBUG_PACKAGE_NAME)
-	rm -r $<
-
-$(DEBUG_PACKAGE_NAME).zip:
-	: macos symbols not supported, ignoring
+	tar czf $(DEBUG_PACKAGE_NAME).tar.gz -C $(DEBUG_PACKAGE_DIR)/.. $(DEBUG_PACKAGE_NAME)
+	rm -r $(DEBUG_PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
@@ -161,19 +156,19 @@ endif
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
-$(PACKAGE_DIR): all LICENSE README.md build/$(LIB_PROFILER_DEBUG)
-	rm -rf $@ || :
-	mkdir -p $(PACKAGE_DIR)
-	rm -f build/$(LIB_STAMP)
+$(PACKAGE_DIR): all LICENSE README.md
+	rm -rf $@
+	mkdir -p $(PACKAGE_DIR) $(DEBUG_PACKAGE_DIR)
 	cp -RP build/bin build/lib build/include LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/include/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
 
-$(DEBUG_PACKAGE_DIR): build/$(LIB_PROFILER_DEBUG)
-	rm -rf $@ || :
-	mkdir -p $@
-	cp -RP $< $@/
-	chmod 644 $@/*
+ifeq ($(OS_TAG),linux)
+	$(STRIP) --only-keep-debug build/$(LIB_PROFILER) -o $(DEBUG_PACKAGE_DIR)/$(LIB_PROFILER_DEBUG)
+	$(STRIP) -g $@/$(LIB_PROFILER)
+	$(OBJCOPY) --add-gnu-debuglink=$(DEBUG_PACKAGE_DIR)/$(LIB_PROFILER_DEBUG) $@/$(LIB_PROFILER)
+	chmod 644 $(DEBUG_PACKAGE_DIR)/*
+endif
 
 build/%:
 	mkdir -p $@
@@ -187,26 +182,12 @@ build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
 	$(STRIP) $@
 	cat build/$(CONVERTER_JAR) >> $@
 
-build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES) build/$(LIB_STAMP)
+build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
-endif
-
-build/$(LIB_STAMP):
-	touch $@
-
-build/$(LIB_PROFILER_DEBUG): build/$(LIB_PROFILER)
-ifeq ($(OS_TAG),linux)
-	$(STRIP) --only-keep-debug $< -o $@
-	$(STRIP) -g $<
-	$(OBJCOPY) --add-gnu-debuglink=$@ $<
-
-# To make building debug symbols idempotent, a rebuild of $(LIB_PROFILER) is required.
-# Remove stamp file to ensures $(LIB_PROFILER) rule re-runs if needed after this rule modifies it (strip -g).
-	rm -f build/$(LIB_STAMP)
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h
