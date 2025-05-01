@@ -5,6 +5,7 @@
 
 package test.cpu;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
 
@@ -26,7 +27,7 @@ public class CpuTests {
         String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
         ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd)
             .redirectError(Redirect.INHERIT)
-            .redirectOutput(Redirect.DISCARD);
+            .redirectOutput(new File("/dev/null"));
         if (cpuPinPb.start().waitFor() != 0) {
             throw new RuntimeException("Could not set CPU list for the test process");
         }
