@@ -91,6 +91,9 @@ static const char USAGE_STRING[] =
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "  --target-cpu cpu  sample threads on a specific CPU (perf_events only, default: -1)\n"
     "                    from the non-privileged target\n"
+    "  --all             shorthand for enabling cpu, wall, alloc (includes live objects), nativemem and lock profiling simultaneously.\n"
+    "                    This can be combined with --alloc 2m --lock 10ms etc. to also pass custom interval/threshold.\n"
+    "                    It is also possible to combine it with -e flag to change the type of event being collected. Default is cpu.\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -99,7 +102,8 @@ static const char USAGE_STRING[] =
     "Example: " APP_BINARY " -d 30 -f profile.html 3456\n"
     "         " APP_BINARY " start -i 1ms jps\n"
     "         " APP_BINARY " stop -o flat jps\n"
-    "         " APP_BINARY " -d 5 -e alloc MyAppName\n";
+    "         " APP_BINARY " -d 5 -e alloc MyAppName\n"
+    "         " APP_BINARY " --all -f profile.jfr\n";
 
 
 extern "C" int jattach(int pid, int argc, const char** argv, int print_output);
@@ -544,6 +548,8 @@ int main(int argc, const char** argv) {
             // The last argument is the application name as it would appear in the jps tool
             pid = jps("jps -J-XX:+PerfDisableSharedMem", arg.str());
 
+        } else if (arg == "--all") {
+            params << ",all";
         } else {
             fprintf(stderr, "Unrecognized option: %s\n", arg.str());
             return 1;

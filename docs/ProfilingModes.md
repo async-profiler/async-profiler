@@ -221,6 +221,34 @@ The same, when starting profiler as an agent:
 -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,alloc=2m,lock=10ms,file=profile.jfr
 ```
 
+### All possible modes
+
+Instead of passing each execution event type in the startup command, it is possible to pass a single parameter called `--all` which profiles `cpu`,`wall`, `alloc`, `live`, `lock` and `nativemem` simultaneously.
+
+Sample command:
+
+```
+asprof --all -f profile.jfr
+```
+
+or combine it with `--alloc`/`--wall`/`--lock`/`--nativemem` flags to override individual settings. For example:
+
+```
+asprof --all --alloc 2m --lock 10ms -f profile.jfr
+```
+
+The same, when starting profiler as an agent:
+
+```
+-agentpath:/path/to/libasyncProfiler.so=start,all,alloc=2m,lock=10ms,file=profile.jfr
+```
+
+Instead of `cpu`, it is possible to override the `--all` parameter with any other event type of your choice. For instance, the following command will profile perf-event `cycles` along with ` wall`, `alloc`, `live`, `lock` and `nativemem`:
+
+```
+asprof --all -e cycles -f profile.jfr
+```
+
 ## Continuous profiling
 
 Continuous profiling is a means by which an application can be profiled

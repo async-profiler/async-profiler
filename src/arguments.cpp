@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "arguments.h"
+#include "os.h"
 
 
 // Arguments of the last start/resume command; reused for shutdown and restart
@@ -223,7 +224,7 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
-                } else if (_event != NULL) {
+                } else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
                     _event = value;
@@ -250,7 +251,7 @@ Error Arguments::parse(const char* args) {
                 _nofree = true;
 
             CASE("lock")
-                _lock = value == NULL ? 0 : parseUnits(value, NANOS);
+                _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
 
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
@@ -259,6 +260,25 @@ Error Arguments::parse(const char* args) {
                 if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {
+                    _event = EVENT_CPU;
+                }
+
+            CASE("all")
+                _all = true;
+                _live = true;
+                if (_wall < 0) {
+                    _wall = 0;
+                }
+                if (_alloc < 0) {
+                    _alloc = 0;
+                }
+                if (_lock < 0) {
+                    _lock = DEFAULT_LOCK_INTERVAL;
+                }
+                if (_nativemem < 0) {
+                    _nativemem = 0;
+                }
+                if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
                 }
 
