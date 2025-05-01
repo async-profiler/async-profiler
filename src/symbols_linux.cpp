@@ -267,8 +267,8 @@ class ElfParser {
     const char* getDebuginfodCache();
 
   public:
-    static void parseProgramHeaders(CodeCache* cc, const char* end, bool relocate_dyn);
-    static bool parseFile(CodeCache* cc, const char* file_name, bool use_debug);
+    static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn);
+    static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
 };
 
 
@@ -300,7 +300,7 @@ ElfProgramHeader* ElfParser::findProgramHeader(uint32_t type) {
     return NULL;
 }
 
-bool ElfParser::parseFile(CodeCache* cc, const char* file_name, bool use_debug) {
+bool ElfParser::parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug) {
     int fd = open(file_name, O_RDONLY);
     if (fd == -1) {
         return false;
@@ -313,7 +313,7 @@ bool ElfParser::parseFile(CodeCache* cc, const char* file_name, bool use_debug) 
     if (addr == MAP_FAILED) {
         Log::warn("Could not parse symbols from %s: %s", file_name, strerror(errno));
     } else {
-        ElfParser elf(cc, cc->imageBase(), addr, file_name, false);
+        ElfParser elf(cc, base, addr, file_name, false);
         if (elf.validHeader()) {
             elf.calcVirtualLoadAddress();
             elf.loadSymbols(use_debug);
@@ -323,8 +323,7 @@ bool ElfParser::parseFile(CodeCache* cc, const char* file_name, bool use_debug) 
     return true;
 }
 
-void ElfParser::parseProgramHeaders(CodeCache* cc, const char* end, bool relocate_dyn) {
-    const char* base = cc->imageBase();
+void ElfParser::parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn) {
     ElfParser elf(cc, base, base, NULL, relocate_dyn);
     if (elf.validHeader() && base + elf._header->e_phoff < end) {
         cc->setTextBase(base);
@@ -532,7 +531,7 @@ bool ElfParser::loadSymbolsFromDebug(const char* build_id, const int build_id_le
     }
     strcpy(p, ".debug");
 
-    return parseFile(_cc, path, false);
+    return parseFile(_cc, _base, path, false);
 }
 
 bool ElfParser::loadSymbolsFromDebuginfodCache(const char* build_id, const int build_id_len) {
@@ -555,7 +554,7 @@ bool ElfParser::loadSymbolsFromDebuginfodCache(const char* build_id, const int b
     }
     strcpy(p, "/debuginfo");
 
-    return parseFile(_cc, path, false);
+    return parseFile(_cc, _base, path, false);
 }
 
 // Load symbols from the first file that exists in the following locations, in order, where abcdef1234 is Build ID.
@@ -605,17 +604,17 @@ bool ElfParser::loadSymbolsUsingDebugLink() {
     // 1. /path/to/libjvm.so.debug
     if (strcmp(debuglink, basename + 1) != 0 &&
         snprintf(path, PATH_MAX, "%s/%s", dirname, debuglink) < PATH_MAX) {
-        result = parseFile(_cc, path, false);
+        result = parseFile(_cc, _base, path, false);
     }
 
     // 2. /path/to/.debug/libjvm.so.debug
     if (!result && snprintf(path, PATH_MAX, "%s/.debug/%s", dirname, debuglink) < PATH_MAX) {
-        result = parseFile(_cc, path, false);
+        result = parseFile(_cc, _base, path, false);
     }
 
     // 3. /usr/lib/debug/path/to/libjvm.so.debug
     if (!result && snprintf(path, PATH_MAX, "/usr/lib/debug%s/%s", dirname, debuglink) < PATH_MAX) {
-        result = parseFile(_cc, path, false);
+        result = parseFile(_cc, _base, path, false);
     }
 
     free(dirname);
@@ -807,18 +806,18 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         if (strchr(lib.file, ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
         } else if (strcmp(lib.file, "[vdso]") == 0) {
-            ElfParser::parseProgramHeaders(cc, lib.map_end, true);
+            ElfParser::parseProgramHeaders(cc, lib.map_start, lib.map_end, true);
         } else if (lib.image_base == NULL) {
             // Unlikely case when image base has not been found: not safe to access program headers.
             // Be careful: executable file is not always ELF, e.g. classes.jsa
-            ElfParser::parseFile(cc, lib.file, true);
+            ElfParser::parseFile(cc, lib.map_start, lib.file, true);
         } else {
             // Parse debug symbols first
-            ElfParser::parseFile(cc, lib.file, true);
+            ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
             UnloadProtection handle(cc);
             if (handle.isValid()) {
-                ElfParser::parseProgramHeaders(cc, lib.map_end, OS::isMusl());
+                ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
         }
 
