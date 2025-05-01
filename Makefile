@@ -9,12 +9,14 @@ endif
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
-SYM_PACKAGE_NAME=$(PACKAGE_NAME)-sym
-SYM_PACKAGE_DIR=$(PACKAGE_DIR)-sym
+DEBUG_PACKAGE_NAME=$(PACKAGE_NAME)-debug
+DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
+LIB_PROFILER_DEBUG=debug/libasyncProfiler.$(SOEXT).debug
+LIB_STAMP=lib/libasyncProfiler.$(SOEXT).stamp
 ASPROF_HEADER=include/asprof.h
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
@@ -35,8 +37,8 @@ endif
 CFLAGS_EXTRA ?=
 CXXFLAGS_EXTRA ?=
 CFLAGS=-O3 -fno-exceptions $(CFLAGS_EXTRA)
-CPPFLAGS=
 CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c++11 $(CXXFLAGS_EXTRA)
+CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
 LIBS=-ldl -lpthread
@@ -132,22 +134,22 @@ endif
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
-all: build/bin build/lib build/sym build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
+all: build/bin build/lib build/debug build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
 
 jar: build/jar build/$(API_JAR) build/$(CONVERTER_JAR)
 
-release: $(PACKAGE_NAME).$(PACKAGE_EXT) $(SYM_PACKAGE_NAME).$(PACKAGE_EXT)
+release: $(PACKAGE_NAME).$(PACKAGE_EXT) $(DEBUG_PACKAGE_NAME).$(PACKAGE_EXT)
 
 $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	patchelf --remove-needed ld-linux-x86-64.so.2 --remove-needed ld-linux-aarch64.so.1 $(PACKAGE_DIR)/$(LIB_PROFILER)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
-#	rm -r $(PACKAGE_DIR)
+	rm -r $(PACKAGE_DIR)
 
-$(SYM_PACKAGE_NAME).tar.gz: $(SYM_PACKAGE_DIR)
-	tar czf $@ -C $(SYM_PACKAGE_DIR)/.. $(SYM_PACKAGE_NAME)
-#	rm -r $(SYM_PACKAGE_DIR)
+$(DEBUG_PACKAGE_NAME).tar.gz: $(DEBUG_PACKAGE_DIR)
+	tar czf $@ -C $</.. $(DEBUG_PACKAGE_NAME)
+	rm -r $<
 
-$(SYM_PACKAGE_NAME).zip:
+$(DEBUG_PACKAGE_NAME).zip:
 	: macos symbols not supported, ignoring
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
@@ -159,16 +161,19 @@ endif
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
-$(PACKAGE_DIR): all LICENSE README.md
+$(PACKAGE_DIR): all LICENSE README.md build/$(LIB_PROFILER_DEBUG)
+	rm -rf $@ || :
 	mkdir -p $(PACKAGE_DIR)
+	rm -f build/$(LIB_STAMP)
 	cp -RP build/bin build/lib build/include LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/include/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
 
-$(SYM_PACKAGE_DIR): all
-	mkdir -p $(SYM_PACKAGE_DIR)
-	cp -RP build/sym $(SYM_PACKAGE_DIR)/
-	chmod 644 $(SYM_PACKAGE_DIR)/sym/*
+$(DEBUG_PACKAGE_DIR): build/$(LIB_PROFILER_DEBUG)
+	rm -rf $@ || :
+	mkdir -p $@
+	cp -RP $< $@/
+	chmod 644 $@/*
 
 build/%:
 	mkdir -p $@
@@ -182,7 +187,7 @@ build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
 	$(STRIP) $@
 	cat build/$(CONVERTER_JAR) >> $@
 
-build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
+build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES) build/$(LIB_STAMP)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
@@ -190,10 +195,18 @@ else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -fPIC -shared -o $@ $(SOURCES) $(LIBS)
 endif
 
+build/$(LIB_STAMP):
+	touch $@
+
+build/$(LIB_PROFILER_DEBUG): build/$(LIB_PROFILER)
 ifeq ($(OS_TAG),linux)
-	$(STRIP) --only-keep-debug $@ -o build/sym/$(@F).debug
-	$(STRIP) -g $@
-	$(OBJCOPY) --add-gnu-debuglink=build/sym/$(@F).debug $@
+	$(STRIP) --only-keep-debug $< -o $@
+	$(STRIP) -g $<
+	$(OBJCOPY) --add-gnu-debuglink=$@ $<
+
+# To make building debug symbols idempotent, a rebuild of $(LIB_PROFILER) is required.
+# Remove stamp file to ensures $(LIB_PROFILER) rule re-runs if needed after this rule modifies it (strip -g).
+	rm -f build/$(LIB_STAMP)
 endif
 
 build/$(ASPROF_HEADER): src/asprof.h

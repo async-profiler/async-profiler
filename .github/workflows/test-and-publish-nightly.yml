@@ -59,13 +59,14 @@ jobs:
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
+              echo "debug_archive=UNSUPPORTED" >> $GITHUB_OUTPUT
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
-          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-sym*" -exec basename {} \; || echo "")" >> $GITHUB_OUTPUT
-          echo "sym_archive=$(find . -type f -name "async-profiler-*-sym*" -exec basename {} \; | awk '{print; exit} END{if(NR==0) print "IGNORE"}')" >> $GITHUB_OUTPUT
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -81,11 +82,11 @@ jobs:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
           path: ${{ steps.build.outputs.archive }}
           if-no-files-found: error
-      - name: Upload symbols
+      - name: Upload debug info
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-sym
-          path: ${{ steps.build.outputs.sym_archive }}
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
+          path: ${{ steps.build.outputs.debug_archive }}
           if-no-files-found: ignore
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
