@@ -32,6 +32,7 @@ Idea of the test (the behavior applies as of 0c72a8d):
 - We load libcallsmalloc.so
 - We start AP without nativemem mode
     => 'malloc' is not hooked
+- We stop AP
 - We dlclose libcallsmalloc.so
     => Memory region(s) for libcallsmalloc.so are now unmapped.
 - We restart AP in nativemem mode 
