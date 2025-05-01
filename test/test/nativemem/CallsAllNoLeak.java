@@ -13,7 +13,7 @@ public class CallsAllNoLeak {
     private static final int CALLOC_SIZE = 2000147;
     private static final int REALLOC_SIZE = 30000170;
     private static final int POSIX_MEMALIGN_SIZE = 30000193;
-    private static final int ALIGNED_ALLOC_SIZE = 30002009;
+    private static final int ALIGNED_ALLOC_SIZE = 1024*1024;
 
     private static void doMallocRealloc() {
         long ptr = Native.malloc(MALLOC_SIZE);

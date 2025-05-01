@@ -11,6 +11,12 @@
 #include "dwarf.h"
 #include "os.h"
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#include <mach/mach_init.h>
+#include <mach/vm_map.h>
+#endif
+
 
 char* NativeFunc::create(const char* name, short lib_index) {
     NativeFunc* f = (NativeFunc*)malloc(sizeof(NativeFunc) + 1 + strlen(name));
@@ -268,7 +274,11 @@ void CodeCache::makeImportsPatchable() {
     if (max_import != NULL) {
         uintptr_t patch_start = (uintptr_t)min_import & ~OS::page_mask;
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
+#ifdef __APPLE__
+        vm_protect (mach_task_self (), patch_start, patch_start - patch_end + OS::page_size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+#else
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
+#endif
     }
 }
 
