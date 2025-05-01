@@ -38,13 +38,6 @@ jobs:
           - runson:
               display: macos
               name: macos-15
-          - runson:
-              display: amazonlinux2
-              name: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
-            # GHA provides Node.js by attaching a volume to the container. The container path is
-            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
-            volumes: '["/tmp/node20:/__e/node20"]'
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -69,9 +62,6 @@ jobs:
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
-            ;;
-            amazonlinux*)
-              make COMMIT_TAG=$HASH release coverage -j
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
@@ -149,7 +139,10 @@ jobs:
             java-version: 11
             java-distribution: corretto
             image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            # GHA provides Node.js by attaching a volume to the container. The container path is
+            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
             volumes: '["/tmp/node20:/__e/node20"]'
+            asprof-binaries-job: linux-x64
           - runson:
               display: amazonlinux2023
               name: ubuntu-latest
