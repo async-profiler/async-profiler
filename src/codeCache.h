@@ -125,7 +125,6 @@ class CodeCache {
     const void* _min_address;
     const void* _max_address;
     const char* _text_base;
-    // TODO: Cleanup usages of lib.image_base
     const char* _image_base;
 
     unsigned int _plt_offset;
