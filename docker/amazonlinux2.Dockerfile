@@ -4,8 +4,8 @@ RUN amazon-linux-extras enable python3.8
 
 RUN yum update -y && yum install -y git make python38 gcc10 gcc10-c++ binutils tar
 
-ARG node_version=22.15.0
-ARG node_sha256=4f2515e143ffd73f069916ecc5daf503e7a05166c0ae4f1c1f8afdc8ab2f8a82
+ARG node_version=20.19.1
+ARG node_sha256=babcd5b9e3216510b89305e6774bcdb2905ca98ff60028b67f163eb8296b6665
 RUN curl -L --output node.tar.gz https://github.com/nodejs/node/archive/refs/tags/v${node_version}.tar.gz
 RUN echo ${node_sha256} node.tar.gz | sha256sum -c
 RUN mkdir /node
@@ -21,6 +21,17 @@ RUN make install
 FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
-RUN yum update -y && \
-    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar && \
-    yum clean all
+RUN amazon-linux-extras enable python3.8 && \
+    yum update -y && \
+    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar python38 && \
+    yum clean all && \
+    rm -rf /var/cache/yum && \
+    python -m ensurepip && \
+    python -m pip install gcovr
+
+ENV NODE_JS_LOCATION=/__e/node20
+RUN cat <<EOF > /root/setup.sh
+#!/bin/sh
+mkdir -p "$NODE_JS_LOCATION/bin"
+ln --force --symbolic "/usr/local/bin/node" "$NODE_JS_LOCATION/bin/node"
+EOF
