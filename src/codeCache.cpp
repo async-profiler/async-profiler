@@ -12,7 +12,6 @@
 #include "log.h"
 #include "os.h"
 #include "symbols.h"
-#include <dlfcn.h>
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
