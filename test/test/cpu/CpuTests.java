@@ -12,7 +12,6 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
-import one.profiler.test.Jvm;
 
 public class CpuTests {
 

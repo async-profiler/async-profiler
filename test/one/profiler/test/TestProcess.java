@@ -33,8 +33,6 @@ public class TestProcess implements Closeable {
     public static final String LIBPROF = "%lib";
     public static final String TESTBIN = "%testbin";
     public static final String TESTLIB = "%testlib";
-    public static final String LDPRELOAD = "%ldpreload";
-    public static final String EXTENSION = "%ext";
 
     private static final String JAVA_HOME = System.getProperty("java.home");
 
@@ -88,7 +86,7 @@ public class TestProcess implements Closeable {
         for (String env : test.env()) {
             String[] keyValue = env.split("=", 2);
             if (keyValue.length == 2) {
-                pb.environment().put(substituteKeys(keyValue[0]), substituteFiles(keyValue[1]));
+                pb.environment().put(keyValue[0], substituteFiles(keyValue[1]));
             }
         }
         pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
@@ -123,13 +121,6 @@ public class TestProcess implements Closeable {
 
     public String testLibPath() {
         return "build/test/lib";
-    }
-
-    public String ldPreload() {
-        if (this.currentOs() == Os.MACOS) {
-            return "DYLD_INSERT_LIBRARIES";
-        }
-        return "LD_PRELOAD";
     }
 
     private List<String> buildCommandLine(Test test) {
@@ -187,13 +178,6 @@ public class TestProcess implements Closeable {
         }
     }
 
-    private String substituteKeys(String s) {
-        if (s.equals(LDPRELOAD)) {
-            return ldPreload();
-        }
-        return s;
-    }
-
     private String substituteFiles(String s) {
         Matcher m = filePattern.matcher(s);
         if (!m.find()) {
@@ -219,17 +203,7 @@ public class TestProcess implements Closeable {
         if (fileId.equals(TESTLIB)) {
             return testLibPath();
         }
-        if (fileId.equals(LDPRELOAD)) {
-            return ldPreload();
-        }
-        if (fileId.equals(EXTENSION)) {
-            return this.currentOs() == Os.MACOS ? "dylib" : "so";
-        }
         return createTempFile(fileId, ext).getPath();
-    }
-
-    private static void extracted() {
-        return;
     }
 
     private File createTempFile(String fileId) {

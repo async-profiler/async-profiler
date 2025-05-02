@@ -275,7 +275,7 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_start = (uintptr_t)min_import & ~OS::page_mask;
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
 #ifdef __APPLE__
-        vm_protect (mach_task_self (), patch_start, patch_start - patch_end + OS::page_size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+        vm_protect (mach_task_self (), patch_start, patch_end - patch_start + OS::page_size, 0, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
 #else
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
 #endif

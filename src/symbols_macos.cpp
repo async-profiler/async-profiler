@@ -13,6 +13,7 @@
 #include <mach-o/nlist.h>
 #include "symbols.h"
 #include "log.h"
+#include <vector>
 
 #ifndef SEG_DATA_CONST
 #define SEG_DATA_CONST  "__DATA_CONST"
@@ -28,15 +29,14 @@ class MachOParser {
         return (const char*)base + offset;
     }
 
-    const section_64* findSymbolPtrSection(const segment_command_64* sc) {
+    void findSymbolPtrSection(const segment_command_64* sc, std::vector<const section_64*>* symbol_sections) {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
             if ((section->flags & SECTION_TYPE) == S_LAZY_SYMBOL_POINTERS || (section->flags & SECTION_TYPE) == S_NON_LAZY_SYMBOL_POINTERS) {
-                return section;
+                symbol_sections->push_back(section);
             }
             section++;
         }
-        return NULL;
     }
 
     void loadSymbols(const symtab_command* symtab, const char* text_base, const char* link_base) {
@@ -92,30 +92,24 @@ class MachOParser {
         const char* UNDEFINED = (const char*)-1;
         const char* text_base = UNDEFINED;
         const char* link_base = UNDEFINED;
-        const section_64* la_symbol_ptr = NULL;
         const symtab_command* symtab_cmd = NULL;
         const dysymtab_command* dysymtab_cmd = NULL;
         const segment_command_64* linkedit_segment = NULL;
         bool data_const_section = false;
+        std::vector<const section_64*> symbol_sections;
 
         for (uint32_t i = 0; i < header->ncmds; i++) {
             if (lc->cmd == LC_SEGMENT_64) {
                 const segment_command_64* sc = (const segment_command_64*)lc;
-                if ((sc->initprot & 4) != 0) {
-                    if (text_base == UNDEFINED || strcmp(sc->segname, SEG_TEXT) == 0) {
-                        text_base = (const char*)_image_base - sc->vmaddr;
-                        _cc->setTextBase(text_base);
-                        _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
-                    }
-                } else if ((sc->initprot & 7) == 1) {
-                    if (link_base == UNDEFINED || strcmp(sc->segname, SEG_LINKEDIT) == 0) {
-                        linkedit_segment = sc;
-                        link_base = text_base + sc->vmaddr - sc->fileoff;
-                    }
-                } else if ((sc->initprot & 2) != 0) {
-                    if (strcmp(sc->segname, SEG_DATA_CONST) == 0 || strcmp(sc->segname, SEG_DATA) == 0) {
-                        la_symbol_ptr = findSymbolPtrSection(sc);
-                    }
+                if (strcmp(sc->segname, SEG_TEXT) == 0) {
+                    text_base = (const char*)_image_base - sc->vmaddr;
+                    _cc->setTextBase(text_base);
+                    _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
+                } else if (strcmp(sc->segname, SEG_LINKEDIT) == 0) {
+                    linkedit_segment = sc;
+                    link_base = text_base + sc->vmaddr - sc->fileoff;
+                } else if (strcmp(sc->segname, SEG_DATA_CONST) == 0 || strcmp(sc->segname, SEG_DATA) == 0) {
+                    findSymbolPtrSection(sc, &symbol_sections);
                 }
             } else if (lc->cmd == LC_SYMTAB) {
                 symtab_cmd = (const symtab_command*)lc;
@@ -131,7 +125,7 @@ class MachOParser {
         }
 
         // Can't load imports from library
-        if (!symtab_cmd || !dysymtab_cmd || !linkedit_segment || !dysymtab_cmd->nindirectsyms || !la_symbol_ptr) {
+        if (!symtab_cmd || !dysymtab_cmd || !linkedit_segment || !dysymtab_cmd->nindirectsyms || symbol_sections.size() == 0) {
           return true;
         }
 
@@ -143,7 +137,9 @@ class MachOParser {
         uint32_t *indirect_symtab = (uint32_t *)(linkedit_base + dysymtab_cmd->indirectsymoff);
 
         // Load imports for library
-        loadImports(la_symbol_ptr, this->_slide, symtab, strtab, indirect_symtab);
+        for (auto symbol_section : symbol_sections) {
+            loadImports(symbol_section, this->_slide, symtab, strtab, indirect_symtab);
+        }
         return true;
     }
 };
@@ -164,6 +160,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
         intptr_t slide = _dyld_get_image_vmaddr_slide(i);
+        const char* path = _dyld_get_image_name(i);
+
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
         }
@@ -176,8 +174,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             }
             break;
         }
-
-        const char* path = _dyld_get_image_name(i);
 
         // Protect the library from unloading while parsing symbols
         void* handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD);
