@@ -153,6 +153,10 @@ class CodeCache {
         return _max_address;
     }
 
+    const char* imageBase() const {
+        return _image_base;
+    }
+
     bool contains(const void* address) const {
         return address >= _min_address && address < _max_address;
     }
