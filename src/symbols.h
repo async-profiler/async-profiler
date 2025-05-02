@@ -23,11 +23,7 @@ class Symbols {
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;
     }
-
-    Symbols();
 };
-
-static Symbols symbols;
 
 class UnloadProtection {
   private:

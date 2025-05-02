@@ -14,8 +14,6 @@
 #include "symbols.h"
 #include "log.h"
 
-Symbols::Symbols() {}
-
 UnloadProtection::UnloadProtection(CodeCache *cc) {
     _protected_cc = cc;
     // Protect library from unloading while parsing in-memory ELF program headers.
