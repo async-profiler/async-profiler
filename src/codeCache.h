@@ -107,6 +107,8 @@ class CodeCache {
 
   private:
     char* _name;
+    // E.g. remove (deleted) so that removed library can be reopened
+    char* _clean_name;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
@@ -143,6 +145,10 @@ class CodeCache {
 
     const char* name() const {
         return _name;
+    }
+
+    const char* cleanName() const {
+        return _clean_name;
     }
 
     const void* minAddress() const {

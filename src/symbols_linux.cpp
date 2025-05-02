@@ -807,23 +807,17 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         SharedLibrary& lib = it.second;
         CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
 
-        // Strip " (deleted)" suffix so that removed library can be reopened
-        size_t len = strlen(lib.file);
-        if (len > 10 && strcmp(lib.file + len - 10, " (deleted)") == 0) {
-            lib.file[len - 10] = 0;
-        }
-
-        if (strchr(lib.file, ':') != NULL) {
+        if (strchr(cc->cleanName(), ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
-        } else if (strcmp(lib.file, "[vdso]") == 0) {
+        } else if (strcmp(cc->cleanName(), "[vdso]") == 0) {
             ElfParser::parseProgramHeaders(cc, lib.map_start, lib.map_end, true);
         } else if (lib.image_base == NULL) {
             // Unlikely case when image base has not been found: not safe to access program headers.
             // Be careful: executable file is not always ELF, e.g. classes.jsa
-            ElfParser::parseFile(cc, lib.map_start, lib.file, true);
+            ElfParser::parseFile(cc, lib.map_start, cc->cleanName(), true);
         } else {
             // Parse debug symbols first
-            ElfParser::parseFile(cc, lib.image_base, lib.file, true);
+            ElfParser::parseFile(cc, lib.image_base, cc->cleanName(), true);
 
             UnloadProtection handle(cc);
             if (handle.isValid()) {
@@ -865,7 +859,7 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
 
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
-    void* handle_ptr = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    void* handle_ptr = dlopen(cc->cleanName(), RTLD_LAZY | RTLD_NOLOAD);
     if (isValidHandle(cc, handle_ptr)) {
         _protected_cc = cc;
         _lib_handle = handle_ptr;
