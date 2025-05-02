@@ -220,6 +220,7 @@ class CodeCache {
     size_t usedMemory();
 };
 
+
 class CodeCacheArray {
   private:
     CodeCache* _libs[MAX_NATIVE_LIBS];

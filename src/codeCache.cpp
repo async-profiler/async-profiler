@@ -9,9 +9,7 @@
 #include <sys/mman.h>
 #include "codeCache.h"
 #include "dwarf.h"
-#include "log.h"
 #include "os.h"
-#include "symbols.h"
 
 
 char* NativeFunc::create(const char* name, short lib_index) {
@@ -315,4 +313,3 @@ size_t CodeCache::usedMemory() {
     }
     return bytes;
 }
-
