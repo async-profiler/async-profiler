@@ -100,25 +100,11 @@ class CodeBlob {
 
 class FrameDesc;
 
-class CodeCache;
-
-class UnloadProtection {
-  private:
-    CodeCache* _protected_cc;
-    void* _lib_handle;
-    bool _valid;
-
-  public:
-    UnloadProtection(CodeCache *cc);
-    ~UnloadProtection();
-
-    UnloadProtection& operator=(const UnloadProtection& other) = delete;
-
-    void patchImport(ImportId id, void* hook_func) const;
-    bool isValid() const { return _valid; }
-};
+class UnloadProtection;
 
 class CodeCache {
+  friend UnloadProtection;
+
   private:
     char* _name;
     short _lib_index;
@@ -144,7 +130,6 @@ class CodeCache {
     void expand();
     void makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
-    bool isValidHandle(void* handle) const;
 
   public:
     CodeCache(const char* name,
@@ -223,9 +208,6 @@ class CodeCache {
     FrameDesc* findFrameDesc(const void* pc);
 
     size_t usedMemory();
-
-    friend UnloadProtection::UnloadProtection(CodeCache *cc);
-    friend void UnloadProtection::patchImport(ImportId id, void* hook_func) const;
 };
 
 class CodeCacheArray {

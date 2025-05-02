@@ -14,10 +14,13 @@
 #include "symbols.h"
 #include "log.h"
 
-Symbols::Symbols() {
-    _ld_base = NULL;
-    _main_phdr = NULL;
+Symbols::Symbols() {}
+
+UnloadProtection::UnloadProtection(CodeCache *cc) {
+    _valid = true;
 }
+
+UnloadProtection::~UnloadProtection() {}
 
 class MachOParser {
   private:

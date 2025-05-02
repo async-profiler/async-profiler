@@ -15,20 +15,10 @@ class Symbols {
     static Mutex _parse_lock;
     static bool _have_kernel_symbols;
     static bool _libs_limit_reported;
-    static const void* _main_phdr;
-    static const char* _ld_base;
 
   public:
     static void parseKernelSymbols(CodeCache* cc);
     static void parseLibraries(CodeCacheArray* array, bool kernel_symbols);
-
-    static bool isMainExecutable(const char* image_base, const void* map_end) {
-      return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
-    }
-
-    static bool isLoader(const char* image_base) {
-      return _ld_base != NULL && _ld_base == image_base;
-    }
 
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;
@@ -38,5 +28,21 @@ class Symbols {
 };
 
 static Symbols symbols;
+
+class UnloadProtection {
+  private:
+    CodeCache* _protected_cc;
+    void* _lib_handle;
+    bool _valid;
+
+  public:
+    UnloadProtection(CodeCache *cc);
+    ~UnloadProtection();
+
+    UnloadProtection& operator=(const UnloadProtection& other) = delete;
+
+    void patchImport(ImportId id, void* hook_func) const;
+    bool isValid() const { return _valid; }
+};
 
 #endif // _SYMBOLS_H

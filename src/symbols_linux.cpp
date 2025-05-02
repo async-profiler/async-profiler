@@ -20,6 +20,7 @@
 #include <link.h>
 #include <linux/limits.h>
 #include <sys/auxv.h>
+#include <link.h>
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
@@ -64,6 +65,9 @@ static void applyPatch(CodeCache* cc) {}
 
 #endif
 
+static const void* _main_phdr;
+static const char* _ld_base;
+
 Symbols::Symbols() {
     _ld_base = (const char*)getauxval(AT_BASE);
     if (!_ld_base) {
@@ -75,6 +79,14 @@ Symbols::Symbols() {
         *(const void**)data = info->dlpi_phdr;
         return 1;
     }, &_main_phdr);
+}
+
+static bool isMainExecutable(const char* image_base, const void* map_end) {
+    return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
+}
+
+static bool isLoader(const char* image_base) {
+    return _ld_base != NULL && _ld_base == image_base;
 }
 
 class SymbolDesc {
@@ -665,8 +677,6 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
-const void* Symbols::_main_phdr = NULL;
-const char* Symbols::_ld_base = NULL;
 static std::unordered_set<u64> _parsed_inodes;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
@@ -831,6 +841,41 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
         Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
         _libs_limit_reported = true;
+    }
+}
+
+static bool isValidHandle(const CodeCache* cc, void* handle) {
+    struct link_map* map;
+    // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
+    if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
+        return cc->imageBase() == (const char*)map->l_addr;
+    }
+    return false;
+}
+
+UnloadProtection::UnloadProtection(CodeCache *cc) {
+    _protected_cc = cc;
+    _lib_handle = nullptr;
+    _valid = false;
+
+    if (isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
+        _valid = true;
+        return;
+    }
+
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    void* handle_ptr = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    if (isValidHandle(cc, handle_ptr)) {
+        _protected_cc = cc;
+        _lib_handle = handle_ptr;
+        _valid = true;
+    }
+}
+
+UnloadProtection::~UnloadProtection() {
+    if (_lib_handle) {
+        dlclose(_lib_handle);
     }
 }
 

@@ -14,10 +14,6 @@
 #include "symbols.h"
 #include <dlfcn.h>
 
-#ifdef __linux__
-#include <link.h>
-#endif
-
 
 char* NativeFunc::create(const char* name, short lib_index) {
     NativeFunc* f = (NativeFunc*)malloc(sizeof(NativeFunc) + 1 + strlen(name));
@@ -306,45 +302,6 @@ size_t CodeCache::usedMemory() {
         bytes += NativeFunc::usedMemory(_blobs[i]._name);
     }
     return bytes;
-}
-
-bool CodeCache::isValidHandle(void* handle) const {
-#ifdef __linux__
-    struct link_map* map;
-    // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
-    if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
-        return _image_base == (const char*)map->l_addr;
-    }
-    return false;
-#else
-    return handle != NULL;
-#endif
-}
-
-UnloadProtection::~UnloadProtection() {
-    if (_lib_handle) {
-        dlclose(_lib_handle);
-    }
-}
-
-UnloadProtection::UnloadProtection(CodeCache *cc) {
-    _protected_cc = cc;
-    _lib_handle = nullptr;
-    _valid = false;
-
-    if (Symbols::isMainExecutable(cc->_image_base, cc->_max_address) || Symbols::isLoader(cc->_image_base)) {
-        _valid = true;
-        return;
-    }
-
-    // Protect library from unloading while parsing in-memory ELF program headers.
-    // Also, dlopen() ensures the library is fully loaded.
-    void* handle_ptr = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
-    if (cc->isValidHandle(handle_ptr)) {
-        _protected_cc = cc;
-        _lib_handle = handle_ptr;
-        _valid = true;
-    }
 }
 
 void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
