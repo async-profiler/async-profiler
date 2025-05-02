@@ -849,7 +849,7 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
 
 UnloadProtection::UnloadProtection(CodeCache *cc) {
     _protected_cc = cc;
-    _lib_handle = nullptr;
+    _lib_handle = NULL;
     _valid = false;
 
     if (isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
@@ -859,16 +859,12 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
 
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
-    void* handle_ptr = dlopen(cc->cleanName(), RTLD_LAZY | RTLD_NOLOAD);
-    if (isValidHandle(cc, handle_ptr)) {
-        _protected_cc = cc;
-        _lib_handle = handle_ptr;
-        _valid = true;
-    }
+    _lib_handle = dlopen(cc->cleanName(), RTLD_LAZY | RTLD_NOLOAD);
+    _valid = isValidHandle(cc, _lib_handle);
 }
 
 UnloadProtection::~UnloadProtection() {
-    if (_lib_handle) {
+    if (_lib_handle != NULL) {
         dlclose(_lib_handle);
     }
 }

@@ -17,10 +17,18 @@
 Symbols::Symbols() {}
 
 UnloadProtection::UnloadProtection(CodeCache *cc) {
-    _valid = true;
+    _protected_cc = cc;
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    _lib_handle = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    _valid = _lib_handle != NULL;
 }
 
-UnloadProtection::~UnloadProtection() {}
+UnloadProtection::~UnloadProtection() {
+    if (_lib_handle != NULL) {
+        dlclose(_lib_handle);
+    }
+}
 
 class MachOParser {
   private:
