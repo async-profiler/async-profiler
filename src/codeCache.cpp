@@ -349,7 +349,7 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
 
 void UnloadProtection::patchImport(ImportId id, void* hook_func) const {
     if (!isValid()) {
-        Log::info("Could not patch '%d' for '%s', unload protection failed", id, _protected_cc->name());
+        Log::debug("Could not patch '%d' for '%s', unload protection failed", id, _protected_cc->name());
         return;
     }
 
