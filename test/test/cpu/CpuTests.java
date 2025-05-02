@@ -5,7 +5,9 @@
 
 package test.cpu;
 
+import java.io.File;
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 
 import one.profiler.test.Assert;
 import one.profiler.test.Os;
@@ -23,7 +25,9 @@ public class CpuTests {
 
     private static void pinCpu(TestProcess p, int cpu) throws Exception {
         String[] tasksetCmd = {"taskset", "-acp", String.valueOf(cpu), String.valueOf(p.pid())};
-        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd).inheritIO();
+        ProcessBuilder cpuPinPb = new ProcessBuilder(tasksetCmd)
+            .redirectError(Redirect.INHERIT)
+            .redirectOutput(new File("/dev/null"));
         if (cpuPinPb.start().waitFor() != 0) {
             throw new RuntimeException("Could not set CPU list for the test process");
         }
