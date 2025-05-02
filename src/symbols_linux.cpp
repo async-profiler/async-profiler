@@ -856,7 +856,7 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
     _lib_handle = NULL;
     _valid = false;
 
-    if (isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
+    if (OS::isMusl() || isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
         _valid = true;
         return;
     }
