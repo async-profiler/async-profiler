@@ -62,7 +62,7 @@ class MachOParser {
         uint32_t *indirect_symbol_indices = indirect_symtab + section->reserved1;
         void **indirect_symbol_bindings = (void **)((uintptr_t)slide + section->addr);
 
-        for (uint i = 0; i < section->size / sizeof(void *); i++) {
+        for (uint64_t i = 0; i < section->size / sizeof(void *); i++) {
             uint32_t symtab_index = indirect_symbol_indices[i];
             if (symtab_index == INDIRECT_SYMBOL_ABS || symtab_index == INDIRECT_SYMBOL_LOCAL || symtab_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)){
                 continue;
