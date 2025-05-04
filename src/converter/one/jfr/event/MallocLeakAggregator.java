@@ -14,6 +14,8 @@ public class MallocLeakAggregator implements EventCollector {
     private final EventCollector wrapped;
     private final Map<Long, MallocEvent> addresses;
     private List<MallocEvent> events;
+    private long minTime = Long.MAX_VALUE;
+    private long maxTime = Long.MIN_VALUE;
 
     public MallocLeakAggregator(EventCollector wrapped) {
         this.wrapped = wrapped;
@@ -22,7 +24,10 @@ public class MallocLeakAggregator implements EventCollector {
 
     @Override
     public void collect(Event e) {
-        events.add((MallocEvent) e);
+        MallocEvent me = (MallocEvent) e;
+        events.add(me);
+        minTime = Math.min(minTime, me.time);
+        maxTime = Math.max(maxTime, me.time);
     }
 
     @Override
@@ -47,9 +52,15 @@ public class MallocLeakAggregator implements EventCollector {
 
     @Override
     public boolean finish() {
+        // Ignore allocations made in the last 10% of profiling session:
+        // they are too young to be considered a leak
+        long tail = (long) (minTime * 0.1 + maxTime * 0.9);
+
         wrapped.beforeChunk();
         for (Event e : addresses.values()) {
-            wrapped.collect(e);
+            if (e.time < tail) {
+                wrapped.collect(e);
+            }
         }
         wrapped.afterChunk();
 
