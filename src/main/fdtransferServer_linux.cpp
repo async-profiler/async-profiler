@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <sys/syscall.h>
+#include <sys/uio.h>
 #include <sys/wait.h>
 
 #include "fdtransferServer.h"
@@ -91,6 +92,7 @@ bool FdTransferServer::serveRequests(int peer_pid) {
     // Close the server side, don't need it anymore.
     close(_server);
 
+    char probe_func[256];  // TODO: create a constant shared between client and server
     void *perf_mmap_ringbuf[1024] = {};
     size_t ringbuf_index = 0;
     const size_t perf_mmap_size = 2 * sysconf(_SC_PAGESIZE);
@@ -118,6 +120,14 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             // In pid == 0 mode, allow all perf_event_open requests.
             // Otherwise, verify the thread belongs to PID.
             if (peer_pid == 0 || syscall(__NR_tgkill, peer_pid, request->tid, 0) == 0) {
+                if (request->attr.type == 6 || request->attr.type == 7) {
+                    // Translate kprobe/uprobe name from remote address to local attress
+                    struct iovec local_iov = {probe_func, sizeof(probe_func)};
+                    struct iovec remote_iov = {(void*)request->attr.config1, sizeof(probe_func)};
+                    if (process_vm_readv(peer_pid, &local_iov, 1, &remote_iov, 1, 0) > 0) {
+                        request->attr.config1 = (__u64)probe_func;
+                    }
+                }
                 perf_fd = syscall(__NR_perf_event_open, &request->attr, request->tid, request->target_cpu, -1, 0);
                 error = perf_fd < 0 ? errno : 0;
             } else {
