@@ -1,23 +1,22 @@
 #include "testRunner.hpp"
 #include "arguments.h"
-#include <stdio.h>
 
 TEST_CASE(Parse_all_mode_no_override) {
     Arguments args;
     char argument[] = "start,all,file=%f.jfr";
     Error error = args.parse(argument);
     ASSERT_EQ(args._all, true);
+    ASSERT_EQ(args._wall, 0);
+    ASSERT_EQ(args._alloc, 0);
+    ASSERT_EQ(args._nativemem, 0);
+    ASSERT_EQ(args._lock, DEFAULT_LOCK_INTERVAL);
+    ASSERT_EQ(args._live, true);
     #ifdef __linux__
     ASSERT_EQ(args._event, EVENT_CPU);
     #endif
     #ifdef __APPLE__
     ASSERT_EQ(args._event, NULL);
     #endif
-    ASSERT_EQ(args._wall, 0);
-    ASSERT_EQ(args._alloc, 0);
-    ASSERT_EQ(args._nativemem, 0);
-    ASSERT_EQ(args._lock, DEFAULT_LOCK_INTERVAL);
-    ASSERT_EQ(args._live, true);
 }
 
 TEST_CASE(Parse_all_mode_event_override) {
