@@ -5,7 +5,6 @@
 
 package test.lock;
 
-import one.profiler.test.Assert;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
