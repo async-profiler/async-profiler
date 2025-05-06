@@ -62,7 +62,6 @@ jobs:
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
-              echo "debug_archive=UNSUPPORTED" >> $GITHUB_OUTPUT
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
@@ -87,10 +86,11 @@ jobs:
           if-no-files-found: error
       - name: Upload debug info
         uses: actions/upload-artifact@v4
+        if: matrix.runson.display != 'macos'
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
           path: ${{ steps.build.outputs.debug_archive }}
-          if-no-files-found: ignore
+          if-no-files-found: error
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
