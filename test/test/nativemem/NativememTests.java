@@ -26,9 +26,9 @@ public class NativememTests {
     private static final int CALLOC_SIZE = 2000147;
     private static final int REALLOC_SIZE = 30000170;
     private static final int POSIX_MEMALIGN_SIZE = 30000193;
-    private static final int ALIGNED_ALLOC_SIZE = 30002009;
+    private static final int ALIGNED_ALLOC_SIZE = 2*1024*1024;
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
+    @Test(mainClass = CallsMallocCalloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
@@ -36,14 +36,14 @@ public class NativememTests {
         Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), CALLOC_SIZE);
     }
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
+    @Test(mainClass = CallsMallocCalloc.class, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
     public void canAgentFilterMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), 0);
         Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), 0);
     }
 
-    @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX)
+    @Test(mainClass = CallsMallocCalloc.class)
     public void canAsprofTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
@@ -55,7 +55,7 @@ public class NativememTests {
         Assert.isEqual(samplesCalloc % CALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsRealloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once", os = Os.LINUX)
+    @Test(mainClass = CallsRealloc.class, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceRealloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
@@ -63,7 +63,7 @@ public class NativememTests {
         Assert.isEqual(out.samples("Java_test_nativemem_Native_realloc"), REALLOC_SIZE);
     }
 
-    @Test(mainClass = CallsRealloc.class, os = Os.LINUX)
+    @Test(mainClass = CallsRealloc.class)
     public void canAsprofTraceRealloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
@@ -75,7 +75,7 @@ public class NativememTests {
         Assert.isEqual(samplesRealloc % REALLOC_SIZE, 0);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX)
+    @Test(mainClass = CallsAllNoLeak.class)
     public void canAsprofTraceAllNoLeak(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
 
@@ -146,17 +146,17 @@ public class NativememTests {
         return sizeCounts;
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
     public void jfrNoLeaks(TestProcess p) throws Exception {
         assertNoLeaks(p);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", inputs = "nofree", agentArgs = "start,nativemem,nofree,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, os = Os.LINUX, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,nativemem,nofree,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr")
     public void jfrNoFree(TestProcess p) throws Exception {
         assertNoLeaks(p);
     }
@@ -179,10 +179,10 @@ public class NativememTests {
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_DYN_SIZE, 0L), 1);
     }
 
-    @Test(os = Os.LINUX, sh = "%testbin/profile_with_dlopen dlopen_first %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "dlopen_first")
-    @Test(os = Os.LINUX, sh = "%testbin/profile_with_dlopen profile_first %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "profile_first")
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen dlopen_first %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "dlopen_first+LD_PRELOAD")
-    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen profile_first %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"}, nameSuffix = "profile_first+LD_PRELOAD")
+    @Test(sh = "%testbin/profile_with_dlopen dlopen_first %f.jfr", nameSuffix = "dlopen_first")
+    @Test(sh = "%testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first")
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen dlopen_first %f.jfr", nameSuffix = "dlopen_first+LD_PRELOAD")
+    @Test(os = Os.LINUX, sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first+LD_PRELOAD")
     public void dlopenCustomLib(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 
