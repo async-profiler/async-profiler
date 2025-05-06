@@ -65,9 +65,10 @@ jobs:
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
-          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -82,6 +83,13 @@ jobs:
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
           path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+      - name: Upload debug info
+        uses: actions/upload-artifact@v4
+        if: matrix.runson.display != 'macos'
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
+          path: ${{ steps.build.outputs.debug_archive }}
           if-no-files-found: error
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
