@@ -86,8 +86,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=2m,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr")
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=2m,file=%f.jfr")
     public void allModeRecordingLinuxWithoutEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         Set<String> events = new HashSet<>();
@@ -108,13 +108,13 @@ public class JfrTests {
         assert events.contains("profiler.Free"); // nativemem profiling
     }
 
-     /**
+    /**
      * Test to validate profiling output with "--all" flag for Linux with event override
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=cache-misses,alloc=2m,file=%f.jfr", os = Os.LINUX, output = true)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=2m,file=%f.jfr")
     public void allModeRecordingLinuxWithEventOverride(TestProcess p) throws Exception {
         try {
             p.waitForExit();
@@ -124,10 +124,12 @@ public class JfrTests {
                     RecordedEvent event = recordingFile.readEvent();
                     String eventName = event.getEventType().getName();
                     events.add(eventName);
+                    if (eventName.equals("jdk.ExecutionSample")) {
+                        // This means that only instrumented method was profiled and overall CPU profiling was skipped
+                        assert event.getStackTrace().toString().contains("java.util.Properties.getProperty");
+                    }
                 }
             }
-
-            assert !events.contains("jdk.ExecutionSample"); // no cpu profiling
             assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
             assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
             assert events.contains("profiler.WallClockSample"); // wall clock profiling
@@ -139,34 +141,6 @@ public class JfrTests {
                 throw e;
             }
         }
-    }
-
-    /**
-     * Test to validate profiling output with "--all" flag for MacOS arm64
-     * Note: This can be enabled for x64 macOS after: https://github.com/async-profiler/async-profiler/issues/1193
-     *
-     * @param p The test process to profile with.
-     * @throws Exception Any exception thrown during profiling JFR output parsing.
-     */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    public void allModeRecordingMacOs(TestProcess p) throws Exception {
-        p.waitForExit();
-        Set<String> events = new HashSet<>();
-        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
-            while (recordingFile.hasMoreEvents()) {
-                RecordedEvent event = recordingFile.readEvent();
-                String eventName = event.getEventType().getName();
-                events.add(eventName);
-            }
-        }
-
-        assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
-        assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
-        assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
-        assert events.contains("profiler.Malloc"); // nativemem profiling
-        assert events.contains("profiler.Free"); // nativemem profiling
     }
 
     /**
