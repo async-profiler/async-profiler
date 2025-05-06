@@ -116,31 +116,25 @@ public class JfrTests {
      */
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=2m,file=%f.jfr", os = Os.LINUX)
     public void allModeRecordingLinuxWithEventOverride(TestProcess p) throws Exception {
-        try {
-            p.waitForExit();
-            Set<String> events = new HashSet<>();
-            try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
-                while (recordingFile.hasMoreEvents()) {
-                    RecordedEvent event = recordingFile.readEvent();
-                    String eventName = event.getEventType().getName();
-                    events.add(eventName);
-                    if (eventName.equals("jdk.ExecutionSample")) {
-                        // This means that only instrumented method was profiled and overall CPU profiling was skipped
-                        assert event.getStackTrace().toString().contains("java.util.Properties.getProperty");
-                    }
+        p.waitForExit();
+        Set<String> events = new HashSet<>();
+        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
+            while (recordingFile.hasMoreEvents()) {
+                RecordedEvent event = recordingFile.readEvent();
+                String eventName = event.getEventType().getName();
+                events.add(eventName);
+                if (eventName.equals("jdk.ExecutionSample")) {
+                    // This means that only instrumented method was profiled and overall CPU profiling was skipped
+                    assert event.getStackTrace().toString().contains("java.util.Properties.getProperty");
                 }
             }
-            assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
-            assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
-            assert events.contains("profiler.WallClockSample"); // wall clock profiling
-            assert events.contains("profiler.LiveObject"); // profiling of live objects
-            assert events.contains("profiler.Malloc"); // nativemem profiling
-            assert events.contains("profiler.Free"); // nativemem profiling
-        } catch (Exception e) {
-            if (!p.readFile(TestProcess.STDOUT).contains("Perf events unavailable")) {
-                throw e;
-            }
         }
+        assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
+        assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
+        assert events.contains("profiler.WallClockSample"); // wall clock profiling
+        assert events.contains("profiler.LiveObject"); // profiling of live objects
+        assert events.contains("profiler.Malloc"); // nativemem profiling
+        assert events.contains("profiler.Free"); // nativemem profiling
     }
 
     /**
