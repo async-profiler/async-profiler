@@ -11,6 +11,7 @@
 #include <mach/mach_host.h>
 #include <mach/mach_time.h>
 #include <mach/processor_info.h>
+#include <mach/vm_map.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -359,6 +360,12 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
 
 void OS::freePageCache(int fd, off_t start_offset) {
     // Not supported on macOS
+}
+
+int OS::protect(uintptr_t start_address, uintptr_t size, int access) {
+    // If write permission append VM_PROT_COPY to access request
+    access = access | (access & PROT_WRITE ? VM_PROT_COPY : VM_PROT_NONE);
+    return vm_protect(mach_task_self(), start_address, size, 0, access);
 }
 
 #endif // __APPLE__

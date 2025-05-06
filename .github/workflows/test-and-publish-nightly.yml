@@ -107,7 +107,7 @@ jobs:
             name: ubuntu-latest
         java-version: [11, 17, 21, 24]
         java-distribution: [corretto]
-        image: [public.ecr.aws/async-profiler/asprof-builder-x86:latest]
+        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
           - runson:
               display: macos-arm64
