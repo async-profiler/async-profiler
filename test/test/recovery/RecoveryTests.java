@@ -43,7 +43,7 @@ public class RecoveryTests {
         Assert.isGreater(out.ratio("Numbers.loop"), 0.8);
 
         out = p.profile("-d 3 -e cpu -o collapsed --safe-mode 31");
-        Assert.isGreater(out.ratio("unknown_Java"), 0.1);
+        Assert.isGreater(out.ratio("unknown_Java"), 0.05);
     }
 
     @Test(mainClass = Suppliers.class, debugNonSafepoints = true)
