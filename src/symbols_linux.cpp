@@ -818,12 +818,19 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Also, dlopen() ensures the library is fully loaded.
             // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
             void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
+            bool original_handle = false;
+            struct link_map* map;
+
+            // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
+            if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
+                original_handle = lib.image_base == (const char*)map->l_addr;
+            }
 
             // Parse main executable and the loader (ld.so) regardless of dlopen result, since they cannot be unloaded.
             bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
             bool is_loader = ld_base == lib.image_base;
 
-            if (handle != NULL || is_main_exe || is_loader) {
+            if (original_handle || is_main_exe || is_loader) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
 
