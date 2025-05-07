@@ -98,6 +98,10 @@ static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const int OS::prot_read = PROT_READ;
+const int OS::prot_write = PROT_WRITE;
+const int OS::prot_copy = PROT_NONE;
+const int OS::prot_exec = PROT_EXEC;
 
 
 u64 OS::nanotime() {
@@ -381,6 +385,10 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
 
 void OS::freePageCache(int fd, off_t start_offset) {
     posix_fadvise(fd, start_offset & ~page_mask, 0, POSIX_FADV_DONTNEED);
+}
+
+int OS::protect(uintptr_t start_address, uintptr_t size, int access) {
+    return mprotect((void*)start_address, size, access);
 }
 
 #endif // __linux__

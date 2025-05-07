@@ -11,6 +11,9 @@
 #include <mach/mach_host.h>
 #include <mach/mach_time.h>
 #include <mach/processor_info.h>
+#include <mach/mach_init.h>
+#include <mach/vm_map.h>
+#include <mach-o/dyld.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
@@ -96,6 +99,10 @@ static SigAction installed_sigaction[32];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const int OS::prot_read = VM_PROT_READ;
+const int OS::prot_write = VM_PROT_WRITE;
+const int OS::prot_copy = VM_PROT_COPY;
+const int OS::prot_exec = VM_PROT_EXECUTE;
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -359,6 +366,10 @@ void OS::copyFile(int src_fd, int dst_fd, off_t offset, size_t size) {
 
 void OS::freePageCache(int fd, off_t start_offset) {
     // Not supported on macOS
+}
+
+int OS::protect(uintptr_t start_address, uintptr_t size, int access) {
+    return vm_protect(mach_task_self(), start_address, size, 0, access);
 }
 
 #endif // __APPLE__
