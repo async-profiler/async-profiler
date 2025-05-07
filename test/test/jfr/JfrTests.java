@@ -66,6 +66,7 @@ public class JfrTests {
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         p.waitForExit();
+        assert p.exitCode() == 0;
         Map<String, Integer> eventsCount = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
@@ -94,6 +95,7 @@ public class JfrTests {
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
+        assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
@@ -125,6 +127,7 @@ public class JfrTests {
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
+        assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
