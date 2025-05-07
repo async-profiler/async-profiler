@@ -31,7 +31,7 @@ class UnloadProtection {
     bool _valid;
 
   public:
-    UnloadProtection(CodeCache *cc);
+    UnloadProtection(const CodeCache *cc);
     ~UnloadProtection();
 
     UnloadProtection& operator=(const UnloadProtection& other) = delete;

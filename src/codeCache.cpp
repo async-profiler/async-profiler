@@ -35,12 +35,6 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
 
     // Strip " (deleted)" suffix so that removed library can be reopened
     size_t len = strlen(name);
-    if (len > 10 && strcmp(name + len - 10, " (deleted)") == 0) {
-        _clean_name = strdup(name);
-        _clean_name[len - 10] = 0;
-    } else {
-        _clean_name = _name;
-    }
 
     _lib_index = lib_index;
     _min_address = min_address;
@@ -64,9 +58,6 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
 }
 
 CodeCache::~CodeCache() {
-    if (_clean_name != _name) {
-        free(_clean_name);
-    }
     for (int i = 0; i < _count; i++) {
         NativeFunc::destroy(_blobs[i]._name);
     }

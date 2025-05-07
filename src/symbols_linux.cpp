@@ -776,6 +776,14 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
+// Strip " (deleted)" suffix so that removed library can be reopened
+void stripDeletedSuffix(char* name) {
+    size_t len = strlen(name);
+    if (len > 10 && strcmp(name + len - 10, " (deleted)") == 0) {
+        name[len - 10] = 0;
+    }
+}
+
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
@@ -804,18 +812,19 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         SharedLibrary& lib = it.second;
         CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
+        stripDeletedSuffix(lib.file);
 
-        if (strchr(cc->cleanName(), ':') != NULL) {
+        if (strchr(lib.file, ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
-        } else if (strcmp(cc->cleanName(), "[vdso]") == 0) {
+        } else if (strcmp(lib.file, "[vdso]") == 0) {
             ElfParser::parseProgramHeaders(cc, lib.map_start, lib.map_end, true);
         } else if (lib.image_base == NULL) {
             // Unlikely case when image base has not been found: not safe to access program headers.
             // Be careful: executable file is not always ELF, e.g. classes.jsa
-            ElfParser::parseFile(cc, lib.map_start, cc->cleanName(), true);
+            ElfParser::parseFile(cc, lib.map_start, lib.file, true);
         } else {
             // Parse debug symbols first
-            ElfParser::parseFile(cc, lib.image_base, cc->cleanName(), true);
+            ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
             UnloadProtection handle(cc);
             if (handle.isValid()) {
@@ -845,7 +854,7 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
     return false;
 }
 
-UnloadProtection::UnloadProtection(CodeCache *cc) {
+UnloadProtection::UnloadProtection(const CodeCache *cc) {
     _lib_handle = NULL;
     _valid = false;
 
@@ -854,10 +863,15 @@ UnloadProtection::UnloadProtection(CodeCache *cc) {
         return;
     }
 
+    char* nameCopy = strdup(cc->name());
+    stripDeletedSuffix(nameCopy);
+
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
-    _lib_handle = dlopen(cc->cleanName(), RTLD_LAZY | RTLD_NOLOAD);
+    _lib_handle = dlopen(nameCopy, RTLD_LAZY | RTLD_NOLOAD);
     _valid = isValidHandle(cc, _lib_handle);
+
+    free(nameCopy);
 }
 
 UnloadProtection::~UnloadProtection() {
