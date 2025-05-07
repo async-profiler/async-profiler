@@ -74,16 +74,8 @@ static const void* getMainPhdr() {
     return main_phdr;
 }
 
-static const char* getLdBase() {
-    const char* ld_base = (const char*)getauxval(AT_BASE);
-    if (!ld_base) {
-        Log::warn("Cannot determine base address of the loader");
-    }
-    return ld_base;
-}
-
 static const void* _main_phdr = getMainPhdr();
-static const char* _ld_base = getLdBase();
+static const char* _ld_base = (const char*)getauxval(AT_BASE);
 
 static bool isMainExecutable(const char* image_base, const void* map_end) {
     return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
