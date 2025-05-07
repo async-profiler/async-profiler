@@ -127,20 +127,24 @@ void MallocTracer::patchLibraries() {
         }
 
         UnloadProtection handle(cc);
-        handle.patchImport(im_malloc, (void*)malloc_hook);
-        handle.patchImport(im_realloc, (void*)realloc_hook);
-        handle.patchImport(im_free, (void*)free_hook);
-        handle.patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
+        if (!handle.isValid()) {
+            continue;
+        }
+
+        cc->patchImport(im_malloc, (void*)malloc_hook);
+        cc->patchImport(im_realloc, (void*)realloc_hook);
+        cc->patchImport(im_free, (void*)free_hook);
+        cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
 
         if (OS::isMusl()) {
             // On musl, calloc() calls malloc() internally, and posix_memalign() calls aligned_alloc().
             // Use dummy hooks to prevent double-accounting. Dummy frames from AP are introduced
             // to preserve the frame link to the original caller (see #1226).
-            handle.patchImport(im_calloc, (void*)calloc_hook_dummy);
-            handle.patchImport(im_posix_memalign, (void*)posix_memalign_hook_dummy);
+            cc->patchImport(im_calloc, (void*)calloc_hook_dummy);
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook_dummy);
         } else {
-            handle.patchImport(im_calloc, (void*)calloc_hook);
-            handle.patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+            cc->patchImport(im_calloc, (void*)calloc_hook);
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
         }
     }
 }

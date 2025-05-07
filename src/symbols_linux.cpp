@@ -53,8 +53,10 @@ static void applyPatch(CodeCache* cc) {
         size_t len = strlen(cc->name());
         if (len >= 10 && strcmp(cc->name() + len - 10, "/libnet.so") == 0) {
             UnloadProtection handle(cc);
-            handle.patchImport(im_poll, (void*)poll_hook);
-            patch_libnet = false;
+            if (handle.isValid()) {
+                cc->patchImport(im_poll, (void*)poll_hook);
+                patch_libnet = false;
+            }
         }
     }
 }

@@ -253,6 +253,20 @@ void** CodeCache::findImport(ImportId id) {
     return _imports[id][PRIMARY];
 }
 
+void CodeCache::patchImport(ImportId id, void* hook_func) {
+    if (!_imports_patchable) {
+        makeImportsPatchable();
+        _imports_patchable = true;
+    }
+
+    for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
+        void** entry = _imports[id][ty];
+        if (entry != NULL) {
+            *entry = hook_func;
+        }
+    }
+}
+
 void CodeCache::makeImportsPatchable() {
     void** min_import = (void**)-1;
     void** max_import = NULL;
