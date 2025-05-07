@@ -65,6 +65,10 @@ class OS {
   public:
     static const size_t page_size;
     static const size_t page_mask;
+    static const int prot_read;
+    static const int prot_write;
+    static const int prot_exec;
+    static const int prot_copy;
 
     static u64 nanotime();
     static u64 micros();
@@ -103,6 +107,7 @@ class OS {
     static int createMemoryFile(const char* name);
     static void copyFile(int src_fd, int dst_fd, off_t offset, size_t size);
     static void freePageCache(int fd, off_t start_offset);
+    static int protect(uintptr_t start_address, uintptr_t size, int access);
 };
 
 #endif // _OS_H

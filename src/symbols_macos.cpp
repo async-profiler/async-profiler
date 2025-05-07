@@ -15,10 +15,6 @@
 #include "log.h"
 #include <vector>
 
-#ifndef SEG_DATA_CONST
-#define SEG_DATA_CONST  "__DATA_CONST"
-#endif
-
 class MachOParser {
   private:
     CodeCache* _cc;
@@ -63,16 +59,16 @@ class MachOParser {
         const uint32_t* dynamic_symbol_indices = dynamic_symbols + symbol_section->reserved1;
         void** dynamic_symbol_references = (void**)((uintptr_t)text_base + symbol_section->addr);
 
-        for (uint64_t i = 0; i < symbol_section->size / sizeof(void *); i++) {
+        for (uint64_t i = 0; i < symbol_section->size / sizeof(void*); i++) {
             const uint32_t dynamic_symbol_index = dynamic_symbol_indices[i];
             if (dynamic_symbol_index == INDIRECT_SYMBOL_ABS || dynamic_symbol_index == INDIRECT_SYMBOL_LOCAL 
-                    || dynamic_symbol_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)){
+                    || dynamic_symbol_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) {
                 continue;
             }
             const char* symbol_name = string_table + symbols[dynamic_symbol_index].n_un.n_strx;
             if (symbol_name[0] == '_' && symbol_name[1] != '\0') {
                 // first character in symbol name is always '_' so it's skipped
-                _cc->addImport(&dynamic_symbol_references[i], symbol_name+1);
+                _cc->addImport(&dynamic_symbol_references[i], symbol_name + 1);
             }
         }
     }
@@ -105,7 +101,7 @@ class MachOParser {
                     _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
                 } else if (strcmp(sc->segname, SEG_LINKEDIT) == 0) {
                     link_base = text_base + sc->vmaddr - sc->fileoff;
-                } else if (strcmp(sc->segname, SEG_DATA_CONST) == 0 || strcmp(sc->segname, SEG_DATA) == 0) {
+                } else if (strcmp(sc->segname, "__DATA_CONST") == 0 || strcmp(sc->segname, SEG_DATA) == 0) {
                     findSymbolPtrSection(sc, symbol_sections);
                 }
             } else if (lc->cmd == LC_SYMTAB) {
