@@ -81,15 +81,20 @@ public class JfrTests {
     }
 
     /**
-     * Test to validate profiling output with "--all" flag for Linux without event override
+     * Test to validate profiling output with "--all" flag without event override.
+     * We can't run this test in MacOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
+     * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
     @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=2m,file=%f.jfr", os = Os.LINUX)
-    public void allModeRecordingLinuxWithoutEventOverride(TestProcess p) throws Exception {
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
+        assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
@@ -98,8 +103,9 @@ public class JfrTests {
                 events.add(eventName);
             }
         }
-
-        assert events.contains("jdk.ExecutionSample"); // cpu profiling
+        if (p.currentOs() == Os.LINUX) { // MacOS uses Wall Clock profiling engine
+            assert events.contains("jdk.ExecutionSample"); // cpu profiling
+        }
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
@@ -109,14 +115,18 @@ public class JfrTests {
     }
 
     /**
-     * Test to validate profiling output with "--all" flag for Linux with event override
+     * Test to validate profiling output with "--all" flag with event override
+     * We can't run this test in MacOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
+     * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=2m,file=%f.jfr", os = Os.LINUX)
-    public void allModeRecordingLinuxWithEventOverride(TestProcess p) throws Exception {
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
+        assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
@@ -129,34 +139,6 @@ public class JfrTests {
                 }
             }
         }
-        assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
-        assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
-        assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
-        assert events.contains("profiler.Malloc"); // nativemem profiling
-        assert events.contains("profiler.Free"); // nativemem profiling
-    }
-
-    /**
-     * Test to validate profiling output with "--all" flag for MacOS arm64
-     * Note: This can be enabled for x64 macOS after: https://github.com/async-profiler/async-profiler/issues/1193
-     *
-     * @param p The test process to profile with.
-     * @throws Exception Any exception thrown during profiling JFR output parsing.
-     */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    public void allModeRecordingMacOs(TestProcess p) throws Exception {
-        p.waitForExit();
-        Set<String> events = new HashSet<>();
-        try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
-            while (recordingFile.hasMoreEvents()) {
-                RecordedEvent event = recordingFile.readEvent();
-                String eventName = event.getEventType().getName();
-                events.add(eventName);
-            }
-        }
-
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling

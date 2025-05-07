@@ -276,7 +276,7 @@ Error Arguments::parse(const char* args) {
                     _lock = DEFAULT_LOCK_INTERVAL;
                 }
                 if (_nativemem < 0) {
-                    _nativemem = 0;
+                    _nativemem = DEFAULT_ALLOC_INTERVAL;
                 }
                 if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;

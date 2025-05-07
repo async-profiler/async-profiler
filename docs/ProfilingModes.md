@@ -221,11 +221,17 @@ The same, when starting profiler as an agent:
 -agentpath:/path/to/libasyncProfiler.so=start,event=cpu,alloc=2m,lock=10ms,file=profile.jfr
 ```
 
-### All possible modes
+### Multi-Event Profiling with the --all Flag
 
-Instead of passing each execution event type in the startup command, it is possible to pass a single parameter called `--all` which profiles `cpu`,`wall`, `alloc`, `live`, `lock` and `nativemem` simultaneously.
+The `--all` parameter offers a convenient way to simultaneously enable a broad, predefined collection of common profiling events. By default, using `--all` activates profiling for `cpu`, `wall`, `alloc`, `live`, `lock` and `nativemem`.
 
-Sample command:
+**Important Consideration**
+
+While the `--all` flag can be useful for initial exploratory analysis or development environments to get a wide overview, it may not be desirable to enable this in production (especially for continuous profiling). Users should ideally select carefully what to profile and with what settings.
+
+**Sample command:**
+
+This command enables the default set of events included in `--all`:
 
 ```
 asprof --all -f profile.jfr

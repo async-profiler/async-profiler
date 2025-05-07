@@ -92,8 +92,6 @@ static const char USAGE_STRING[] =
     "  --target-cpu cpu  sample threads on a specific CPU (perf_events only, default: -1)\n"
     "                    from the non-privileged target\n"
     "  --all             shorthand for enabling cpu, wall, alloc (includes live objects), nativemem and lock profiling simultaneously.\n"
-    "                    This can be combined with --alloc 2m --lock 10ms etc. to also pass custom interval/threshold.\n"
-    "                    It is also possible to combine it with -e flag to change the type of event being collected. Default is cpu.\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -103,7 +101,7 @@ static const char USAGE_STRING[] =
     "         " APP_BINARY " start -i 1ms jps\n"
     "         " APP_BINARY " stop -o flat jps\n"
     "         " APP_BINARY " -d 5 -e alloc MyAppName\n"
-    "         " APP_BINARY " --all -f profile.jfr\n";
+    "         " APP_BINARY " --all -f profile.jfr MyAppName\n";
 
 
 extern "C" int jattach(int pid, int argc, const char** argv, int print_output);
