@@ -223,11 +223,11 @@ The same, when starting profiler as an agent:
 
 ### Multi-Event Profiling with the --all Flag
 
-The `--all` parameter offers a convenient way to simultaneously enable a broad, predefined collection of common profiling events. By default, using `--all` activates profiling for `cpu`, `wall`, `alloc`, `live`, `lock` and `nativemem`.
+The `--all` parameter offers a way to simultaneously enable predefined collection of common profiling events. By default, using `--all` activates profiling for `cpu`, `wall`, `alloc`, `live`, `lock` and `nativemem`.
 
 **Important Consideration**
 
-While the `--all` flag can be useful for initial exploratory analysis or development environments to get a wide overview, it may not be desirable to enable this in production (especially for continuous profiling). Users should ideally select carefully what to profile and with what settings.
+While the `--all` flag can be useful for development environments to get a wide overview, it is not recommended to enable this in production (especially for continuous profiling). Users should select carefully what to profile and with what settings.
 
 **Sample command:**
 

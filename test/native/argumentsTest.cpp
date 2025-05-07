@@ -16,12 +16,11 @@ TEST_CASE(Parse_all_mode_no_override) {
     ASSERT_EQ(args._nativemem, DEFAULT_ALLOC_INTERVAL);
     ASSERT_EQ(args._lock, DEFAULT_LOCK_INTERVAL);
     ASSERT_EQ(args._live, true);
-    #ifdef __linux__
-    ASSERT_EQ(args._event, EVENT_CPU);
-    #endif
+    const char* expected_event = EVENT_CPU;
     #ifdef __APPLE__
-    ASSERT_EQ(args._event, NULL);
+    expected_event = NULL;
     #endif
+    ASSERT_EQ(args._event, expected_event);
 }
 
 TEST_CASE(Parse_all_mode_event_override) {
