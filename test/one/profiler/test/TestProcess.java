@@ -290,19 +290,22 @@ public class TestProcess implements Closeable {
         return p.exitValue();
     }
 
-    public void waitForExit() throws TimeoutException, InterruptedException {
+    public void waitForExit() throws TimeoutException, InterruptedException, IllegalStateException {
         waitForExit(p, timeout);
     }
 
-    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException {
+    public Output waitForExit(String fileId) throws TimeoutException, InterruptedException, IllegalStateException {
         waitForExit(p, timeout);
         return readFile(fileId);
     }
 
-    private void waitForExit(Process p, int seconds) throws TimeoutException, InterruptedException {
+    private void waitForExit(Process p, int seconds) throws TimeoutException, InterruptedException, IllegalStateException {
         if (!p.waitFor(seconds, TimeUnit.SECONDS)) {
             p.destroyForcibly();
             throw new TimeoutException("Child process has not exited");
+        }
+        if (exitCode() != 0) {
+            throw new IllegalStateException("Test process exited with non-zero exit code: " + exitCode());
         }
     }
 
