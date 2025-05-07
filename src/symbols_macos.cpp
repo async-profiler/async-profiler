@@ -15,7 +15,6 @@
 #include "log.h"
 
 UnloadProtection::UnloadProtection(CodeCache *cc) {
-    _protected_cc = cc;
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
     _lib_handle = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);

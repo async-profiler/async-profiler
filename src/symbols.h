@@ -27,7 +27,6 @@ class Symbols {
 
 class UnloadProtection {
   private:
-    CodeCache* _protected_cc;
     void* _lib_handle;
     bool _valid;
 

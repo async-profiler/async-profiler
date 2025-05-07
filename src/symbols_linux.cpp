@@ -846,7 +846,6 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
 }
 
 UnloadProtection::UnloadProtection(CodeCache *cc) {
-    _protected_cc = cc;
     _lib_handle = NULL;
     _valid = false;
 
