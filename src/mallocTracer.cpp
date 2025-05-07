@@ -13,41 +13,14 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#define ADDRESS_OF(sym) ({               \
-    void* addr = dlsym(RTLD_NEXT, #sym); \
-    addr != NULL ? (sym##_t)addr : sym;  \
-})
-
-typedef void* (*malloc_t)(size_t);
-static malloc_t _orig_malloc = NULL;
-
-typedef void* (*calloc_t)(size_t, size_t);
-static calloc_t _orig_calloc = NULL;
-
-typedef void* (*realloc_t)(void*, size_t);
-static realloc_t _orig_realloc = NULL;
-
-typedef void (*free_t)(void*);
-static free_t _orig_free = NULL;
-
-typedef int (*posix_memalign_t)(void**, size_t, size_t);
-static posix_memalign_t _orig_posix_memalign = NULL;
-
-typedef void* (*aligned_alloc_t)(size_t, size_t);
-static aligned_alloc_t _orig_aligned_alloc = NULL;
-
-__attribute__((constructor)) static void getOrigAddresses() {
-    // Store these addresses, regardless of MallocTracer being enabled or not.
-    _orig_malloc = ADDRESS_OF(malloc);
-    _orig_calloc = ADDRESS_OF(calloc);
-    _orig_realloc = ADDRESS_OF(realloc);
-    _orig_free = ADDRESS_OF(free);
-    _orig_posix_memalign = ADDRESS_OF(posix_memalign);
-    _orig_aligned_alloc = ADDRESS_OF(aligned_alloc);
-}
+#ifdef __clang__
+#  define NO_OPTIMIZE __attribute__((optnone))
+#else
+#  define NO_OPTIMIZE __attribute__((optimize("O1")))
+#endif
 
 extern "C" void* malloc_hook(size_t size) {
-    void* ret = _orig_malloc(size);
+    void* ret = malloc(size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -55,15 +28,21 @@ extern "C" void* malloc_hook(size_t size) {
 }
 
 extern "C" void* calloc_hook(size_t num, size_t size) {
-    void* ret = _orig_calloc(num, size);
+    void* ret = calloc(num, size);
     if (MallocTracer::running() && ret && num && size) {
         MallocTracer::recordMalloc(ret, num * size);
     }
     return ret;
 }
 
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
+extern "C" NO_OPTIMIZE
+void* calloc_hook_dummy(size_t num, size_t size) {
+    return calloc(num, size);
+}
+
 extern "C" void* realloc_hook(void* addr, size_t size) {
-    void* ret = _orig_realloc(addr, size);
+    void* ret = realloc(addr, size);
     if (MallocTracer::running() && ret) {
         if (addr && !MallocTracer::nofree()) {
             MallocTracer::recordFree(addr);
@@ -76,22 +55,28 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 }
 
 extern "C" void free_hook(void* addr) {
-    _orig_free(addr);
+    free(addr);
     if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
 
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    int ret = _orig_posix_memalign(memptr, alignment, size);
+    int ret = posix_memalign(memptr, alignment, size);
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
     }
     return ret;
 }
 
+// Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
+extern "C" NO_OPTIMIZE
+int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
+    return posix_memalign(memptr, alignment, size);
+}
+
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    void* ret = _orig_aligned_alloc(alignment, size);
+    void* ret = aligned_alloc(alignment, size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -136,19 +121,26 @@ void MallocTracer::patchLibraries() {
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
 
-        cc->patchImport(im_malloc, (void*)malloc_hook);
-        cc->patchImport(im_calloc, (void*)calloc_hook);
-        cc->patchImport(im_realloc, (void*)realloc_hook);
-        cc->patchImport(im_free, (void*)free_hook);
-
-        if (!OS::isMusl()) {
-            // In musl, posix_memalign internally calls aligned_alloc. Hooking posix_memalign would
-            // therefore lead to double-accounting of allocations. To prevent this, we simply avoid
-            // hooking posix_memalign in musl.
-            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        if (cc->contains((const void*)MallocTracer::initialize)) {
+            // Let libasyncProfiler always use original allocation methods
+            continue;
         }
 
+        cc->patchImport(im_malloc, (void*)malloc_hook);
+        cc->patchImport(im_realloc, (void*)realloc_hook);
+        cc->patchImport(im_free, (void*)free_hook);
         cc->patchImport(im_aligned_alloc, (void*)aligned_alloc_hook);
+
+        if (OS::isMusl()) {
+            // On musl, calloc() calls malloc() internally, and posix_memalign() calls aligned_alloc().
+            // Use dummy hooks to prevent double-accounting. Dummy frames from AP are introduced
+            // to preserve the frame link to the original caller (see #1226).
+            cc->patchImport(im_calloc, (void*)calloc_hook_dummy);
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook_dummy);
+        } else {
+            cc->patchImport(im_calloc, (void*)calloc_hook);
+            cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
+        }
     }
 }
 

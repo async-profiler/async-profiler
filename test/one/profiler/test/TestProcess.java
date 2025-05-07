@@ -32,6 +32,9 @@ public class TestProcess implements Closeable {
     public static final String PROFERR = "%perr";
     public static final String LIBPROF = "%lib";
     public static final String TESTBIN = "%testbin";
+    public static final String TESTLIB = "%testlib";
+
+    private static final String JAVA_HOME = System.getProperty("java.home");
 
     private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
 
@@ -86,6 +89,7 @@ public class TestProcess implements Closeable {
                 pb.environment().put(keyValue[0], substituteFiles(keyValue[1]));
             }
         }
+        pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
 
         this.p = pb.start();
 
@@ -113,6 +117,10 @@ public class TestProcess implements Closeable {
 
     public String testBinPath() {
         return "build/test/bin";
+    }
+
+    public String testLibPath() {
+        return "build/test/lib";
     }
 
     private List<String> buildCommandLine(Test test) {
@@ -191,6 +199,9 @@ public class TestProcess implements Closeable {
         }
         if (fileId.equals(TESTBIN)) {
             return testBinPath();
+        }
+        if (fileId.equals(TESTLIB)) {
+            return testLibPath();
         }
         return createTempFile(fileId, ext).getPath();
     }

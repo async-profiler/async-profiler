@@ -48,6 +48,8 @@ int VMStructs::_frame_size_offset = -1;
 int VMStructs::_frame_complete_offset = -1;
 int VMStructs::_code_offset = -1;
 int VMStructs::_data_offset = -1;
+int VMStructs::_mutable_data_offset = -1;
+int VMStructs::_relocation_size_offset = -1;
 int VMStructs::_scopes_pcs_offset = -1;
 int VMStructs::_scopes_data_offset = -1;
 int VMStructs::_nmethod_name_offset = -1;
@@ -301,6 +303,10 @@ void VMStructs::initOffsets() {
                     _code_offset = - *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_data_offset") == 0) {
                     _data_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_mutable_data") == 0) {
+                    _mutable_data_offset = *(int*)(entry + offset_offset);
+                } else if (strcmp(field, "_relocation_size") == 0) {
+                    _relocation_size_offset = *(int*)(entry + offset_offset);
                 } else if (strcmp(field, "_name") == 0) {
                     _nmethod_name_offset = *(int*)(entry + offset_offset);
                 }
@@ -508,7 +514,7 @@ void VMStructs::resolveOffsets() {
             && _data_offset >= 0
             && _scopes_data_offset != -1
             && _scopes_pcs_offset >= 0
-            && _nmethod_metadata_offset >= 0
+            && ((_mutable_data_offset >= 0 && _relocation_size_offset >= 0) || _nmethod_metadata_offset >= 0)
             && _thread_vframe_offset >= 0
             && _thread_exception_offset >= 0
             && _constmethod_size >= 0;

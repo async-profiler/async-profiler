@@ -25,7 +25,9 @@ public class RunnableTest {
     }
 
     public String testName() {
-        return className() + '.' + m.getName();
+        return test.nameSuffix().isEmpty()
+            ? className() + '.' + m.getName()
+            : className() + '.' + m.getName() + '/' + test.nameSuffix();
     }
 
     public String className() {
@@ -34,7 +36,8 @@ public class RunnableTest {
 
     public String testInfo() {
         return testName() +
-                (!test().args().isEmpty() ? " args: " + test().args() : "") +
-                (test().inputs().length > 0 ? " inputs: [" + String.join(" ", test().inputs()) + "]" : "");
+                (!test().args().isEmpty() ? " (args: " + test().args() + ")": "") +
+                (!test().agentArgs().isEmpty() ? " (agentArgs: " + test().agentArgs() + ")": "") +
+                (test().inputs().length > 0 ? " (inputs: [" + String.join(" ", test().inputs()) + "])" : "");
     }
 }
