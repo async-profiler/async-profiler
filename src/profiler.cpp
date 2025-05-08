@@ -698,6 +698,11 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
+    if (_add_cpu_frame) {
+      // +1 is to prevent the method_id from being read as a null pointer
+      // when cpu = 0
+      num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu + 1);
+    }
 
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
@@ -1125,6 +1130,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
+        _add_cpu_frame = args._record_cpu;
+
         unlockAll();
 
         // Reset thread names and IDs
@@ -1522,6 +1529,10 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
                 if (_add_thread_frame) {
+                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
+                }
+                if (_add_cpu_frame) {
                     const char* frame_name = fn.name(trace->frames[--num_frames]);
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
