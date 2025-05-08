@@ -16,9 +16,12 @@ constexpr int MAX_STRING_LENGTH = 8191;
 class Buffer {
   private:
     std::size_t _offset;
-    char* _data;
+    char _data[0];
 
   protected:
+    Buffer() : _offset(0) {
+    }
+
     void set(char v, std::size_t idx) {
         _data[idx] = v;
     }
@@ -28,9 +31,6 @@ class Buffer {
     }
 
   public:
-    Buffer(char* data) : _offset(0), _data(data) {
-    }
-
     const char* data() const {
         return _data;
     }
