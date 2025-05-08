@@ -37,11 +37,9 @@
 #include "symbols.h"
 #include "tsc.h"
 #include "vmStructs.h"
-#include "opentelemetry/proto/profiles/v1development/profiles.pb.h"
 #include <map>
 // TODO: Check if we can use this
 #include "uuid/uuid.h"
-#include <google/protobuf/util/json_util.h>
 
 
 // The instance is not deleted on purpose, since profiler structures

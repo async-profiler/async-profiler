@@ -40,7 +40,7 @@ CXXFLAGS=-O3 -fno-exceptions -fno-omit-frame-pointer -fvisibility=hidden -std=c+
 CPPFLAGS=
 DEFS=-DPROFILER_VERSION=\"$(PROFILER_VERSION)\"
 INCLUDES=-I$(JAVA_HOME)/include -Isrc/helper
-LIBS=-ldl -lpthread -lprotobuf -luuid
+LIBS=-ldl -lpthread -luuid
 MERGE=true
 GCOV ?= gcov
 
