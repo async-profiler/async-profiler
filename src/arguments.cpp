@@ -110,6 +110,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
 //     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
 //                        and for default stacktraces from flamegraph to icicle
+//     record-cpu       - record which cpu a sample was taken on (default: false)
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -432,6 +433,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("inverted")
                 _inverted = true;
+
+            CASE("record-cpu")
+                _record_cpu = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
