@@ -891,7 +891,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
                 if (_record_cpu) {
                   u64 cpu = ring.next();
-                  java_ctx->cpu = cpu+1;
+                  java_ctx->cpu = cpu;
                 }
 
                 u64 nr = ring.next();
