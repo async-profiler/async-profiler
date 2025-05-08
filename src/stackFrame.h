@@ -74,6 +74,8 @@ class StackFrame {
 
     bool checkInterruptedSyscall();
 
+    void unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
+
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);
 };

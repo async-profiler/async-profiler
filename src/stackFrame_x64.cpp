@@ -18,6 +18,8 @@
 #  define REG(l, m)  _ucontext->uc_mcontext.gregs[REG_##l]
 #endif
 
+const u32 EPILOGUE = 0xec8b4855; // push %rbp, mov %rsp,%rbp
+
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)REG(RIP, rip);
@@ -84,7 +86,7 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
         return true;
-    } else if (entry != NULL && *(unsigned int*)entry == 0xec8b4855) {
+    } else if (entry != NULL && *(unsigned int*)entry == EPILOGUE) {
         // The stub begins with
         //   push rbp
         //   mov  rbp, rsp
@@ -221,8 +223,33 @@ bool StackFrame::checkInterruptedSyscall() {
 #endif
 }
 
+// Though the frame is not complete, but according to the analysis of the instructions, we can use fp to unwind.
+// see https://github.com/async-profiler/async-profiler/pull/1234
+void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    // If the current instruction (see 0x00007fffe4b4a27b) is to push sender sp onto stack,
+    // then using sender_sp_offset we get random value, this may leads to incomplete stacks (shown as rare [unknown]).
+    // The following instructions use R13 to save other values, so we can not always use it to read sender sp.
+    // The corrent way is to read sender sp from r13 at 0x00007fffe4b4a27b, and read sender sp using sender_sp_offset
+    // in the following instructions. This way needs to parse instruction streams, which is dengerous and not maintainable.
+    //
+    // ----------------------------------------------------------------------
+    // method entry point (kind = zerolocals)  [0x00007fffe4b4a220, 0x00007fffe4b4a3c8]  424 bytes
+    // --------------------------------------------------------------------------------
+    // ...
+    //  0x00007fffe4b4a276:   push   %rax
+    //  0x00007fffe4b4a277:   push   %rbp
+    //  0x00007fffe4b4a278:   mov    %rsp,%rbp
+    //  0x00007fffe4b4a27b:   push   %r13            <- push sender sp
+    //  0x00007fffe4b4a27d:   pushq  $0x0
+    //  0x00007fffe4b4a282:   mov    0x8(%rbx),%r13
+    //  0x00007fffe4b4a286:   lea    0x38(%r13),%r13
+    // ...
+    sp = ((uintptr_t*)fp)[InterpreterFrame::sender_sp_offset];
+    pc = ((uintptr_t*)fp)[FRAME_PC_SLOT];
+    fp = *(uintptr_t*)fp;
+}
+
 bool StackFrame::isSyscall(instruction_t* pc) {
     return pc[0] == 0x0f && pc[1] == 0x05;
 }
-
 #endif // __x86_64__
