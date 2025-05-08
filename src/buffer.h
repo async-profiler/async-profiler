@@ -11,7 +11,10 @@
 #include <cstring>
 #include <cstdint>
 
-constexpr int MAX_STRING_LENGTH = 8191;
+const std::size_t MAX_STRING_LENGTH = 8191;
+// https://github.com/openjdk/jmc/blob/master/core/org.openjdk.jmc.flightrecorder/src/main/java/org/openjdk/jmc/flightrecorder/internal/parser/v1/SeekableInputStream.java
+const char STRING_ENCODING_UTF8_BYTE_ARRAY = 3;
+const char STRING_ENCODING_LATIN1_BYTE_ARRAY = 5;
 
 class Buffer {
   private:
@@ -47,11 +50,6 @@ class Buffer {
 
     void reset() {
         _offset = 0;
-    }
-
-    void put(const char* v, std::size_t len) {
-        std::memcpy(_data + _offset, v, len);
-        _offset += (int)len;
     }
 
     void put8(char v) {
@@ -131,6 +129,11 @@ class Buffer {
         _data[_offset++] = (char)v;
     }
 
+    void put(const char* v, std::size_t len) {
+        std::memcpy(_data + _offset, v, len);
+        _offset += len;
+    }
+
     void putUtf8(const char* v) {
         if (v == NULL) {
             put8(0);
@@ -141,13 +144,13 @@ class Buffer {
     }
 
     void putUtf8(const char* v, std::size_t len) {
-        put8(3);
+        put8(STRING_ENCODING_UTF8_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
     }
 
     void putByteString(const char* v, std::size_t len) {
-        put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
+        put8(STRING_ENCODING_LATIN1_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
     }
