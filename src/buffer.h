@@ -18,6 +18,15 @@ class Buffer {
     std::size_t _offset;
     char* _data;
 
+  protected:
+    void set(char v, std::size_t idx) {
+        _data[idx] = v;
+    }
+
+    std::size_t advanceOffset(std::size_t incr) {
+        return _offset += incr;
+    }
+
   public:
     Buffer(char* data) : _offset(0), _data(data) {
     }
@@ -141,14 +150,6 @@ class Buffer {
         put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
         putVar32(len);
         put(v, len);
-    }
-
-    void set(char v, std::size_t idx) {
-        _data[idx] = v;
-    }
-
-    std::size_t advanceOffset(std::size_t incr) {
-        return _offset += incr;
     }
 };
 
