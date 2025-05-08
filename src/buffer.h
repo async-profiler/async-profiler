@@ -11,11 +11,6 @@
 #include <cstring>
 #include <cstdint>
 
-const std::size_t MAX_STRING_LENGTH = 8191;
-// https://github.com/openjdk/jmc/blob/master/core/org.openjdk.jmc.flightrecorder/src/main/java/org/openjdk/jmc/flightrecorder/internal/parser/v1/SeekableInputStream.java
-const char STRING_ENCODING_UTF8_BYTE_ARRAY = 3;
-const char STRING_ENCODING_LATIN1_BYTE_ARRAY = 5;
-
 class Buffer {
   private:
     std::size_t _offset;
@@ -132,27 +127,6 @@ class Buffer {
     void put(const char* v, std::size_t len) {
         std::memcpy(_data + _offset, v, len);
         _offset += len;
-    }
-
-    void putUtf8(const char* v) {
-        if (v == NULL) {
-            put8(0);
-        } else {
-            std::size_t len = strlen(v);
-            putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
-        }
-    }
-
-    void putUtf8(const char* v, std::size_t len) {
-        put8(STRING_ENCODING_UTF8_BYTE_ARRAY);
-        putVar32(len);
-        put(v, len);
-    }
-
-    void putByteString(const char* v, std::size_t len) {
-        put8(STRING_ENCODING_LATIN1_BYTE_ARRAY);
-        putVar32(len);
-        put(v, len);
     }
 };
 
