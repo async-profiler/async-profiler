@@ -3,17 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifndef _BUFFER_H
+#define _BUFFER_H
+
+#include <cstring>
 #include <cstdint>
 
 constexpr int MAX_STRING_LENGTH = 8191;
 
 class Buffer {
   private:
-    size_t _offset;
-    char _data[0];
+    std::size_t _offset;
+    char* _data;
 
   protected:
-    Buffer() : _offset(0) {
+    Buffer(char* data) : _offset(0), _data(data) {
     }
 
   public:
@@ -21,12 +25,12 @@ class Buffer {
         return _data;
     }
 
-    int offset() const {
+    std::size_t offset() const {
         return _offset;
     }
 
-    int skip(int delta) {
-        int offset = _offset;
+    int skip(std::size_t delta) {
+        std::size_t offset = _offset;
         _offset = offset + delta;
         return offset;
     }
@@ -36,7 +40,7 @@ class Buffer {
     }
 
     void put(const char* v, u32 len) {
-        memcpy(_data + _offset, v, len);
+        std::memcpy(_data + _offset, v, len);
         _offset += (int)len;
     }
 
@@ -99,7 +103,7 @@ class Buffer {
         if (v == NULL) {
             put8(0);
         } else {
-            size_t len = strlen(v);
+            std::size_t len = strlen(v);
             putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
         }
     }
@@ -116,11 +120,11 @@ class Buffer {
         put(v, len);
     }
 
-    void put8(int offset, char v) {
+    void put8(std::size_t offset, char v) {
         _data[offset] = v;
     }
 
-    void putVar32(int offset, u32 v) {
+    void putVar32(std::size_t offset, u32 v) {
         _data[offset] = v | 0x80;
         _data[offset + 1] = (v >> 7) | 0x80;
         _data[offset + 2] = (v >> 14) | 0x80;
@@ -128,3 +132,5 @@ class Buffer {
         _data[offset + 4] = (v >> 28);
     }
 };
+
+#endif // _BUFFER_H

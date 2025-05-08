@@ -297,7 +297,7 @@ class SmallBuffer : public Buffer {
     char _buf[SMALL_BUFFER_SIZE - sizeof(Buffer)];
 
   public:
-    SmallBuffer() : Buffer() {
+    SmallBuffer() : Buffer(_buf) {
     }
 };
 
@@ -306,7 +306,7 @@ class RecordingBuffer : public Buffer {
     char _buf[RECORDING_BUFFER_SIZE - sizeof(Buffer)];
 
   public:
-    RecordingBuffer() : Buffer() {
+    RecordingBuffer() : Buffer(_buf) {
     }
 };
 
