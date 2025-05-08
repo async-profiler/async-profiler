@@ -5,7 +5,6 @@
 
 #include <map>
 #include <string>
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>

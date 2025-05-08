@@ -6,6 +6,8 @@
 #ifndef _BUFFER_H
 #define _BUFFER_H
 
+#include "os.h"
+#include <arpa/inet.h>
 #include <cstring>
 #include <cstdint>
 
@@ -16,11 +18,10 @@ class Buffer {
     std::size_t _offset;
     char* _data;
 
-  protected:
+  public:
     Buffer(char* data) : _offset(0), _data(data) {
     }
 
-  public:
     const char* data() const {
         return _data;
     }
