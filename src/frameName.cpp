@@ -301,6 +301,12 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         case BCI_ERROR:
             return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
 
+        case BCI_CPU: {
+            int cpu = (int)(uintptr_t)frame.method_id;
+            char buf[sizeof(int)];
+            snprintf(buf, sizeof(buf), "%d", cpu);
+            return _str.assign("[cpu").append(buf).append("]").c_str();
+        }
         default: {
             const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
 
@@ -354,6 +360,7 @@ FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
         case BCI_THREAD_ID:
         case BCI_ADDRESS:
         case BCI_ERROR:
+        case BCI_CPU:
             return FRAME_NATIVE;
 
         default:
