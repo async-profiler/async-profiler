@@ -326,19 +326,19 @@ jmethodID Profiler::getCurrentCompileTask() {
     return NULL;
 }
 
-int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
+int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, int max_depth, EventType event_type, int tid, StackContext* java_ctx, bool* truncated) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
 
     // Use PerfEvents stack walker for execution samples, or basic stack walker for other events
     if (event_type == PERF_SAMPLE) {
-        native_frames = PerfEvents::walk(tid, ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = PerfEvents::walk(tid, ucontext, callchain, std::min(MAX_NATIVE_FRAMES, max_depth), java_ctx, truncated);
     } else if (_cstack >= CSTACK_VM) {
         return 0;
     } else if (_cstack == CSTACK_DWARF) {
-        native_frames = StackWalker::walkDwarf(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkDwarf(ucontext, callchain, std::min(MAX_NATIVE_FRAMES, max_depth), java_ctx, truncated);
     } else {
-        native_frames = StackWalker::walkFP(ucontext, callchain, MAX_NATIVE_FRAMES, java_ctx);
+        native_frames = StackWalker::walkFP(ucontext, callchain, std::min(MAX_NATIVE_FRAMES, max_depth), java_ctx, truncated);
     }
 
     return convertNativeTrace(native_frames, callchain, frames, event_type);
@@ -388,7 +388,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
     return depth;
 }
 
-int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx) {
+int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx, bool* truncated) {
     // Workaround for JDK-8132510: it's not safe to call GetEnv() inside a signal handler
     // since JDK 9, so we do it only for threads already registered in ThreadLocalStorage
     VMThread* vm_thread = VMThread::current();
@@ -415,6 +415,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             // call_stub is unsafe to walk
             frames->bci = BCI_ERROR;
             frames->method_id = (jmethodID)"call_stub";
+            *truncated = true;
             return 1;
         }
         if (DWARF_SUPPORTED && java_ctx->sp != 0) {
@@ -426,10 +427,14 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
 
     JitWriteProtection jit(false);
     ASGCT_CallTrace trace = {jni, 0, frames};
-    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+    VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
 
     if (trace.num_frames > 0) {
         frame.restore(saved_pc, saved_sp, saved_fp);
+        if (trace.num_frames > max_depth) {
+            trace.num_frames = max_depth;
+            *truncated = true;
+        }
         return trace.num_frames;
     }
 
@@ -469,7 +474,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     }
                     if (_features.unwind_comp && frame.unwindCompiled(nmethod)
                             && isAddressInCode((const void*)frame.pc())) {
-                        VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                        VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
                     }
                     if (_features.probe_sp && trace.num_frames < 0) {
                         if (method_id != NULL) {
@@ -477,7 +482,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                         }
                         for (int i = 0; trace.num_frames < 0 && i < PROBE_SP_LIMIT; i++) {
                             frame.sp() += sizeof(void*);
-                            VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                            VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
                         }
                     }
                 }
@@ -487,7 +492,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
                 if (_features.unwind_stub && frame.unwindStub(NULL, nmethod->name())
                         && isAddressInCode((const void*)frame.pc())) {
-                    VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                    VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
                 }
             }
         }
@@ -508,9 +513,9 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 if (!m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
                     m->setFrameCompleteOffset(0);
                 }
-                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
             } else if (findLibraryByAddress(pc) != NULL) {
-                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
             }
 
             anchor->setLastJavaPC(NULL);
@@ -525,7 +530,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
             NMethod* m = CodeHeap::findNMethod(pc);
             if (m != NULL && !m->isNMethod() && m->frameSize() > 0 && m->frameCompleteOffset() == -1) {
                 m->setFrameCompleteOffset(0);
-                VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
+                VM::_asyncGetCallTrace(&trace, max_depth + 1, ucontext);
             }
         }
     } else if (trace.num_frames == ticks_GC_active && _features.gc_traces) {
@@ -539,6 +544,10 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     frame.restore(saved_pc, saved_sp, saved_fp);
 
     if (trace.num_frames > 0) {
+        if (trace.num_frames > max_depth) {
+            trace.num_frames = max_depth;
+            *truncated = true;
+        }
         return trace.num_frames + (trace.frames - frames);
     }
 
@@ -551,12 +560,13 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
     atomicInc(_failures[-trace.num_frames]);
     trace.frames->bci = BCI_ERROR;
     trace.frames->method_id = (jmethodID)err_string;
+    *truncated = true;
     return trace.frames - frames + 1;
 }
 
-int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth) {
+int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth, bool* truncated) {
     int num_frames = 0;
-    if (VM::jvmti()->GetStackTrace(NULL, start_depth, max_depth, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
+    if (VM::jvmti()->GetStackTrace(NULL, start_depth, max_depth + 1, jvmti_frames, &num_frames) == 0 && num_frames > 0) {
         // Convert to AsyncGetCallTrace format.
         // Note: jvmti_frames and frames may overlap.
         for (int i = 0; i < num_frames; i++) {
@@ -565,6 +575,10 @@ int Profiler::getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* f
             frames[i].bci = bci;
             LP64_ONLY(frames[i].padding = 0;)
         }
+    }
+    if (num_frames > max_depth) {
+        num_frames = max_depth;
+        *truncated = true;
     }
     return num_frames;
 }
@@ -631,6 +645,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         return 0;
     }
 
+    bool truncated = false;
+
     u64 stack_walk_begin = _features.stats ? OS::nanotime() : 0;
 
     ASGCT_CallFrame* frames = _calltrace_buffer[lock_index]->_asgct_frames;
@@ -652,18 +668,18 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
         if (_cstack != CSTACK_NO) {
-            num_frames += getNativeTrace(ucontext, frames + num_frames, event_type, tid, &java_ctx);
+            num_frames += getNativeTrace(ucontext, frames + num_frames, _max_stack_depth - num_frames, event_type, tid, &java_ctx, &truncated);
         }
     }
 
     if (_cstack == CSTACK_VMX) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT);
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth - num_frames, VM_EXPERT, &truncated);
     } else if (event_type <= WALL_CLOCK_SAMPLE) {
         // Async events
         if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth - num_frames, VM_NORMAL, &truncated);
         } else {
-            int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+            int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth - num_frames, &java_ctx, &truncated);
             if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
                 NMethod* nmethod = CodeHeap::findNMethod(java_ctx.pc);
                 if (nmethod != NULL) {
@@ -675,17 +691,17 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
         VMThread* vm_thread;
         if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
+            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth - num_frames, vm_thread->anchor(), &truncated);
         } else {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth - num_frames, &java_ctx, &truncated);
         }
     } else if (event_type == MALLOC_SAMPLE) {
-        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+        num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth - num_frames, &java_ctx, &truncated);
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
         int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
-        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);
+        num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth - num_frames, &truncated);
     }
 
     if (num_frames == 0) {
@@ -704,7 +720,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
     }
 
-    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, truncated, counter);
     _jfr.recordEvent(lock_index, tid, call_trace_id, event_type, event);
 
     _locks[lock_index].unlock();
@@ -721,7 +737,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(tid));
     }
 
-    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, counter);
+    u32 call_trace_id = _call_trace_storage.put(num_frames, frames, false, counter);
 
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
@@ -1604,9 +1620,14 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             out << buf;
 
             CallTrace* trace = it->trace;
-            for (int j = 0; j < trace->num_frames; j++) {
+            int j = 0;
+            for (; j < trace->num_frames; j++) {
                 const char* frame_name = fn.name(trace->frames[j]);
                 snprintf(buf, sizeof(buf) - 1, "  [%2d] %s\n", j, frame_name);
+                out << buf;
+            }
+            if (trace->truncated) {
+                snprintf(buf, sizeof(buf) - 1, "  [%2d] [truncated]\n", j);
                 out << buf;
             }
             out << "\n";

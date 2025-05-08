@@ -34,13 +34,13 @@ enum StackDetail {
 class StackWalker {
   private:
     static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                      StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp);
+                      StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp, bool* truncated);
 
   public:
-    static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
-    static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail);
-    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor);
+    static int walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool* truncated);
+    static int walkDwarf(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx, bool* truncated);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail, bool* truncated);
+    static int walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor, bool* truncated);
 
     static void checkFault();
 };
