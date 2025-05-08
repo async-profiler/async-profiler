@@ -40,13 +40,17 @@ class Buffer {
         _offset = 0;
     }
 
-    void put(const char* v, u32 len) {
+    void put(const char* v, std::size_t len) {
         std::memcpy(_data + _offset, v, len);
         _offset += (int)len;
     }
 
     void put8(char v) {
         _data[_offset++] = v;
+    }
+
+    void put8(std::size_t offset, char v) {
+        _data[offset] = v;
     }
 
     void put16(short v) {
@@ -74,12 +78,30 @@ class Buffer {
         put32(u.i);
     }
 
+    void putDouble(double v) {
+        union {
+            double d;
+            long l;
+        } u;
+
+        u.d = v;
+        put64(u.l);
+    }
+
     void putVar32(u32 v) {
         while (v > 0x7f) {
             _data[_offset++] = (char)v | 0x80;
             v >>= 7;
         }
         _data[_offset++] = (char)v;
+    }
+
+    void putVar32(std::size_t offset, u32 v) {
+        _data[offset] = v | 0x80;
+        _data[offset + 1] = (v >> 7) | 0x80;
+        _data[offset + 2] = (v >> 14) | 0x80;
+        _data[offset + 3] = (v >> 21) | 0x80;
+        _data[offset + 4] = (v >> 28);
     }
 
     void putVar64(u64 v) {
@@ -109,28 +131,24 @@ class Buffer {
         }
     }
 
-    void putUtf8(const char* v, u32 len) {
+    void putUtf8(const char* v, std::size_t len) {
         put8(3);
         putVar32(len);
         put(v, len);
     }
 
-    void putByteString(const char* v, u32 len) {
+    void putByteString(const char* v, std::size_t len) {
         put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
         putVar32(len);
         put(v, len);
     }
 
-    void put8(std::size_t offset, char v) {
-        _data[offset] = v;
+    void set(char v, std::size_t idx) {
+        _data[idx] = v;
     }
 
-    void putVar32(std::size_t offset, u32 v) {
-        _data[offset] = v | 0x80;
-        _data[offset + 1] = (v >> 7) | 0x80;
-        _data[offset + 2] = (v >> 14) | 0x80;
-        _data[offset + 3] = (v >> 21) | 0x80;
-        _data[offset + 4] = (v >> 28);
+    std::size_t advanceOffset(std::size_t incr) {
+        return _offset += incr;
     }
 };
 
