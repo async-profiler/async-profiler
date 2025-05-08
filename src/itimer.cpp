@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <sys/time.h>
 #include "itimer.h"
 #include "j9StackTraces.h"
 #include "os.h"
 #include "vmEntry.h"
-
+#include <sys/time.h>
 
 Error ITimer::check(Arguments& args) {
     OS::installSignalHandler(SIGPROF, NULL, SIG_IGN);

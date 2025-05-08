@@ -3,21 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <setjmp.h>
 #include "stackWalker.h"
 #include "dwarf.h"
 #include "profiler.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "vmStructs.h"
-
+#include <setjmp.h>
 
 const uintptr_t SAME_STACK_DISTANCE = 8192;
 const uintptr_t MAX_WALK_SIZE = 0x100000;
 const intptr_t MAX_FRAME_SIZE = 0x40000;
 const intptr_t MAX_INTERPRETER_FRAME_SIZE = 0x1000;
 const intptr_t DEAD_ZONE = 0x1000;
-
 
 static inline bool aligned(uintptr_t ptr) {
     return (ptr & (sizeof(uintptr_t) - 1)) == 0;
@@ -60,7 +58,6 @@ static jmethodID getMethodId(VMMethod* method) {
     }
     return NULL;
 }
-
 
 int StackWalker::walkFP(void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
     const void* pc;
@@ -276,8 +273,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                         do {
                             scope_offset = scope.decode(scope_offset);
                             if (detail != VM_BASIC) {
-                                type = scope_offset > 0 ? FRAME_INLINED :
-                                       level >= 1 && level <= 3 ? FRAME_C1_COMPILED : FRAME_JIT_COMPILED;
+                                type = scope_offset > 0 ? FRAME_INLINED : level >= 1 && level <= 3 ? FRAME_C1_COMPILED
+                                                                                                   : FRAME_JIT_COMPILED;
                             }
                             fillFrame(frames[depth++], type, scope.bci(), scope.method()->id());
                         } while (scope_offset > 0 && depth < max_depth);
@@ -302,9 +299,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     break;
                 }
 
-                bool is_plausible_interpreter_frame = !inDeadZone((const void*)fp) && aligned(fp)
-                    && sp > fp - MAX_INTERPRETER_FRAME_SIZE
-                    && sp < fp + bcp_offset * sizeof(void*);
+                bool is_plausible_interpreter_frame = !inDeadZone((const void*)fp) && aligned(fp) && sp > fp - MAX_INTERPRETER_FRAME_SIZE && sp < fp + bcp_offset * sizeof(void*);
 
                 if (is_plausible_interpreter_frame) {
                     VMMethod* method = ((VMMethod**)fp)[InterpreterFrame::method_offset];

@@ -8,7 +8,6 @@
 
 #include "mutex.h"
 
-
 class Hooks {
   private:
     static Mutex _patch_lock;

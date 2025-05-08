@@ -8,7 +8,6 @@
 
 #include "arch.h"
 
-
 // Cannot use regular mutexes inside signal handler.
 // This lock is based on CAS busy loop. GCC atomic builtins imply full barrier.
 class SpinLock {

@@ -6,9 +6,6 @@
 #ifndef _PROFILER_H
 #define _PROFILER_H
 
-#include <map>
-#include <string>
-#include <time.h>
 #include "arch.h"
 #include "arguments.h"
 #include "callTraceStorage.h"
@@ -24,18 +21,18 @@
 #include "trap.h"
 #include "vmEntry.h"
 #include "writer.h"
-
+#include <map>
+#include <string>
+#include <time.h>
 
 const int MAX_NATIVE_FRAMES = 128;
-const int RESERVED_FRAMES   = 10;  // for synthetic frames
+const int RESERVED_FRAMES = 10; // for synthetic frames
 const int CONCURRENCY_LEVEL = 16;
-
 
 union CallTraceBuffer {
     ASGCT_CallFrame _asgct_frames[1];
     jvmtiFrameInfo _jvmti_frames[1];
 };
-
 
 class FrameName;
 class NMethod;
@@ -155,25 +152,24 @@ class Profiler {
     static Profiler* const _instance;
 
   public:
-    Profiler() :
-        _state(NEW),
-        _begin_trap(2),
-        _end_trap(3),
-        _thread_filter(),
-        _call_trace_storage(),
-        _jfr(),
-        _start_time(0),
-        _epoch(0),
-        _gc_id(0),
-        _timer_id(NULL),
-        _max_stack_depth(0),
-        _thread_events_state(JVMTI_DISABLE),
-        _stubs_lock(),
-        _runtime_stubs("[stubs]"),
-        _native_libs(),
-        _call_stub_begin(NULL),
-        _call_stub_end(NULL),
-        _dlopen_entry(NULL) {
+    Profiler() : _state(NEW),
+                 _begin_trap(2),
+                 _end_trap(3),
+                 _thread_filter(),
+                 _call_trace_storage(),
+                 _jfr(),
+                 _start_time(0),
+                 _epoch(0),
+                 _gc_id(0),
+                 _timer_id(NULL),
+                 _max_stack_depth(0),
+                 _thread_events_state(JVMTI_DISABLE),
+                 _stubs_lock(),
+                 _runtime_stubs("[stubs]"),
+                 _native_libs(),
+                 _call_stub_begin(NULL),
+                 _call_stub_end(NULL),
+                 _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
@@ -185,7 +181,7 @@ class Profiler {
     }
 
     u64 total_samples() { return _total_samples; }
-    long uptime()       { return time(NULL) - _start_time; }
+    long uptime() { return time(NULL) - _start_time; }
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }

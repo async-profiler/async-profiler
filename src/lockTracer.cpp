@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <pthread.h>
-#include <string.h>
 #include "lockTracer.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"
-
+#include <pthread.h>
+#include <string.h>
 
 // On 64-bit platforms, we can store lock time in a pthread local.
 // This is faster than JVM TI SetTag/GetTag.
@@ -19,11 +18,10 @@ static pthread_key_t lock_tracer_tls = (pthread_key_t)0;
 
 INCLUDE_HELPER_CLASS(LOCK_TRACER_NAME, LOCK_TRACER_CLASS, "one/profiler/LockTracer")
 
-
 bool LockTracer::_initialized = false;
 double LockTracer::_ticks_to_nanos;
 u64 LockTracer::_interval;
-volatile u64 LockTracer::_total_duration;  // for interval sampling
+volatile u64 LockTracer::_total_duration; // for interval sampling
 u64 LockTracer::_start_time = 0;
 
 jclass LockTracer::_Unsafe = NULL;
@@ -33,7 +31,6 @@ jmethodID LockTracer::_setEntry = NULL;
 
 RegisterNativesFunc LockTracer::_orig_register_natives = NULL;
 UnsafeParkFunc LockTracer::_orig_unsafe_park = NULL;
-
 
 Error LockTracer::start(Arguments& args) {
     // There is a JVM here, so TSC::frequency is calibrated from it

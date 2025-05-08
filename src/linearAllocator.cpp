@@ -6,7 +6,6 @@
 #include "linearAllocator.h"
 #include "os.h"
 
-
 LinearAllocator::LinearAllocator(size_t chunk_size) {
     _chunk_size = chunk_size;
     _reserve = _tail = allocateChunk(NULL);

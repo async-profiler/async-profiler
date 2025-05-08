@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dlfcn.h>
-#include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
 #include "vmStructs.h"
-
+#include <dlfcn.h>
+#include <stdlib.h>
 
 // This should be called only after all other statics are initialized.
 // Therefore, put it in the last file in the alphabetic order.
@@ -39,7 +38,7 @@ class LateInitializer {
         CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
             VMStructs::init(libjvm);
-            if (CollectedHeap::created()) {  // heap is already created => this is dynamic attach
+            if (CollectedHeap::created()) { // heap is already created => this is dynamic attach
                 JVMFlag* f = JVMFlag::find("EnableDynamicAgentLoading");
                 if (f != NULL && f->isDefault()) {
                     f->setCmdline();

@@ -6,12 +6,10 @@
 #ifndef _TRAP_H
 #define _TRAP_H
 
-#include <stdint.h>
 #include "arch.h"
-
+#include <stdint.h>
 
 const int TRAP_COUNT = 4;
-
 
 class Trap {
   private:

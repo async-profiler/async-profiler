@@ -8,8 +8,7 @@
 
 #include <jvmti.h>
 
-
-#define JVMTI_EXT(f, ...)  ((jvmtiError (*)(jvmtiEnv*, __VA_ARGS__))f)
+#define JVMTI_EXT(f, ...) ((jvmtiError(*)(jvmtiEnv*, __VA_ARGS__))f)
 
 struct jvmtiFrameInfoExtended {
     jmethodID method;
@@ -30,7 +29,6 @@ enum {
     SHOW_COMPILED_FRAMES = 4,
     SHOW_INLINED_FRAMES = 8
 };
-
 
 class J9Ext {
   private:
@@ -75,6 +73,5 @@ class J9Ext {
 
     static int InstrumentableObjectAlloc_id;
 };
-
 
 #endif // _J9EXT_H

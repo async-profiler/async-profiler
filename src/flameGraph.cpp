@@ -3,20 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <algorithm>
-#include <vector>
-#include <stdio.h>
-#include <string.h>
 #include "flameGraph.h"
 #include "incbin.h"
-
+#include <algorithm>
+#include <stdio.h>
+#include <string.h>
+#include <vector>
 
 // Browsers refuse to draw on canvas larger than 32767 px
 const int MAX_CANVAS_HEIGHT = 32767;
 
 INCBIN(FLAMEGRAPH_TEMPLATE, "src/res/flame.html")
 INCBIN(TREE_TEMPLATE, "src/res/tree.html")
-
 
 class StringUtils {
   public:
@@ -36,7 +34,6 @@ class StringUtils {
         return length;
     }
 };
-
 
 class Format {
   private:
@@ -64,7 +61,6 @@ class Format {
     }
 };
 
-
 class Node {
   public:
     u32 _key;
@@ -82,7 +78,6 @@ class Node {
         return a._trie->_total > b._trie->_total;
     }
 };
-
 
 Trie* FlameGraph::addChild(Trie* f, const char* name, FrameTypeId type, u64 value) {
     size_t len = strlen(name);

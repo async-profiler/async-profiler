@@ -8,13 +8,11 @@
 
 #include <jvmti.h>
 
-
-#define NO_MIN_ADDRESS  ((const void*)-1)
-#define NO_MAX_ADDRESS  ((const void*)0)
+#define NO_MIN_ADDRESS ((const void*)-1)
+#define NO_MAX_ADDRESS ((const void*)0)
 
 const int INITIAL_CODE_CACHE_CAPACITY = 1000;
 const int MAX_NATIVE_LIBS = 2048;
-
 
 enum ImportId {
     im_dlopen,
@@ -43,7 +41,6 @@ enum Mark {
     MARK_COMPILER_ENTRY = 3,
     MARK_ASYNC_PROFILER = 4, // async-profiler internals such as native hooks.
 };
-
 
 class NativeFunc {
   private:
@@ -75,7 +72,6 @@ class NativeFunc {
     }
 };
 
-
 class CodeBlob {
   public:
     const void* _start;
@@ -96,7 +92,6 @@ class CodeBlob {
         }
     }
 };
-
 
 class FrameDesc;
 
@@ -203,7 +198,6 @@ class CodeCache {
 
     size_t usedMemory();
 };
-
 
 class CodeCacheArray {
   private:

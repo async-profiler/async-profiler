@@ -6,14 +6,13 @@
 #ifndef _LOCKTRACER_H
 #define _LOCKTRACER_H
 
-#include <jvmti.h>
 #include "arch.h"
 #include "engine.h"
 #include "event.h"
+#include <jvmti.h>
 
-
-typedef jint (JNICALL *RegisterNativesFunc)(JNIEnv*, jclass, const JNINativeMethod*, jint);
-typedef void (JNICALL *UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
+typedef jint(JNICALL* RegisterNativesFunc)(JNIEnv*, jclass, const JNINativeMethod*, jint);
+typedef void(JNICALL* UnsafeParkFunc)(JNIEnv*, jobject, jboolean, jlong);
 
 class LockTracer : public Engine {
   private:

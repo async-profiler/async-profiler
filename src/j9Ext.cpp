@@ -7,7 +7,6 @@
 #include "j9ObjectSampler.h"
 #include <string.h>
 
-
 jvmtiEnv* J9Ext::_jvmti;
 
 void* (*J9Ext::_j9thread_self)() = NULL;
@@ -18,7 +17,6 @@ jvmtiExtensionFunction J9Ext::_GetStackTraceExtended = NULL;
 jvmtiExtensionFunction J9Ext::_GetAllStackTracesExtended = NULL;
 
 int J9Ext::InstrumentableObjectAlloc_id = -1;
-
 
 // Look for OpenJ9-specific JVM TI extension
 bool J9Ext::initialize(jvmtiEnv* jvmti, const void* j9thread_self) {
@@ -39,7 +37,7 @@ bool J9Ext::initialize(jvmtiEnv* jvmti, const void* j9thread_self) {
                 _GetAllStackTracesExtended = ext_functions[i].func;
             }
         }
-       jvmti->Deallocate((unsigned char*)ext_functions);
+        jvmti->Deallocate((unsigned char*)ext_functions);
     }
 
     jvmtiExtensionEventInfo* ext_events;
@@ -53,7 +51,7 @@ bool J9Ext::initialize(jvmtiEnv* jvmti, const void* j9thread_self) {
                 break;
             }
         }
-       jvmti->Deallocate((unsigned char*)ext_events);
+        jvmti->Deallocate((unsigned char*)ext_events);
     }
 
     return _GetOSThreadID != NULL && _GetStackTraceExtended != NULL && _GetAllStackTracesExtended != NULL;

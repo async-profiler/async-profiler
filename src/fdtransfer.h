@@ -8,15 +8,14 @@
 
 #ifdef __linux__
 
-#include <linux/perf_event.h>
-#include <stdio.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#    include <linux/perf_event.h>
+#    include <stdio.h>
+#    include <sys/socket.h>
+#    include <sys/un.h>
 
-#define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(arr[0]))
+#    define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
-#define RESTARTABLE(call)  ({ ssize_t ret; while ((ret = call) < 0 && errno == EINTR); ret; })
-
+#    define RESTARTABLE(call) ({ ssize_t ret; while ((ret = call) < 0 && errno == EINTR); ret; })
 
 // base header for all requests
 enum request_type {
@@ -48,7 +47,7 @@ struct perf_fd_response {
     int tid;
 };
 
-static inline bool socketPath(const char *path, struct sockaddr_un *sun, socklen_t *addrlen) {
+static inline bool socketPath(const char* path, struct sockaddr_un* sun, socklen_t* addrlen) {
     const int path_len = strlen(path);
     if (path_len > sizeof(sun->sun_path)) {
         return false;

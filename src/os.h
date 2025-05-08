@@ -6,11 +6,10 @@
 #ifndef _OS_H
 #define _OS_H
 
+#include "arch.h"
 #include <signal.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include "arch.h"
-
 
 typedef void (*SigAction)(int, siginfo_t*, void*);
 typedef void (*SigHandler)(int);
@@ -24,7 +23,6 @@ enum ThreadState {
     THREAD_RUNNING,
     THREAD_SLEEPING
 };
-
 
 class ThreadList {
   protected:
@@ -48,7 +46,6 @@ class ThreadList {
     virtual void update() = 0;
 };
 
-
 // W^X memory support
 class JitWriteProtection {
   private:
@@ -59,7 +56,6 @@ class JitWriteProtection {
     JitWriteProtection(bool enable);
     ~JitWriteProtection();
 };
-
 
 class OS {
   public:

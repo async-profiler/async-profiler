@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "log.h"
+#include "profiler.h"
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
-#include "log.h"
-#include "profiler.h"
-
 
 const char* const Log::LEVEL_NAME[] = {
     "TRACE",
@@ -16,19 +15,17 @@ const char* const Log::LEVEL_NAME[] = {
     "INFO",
     "WARN",
     "ERROR",
-    "NONE"
-};
+    "NONE"};
 
 Mutex Log::_lock;
 int Log::_fd = STDOUT_FILENO;
 LogLevel Log::_level = LOG_INFO;
 
-
 void Log::open(Arguments& args) {
     open(args._log, args._loglevel);
 
     if (args._unknown_arg != NULL) {
-       warn("Unknown argument: %s", args._unknown_arg);
+        warn("Unknown argument: %s", args._unknown_arg);
     }
 }
 

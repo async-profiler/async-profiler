@@ -6,10 +6,9 @@
 #ifndef _J9STACKTRACES_H
 #define _J9STACKTRACES_H
 
-#include <pthread.h>
 #include "arch.h"
 #include "arguments.h"
-
+#include <pthread.h>
 
 const int MAX_J9_NATIVE_FRAMES = 128;
 
@@ -24,7 +23,6 @@ struct J9StackTraceNotification {
         return sizeof(*this) - sizeof(this->addr) + num_frames * sizeof(const void*);
     }
 };
-
 
 class J9StackTraces {
   private:

@@ -6,9 +6,8 @@
 #ifndef _INSTRUMENT_H
 #define _INSTRUMENT_H
 
-#include <jvmti.h>
 #include "engine.h"
-
+#include <jvmti.h>
 
 class Instrument : public Engine {
   private:

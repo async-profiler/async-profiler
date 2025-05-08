@@ -5,11 +5,10 @@
 
 #ifdef __i386__
 
-#include <errno.h>
-#include <string.h>
-#include "stackFrame.h"
-#include "vmStructs.h"
-
+#    include "stackFrame.h"
+#    include "vmStructs.h"
+#    include <errno.h>
+#    include <string.h>
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)_ucontext->uc_mcontext.gregs[REG_EIP];
@@ -66,14 +65,9 @@ void StackFrame::ret() {
     sp() += 4;
 }
 
-
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
-    if (ip == entry || *ip == 0xc3
-        || strncmp(name, "itable", 6) == 0
-        || strncmp(name, "vtable", 6) == 0
-        || strcmp(name, "InlineCacheBuffer") == 0)
-    {
+    if (ip == entry || *ip == 0xc3 || strncmp(name, "itable", 6) == 0 || strncmp(name, "vtable", 6) == 0 || strcmp(name, "InlineCacheBuffer") == 0) {
         pc = *(uintptr_t*)sp;
         sp += 4;
         return true;
@@ -98,10 +92,9 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
 bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
     instruction_t* entry = (instruction_t*)nm->entry();
-    if (ip <= entry
-        || *ip == 0xc3      // ret
-        || *ip == 0x55      // push ebp
-        || ip[-1] == 0x5d)  // after pop ebp
+    if (ip <= entry || *ip == 0xc3 // ret
+        || *ip == 0x55             // push ebp
+        || ip[-1] == 0x5d)         // after pop ebp
     {
         pc = *(uintptr_t*)sp;
         sp += 4;

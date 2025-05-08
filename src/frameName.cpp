@@ -3,19 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "frameName.h"
+#include "demangle.h"
+#include "profiler.h"
+#include "vmStructs.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "demangle.h"
-#include "frameName.h"
-#include "profiler.h"
-#include "vmStructs.h"
-
 
 static inline bool isDigit(char c) {
     return c >= '0' && c <= '9';
 }
-
 
 Matcher::Matcher(const char* pattern) {
     if (pattern[0] == '*') {
@@ -68,21 +66,18 @@ bool Matcher::matches(const char* s) {
     return false;
 }
 
-
 JMethodCache FrameName::_cache;
 
-FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names) :
-    _class_names(),
-    _include(),
-    _exclude(),
-    _str(),
-    _style(style),
-    _cache_epoch((unsigned char)epoch),
-    _cache_max_age(args._mcache),
-    _thread_names_lock(thread_names_lock),
-    _thread_names(thread_names),
-    _jni(VM::jni())
-{
+FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names) : _class_names(),
+                                                                                                                 _include(),
+                                                                                                                 _exclude(),
+                                                                                                                 _str(),
+                                                                                                                 _style(style),
+                                                                                                                 _cache_epoch((unsigned char)epoch),
+                                                                                                                 _cache_max_age(args._mcache),
+                                                                                                                 _thread_names_lock(thread_names_lock),
+                                                                                                                 _thread_names(thread_names),
+                                                                                                                 _jni(VM::jni()) {
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
 
@@ -97,7 +92,7 @@ FrameName::~FrameName() {
         _cache.clear();
     } else {
         // Remove stale methods from the cache, leave the fresh ones for the next profiling session
-        for (JMethodCache::iterator it = _cache.begin(); it != _cache.end(); ) {
+        for (JMethodCache::iterator it = _cache.begin(); it != _cache.end();) {
             if (_cache_epoch - (unsigned char)it->second[0] >= _cache_max_age) {
                 _cache.erase(it++);
             } else {
@@ -142,11 +137,16 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
 const char* FrameName::typeSuffix(FrameTypeId type) {
     if (_style & STYLE_ANNOTATE) {
         switch (type) {
-            case FRAME_INTERPRETED:  return "_[0]";
-            case FRAME_JIT_COMPILED: return "_[j]";
-            case FRAME_INLINED:      return "_[i]";
-            case FRAME_C1_COMPILED:  return "_[1]";
-            default:                 return NULL;
+            case FRAME_INTERPRETED:
+                return "_[0]";
+            case FRAME_JIT_COMPILED:
+                return "_[j]";
+            case FRAME_INLINED:
+                return "_[i]";
+            case FRAME_C1_COMPILED:
+                return "_[1]";
+            default:
+                return NULL;
         }
     }
     return NULL;
@@ -209,15 +209,32 @@ void FrameName::javaClassName(const char* symbol, size_t length, int style) {
         _str.assign(symbol, length);
     } else {
         switch (*symbol) {
-            case 'B': _str.assign("byte");    break;
-            case 'C': _str.assign("char");    break;
-            case 'I': _str.assign("int");     break;
-            case 'J': _str.assign("long");    break;
-            case 'S': _str.assign("short");   break;
-            case 'Z': _str.assign("boolean"); break;
-            case 'F': _str.assign("float");   break;
-            case 'D': _str.assign("double");  break;
-            default:  _str.assign(symbol + 1, length - array_dimension - 2);
+            case 'B':
+                _str.assign("byte");
+                break;
+            case 'C':
+                _str.assign("char");
+                break;
+            case 'I':
+                _str.assign("int");
+                break;
+            case 'J':
+                _str.assign("long");
+                break;
+            case 'S':
+                _str.assign("short");
+                break;
+            case 'Z':
+                _str.assign("boolean");
+                break;
+            case 'F':
+                _str.assign("float");
+                break;
+            case 'D':
+                _str.assign("double");
+                break;
+            default:
+                _str.assign(symbol + 1, length - array_dimension - 2);
         }
 
         do {
@@ -266,61 +283,65 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         case BCI_ALLOC:
         case BCI_ALLOC_OUTSIDE_TLAB:
         case BCI_LOCK:
-        case BCI_PARK: {
-            const char* symbol = _class_names[(uintptr_t)frame.method_id];
-            javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
-            if (!for_matching && !(_style & STYLE_DOTTED)) {
-                _str += frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
-            }
-            return _str.c_str();
-        }
-
-        case BCI_THREAD_ID: {
-            int tid = (int)(uintptr_t)frame.method_id;
-            MutexLocker ml(_thread_names_lock);
-            ThreadMap::iterator it = _thread_names.find(tid);
-            if (for_matching) {
-                return it != _thread_names.end() ? it->second.c_str() : "";
+        case BCI_PARK:
+            {
+                const char* symbol = _class_names[(uintptr_t)frame.method_id];
+                javaClassName(symbol, strlen(symbol), _style | STYLE_DOTTED);
+                if (!for_matching && !(_style & STYLE_DOTTED)) {
+                    _str += frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
+                }
+                return _str.c_str();
             }
 
-            char buf[32];
-            snprintf(buf, sizeof(buf), "tid=%d]", tid);
-            if (it != _thread_names.end()) {
-                return _str.assign("[").append(it->second).append(" ").append(buf).c_str();
-            } else {
-                return _str.assign("[").append(buf).c_str();
-            }
-        }
+        case BCI_THREAD_ID:
+            {
+                int tid = (int)(uintptr_t)frame.method_id;
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (for_matching) {
+                    return it != _thread_names.end() ? it->second.c_str() : "";
+                }
 
-        case BCI_ADDRESS: {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%p", frame.method_id);
-            return _str.assign(buf).c_str();
-        }
+                char buf[32];
+                snprintf(buf, sizeof(buf), "tid=%d]", tid);
+                if (it != _thread_names.end()) {
+                    return _str.assign("[").append(it->second).append(" ").append(buf).c_str();
+                } else {
+                    return _str.assign("[").append(buf).c_str();
+                }
+            }
+
+        case BCI_ADDRESS:
+            {
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%p", frame.method_id);
+                return _str.assign(buf).c_str();
+            }
 
         case BCI_ERROR:
             return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
 
-        default: {
-            const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
+        default:
+            {
+                const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
 
-            JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
-            if (it != _cache.end() && it->first == frame.method_id) {
-                it->second[0] = _cache_epoch;
-                const char* name = it->second.c_str() + 1;
-                if (type_suffix != NULL) {
-                    return _str.assign(name).append(type_suffix).c_str();
+                JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
+                if (it != _cache.end() && it->first == frame.method_id) {
+                    it->second[0] = _cache_epoch;
+                    const char* name = it->second.c_str() + 1;
+                    if (type_suffix != NULL) {
+                        return _str.assign(name).append(type_suffix).c_str();
+                    }
+                    return name;
                 }
-                return name;
-            }
 
-            javaMethodName(frame.method_id);
-            _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + _str));
-            if (type_suffix != NULL) {
-                _str += type_suffix;
+                javaMethodName(frame.method_id);
+                _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + _str));
+                if (type_suffix != NULL) {
+                    _str += type_suffix;
+                }
+                return _str.c_str();
             }
-            return _str.c_str();
-        }
     }
 }
 
@@ -330,18 +351,19 @@ FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
     }
 
     switch (frame.bci) {
-        case BCI_NATIVE_FRAME: {
-            const char* name = (const char*)frame.method_id;
-            if ((name[0] == '_' && name[1] == 'Z') ||
-                (name[0] == '_' && name[1] == 'R') ||
-                (name[0] == '+' && name[1] == '[') ||
-                (name[0] == '-' && name[1] == '[')) {
-                return FRAME_CPP;
-            } else {
-                size_t len = strlen(name);
-                return len > 4 && strcmp(name + len - 4, "_[k]") == 0 ? FRAME_KERNEL : FRAME_NATIVE;
+        case BCI_NATIVE_FRAME:
+            {
+                const char* name = (const char*)frame.method_id;
+                if ((name[0] == '_' && name[1] == 'Z') ||
+                    (name[0] == '_' && name[1] == 'R') ||
+                    (name[0] == '+' && name[1] == '[') ||
+                    (name[0] == '-' && name[1] == '[')) {
+                    return FRAME_CPP;
+                } else {
+                    size_t len = strlen(name);
+                    return len > 4 && strcmp(name + len - 4, "_[k]") == 0 ? FRAME_KERNEL : FRAME_NATIVE;
+                }
             }
-        }
 
         case BCI_ALLOC:
         case BCI_LOCK:

@@ -6,13 +6,12 @@
 #ifndef _FLAMEGRAPH_H
 #define _FLAMEGRAPH_H
 
-#include <map>
-#include <string>
 #include "arch.h"
 #include "arguments.h"
 #include "vmEntry.h"
 #include "writer.h"
-
+#include <map>
+#include <string>
 
 class Trie {
   public:
@@ -67,7 +66,6 @@ class Trie {
     }
 };
 
-
 class FlameGraph {
   private:
     Trie _root;
@@ -92,17 +90,16 @@ class FlameGraph {
     const char* printTill(Writer& out, const char* data, const char* till);
 
   public:
-    FlameGraph(const char* title, Counter counter, double minwidth, bool reverse, bool inverted) :
-        _root(),
-        _cpool(),
-        _title(title),
-        _counter(counter),
-        _minwidth(minwidth),
-        _reverse(reverse),
-        _inverted(inverted),
-        _last_level(0),
-        _last_x(0),
-        _last_total(0) {
+    FlameGraph(const char* title, Counter counter, double minwidth, bool reverse, bool inverted) : _root(),
+                                                                                                   _cpool(),
+                                                                                                   _title(title),
+                                                                                                   _counter(counter),
+                                                                                                   _minwidth(minwidth),
+                                                                                                   _reverse(reverse),
+                                                                                                   _inverted(inverted),
+                                                                                                   _last_level(0),
+                                                                                                   _last_x(0),
+                                                                                                   _last_total(0) {
         _buf[sizeof(_buf) - 1] = 0;
     }
 

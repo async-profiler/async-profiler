@@ -3,16 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <string.h>
 #include "objectSampler.h"
 #include "profiler.h"
 #include "tsc.h"
-
+#include <string.h>
 
 u64 ObjectSampler::_interval;
 bool ObjectSampler::_live;
 volatile u64 ObjectSampler::_allocated_bytes;
-
 
 static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
     u32 class_id = 0;
@@ -27,7 +25,6 @@ static u32 lookupClassId(jvmtiEnv* jvmti, jclass cls) {
     }
     return class_id;
 }
-
 
 class LiveRefs {
   private:
@@ -129,7 +126,6 @@ class LiveRefs {
 };
 
 static LiveRefs live_refs;
-
 
 void ObjectSampler::SampledObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                        jobject object, jclass object_klass, jlong size) {

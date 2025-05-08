@@ -11,7 +11,7 @@ struct demangle;
 class Demangle {
   private:
     static char* demangleCpp(const char* s);
-    static char* demangleRust(struct demangle const *demangle, bool full_signature);
+    static char* demangleRust(struct demangle const* demangle, bool full_signature);
     static bool isRustSymbol(const char* s);
     static void cutArguments(char* s);
 

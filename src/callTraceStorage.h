@@ -6,12 +6,11 @@
 #ifndef _CALLTRACESTORAGE_H
 #define _CALLTRACESTORAGE_H
 
-#include <map>
-#include <vector>
 #include "arch.h"
 #include "linearAllocator.h"
 #include "vmEntry.h"
-
+#include <map>
+#include <vector>
 
 class LongHashTable;
 

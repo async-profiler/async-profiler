@@ -9,12 +9,10 @@
 #include <map>
 #include <stddef.h>
 
-
-#define ROW_BITS        7
-#define ROWS            (1 << ROW_BITS)
-#define CELLS           3
-#define TABLE_CAPACITY  (ROWS * CELLS)
-
+#define ROW_BITS 7
+#define ROWS (1 << ROW_BITS)
+#define CELLS 3
+#define TABLE_CAPACITY (ROWS * CELLS)
 
 struct DictTable;
 

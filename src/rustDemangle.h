@@ -9,9 +9,9 @@
 #include <stddef.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-#define DEMANGLE_NODISCARD __attribute__((warn_unused_result))
+#    define DEMANGLE_NODISCARD __attribute__((warn_unused_result))
 #else
-#define DEMANGLE_NODISCARD
+#    define DEMANGLE_NODISCARD
 #endif
 
 typedef enum {
@@ -30,17 +30,17 @@ struct demangle {
     enum demangle_style style;
     // points to the "mangled" part of the name,
     // not including `ZN` or `R` prefixes.
-    const char *mangled;
+    const char* mangled;
     size_t mangled_len;
     // In DemangleStyleLegacy, is the number of path elements
     size_t elements;
     // while it's called "original", it will not contain `.llvm.9D1C9369@@16` suffixes
     // that are to be ignored.
-    const char *original;
+    const char* original;
     size_t original_len;
     // Contains the part after the mangled name that is to be outputted,
     // which can be `.exit.i.i` suffixes LLVM sometimes adds.
-    const char *suffix;
+    const char* suffix;
     size_t suffix_len;
 };
 
@@ -53,7 +53,7 @@ struct demangle {
 /// `rust_demangle_display_demangle` behavior is undefined.
 ///
 /// Use `rust_demangle_display_demangle` to convert it to an actual string.
-void rust_demangle_demangle(const char *s, struct demangle *res);
+void rust_demangle_demangle(const char* s, struct demangle* res);
 
 /// Write the string in a `struct demangle` into a buffer.
 ///
@@ -67,10 +67,10 @@ void rust_demangle_demangle(const char *s, struct demangle *res);
 ///
 /// [$] It's `O(n * MAX_DEPTH)`, but `MAX_DEPTH` is a constant 300 and therefore it's `O(n)`
 /// [$$] Technically, bounded by `O(n^MAX_DEPTH)`, but this is practically exponential.
-DEMANGLE_NODISCARD overflow_status rust_demangle_display_demangle(struct demangle const *res, char *out, size_t len, bool alternate);
+DEMANGLE_NODISCARD overflow_status rust_demangle_display_demangle(struct demangle const* res, char* out, size_t len, bool alternate);
 
 /// Returns true if `res` refers to a known valid Rust demangling style, false if it's an unknown style.
-bool rust_demangle_is_known(struct demangle *res);
+bool rust_demangle_is_known(struct demangle* res);
 
 #undef DEMANGLE_NODISCARD
 

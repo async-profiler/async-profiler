@@ -3,23 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "vmEntry.h"
+#include "arguments.h"
+#include "asprof.h"
+#include "instrument.h"
+#include "j9Ext.h"
+#include "j9ObjectSampler.h"
+#include "javaApi.h"
+#include "lockTracer.h"
+#include "log.h"
+#include "os.h"
+#include "profiler.h"
+#include "vmStructs.h"
 #include <dlfcn.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "vmEntry.h"
-#include "arguments.h"
-#include "asprof.h"
-#include "j9Ext.h"
-#include "j9ObjectSampler.h"
-#include "javaApi.h"
-#include "os.h"
-#include "profiler.h"
-#include "instrument.h"
-#include "lockTracer.h"
-#include "log.h"
-#include "vmStructs.h"
-
 
 // JVM TI agent return codes
 const int ARGUMENTS_ERROR = 100;
@@ -34,46 +33,33 @@ bool VM::_zing = false;
 
 GetCreatedJavaVMs VM::_getCreatedJavaVMs = NULL;
 
-jvmtiError (JNICALL *VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
-jvmtiError (JNICALL *VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+jvmtiError(JNICALL* VM::_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+jvmtiError(JNICALL* VM::_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
 AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
 static bool isVmRuntimeEntry(const char* blob_name) {
-    return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
-        || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0
-        || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0
-        || strncmp(blob_name, "_ZN8Runtime1", 12) == 0
-        || strncmp(blob_name, "_ZN13SharedRuntime", 18) == 0
-        || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
+    return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0 || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0 || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0 || strncmp(blob_name, "_ZN8Runtime1", 12) == 0 || strncmp(blob_name, "_ZN13SharedRuntime", 18) == 0 || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
 }
 
 static bool isZingRuntimeEntry(const char* blob_name) {
-    return strncmp(blob_name, "_ZN14DolphinRuntime", 19) == 0
-        || strncmp(blob_name, "_ZN37JvmtiSampledObjectAllocEventCollector", 42) == 0;
+    return strncmp(blob_name, "_ZN14DolphinRuntime", 19) == 0 || strncmp(blob_name, "_ZN37JvmtiSampledObjectAllocEventCollector", 42) == 0;
 }
 
 static bool isZeroInterpreterMethod(const char* blob_name) {
-    return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
-        || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
+    return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0 || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
 }
 
 static bool isOpenJ9InterpreterMethod(const char* blob_name) {
-    return strncmp(blob_name, "_ZN32VM_BytecodeInterpreter", 27) == 0
-        || strncmp(blob_name, "_ZN26VM_BytecodeInterpreter", 27) == 0
-        || strncmp(blob_name, "bytecodeLoop", 12) == 0
-        || strcmp(blob_name, "cInterpreter") == 0;
+    return strncmp(blob_name, "_ZN32VM_BytecodeInterpreter", 27) == 0 || strncmp(blob_name, "_ZN26VM_BytecodeInterpreter", 27) == 0 || strncmp(blob_name, "bytecodeLoop", 12) == 0 || strcmp(blob_name, "cInterpreter") == 0;
 }
 
 static bool isOpenJ9JitStub(const char* blob_name) {
     if (strncmp(blob_name, "jit", 3) == 0) {
         blob_name += 3;
-        return strcmp(blob_name, "NewObject") == 0
-            || strcmp(blob_name, "NewArray") == 0
-            || strcmp(blob_name, "ANewArray") == 0
-            || strcmp(blob_name, "AMultiNewArray") == 0;
+        return strcmp(blob_name, "NewObject") == 0 || strcmp(blob_name, "NewArray") == 0 || strcmp(blob_name, "ANewArray") == 0 || strcmp(blob_name, "AMultiNewArray") == 0;
     }
     return false;
 }
@@ -452,7 +438,6 @@ jvmtiError VM::RetransformClassesHook(jvmtiEnv* jvmti, jint class_count, const j
 
     return result;
 }
-
 
 extern "C" DLLEXPORT jint JNICALL
 Agent_OnLoad(JavaVM* vm, char* options, void* reserved) {

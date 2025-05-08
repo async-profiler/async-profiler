@@ -5,7 +5,6 @@
 
 #include "jfrMetadata.h"
 
-
 std::map<std::string, int> Element::_string_map;
 std::vector<std::string> Element::_strings;
 

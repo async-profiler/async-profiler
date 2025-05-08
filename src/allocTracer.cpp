@@ -9,14 +9,12 @@
 #include "tsc.h"
 #include "vmStructs.h"
 
-
 int AllocTracer::_trap_kind;
 Trap AllocTracer::_in_new_tlab(0);
 Trap AllocTracer::_outside_tlab(1);
 
 u64 AllocTracer::_interval;
 volatile u64 AllocTracer::_allocated_bytes;
-
 
 // Called whenever our breakpoint trap is hit
 void AllocTracer::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
@@ -84,13 +82,13 @@ Error AllocTracer::check(Arguments& args) {
 
     if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer27send_allocation_in_new_tlab")) != NULL &&
         (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer28send_allocation_outside_tlab")) != NULL) {
-        _trap_kind = 1;  // JDK 10+
+        _trap_kind = 1; // JDK 10+
     } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_eventE11KlassHandleP8HeapWord")) != NULL &&
                (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_eventE11KlassHandleP8HeapWord")) != NULL) {
-        _trap_kind = 1;  // JDK 8u262+
+        _trap_kind = 1; // JDK 8u262+
     } else if ((ne = libjvm->findSymbolByPrefix("_ZN11AllocTracer33send_allocation_in_new_tlab_event")) != NULL &&
                (oe = libjvm->findSymbolByPrefix("_ZN11AllocTracer34send_allocation_outside_tlab_event")) != NULL) {
-        _trap_kind = 2;  // JDK 7-9
+        _trap_kind = 2; // JDK 7-9
     } else {
         return Error("No AllocTracer symbols found. Are JDK debug symbols installed?");
     }

@@ -6,15 +6,14 @@
 #ifndef _LOG_H
 #define _LOG_H
 
-#include <stdarg.h>
 #include "mutex.h"
+#include <stdarg.h>
 
 #ifdef __GNUC__
-#define ATTR_FORMAT __attribute__((format(printf, 1, 2)))
+#    define ATTR_FORMAT __attribute__((format(printf, 1, 2)))
 #else
-#define ATTR_FORMAT
+#    define ATTR_FORMAT
 #endif
-
 
 enum LogLevel {
     LOG_TRACE,
@@ -24,7 +23,6 @@ enum LogLevel {
     LOG_ERROR,
     LOG_NONE
 };
-
 
 class Arguments;
 

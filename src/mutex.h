@@ -6,9 +6,8 @@
 #ifndef _MUTEX_H
 #define _MUTEX_H
 
-#include <pthread.h>
 #include "arch.h"
-
+#include <pthread.h>
 
 class Mutex {
   protected:

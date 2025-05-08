@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "arguments.h"
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
-#include "arguments.h"
-
 
 // Arguments of the last start/resume command; reused for shutdown and restart
 Arguments _global_args;
@@ -27,19 +26,23 @@ static const Multiplier BYTES[] = {{'b', 1}, {'k', 1024}, {'m', 1048576}, {'g', 
 static const Multiplier SECONDS[] = {{'s', 1}, {'m', 60}, {'h', 3600}, {'d', 86400}, {0, 0}};
 static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'s', 1000000000}, {'b', 1}, {'k', 1024}, {'g', 1073741824}, {0, 0}};
 
-
 // Statically compute hash code of a string containing up to 12 [a-z] letters
-#define HASH(s)  ((s[0] & 31LL)       | (s[1] & 31LL) <<  5 | (s[2]  & 31LL) << 10 | (s[3]  & 31LL) << 15 | \
-                  (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6]  & 31LL) << 30 | (s[7]  & 31LL) << 35 | \
-                  (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55)
+#define HASH(s) ((s[0] & 31LL) | (s[1] & 31LL) << 5 | (s[2] & 31LL) << 10 | (s[3] & 31LL) << 15 |        \
+                 (s[4] & 31LL) << 20 | (s[5] & 31LL) << 25 | (s[6] & 31LL) << 30 | (s[7] & 31LL) << 35 | \
+                 (s[8] & 31LL) << 40 | (s[9] & 31LL) << 45 | (s[10] & 31LL) << 50 | (s[11] & 31LL) << 55)
 
 // Simulate switch statement over string hashes
-#define SWITCH(arg)    long long arg_hash = hash(arg); if (0)
+#define SWITCH(arg)                 \
+    long long arg_hash = hash(arg); \
+    if (0)
 
-#define CASE(s)        } else if (arg_hash == HASH(s "            ")) {
+#define CASE(s) \
+    }           \
+    else if (arg_hash == HASH(s "            ")) {
 
-#define DEFAULT()      } else {
-
+#define DEFAULT() \
+    }             \
+    else {
 
 // Parses agent arguments.
 // The format of the string is:
@@ -132,309 +135,309 @@ Error Arguments::parse(const char* args) {
         char* value = strchr(arg, '=');
         if (value != NULL) *value++ = 0;
 
-        SWITCH (arg) {
+        SWITCH(arg) {
             // Actions
             CASE("start")
-                _action = ACTION_START;
+            _action = ACTION_START;
 
             CASE("resume")
-                _action = ACTION_RESUME;
+            _action = ACTION_RESUME;
 
             CASE("stop")
-                _action = ACTION_STOP;
+            _action = ACTION_STOP;
 
             CASE("dump")
-                _action = ACTION_DUMP;
+            _action = ACTION_DUMP;
 
             CASE("check")
-                _action = ACTION_CHECK;
+            _action = ACTION_CHECK;
 
             CASE("status")
-                _action = ACTION_STATUS;
+            _action = ACTION_STATUS;
 
             CASE("meminfo")
-                _action = ACTION_MEMINFO;
+            _action = ACTION_MEMINFO;
 
             CASE("list")
-                _action = ACTION_LIST;
+            _action = ACTION_LIST;
 
             CASE("version")
-                _action = ACTION_VERSION;
+            _action = ACTION_VERSION;
 
             // Output formats
             CASE("collapsed")
-                _output = OUTPUT_COLLAPSED;
+            _output = OUTPUT_COLLAPSED;
 
             CASE("flamegraph")
-                _output = OUTPUT_FLAMEGRAPH;
+            _output = OUTPUT_FLAMEGRAPH;
 
             CASE("tree")
-                _output = OUTPUT_TREE;
+            _output = OUTPUT_TREE;
 
             CASE("jfr")
-                _output = OUTPUT_JFR;
+            _output = OUTPUT_JFR;
 
             CASE("jfropts")
-                _output = OUTPUT_JFR;
-                if (value == NULL) {
-                    msg = "Invalid jfropts";
-                } else if (value[0] >= '0' && value[0] <= '9') {
-                    _jfr_options = (int)strtol(value, NULL, 0);
-                } else if (strstr(value, "mem")) {
-                    _jfr_options |= IN_MEMORY;
-                }
+            _output = OUTPUT_JFR;
+            if (value == NULL) {
+                msg = "Invalid jfropts";
+            } else if (value[0] >= '0' && value[0] <= '9') {
+                _jfr_options = (int)strtol(value, NULL, 0);
+            } else if (strstr(value, "mem")) {
+                _jfr_options |= IN_MEMORY;
+            }
 
             CASE("jfrsync")
-                _output = OUTPUT_JFR;
-                _jfr_options |= JFR_SYNC_OPTS;
-                _jfr_sync = value == NULL ? "default" : value;
+            _output = OUTPUT_JFR;
+            _jfr_options |= JFR_SYNC_OPTS;
+            _jfr_sync = value == NULL ? "default" : value;
 
             CASE("traces")
-                _output = OUTPUT_TEXT;
-                _dump_traces = value == NULL ? INT_MAX : atoi(value);
+            _output = OUTPUT_TEXT;
+            _dump_traces = value == NULL ? INT_MAX : atoi(value);
 
             CASE("flat")
-                _output = OUTPUT_TEXT;
-                _dump_flat = value == NULL ? INT_MAX : atoi(value);
+            _output = OUTPUT_TEXT;
+            _dump_flat = value == NULL ? INT_MAX : atoi(value);
 
             CASE("samples")
-                _counter = COUNTER_SAMPLES;
+            _counter = COUNTER_SAMPLES;
 
             CASE("total")
-                _counter = COUNTER_TOTAL;
+            _counter = COUNTER_TOTAL;
 
             CASE("chunksize")
-                if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
-                    msg = "Invalid chunksize";
-                }
+            if (value == NULL || (_chunk_size = parseUnits(value, BYTES)) < 0) {
+                msg = "Invalid chunksize";
+            }
 
             CASE("chunktime")
-                if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
-                    msg = "Invalid chunktime";
-                }
+            if (value == NULL || (_chunk_time = parseUnits(value, SECONDS)) < 0) {
+                msg = "Invalid chunktime";
+            }
 
             // Basic options
             CASE("event")
-                if (value == NULL || value[0] == 0) {
-                    msg = "event must not be empty";
-                } else if (strcmp(value, EVENT_ALLOC) == 0) {
-                    if (_alloc < 0) _alloc = 0;
-                } else if (strcmp(value, EVENT_NATIVEMEM) == 0) {
-                    if (_nativemem < 0) _nativemem = 0;
-                } else if (strcmp(value, EVENT_LOCK) == 0) {
-                    if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
-                } else if (_event != NULL) {
-                    msg = "Duplicate event argument";
-                } else {
-                    _event = value;
-                }
+            if (value == NULL || value[0] == 0) {
+                msg = "event must not be empty";
+            } else if (strcmp(value, EVENT_ALLOC) == 0) {
+                if (_alloc < 0) _alloc = 0;
+            } else if (strcmp(value, EVENT_NATIVEMEM) == 0) {
+                if (_nativemem < 0) _nativemem = 0;
+            } else if (strcmp(value, EVENT_LOCK) == 0) {
+                if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
+            } else if (_event != NULL) {
+                msg = "Duplicate event argument";
+            } else {
+                _event = value;
+            }
 
             CASE("timeout")
-                if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
-                    msg = "Invalid timeout";
-                }
+            if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
+                msg = "Invalid timeout";
+            }
 
             CASE("loop")
-                _loop = true;
-                if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
-                    msg = "Invalid loop duration";
-                }
+            _loop = true;
+            if (value == NULL || (_timeout = parseTimeout(value)) == -1) {
+                msg = "Invalid loop duration";
+            }
 
             CASE("alloc")
-                _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
+            _alloc = value == NULL ? 0 : parseUnits(value, BYTES);
 
             CASE("nativemem")
-                _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
+            _nativemem = value == NULL ? 0 : parseUnits(value, BYTES);
 
             CASE("nofree")
-                _nofree = true;
+            _nofree = true;
 
             CASE("lock")
-                _lock = value == NULL ? 0 : parseUnits(value, NANOS);
+            _lock = value == NULL ? 0 : parseUnits(value, NANOS);
 
             CASE("wall")
-                _wall = value == NULL ? 0 : parseUnits(value, NANOS);
+            _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
             CASE("cpu")
-                if (_event != NULL) {
-                    msg = "Duplicate event argument";
-                } else {
-                    _event = EVENT_CPU;
-                }
+            if (_event != NULL) {
+                msg = "Duplicate event argument";
+            } else {
+                _event = EVENT_CPU;
+            }
 
             CASE("interval")
-                if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
-                    msg = "Invalid interval";
-                }
+            if (value == NULL || (_interval = parseUnits(value, UNIVERSAL)) <= 0) {
+                msg = "Invalid interval";
+            }
 
             CASE("jstackdepth")
-                if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
-                    msg = "jstackdepth must be > 0";
-                }
+            if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
+                msg = "jstackdepth must be > 0";
+            }
 
             CASE("signal")
-                if (value == NULL || (_signal = atoi(value)) <= 0) {
-                    msg = "signal must be > 0";
-                } else if ((value = strchr(value, '/')) != NULL) {
-                    // Two signals were specified: one for CPU profiling, another for wall clock
-                    _signal |= atoi(value + 1) << 8;
-                }
+            if (value == NULL || (_signal = atoi(value)) <= 0) {
+                msg = "signal must be > 0";
+            } else if ((value = strchr(value, '/')) != NULL) {
+                // Two signals were specified: one for CPU profiling, another for wall clock
+                _signal |= atoi(value + 1) << 8;
+            }
 
             CASE("features")
-                if (value != NULL) {
-                    if (strstr(value, "stats"))    _features.stats = 1;
-                    if (strstr(value, "probesp"))  _features.probe_sp = 1;
-                    if (strstr(value, "vtable"))   _features.vtable_target = 1;
-                    if (strstr(value, "comptask")) _features.comp_task = 1;
-                    if (strstr(value, "pcaddr"))   _features.pc_addr = 1;
-                }
+            if (value != NULL) {
+                if (strstr(value, "stats")) _features.stats = 1;
+                if (strstr(value, "probesp")) _features.probe_sp = 1;
+                if (strstr(value, "vtable")) _features.vtable_target = 1;
+                if (strstr(value, "comptask")) _features.comp_task = 1;
+                if (strstr(value, "pcaddr")) _features.pc_addr = 1;
+            }
 
             CASE("safemode") {
                 // Left for compatibility purpose; will be eventually migrated to 'features'
                 int bits = value == NULL ? INT_MAX : (int)strtol(value, NULL, 0);
-                _features.unknown_java  = (bits & 1) ? 0 : 1;
-                _features.unwind_stub   = (bits & 2) ? 0 : 1;
-                _features.unwind_comp   = (bits & 4) ? 0 : 1;
+                _features.unknown_java = (bits & 1) ? 0 : 1;
+                _features.unwind_stub = (bits & 2) ? 0 : 1;
+                _features.unwind_comp = (bits & 4) ? 0 : 1;
                 _features.unwind_native = (bits & 8) ? 0 : 1;
-                _features.java_anchor   = (bits & 16) ? 0 : 1;
-                _features.gc_traces     = (bits & 32) ? 0 : 1;
+                _features.java_anchor = (bits & 16) ? 0 : 1;
+                _features.gc_traces = (bits & 32) ? 0 : 1;
             }
 
             CASE("file")
-                if (value == NULL || value[0] == 0) {
-                    msg = "file must not be empty";
-                }
-                _file = value;
+            if (value == NULL || value[0] == 0) {
+                msg = "file must not be empty";
+            }
+            _file = value;
 
             CASE("log")
-                _log = value == NULL || value[0] == 0 ? NULL : value;
+            _log = value == NULL || value[0] == 0 ? NULL : value;
 
             CASE("loglevel")
-                if (value == NULL || value[0] == 0) {
-                    msg = "loglevel must not be empty";
-                }
-                _loglevel = value;
+            if (value == NULL || value[0] == 0) {
+                msg = "loglevel must not be empty";
+            }
+            _loglevel = value;
 
             CASE("quiet")
-                _quiet = true;
+            _quiet = true;
 
             CASE("server")
-                if (value == NULL || value[0] == 0) {
-                    msg = "server address must not be empty";
-                }
-                _server = value;
+            if (value == NULL || value[0] == 0) {
+                msg = "server address must not be empty";
+            }
+            _server = value;
 
             CASE("fdtransfer")
-                _fdtransfer = true;
-                if (value == NULL || value[0] == 0) {
-                    msg = "fdtransfer path must not be empty";
-                }
-                _fdtransfer_path = value;
+            _fdtransfer = true;
+            if (value == NULL || value[0] == 0) {
+                msg = "fdtransfer path must not be empty";
+            }
+            _fdtransfer_path = value;
 
             // Filters
             CASE("filter")
-                _filter = value == NULL ? "" : value;
+            _filter = value == NULL ? "" : value;
 
             CASE("include")
-                // Workaround -Wstringop-overflow warning
-                if (value == arg + 8) appendToEmbeddedList(_include, arg + 8);
+            // Workaround -Wstringop-overflow warning
+            if (value == arg + 8) appendToEmbeddedList(_include, arg + 8);
 
             CASE("exclude")
-                // Workaround -Wstringop-overflow warning
-                if (value == arg + 8) appendToEmbeddedList(_exclude, arg + 8);
+            // Workaround -Wstringop-overflow warning
+            if (value == arg + 8) appendToEmbeddedList(_exclude, arg + 8);
 
             CASE("threads")
-                _threads = true;
+            _threads = true;
 
             CASE("sched")
-                _sched = true;
+            _sched = true;
 
             CASE("live")
-                _live = true;
+            _live = true;
 
             CASE("nobatch")
-                _nobatch = true;
+            _nobatch = true;
 
             CASE("alluser")
-                _alluser = true;
+            _alluser = true;
 
             CASE("cstack")
-                if (value != NULL) {
-                    if (strcmp(value, "fp") == 0) {
-                        _cstack = CSTACK_FP;
-                    } else if (strcmp(value, "dwarf") == 0) {
-                        _cstack = CSTACK_DWARF;
-                    } else if (strcmp(value, "lbr") == 0) {
-                        _cstack = CSTACK_LBR;
-                    } else if (strcmp(value, "vm") == 0) {
-                        _cstack = CSTACK_VM;
-                    } else if (strcmp(value, "vmx") == 0) {
-                        _cstack = CSTACK_VMX;
-                    } else {
-                        _cstack = CSTACK_NO;
-                    }
+            if (value != NULL) {
+                if (strcmp(value, "fp") == 0) {
+                    _cstack = CSTACK_FP;
+                } else if (strcmp(value, "dwarf") == 0) {
+                    _cstack = CSTACK_DWARF;
+                } else if (strcmp(value, "lbr") == 0) {
+                    _cstack = CSTACK_LBR;
+                } else if (strcmp(value, "vm") == 0) {
+                    _cstack = CSTACK_VM;
+                } else if (strcmp(value, "vmx") == 0) {
+                    _cstack = CSTACK_VMX;
+                } else {
+                    _cstack = CSTACK_NO;
                 }
+            }
 
             CASE("clock")
-                if (value != NULL) {
-                    if (value[0] == 't') {
-                        _clock = CLK_TSC;
-                    } else if (value[0] == 'm') {
-                        _clock = CLK_MONOTONIC;
-                    }
+            if (value != NULL) {
+                if (value[0] == 't') {
+                    _clock = CLK_TSC;
+                } else if (value[0] == 'm') {
+                    _clock = CLK_MONOTONIC;
                 }
+            }
 
             CASE("target-cpu")
-                if (value == NULL || (_target_cpu = atoi(value)) < 0) {
-                    _target_cpu = -1;
-                }
+            if (value == NULL || (_target_cpu = atoi(value)) < 0) {
+                _target_cpu = -1;
+            }
 
             // Output style modifiers
             CASE("simple")
-                _style |= STYLE_SIMPLE;
+            _style |= STYLE_SIMPLE;
 
             CASE("dot")
-                _style |= STYLE_DOTTED;
+            _style |= STYLE_DOTTED;
 
             CASE("norm")
-                _style |= STYLE_NORMALIZE;
+            _style |= STYLE_NORMALIZE;
 
             CASE("sig")
-                _style |= STYLE_SIGNATURES;
+            _style |= STYLE_SIGNATURES;
 
             CASE("ann")
-                _style |= STYLE_ANNOTATE;
+            _style |= STYLE_ANNOTATE;
 
             CASE("lib")
-                _style |= STYLE_LIB_NAMES;
+            _style |= STYLE_LIB_NAMES;
 
             CASE("mcache")
-                _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
+            _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
 
             CASE("begin")
-                _begin = value;
+            _begin = value;
 
             CASE("end")
-                _end = value;
+            _end = value;
 
             CASE("nostop")
-                _nostop = true;
+            _nostop = true;
 
             // FlameGraph options
             CASE("title")
-                _title = value;
+            _title = value;
 
             CASE("minwidth")
-                if (value != NULL) _minwidth = atof(value);
+            if (value != NULL) _minwidth = atof(value);
 
             CASE("reverse")
-                _reverse = true;
+            _reverse = true;
 
             CASE("inverted")
-                _inverted = true;
+            _inverted = true;
 
             DEFAULT()
-                if (_unknown_arg == NULL) _unknown_arg = arg;
+            if (_unknown_arg == NULL) _unknown_arg = arg;
         }
     }
 

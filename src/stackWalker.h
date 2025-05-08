@@ -6,9 +6,8 @@
 #ifndef _STACKWALKER_H
 #define _STACKWALKER_H
 
-#include <stdint.h>
 #include "vmEntry.h"
-
+#include <stdint.h>
 
 class JavaFrameAnchor;
 

@@ -6,9 +6,8 @@
 #ifndef _THREADFILTER_H
 #define _THREADFILTER_H
 
-#include <vector>
 #include "arch.h"
-
+#include <vector>
 
 // The size of thread ID bitmap in bytes. Must be at least 64K to allow mmap()
 const u32 BITMAP_SIZE = 65536;
@@ -16,7 +15,6 @@ const u32 BITMAP_SIZE = 65536;
 const u32 BITMAP_CAPACITY = BITMAP_SIZE * 8;
 // Total number of bitmaps required to hold the entire range of thread IDs
 const u32 MAX_BITMAPS = (1 << 31) / BITMAP_CAPACITY;
-
 
 // ThreadFilter query operations must be lock-free and signal-safe;
 // update operations are mostly lock-free, except rare bitmap allocations

@@ -9,26 +9,24 @@
 #include "arguments.h"
 #include "os.h"
 
-
 const u64 NANOTIME_FREQ = 1000000000;
-
 
 #if defined(__x86_64__) || defined(__i386__)
 
-#include <cpuid.h>
+#    include <cpuid.h>
 
-#define TSC_SUPPORTED true
+#    define TSC_SUPPORTED true
 
 static inline u64 rdtsc() {
-#if defined(__x86_64__)
+#    if defined(__x86_64__)
     u32 lo, hi;
-    asm volatile("rdtsc" : "=a" (lo), "=d" (hi));
+    asm volatile("rdtsc" : "=a"(lo), "=d"(hi));
     return ((u64)hi << 32) | lo;
-#else
+#    else
     u64 result;
-    asm volatile("rdtsc" : "=A" (result));
+    asm volatile("rdtsc" : "=A"(result));
     return result;
-#endif
+#    endif
 }
 
 // Returns true if this CPU has a good ("invariant") timestamp counter
@@ -50,7 +48,7 @@ static bool cpuHasGoodTimestampCounter() {
 
 #elif defined(__aarch64__)
 
-#define TSC_SUPPORTED true
+#    define TSC_SUPPORTED true
 
 static inline u64 rdtsc() {
     u64 value;
@@ -65,15 +63,14 @@ static bool cpuHasGoodTimestampCounter() {
 
 #else
 
-#define TSC_SUPPORTED false
-#define rdtsc() 0
+#    define TSC_SUPPORTED false
+#    define rdtsc() 0
 
 static bool cpuHasGoodTimestampCounter() {
     return false;
 }
 
 #endif
-
 
 class TSC {
   private:

@@ -6,23 +6,21 @@
 #ifndef _ARCH_H
 #define _ARCH_H
 
-
 #ifndef likely
-#  define likely(x)    (__builtin_expect(!!(x), 1))
+#    define likely(x) (__builtin_expect(!!(x), 1))
 #endif
 
 #ifndef unlikely
-#  define unlikely(x)  (__builtin_expect(!!(x), 0))
+#    define unlikely(x) (__builtin_expect(!!(x), 0))
 #endif
 
-#define callerPC()     __builtin_return_address(0)
+#define callerPC() __builtin_return_address(0)
 
 #ifdef _LP64
-#  define LP64_ONLY(code) code
+#    define LP64_ONLY(code) code
 #else // !_LP64
-#  define LP64_ONLY(code)
+#    define LP64_ONLY(code)
 #endif // _LP64
-
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -49,7 +47,6 @@ static inline void storeRelease(u64& var, u64 value) {
     return __atomic_store_n(&var, value, __ATOMIC_RELEASE);
 }
 
-
 #if defined(__x86_64__) || defined(__i386__)
 
 typedef unsigned char instruction_t;
@@ -61,14 +58,14 @@ const int FRAME_PC_SLOT = 1;
 const int PROBE_SP_LIMIT = 4;
 const int PLT_HEADER_SIZE = 16;
 const int PLT_ENTRY_SIZE = 16;
-const int PERF_REG_PC = 8;  // PERF_REG_X86_IP
+const int PERF_REG_PC = 8; // PERF_REG_X86_IP
 
-#define spinPause()       asm volatile("pause")
-#define rmb()             asm volatile("lfence" : : : "memory")
-#define flushCache(addr)  asm volatile("mfence; clflush (%0); mfence" : : "r" (addr) : "memory")
+#    define spinPause() asm volatile("pause")
+#    define rmb() asm volatile("lfence" : : : "memory")
+#    define flushCache(addr) asm volatile("mfence; clflush (%0); mfence" : : "r"(addr) : "memory")
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        ((void**)__builtin_frame_address(0) + 2)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() ((void**)__builtin_frame_address(0) + 2)
 
 #elif defined(__arm__) || defined(__thumb__)
 
@@ -82,14 +79,14 @@ const int FRAME_PC_SLOT = 1;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 20;
 const int PLT_ENTRY_SIZE = 12;
-const int PERF_REG_PC = 15;  // PERF_REG_ARM_PC
+const int PERF_REG_PC = 15; // PERF_REG_ARM_PC
 
-#define spinPause()       asm volatile("yield")
-#define rmb()             asm volatile("dmb ish" : : : "memory")
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#    define spinPause() asm volatile("yield")
+#    define rmb() asm volatile("dmb ish" : : : "memory")
+#    define flushCache(addr) __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        __builtin_frame_address(1)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() __builtin_frame_address(1)
 
 #elif defined(__aarch64__)
 
@@ -102,14 +99,14 @@ const int FRAME_PC_SLOT = 1;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
-const int PERF_REG_PC = 32;  // PERF_REG_ARM64_PC
+const int PERF_REG_PC = 32; // PERF_REG_ARM64_PC
 
-#define spinPause()       asm volatile("isb")
-#define rmb()             asm volatile("dmb ish" : : : "memory")
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#    define spinPause() asm volatile("isb")
+#    define rmb() asm volatile("dmb ish" : : : "memory")
+#    define flushCache(addr) __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        __builtin_frame_address(1)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() __builtin_frame_address(1)
 
 #elif defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 
@@ -124,38 +121,38 @@ const int FRAME_PC_SLOT = 2;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 24;
 const int PLT_ENTRY_SIZE = 24;
-const int PERF_REG_PC = 32;  // PERF_REG_POWERPC_NIP
+const int PERF_REG_PC = 32; // PERF_REG_POWERPC_NIP
 
-#define spinPause()       asm volatile("yield") // does nothing, but using or 1,1,1 would lead to other problems
-#define rmb()             asm volatile ("sync" : : : "memory") // lwsync would do but better safe than sorry
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#    define spinPause() asm volatile("yield")         // does nothing, but using or 1,1,1 would lead to other problems
+#    define rmb() asm volatile("sync" : : : "memory") // lwsync would do but better safe than sorry
+#    define flushCache(addr) __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        __builtin_frame_address(0)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() __builtin_frame_address(0)
 
 #elif defined(__riscv) && (__riscv_xlen == 64)
 
 typedef unsigned int instruction_t;
-#if defined(__riscv_compressed)
+#    if defined(__riscv_compressed)
 const instruction_t BREAKPOINT = 0x9002; // EBREAK (compressed form)
-#else
+#    else
 const instruction_t BREAKPOINT = 0x00100073; // EBREAK
-#endif
+#    endif
 const int BREAKPOINT_OFFSET = 0;
 
 const int SYSCALL_SIZE = sizeof(instruction_t);
-const int FRAME_PC_SLOT = 1;    // return address is at -1 from FP
+const int FRAME_PC_SLOT = 1; // return address is at -1 from FP
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 24; // Best guess from examining readelf
 const int PLT_ENTRY_SIZE = 24;  // ...same...
 const int PERF_REG_PC = 0;      // PERF_REG_RISCV_PC
 
-#define spinPause()       // No architecture support
-#define rmb()             asm volatile ("fence" : : : "memory")
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#    define spinPause() // No architecture support
+#    define rmb() asm volatile("fence" : : : "memory")
+#    define flushCache(addr) __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        __builtin_frame_address(0)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() __builtin_frame_address(0)
 
 #elif defined(__loongarch_lp64)
 
@@ -168,27 +165,26 @@ const int FRAME_PC_SLOT = 1;
 const int PROBE_SP_LIMIT = 0;
 const int PLT_HEADER_SIZE = 32;
 const int PLT_ENTRY_SIZE = 16;
-const int PERF_REG_PC = 0;      // PERF_REG_LOONGARCH_PC
+const int PERF_REG_PC = 0; // PERF_REG_LOONGARCH_PC
 
-#define spinPause()       asm volatile("ibar 0x0")
-#define rmb()             asm volatile("dbar 0x0" : : : "memory")
-#define flushCache(addr)  __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
+#    define spinPause() asm volatile("ibar 0x0")
+#    define rmb() asm volatile("dbar 0x0" : : : "memory")
+#    define flushCache(addr) __builtin___clear_cache((char*)(addr), (char*)(addr) + sizeof(instruction_t))
 
-#define callerFP()        __builtin_frame_address(1)
-#define callerSP()        __builtin_frame_address(0)
+#    define callerFP() __builtin_frame_address(1)
+#    define callerSP() __builtin_frame_address(0)
 
 #else
 
-#error "Compiling on unsupported arch"
+#    error "Compiling on unsupported arch"
 
 #endif
 
-
 // On Apple M1 and later processors, memory is either writable or executable (W^X)
 #if defined(__aarch64__) && defined(__APPLE__)
-#  define WX_MEMORY  true
+#    define WX_MEMORY true
 #else
-#  define WX_MEMORY  false
+#    define WX_MEMORY false
 #endif
 
 // Pointer authentication (PAC) support.
@@ -197,11 +193,10 @@ const int PERF_REG_PC = 0;      // PERF_REG_LOONGARCH_PC
 const unsigned long PAC_MASK = WX_MEMORY ? 0x7fffffffffffUL : 0xffffffffffffUL;
 
 static inline const void* stripPointer(const void* p) {
-    return (const void*) ((unsigned long)p & PAC_MASK);
+    return (const void*)((unsigned long)p & PAC_MASK);
 }
 #else
-#  define stripPointer(p)  (p)
+#    define stripPointer(p) (p)
 #endif
-
 
 #endif // _ARCH_H

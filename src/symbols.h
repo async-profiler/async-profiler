@@ -9,7 +9,6 @@
 #include "codeCache.h"
 #include "mutex.h"
 
-
 class Symbols {
   private:
     static Mutex _parse_lock;

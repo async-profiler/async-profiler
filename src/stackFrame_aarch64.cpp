@@ -5,20 +5,18 @@
 
 #ifdef __aarch64__
 
-#include <errno.h>
-#include <string.h>
-#include <sys/syscall.h>
-#include "stackFrame.h"
-#include "safeAccess.h"
-#include "vmStructs.h"
+#    include "safeAccess.h"
+#    include "stackFrame.h"
+#    include "vmStructs.h"
+#    include <errno.h>
+#    include <string.h>
+#    include <sys/syscall.h>
 
-
-#ifdef __APPLE__
-#  define REG(l, m)  _ucontext->uc_mcontext->__ss.__##m
-#else
-#  define REG(l, m)  _ucontext->uc_mcontext.l
-#endif
-
+#    ifdef __APPLE__
+#        define REG(l, m) _ucontext->uc_mcontext->__ss.__##m
+#    else
+#        define REG(l, m) _ucontext->uc_mcontext.l
+#    endif
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)REG(pc, pc);
@@ -72,23 +70,14 @@ void StackFrame::ret() {
     pc() = link();
 }
 
-
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
-    if (ip == entry || *ip == 0xd65f03c0
-        || strncmp(name, "itable", 6) == 0
-        || strncmp(name, "vtable", 6) == 0
-        || strncmp(name, "compare_long_string_", 20) == 0
-        || strcmp(name, "zero_blocks") == 0
-        || strcmp(name, "atomic entry points") == 0
-        || strcmp(name, "InlineCacheBuffer") == 0)
-    {
+    if (ip == entry || *ip == 0xd65f03c0 || strncmp(name, "itable", 6) == 0 || strncmp(name, "vtable", 6) == 0 || strncmp(name, "compare_long_string_", 20) == 0 || strcmp(name, "zero_blocks") == 0 || strcmp(name, "atomic entry points") == 0 || strcmp(name, "InlineCacheBuffer") == 0) {
         pc = link();
         return true;
-    } else if (strcmp(name, "forward_copy_longs") == 0
-            || strcmp(name, "backward_copy_longs") == 0
-            // There is a typo in JDK 8
-            || strcmp(name, "foward_copy_longs") == 0) {
+    } else if (strcmp(name, "forward_copy_longs") == 0 || strcmp(name, "backward_copy_longs") == 0
+               // There is a typo in JDK 8
+               || strcmp(name, "foward_copy_longs") == 0) {
         // These are called from arraycopy stub that maintains the regular frame link
         if (&pc == &this->pc() && withinCurrentStack(fp)) {
             // Unwind both stub frames for AsyncGetCallTrace
@@ -191,7 +180,7 @@ bool StackFrame::skipFaultInstruction() {
 }
 
 bool StackFrame::checkInterruptedSyscall() {
-#ifdef __APPLE__
+#    ifdef __APPLE__
     // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap
     if (*(instruction_t*)pc() == 0xd65f03c0) {
         return true;
@@ -202,7 +191,7 @@ bool StackFrame::checkInterruptedSyscall() {
     } else {
         return retval() == (uintptr_t)-EINTR;
     }
-#else
+#    else
     if (retval() == (uintptr_t)-EINTR) {
         // Workaround for JDK-8237858: restart the interrupted poll / epoll_wait manually
         uintptr_t nr = (uintptr_t)REG(regs[8], x[8]);
@@ -227,7 +216,7 @@ bool StackFrame::checkInterruptedSyscall() {
         return true;
     }
     return false;
-#endif
+#    endif
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

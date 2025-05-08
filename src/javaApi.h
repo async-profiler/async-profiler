@@ -8,7 +8,6 @@
 
 #include <jvmti.h>
 
-
 class JavaAPI {
   public:
     static void registerNatives(jvmtiEnv* jvmti, JNIEnv* jni);

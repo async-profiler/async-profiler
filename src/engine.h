@@ -8,7 +8,6 @@
 
 #include "arguments.h"
 
-
 class Engine {
   protected:
     static volatile bool _enabled;

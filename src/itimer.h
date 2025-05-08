@@ -8,7 +8,6 @@
 
 #include "cpuEngine.h"
 
-
 class ITimer : public CpuEngine {
   public:
     const char* type() {

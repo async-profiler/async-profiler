@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
-#include <pthread.h>
 #include "cpuEngine.h"
 #include "j9StackTraces.h"
 #include "profiler.h"
 #include "stackWalker.h"
 #include "tsc.h"
 #include "vmStructs.h"
-
+#include <errno.h>
+#include <pthread.h>
 
 void** CpuEngine::_pthread_entry = NULL;
 CpuEngine* CpuEngine::_current = NULL;
@@ -125,8 +124,7 @@ void CpuEngine::signalHandlerJ9(int signo, siginfo_t* siginfo, void* ucontext) {
 
     J9StackTraceNotification notif;
     StackContext java_ctx;
-    notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF
-        ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx)
-        : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx);
+    notif.num_frames = _cstack == CSTACK_NO ? 0 : _cstack == CSTACK_DWARF ? StackWalker::walkDwarf(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx)
+                                                                          : StackWalker::walkFP(ucontext, notif.addr, MAX_J9_NATIVE_FRAMES, &java_ctx);
     J9StackTraces::checkpoint(_interval, &notif);
 }

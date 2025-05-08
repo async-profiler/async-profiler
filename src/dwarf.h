@@ -6,21 +6,19 @@
 #ifndef _DWARF_H
 #define _DWARF_H
 
-#include <stddef.h>
 #include "arch.h"
+#include <stddef.h>
 
-
-const int DW_REG_PLT = 128;      // denotes special rule for PLT entries
-const int DW_REG_INVALID = 255;  // denotes unsupported configuration
+const int DW_REG_PLT = 128;     // denotes special rule for PLT entries
+const int DW_REG_INVALID = 255; // denotes unsupported configuration
 
 const int DW_PC_OFFSET = 1;
 const int DW_SAME_FP = 0x80000000;
 const int DW_STACK_SLOT = sizeof(void*);
 
-
 #if defined(__x86_64__)
 
-#define DWARF_SUPPORTED true
+#    define DWARF_SUPPORTED true
 
 const int DW_REG_FP = 6;
 const int DW_REG_SP = 7;
@@ -30,7 +28,7 @@ const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
 
 #elif defined(__i386__)
 
-#define DWARF_SUPPORTED true
+#    define DWARF_SUPPORTED true
 
 const int DW_REG_FP = 5;
 const int DW_REG_SP = 4;
@@ -40,7 +38,7 @@ const int LINKED_FRAME_SIZE = 2 * DW_STACK_SLOT;
 
 #elif defined(__aarch64__)
 
-#define DWARF_SUPPORTED true
+#    define DWARF_SUPPORTED true
 
 const int DW_REG_FP = 29;
 const int DW_REG_SP = 31;
@@ -50,7 +48,7 @@ const int LINKED_FRAME_SIZE = 0;
 
 #else
 
-#define DWARF_SUPPORTED false
+#    define DWARF_SUPPORTED false
 
 const int DW_REG_FP = 0;
 const int DW_REG_SP = 1;
@@ -59,7 +57,6 @@ const int EMPTY_FRAME_SIZE = 0;
 const int LINKED_FRAME_SIZE = 0;
 
 #endif
-
 
 struct FrameDesc {
     u32 loc;
@@ -76,7 +73,6 @@ struct FrameDesc {
         return (int)(fd1->loc - fd2->loc);
     }
 };
-
 
 class DwarfParser {
   private:
@@ -112,7 +108,7 @@ class DwarfParser {
 
     u32 getLeb() {
         u32 result = 0;
-        for (u32 shift = 0; ; shift += 7) {
+        for (u32 shift = 0;; shift += 7) {
             u8 b = *_ptr++;
             result |= (b & 0x7f) << shift;
             if ((b & 0x80) == 0) {
@@ -123,7 +119,7 @@ class DwarfParser {
 
     int getSLeb() {
         int result = 0;
-        for (u32 shift = 0; ; shift += 7) {
+        for (u32 shift = 0;; shift += 7) {
             u8 b = *_ptr++;
             result |= (b & 0x7f) << shift;
             if ((b & 0x80) == 0) {

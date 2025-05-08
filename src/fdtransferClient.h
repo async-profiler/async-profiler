@@ -8,16 +8,16 @@
 
 #ifdef __linux__
 
-#include "fdtransfer.h"
+#    include "fdtransfer.h"
 
 class FdTransferClient {
   private:
     static int _peer;
 
-    static int recvFd(unsigned int request_id, struct fd_response *resp, size_t resp_size);
+    static int recvFd(unsigned int request_id, struct fd_response* resp, size_t resp_size);
 
   public:
-    static bool connectToServer(const char *path);
+    static bool connectToServer(const char* path);
     static bool hasPeer() { return _peer != -1; }
     static void closePeer() {
         if (_peer != -1) {
@@ -26,7 +26,7 @@ class FdTransferClient {
         }
     }
 
-    static int requestPerfFd(int *tid, int target_cpu, struct perf_event_attr *attr);
+    static int requestPerfFd(int* tid, int target_cpu, struct perf_event_attr* attr);
     static int requestKallsymsFd();
 };
 
@@ -34,9 +34,9 @@ class FdTransferClient {
 
 class FdTransferClient {
   public:
-    static bool connectToServer(const char *path) { return false; }
+    static bool connectToServer(const char* path) { return false; }
     static bool hasPeer() { return false; }
-    static void closePeer() { }
+    static void closePeer() {}
 };
 
 #endif // __linux__

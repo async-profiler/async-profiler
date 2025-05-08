@@ -7,7 +7,6 @@
 #include "j9Ext.h"
 #include "vmEntry.h"
 
-
 void J9ObjectSampler::JavaObjectAlloc(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread,
                                       jobject object, jclass object_klass, jlong size) {
     if (_enabled && updateCounter(_allocated_bytes, size, _interval)) {

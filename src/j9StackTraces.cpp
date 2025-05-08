@@ -3,18 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <map>
 #include "j9StackTraces.h"
 #include "j9Ext.h"
-#include "profiler.h"
 #include "perfEvents.h"
+#include "profiler.h"
 #include "tsc.h"
-
+#include <errno.h>
+#include <fcntl.h>
+#include <map>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 enum {
     J9_STOPPED = 0x40,
@@ -42,13 +41,11 @@ class J9VMThread {
     }
 };
 
-
 pthread_t J9StackTraces::_thread = 0;
 int J9StackTraces::_max_stack_depth;
 int J9StackTraces::_pipe[2];
 
 static JNIEnv* _self_env = NULL;
-
 
 Error J9StackTraces::start(Arguments& args) {
     _max_stack_depth = args._jstackdepth;

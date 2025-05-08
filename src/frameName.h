@@ -6,24 +6,22 @@
 #ifndef _FRAMENAME_H
 #define _FRAMENAME_H
 
-#include <jvmti.h>
-#include <locale.h>
-#include <map>
-#include <vector>
-#include <string>
 #include "arguments.h"
 #include "mutex.h"
 #include "vmEntry.h"
+#include <jvmti.h>
+#include <locale.h>
+#include <map>
+#include <string>
+#include <vector>
 
 #ifdef __APPLE__
-#  include <xlocale.h>
+#    include <xlocale.h>
 #endif
-
 
 typedef std::map<jmethodID, std::string> JMethodCache;
 typedef std::map<int, std::string> ThreadMap;
 typedef std::map<unsigned int, const char*> ClassMap;
-
 
 enum MatchType {
   MATCH_EQUALS,
@@ -31,7 +29,6 @@ enum MatchType {
   MATCH_STARTS_WITH,
   MATCH_ENDS_WITH
 };
-
 
 class Matcher {
   private:
@@ -48,7 +45,6 @@ class Matcher {
 
     bool matches(const char* s);
 };
-
 
 class FrameName {
   private:

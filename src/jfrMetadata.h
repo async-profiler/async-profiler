@@ -6,12 +6,11 @@
 #ifndef _JFRMETADATA_H
 #define _JFRMETADATA_H
 
-#include <string>
 #include <map>
-#include <vector>
 #include <stdio.h>
 #include <string.h>
-
+#include <string>
+#include <vector>
 
 enum JfrType {
     T_METADATA = 0,
@@ -81,7 +80,6 @@ enum JfrType {
     T_LAST_CONTENT_TYPE = 209,
 };
 
-
 class Attribute {
   public:
     int _key;
@@ -136,17 +134,17 @@ class JfrMetadata : Element {
     static JfrMetadata _root;
 
     enum FieldFlags {
-        F_CPOOL           = 0x1,
-        F_ARRAY           = 0x2,
-        F_UNSIGNED        = 0x4,
-        F_BYTES           = 0x8,
-        F_TIME_TICKS      = 0x10,
-        F_TIME_MILLIS     = 0x20,
-        F_DURATION_TICKS  = 0x40,
-        F_DURATION_NANOS  = 0x80,
+        F_CPOOL = 0x1,
+        F_ARRAY = 0x2,
+        F_UNSIGNED = 0x4,
+        F_BYTES = 0x8,
+        F_TIME_TICKS = 0x10,
+        F_TIME_MILLIS = 0x20,
+        F_DURATION_TICKS = 0x40,
+        F_DURATION_NANOS = 0x80,
         F_DURATION_MILLIS = 0x100,
-        F_ADDRESS         = 0x200,
-        F_PERCENTAGE      = 0x400,
+        F_ADDRESS = 0x200,
+        F_PERCENTAGE = 0x400,
     };
 
     static Element& element(const char* name) {

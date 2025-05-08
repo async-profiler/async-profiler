@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "mallocTracer.h"
 #include "asprof.h"
 #include "assert.h"
 #include "codeCache.h"
-#include "mallocTracer.h"
 #include "os.h"
 #include "profiler.h"
 #include "tsc.h"
@@ -14,9 +14,9 @@
 #include <string.h>
 
 #ifdef __clang__
-#  define NO_OPTIMIZE __attribute__((optnone))
+#    define NO_OPTIMIZE __attribute__((optnone))
 #else
-#  define NO_OPTIMIZE __attribute__((optimize("O1")))
+#    define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
 extern "C" void* malloc_hook(size_t size) {
@@ -36,8 +36,7 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 }
 
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
-extern "C" NO_OPTIMIZE
-void* calloc_hook_dummy(size_t num, size_t size) {
+extern "C" NO_OPTIMIZE void* calloc_hook_dummy(size_t num, size_t size) {
     return calloc(num, size);
 }
 
@@ -70,8 +69,7 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 }
 
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
-extern "C" NO_OPTIMIZE
-int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
+extern "C" NO_OPTIMIZE int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
     return posix_memalign(memptr, alignment, size);
 }
 
@@ -98,12 +96,7 @@ void MallocTracer::initialize() {
 
     lib->mark(
         [](const char* s) -> bool {
-            return strcmp(s, "malloc_hook") == 0
-                || strcmp(s, "calloc_hook") == 0
-                || strcmp(s, "realloc_hook") == 0
-                || strcmp(s, "free_hook") == 0
-                || strcmp(s, "posix_memalign_hook") == 0
-                || strcmp(s, "aligned_alloc_hook") == 0;
+            return strcmp(s, "malloc_hook") == 0 || strcmp(s, "calloc_hook") == 0 || strcmp(s, "realloc_hook") == 0 || strcmp(s, "free_hook") == 0 || strcmp(s, "posix_memalign_hook") == 0 || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
 }

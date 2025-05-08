@@ -5,11 +5,10 @@
 
 #if defined(__arm__) || defined(__thumb__)
 
-#include <errno.h>
-#include <string.h>
-#include "stackFrame.h"
-#include "vmStructs.h"
-
+#    include "stackFrame.h"
+#    include "vmStructs.h"
+#    include <errno.h>
+#    include <string.h>
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)_ucontext->uc_mcontext.arm_pc;
@@ -64,14 +63,9 @@ void StackFrame::ret() {
     pc() = link();
 }
 
-
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
-    if (ip == entry || *ip == 0xe12fff1e
-        || strncmp(name, "itable", 6) == 0
-        || strncmp(name, "vtable", 6) == 0
-        || strcmp(name, "InlineCacheBuffer") == 0)
-    {
+    if (ip == entry || *ip == 0xe12fff1e || strncmp(name, "itable", 6) == 0 || strncmp(name, "vtable", 6) == 0 || strcmp(name, "InlineCacheBuffer") == 0) {
         pc = link();
         return true;
     }

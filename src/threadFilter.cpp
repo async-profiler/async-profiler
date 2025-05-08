@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <string.h>
 #include "threadFilter.h"
 #include "os.h"
-
+#include <stdlib.h>
+#include <string.h>
 
 ThreadFilter::ThreadFilter() {
     memset(_bitmap, 0, sizeof(_bitmap));

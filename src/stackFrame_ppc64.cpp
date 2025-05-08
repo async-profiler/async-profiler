@@ -5,10 +5,9 @@
 
 #if defined(__PPC64__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 
-#include <errno.h>
-#include <signal.h>
-#include "stackFrame.h"
-
+#    include "stackFrame.h"
+#    include <errno.h>
+#    include <signal.h>
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)_ucontext->uc_mcontext.regs->nip;
@@ -78,8 +77,8 @@ static inline bool inC1EpilogueCrit(uintptr_t pc) {
     //        xxxxxxxx
     //        2000804e blr
     instruction_t* inst = (instruction_t*)pc;
-    if (inst[ 1] == 0xebe10010 && inst[2] == 0x7fe803a6 ||
-        inst[ 0] == 0xebe10010 && inst[1] == 0x7fe803a6 ||
+    if (inst[1] == 0xebe10010 && inst[2] == 0x7fe803a6 ||
+        inst[0] == 0xebe10010 && inst[1] == 0x7fe803a6 ||
         inst[-1] == 0xebe10010 && inst[0] == 0x7fe803a6) {
         return true;
     }
@@ -99,7 +98,6 @@ static inline bool inC2PrologueCrit(uintptr_t pc) {
     return false; // not in critical section
 }
 
-
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     pc = link();
     return true;
@@ -118,7 +116,7 @@ bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintp
         pc = ((uintptr_t*)sp)[2];
     } else if (inC2PrologueCrit(pc)) {
         // frame constructed but lr not yet stored in it: just do it here
-        *(((unsigned long *) _ucontext->uc_mcontext.regs->gpr[21]) + 2) = (unsigned long) _ucontext->uc_mcontext.regs->gpr[20];
+        *(((unsigned long*)_ucontext->uc_mcontext.regs->gpr[21]) + 2) = (unsigned long)_ucontext->uc_mcontext.regs->gpr[20];
     } else {
         // most probably caller's framer is still on top but pc is already in callee: use caller's pc
         pc = link();

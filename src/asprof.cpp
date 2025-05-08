@@ -6,14 +6,13 @@
 #include "asprof.h"
 #include "hooks.h"
 #include "profiler.h"
-#include "tsc.h"
 #include "threadLocalData.h"
+#include "tsc.h"
 #include "userEvents.h"
 
 static asprof_error_t asprof_error(const char* msg) {
     return (asprof_error_t)msg;
 }
-
 
 DLLEXPORT void asprof_init() {
     Hooks::init(true);

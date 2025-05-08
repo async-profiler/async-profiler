@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "demangle.h"
+#include "rustDemangle.h"
 #include <cxxabi.h>
 #include <stdlib.h>
 #include <string.h>
-#include "demangle.h"
-#include "rustDemangle.h"
-
 
 char* Demangle::demangleCpp(const char* s) {
     int status;
@@ -46,7 +45,8 @@ bool Demangle::isRustSymbol(const char* s) {
     const char* e = strrchr(s, 'E');
     if (e != NULL && e - s > 22 && e[-19] == '1' && e[-18] == '7' && e[-17] == 'h') {
         const char* h = e - 16;
-        while ((*h >= '0' && *h <= '9') || (*h >= 'a' && *h <= 'f')) h++;
+        while ((*h >= '0' && *h <= '9') || (*h >= 'a' && *h <= 'f'))
+            h++;
         if (h == e) {
             return true;
         }
@@ -55,7 +55,7 @@ bool Demangle::isRustSymbol(const char* s) {
     return false;
 }
 
-char* Demangle::demangleRust(struct demangle const *demangle, bool full_signature) {
+char* Demangle::demangleRust(struct demangle const* demangle, bool full_signature) {
     for (size_t demangled_size = 64; demangled_size < 1000000; demangled_size *= 2) {
         char* result = (char*)malloc(demangled_size);
         if (result == NULL) {

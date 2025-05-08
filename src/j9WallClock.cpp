@@ -3,12 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
 #include "j9WallClock.h"
 #include "j9Ext.h"
 #include "profiler.h"
 #include "tsc.h"
-
+#include <stdlib.h>
 
 long J9WallClock::_interval;
 

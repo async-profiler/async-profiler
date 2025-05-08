@@ -6,9 +6,8 @@
 #ifndef _J9WALLCLOCK_H
 #define _J9WALLCLOCK_H
 
-#include <pthread.h>
 #include "engine.h"
-
+#include <pthread.h>
 
 class J9WallClock : public Engine {
   private:

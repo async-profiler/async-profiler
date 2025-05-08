@@ -3,19 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <dlfcn.h>
-#include <pthread.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
 #include "hooks.h"
 #include "asprof.h"
 #include "cpuEngine.h"
 #include "mallocTracer.h"
 #include "profiler.h"
+#include <dlfcn.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 
-
-#define ADDRESS_OF(sym) ({ \
+#define ADDRESS_OF(sym) ({               \
     void* addr = dlsym(RTLD_NEXT, #sym); \
     addr != NULL ? (sym##_t)addr : sym;  \
 })
@@ -68,7 +67,7 @@ static void* thread_start_wrapper(void* e) {
 }
 
 static int pthread_create_hook(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
-    ThreadEntry* entry = (ThreadEntry*) malloc(sizeof(ThreadEntry));
+    ThreadEntry* entry = (ThreadEntry*)malloc(sizeof(ThreadEntry));
     entry->start_routine = start_routine;
     entry->arg = arg;
 
@@ -76,7 +75,7 @@ static int pthread_create_hook(pthread_t* thread, const pthread_attr_t* attr, Th
     if (result != 0) {
         free(entry);
     }
-   return result;
+    return result;
 }
 
 static void pthread_exit_hook(void* retval) {
@@ -85,7 +84,6 @@ static void pthread_exit_hook(void* retval) {
 
     _orig_pthread_exit(retval);
 }
-
 
 typedef void* (*dlopen_t)(const char*, int);
 static dlopen_t _orig_dlopen = NULL;
@@ -107,11 +105,9 @@ static void* dlopen_hook(const char* filename, int flags) {
     return dlopen_hook_impl(filename, flags, true);
 }
 
-
 // LD_PRELOAD hooks
 
-extern "C" WEAK DLLEXPORT
-int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
+extern "C" WEAK DLLEXPORT int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
     if (_orig_pthread_create == NULL) {
         _orig_pthread_create = ADDRESS_OF(pthread_create);
     }
@@ -121,8 +117,7 @@ int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc sta
     return _orig_pthread_create(thread, attr, start_routine, arg);
 }
 
-extern "C" WEAK DLLEXPORT
-void pthread_exit(void* retval) {
+extern "C" WEAK DLLEXPORT void pthread_exit(void* retval) {
     if (_orig_pthread_exit == NULL) {
         _orig_pthread_exit = ADDRESS_OF(pthread_exit);
     }
@@ -131,11 +126,10 @@ void pthread_exit(void* retval) {
     } else {
         _orig_pthread_exit(retval);
     }
-    abort();  // to suppress gcc warning
+    abort(); // to suppress gcc warning
 }
 
-extern "C" WEAK DLLEXPORT
-void* dlopen(const char* filename, int flags) {
+extern "C" WEAK DLLEXPORT void* dlopen(const char* filename, int flags) {
     if (_orig_dlopen == NULL) {
         _orig_dlopen = ADDRESS_OF(dlopen);
     }
@@ -144,7 +138,6 @@ void* dlopen(const char* filename, int flags) {
     }
     return _orig_dlopen(filename, flags);
 }
-
 
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;

@@ -9,7 +9,6 @@
 #include "asprof.h"
 #include "log.h"
 
-
 class Writer {
   protected:
     int _err;

@@ -5,19 +5,17 @@
 
 #ifdef __x86_64__
 
-#include <errno.h>
-#include <string.h>
-#include <sys/syscall.h>
-#include "stackFrame.h"
-#include "vmStructs.h"
+#    include "stackFrame.h"
+#    include "vmStructs.h"
+#    include <errno.h>
+#    include <string.h>
+#    include <sys/syscall.h>
 
-
-#ifdef __APPLE__
-#  define REG(l, m)  _ucontext->uc_mcontext->__ss.__##m
-#else
-#  define REG(l, m)  _ucontext->uc_mcontext.gregs[REG_##l]
-#endif
-
+#    ifdef __APPLE__
+#        define REG(l, m) _ucontext->uc_mcontext->__ss.__##m
+#    else
+#        define REG(l, m) _ucontext->uc_mcontext.gregs[REG_##l]
+#    endif
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)REG(RIP, rip);
@@ -73,14 +71,9 @@ void StackFrame::ret() {
     sp() += 8;
 }
 
-
 bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
-    if (ip == entry || *ip == 0xc3
-        || strncmp(name, "itable", 6) == 0
-        || strncmp(name, "vtable", 6) == 0
-        || strcmp(name, "InlineCacheBuffer") == 0)
-    {
+    if (ip == entry || *ip == 0xc3 || strncmp(name, "itable", 6) == 0 || strncmp(name, "vtable", 6) == 0 || strcmp(name, "InlineCacheBuffer") == 0) {
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
         return true;
@@ -105,11 +98,10 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
 bool StackFrame::unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     instruction_t* ip = (instruction_t*)pc;
     instruction_t* entry = (instruction_t*)nm->entry();
-    if (ip <= entry
-        || *ip == 0xc3                                                          // ret
-        || *ip == 0x55                                                          // push rbp
-        || ip[-1] == 0x5d                                                       // after pop rbp
-        || (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3))  // poll return
+    if (ip <= entry || *ip == 0xc3                                             // ret
+        || *ip == 0x55                                                         // push rbp
+        || ip[-1] == 0x5d                                                      // after pop rbp
+        || (ip[0] == 0x41 && ip[1] == 0x85 && ip[2] == 0x02 && ip[3] == 0xc3)) // poll return
     {
         // Subtract 1 for PC to point to the call instruction,
         // otherwise it may be attributed to a wrong bytecode
@@ -160,22 +152,53 @@ bool StackFrame::skipFaultInstruction() {
         // mov r64, [r64 + offs]
         unsigned int reg = ((insn << 1) & 8) | ((insn >> 19) & 7);
         switch (reg) {
-            case 0x0: REG(RAX, rax) = 0; break;
-            case 0x1: REG(RCX, rcx) = 0; break;
-            case 0x2: REG(RDX, rdx) = 0; break;
-            case 0x3: REG(RBX, rbx) = 0; break;
-            case 0x4: return false;  // Do not modify RSP
-            case 0x5: REG(RBP, rbp) = 0; break;
-            case 0x6: REG(RSI, rsi) = 0; break;
-            case 0x7: REG(RDI, rdi) = 0; break;
-            case 0x8: REG(R8 , r8 ) = 0; break;
-            case 0x9: REG(R9 , r9 ) = 0; break;
-            case 0xa: REG(R10, r10) = 0; break;
-            case 0xb: REG(R11, r11) = 0; break;
-            case 0xc: REG(R12, r12) = 0; break;
-            case 0xd: REG(R13, r13) = 0; break;
-            case 0xe: REG(R14, r14) = 0; break;
-            case 0xf: REG(R15, r15) = 0; break;
+            case 0x0:
+                REG(RAX, rax) = 0;
+                break;
+            case 0x1:
+                REG(RCX, rcx) = 0;
+                break;
+            case 0x2:
+                REG(RDX, rdx) = 0;
+                break;
+            case 0x3:
+                REG(RBX, rbx) = 0;
+                break;
+            case 0x4:
+                return false; // Do not modify RSP
+            case 0x5:
+                REG(RBP, rbp) = 0;
+                break;
+            case 0x6:
+                REG(RSI, rsi) = 0;
+                break;
+            case 0x7:
+                REG(RDI, rdi) = 0;
+                break;
+            case 0x8:
+                REG(R8, r8) = 0;
+                break;
+            case 0x9:
+                REG(R9, r9) = 0;
+                break;
+            case 0xa:
+                REG(R10, r10) = 0;
+                break;
+            case 0xb:
+                REG(R11, r11) = 0;
+                break;
+            case 0xc:
+                REG(R12, r12) = 0;
+                break;
+            case 0xd:
+                REG(R13, r13) = 0;
+                break;
+            case 0xe:
+                REG(R14, r14) = 0;
+                break;
+            case 0xf:
+                REG(R15, r15) = 0;
+                break;
         }
 
         unsigned int insn_size = 3;
@@ -188,7 +211,7 @@ bool StackFrame::skipFaultInstruction() {
 }
 
 bool StackFrame::checkInterruptedSyscall() {
-#ifdef __APPLE__
+#    ifdef __APPLE__
     // We are not interested in syscalls that do not check error code, e.g. semaphore_wait_trap
     if (*(instruction_t*)pc() == 0xc3) {
         return true;
@@ -200,7 +223,7 @@ bool StackFrame::checkInterruptedSyscall() {
     } else {
         return retval() == (uintptr_t)-EINTR;
     }
-#else
+#    else
     if (retval() == (uintptr_t)-EINTR) {
         // Workaround for JDK-8237858: restart the interrupted poll() manually.
         // Check if the previous instruction is mov eax, SYS_poll with infinite timeout or
@@ -208,17 +231,14 @@ bool StackFrame::checkInterruptedSyscall() {
         uintptr_t pc = this->pc();
         if ((pc & 0xfff) >= 7 && *(instruction_t*)(pc - 7) == 0xb8) {
             int nr = *(int*)(pc - 6);
-            if (nr == SYS_ppoll
-                || (nr == SYS_poll && (int)REG(RDX, rdx) == -1)
-                || (nr == SYS_epoll_wait && (int)REG(R10, r10) == -1)
-                || (nr == SYS_epoll_pwait && (int)REG(R10, r10) == -1)) {
+            if (nr == SYS_ppoll || (nr == SYS_poll && (int)REG(RDX, rdx) == -1) || (nr == SYS_epoll_wait && (int)REG(R10, r10) == -1) || (nr == SYS_epoll_pwait && (int)REG(R10, r10) == -1)) {
                 this->pc() = pc - 7;
             }
         }
         return true;
     }
     return false;
-#endif
+#    endif
 }
 
 bool StackFrame::isSyscall(instruction_t* pc) {

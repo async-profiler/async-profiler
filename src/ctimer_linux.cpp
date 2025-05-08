@@ -5,25 +5,22 @@
 
 #ifdef __linux__
 
-#include <stdlib.h>
-#include <sys/syscall.h>
-#include <time.h>
-#include <unistd.h>
-#include "ctimer.h"
-#include "j9StackTraces.h"
-#include "profiler.h"
-#include "stackWalker.h"
+#    include "ctimer.h"
+#    include "j9StackTraces.h"
+#    include "profiler.h"
+#    include "stackWalker.h"
+#    include <stdlib.h>
+#    include <sys/syscall.h>
+#    include <time.h>
+#    include <unistd.h>
 
-
-#ifndef SIGEV_THREAD_ID
-#define SIGEV_THREAD_ID  4
-#endif
-
+#    ifndef SIGEV_THREAD_ID
+#        define SIGEV_THREAD_ID 4
+#    endif
 
 static inline clockid_t thread_cpu_clock(unsigned int tid) {
-    return ((~tid) << 3) | 6;  // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK
+    return ((~tid) << 3) | 6; // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK
 }
-
 
 int CTimer::_max_timers = 0;
 int* CTimer::_timers = NULL;

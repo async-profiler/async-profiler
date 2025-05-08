@@ -5,7 +5,6 @@
 
 #include "mutex.h"
 
-
 Mutex::Mutex() {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);

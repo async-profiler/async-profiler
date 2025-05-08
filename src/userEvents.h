@@ -6,8 +6,8 @@
 #ifndef _USEREVENTS_H
 #define _USEREVENTS_H
 
-#include <map>
 #include "dictionary.h"
+#include <map>
 
 class UserEvents {
   private:

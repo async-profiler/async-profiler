@@ -6,10 +6,9 @@
 #ifndef _EVENT_H
 #define _EVENT_H
 
-#include <stdint.h>
 #include "asprof.h"
 #include "os.h"
-
+#include <stdint.h>
 
 // The order is important: look for event_type comparison
 enum EventType {

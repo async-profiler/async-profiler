@@ -3,19 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
+#include "instrument.h"
 #include "arch.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "vmEntry.h"
-#include "instrument.h"
-
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <string.h>
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
-
 
 enum ConstantTag {
     CONSTANT_Utf8 = 1,
@@ -109,7 +107,6 @@ enum PatchConstants {
     EXTRA_BYTECODES = 4,
     EXTRA_STACKMAPS = 1
 };
-
 
 class BytecodeRewriter {
   private:
@@ -230,13 +227,12 @@ class BytecodeRewriter {
     bool rewriteClass();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
-        _src(class_data),
-        _src_limit(class_data + class_data_len),
-        _dst(NULL),
-        _dst_len(0),
-        _dst_capacity(class_data_len + 400),
-        _cpool(NULL) {
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) : _src(class_data),
+                                                                                           _src_limit(class_data + class_data_len),
+                                                                                           _dst(NULL),
+                                                                                           _dst_len(0),
+                                                                                           _dst_capacity(class_data_len + 400),
+                                                                                           _cpool(NULL) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -267,7 +263,6 @@ class BytecodeRewriter {
         }
     }
 };
-
 
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
@@ -431,9 +426,7 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
         u16 descriptor_index = get16();
         put16(descriptor_index);
 
-        bool need_rewrite = scope == SCOPE_METHOD
-            && _cpool[name_index]->matches(_target_method, _target_method_len)
-            && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
+        bool need_rewrite = scope == SCOPE_METHOD && _cpool[name_index]->matches(_target_method, _target_method_len) && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
 
         rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD);
     }
@@ -491,7 +484,6 @@ bool BytecodeRewriter::rewriteClass() {
     return true;
 }
 
-
 char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
@@ -545,7 +537,7 @@ void Instrument::stop() {
     _running = false;
 
     jvmtiEnv* jvmti = VM::jvmti();
-    retransformMatchedClasses(jvmti);  // undo transformation
+    retransformMatchedClasses(jvmti); // undo transformation
     jvmti->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL);
 }
 

@@ -5,50 +5,49 @@
 
 #ifdef __linux__
 
-#include <jvmti.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <linux/perf_event.h>
-#include "arch.h"
-#include "fdtransferClient.h"
-#include "j9StackTraces.h"
-#include "log.h"
-#include "perfEvents.h"
-#include "profiler.h"
-#include "spinLock.h"
-#include "stackFrame.h"
-#include "stackWalker.h"
-#include "symbols.h"
-#include "tsc.h"
-#include "vmStructs.h"
-
+#    include "arch.h"
+#    include "fdtransferClient.h"
+#    include "j9StackTraces.h"
+#    include "log.h"
+#    include "perfEvents.h"
+#    include "profiler.h"
+#    include "spinLock.h"
+#    include "stackFrame.h"
+#    include "stackWalker.h"
+#    include "symbols.h"
+#    include "tsc.h"
+#    include "vmStructs.h"
+#    include <dlfcn.h>
+#    include <errno.h>
+#    include <fcntl.h>
+#    include <jvmti.h>
+#    include <linux/perf_event.h>
+#    include <stdint.h>
+#    include <stdio.h>
+#    include <stdlib.h>
+#    include <string.h>
+#    include <sys/ioctl.h>
+#    include <sys/mman.h>
+#    include <sys/resource.h>
+#    include <sys/stat.h>
+#    include <sys/syscall.h>
+#    include <unistd.h>
 
 // Ancient fcntl.h does not define F_SETOWN_EX constants and structures
-#ifndef F_SETOWN_EX
-#define F_SETOWN_EX  15
-#define F_OWNER_TID  0
+#    ifndef F_SETOWN_EX
+#        define F_SETOWN_EX 15
+#        define F_OWNER_TID 0
 
 struct f_owner_ex {
     int type;
     pid_t pid;
 };
-#endif // F_SETOWN_EX
+#    endif // F_SETOWN_EX
 
 // Introduced in kernel 3.14
-#ifndef PERF_FLAG_FD_CLOEXEC
-#define PERF_FLAG_FD_CLOEXEC  8
-#endif // PERF_FLAG_FD_CLOEXEC
+#    ifndef PERF_FLAG_FD_CLOEXEC
+#        define PERF_FLAG_FD_CLOEXEC 8
+#    endif // PERF_FLAG_FD_CLOEXEC
 
 enum {
     HW_BREAKPOINT_R  = 1,
@@ -65,7 +64,7 @@ static int fetchInt(const char* file_name) {
 
     char num[16] = "0";
     ssize_t r = read(fd, num, sizeof(num) - 1);
-    (void) r;
+    (void)r;
     close(fd);
     return atoi(num);
 }
@@ -79,7 +78,7 @@ static int findTracepointId(const char* dir, const char* name) {
         return 0;
     }
 
-    *strchr(buf, ':') = '/';  // make path from event name
+    *strchr(buf, ':') = '/'; // make path from event name
 
     return fetchInt(buf);
 }
@@ -435,60 +434,58 @@ struct PerfEventType {
 };
 
 // See perf_event_open(2)
-#define LOAD_MISS(perf_hw_cache_id) \
-    ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
+#    define LOAD_MISS(perf_hw_cache_id) \
+        ((perf_hw_cache_id) | PERF_COUNT_HW_CACHE_OP_READ << 8 | PERF_COUNT_HW_CACHE_RESULT_MISS << 16)
 
 // Hardware breakpoint with interval=1 causes an infinite loop on ARM64
-#ifdef __aarch64__
-#  define BKPT_INTERVAL 2
-#else
-#  define BKPT_INTERVAL 1
-#endif
+#    ifdef __aarch64__
+#        define BKPT_INTERVAL 2
+#    else
+#        define BKPT_INTERVAL 1
+#    endif
 
 PerfEventType PerfEventType::AVAILABLE_EVENTS[] = {
-    {"cpu-clock",    DEFAULT_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
-    {"page-faults",                 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
-    {"context-switches",            2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
+    {"cpu-clock", DEFAULT_INTERVAL, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CPU_CLOCK},
+    {"page-faults", 1, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_PAGE_FAULTS},
+    {"context-switches", 2, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_CONTEXT_SWITCHES},
 
-    {"cycles",                1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
-    {"instructions",          1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
-    {"cache-references",      1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
-    {"cache-misses",             1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
-    {"branch-instructions",   1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
-    {"branch-misses",            1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
-    {"bus-cycles",            1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
+    {"cycles", 1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES},
+    {"instructions", 1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS},
+    {"cache-references", 1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES},
+    {"cache-misses", 1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES},
+    {"branch-instructions", 1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS},
+    {"branch-misses", 1000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES},
+    {"bus-cycles", 1000000, PERF_TYPE_HARDWARE, PERF_COUNT_HW_BUS_CYCLES},
 
     {"L1-dcache-load-misses", 1000000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_L1D)},
-    {"LLC-load-misses",          1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
-    {"dTLB-load-misses",         1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
+    {"LLC-load-misses", 1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_LL)},
+    {"dTLB-load-misses", 1000, PERF_TYPE_HW_CACHE, LOAD_MISS(PERF_COUNT_HW_CACHE_DTLB)},
 
     /* End of IDX_PREDEFINED events */
 
-    {"rNNN",                     1000, PERF_TYPE_RAW, 0}, /* IDX_RAW */
-    {"pmu/event-descriptor/",    1000, PERF_TYPE_RAW, 0}, /* IDX_PMU */
+    {"rNNN", 1000, PERF_TYPE_RAW, 0},                  /* IDX_RAW */
+    {"pmu/event-descriptor/", 1000, PERF_TYPE_RAW, 0}, /* IDX_PMU */
 
-    {"mem:breakpoint",  BKPT_INTERVAL, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
-    {"trace:tracepoint",            1, PERF_TYPE_TRACEPOINT, 0}, /* IDX_TRACEPOINT */
+    {"mem:breakpoint", BKPT_INTERVAL, PERF_TYPE_BREAKPOINT, 0}, /* IDX_BREAKPOINT */
+    {"trace:tracepoint", 1, PERF_TYPE_TRACEPOINT, 0},           /* IDX_TRACEPOINT */
 
-    {"kprobe:func",                 1, 0, 0}, /* IDX_KPROBE */
-    {"uprobe:path",                 1, 0, 0}, /* IDX_UPROBE */
+    {"kprobe:func", 1, 0, 0}, /* IDX_KPROBE */
+    {"uprobe:path", 1, 0, 0}, /* IDX_UPROBE */
 };
 
 FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
-    {"malloc",   1},
-    {"mmap",     2},
-    {"munmap",   2},
-    {"read",     3},
-    {"write",    3},
-    {"send",     3},
-    {"recv",     3},
-    {"sendto",   3},
+    {"malloc", 1},
+    {"mmap", 2},
+    {"munmap", 2},
+    {"read", 3},
+    {"write", 3},
+    {"send", 3},
+    {"recv", 3},
+    {"sendto", 3},
     {"recvfrom", 3},
-    {NULL}
-};
+    {NULL}};
 
 char PerfEventType::probe_func[256];
-
 
 class RingBuffer {
   private:
@@ -516,7 +513,6 @@ class RingBuffer {
     }
 };
 
-
 class PerfEvent : public SpinLock {
   private:
     int _fd;
@@ -524,7 +520,6 @@ class PerfEvent : public SpinLock {
 
     friend class PerfEvents;
 };
-
 
 int PerfEvents::_max_events = 0;
 PerfEvent* PerfEvents::_events = NULL;
@@ -580,15 +575,15 @@ int PerfEvents::createForThread(int tid) {
         attr.exclude_callchain_user = 1;
     }
 
-#ifdef PERF_ATTR_SIZE_VER5
+#    ifdef PERF_ATTR_SIZE_VER5
     if (_cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
     }
-#else
-#warning "Compiling without LBR support. Kernel headers 4.1+ required"
-#endif
+#    else
+#        warning "Compiling without LBR support. Kernel headers 4.1+ required"
+#    endif
 
     int fd;
     if (FdTransferClient::hasPeer()) {
@@ -672,14 +667,19 @@ void PerfEvents::destroyForThread(int tid) {
 
 u64 PerfEvents::readCounter(siginfo_t* siginfo, void* ucontext) {
     switch (_event_type->counter_arg) {
-        case 1: return StackFrame(ucontext).arg0();
-        case 2: return StackFrame(ucontext).arg1();
-        case 3: return StackFrame(ucontext).arg2();
-        case 4: return StackFrame(ucontext).arg3();
-        default: {
-            u64 counter;
-            return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
-        }
+        case 1:
+            return StackFrame(ucontext).arg0();
+        case 2:
+            return StackFrame(ucontext).arg1();
+        case 3:
+            return StackFrame(ucontext).arg2();
+        case 4:
+            return StackFrame(ucontext).arg3();
+        default:
+            {
+                u64 counter;
+                return read(siginfo->si_fd, &counter, sizeof(counter)) == sizeof(counter) ? counter : 1;
+            }
     }
 }
 
@@ -767,13 +767,13 @@ Error PerfEvents::check(Arguments& args) {
         attr.exclude_kernel = 1;
     }
 
-#ifdef PERF_ATTR_SIZE_VER5
+#    ifdef PERF_ATTR_SIZE_VER5
     if (args._cstack == CSTACK_LBR) {
         attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
     }
-#endif
+#    endif
 
     int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
     if (fd == -1) {
@@ -865,7 +865,7 @@ void PerfEvents::stop() {
 int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_depth, StackContext* java_ctx) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
-        return 0;  // the event is being destroyed
+        return 0; // the event is being destroyed
     }
 
     int depth = 0;
@@ -930,7 +930,7 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
             tail += hdr->size;
         }
 
-stack_complete:
+    stack_complete:
         page->data_tail = head;
     }
 
@@ -948,7 +948,7 @@ stack_complete:
 void PerfEvents::resetBuffer(int tid) {
     PerfEvent* event = &_events[tid];
     if (!event->tryLock()) {
-        return;  // the event is being destroyed
+        return; // the event is being destroyed
     }
 
     struct perf_event_mmap_page* page = event->_page;

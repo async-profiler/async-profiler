@@ -6,9 +6,8 @@
 #ifndef _VMENTRY_H
 #define _VMENTRY_H
 
-#include <jvmti.h>
 #include "arch.h"
-
+#include <jvmti.h>
 
 enum FrameTypeId {
     FRAME_INTERPRETED  = 0,
@@ -37,7 +36,6 @@ class FrameType {
         return (bci >> 24) > 0 ? (FrameTypeId)(bci >> 25) : FRAME_JIT_COMPILED;
     }
 };
-
 
 // Denotes ASGCT_CallFrame where method_id has special meaning (not jmethodID)
 enum ASGCT_CallFrameType {
@@ -89,11 +87,10 @@ typedef jint (*GetCreatedJavaVMs)(JavaVM**, jsize, jsize*);
 
 typedef struct {
     void* unused1[86];
-    jvmtiError (JNICALL *RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+    jvmtiError(JNICALL* RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
     void* unused2[64];
-    jvmtiError (JNICALL *RetransformClasses)(jvmtiEnv*, jint, const jclass*);
+    jvmtiError(JNICALL* RetransformClasses)(jvmtiEnv*, jint, const jclass*);
 } JVMTIFunctions;
-
 
 class VM {
   private:
@@ -106,8 +103,8 @@ class VM {
 
     static GetCreatedJavaVMs _getCreatedJavaVMs;
 
-    static jvmtiError (JNICALL *_orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
-    static jvmtiError (JNICALL *_orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
+    static jvmtiError(JNICALL* _orig_RedefineClasses)(jvmtiEnv*, jint, const jvmtiClassDefinition*);
+    static jvmtiError(JNICALL* _orig_RetransformClasses)(jvmtiEnv*, jint, const jclass* classes);
 
     static void ready();
     static void applyPatch(char* func, const char* patch, const char* end_patch);

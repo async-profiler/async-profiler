@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
 #include "tsc.h"
-
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 // Maximum number of threads sampled in one iteration. This limit serves as a throttle
 // when generating profiling signals. Otherwise applications with too many threads may
@@ -28,7 +27,6 @@ const u64 RUNNABLE_THRESHOLD_NS = 10000;
 
 // How many skipped idle samples can be recorded in a single WallClock event.
 const u32 MAX_IDLE_BATCH = 1000;
-
 
 struct ThreadSleepState {
     u64 start_time;
@@ -52,7 +50,7 @@ class ThreadCpuTimeBuffer {
         PAD_SIZE = 128
     };
 
-    char _pad0[PAD_SIZE];  // protection against false sharing
+    char _pad0[PAD_SIZE]; // protection against false sharing
     volatile u32 _write_ptr;
     char _pad1[PAD_SIZE - sizeof(u32)];
     u32 _read_ptr;
@@ -98,7 +96,6 @@ class ThreadCpuTimeBuffer {
 };
 
 static ThreadCpuTimeBuffer _thread_cpu_time_buf;
-
 
 long WallClock::_interval;
 int WallClock::_signal;
@@ -196,7 +193,7 @@ void WallClock::timerLoop() {
     while (_running) {
         bool enabled = _enabled;
 
-        for (int signaled_threads = 0; signaled_threads < THREADS_PER_TICK && thread_list->hasNext(); ) {
+        for (int signaled_threads = 0; signaled_threads < THREADS_PER_TICK && thread_list->hasNext();) {
             int thread_id = thread_list->next();
             if (thread_id == self || thread_id <= 0) {
                 // On macOS, task_threads() may sporadically return 0 or -1 among thread IDs

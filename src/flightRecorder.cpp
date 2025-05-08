@@ -3,22 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <map>
-#include <string>
-#include <arpa/inet.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/utsname.h>
-#include <unistd.h>
-#include "demangle.h"
 #include "flightRecorder.h"
+#include "demangle.h"
+#include "dictionary.h"
 #include "incbin.h"
 #include "jfrMetadata.h"
-#include "dictionary.h"
 #include "os.h"
 #include "profiler.h"
 #include "spinLock.h"
@@ -28,14 +17,23 @@
 #include "tsc.h"
 #include "userEvents.h"
 #include "vmStructs.h"
-
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <map>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 
 INCLUDE_HELPER_CLASS(JFR_SYNC_NAME, JFR_SYNC_CLASS, "one/profiler/JfrSync")
 
 static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
     Profiler::instance()->stop();
 }
-
 
 const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
@@ -50,7 +48,6 @@ enum GCWhen {
     AFTER_GC
 };
 
-
 static SpinLock _rec_lock(1);
 
 static jclass _jfr_sync_class = NULL;
@@ -59,7 +56,6 @@ static jmethodID _stop_method;
 static jmethodID _box_method;
 
 static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
-
 
 struct CpuTime {
     u64 real;
@@ -71,7 +67,6 @@ struct CpuTimes {
     CpuTime proc;
     CpuTime total;
 };
-
 
 class MethodInfo {
   public:
@@ -231,8 +226,7 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) :
-        _method_map(method_map), _classes(classes), _packages(), _symbols(), _jni(VM::jni()) {
+    Lookup(MethodMap* method_map, Dictionary* classes) : _method_map(method_map), _classes(classes), _packages(), _symbols(), _jni(VM::jni()) {
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -290,7 +284,6 @@ class Lookup {
         return _symbols.lookup(name);
     }
 };
-
 
 class Buffer {
   private:
@@ -365,9 +358,12 @@ class Buffer {
     void putVar64(u64 v) {
         int iter = 0;
         while (v > 0x1fffff) {
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
+            _data[_offset++] = (char)v | 0x80;
+            v >>= 7;
+            _data[_offset++] = (char)v | 0x80;
+            v >>= 7;
+            _data[_offset++] = (char)v | 0x80;
+            v >>= 7;
             if (++iter == 3) return;
         }
         while (v > 0x7f) {
@@ -429,7 +425,6 @@ class RecordingBuffer : public Buffer {
     }
 };
 
-
 class Recording {
   private:
     static char* _agent_properties;
@@ -466,7 +461,8 @@ class Recording {
     SmallBuffer _monitor_buf;
 
     static float ratio(float value) {
-        return value < 0 ? 0 : value > 1 ? 1 : value;
+        return value < 0 ? 0 : value > 1 ? 1
+                                         : value;
     }
 
   public:
@@ -600,7 +596,8 @@ class Recording {
         flush(_buf);
 
         if (_memfd >= 0) {
-            while (ftruncate(_memfd, 0) < 0 && errno == EINTR);  // restart if interrupted
+            while (ftruncate(_memfd, 0) < 0 && errno == EINTR)
+                ; // restart if interrupted
             _in_memory = true;
         }
     }
@@ -632,7 +629,8 @@ class Recording {
         if (times.total.real != (u64)-1 && times.total.real > _last_times.total.real) {
             float delta = times.total.real - _last_times.total.real;
             machine_total = ratio(((times.total.user + times.total.system) -
-                                   (_last_times.total.user + _last_times.total.system)) / delta);
+                                   (_last_times.total.user + _last_times.total.system)) /
+                                  delta);
             if (machine_total < proc_user + proc_system) {
                 machine_total = ratio(proc_user + proc_system);
             }
@@ -723,17 +721,17 @@ class Recording {
 
     const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
         snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
-                 f.unknown_java  ? "unknown_java"  : "-",
-                 f.unwind_stub   ? "unwind_stub"   : "-",
-                 f.unwind_comp   ? "unwind_comp"   : "-",
+                 f.unknown_java ? "unknown_java" : "-",
+                 f.unwind_stub ? "unwind_stub" : "-",
+                 f.unwind_comp ? "unwind_comp" : "-",
                  f.unwind_native ? "unwind_native" : "-",
-                 f.java_anchor   ? "java_anchor"   : "-",
-                 f.gc_traces     ? "gc_traces"     : "-",
-                 f.stats         ? "stats"         : "-",
-                 f.probe_sp      ? "probesp"       : "-",
-                 f.vtable_target ? "vtable"        : "-",
-                 f.comp_task     ? "comptask"      : "-",
-                 f.pc_addr       ? "pcaddr"        : "-");
+                 f.java_anchor ? "java_anchor" : "-",
+                 f.gc_traces ? "gc_traces" : "-",
+                 f.stats ? "stats" : "-",
+                 f.probe_sp ? "probesp" : "-",
+                 f.vtable_target ? "vtable" : "-",
+                 f.comp_task ? "comptask" : "-",
+                 f.pc_addr ? "pcaddr" : "-");
         return str;
     }
 
@@ -752,27 +750,27 @@ class Recording {
     }
 
     void writeHeader(Buffer* buf) {
-        buf->put("FLR\0", 4);            // magic
-        buf->put16(2);                   // major
-        buf->put16(0);                   // minor
-        buf->put64(1024 * 1024 * 1024);  // chunk size (initially large, for JMC to skip incomplete chunk)
-        buf->put64(0);                   // cpool offset
-        buf->put64(0);                   // meta offset
-        buf->put64(_start_time * 1000);  // start time, ns
-        buf->put64(0);                   // duration, ns
-        buf->put64(_start_ticks);        // start ticks
+        buf->put("FLR\0", 4);           // magic
+        buf->put16(2);                  // major
+        buf->put16(0);                  // minor
+        buf->put64(1024 * 1024 * 1024); // chunk size (initially large, for JMC to skip incomplete chunk)
+        buf->put64(0);                  // cpool offset
+        buf->put64(0);                  // meta offset
+        buf->put64(_start_time * 1000); // start time, ns
+        buf->put64(0);                  // duration, ns
+        buf->put64(_start_ticks);       // start ticks
         // A frequency here may be inaccurate when using TSC clock.
         // It will be overwritten with a correct value in finishChunk later.
-        buf->put64(TSC::frequency());    // ticks per sec
-        buf->put32(1);                   // features
+        buf->put64(TSC::frequency()); // ticks per sec
+        buf->put32(1);                // features
     }
 
     void writeMetadata(Buffer* buf) {
-        int metadata_start = buf->skip(5);  // size will be patched later
+        int metadata_start = buf->skip(5); // size will be patched later
         buf->putVar32(T_METADATA);
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
-        buf->putVar32(0x7fffffff);  // must not clash with JFR metadata ID, or 'jfr print' will break
+        buf->putVar32(0x7fffffff); // must not clash with JFR metadata ID, or 'jfr print' will break
 
         std::vector<std::string>& strings = JfrMetadata::strings();
         buf->putVar32(strings.size());
@@ -984,8 +982,8 @@ class Recording {
             buf->put8(T_NATIVE_LIBRARY);
             buf->putVar64(_start_ticks);
             buf->putUtf8(native_libs[i]->name());
-            buf->putVar64((uintptr_t) native_libs[i]->minAddress());
-            buf->putVar64((uintptr_t) native_libs[i]->maxAddress());
+            buf->putVar64((uintptr_t)native_libs[i]->minAddress());
+            buf->putVar64((uintptr_t)native_libs[i]->maxAddress());
             buf->putVar32(start, buf->offset() - start);
         }
 
@@ -993,7 +991,7 @@ class Recording {
     }
 
     void writeCpool(Buffer* buf) {
-        buf->skip(5);  // size will be patched later
+        buf->skip(5); // size will be patched later
         buf->putVar32(T_CPOOL);
         buf->putVar64(_start_ticks);
         buf->putVar32(0);
@@ -1028,36 +1026,48 @@ class Recording {
             // Write a dummy String pool of 1 element instead.
             buf->putVar32(T_STRING);
             buf->putVar32(1);
-            buf->putVar32(1);  // key
-            buf->put8(0);      // null string
+            buf->putVar32(1); // key
+            buf->put8(0);     // null string
         }
     }
 
     void writeFrameTypes(Buffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
         buf->putVar32(7);
-        buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
-        buf->putVar32(FRAME_JIT_COMPILED); buf->putUtf8("JIT compiled");
-        buf->putVar32(FRAME_INLINED);      buf->putUtf8("Inlined");
-        buf->putVar32(FRAME_NATIVE);       buf->putUtf8("Native");
-        buf->putVar32(FRAME_CPP);          buf->putUtf8("C++");
-        buf->putVar32(FRAME_KERNEL);       buf->putUtf8("Kernel");
-        buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
+        buf->putVar32(FRAME_INTERPRETED);
+        buf->putUtf8("Interpreted");
+        buf->putVar32(FRAME_JIT_COMPILED);
+        buf->putUtf8("JIT compiled");
+        buf->putVar32(FRAME_INLINED);
+        buf->putUtf8("Inlined");
+        buf->putVar32(FRAME_NATIVE);
+        buf->putUtf8("Native");
+        buf->putVar32(FRAME_CPP);
+        buf->putUtf8("C++");
+        buf->putVar32(FRAME_KERNEL);
+        buf->putUtf8("Kernel");
+        buf->putVar32(FRAME_C1_COMPILED);
+        buf->putUtf8("C1 compiled");
     }
 
     void writeThreadStates(Buffer* buf) {
         buf->putVar32(T_THREAD_STATE);
         buf->putVar32(3);
-        buf->putVar32(THREAD_UNKNOWN);     buf->putUtf8("STATE_DEFAULT");
-        buf->putVar32(THREAD_RUNNING);     buf->putUtf8("STATE_RUNNABLE");
-        buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
+        buf->putVar32(THREAD_UNKNOWN);
+        buf->putUtf8("STATE_DEFAULT");
+        buf->putVar32(THREAD_RUNNING);
+        buf->putUtf8("STATE_RUNNABLE");
+        buf->putVar32(THREAD_SLEEPING);
+        buf->putUtf8("STATE_SLEEPING");
     }
 
     void writeGCWhen(Buffer* buf) {
         buf->putVar32(T_GC_WHEN);
         buf->putVar32(2);
-        buf->putVar32(BEFORE_GC);          buf->putUtf8("Before GC");
-        buf->putVar32(AFTER_GC);           buf->putUtf8("After GC");
+        buf->putVar32(BEFORE_GC);
+        buf->putUtf8("Before GC");
+        buf->putVar32(AFTER_GC);
+        buf->putUtf8("After GC");
     }
 
     void writeThreads(Buffer* buf) {
@@ -1106,7 +1116,7 @@ class Recording {
         for (std::map<u32, CallTrace*>::const_iterator it = traces.begin(); it != traces.end(); ++it) {
             CallTrace* trace = it->second;
             buf->putVar32(it->first);
-            buf->putVar32(0);  // truncated
+            buf->putVar32(0); // truncated
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
                 MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
@@ -1149,7 +1159,7 @@ class Recording {
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
                 buf->putVar32(mi._modifiers);
-                buf->putVar32(0);  // hidden
+                buf->putVar32(0); // hidden
                 flushIfNeeded(buf);
             }
         }
@@ -1163,10 +1173,10 @@ class Recording {
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             const char* name = it->second;
             buf->putVar32(it->first);
-            buf->putVar32(0);  // classLoader
+            buf->putVar32(0); // classLoader
             buf->putVar64(lookup->getSymbol(name) | _base_id);
             buf->putVar64(lookup->getPackage(name) | _base_id);
-            buf->putVar32(0);  // access flags
+            buf->putVar32(0); // access flags
             flushIfNeeded(buf);
         }
     }
@@ -1278,8 +1288,7 @@ class Recording {
         const size_t event_non_string_size_limit = 64;
         // When calling recordUserEvent, the buffer can be up to RECORDING_BUFFER_LIMIT bytes full.
         // Check that the buffer is not exceeded.
-        static_assert(RECORDING_BUFFER_LIMIT + event_non_string_size_limit + ASPROF_MAX_JFR_EVENT_LENGTH
-            <= RECORDING_BUFFER_SIZE, "output must fit within recording buffer");
+        static_assert(RECORDING_BUFFER_LIMIT + event_non_string_size_limit + ASPROF_MAX_JFR_EVENT_LENGTH <= RECORDING_BUFFER_SIZE, "output must fit within recording buffer");
 
         int start = buf->skip(5);
         buf->put8(T_USER_EVENT);
@@ -1287,7 +1296,7 @@ class Recording {
         buf->putVar32(tid);
         buf->putVar32(event->_type);
         buf->putByteString((const char*)event->_data,
-            event->_len > ASPROF_MAX_JFR_EVENT_LENGTH ? ASPROF_MAX_JFR_EVENT_LENGTH : event->_len);
+                           event->_len > ASPROF_MAX_JFR_EVENT_LENGTH ? ASPROF_MAX_JFR_EVENT_LENGTH : event->_len);
         buf->putVar32(start, buf->offset() - start);
     }
 
@@ -1379,7 +1388,6 @@ char* Recording::_agent_properties = NULL;
 char* Recording::_jvm_args = NULL;
 char* Recording::_jvm_flags = NULL;
 char* Recording::_java_command = NULL;
-
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
     const char* filename = args.file();
@@ -1476,11 +1484,7 @@ Error FlightRecorder::startMasterRecording(Arguments& args, const char* filename
         const JNINativeMethod native_method = {(char*)"stopProfiler", (char*)"()V", (void*)JfrSync_stopProfiler};
 
         jclass cls = env->DefineClass(JFR_SYNC_NAME, NULL, (const jbyte*)JFR_SYNC_CLASS, INCBIN_SIZEOF(JFR_SYNC_CLASS));
-        if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0
-                || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL
-                || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL
-                || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL
-                || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
+        if (cls == NULL || env->RegisterNatives(cls, &native_method, 1) != 0 || (_start_method = env->GetStaticMethodID(cls, "start", "(Ljava/lang/String;Ljava/lang/String;I)V")) == NULL || (_stop_method = env->GetStaticMethodID(cls, "stop", "()V")) == NULL || (_box_method = env->GetStaticMethodID(cls, "box", "(I)Ljava/lang/Integer;")) == NULL || (_jfr_sync_class = (jclass)env->NewGlobalRef(cls)) == NULL) {
             env->ExceptionDescribe();
             return Error("Failed to initialize JfrSync class");
         }

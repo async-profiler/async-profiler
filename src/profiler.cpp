@@ -3,39 +3,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <algorithm>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/param.h>
 #include "profiler.h"
-#include "perfEvents.h"
-#include "ctimer.h"
 #include "allocTracer.h"
-#include "mallocTracer.h"
-#include "lockTracer.h"
-#include "wallClock.h"
+#include "ctimer.h"
+#include "dwarf.h"
+#include "fdtransferClient.h"
+#include "flameGraph.h"
+#include "flightRecorder.h"
+#include "frameName.h"
+#include "instrument.h"
+#include "itimer.h"
 #include "j9ObjectSampler.h"
 #include "j9StackTraces.h"
 #include "j9WallClock.h"
-#include "instrument.h"
-#include "itimer.h"
-#include "dwarf.h"
-#include "flameGraph.h"
-#include "flightRecorder.h"
-#include "fdtransferClient.h"
-#include "frameName.h"
+#include "lockTracer.h"
+#include "mallocTracer.h"
 #include "os.h"
+#include "perfEvents.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
 #include "tsc.h"
 #include "vmStructs.h"
-
+#include "wallClock.h"
+#include <algorithm>
+#include <dlfcn.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <unistd.h>
 
 // The instance is not deleted on purpose, since profiler structures
 // can be still accessed concurrently during VM termination
@@ -59,7 +58,6 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-
 // The same constants are used in JfrSync
 enum EventMask {
     EM_CPU   = 1,
@@ -68,7 +66,6 @@ enum EventMask {
     EM_WALL  = 8,
     EM_NATIVEMEM = 16,
 };
-
 
 struct MethodSample {
     u64 samples;
@@ -86,14 +83,13 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
     return a.second.counter > b.second.counter;
 }
 
-
 static inline int hasNativeStack(EventType event_type) {
     const int events_with_native_stack =
-        (1 << PERF_SAMPLE)       |
-        (1 << EXECUTION_SAMPLE)  |
+        (1 << PERF_SAMPLE) |
+        (1 << EXECUTION_SAMPLE) |
         (1 << WALL_CLOCK_SAMPLE) |
-        (1 << MALLOC_SAMPLE)     |
-        (1 << ALLOC_SAMPLE)      |
+        (1 << MALLOC_SAMPLE) |
+        (1 << ALLOC_SAMPLE) |
         (1 << ALLOC_OUTSIDE_TLAB);
     return (1 << event_type) & events_with_native_stack;
 }
@@ -116,7 +112,6 @@ static inline int makeFrame(ASGCT_CallFrame* frames, jint type, const char* id) 
     return makeFrame(frames, type, (jmethodID)id);
 }
 
-
 // Avoid syscall when possible
 static inline int fastThreadId() {
     VMThread* vm_thread;
@@ -128,7 +123,6 @@ static inline int fastThreadId() {
     }
     return OS::threadId();
 }
-
 
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
     CodeHeap::updateBounds(address, (const char*)address + length);
@@ -414,7 +408,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
         if (saved_pc >= (uintptr_t)_call_stub_begin && saved_pc < (uintptr_t)_call_stub_end) {
             // call_stub is unsafe to walk
             frames->bci = BCI_ERROR;
-            frames->method_id = (jmethodID)"call_stub";
+            frames->method_id = (jmethodID) "call_stub";
             return 1;
         }
         if (DWARF_SUPPORTED && java_ctx->sp != 0) {
@@ -453,8 +447,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 }
                 max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, stub->_name);
             }
-            if (_features.unwind_stub && frame.unwindStub((instruction_t*)stub->_start, stub->_name)
-                    && isAddressInCode((const void*)frame.pc())) {
+            if (_features.unwind_stub && frame.unwindStub((instruction_t*)stub->_start, stub->_name) && isAddressInCode((const void*)frame.pc())) {
                 java_ctx->pc = (const void*)frame.pc();
                 VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
             }
@@ -467,8 +460,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                     if (method_id != NULL) {
                         max_depth -= makeFrame(trace.frames++, 0, method_id);
                     }
-                    if (_features.unwind_comp && frame.unwindCompiled(nmethod)
-                            && isAddressInCode((const void*)frame.pc())) {
+                    if (_features.unwind_comp && frame.unwindCompiled(nmethod) && isAddressInCode((const void*)frame.pc())) {
                         VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                     }
                     if (_features.probe_sp && trace.num_frames < 0) {
@@ -485,8 +477,7 @@ int Profiler::getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max
                 if (_cstack != CSTACK_NO) {
                     max_depth -= makeFrame(trace.frames++, BCI_NATIVE_FRAME, nmethod->name());
                 }
-                if (_features.unwind_stub && frame.unwindStub(NULL, nmethod->name())
-                        && isAddressInCode((const void*)frame.pc())) {
+                if (_features.unwind_stub && frame.unwindStub(NULL, nmethod->name()) && isAddressInCode((const void*)frame.pc())) {
                     VM::_asyncGetCallTrace(&trace, max_depth, ucontext);
                 }
             }
@@ -619,8 +610,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock()) {
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
 
@@ -726,8 +716,7 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock()) {
         // Too many concurrent signals already
         atomicInc(_failures[-ticks_skipped]);
         return;
@@ -744,8 +733,7 @@ void Profiler::recordExternalSamples(u64 samples, u64 counter, int tid, u32 call
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock()) {
         return;
     }
 
@@ -763,8 +751,7 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
-        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock())
-    {
+        !_locks[lock_index = (lock_index + 2) % CONCURRENCY_LEVEL].tryLock()) {
         return;
     }
 
@@ -923,7 +910,7 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 
 void Profiler::updateThreadName(jvmtiEnv* jvmti, JNIEnv* jni, jthread thread) {
     if (_update_thread_names) {
-        JitWriteProtection jit(true);  // workaround for JDK-8262896
+        JitWriteProtection jit(true); // workaround for JDK-8262896
         jvmtiThreadInfo thread_info;
         int native_thread_id = VMThread::nativeThreadId(jni, thread);
         if (native_thread_id >= 0 && jvmti->GetThreadInfo(thread, &thread_info) == 0) {
@@ -1438,11 +1425,13 @@ void Profiler::logStats() {
 }
 
 void Profiler::lockAll() {
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].lock();
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++)
+        _locks[i].lock();
 }
 
 void Profiler::unlockAll() {
-    for (int i = 0; i < CONCURRENCY_LEVEL; i++) _locks[i].unlock();
+    for (int i = 0; i < CONCURRENCY_LEVEL; i++)
+        _locks[i].unlock();
 }
 
 void Profiler::switchThreadEvents(jvmtiEventMode mode) {
@@ -1572,9 +1561,9 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
     // Print summary
     snprintf(buf, sizeof(buf) - 1,
-            "--- Execution profile ---\n"
-            "Total samples       : %lld\n",
-            _total_samples);
+             "--- Execution profile ---\n"
+             "Total samples       : %lld\n",
+             _total_samples);
     out << buf;
 
     double spercent = 100.0 / _total_samples;
@@ -1625,7 +1614,8 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
         std::sort(methods.begin(), methods.end(), sortByCounter);
 
         snprintf(buf, sizeof(buf) - 1, "%12s  percent  samples  top\n"
-                                       "  ----------  -------  -------  ---\n", units_str);
+                                       "  ----------  -------  -------  ---\n",
+                 units_str);
         out << buf;
 
         int max_count = args._dump_flat;
@@ -1761,83 +1751,90 @@ void Profiler::logEmptyOutput(Arguments& args, u64 printed_samples_count, Writer
 Error Profiler::runInternal(Arguments& args, Writer& out) {
     switch (args._action) {
         case ACTION_START:
-        case ACTION_RESUME: {
-            Error error = start(args, args._action == ACTION_START);
-            if (error) {
-                return error;
-            }
-            if (!args._quiet) {
-                out << "Profiling started\n";
-            }
-            break;
-        }
-        case ACTION_STOP: {
-            Error error = stop();
-            if (args._output == OUTPUT_NONE) {
+        case ACTION_RESUME:
+            {
+                Error error = start(args, args._action == ACTION_START);
                 if (error) {
                     return error;
                 }
                 if (!args._quiet) {
-                    out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
+                    out << "Profiling started\n";
                 }
                 break;
             }
-            // Fall through
-        }
-        case ACTION_DUMP: {
-            Error error = dump(out, args);
-            if (error) {
-                return error;
-            }
-            break;
-        }
-        case ACTION_CHECK: {
-            Error error = check(args);
-            if (error) {
-                return error;
-            }
-            out << "OK\n";
-            break;
-        }
-        case ACTION_STATUS: {
-            MutexLocker ml(_state_lock);
-            if (_state == RUNNING) {
-                out << "Profiling is running for " << uptime() << " seconds\n";
-            } else {
-                out << "Profiler is not active\n";
-            }
-            break;
-        }
-        case ACTION_MEMINFO: {
-            MutexLocker ml(_state_lock);
-            printUsedMemory(out);
-            break;
-        }
-        case ACTION_LIST: {
-            out << "Basic events:\n";
-            out << "  " << EVENT_CPU << "\n";
-            out << "  " << EVENT_ALLOC << "\n";
-            out << "  " << EVENT_NATIVEMEM << "\n";
-            out << "  " << EVENT_LOCK << "\n";
-            out << "  " << EVENT_WALL << "\n";
-            out << "  " << EVENT_ITIMER << "\n";
-            if (CTimer::supported()) {
-                out << "  " << EVENT_CTIMER << "\n";
-            }
-
-            out << "Java method calls:\n";
-            out << "  ClassName.methodName\n";
-
-            if (PerfEvents::supported()) {
-                out << "Perf events:\n";
-                for (int event_id = 0; ; event_id++) {
-                    const char* event_name = PerfEvents::getEventName(event_id);
-                    if (event_name == NULL) break;
-                    out << "  " << event_name << "\n";
+        case ACTION_STOP:
+            {
+                Error error = stop();
+                if (args._output == OUTPUT_NONE) {
+                    if (error) {
+                        return error;
+                    }
+                    if (!args._quiet) {
+                        out << "Profiling stopped after " << uptime() << " seconds. No dump options specified\n";
+                    }
+                    break;
                 }
+                // Fall through
             }
-            break;
-        }
+        case ACTION_DUMP:
+            {
+                Error error = dump(out, args);
+                if (error) {
+                    return error;
+                }
+                break;
+            }
+        case ACTION_CHECK:
+            {
+                Error error = check(args);
+                if (error) {
+                    return error;
+                }
+                out << "OK\n";
+                break;
+            }
+        case ACTION_STATUS:
+            {
+                MutexLocker ml(_state_lock);
+                if (_state == RUNNING) {
+                    out << "Profiling is running for " << uptime() << " seconds\n";
+                } else {
+                    out << "Profiler is not active\n";
+                }
+                break;
+            }
+        case ACTION_MEMINFO:
+            {
+                MutexLocker ml(_state_lock);
+                printUsedMemory(out);
+                break;
+            }
+        case ACTION_LIST:
+            {
+                out << "Basic events:\n";
+                out << "  " << EVENT_CPU << "\n";
+                out << "  " << EVENT_ALLOC << "\n";
+                out << "  " << EVENT_NATIVEMEM << "\n";
+                out << "  " << EVENT_LOCK << "\n";
+                out << "  " << EVENT_WALL << "\n";
+                out << "  " << EVENT_ITIMER << "\n";
+                if (CTimer::supported()) {
+                    out << "  " << EVENT_CTIMER << "\n";
+                }
+
+                out << "Java method calls:\n";
+                out << "  ClassName.methodName\n";
+
+                if (PerfEvents::supported()) {
+                    out << "Perf events:\n";
+                    for (int event_id = 0;; event_id++) {
+                        const char* event_name = PerfEvents::getEventName(event_id);
+                        if (event_name == NULL) break;
+                        out << "  " << event_name << "\n";
+                    }
+                }
+                break;
+            }
         case ACTION_VERSION:
             out << PROFILER_VERSION;
             break;
@@ -1882,7 +1879,7 @@ Error Profiler::restart(Arguments& args) {
     }
 
     if (args._loop) {
-        args._fdtransfer = false;  // keep the previous connection
+        args._fdtransfer = false; // keep the previous connection
         args._file_num++;
         return start(args, true);
     }

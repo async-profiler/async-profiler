@@ -6,11 +6,10 @@
 #ifndef _OBJECTSAMPLER_H
 #define _OBJECTSAMPLER_H
 
-#include <jvmti.h>
 #include "arch.h"
 #include "engine.h"
 #include "event.h"
-
+#include <jvmti.h>
 
 class ObjectSampler : public Engine {
   protected:

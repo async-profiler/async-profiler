@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <jvmti.h>
 #include "tsc.h"
 #include "vmEntry.h"
-
+#include <jvmti.h>
 
 bool TSC::_initialized = false;
 bool TSC::_available = false;
@@ -27,10 +26,7 @@ void TSC::enable(Clock clock) {
             jfieldID jvm;
             jmethodID getTicksFrequency, counterTime;
             jclass cls = env->FindClass("jdk/jfr/internal/JVM");
-            if (cls != NULL
-                    && ((jvm = env->GetStaticFieldID(cls, "jvm", "Ljdk/jfr/internal/JVM;")) != NULL)
-                    && ((getTicksFrequency = env->GetMethodID(cls, "getTicksFrequency", "()J")) != NULL)
-                    && ((counterTime = env->GetStaticMethodID(cls, "counterTime", "()J")) != NULL)) {
+            if (cls != NULL && ((jvm = env->GetStaticFieldID(cls, "jvm", "Ljdk/jfr/internal/JVM;")) != NULL) && ((getTicksFrequency = env->GetMethodID(cls, "getTicksFrequency", "()J")) != NULL) && ((counterTime = env->GetStaticMethodID(cls, "counterTime", "()J")) != NULL)) {
                 u64 frequency = env->CallLongMethod(env->GetStaticObjectField(cls, jvm), getTicksFrequency);
                 if (frequency > NANOTIME_FREQ) {
                     // Default 1GHz frequency might mean that rdtsc is not available

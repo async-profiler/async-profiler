@@ -8,7 +8,6 @@
 
 #include "objectSampler.h"
 
-
 class J9ObjectSampler : public ObjectSampler {
   public:
     const char* type() {

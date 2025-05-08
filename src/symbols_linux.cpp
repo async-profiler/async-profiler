@@ -5,33 +5,32 @@
 
 #ifdef __linux__
 
-#include <unordered_map>
-#include <unordered_set>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <dlfcn.h>
-#include <elf.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <link.h>
-#include <linux/limits.h>
-#include <sys/auxv.h>
-#include "symbols.h"
-#include "dwarf.h"
-#include "fdtransferClient.h"
-#include "log.h"
-#include "os.h"
+#    include "dwarf.h"
+#    include "fdtransferClient.h"
+#    include "log.h"
+#    include "os.h"
+#    include "symbols.h"
+#    include <dlfcn.h>
+#    include <elf.h>
+#    include <errno.h>
+#    include <fcntl.h>
+#    include <link.h>
+#    include <linux/limits.h>
+#    include <stdio.h>
+#    include <stdlib.h>
+#    include <string.h>
+#    include <sys/auxv.h>
+#    include <sys/mman.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <unistd.h>
+#    include <unordered_map>
+#    include <unordered_set>
 
+#    ifdef __x86_64__
 
-#ifdef __x86_64__
-
-#include <poll.h>
-#include "vmEntry.h"
+#        include "vmEntry.h"
+#        include <poll.h>
 
 // Workaround for JDK-8312065 on JDK 8:
 // replace poll() implementation with ppoll() which is restartable
@@ -58,12 +57,11 @@ static void applyPatch(CodeCache* cc) {
     }
 }
 
-#else
+#    else
 
 static void applyPatch(CodeCache* cc) {}
 
-#endif
-
+#    endif
 
 class SymbolDesc {
   private:
@@ -71,14 +69,14 @@ class SymbolDesc {
     const char* _desc;
 
   public:
-      SymbolDesc(const char* s) {
-          _addr = s;
-          _desc = strchr(_addr, ' ');
-      }
+    SymbolDesc(const char* s) {
+        _addr = s;
+        _desc = strchr(_addr, ' ');
+    }
 
-      const char* addr() { return (const char*)strtoul(_addr, NULL, 16); }
-      char type()        { return _desc != NULL ? _desc[1] : 0; }
-      const char* name() { return _desc + 3; }
+    const char* addr() { return (const char*)strtoul(_addr, NULL, 16); }
+    char type() { return _desc != NULL ? _desc[1] : 0; }
+    const char* name() { return _desc + 3; }
 };
 
 class MemoryMapDesc {
@@ -92,34 +90,35 @@ class MemoryMapDesc {
     const char* _file;
 
   public:
-      MemoryMapDesc(const char* s) {
-          _addr = s;
-          _end = strchr(_addr, '-') + 1;
-          _perm = strchr(_end, ' ') + 1;
-          _offs = strchr(_perm, ' ') + 1;
-          _dev = strchr(_offs, ' ') + 1;
-          _inode = strchr(_dev, ' ') + 1;
-          _file = strchr(_inode, ' ');
+    MemoryMapDesc(const char* s) {
+        _addr = s;
+        _end = strchr(_addr, '-') + 1;
+        _perm = strchr(_end, ' ') + 1;
+        _offs = strchr(_perm, ' ') + 1;
+        _dev = strchr(_offs, ' ') + 1;
+        _inode = strchr(_dev, ' ') + 1;
+        _file = strchr(_inode, ' ');
 
-          if (_file != NULL) {
-              while (*_file == ' ') _file++;
-          }
-      }
+        if (_file != NULL) {
+            while (*_file == ' ')
+                _file++;
+        }
+    }
 
-      const char* file()    { return _file; }
-      bool isReadable()     { return _perm[0] == 'r'; }
-      bool isExecutable()   { return _perm[2] == 'x'; }
-      const char* addr()    { return (const char*)strtoul(_addr, NULL, 16); }
-      const char* end()     { return (const char*)strtoul(_end, NULL, 16); }
-      unsigned long offs()  { return strtoul(_offs, NULL, 16); }
-      unsigned long inode() { return strtoul(_inode, NULL, 10); }
+    const char* file() { return _file; }
+    bool isReadable() { return _perm[0] == 'r'; }
+    bool isExecutable() { return _perm[2] == 'x'; }
+    const char* addr() { return (const char*)strtoul(_addr, NULL, 16); }
+    const char* end() { return (const char*)strtoul(_end, NULL, 16); }
+    unsigned long offs() { return strtoul(_offs, NULL, 16); }
+    unsigned long inode() { return strtoul(_inode, NULL, 10); }
 
-      unsigned long dev() {
-          char* colon;
-          unsigned long major = strtoul(_dev, &colon, 16);
-          unsigned long minor = strtoul(colon + 1, NULL, 16);
-          return major << 8 | minor;
-      }
+    unsigned long dev() {
+        char* colon;
+        unsigned long major = strtoul(_dev, &colon, 16);
+        unsigned long minor = strtoul(colon + 1, NULL, 16);
+        return major << 8 | minor;
+    }
 };
 
 struct SharedLibrary {
@@ -129,60 +128,58 @@ struct SharedLibrary {
     const char* image_base;
 };
 
-
-#ifdef __LP64__
+#    ifdef __LP64__
 const unsigned char ELFCLASS_SUPPORTED = ELFCLASS64;
 typedef Elf64_Ehdr ElfHeader;
 typedef Elf64_Shdr ElfSection;
 typedef Elf64_Phdr ElfProgramHeader;
 typedef Elf64_Nhdr ElfNote;
-typedef Elf64_Sym  ElfSymbol;
-typedef Elf64_Rel  ElfRelocation;
-typedef Elf64_Dyn  ElfDyn;
-#define ELF_R_TYPE ELF64_R_TYPE
-#define ELF_R_SYM  ELF64_R_SYM
-#else
+typedef Elf64_Sym ElfSymbol;
+typedef Elf64_Rel ElfRelocation;
+typedef Elf64_Dyn ElfDyn;
+#        define ELF_R_TYPE ELF64_R_TYPE
+#        define ELF_R_SYM ELF64_R_SYM
+#    else
 const unsigned char ELFCLASS_SUPPORTED = ELFCLASS32;
 typedef Elf32_Ehdr ElfHeader;
 typedef Elf32_Shdr ElfSection;
 typedef Elf32_Phdr ElfProgramHeader;
 typedef Elf32_Nhdr ElfNote;
-typedef Elf32_Sym  ElfSymbol;
-typedef Elf32_Rel  ElfRelocation;
-typedef Elf32_Dyn  ElfDyn;
-#define ELF_R_TYPE ELF32_R_TYPE
-#define ELF_R_SYM  ELF32_R_SYM
-#endif // __LP64__
+typedef Elf32_Sym ElfSymbol;
+typedef Elf32_Rel ElfRelocation;
+typedef Elf32_Dyn ElfDyn;
+#        define ELF_R_TYPE ELF32_R_TYPE
+#        define ELF_R_SYM ELF32_R_SYM
+#    endif // __LP64__
 
-#if defined(__x86_64__)
-#  define R_GLOB_DAT R_X86_64_GLOB_DAT
-#  define R_ABS64 R_X86_64_64
-#elif defined(__i386__)
-#  define R_GLOB_DAT R_386_GLOB_DAT
-#  define R_ABS64 -1
-#elif defined(__arm__) || defined(__thumb__)
-#  define R_GLOB_DAT R_ARM_GLOB_DAT
-#  define R_ABS64 -1
-#elif defined(__aarch64__)
-#  define R_GLOB_DAT R_AARCH64_GLOB_DAT
-#  define R_ABS64 R_AARCH64_ABS64
-#elif defined(__PPC64__)
-#  define R_GLOB_DAT R_PPC64_GLOB_DAT
-#  define R_ABS64 -1
-#elif defined(__riscv) && (__riscv_xlen == 64)
+#    if defined(__x86_64__)
+#        define R_GLOB_DAT R_X86_64_GLOB_DAT
+#        define R_ABS64 R_X86_64_64
+#    elif defined(__i386__)
+#        define R_GLOB_DAT R_386_GLOB_DAT
+#        define R_ABS64 -1
+#    elif defined(__arm__) || defined(__thumb__)
+#        define R_GLOB_DAT R_ARM_GLOB_DAT
+#        define R_ABS64 -1
+#    elif defined(__aarch64__)
+#        define R_GLOB_DAT R_AARCH64_GLOB_DAT
+#        define R_ABS64 R_AARCH64_ABS64
+#    elif defined(__PPC64__)
+#        define R_GLOB_DAT R_PPC64_GLOB_DAT
+#        define R_ABS64 -1
+#    elif defined(__riscv) && (__riscv_xlen == 64)
 // RISC-V does not have GLOB_DAT relocation, use something neutral,
 // like the impossible relocation number.
-#  define R_GLOB_DAT -1
-#  define R_ABS64 -1
-#elif defined(__loongarch_lp64)
+#        define R_GLOB_DAT -1
+#        define R_ABS64 -1
+#    elif defined(__loongarch_lp64)
 // LOONGARCH does not have GLOB_DAT relocation, use something neutral,
 // like the impossible relocation number.
-#  define R_GLOB_DAT -1
-#  define R_ABS64 -1
-#else
-#  error "Compiling on unsupported arch"
-#endif
-
+#        define R_GLOB_DAT -1
+#        define R_ABS64 -1
+#    else
+#        error "Compiling on unsupported arch"
+#    endif
 
 static char _debuginfod_cache_buf[PATH_MAX] = {0};
 
@@ -207,9 +204,7 @@ class ElfParser {
 
     bool validHeader() {
         unsigned char* ident = _header->e_ident;
-        return ident[0] == 0x7f && ident[1] == 'E' && ident[2] == 'L' && ident[3] == 'F'
-            && ident[4] == ELFCLASS_SUPPORTED && ident[5] == ELFDATA2LSB && ident[6] == EV_CURRENT
-            && _header->e_shstrndx != SHN_UNDEF;
+        return ident[0] == 0x7f && ident[1] == 'E' && ident[2] == 'L' && ident[3] == 'F' && ident[4] == ELFCLASS_SUPPORTED && ident[5] == ELFDATA2LSB && ident[6] == EV_CURRENT && _header->e_shstrndx != SHN_UNDEF;
     }
 
     ElfSection* section(int index) {
@@ -258,7 +253,6 @@ class ElfParser {
     static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn);
     static bool parseFile(CodeCache* cc, const char* base, const char* file_name, bool use_debug);
 };
-
 
 ElfSection* ElfParser::findSection(uint32_t type, const char* name) {
     const char* strtab = at(section(_header->e_shstrndx));
@@ -458,7 +452,8 @@ uint32_t ElfParser::getSymbolCount(uint32_t* gnu_hash) {
 
     if (nsyms > 0) {
         uint32_t* chain = &buckets[nbuckets] - gnu_hash[1];
-        while (!(chain[nsyms++] & 1));
+        while (!(chain[nsyms++] & 1))
+            ;
     }
     return nsyms;
 }
@@ -564,8 +559,7 @@ bool ElfParser::loadSymbolsUsingBuildId() {
     const char* build_id = (const char*)note + sizeof(*note) + 4;
     int build_id_len = note->n_descsz;
 
-    return loadSymbolsFromDebug(build_id, build_id_len)
-        || loadSymbolsFromDebuginfodCache(build_id, build_id_len);
+    return loadSymbolsFromDebug(build_id, build_id_len) || loadSymbolsFromDebuginfodCache(build_id, build_id_len);
 }
 
 // Look for debuginfo file specified in .gnu_debuglink section
@@ -649,7 +643,6 @@ void ElfParser::addRelocationSymbols(ElfSection* reltab, const char* plt) {
     }
 }
 
-
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
@@ -722,10 +715,10 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
 
         u64 inode = u64(map.dev()) << 32 | map.inode();
         if (_parsed_inodes.find(inode) != _parsed_inodes.end()) {
-            continue;  // shared object is already parsed
+            continue; // shared object is already parsed
         }
         if (inode == 0 && strcmp(map.file(), "[vdso]") != 0) {
-            continue;  // all shared libraries have inode, except vDSO
+            continue; // all shared libraries have inode, except vDSO
         }
 
         const char* map_start = map.addr();
@@ -785,7 +778,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
         *(const void**)data = info->dlpi_phdr;
         return 1;
-    }, &main_phdr);
+    },
+                    &main_phdr);
 
     for (auto& it : libs) {
         u64 inode = it.first;
@@ -812,7 +806,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
-            dlerror();  // reset any error from previous dl function calls
+            dlerror(); // reset any error from previous dl function calls
 
             // Protect library from unloading while parsing in-memory ELF program headers.
             // Also, dlopen() ensures the library is fully loaded.

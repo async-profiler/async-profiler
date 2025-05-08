@@ -10,9 +10,9 @@
 #include <stdint.h>
 
 #ifdef __clang__
-#  define DLLEXPORT __attribute__((visibility("default")))
+#    define DLLEXPORT __attribute__((visibility("default")))
 #else
-#  define DLLEXPORT __attribute__((visibility("default"),externally_visible))
+#    define DLLEXPORT __attribute__((visibility("default"), externally_visible))
 #endif
 
 #define WEAK __attribute__((weak))
@@ -20,7 +20,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 
 typedef const char* asprof_error_t;
 typedef void (*asprof_writer_t)(const char* buf, size_t size);
@@ -63,7 +62,6 @@ typedef struct {
 DLLEXPORT asprof_thread_local_data* asprof_get_thread_local_data(void);
 typedef asprof_thread_local_data* (*asprof_get_thread_local_data_t)(void);
 
-
 typedef int asprof_jfr_event_key;
 
 // This API is UNSTABLE and might change or be removed in the next version of async-profiler.
@@ -76,7 +74,6 @@ typedef int asprof_jfr_event_key;
 // Returns -1 on failure.
 DLLEXPORT asprof_jfr_event_key asprof_register_jfr_event(const char* name);
 typedef asprof_jfr_event_key (*asprof_register_jfr_event_t)(const char* name);
-
 
 #define ASPROF_MAX_JFR_EVENT_LENGTH 2048
 

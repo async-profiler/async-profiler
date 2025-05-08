@@ -5,33 +5,31 @@
 
 #ifdef __linux__
 
-#include <arpa/inet.h>
-#include <byteswap.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <sched.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/sendfile.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
-#include <sys/times.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
-#include "os.h"
+#    include "os.h"
+#    include <arpa/inet.h>
+#    include <byteswap.h>
+#    include <dirent.h>
+#    include <errno.h>
+#    include <fcntl.h>
+#    include <sched.h>
+#    include <stdio.h>
+#    include <stdlib.h>
+#    include <string.h>
+#    include <sys/mman.h>
+#    include <sys/sendfile.h>
+#    include <sys/stat.h>
+#    include <sys/syscall.h>
+#    include <sys/time.h>
+#    include <sys/times.h>
+#    include <sys/types.h>
+#    include <time.h>
+#    include <unistd.h>
 
-
-#ifdef __LP64__
-#  define MMAP_SYSCALL __NR_mmap
-#else
-#  define MMAP_SYSCALL __NR_mmap2
-#endif
-
+#    ifdef __LP64__
+#        define MMAP_SYSCALL __NR_mmap
+#    else
+#        define MMAP_SYSCALL __NR_mmap2
+#    endif
 
 class LinuxThreadList : public ThreadList {
   private:
@@ -84,7 +82,6 @@ class LinuxThreadList : public ThreadList {
     }
 };
 
-
 JitWriteProtection::JitWriteProtection(bool enable) {
     // Not used on Linux
 }
@@ -93,12 +90,10 @@ JitWriteProtection::~JitWriteProtection() {
     // Not used on Linux
 }
 
-
 static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
-
 
 u64 OS::nanotime() {
     struct timespec ts;
@@ -150,7 +145,7 @@ int OS::getMaxThreadId() {
     int fd = open("/proc/sys/kernel/pid_max", O_RDONLY);
     if (fd != -1) {
         ssize_t r = read(fd, buf, sizeof(buf) - 1);
-        (void) r;
+        (void)r;
         close(fd);
     }
     return atoi(buf);
@@ -213,7 +208,7 @@ ThreadState OS::threadState(int thread_id) {
 u64 OS::threadCpuTime(int thread_id) {
     clockid_t thread_cpu_clock;
     if (thread_id) {
-        thread_cpu_clock = ((~(unsigned int)(thread_id)) << 3) | 6;  // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK
+        thread_cpu_clock = ((~(unsigned int)(thread_id)) << 3) | 6; // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK
     } else {
         thread_cpu_clock = CLOCK_THREAD_CPUTIME_ID;
     }

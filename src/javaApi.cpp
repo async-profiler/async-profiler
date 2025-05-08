@@ -3,18 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
-#include <string.h>
+#include "javaApi.h"
 #include "asprof.h"
 #include "incbin.h"
-#include "javaApi.h"
 #include "os.h"
 #include "profiler.h"
 #include "vmStructs.h"
-
+#include <errno.h>
+#include <string.h>
 
 INCLUDE_HELPER_CLASS(SERVER_NAME, SERVER_CLASS, "one/profiler/Server")
-
 
 static void throwNew(JNIEnv* env, const char* exception_class, const char* message) {
     jclass cls = env->FindClass(exception_class);
@@ -22,7 +20,6 @@ static void throwNew(JNIEnv* env, const char* exception_class, const char* messa
         env->ThrowNew(cls, message);
     }
 }
-
 
 extern "C" DLLEXPORT void JNICALL
 Java_one_profiler_AsyncProfiler_start0(JNIEnv* env, jobject unused, jstring event, jlong interval, jboolean reset) {
@@ -117,21 +114,20 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
-
-#define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
+#define F(name, sig) \
+    { (char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name }
 
 static const JNINativeMethod profiler_natives[] = {
-    F(start0,        "(Ljava/lang/String;JZ)V"),
-    F(stop0,         "()V"),
-    F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
-    F(getSamples,    "()J"),
+    F(start0, "(Ljava/lang/String;JZ)V"),
+    F(stop0, "()V"),
+    F(execute0, "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(getSamples, "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];
 
 #undef F
-
 
 // Since AsyncProfiler class can be renamed or moved to another package (shaded),
 // we look for the actual class in the stack trace.

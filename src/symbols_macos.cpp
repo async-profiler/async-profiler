@@ -5,15 +5,14 @@
 
 #ifdef __APPLE__
 
-#include <unordered_set>
-#include <dlfcn.h>
-#include <string.h>
-#include <mach-o/dyld.h>
-#include <mach-o/loader.h>
-#include <mach-o/nlist.h>
-#include "symbols.h"
-#include "log.h"
-
+#    include "log.h"
+#    include "symbols.h"
+#    include <dlfcn.h>
+#    include <mach-o/dyld.h>
+#    include <mach-o/loader.h>
+#    include <mach-o/nlist.h>
+#    include <string.h>
+#    include <unordered_set>
 
 class MachOParser {
   private:
@@ -123,7 +122,6 @@ class MachOParser {
     }
 };
 
-
 Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
@@ -139,7 +137,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
-            continue;  // the library was already parsed
+            continue; // the library was already parsed
         }
 
         int count = array->count();

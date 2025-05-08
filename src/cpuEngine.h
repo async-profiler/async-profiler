@@ -6,9 +6,8 @@
 #ifndef _CPUENGINE_H
 #define _CPUENGINE_H
 
-#include <signal.h>
 #include "engine.h"
-
+#include <signal.h>
 
 // Base class for CPU sampling engines: PerfEvents, CTimer, ITimer
 class CpuEngine : public Engine {

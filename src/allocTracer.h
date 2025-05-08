@@ -6,12 +6,11 @@
 #ifndef _ALLOCTRACER_H
 #define _ALLOCTRACER_H
 
-#include <signal.h>
-#include <stdint.h>
 #include "engine.h"
 #include "event.h"
 #include "trap.h"
-
+#include <signal.h>
+#include <stdint.h>
 
 class AllocTracer : public Engine {
   private:

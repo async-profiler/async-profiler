@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "fdtransferServer.h"
 #include <alloca.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -15,13 +16,10 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include "fdtransferServer.h"
-
 
 #ifdef __APPLE__
-#include <mach-o/dyld.h>
+#    include <mach-o/dyld.h>
 #endif
-
 
 #define APP_BINARY "asprof"
 
@@ -101,7 +99,6 @@ static const char USAGE_STRING[] =
     "         " APP_BINARY " stop -o flat jps\n"
     "         " APP_BINARY " -d 5 -e alloc MyAppName\n";
 
-
 extern "C" int jattach(int pid, int argc, const char** argv, int print_output);
 
 static void error(const char* msg) {
@@ -113,7 +110,6 @@ static void error(const char* msg, int errnum) {
     fprintf(stderr, "%s: %s\n", msg, strerror(errnum));
     exit(1);
 }
-
 
 class Args {
   private:
@@ -137,7 +133,6 @@ class Args {
         return _argv[0];
     }
 };
-
 
 class String {
   private:
@@ -206,7 +201,6 @@ class String {
         return *this;
     }
 };
-
 
 static String action = "collect";
 static String file, logfile, output, params, format, fdtransfer, libpath;
@@ -296,7 +290,8 @@ static void print_file(String file, int dst) {
 
 static int wait_for_exit(int pid) {
     int ret = 0;
-    while (waitpid(pid, &ret, 0) < 0 && errno == EINTR);
+    while (waitpid(pid, &ret, 0) < 0 && errno == EINTR)
+        ;
     return ret;
 }
 
@@ -399,7 +394,6 @@ static int get_tracepoint_id(const char* dir, const char* name) {
     return 0;
 }
 
-
 int main(int argc, const char** argv) {
     Args args(argc, argv);
     while (args.count() > 0 && !(jattach_action && pid)) {
@@ -485,10 +479,7 @@ int main(int argc, const char** argv) {
             format << ",filter=" << String(args.next()).replace(',', ";");
 
         } else if (arg == "--title") {
-            format << ",title=" << String(args.next()).replace('&', "&amp;")
-                                                      .replace('<', "&lt;")
-                                                      .replace('>', "&gt;")
-                                                      .replace(',', "&#44;");
+            format << ",title=" << String(args.next()).replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace(',', "&#44;");
 
         } else if (arg == "--width" || arg == "--height" || arg == "--minwidth") {
             format << "," << (arg.str() + 2) << "=" << args.next();

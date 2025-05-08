@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "codeCache.h"
+#include "dwarf.h"
+#include "os.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "codeCache.h"
-#include "dwarf.h"
-#include "os.h"
-
 
 char* NativeFunc::create(const char* name, short lib_index) {
     NativeFunc* f = (NativeFunc*)malloc(sizeof(NativeFunc) + 1 + strlen(name));
@@ -26,7 +25,6 @@ void NativeFunc::destroy(char* name) {
 size_t NativeFunc::usedMemory(const char* name) {
     return sizeof(NativeFunc) + 1 + strlen(from(name)->_name);
 }
-
 
 CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
                      const void* min_address, const void* max_address) {

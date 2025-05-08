@@ -5,22 +5,21 @@
 
 #ifdef __linux__
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
+#    include <errno.h>
+#    include <fcntl.h>
+#    include <stdio.h>
+#    include <stdlib.h>
+#    include <string.h>
+#    include <sys/stat.h>
+#    include <sys/types.h>
+#    include <unistd.h>
 
-#include "fdtransferClient.h"
-#include "log.h"
-
+#    include "fdtransferClient.h"
+#    include "log.h"
 
 int FdTransferClient::_peer = -1;
 
-bool FdTransferClient::connectToServer(const char *path) {
+bool FdTransferClient::connectToServer(const char* path) {
     closePeer();
 
     _peer = socket(AF_UNIX, SOCK_SEQPACKET, 0);
@@ -39,7 +38,7 @@ bool FdTransferClient::connectToServer(const char *path) {
     struct timeval tv = {10, 0};
     setsockopt(_peer, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-    if (connect(_peer, (const struct sockaddr *)&sun, addrlen) == -1) {
+    if (connect(_peer, (const struct sockaddr*)&sun, addrlen) == -1) {
         Log::warn("FdTransferClient connect(): %s", strerror(errno));
         return false;
     }
@@ -47,7 +46,7 @@ bool FdTransferClient::connectToServer(const char *path) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(int *tid, int target_cpu, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(int* tid, int target_cpu, struct perf_event_attr* attr) {
     struct perf_fd_request request;
     request.header.type = PERF_FD;
     request.tid = *tid;
@@ -91,7 +90,7 @@ int FdTransferClient::requestKallsymsFd() {
     return fd;
 }
 
-int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t resp_size) {
+int FdTransferClient::recvFd(unsigned int type, struct fd_response* resp, size_t resp_size) {
     struct msghdr msg = {0};
 
     struct iovec iov[1];
@@ -120,9 +119,8 @@ int FdTransferClient::recvFd(unsigned int type, struct fd_response *resp, size_t
     }
 
     if (resp->error == 0) {
-        struct cmsghdr *cmptr = CMSG_FIRSTHDR(&msg);
-        if (cmptr != NULL && cmptr->cmsg_len == CMSG_LEN(sizeof(newfd))
-            && cmptr->cmsg_level == SOL_SOCKET && cmptr->cmsg_type == SCM_RIGHTS) {
+        struct cmsghdr* cmptr = CMSG_FIRSTHDR(&msg);
+        if (cmptr != NULL && cmptr->cmsg_len == CMSG_LEN(sizeof(newfd)) && cmptr->cmsg_level == SOL_SOCKET && cmptr->cmsg_type == SCM_RIGHTS) {
 
             newfd = *((int*)CMSG_DATA(cmptr));
         } else {

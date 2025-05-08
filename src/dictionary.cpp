@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <stdlib.h>
-#include <string.h>
 #include "dictionary.h"
 #include "arch.h"
-
+#include <stdlib.h>
+#include <string.h>
 
 static inline char* allocateKey(const char* key, size_t length) {
     char* result = (char*)malloc(length + 1);
@@ -19,7 +18,6 @@ static inline char* allocateKey(const char* key, size_t length) {
 static inline bool keyEquals(const char* candidate, const char* key, size_t length) {
     return strncmp(candidate, key, length) == 0 && candidate[length] == 0;
 }
-
 
 Dictionary::Dictionary() {
     _table = (DictTable*)calloc(1, sizeof(DictTable));
