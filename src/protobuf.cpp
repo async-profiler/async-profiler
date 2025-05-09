@@ -70,6 +70,7 @@ void ProtobufBuffer::field(int index, const char *s) {
 
 void ProtobufBuffer::field(int index, const char *s, size_t len) {
   tag(index, LEN);
+  putVarInt<>(len);
   put(s, len);
 }
 
@@ -91,4 +92,11 @@ void ProtobufBuffer::commitField(size_t mark) {
     length >>= 7;
   }
   _data[mark - 1] = (char)length;
+}
+
+void ProtobufBuffer::mapField(int mapIndex, const char *key, u32 value) {
+  size_t mark = startField(mapIndex);
+  field(1, key);
+  field(2, value);
+  commitField(mark);
 }

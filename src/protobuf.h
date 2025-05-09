@@ -143,6 +143,8 @@ public:
 
   size_t startField(int index);
   void commitField(size_t mark);
+
+  void mapField(int mapIndex, const char *key, u32 value);
 };
 
 #endif // _OTLP_H
