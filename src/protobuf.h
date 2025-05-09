@@ -148,6 +148,23 @@ public:
   void mapField(int mapIndex, K key, V value);
 };
 
+template <typename T>
+typename std::enable_if<std::is_unsigned<T>::value, void>::type
+ProtobufBuffer::putVarInt(T n) {
+  _offset = putVarInt(_offset, n);
+}
+
+template <typename T>
+typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
+ProtobufBuffer::putVarInt(size_t offset, T n) {
+  while ((n >> 7) != 0) {
+    _data[offset++] = (char)(0b10000000 | (n & 0b01111111));
+    n >>= 7;
+  }
+  _data[offset++] = (char)n;
+  return offset;
+}
+
 template <typename K, typename V>
 void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
   size_t mark = startField(mapIndex);
