@@ -16,7 +16,7 @@ static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
-class ProtobufBuffer : public Buffer {
+class ProtobufBuffer : public LittleEndianBuffer {
   private:
     template <typename T>
     typename std::enable_if<std::is_unsigned<T>::value, void>::type putVarInt(T n);
