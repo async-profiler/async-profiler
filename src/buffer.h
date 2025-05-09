@@ -7,16 +7,15 @@
 #define _BUFFER_H
 
 #include "os.h"
-#include <arpa/inet.h>
 #include <cstdint>
 #include <string.h>
 
 class Buffer {
   protected:
     std::size_t _offset;
-    char _data[0];
+    char* _data;
 
-    Buffer() : _offset(0) {
+    Buffer(char* data) : _offset(0), _data(data) {
     }
 
   public:
@@ -73,61 +72,6 @@ class Buffer {
     void put(const char* v, std::size_t len) {
         memcpy(_data + _offset, v, len);
         _offset += len;
-    }
-};
-
-class BigEndianBuffer : public Buffer {
-  public:
-    void put16(u16 v) override {
-        *(short*)(_data + _offset) = htons(v);
-        _offset += 2;
-    }
-
-    void put32(u32 v) override {
-        *(int*)(_data + _offset) = htonl(v);
-        _offset += 4;
-    }
-
-    void put64(u64 v) override {
-        *(u64*)(_data + _offset) = OS::hton64(v);
-        _offset += 8;
-    }
-};
-
-inline bool is_system_little_endian() {
-    const int value = 0x01;
-    const void * address = static_cast<const void *>(&value);
-    const unsigned char * least_significant_address = static_cast<const unsigned char *>(address);
-    return *least_significant_address == 0x01;
-}
-
-class LittleEndianBuffer : public Buffer {
-  public:
-    void put16(u16 v) override {
-        if (is_system_little_endian()) {
-            *(short*)(_data + _offset) = v;
-        } else {
-            *(short*)(_data + _offset) = __builtin_bswap16(v);
-        }
-        _offset += 2;
-    }
-
-    void put32(u32 v) override {
-        if (is_system_little_endian()) {
-            *(int*)(_data + _offset) = v;
-        } else {
-            *(int*)(_data + _offset) = __builtin_bswap32(v);
-        }
-        _offset += 4;
-    }
-
-    void put64(u64 v) override {
-        if (is_system_little_endian()) {
-            *(long*)(_data + _offset) = v;
-        } else {
-            *(long*)(_data + _offset) = __builtin_bswap64(v);
-        }
-        _offset += 8;
     }
 };
 
