@@ -112,3 +112,23 @@ TEST_CASE(Buffer_test_repeated_double) {
     CHECK_EQ((unsigned char)buf.data()[16], 60);
     CHECK_EQ((unsigned char)buf.data()[17], 64);
 }
+
+TEST_CASE(Buffer_test_field) {
+    char* data = (char*)alloca(100);
+    ProtobufBuffer buf(data);
+
+    size_t mark = buf.startField(4);
+    buf.field(3, (u32)10);
+    buf.field(5, true);
+    buf.commitField(mark);
+
+    CHECK_EQ(buf.offset(), 8);
+    CHECK_EQ((unsigned char)buf.data()[0], (4 << 3) | LEN);
+    CHECK_EQ((unsigned char)buf.data()[1], 4 | 0b10000000); // Length of the field with continuation bit as MSB
+    CHECK_EQ((unsigned char)buf.data()[2], 0b10000000);     // Continuation bit MSB
+    CHECK_EQ((unsigned char)buf.data()[3], 0);              // Continuation bit MSB
+    CHECK_EQ((unsigned char)buf.data()[4], (3 << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[5], 10);
+    CHECK_EQ((unsigned char)buf.data()[6], (5 << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[7], 1);
+}

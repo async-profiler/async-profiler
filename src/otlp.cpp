@@ -27,7 +27,7 @@ void ProtobufBuffer::tag(int index, protobuf_t type) {
 
 void ProtobufBuffer::field(int index, bool b) {
     tag(index, VARINT);
-    putVarInt<>((u32) b);
+    putVarInt<>((u32)b);
 }
 
 void ProtobufBuffer::field(int index, int n) {
@@ -75,11 +75,15 @@ void ProtobufBuffer::field(int index, const LittleEndianBuffer buffer, size_t le
 
 size_t ProtobufBuffer::startField(int index) {
     tag(index, LEN);
-    skip(3);
+    skip(nested_field_byte_count);
     return offset();
 }
 
 void ProtobufBuffer::commitField(size_t mark) {
     size_t length = offset() - mark;
-    putVarInt<>(mark - 3, (u32)length);
+    for (int i = 0; i < nested_field_byte_count - 1; ++i) {
+        _data[mark - 3 + i] = (char)(0b10000000 | (length & 0b01111111));
+        length >>= 7;
+    }
+    _data[mark - 1] = (char)length;
 }

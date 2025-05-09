@@ -7,8 +7,8 @@
 #define _OTLP_H
 
 #include "arch.h"
-#include "os.h"
 #include "buffer.h"
+#include "os.h"
 #include <type_traits>
 
 typedef const u8 protobuf_t;
@@ -17,11 +17,15 @@ static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
+// We assume the length of a nested field can be represented with 3 varint bytes.
+// TODO: What if it doesn't? Do we need to account for this case?
+const size_t nested_field_byte_count = 3;
+
 static bool is_system_little_endian() {
-  const int value = 0x01;
-  const void* address = static_cast<const void*>(&value);
-  const unsigned char* least_significant_address = static_cast<const unsigned char*>(address);
-  return *least_significant_address == 0x01;
+    const int value = 0x01;
+    const void* address = static_cast<const void*>(&value);
+    const unsigned char* least_significant_address = static_cast<const unsigned char*>(address);
+    return *least_significant_address == 0x01;
 }
 
 class LittleEndianBuffer : public Buffer {
