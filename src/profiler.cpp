@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <dlfcn.h>
 #include <unistd.h>
@@ -35,6 +37,9 @@
 #include "symbols.h"
 #include "tsc.h"
 #include "vmStructs.h"
+#include <map>
+// TODO: Check if we can use this
+#include "uuid/uuid.h"
 
 
 // The instance is not deleted on purpose, since profiler structures
@@ -1396,6 +1401,9 @@ Error Profiler::dump(Writer& out, Arguments& args) {
                 unlockAll();
             }
             break;
+        case OUTPUT_OTLP:
+            dumpOtlp(out, args);
+            break;
         default:
             return Error("No output format selected");
     }
@@ -1635,6 +1643,115 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             out << buf;
         }
     }
+}
+
+static inline int32_t getIdxOrAddToStringTable(std::map<std::string, int32_t> *string_idx_map, opentelemetry::proto::profiles::v1development::Profile *profile, std::string s) {
+    // TODO: is this efficient?
+    if (string_idx_map->find(s) == string_idx_map->end()) {
+        profile->add_string_table(s);
+        string_idx_map->insert({s, profile->string_table_size() - 1});
+    }
+    return (*string_idx_map)[s];
+}
+
+// TODO: If this feature goes to production, we need to add two things somewhere:
+//  - GOOGLE_PROTOBUF_VERIFY_VERSION;
+//  - google::protobuf::ShutdownProtobufLibrary()
+void Profiler::dumpOtlp(Writer& out, Arguments& args) {
+    // TODO: out is unused at the moment, let's try to use it
+
+    using namespace opentelemetry::proto::profiles::v1development;
+    Profile profile;
+
+    // TODO: Set stuff like service name
+
+    {
+        uuid_t binuuid;
+        uuid_generate_random(binuuid);
+        // 37 is the length of a UUID (36 characters), plus '\0'
+        char uuid[37];
+        uuid_unparse_lower(binuuid, uuid);
+        profile.set_profile_id(uuid);
+    }
+
+    // TODO: Pyroscope needs this, but it's optional according to OTLP
+    Mapping* default_mapping = profile.add_mapping_table();
+
+    std::map<std::string, int32_t> string_idx_map;
+    std::map<std::string, int32_t> function_idx_map;
+
+    ValueType *sample_type = profile.add_sample_type();
+    sample_type->set_type_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "samples"));
+    sample_type->set_unit_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "count"));
+    sample_type->set_aggregation_temporality(AGGREGATION_TEMPORALITY_DELTA);
+
+    ValueType *period_type = profile.mutable_period_type();
+    period_type->set_type_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "cpu"));
+    period_type->set_unit_strindex(getIdxOrAddToStringTable(&string_idx_map, &profile, "nanoseconds"));
+    profile.set_period(args._interval);
+
+    // TODO: startTime and profiling duration?
+    //  profile.set_time_nanos
+    //  profile.set_duration_nanos
+
+    std::vector<CallTraceSample*> samples;
+    _call_trace_storage.collectSamples(samples);
+
+    int32_t locations_count = 0;
+    
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+    for (std::vector<CallTraceSample*>::const_iterator it = samples.begin(); it != samples.end(); ++it) {
+        CallTrace* trace = (*it)->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace)) continue;
+
+        Sample *profileSample = profile.add_sample();
+        profileSample->add_value(1);
+        profileSample->set_locations_start_index(locations_count);
+
+        int num_frames = trace->num_frames;
+        for (int j = 0; j < num_frames; j++) {
+            const char* frame_name = fn.name(trace->frames[j]);
+
+            // TODO: Can we use this information?
+            //  FrameTypeId frame_type = fn.type(trace->frames[j]);
+
+            if (function_idx_map.find(frame_name) == function_idx_map.end()) {
+                Function *function = profile.add_function_table();
+                function_idx_map.insert({frame_name, profile.function_table_size() - 1});
+
+                int32_t frame_name_string_idx = getIdxOrAddToStringTable(&string_idx_map, &profile, frame_name);
+                function->set_name_strindex(frame_name_string_idx);
+                // TODO: Do we have access to e.g. mangled C++ name?
+                function->set_system_name_strindex(frame_name_string_idx);
+                // TODO: Can we get information about file name?
+                //  function->set_filename_strindex
+                // TODO: Can we get information about file name?
+                //  function->set_start_line
+            }
+
+            Location *loc = profile.add_location_table();
+            profile.add_location_indices(profile.location_table_size() - 1);
+            loc->set_mapping_index(0);
+
+            Line *line = loc->add_line();
+            line->set_function_index(function_idx_map[frame_name]);
+            // TODO: Information about line number not available in async-profiler
+            //  line->set_line
+        }
+
+        profileSample->set_locations_length(num_frames);
+        locations_count += num_frames;
+    }
+
+    if (args.file() == NULL) {
+        Log::error("OTLP output is only supported with file output at the moment");
+        return;
+    }
+
+    // TODO: Would be nice if Writer behaved like std::ostream*
+    std::fstream file(args.file(), std::ios::binary|std::ios::out);
+    profile.SerializeToOstream(&file);
+    file.close();
 }
 
 time_t Profiler::addTimeout(time_t start, int timeout) {

@@ -5,7 +5,6 @@
 
 #include <map>
 #include <string>
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -28,6 +27,7 @@
 #include "tsc.h"
 #include "userEvents.h"
 #include "vmStructs.h"
+#include "buffer.h"
 
 
 INCLUDE_HELPER_CLASS(JFR_SYNC_NAME, JFR_SYNC_CLASS, "one/profiler/JfrSync")
@@ -41,9 +41,12 @@ const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
-const int MAX_STRING_LENGTH = 8191;
+const std::size_t MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
+// https://github.com/openjdk/jmc/blob/master/core/org.openjdk.jmc.flightrecorder/src/main/java/org/openjdk/jmc/flightrecorder/internal/parser/v1/SeekableInputStream.java
+const char STRING_ENCODING_UTF8_BYTE_ARRAY = 3;
+const char STRING_ENCODING_LATIN1_BYTE_ARRAY = 5;
 
 enum GCWhen {
     BEFORE_GC,
@@ -291,141 +294,45 @@ class Lookup {
     }
 };
 
-
-class Buffer {
-  private:
-    int _offset;
-    char _data[0];
-
-  protected:
-    Buffer() : _offset(0) {
-    }
-
+class FlightRecorderBuffer : public Buffer {
   public:
-    const char* data() const {
-        return _data;
-    }
-
-    int offset() const {
-        return _offset;
-    }
-
-    int skip(int delta) {
-        int offset = _offset;
-        _offset = offset + delta;
-        return offset;
-    }
-
-    void reset() {
-        _offset = 0;
-    }
-
-    void put(const char* v, u32 len) {
-        memcpy(_data + _offset, v, len);
-        _offset += (int)len;
-    }
-
-    void put8(char v) {
-        _data[_offset++] = v;
-    }
-
-    void put16(short v) {
-        *(short*)(_data + _offset) = htons(v);
-        _offset += 2;
-    }
-
-    void put32(int v) {
-        *(int*)(_data + _offset) = htonl(v);
-        _offset += 4;
-    }
-
-    void put64(u64 v) {
-        *(u64*)(_data + _offset) = OS::hton64(v);
-        _offset += 8;
-    }
-
-    void putFloat(float v) {
-        union {
-            float f;
-            int i;
-        } u;
-
-        u.f = v;
-        put32(u.i);
-    }
-
-    void putVar32(u32 v) {
-        while (v > 0x7f) {
-            _data[_offset++] = (char)v | 0x80;
-            v >>= 7;
-        }
-        _data[_offset++] = (char)v;
-    }
-
-    void putVar64(u64 v) {
-        int iter = 0;
-        while (v > 0x1fffff) {
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
-            _data[_offset++] = (char)v | 0x80; v >>= 7;
-            if (++iter == 3) return;
-        }
-        while (v > 0x7f) {
-            _data[_offset++] = (char)v | 0x80;
-            v >>= 7;
-        }
-        _data[_offset++] = (char)v;
-    }
-
     void putUtf8(const char* v) {
         if (v == NULL) {
             put8(0);
         } else {
-            size_t len = strlen(v);
+            std::size_t len = strlen(v);
             putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
         }
     }
 
-    void putUtf8(const char* v, u32 len) {
-        put8(3);
+    void putUtf8(const char* v, std::size_t len) {
+        put8(STRING_ENCODING_UTF8_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
     }
 
-    void putByteString(const char* v, u32 len) {
-        put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
+    void putByteString(const char* v, std::size_t len) {
+        put8(STRING_ENCODING_LATIN1_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
     }
+};
 
-    void put8(int offset, char v) {
-        _data[offset] = v;
-    }
+class SmallBuffer : public FlightRecorderBuffer {
+  private:
+    char _buf[SMALL_BUFFER_SIZE - sizeof(FlightRecorderBuffer)];
 
-    void putVar32(int offset, u32 v) {
-        _data[offset] = v | 0x80;
-        _data[offset + 1] = (v >> 7) | 0x80;
-        _data[offset + 2] = (v >> 14) | 0x80;
-        _data[offset + 3] = (v >> 21) | 0x80;
-        _data[offset + 4] = (v >> 28);
+  public:
+    SmallBuffer() : FlightRecorderBuffer() {
     }
 };
 
-class SmallBuffer : public Buffer {
+class RecordingBuffer : public FlightRecorderBuffer {
   private:
-    char _buf[SMALL_BUFFER_SIZE - sizeof(Buffer)];
+    char _buf[RECORDING_BUFFER_SIZE - sizeof(FlightRecorderBuffer)];
 
   public:
-    SmallBuffer() : Buffer() {
-    }
-};
-
-class RecordingBuffer : public Buffer {
-  private:
-    char _buf[RECORDING_BUFFER_SIZE - sizeof(Buffer)];
-
-  public:
-    RecordingBuffer() : Buffer() {
+    RecordingBuffer() : FlightRecorderBuffer() {
     }
 };
 
@@ -668,7 +575,7 @@ class Recording {
         }
     }
 
-    Buffer* buffer(int lock_index) {
+    FlightRecorderBuffer* buffer(int lock_index) {
         return &_buf[lock_index];
     }
 
@@ -737,7 +644,7 @@ class Recording {
         return str;
     }
 
-    void flush(Buffer* buf) {
+    void flush(FlightRecorderBuffer* buf) {
         ssize_t result = write(_in_memory ? _memfd : _fd, buf->data(), buf->offset());
         if (result > 0) {
             atomicInc(_bytes_written, result);
@@ -745,13 +652,13 @@ class Recording {
         buf->reset();
     }
 
-    void flushIfNeeded(Buffer* buf, int limit = RECORDING_BUFFER_LIMIT) {
+    void flushIfNeeded(FlightRecorderBuffer* buf, int limit = RECORDING_BUFFER_LIMIT) {
         if (buf->offset() >= limit) {
             flush(buf);
         }
     }
 
-    void writeHeader(Buffer* buf) {
+    void writeHeader(FlightRecorderBuffer* buf) {
         buf->put("FLR\0", 4);            // magic
         buf->put16(2);                   // major
         buf->put16(0);                   // minor
@@ -767,7 +674,7 @@ class Recording {
         buf->put32(1);                   // features
     }
 
-    void writeMetadata(Buffer* buf) {
+    void writeMetadata(FlightRecorderBuffer* buf) {
         int metadata_start = buf->skip(5);  // size will be patched later
         buf->putVar32(T_METADATA);
         buf->putVar64(_start_ticks);
@@ -785,7 +692,7 @@ class Recording {
         buf->putVar32(metadata_start, buf->offset() - metadata_start);
     }
 
-    void writeElement(Buffer* buf, const Element* e) {
+    void writeElement(FlightRecorderBuffer* buf, const Element* e) {
         buf->putVar32(e->_name);
 
         buf->putVar32(e->_attributes.size());
@@ -800,7 +707,7 @@ class Recording {
         }
     }
 
-    void writeRecordingInfo(Buffer* buf) {
+    void writeRecordingInfo(FlightRecorderBuffer* buf) {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
         buf->putVar64(_start_ticks);
@@ -814,7 +721,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void writeSettings(Buffer* buf, Arguments& args) {
+    void writeSettings(FlightRecorderBuffer* buf, Arguments& args) {
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
@@ -860,7 +767,7 @@ class Recording {
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "kernelSymbols", Symbols::haveKernelSymbols());
     }
 
-    void writeStringSetting(Buffer* buf, int category, const char* key, const char* value) {
+    void writeStringSetting(FlightRecorderBuffer* buf, int category, const char* key, const char* value) {
         flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
         int start = buf->skip(5);
         buf->put8(T_ACTIVE_SETTING);
@@ -871,24 +778,24 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void writeBoolSetting(Buffer* buf, int category, const char* key, bool value) {
+    void writeBoolSetting(FlightRecorderBuffer* buf, int category, const char* key, bool value) {
         writeStringSetting(buf, category, key, value ? "true" : "false");
     }
 
-    void writeIntSetting(Buffer* buf, int category, const char* key, long long value) {
+    void writeIntSetting(FlightRecorderBuffer* buf, int category, const char* key, long long value) {
         char str[32];
         snprintf(str, sizeof(str), "%lld", value);
         writeStringSetting(buf, category, key, str);
     }
 
-    void writeListSetting(Buffer* buf, int category, const char* key, const char* base, int offset) {
+    void writeListSetting(FlightRecorderBuffer* buf, int category, const char* key, const char* base, int offset) {
         while (offset != 0) {
             writeStringSetting(buf, category, key, base + offset);
             offset = ((int*)(base + offset))[-1];
         }
     }
 
-    void writeOsCpuInfo(Buffer* buf) {
+    void writeOsCpuInfo(FlightRecorderBuffer* buf) {
         struct utsname u;
         if (uname(&u) != 0) {
             return;
@@ -915,7 +822,7 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void writeJvmInfo(Buffer* buf) {
+    void writeJvmInfo(FlightRecorderBuffer* buf) {
         if (_agent_properties == NULL && !(VM::loaded() && parseAgentProperties())) {
             return;
         }
@@ -944,7 +851,7 @@ class Recording {
         jvmti->Deallocate((unsigned char*)jvm_name);
     }
 
-    void writeSystemProperties(Buffer* buf) {
+    void writeSystemProperties(FlightRecorderBuffer* buf) {
         jvmtiEnv* jvmti = VM::jvmti();
         jint count;
         char** keys;
@@ -971,7 +878,7 @@ class Recording {
         jvmti->Deallocate((unsigned char*)keys);
     }
 
-    void writeNativeLibraries(Buffer* buf) {
+    void writeNativeLibraries(FlightRecorderBuffer* buf) {
         if (_recorded_lib_count < 0) return;
 
         Profiler* profiler = Profiler::instance();
@@ -992,7 +899,7 @@ class Recording {
         _recorded_lib_count = native_lib_count;
     }
 
-    void writeCpool(Buffer* buf) {
+    void writeCpool(FlightRecorderBuffer* buf) {
         buf->skip(5);  // size will be patched later
         buf->putVar32(T_CPOOL);
         buf->putVar64(_start_ticks);
@@ -1019,7 +926,7 @@ class Recording {
         writeLogLevels(buf);
     }
 
-    void writePoolHeader(Buffer* buf, JfrType type, u32 size) {
+    void writePoolHeader(FlightRecorderBuffer* buf, JfrType type, u32 size) {
         if (size > 0) {
             buf->putVar32(type);
             buf->putVar32(size);
@@ -1033,7 +940,7 @@ class Recording {
         }
     }
 
-    void writeFrameTypes(Buffer* buf) {
+    void writeFrameTypes(FlightRecorderBuffer* buf) {
         buf->putVar32(T_FRAME_TYPE);
         buf->putVar32(7);
         buf->putVar32(FRAME_INTERPRETED);  buf->putUtf8("Interpreted");
@@ -1045,7 +952,7 @@ class Recording {
         buf->putVar32(FRAME_C1_COMPILED);  buf->putUtf8("C1 compiled");
     }
 
-    void writeThreadStates(Buffer* buf) {
+    void writeThreadStates(FlightRecorderBuffer* buf) {
         buf->putVar32(T_THREAD_STATE);
         buf->putVar32(3);
         buf->putVar32(THREAD_UNKNOWN);     buf->putUtf8("STATE_DEFAULT");
@@ -1053,14 +960,14 @@ class Recording {
         buf->putVar32(THREAD_SLEEPING);    buf->putUtf8("STATE_SLEEPING");
     }
 
-    void writeGCWhen(Buffer* buf) {
+    void writeGCWhen(FlightRecorderBuffer* buf) {
         buf->putVar32(T_GC_WHEN);
         buf->putVar32(2);
         buf->putVar32(BEFORE_GC);          buf->putUtf8("Before GC");
         buf->putVar32(AFTER_GC);           buf->putUtf8("After GC");
     }
 
-    void writeThreads(Buffer* buf) {
+    void writeThreads(FlightRecorderBuffer* buf) {
         std::vector<int> threads;
         _thread_set.collect(threads);
         _thread_set.clear();
@@ -1098,7 +1005,7 @@ class Recording {
         }
     }
 
-    void writeStackTraces(Buffer* buf, Lookup* lookup) {
+    void writeStackTraces(FlightRecorderBuffer* buf, Lookup* lookup) {
         std::map<u32, CallTrace*> traces;
         Profiler::instance()->_call_trace_storage.collectTraces(traces);
 
@@ -1129,7 +1036,7 @@ class Recording {
         }
     }
 
-    void writeMethods(Buffer* buf, Lookup* lookup) {
+    void writeMethods(FlightRecorderBuffer* buf, Lookup* lookup) {
         MethodMap* method_map = lookup->_method_map;
 
         u32 marked_count = 0;
@@ -1155,7 +1062,7 @@ class Recording {
         }
     }
 
-    void writeClasses(Buffer* buf, Lookup* lookup) {
+    void writeClasses(FlightRecorderBuffer* buf, Lookup* lookup) {
         std::map<u32, const char*> classes;
         lookup->_classes->collect(classes);
 
@@ -1171,7 +1078,7 @@ class Recording {
         }
     }
 
-    void writePackages(Buffer* buf, Lookup* lookup) {
+    void writePackages(FlightRecorderBuffer* buf, Lookup* lookup) {
         std::map<u32, const char*> packages;
         lookup->_packages.collect(packages);
 
@@ -1183,7 +1090,7 @@ class Recording {
         }
     }
 
-    void writeSymbols(Buffer* buf, Lookup* lookup) {
+    void writeSymbols(FlightRecorderBuffer* buf, Lookup* lookup) {
         std::map<u32, const char*> symbols;
         lookup->_symbols.collect(symbols);
 
@@ -1195,7 +1102,7 @@ class Recording {
         }
     }
 
-    void writeLogLevels(Buffer* buf) {
+    void writeLogLevels(FlightRecorderBuffer* buf) {
         buf->putVar32(T_LOG_LEVEL);
         buf->putVar32(LOG_ERROR - LOG_TRACE + 1);
         for (int i = LOG_TRACE; i <= LOG_ERROR; i++) {
@@ -1204,7 +1111,7 @@ class Recording {
         }
     }
 
-    void writeUserEventTypes(Buffer* buf) {
+    void writeUserEventTypes(FlightRecorderBuffer* buf) {
         std::map<u32, const char*> events;
         UserEvents::collect(events);
 
@@ -1216,7 +1123,7 @@ class Recording {
         }
     }
 
-    void recordExecutionSample(Buffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
+    void recordExecutionSample(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, ExecutionEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_EXECUTION_SAMPLE);
         buf->putVar64(event->_start_time);
@@ -1226,7 +1133,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordWallClockSample(Buffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
+    void recordWallClockSample(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, WallClockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_WALL_CLOCK_SAMPLE);
         buf->putVar64(event->_start_time);
@@ -1237,7 +1144,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordAllocationInNewTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+    void recordAllocationInNewTLAB(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_IN_NEW_TLAB);
         buf->putVar64(event->_start_time);
@@ -1249,7 +1156,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordAllocationOutsideTLAB(Buffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
+    void recordAllocationOutsideTLAB(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, AllocEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_ALLOC_OUTSIDE_TLAB);
         buf->putVar64(event->_start_time);
@@ -1260,7 +1167,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordMallocSample(Buffer* buf, int tid, u32 call_trace_id, MallocEvent* event) {
+    void recordMallocSample(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, MallocEvent* event) {
         int start = buf->skip(1);
         buf->put8(event->_size != 0 ? T_MALLOC : T_FREE);
         buf->putVar64(event->_start_time);
@@ -1273,7 +1180,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordUserEvent(Buffer* buf, int tid, UserEvent* event) {
+    void recordUserEvent(FlightRecorderBuffer* buf, int tid, UserEvent* event) {
         // estimate of size of non-string fields of this event
         const size_t event_non_string_size_limit = 64;
         // When calling recordUserEvent, the buffer can be up to RECORDING_BUFFER_LIMIT bytes full.
@@ -1291,7 +1198,7 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
+    void recordLiveObject(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
         buf->putVar64(event->_start_time);
@@ -1303,7 +1210,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordMonitorBlocked(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+    void recordMonitorBlocked(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_MONITOR_ENTER);
         buf->putVar64(event->_start_time);
@@ -1316,7 +1223,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordThreadPark(Buffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
+    void recordThreadPark(FlightRecorderBuffer* buf, int tid, u32 call_trace_id, LockEvent* event) {
         int start = buf->skip(1);
         buf->put8(T_THREAD_PARK);
         buf->putVar64(event->_start_time);
@@ -1330,7 +1237,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordWindow(Buffer* buf, int tid, ProfilingWindow* event) {
+    void recordWindow(FlightRecorderBuffer* buf, int tid, ProfilingWindow* event) {
         int start = buf->skip(1);
         buf->put8(T_WINDOW);
         buf->putVar64(event->_start_time);
@@ -1339,7 +1246,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordCpuLoad(Buffer* buf, float proc_user, float proc_system, float machine_total) {
+    void recordCpuLoad(FlightRecorderBuffer* buf, float proc_user, float proc_system, float machine_total) {
         int start = buf->skip(1);
         buf->put8(T_CPU_LOAD);
         buf->putVar64(TSC::ticks());
@@ -1349,7 +1256,7 @@ class Recording {
         buf->put8(start, buf->offset() - start);
     }
 
-    void recordHeapSummary(Buffer* buf, u32 id, GCWhen when, u64 total_memory, u64 free_memory) {
+    void recordHeapSummary(FlightRecorderBuffer* buf, u32 id, GCWhen when, u64 total_memory, u64 free_memory) {
         CollectedHeap* heap = CollectedHeap::heap();
         u64 heap_start = heap != NULL ? heap->start() : 0;
         u64 heap_size = heap != NULL ? heap->size() : total_memory;
@@ -1538,7 +1445,7 @@ void FlightRecorder::recordEvent(int lock_index, int tid, u32 call_trace_id,
         // user code to attach metadata.
         ThreadLocalData::incrementSampleCounter();
 
-        Buffer* buf = _rec->buffer(lock_index);
+        FlightRecorderBuffer* buf = _rec->buffer(lock_index);
         switch (event_type) {
             case PERF_SAMPLE:
             case EXECUTION_SAMPLE:
@@ -1585,7 +1492,7 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     }
 
     if (len > MAX_STRING_LENGTH) len = MAX_STRING_LENGTH;
-    Buffer* buf = (Buffer*)alloca(len + 40);
+    FlightRecorderBuffer* buf = (FlightRecorderBuffer*)alloca(len + 40);
     buf->reset();
 
     int start = buf->skip(5);
