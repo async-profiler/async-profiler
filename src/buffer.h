@@ -7,7 +7,6 @@
 #define _BUFFER_H
 
 #include "os.h"
-#include <cstdint>
 #include <string.h>
 
 class Buffer {
