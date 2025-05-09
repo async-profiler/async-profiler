@@ -91,8 +91,8 @@ class Buffer {
     }
 
     std::size_t putVar32(std::size_t offset, u32 v) {
-        while (v > 0x7f) {
-            _data[offset++] = (char)v | 0x80;
+        while (v > 0b01111111) {
+            _data[offset++] = (char)v | 0b10000000;
             v >>= 7;
         }
         _data[offset++] = (char)v;
@@ -105,12 +105,12 @@ class Buffer {
 
     std::size_t putVar64(std::size_t offset, u64 v) {
         int iter = 0;
-        while (v > 0x1fffff) {
-            _data[offset++] = (char)v | 0x80;
+        while (v > 0b111111111111111111111) {
+            _data[offset++] = (char)v | 0b10000000;
             v >>= 7;
         }
-        while (v > 0x7f) {
-            _data[offset++] = (char)v | 0x80;
+        while (v > 0b01111111) {
+            _data[offset++] = (char)v | 0b10000000;
             v >>= 7;
         }
         if (v > 0) {
