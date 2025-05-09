@@ -11,7 +11,7 @@ typename std::enable_if<std::is_unsigned<T>::value, void>::type ProtobufBuffer::
 }
 
 template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, std::size_t>::type ProtobufBuffer::putVarInt(std::size_t offset, T n) {
+typename std::enable_if<std::is_unsigned<T>::value, size_t>::type ProtobufBuffer::putVarInt(size_t offset, T n) {
     while ((n >> 7) != 0) {
         _data[offset++] = (char)(0b10000000 | (n & 0b01111111));
         n >>= 7;
@@ -68,13 +68,13 @@ void ProtobufBuffer::field(int index, const LittleEndianBuffer buffer, size_t le
     field(index, data(), offset());
 }
 
-std::size_t ProtobufBuffer::startField(int index) {
+size_t ProtobufBuffer::startField(int index) {
     tag(index, LEN);
     skip(3);
     return offset();
 }
 
-void ProtobufBuffer::commitField(std::size_t mark) {
-    std::size_t length = offset() - mark;
+void ProtobufBuffer::commitField(size_t mark) {
+    size_t length = offset() - mark;
     putVarInt<>(mark - 3, (u32)length);
 }

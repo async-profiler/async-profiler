@@ -41,7 +41,7 @@ const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
-const std::size_t MAX_STRING_LENGTH = 8191;
+const size_t MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 // https://github.com/openjdk/jmc/blob/master/core/org.openjdk.jmc.flightrecorder/src/main/java/org/openjdk/jmc/flightrecorder/internal/parser/v1/SeekableInputStream.java
@@ -322,7 +322,7 @@ class FlightRecorderBuffer : public Buffer {
         _data[_offset++] = (char)v;
     }
 
-    void putVar32(std::size_t offset, u32 v) {
+    void putVar32(size_t offset, u32 v) {
         _data[offset] = v | 0b10000000;
         _data[offset + 1] = (v >> 7) | 0b10000000;
         _data[offset + 2] = (v >> 14) | 0b10000000;
@@ -352,18 +352,18 @@ class FlightRecorderBuffer : public Buffer {
         if (v == NULL) {
             put8(0);
         } else {
-            std::size_t len = strlen(v);
+            size_t len = strlen(v);
             putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
         }
     }
 
-    void putUtf8(const char* v, std::size_t len) {
+    void putUtf8(const char* v, size_t len) {
         put8(STRING_ENCODING_UTF8_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
     }
 
-    void putByteString(const char* v, std::size_t len) {
+    void putByteString(const char* v, size_t len) {
         put8(STRING_ENCODING_LATIN1_BYTE_ARRAY);
         putVar32(len);
         put(v, len);

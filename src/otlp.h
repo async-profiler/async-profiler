@@ -58,7 +58,7 @@ class ProtobufBuffer : public LittleEndianBuffer {
     typename std::enable_if<std::is_unsigned<T>::value, void>::type putVarInt(T n);
 
     template <typename T>
-    typename std::enable_if<std::is_unsigned<T>::value, std::size_t>::type putVarInt(std::size_t offset, T n);
+    typename std::enable_if<std::is_unsigned<T>::value, size_t>::type putVarInt(size_t offset, T n);
 
     void tag(int index, protobuf_t type);
 
@@ -75,8 +75,8 @@ class ProtobufBuffer : public LittleEndianBuffer {
     void field(int index, const char* s, size_t len);
     void field(int index, const LittleEndianBuffer buffer, size_t len);
 
-    std::size_t startField(int index);
-    void commitField(std::size_t mark);
+    size_t startField(int index);
+    void commitField(size_t mark);
 };
 
 #endif // _OTLP_H
