@@ -31,7 +31,6 @@ struct StackContext {
         this->fp = fp;
         this->cpu = cpu;
     }
-
 };
 
 // Detail level of VMStructs stack walking
