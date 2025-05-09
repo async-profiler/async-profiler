@@ -64,7 +64,7 @@ void ProtobufBuffer::field(int index, const char* s, size_t len) {
     put(s, len);
 }
 
-void ProtobufBuffer::field(int index, const Buffer buffer, size_t len) {
+void ProtobufBuffer::field(int index, const LittleEndianBuffer buffer, size_t len) {
     field(index, data(), offset());
 }
 

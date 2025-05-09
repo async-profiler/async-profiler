@@ -27,7 +27,7 @@ class ProtobufBuffer : public LittleEndianBuffer {
     void tag(int index, protobuf_t type);
 
   public:
-    ProtobufBuffer(char* data) : Buffer() {}
+    ProtobufBuffer(char* data) : LittleEndianBuffer() {}
 
     void field(int index, int n);
     void field(int index, u32 n);
@@ -37,7 +37,7 @@ class ProtobufBuffer : public LittleEndianBuffer {
     void field(int index, double n);
     void field(int index, const char* s);
     void field(int index, const char* s, size_t len);
-    void field(int index, const Buffer buffer, size_t len);
+    void field(int index, const LittleEndianBuffer buffer, size_t len);
 
     std::size_t startField(int index);
     void commitField(std::size_t mark);
