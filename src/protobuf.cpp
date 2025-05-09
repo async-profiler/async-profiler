@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "otlp.h"
+#include "protobuf.h"
 #include <string.h>
 
 template <typename T>
