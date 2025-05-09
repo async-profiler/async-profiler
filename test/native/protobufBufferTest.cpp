@@ -137,10 +137,9 @@ TEST_CASE(Buffer_test_nestedField) {
 
   CHECK_EQ(buf.offset(), 8);
   CHECK_EQ((unsigned char)buf.data()[0], (4 << 3) | LEN);
-  CHECK_EQ((unsigned char)buf.data()[1],
-           4 | 0b10000000); // Length of the field with continuation bit as MSB
-  CHECK_EQ((unsigned char)buf.data()[2], 0b10000000); // Continuation bit MSB
-  CHECK_EQ((unsigned char)buf.data()[3], 0);          // Continuation bit MSB
+  CHECK_EQ((unsigned char)buf.data()[1], 4 | 0b10000000); // Length of the field with continuation bit as MSB
+  CHECK_EQ((unsigned char)buf.data()[2], 0b10000000);     // Continuation bit MSB
+  CHECK_EQ((unsigned char)buf.data()[3], 0);              // Continuation bit MSB
   CHECK_EQ((unsigned char)buf.data()[4], (3 << 3) | VARINT);
   CHECK_EQ((unsigned char)buf.data()[5], 10);
   CHECK_EQ((unsigned char)buf.data()[6], (5 << 3) | VARINT);
