@@ -130,7 +130,7 @@ TEST_CASE(Buffer_test_nestedField) {
   char *data = (char *)alloca(100);
   ProtobufBuffer buf(data);
 
-  size_t mark = buf.startField(4);
+  protobuf_field_mark_t mark = buf.startField(4);
   buf.field(3, (u32)10);
   buf.field(5, true);
   buf.commitField(mark);
