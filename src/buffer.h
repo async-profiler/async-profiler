@@ -53,7 +53,7 @@ class Buffer {
     void putFloat(float v) {
         union {
             float f;
-            int i;
+            u32 i;
         } u;
 
         u.f = v;
@@ -63,7 +63,7 @@ class Buffer {
     void putDouble(double v) {
         union {
             double d;
-            long l;
+            u64 l;
         } u;
 
         u.d = v;
