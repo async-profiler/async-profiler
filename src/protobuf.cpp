@@ -30,8 +30,7 @@ void ProtobufBuffer::tag(int index, protobuf_t type) {
 }
 
 void ProtobufBuffer::field(int index, bool b) {
-  tag(index, VARINT);
-  putVarInt<>((u32)b);
+  field(index, (u32) b);
 }
 
 void ProtobufBuffer::field(int index, int n) {
