@@ -70,7 +70,7 @@ void ProtobufBuffer::field(int index, const char* s, size_t len) {
 }
 
 void ProtobufBuffer::field(int index, const LittleEndianBuffer buffer, size_t len) {
-    field(index, data(), offset());
+    field(index, buffer.data(), buffer.offset());
 }
 
 size_t ProtobufBuffer::startField(int index) {
