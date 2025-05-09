@@ -8,6 +8,7 @@
 
 #include "arch.h"
 #include "os.h"
+#include <string.h>
 #include <type_traits>
 
 typedef const u8 protobuf_t;
