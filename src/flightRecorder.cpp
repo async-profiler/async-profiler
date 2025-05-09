@@ -325,12 +325,9 @@ class FlightRecorderBuffer : public Buffer {
     void putVar64(u64 v) {
         int iter = 0;
         while (v > 0b111111111111111111111) {
-            _data[_offset++] = (char)v | 0b10000000;
-            v >>= 7;
-            _data[_offset++] = (char)v | 0b10000000;
-            v >>= 7;
-            _data[_offset++] = (char)v | 0b10000000;
-            v >>= 7;
+            _data[_offset++] = (char)v | 0b10000000; v >>= 7;
+            _data[_offset++] = (char)v | 0b10000000; v >>= 7;
+            _data[_offset++] = (char)v | 0b10000000; v >>= 7;
             if (++iter == 3) return;
         }
         while (v > 0b01111111) {
