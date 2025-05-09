@@ -46,8 +46,8 @@ class Buffer {
         _data[offset] = v;
     }
 
-    virtual void put16(short v) = 0;
-    virtual void put32(int v) = 0;
+    virtual void put16(u16 v) = 0;
+    virtual void put32(u32 v) = 0;
     virtual void put64(u64 v) = 0;
 
     void putFloat(float v) {
@@ -78,12 +78,12 @@ class Buffer {
 
 class BigEndianBuffer : public Buffer {
   public:
-    void put16(short v) override {
+    void put16(u16 v) override {
         *(short*)(_data + _offset) = htons(v);
         _offset += 2;
     }
 
-    void put32(int v) override {
+    void put32(u32 v) override {
         *(int*)(_data + _offset) = htonl(v);
         _offset += 4;
     }
