@@ -105,11 +105,4 @@ class OS {
     static void freePageCache(int fd, off_t start_offset);
 };
 
-bool is_system_little_endian() {
-  const int value = 0x01;
-  const void* address = static_cast<const void*>(&value);
-  const unsigned char* least_significant_address = static_cast<const unsigned char*>(address);
-  return *least_significant_address == 0x01;
-}
-
 #endif // _OS_H

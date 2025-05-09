@@ -17,6 +17,13 @@ static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
+static bool is_system_little_endian() {
+  const int value = 0x01;
+  const void* address = static_cast<const void*>(&value);
+  const unsigned char* least_significant_address = static_cast<const unsigned char*>(address);
+  return *least_significant_address == 0x01;
+}
+
 class LittleEndianBuffer : public Buffer {
   private:
     const bool _is_little_endian;
