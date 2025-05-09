@@ -322,14 +322,6 @@ class FlightRecorderBuffer : public Buffer {
         _data[_offset++] = (char)v;
     }
 
-    void putVar32(size_t offset, u32 v) {
-        _data[offset] = v | 0b10000000;
-        _data[offset + 1] = (v >> 7) | 0b10000000;
-        _data[offset + 2] = (v >> 14) | 0b10000000;
-        _data[offset + 3] = (v >> 21) | 0b10000000;
-        _data[offset + 4] = (v >> 28);
-    }
-
     void putVar64(u64 v) {
         int iter = 0;
         while (v > 0b111111111111111111111) {
@@ -367,6 +359,14 @@ class FlightRecorderBuffer : public Buffer {
         put8(STRING_ENCODING_LATIN1_BYTE_ARRAY);
         putVar32(len);
         put(v, len);
+    }
+
+    void putVar32(size_t offset, u32 v) {
+        _data[offset] = v | 0b10000000;
+        _data[offset + 1] = (v >> 7) | 0b10000000;
+        _data[offset + 2] = (v >> 14) | 0b10000000;
+        _data[offset + 3] = (v >> 21) | 0b10000000;
+        _data[offset + 4] = (v >> 28);
     }
 };
 
