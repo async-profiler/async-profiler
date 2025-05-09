@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _OTLP_H
-#define _OTLP_H
+#ifndef _PROTOBUF_H
+#define _PROTOBUF_H
 
 #include "arch.h"
 #include "os.h"
@@ -167,4 +167,4 @@ void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
   commitField(mark);
 }
 
-#endif // _OTLP_H
+#endif // _PROTOBUF_H
