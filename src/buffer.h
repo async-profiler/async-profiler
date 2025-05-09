@@ -8,8 +8,8 @@
 
 #include "os.h"
 #include <arpa/inet.h>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
 
 class Buffer {
   private:
