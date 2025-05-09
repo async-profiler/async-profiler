@@ -16,7 +16,7 @@ struct StackContext {
     const void* pc;
     uintptr_t sp;
     uintptr_t fp;
-    u32 cpu;
+    u64 cpu;
 
     void set(const void* pc, uintptr_t sp, uintptr_t fp) {
         this->pc = pc;
@@ -25,7 +25,7 @@ struct StackContext {
         this->cpu = 0;
     }
 
-    void set(const void* pc, uintptr_t sp, uintptr_t fp, u32 cpu) {
+    void set(const void* pc, uintptr_t sp, uintptr_t fp, u64 cpu) {
         this->pc = pc;
         this->sp = sp;
         this->fp = fp;
