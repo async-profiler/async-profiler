@@ -94,7 +94,8 @@ void ProtobufBuffer::commitField(size_t mark) {
   _data[mark - 1] = (char)length;
 }
 
-void ProtobufBuffer::mapField(int mapIndex, const char *key, u32 value) {
+template <typename K, typename V>
+void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
   size_t mark = startField(mapIndex);
   field(1, key);
   field(2, value);

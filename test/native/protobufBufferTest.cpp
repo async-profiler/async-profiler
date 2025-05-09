@@ -150,9 +150,9 @@ TEST_CASE(Buffer_test_map) {
   char *data = (char *)alloca(100);
   ProtobufBuffer buf(data);
 
-  buf.mapField(5, "one", (u32)1);
-  buf.mapField(5, "two", (u32)2);
-  buf.mapField(5, "three", (u32)3);
+  buf.mapField<>(5, "one", (u32)1);
+  buf.mapField<>(5, "two", (u32)2);
+  buf.mapField<>(5, "three", (u32)3);
 
   const int msg1_size = 1 + 3 + 2 + strlen("one") + 2;
   const int msg2_size = 1 + 3 + 2 + strlen("two") + 2;

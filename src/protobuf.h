@@ -144,7 +144,8 @@ public:
   size_t startField(int index);
   void commitField(size_t mark);
 
-  void mapField(int mapIndex, const char *key, u32 value);
+  template <typename K, typename V>
+  void mapField(int mapIndex, K key, V value);
 };
 
 #endif // _OTLP_H
