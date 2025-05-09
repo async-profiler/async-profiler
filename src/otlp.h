@@ -7,6 +7,7 @@
 #define _OTLP_H
 
 #include "arch.h"
+#include "os.h"
 #include "buffer.h"
 #include <type_traits>
 
@@ -16,19 +17,15 @@ static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
-inline bool is_system_little_endian() {
-    const int value = 0x01;
-    const void* address = static_cast<const void*>(&value);
-    const unsigned char* least_significant_address = static_cast<const unsigned char*>(address);
-    return *least_significant_address == 0x01;
-}
-
 class LittleEndianBuffer : public Buffer {
+  private:
+    const bool _is_little_endian;
+
   public:
-    LittleEndianBuffer(char* data) : Buffer(data) {}
+    LittleEndianBuffer(char* data) : Buffer(data), _is_little_endian(is_system_little_endian()) {}
 
     void put16(u16 v) override {
-        if (is_system_little_endian()) {
+        if (_is_little_endian) {
             *(short*)(_data + _offset) = v;
         } else {
             *(short*)(_data + _offset) = __builtin_bswap16(v);
@@ -37,7 +34,7 @@ class LittleEndianBuffer : public Buffer {
     }
 
     void put32(u32 v) override {
-        if (is_system_little_endian()) {
+        if (_is_little_endian) {
             *(int*)(_data + _offset) = v;
         } else {
             *(int*)(_data + _offset) = __builtin_bswap32(v);
@@ -46,7 +43,7 @@ class LittleEndianBuffer : public Buffer {
     }
 
     void put64(u64 v) override {
-        if (is_system_little_endian()) {
+        if (_is_little_endian) {
             *(long*)(_data + _offset) = v;
         } else {
             *(long*)(_data + _offset) = __builtin_bswap64(v);
