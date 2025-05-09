@@ -293,7 +293,7 @@ class Lookup {
     }
 };
 
-class FlightRecorderBuffer : public Buffer {
+class FlightRecorderBuffer : public BigEndianBuffer {
   public:
     void putVar32(u32 v) {
         while (v > 0b01111111) {

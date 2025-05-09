@@ -46,20 +46,9 @@ class Buffer {
         _data[offset] = v;
     }
 
-    void put16(short v) {
-        *(short*)(_data + _offset) = htons(v);
-        _offset += 2;
-    }
-
-    void put32(int v) {
-        *(int*)(_data + _offset) = htonl(v);
-        _offset += 4;
-    }
-
-    void put64(u64 v) {
-        *(u64*)(_data + _offset) = OS::hton64(v);
-        _offset += 8;
-    }
+    virtual void put16(short v) = 0;
+    virtual void put32(int v) = 0;
+    virtual void put64(u64 v) = 0;
 
     void putFloat(float v) {
         union {
@@ -84,6 +73,24 @@ class Buffer {
     void put(const char* v, std::size_t len) {
         memcpy(_data + _offset, v, len);
         _offset += len;
+    }
+};
+
+class BigEndianBuffer : public Buffer {
+  public:
+    void put16(short v) override {
+        *(short*)(_data + _offset) = htons(v);
+        _offset += 2;
+    }
+
+    void put32(int v) override {
+        *(int*)(_data + _offset) = htonl(v);
+        _offset += 4;
+    }
+
+    void put64(u64 v) override {
+        *(u64*)(_data + _offset) = OS::hton64(v);
+        _offset += 8;
     }
 };
 
