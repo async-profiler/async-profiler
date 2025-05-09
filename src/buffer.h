@@ -11,14 +11,15 @@
 #include <cstring>
 #include <cstdint>
 
-constexpr int MAX_STRING_LENGTH = 8191;
-
 class Buffer {
   private:
     std::size_t _offset;
-    char* _data;
+    char _data[0];
 
   protected:
+    Buffer() : _offset(0) {
+    }
+
     void set(char v, std::size_t idx) {
         _data[idx] = v;
     }
@@ -28,9 +29,6 @@ class Buffer {
     }
 
   public:
-    Buffer(char* data) : _offset(0), _data(data) {
-    }
-
     const char* data() const {
         return _data;
     }
@@ -47,11 +45,6 @@ class Buffer {
 
     void reset() {
         _offset = 0;
-    }
-
-    void put(const char* v, std::size_t len) {
-        std::memcpy(_data + _offset, v, len);
-        _offset += (int)len;
     }
 
     void put8(char v) {
@@ -131,25 +124,9 @@ class Buffer {
         _data[_offset++] = (char)v;
     }
 
-    void putUtf8(const char* v) {
-        if (v == NULL) {
-            put8(0);
-        } else {
-            std::size_t len = strlen(v);
-            putUtf8(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
-        }
-    }
-
-    void putUtf8(const char* v, std::size_t len) {
-        put8(3);
-        putVar32(len);
-        put(v, len);
-    }
-
-    void putByteString(const char* v, std::size_t len) {
-        put8(5); // STRING_ENCODING_LATIN1_BYTE_ARRAY
-        putVar32(len);
-        put(v, len);
+    void put(const char* v, std::size_t len) {
+        std::memcpy(_data + _offset, v, len);
+        _offset += len;
     }
 };
 
