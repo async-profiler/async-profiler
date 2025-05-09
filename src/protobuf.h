@@ -42,17 +42,11 @@ protected:
       : _offset(0), _data(data), _is_little_endian(is_system_little_endian()) {}
 
 public:
-  const char *data() const { return _data; }
-
-  size_t offset() const { return _offset; }
-
   int skip(size_t delta) {
     size_t offset = _offset;
     _offset = offset + delta;
     return offset;
   }
-
-  void reset() { _offset = 0; }
 
   void put8(char v) { _data[_offset++] = v; }
 
@@ -139,7 +133,7 @@ public:
   void field(int index, double n);
   void field(int index, const char *s);
   void field(int index, const char *s, size_t len);
-  void field(int index, const LittleEndianBuffer buffer, size_t len);
+  void field(int index, const ProtobufBuffer buffer, size_t len);
 
   size_t startField(int index);
   void commitField(size_t mark);
