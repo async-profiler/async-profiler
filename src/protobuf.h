@@ -17,6 +17,8 @@ static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
+typedef u8 protobuf_index_t;
+
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
 // TODO: What if it doesn't? Do we need to account for this case?
@@ -115,7 +117,7 @@ private:
   typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
   putVarInt(size_t offset, T n);
 
-  void tag(int index, protobuf_t type);
+  void tag(protobuf_index_t index, protobuf_t type);
 
 public:
   ProtobufBuffer(char *data) : LittleEndianBuffer(data) {}
@@ -124,18 +126,18 @@ public:
 
   size_t offset() const { return _offset; }
 
-  void field(int index, bool b);
-  void field(int index, int n);
-  void field(int index, u32 n);
-  void field(int index, long n);
-  void field(int index, u64 n);
-  void field(int index, float n);
-  void field(int index, double n);
-  void field(int index, const char *s);
-  void field(int index, const char *s, size_t len);
-  void field(int index, const ProtobufBuffer buffer, size_t len);
+  void field(protobuf_index_t index, bool b);
+  void field(protobuf_index_t index, int n);
+  void field(protobuf_index_t index, u32 n);
+  void field(protobuf_index_t index, long n);
+  void field(protobuf_index_t index, u64 n);
+  void field(protobuf_index_t index, float n);
+  void field(protobuf_index_t index, double n);
+  void field(protobuf_index_t index, const char *s);
+  void field(protobuf_index_t index, const char *s, size_t len);
+  void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
-  size_t startField(int index);
+  size_t startField(protobuf_index_t index);
   void commitField(size_t mark);
 
   template <typename K, typename V>

@@ -6,61 +6,61 @@
 #include "protobuf.h"
 #include <string.h>
 
-void ProtobufBuffer::tag(int index, protobuf_t type) {
+void ProtobufBuffer::tag(protobuf_index_t index, protobuf_t type) {
   // index is 3100 maximum
   // (https://protobuf.dev/programming-guides/proto-limits/)
   put8(index << 3 | type);
 }
 
-void ProtobufBuffer::field(int index, bool b) {
+void ProtobufBuffer::field(protobuf_index_t index, bool b) {
   field(index, (u32) b);
 }
 
-void ProtobufBuffer::field(int index, int n) {
+void ProtobufBuffer::field(protobuf_index_t index, int n) {
   tag(index, I32);
   put32(n);
 }
 
-void ProtobufBuffer::field(int index, u32 n) {
+void ProtobufBuffer::field(protobuf_index_t index, u32 n) {
   tag(index, VARINT);
   putVarInt<>(n);
 }
 
-void ProtobufBuffer::field(int index, long n) {
+void ProtobufBuffer::field(protobuf_index_t index, long n) {
   tag(index, I64);
   put64(n);
 }
 
-void ProtobufBuffer::field(int index, u64 n) {
+void ProtobufBuffer::field(protobuf_index_t index, u64 n) {
   tag(index, VARINT);
   putVarInt<>(n);
 }
 
-void ProtobufBuffer::field(int index, float n) {
+void ProtobufBuffer::field(protobuf_index_t index, float n) {
   tag(index, I32);
   putFloat(n);
 }
 
-void ProtobufBuffer::field(int index, double n) {
+void ProtobufBuffer::field(protobuf_index_t index, double n) {
   tag(index, I64);
   putDouble(n);
 }
 
-void ProtobufBuffer::field(int index, const char *s) {
+void ProtobufBuffer::field(protobuf_index_t index, const char *s) {
   field(index, s, strlen(s));
 }
 
-void ProtobufBuffer::field(int index, const char *s, size_t len) {
+void ProtobufBuffer::field(protobuf_index_t index, const char *s, size_t len) {
   tag(index, LEN);
   putVarInt<>(len);
   put(s, len);
 }
 
-void ProtobufBuffer::field(int index, const ProtobufBuffer buffer, size_t len) {
+void ProtobufBuffer::field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len) {
   field(index, buffer.data(), buffer.offset());
 }
 
-size_t ProtobufBuffer::startField(int index) {
+size_t ProtobufBuffer::startField(protobuf_index_t index) {
   tag(index, LEN);
   skip(nested_field_byte_count);
   return offset();
