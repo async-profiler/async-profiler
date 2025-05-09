@@ -87,37 +87,36 @@ class Buffer {
     }
 
     void putVar32(u32 v) {
-        while (v > 0x7f) {
-            _data[_offset++] = (char)v | 0x80;
-            v >>= 7;
-        }
-        _data[_offset++] = (char)v;
+        _offset = putVar32(_offset, v);
     }
 
-    void putVar32(std::size_t offset, u32 v) {
-        _data[offset] = v | 0x80;
-        _data[offset + 1] = (v >> 7) | 0x80;
-        _data[offset + 2] = (v >> 14) | 0x80;
-        _data[offset + 3] = (v >> 21) | 0x80;
-        _data[offset + 4] = (v >> 28);
+    std::size_t putVar32(std::size_t offset, u32 v) {
+        while (v > 0x7f) {
+            _data[offset++] = (char)v | 0x80;
+            v >>= 7;
+        }
+        _data[offset++] = (char)v;
+        return offset;
     }
 
     void putVar64(u64 v) {
+        _offset = putVar64(_offset, v);
+    }
+
+    std::size_t putVar64(std::size_t offset, u64 v) {
         int iter = 0;
         while (v > 0x1fffff) {
-            _data[_offset++] = (char)v | 0x80;
+            _data[offset++] = (char)v | 0x80;
             v >>= 7;
-            _data[_offset++] = (char)v | 0x80;
-            v >>= 7;
-            _data[_offset++] = (char)v | 0x80;
-            v >>= 7;
-            if (++iter == 3) return;
         }
         while (v > 0x7f) {
-            _data[_offset++] = (char)v | 0x80;
+            _data[offset++] = (char)v | 0x80;
             v >>= 7;
         }
-        _data[_offset++] = (char)v;
+        if (v > 0) {
+            _data[offset++] = (char)v;
+        }
+        return offset;
     }
 
     void put(const char* v, std::size_t len) {
