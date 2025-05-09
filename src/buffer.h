@@ -12,7 +12,7 @@
 
 class Buffer {
   protected:
-    std::size_t _offset;
+    size_t _offset;
     char* _data;
 
     Buffer(char* data) : _offset(0), _data(data) {
@@ -23,12 +23,12 @@ class Buffer {
         return _data;
     }
 
-    std::size_t offset() const {
+    size_t offset() const {
         return _offset;
     }
 
-    int skip(std::size_t delta) {
-        std::size_t offset = _offset;
+    int skip(size_t delta) {
+        size_t offset = _offset;
         _offset = offset + delta;
         return offset;
     }
@@ -41,7 +41,7 @@ class Buffer {
         _data[_offset++] = v;
     }
 
-    void put8(std::size_t offset, char v) {
+    void put8(size_t offset, char v) {
         _data[offset] = v;
     }
 
@@ -69,7 +69,7 @@ class Buffer {
         put64(u.l);
     }
 
-    void put(const char* v, std::size_t len) {
+    void put(const char* v, size_t len) {
         memcpy(_data + _offset, v, len);
         _offset += len;
     }
