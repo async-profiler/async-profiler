@@ -18,6 +18,7 @@ static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
 typedef u8 protobuf_index_t;
+typedef size_t protobuf_field_mark_t;
 
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
@@ -138,7 +139,7 @@ public:
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
   size_t startField(protobuf_index_t index);
-  void commitField(size_t mark);
+  void commitField(protobuf_field_mark_t mark);
 
   template <typename K, typename V>
   void mapField(int mapIndex, K key, V value);
@@ -163,7 +164,7 @@ ProtobufBuffer::putVarInt(size_t offset, T n) {
 
 template <typename K, typename V>
 void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
-  size_t mark = startField(mapIndex);
+  protobuf_field_mark_t mark = startField(mapIndex);
   field(1, key);
   field(2, value);
   commitField(mark);

@@ -66,7 +66,7 @@ size_t ProtobufBuffer::startField(protobuf_index_t index) {
   return offset();
 }
 
-void ProtobufBuffer::commitField(size_t mark) {
+void ProtobufBuffer::commitField(protobuf_field_mark_t mark) {
   size_t length = offset() - mark;
   for (int i = 0; i < nested_field_byte_count - 1; ++i) {
     _data[mark - 3 + i] = (char)(0b10000000 | (length & 0b01111111));
