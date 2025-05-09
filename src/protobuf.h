@@ -148,4 +148,12 @@ public:
   void mapField(int mapIndex, K key, V value);
 };
 
+template <typename K, typename V>
+void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
+  size_t mark = startField(mapIndex);
+  field(1, key);
+  field(2, value);
+  commitField(mark);
+}
+
 #endif // _OTLP_H
