@@ -48,6 +48,23 @@ TEST_CASE(Buffer_test_var64_LargeNumber) {
     CHECK_EQ((unsigned char)buf.data()[8], 31);
 }
 
+TEST_CASE(Buffer_test_var32_bool) {
+    char* data = (char*)alloca(100);
+    ProtobufBuffer buf(data);
+
+    buf.field(3, false);
+    buf.field(4, true);
+    buf.field(5, true);
+
+    CHECK_EQ(buf.offset(), 6);
+    CHECK_EQ((unsigned char)buf.data()[0], (3 << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[1], 0);
+    CHECK_EQ((unsigned char)buf.data()[2], (4 << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[3], 1);
+    CHECK_EQ((unsigned char)buf.data()[4], (5 << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[5], 1);
+}
+
 TEST_CASE(Buffer_test_repeated_int32) {
     char* data = (char*)alloca(100);
     ProtobufBuffer buf(data);

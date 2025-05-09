@@ -25,6 +25,11 @@ void ProtobufBuffer::tag(int index, protobuf_t type) {
     put8(index << 3 | type);
 }
 
+void ProtobufBuffer::field(int index, bool b) {
+    tag(index, VARINT);
+    putVarInt<>((u32) b);
+}
+
 void ProtobufBuffer::field(int index, int n) {
     tag(index, I32);
     put32(n);

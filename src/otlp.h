@@ -72,6 +72,7 @@ class ProtobufBuffer : public LittleEndianBuffer {
   public:
     ProtobufBuffer(char* data) : LittleEndianBuffer(data) {}
 
+    void field(int index, bool b);
     void field(int index, int n);
     void field(int index, u32 n);
     void field(int index, long n);
