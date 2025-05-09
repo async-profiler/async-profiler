@@ -3,13 +3,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifndef _OTLP_H
+#define _OTLP_H
+
 #include "arch.h"
 #include "buffer.h"
 #include <type_traits>
 
 typedef const u8 protobuf_t;
+static protobuf_t VARINT = 0;
+static protobuf_t I64 = 1;
+static protobuf_t LEN = 2;
+static protobuf_t I32 = 5;
 
-class ProtobufBuffer : private Buffer {
+class ProtobufBuffer : public Buffer {
   private:
     template <typename T>
     typename std::enable_if<std::is_unsigned<T>::value, void>::type putVarInt(T n);
@@ -35,3 +42,5 @@ class ProtobufBuffer : private Buffer {
     std::size_t startField(int index);
     void commitField(std::size_t mark);
 };
+
+#endif // _OTLP_H

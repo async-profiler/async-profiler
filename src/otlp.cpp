@@ -5,11 +5,6 @@
 
 #include "otlp.h"
 
-static protobuf_t VARINT = 0;
-static protobuf_t I64 = 1;
-static protobuf_t LEN = 2;
-static protobuf_t I32 = 5;
-
 template <typename T>
 typename std::enable_if<std::is_unsigned<T>::value, void>::type ProtobufBuffer::putVarInt(T n) {
     _offset = putVarInt(_offset, n);
@@ -26,6 +21,7 @@ typename std::enable_if<std::is_unsigned<T>::value, std::size_t>::type ProtobufB
 }
 
 void ProtobufBuffer::tag(int index, protobuf_t type) {
+    // index is 3100 maximum (https://protobuf.dev/programming-guides/proto-limits/)
     put8(index << 3 | type);
 }
 
@@ -80,5 +76,5 @@ std::size_t ProtobufBuffer::startField(int index) {
 
 void ProtobufBuffer::commitField(std::size_t mark) {
     std::size_t length = offset() - mark;
-    putVarInt<>(mark - 3, length);
+    putVarInt<>(mark - 3, (u32)length);
 }
