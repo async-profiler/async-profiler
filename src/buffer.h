@@ -12,16 +12,11 @@
 #include <string.h>
 
 class Buffer {
-  private:
+  protected:
     std::size_t _offset;
     char _data[0];
 
-  protected:
     Buffer() : _offset(0) {
-    }
-
-    void set(char v, std::size_t idx) {
-        _data[idx] = v;
     }
 
   public:
@@ -84,39 +79,6 @@ class Buffer {
 
         u.d = v;
         put64(u.l);
-    }
-
-    void putVar32(u32 v) {
-        _offset = putVar32(_offset, v);
-    }
-
-    std::size_t putVar32(std::size_t offset, u32 v) {
-        while (v > 0b01111111) {
-            _data[offset++] = (char)v | 0b10000000;
-            v >>= 7;
-        }
-        _data[offset++] = (char)v;
-        return offset;
-    }
-
-    void putVar64(u64 v) {
-        _offset = putVar64(_offset, v);
-    }
-
-    std::size_t putVar64(std::size_t offset, u64 v) {
-        int iter = 0;
-        while (v > 0b111111111111111111111) {
-            _data[offset++] = (char)v | 0b10000000;
-            v >>= 7;
-        }
-        while (v > 0b01111111) {
-            _data[offset++] = (char)v | 0b10000000;
-            v >>= 7;
-        }
-        if (v > 0) {
-            _data[offset++] = (char)v;
-        }
-        return offset;
     }
 
     void put(const char* v, std::size_t len) {

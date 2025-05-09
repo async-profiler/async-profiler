@@ -296,6 +296,40 @@ class Lookup {
 
 class FlightRecorderBuffer : public Buffer {
   public:
+    void putVar32(u32 v) {
+        while (v > 0b01111111) {
+            _data[_offset++] = (char)v | 0b10000000;
+            v >>= 7;
+        }
+        _data[_offset++] = (char)v;
+    }
+
+    void putVar32(std::size_t offset, u32 v) {
+        _data[offset] = v | 0b10000000;
+        _data[offset + 1] = (v >> 7) | 0b10000000;
+        _data[offset + 2] = (v >> 14) | 0b10000000;
+        _data[offset + 3] = (v >> 21) | 0b10000000;
+        _data[offset + 4] = (v >> 28);
+    }
+
+    void putVar64(u64 v) {
+        int iter = 0;
+        while (v > 0b111111111111111111111) {
+            _data[_offset++] = (char)v | 0b10000000;
+            v >>= 7;
+            _data[_offset++] = (char)v | 0b10000000;
+            v >>= 7;
+            _data[_offset++] = (char)v | 0b10000000;
+            v >>= 7;
+            if (++iter == 3) return;
+        }
+        while (v > 0b01111111) {
+            _data[_offset++] = (char)v | 0b10000000;
+            v >>= 7;
+        }
+        _data[_offset++] = (char)v;
+    }
+
     void putUtf8(const char* v) {
         if (v == NULL) {
             put8(0);
