@@ -24,10 +24,6 @@ class Buffer {
         _data[idx] = v;
     }
 
-    std::size_t advanceOffset(std::size_t incr) {
-        return _offset += incr;
-    }
-
   public:
     const char* data() const {
         return _data;
