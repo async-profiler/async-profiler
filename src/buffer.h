@@ -103,7 +103,7 @@ inline bool is_system_little_endian() {
 
 class LittleEndianBuffer : public Buffer {
   public:
-    void put16(short v) override {
+    void put16(u16 v) override {
         if (is_system_little_endian()) {
             *(short*)(_data + _offset) = v;
         } else {
@@ -112,7 +112,7 @@ class LittleEndianBuffer : public Buffer {
         _offset += 2;
     }
 
-    void put32(int v) override {
+    void put32(u32 v) override {
         if (is_system_little_endian()) {
             *(int*)(_data + _offset) = v;
         } else {
