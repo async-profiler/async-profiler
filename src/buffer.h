@@ -9,7 +9,7 @@
 #include "os.h"
 #include <arpa/inet.h>
 #include <cstdint>
-#include <cstring>
+#include <string.h>
 
 class Buffer {
   private:
@@ -120,7 +120,7 @@ class Buffer {
     }
 
     void put(const char* v, std::size_t len) {
-        std::memcpy(_data + _offset, v, len);
+        memcpy(_data + _offset, v, len);
         _offset += len;
     }
 };
