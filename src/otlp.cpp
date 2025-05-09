@@ -4,7 +4,14 @@
  */
 
 #include "buffer.h"
+#include "arch.h"
 #include <type_traits>
+
+typedef const u8 protobuf_t;
+static protobuf_t VARINT = 0;
+static protobuf_t I64 = 1;
+static protobuf_t LEN = 2;
+static protobuf_t I32 = 5;
 
 class ProtobufBuffer : Buffer {
   private:
@@ -26,37 +33,37 @@ class ProtobufBuffer : Buffer {
   public:
     ProtobufBuffer(char* data) : Buffer() {}
 
-    void tag(int index, int type) {
+    void tag(int index, protobuf_t type) {
         put8(index << 3 | type);
     }
 
     void field(int index, int n) {
-        tag(index, 0);
+        tag(index, I32);
         put32(n);
     }
 
     void field(int index, u32 n) {
-        tag(index, 0);
+        tag(index, VARINT);
         putVarInt<>(n);
     }
 
     void field(int index, long n) {
-        tag(index, 0);
+        tag(index, I64);
         put64(n);
     }
 
     void field(int index, u64 n) {
-        tag(index, 0);
+        tag(index, VARINT);
         putVarInt<>(n);
     }
 
     void field(int index, float n) {
-        tag(index, 1);
+        tag(index, I32);
         putFloat(n);
     }
 
     void field(int index, double n) {
-        tag(index, 1);
+        tag(index, I64);
         putDouble(n);
     }
 
@@ -65,7 +72,7 @@ class ProtobufBuffer : Buffer {
     }
 
     void field(int index, const char* s, size_t len) {
-        tag(index, 2);
+        tag(index, LEN);
         put(s, len);
     }
 
@@ -74,7 +81,7 @@ class ProtobufBuffer : Buffer {
     }
 
     std::size_t startField(int index) {
-        tag(index, 2);
+        tag(index, LEN);
         skip(3);
         return offset();
     }
