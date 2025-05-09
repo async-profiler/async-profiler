@@ -7,16 +7,15 @@
 #define _BUFFER_H
 
 #include "os.h"
-#include <arpa/inet.h>
 #include <cstdint>
 #include <string.h>
 
 class Buffer {
   protected:
     std::size_t _offset;
-    char _data[0];
+    char* _data;
 
-    Buffer() : _offset(0) {
+    Buffer(char* data) : _offset(0), _data(data) {
     }
 
   public:
@@ -73,24 +72,6 @@ class Buffer {
     void put(const char* v, std::size_t len) {
         memcpy(_data + _offset, v, len);
         _offset += len;
-    }
-};
-
-class BigEndianBuffer : public Buffer {
-  public:
-    void put16(u16 v) override {
-        *(short*)(_data + _offset) = htons(v);
-        _offset += 2;
-    }
-
-    void put32(u32 v) override {
-        *(int*)(_data + _offset) = htonl(v);
-        _offset += 4;
-    }
-
-    void put64(u64 v) override {
-        *(u64*)(_data + _offset) = OS::hton64(v);
-        _offset += 8;
     }
 };
 

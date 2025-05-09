@@ -5,6 +5,7 @@
 
 #include <map>
 #include <string>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -293,8 +294,26 @@ class Lookup {
     }
 };
 
-class FlightRecorderBuffer : public BigEndianBuffer {
+class FlightRecorderBuffer : public Buffer {
   public:
+    FlightRecorderBuffer(char* data) : Buffer(data) {
+    }
+
+    void put16(u16 v) override {
+        *(short*)(_data + _offset) = htons(v);
+        _offset += 2;
+    }
+
+    void put32(u32 v) override {
+        *(int*)(_data + _offset) = htonl(v);
+        _offset += 4;
+    }
+
+    void put64(u64 v) override {
+        *(u64*)(_data + _offset) = OS::hton64(v);
+        _offset += 8;
+    }
+
     void putVar32(u32 v) {
         while (v > 0b01111111) {
             _data[_offset++] = (char)v | 0b10000000;
@@ -356,7 +375,7 @@ class SmallBuffer : public FlightRecorderBuffer {
     char _buf[SMALL_BUFFER_SIZE - sizeof(FlightRecorderBuffer)];
 
   public:
-    SmallBuffer() : FlightRecorderBuffer() {
+    SmallBuffer() : FlightRecorderBuffer(_buf) {
     }
 };
 
@@ -365,7 +384,7 @@ class RecordingBuffer : public FlightRecorderBuffer {
     char _buf[RECORDING_BUFFER_SIZE - sizeof(FlightRecorderBuffer)];
 
   public:
-    RecordingBuffer() : FlightRecorderBuffer() {
+    RecordingBuffer() : FlightRecorderBuffer(_buf) {
     }
 };
 
@@ -1525,7 +1544,8 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     }
 
     if (len > MAX_STRING_LENGTH) len = MAX_STRING_LENGTH;
-    FlightRecorderBuffer* buf = (FlightRecorderBuffer*)alloca(len + 40);
+    char* data = (char*) alloca(len + 40);
+    FlightRecorderBuffer* buf = new FlightRecorderBuffer(data);
     buf->reset();
 
     int start = buf->skip(5);
@@ -1535,6 +1555,7 @@ void FlightRecorder::recordLog(LogLevel level, const char* message, size_t len) 
     buf->putUtf8(message, len);
     buf->putVar32(start, buf->offset() - start);
     _rec->flush(buf);
+    delete buf;
 
     _rec_lock.unlockShared();
 }
