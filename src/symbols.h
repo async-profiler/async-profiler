@@ -25,4 +25,18 @@ class Symbols {
     }
 };
 
+class UnloadProtection {
+  private:
+    void* _lib_handle;
+    bool _valid;
+
+  public:
+    UnloadProtection(const CodeCache *cc);
+    ~UnloadProtection();
+
+    UnloadProtection& operator=(const UnloadProtection& other) = delete;
+
+    bool isValid() const { return _valid; }
+};
+
 #endif // _SYMBOLS_H

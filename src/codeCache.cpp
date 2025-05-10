@@ -29,12 +29,15 @@ size_t NativeFunc::usedMemory(const char* name) {
 
 
 CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
-                     const void* min_address, const void* max_address) {
+                     const void* min_address, const void* max_address,
+                     const char* image_base) {
     _name = NativeFunc::create(name, -1);
+
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
     _text_base = NULL;
+    _image_base = image_base;
 
     _plt_offset = 0;
     _plt_size = 0;
@@ -234,7 +237,6 @@ void CodeCache::addImport(void** entry, const char* name) {
 void** CodeCache::findImport(ImportId id) {
     if (!_imports_patchable) {
         makeImportsPatchable();
-        _imports_patchable = true;
     }
     return _imports[id][PRIMARY];
 }
@@ -270,6 +272,8 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
         mprotect((void*)patch_start, patch_end - patch_start + OS::page_size, PROT_READ | PROT_WRITE);
     }
+
+    _imports_patchable = true;
 }
 
 void CodeCache::setDwarfTable(FrameDesc* table, int length) {
