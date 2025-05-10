@@ -1655,6 +1655,7 @@ void Profiler::dumpOtlp(Arguments& args) {
     char* data = (char*) malloc(sizeof(char) * 10000);
     ProtobufBuffer buffer(data);
 
+    // TODO: Include per-binary debug info
     protobuf_field_mark_t mapping_mark = buffer.startMessage(Otlp::ProfilesData::mapping_table);
     buffer.commitMessage(mapping_mark);
 
@@ -1725,6 +1726,7 @@ void Profiler::dumpOtlp(Arguments& args) {
         buffer.commitMessage(function_mark);
 
         protobuf_field_mark_t location_mark = buffer.startMessage(Otlp::ProfilesData::location_table);
+        // TODO: Fix me when more Mappings are added
         buffer.field(Otlp::Location::mapping_index, 0);
 
         protobuf_field_mark_t line_mark = buffer.startMessage(Otlp::Location::line);
