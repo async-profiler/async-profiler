@@ -87,6 +87,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
+//     record-cpu       - record which cpu a sample was taken on (default: false)
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
@@ -110,7 +111,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
 //     inverted         - toggles the layout for reversed stacktraces from icicle to flamegraph
 //                        and for default stacktraces from flamegraph to icicle
-//     record-cpu       - record which cpu a sample was taken on (default: false)
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -349,6 +349,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+            
+            CASE("record-cpu")
+                _record_cpu = true;
 
             CASE("live")
                 _live = true;
@@ -433,9 +436,6 @@ Error Arguments::parse(const char* args) {
 
             CASE("inverted")
                 _inverted = true;
-
-            CASE("record-cpu")
-                _record_cpu = true;
 
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
