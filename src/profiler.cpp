@@ -1657,7 +1657,7 @@ static inline int32_t getIdxOrAddToStringTable(std::map<std::string, int32_t> *s
 // TODO: If this feature goes to production, we need to add two things somewhere:
 //  - GOOGLE_PROTOBUF_VERIFY_VERSION;
 //  - google::protobuf::ShutdownProtobufLibrary()
-void Profiler::dumpOtlp(Writer& out, Arguments& args) {
+void Profiler::dumpOtlp() {
     // TODO: out is unused at the moment, let's try to use it
 
     using namespace opentelemetry::proto::profiles::v1development;
