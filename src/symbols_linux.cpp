@@ -776,12 +776,8 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-// Strip " (deleted)" suffix so that removed library can be reopened
-void stripDeletedSuffix(char* name) {
-    size_t len = strlen(name);
-    if (len > 10 && strcmp(name + len - 10, " (deleted)") == 0) {
-        name[len - 10] = 0;
-    }
+bool hasDeletedSuffix(const char* name, size_t len) {
+    return len > 10 && strcmp(name + len - 10, " (deleted)") == 0;
 }
 
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
@@ -812,7 +808,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         SharedLibrary& lib = it.second;
         CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
-        stripDeletedSuffix(lib.file);
 
         if (strchr(lib.file, ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
@@ -863,15 +858,21 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
         return;
     }
 
-    char* nameCopy = strdup(cc->name());
-    stripDeletedSuffix(nameCopy);
+    const char* stripped_name;
+    size_t name_len = strlen(cc->name());
+    if (hasDeletedSuffix(cc->name(), name_len)) {
+        char* buf = (char*) alloca(name_len);
+        memcpy(buf, cc->name(), name_len);
+        buf[name_len - 10] = 0;
+        stripped_name = buf;
+    } else {
+        stripped_name = cc->name();
+    }
 
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
-    _lib_handle = dlopen(nameCopy, RTLD_LAZY | RTLD_NOLOAD);
+    _lib_handle = dlopen(stripped_name, RTLD_LAZY | RTLD_NOLOAD);
     _valid = isValidHandle(cc, _lib_handle);
-
-    free(nameCopy);
 }
 
 UnloadProtection::~UnloadProtection() {
