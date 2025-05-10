@@ -33,9 +33,6 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
                      const char* image_base) {
     _name = NativeFunc::create(name, -1);
 
-    // Strip " (deleted)" suffix so that removed library can be reopened
-    size_t len = strlen(name);
-
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
