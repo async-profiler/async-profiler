@@ -699,9 +699,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
     if (_add_cpu_frame) {
-      // +1 is to prevent the method_id from being read as a null pointer
-      // when cpu = 0
-      num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu + 1);
+        num_frames += makeFrame(frames + num_frames, BCI_CPU, (java_ctx.cpu << 1) | 0x1);
     }
 
     if (stack_walk_begin != 0) {

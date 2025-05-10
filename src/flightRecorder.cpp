@@ -263,7 +263,7 @@ class Lookup {
                 fillNativeMethodInfo(mi, (const char*)method, NULL);
             } else if (frame.bci == BCI_CPU) {
                 char buf[32];
-                snprintf(buf, sizeof(buf), "cpu %d", ((int)(uintptr_t)method)-1);
+                snprintf(buf, sizeof(buf), "CPU-%d", ((int)(uintptr_t)method) >> 1);
                 fillNativeMethodInfo(mi, buf, NULL);
             } else {
                 fillJavaClassInfo(mi, (uintptr_t)method);
