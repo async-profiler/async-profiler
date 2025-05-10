@@ -87,6 +87,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
+//     record-cpu       - record which cpu a sample was taken on (default: false)
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
@@ -348,6 +349,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+            
+            CASE("record-cpu")
+                _record_cpu = true;
 
             CASE("live")
                 _live = true;

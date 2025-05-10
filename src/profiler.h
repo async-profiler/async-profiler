@@ -87,6 +87,7 @@ class Profiler {
     bool _add_event_frame;
     bool _add_thread_frame;
     bool _add_sched_frame;
+    bool _add_cpu_frame;
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
