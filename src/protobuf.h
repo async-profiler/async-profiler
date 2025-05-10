@@ -138,11 +138,11 @@ public:
   void field(protobuf_index_t index, const char *s, size_t len);
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
-  size_t startField(protobuf_index_t index);
-  void commitField(protobuf_field_mark_t mark);
+  size_t startMessage(protobuf_index_t index);
+  void commitMessage(protobuf_field_mark_t mark);
 
   template <typename K, typename V>
-  void mapField(int mapIndex, K key, V value);
+  void mapEntry(int mapIndex, K key, V value);
 };
 
 template <typename T>
@@ -163,11 +163,11 @@ ProtobufBuffer::putVarInt(size_t offset, T n) {
 }
 
 template <typename K, typename V>
-void ProtobufBuffer::mapField(int mapIndex, K key, V value) {
-  protobuf_field_mark_t mark = startField(mapIndex);
+void ProtobufBuffer::mapEntry(int mapIndex, K key, V value) {
+  protobuf_field_mark_t mark = startMessage(mapIndex);
   field(1, key);
   field(2, value);
-  commitField(mark);
+  commitMessage(mark);
 }
 
 #endif // _PROTOBUF_H
