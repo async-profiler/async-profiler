@@ -583,7 +583,7 @@ int PerfEvents::createForThread(int tid) {
 
 #ifdef PERF_ATTR_SIZE_VER5
     if (_cstack == CSTACK_LBR) {
-        attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER | PERF_SAMPLE_CPU;
+        attr.sample_type |= PERF_SAMPLE_BRANCH_STACK | PERF_SAMPLE_REGS_USER;
         attr.branch_sample_type = PERF_SAMPLE_BRANCH_USER | PERF_SAMPLE_BRANCH_CALL_STACK;
         attr.sample_regs_user = 1ULL << PERF_REG_PC;
     }
