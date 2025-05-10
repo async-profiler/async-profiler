@@ -51,9 +51,13 @@ public:
     return offset;
   }
 
-  void put8(char v) { _data[_offset++] = v; }
+  void put8(char v) {
+    put8(_offset++, v);
+  }
 
-  void put8(size_t offset, char v) { _data[offset] = v; }
+  void put8(size_t offset, char v) {
+    _data[offset] = v;
+  }
 
   void put16(u16 v) {
     if (_is_little_endian) {
@@ -127,13 +131,17 @@ public:
 
   size_t offset() const { return _offset; }
 
+  // VARINT
   void field(protobuf_index_t index, bool b);
-  void field(protobuf_index_t index, int n);
   void field(protobuf_index_t index, u32 n);
-  void field(protobuf_index_t index, long n);
   void field(protobuf_index_t index, u64 n);
+  // I32
+  void field(protobuf_index_t index, int n);
   void field(protobuf_index_t index, float n);
+  // I64
+  void field(protobuf_index_t index, long n);
   void field(protobuf_index_t index, double n);
+  // LEN
   void field(protobuf_index_t index, const char *s);
   void field(protobuf_index_t index, const char *s, size_t len);
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
