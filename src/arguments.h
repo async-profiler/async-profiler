@@ -181,6 +181,7 @@ class Arguments {
     bool _quiet;
     bool _threads;
     bool _sched;
+    bool _record_cpu;
     bool _live;
     bool _nofree;
     bool _nobatch;
@@ -208,7 +209,6 @@ class Arguments {
     double _minwidth;
     bool _reverse;
     bool _inverted;
-    bool _record_cpu;
 
     Arguments() :
         _buf(NULL),
@@ -238,6 +238,7 @@ class Arguments {
         _quiet(false),
         _threads(false),
         _sched(false),
+        _record_cpu(false),
         _live(false),
         _nofree(false),
         _nobatch(false),
@@ -263,8 +264,7 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _inverted(false),
-        _record_cpu(false) {
+        _inverted(false) {
     }
 
     ~Arguments();
