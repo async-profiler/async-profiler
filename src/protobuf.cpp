@@ -60,13 +60,13 @@ void ProtobufBuffer::field(protobuf_index_t index, const ProtobufBuffer buffer, 
   field(index, buffer.data(), buffer.offset());
 }
 
-size_t ProtobufBuffer::startField(protobuf_index_t index) {
+size_t ProtobufBuffer::startMessage(protobuf_index_t index) {
   tag(index, LEN);
   skip(nested_field_byte_count);
   return offset();
 }
 
-void ProtobufBuffer::commitField(protobuf_field_mark_t mark) {
+void ProtobufBuffer::commitMessage(protobuf_field_mark_t mark) {
   size_t length = offset() - mark;
   for (int i = 0; i < nested_field_byte_count - 1; ++i) {
     _data[mark - 3 + i] = (char)(0b10000000 | (length & 0b01111111));
