@@ -18,7 +18,6 @@ static protobuf_t LEN = 2;
 static protobuf_t I32 = 5;
 
 typedef u8 protobuf_index_t;
-typedef size_t protobuf_field_mark_t;
 
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
@@ -51,13 +50,9 @@ public:
     return offset;
   }
 
-  void put8(char v) {
-    put8(_offset++, v);
-  }
+  void put8(char v) { put8(_offset++, v); }
 
-  void put8(size_t offset, char v) {
-    _data[offset] = v;
-  }
+  void put8(size_t offset, char v) { _data[offset] = v; }
 
   void put16(u16 v) {
     if (_is_little_endian) {
@@ -114,6 +109,12 @@ public:
 
 class ProtobufBuffer : private LittleEndianBuffer {
 private:
+  ProtobufBuffer *_parent_message;
+
+  ProtobufBuffer(ProtobufBuffer *parent)
+      : LittleEndianBuffer(parent->_data + parent->offset()),
+        _parent_message(parent) {}
+
   template <typename T>
   typename std::enable_if<std::is_unsigned<T>::value, void>::type
   putVarInt(T n);
@@ -124,8 +125,12 @@ private:
 
   void tag(protobuf_index_t index, protobuf_t type);
 
+  void commitMessage(size_t message_length);
+
 public:
-  ProtobufBuffer(char *data) : LittleEndianBuffer(data) {}
+  ProtobufBuffer(char *data)
+      : LittleEndianBuffer(data), _parent_message(nullptr) {}
+  ~ProtobufBuffer();
 
   const char *data() const { return _data; }
 
@@ -146,11 +151,9 @@ public:
   void field(protobuf_index_t index, const char *s, size_t len);
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
-  size_t startMessage(protobuf_index_t index);
-  void commitMessage(protobuf_field_mark_t mark);
+  ProtobufBuffer startMessage(protobuf_index_t index);
 
-  template <typename K, typename V>
-  void mapEntry(int mapIndex, K key, V value);
+  template <typename K, typename V> void mapEntry(int mapIndex, K key, V value);
 };
 
 template <typename T>
@@ -172,10 +175,9 @@ ProtobufBuffer::putVarInt(size_t offset, T n) {
 
 template <typename K, typename V>
 void ProtobufBuffer::mapEntry(int mapIndex, K key, V value) {
-  protobuf_field_mark_t mark = startMessage(mapIndex);
-  field(1, key);
-  field(2, value);
-  commitMessage(mark);
+  ProtobufBuffer mapMessage = startMessage(mapIndex);
+  mapMessage.field(1, key);
+  mapMessage.field(2, value);
 }
 
 #endif // _PROTOBUF_H
