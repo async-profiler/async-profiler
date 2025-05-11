@@ -7,111 +7,30 @@
 #define _PROTOBUF_H
 
 #include "arch.h"
-#include "os.h"
 #include <string.h>
 #include <type_traits>
 
-typedef const u8 protobuf_t;
+typedef const u32 protobuf_t;
 static protobuf_t VARINT = 0;
 static protobuf_t LEN = 2;
 
-typedef u8 protobuf_index_t;
+typedef u32 protobuf_index_t;
 
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
 // TODO: What if it doesn't? Do we need to account for this case?
 const size_t nested_field_byte_count = 3;
 
-static bool is_system_little_endian() {
-  const int value = 0x01;
-  const void *address = static_cast<const void *>(&value);
-  const unsigned char *least_significant_address =
-      static_cast<const unsigned char *>(address);
-  return *least_significant_address == 0x01;
-}
-
-class LittleEndianBuffer {
-private:
-  const bool _is_little_endian;
-
-protected:
-  size_t _offset;
-  char *_data;
-
-  LittleEndianBuffer(char *data)
-      : _offset(0), _data(data), _is_little_endian(is_system_little_endian()) {}
-
-public:
-  int skip(size_t delta) {
-    size_t offset = _offset;
-    _offset = offset + delta;
-    return offset;
-  }
-
-  void put8(char v) { put8(_offset++, v); }
-
-  void put8(size_t offset, char v) { _data[offset] = v; }
-
-  void put16(u16 v) {
-    if (_is_little_endian) {
-      *(short *)(_data + _offset) = v;
-    } else {
-      *(short *)(_data + _offset) = __builtin_bswap16(v);
-    }
-    _offset += 2;
-  }
-
-  void put32(u32 v) {
-    if (_is_little_endian) {
-      *(int *)(_data + _offset) = v;
-    } else {
-      *(int *)(_data + _offset) = __builtin_bswap32(v);
-    }
-    _offset += 4;
-  }
-
-  void put64(u64 v) {
-    if (_is_little_endian) {
-      *(long *)(_data + _offset) = v;
-    } else {
-      *(long *)(_data + _offset) = __builtin_bswap64(v);
-    }
-    _offset += 8;
-  }
-
-  void putFloat(float v) {
-    union {
-      float f;
-      u32 i;
-    } u;
-
-    u.f = v;
-    put32(u.i);
-  }
-
-  void putDouble(double v) {
-    union {
-      double d;
-      u64 l;
-    } u;
-
-    u.d = v;
-    put64(u.l);
-  }
-
-  void put(const char *v, size_t len) {
-    memcpy(_data + _offset, v, len);
-    _offset += len;
-  }
-};
-
-class ProtobufBuffer : private LittleEndianBuffer {
+class ProtobufBuffer {
 private:
   ProtobufBuffer *_parent_message;
+  char *_data;
+  size_t _offset;
 
-  ProtobufBuffer(ProtobufBuffer *parent)
-      : LittleEndianBuffer(parent->_data + parent->offset()),
-        _parent_message(parent) {}
+  ProtobufBuffer(ProtobufBuffer *parent) :
+    _data(parent->_data + parent->offset()),
+    _offset(0),
+    _parent_message(parent) {}
 
   template <typename T>
   typename std::enable_if<std::is_unsigned<T>::value, void>::type
@@ -126,8 +45,10 @@ private:
   void commitMessage(size_t message_length);
 
 public:
-  ProtobufBuffer(char *data)
-      : LittleEndianBuffer(data), _parent_message(nullptr) {}
+  ProtobufBuffer(char *data) :
+    _data(data),
+    _offset(0),
+    _parent_message(nullptr) {}
   ~ProtobufBuffer();
 
   const char *data() const { return _data; }
