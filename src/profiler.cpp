@@ -1653,40 +1653,41 @@ static inline u32 maybeAddToIdxMap(std::map<std::string, u32>& idx_map, std::str
 
 void Profiler::dumpOtlp(Arguments& args) {
     char* data = (char*) malloc(sizeof(char) * 10000);
-    ProtobufBuffer buffer(data);
-
-    // TODO: Include per-binary debug info
-    protobuf_field_mark_t mapping_mark = buffer.startMessage(Otlp::ProfilesData::mapping_table);
-    buffer.commitMessage(mapping_mark);
-
-    protobuf_field_mark_t resource_profiles_mark = buffer.startMessage(Otlp::ProfilesData::resource_profiles);
-    protobuf_field_mark_t scope_profiles_mark = buffer.startMessage(Otlp::ResourceProfiles::scope_profiles);
-    protobuf_field_mark_t profile_mark = buffer.startMessage(Otlp::ScopeProfiles::profiles);
-
-    {
-        uuid_t binuuid;
-        uuid_generate_random(binuuid);
-        // 37 is the length of a UUID (36 characters), plus '\0'
-        char uuid[37];
-        uuid_unparse_lower(binuuid, uuid);
-        buffer.field(Otlp::Profile::profile_id, uuid);
-    }
+    ProtobufBuffer profiles_data(data);
 
     std::map<std::string, u32> string_idx_map;
     std::map<std::string, u32> function_idx_map;
 
-    protobuf_field_mark_t sample_type_mark = buffer.startMessage(Otlp::Profile::sample_type);
-    buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, "samples"));
-    buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, "count"));
-    buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
-    buffer.commitMessage(sample_type_mark);
+    {
+    // TODO: Include per-binary debug info
+    ProtobufBuffer mapping = profiles_data.startMessage(Otlp::ProfilesData::mapping_table);
+    }
 
-    protobuf_field_mark_t period_type_mark = buffer.startMessage(Otlp::Profile::period_type);
-    buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, "cpu"));
-    buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, "nanoseconds"));
-    buffer.commitMessage(period_type_mark);
+    {
+    ProtobufBuffer resource_profiles = profiles_data.startMessage(Otlp::ProfilesData::resource_profiles);
+    ProtobufBuffer scope_profiles = resource_profiles.startMessage(Otlp::ResourceProfiles::scope_profiles);
+    ProtobufBuffer profile = scope_profiles.startMessage(Otlp::ScopeProfiles::profiles);
 
-    buffer.field(Otlp::Profile::period, args._interval);
+    uuid_t binuuid;
+    uuid_generate_random(binuuid);
+    // 37 is the length of a UUID (36 characters), plus '\0'
+    char uuid[37];
+    uuid_unparse_lower(binuuid, uuid);
+    profile.field(Otlp::Profile::profile_id, uuid);
+    profile.field(Otlp::Profile::period, args._interval);
+
+    {
+    ProtobufBuffer sample_type = profile.startMessage(Otlp::Profile::sample_type);
+    sample_type.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, "samples"));
+    sample_type.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, "count"));
+    sample_type.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
+    }
+
+    {
+    ProtobufBuffer period_type = profile.startMessage(Otlp::Profile::period_type);
+    period_type.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, "cpu"));
+    period_type.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, "nanoseconds"));
+    }
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
@@ -1702,43 +1703,45 @@ void Profiler::dumpOtlp(Arguments& args) {
             const char* frame_name = fn.name(trace->frames[j]);
 
             ++locations_count;
-            buffer.field(Otlp::Profile::location_indices, locations_count - 1);
+            profile.field(Otlp::Profile::location_indices, locations_count - 1);
 
             maybeAddToIdxMap(function_idx_map, frame_name);
         }
 
-        protobuf_field_mark_t sample_mark = buffer.startMessage(Otlp::Profile::sample);
-        buffer.field(Otlp::Sample::value, 1);
-        buffer.field(Otlp::Sample::locations_start_index, locations_count - num_frames);
-        buffer.field(Otlp::Sample::locations_length, num_frames);
-        buffer.commitMessage(sample_mark);
+        {
+        ProtobufBuffer sample = profile.startMessage(Otlp::Profile::sample);
+        sample.field(Otlp::Sample::value, 1);
+        sample.field(Otlp::Sample::locations_start_index, locations_count - num_frames);
+        sample.field(Otlp::Sample::locations_length, num_frames);
+        }
 
         locations_count += num_frames;
     }
 
-    buffer.commitMessage(profile_mark);
-    buffer.commitMessage(scope_profiles_mark);
-    buffer.commitMessage(resource_profiles_mark);
+    } // profile, scope_profiles, resource_profiles
 
     for (const auto& it : function_idx_map) {
-        protobuf_field_mark_t function_mark = buffer.startMessage(Otlp::ProfilesData::function_table);
-        buffer.field(Otlp::Function::name_strindex, maybeAddToIdxMap(string_idx_map, it.first));
-        buffer.commitMessage(function_mark);
+        {
+        ProtobufBuffer function = profiles_data.startMessage(Otlp::ProfilesData::function_table);
+        function.field(Otlp::Function::name_strindex, maybeAddToIdxMap(string_idx_map, it.first));
+        }
 
-        protobuf_field_mark_t location_mark = buffer.startMessage(Otlp::ProfilesData::location_table);
+        {
+        ProtobufBuffer location = profiles_data.startMessage(Otlp::ProfilesData::location_table);
         // TODO: Fix me when more Mappings are added
-        buffer.field(Otlp::Location::mapping_index, 0);
-
-        protobuf_field_mark_t line_mark = buffer.startMessage(Otlp::Location::line);
-        buffer.field(Otlp::Line::function_index, it.second);
-        buffer.commitMessage(line_mark);
-
-        buffer.commitMessage(location_mark);
+        location.field(Otlp::Location::mapping_index, 0);
+        ProtobufBuffer line = location.startMessage(Otlp::Location::line);
+        line.field(Otlp::Line::function_index, it.second);
+        }
     }
 
     for (const auto& it : string_idx_map) {
-        buffer.field(Otlp::ProfilesData::string_table, it.second);
+        profiles_data.field(Otlp::ProfilesData::string_table, it.second);
     }
+
+    int fd = open(args.file(), O_CREAT | O_RDWR | O_TRUNC, 0644);
+    write(fd, profiles_data.data(), profiles_data.offset());
+    close(fd);
 
     delete data;
 }
