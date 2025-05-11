@@ -190,3 +190,23 @@ TEST_CASE(Buffer_test_map) {
   CHECK_EQ((unsigned char)buf.data()[33], (2 << 3) | VARINT);
   CHECK_EQ((unsigned char)buf.data()[34], 3);
 }
+
+TEST_CASE(Buffer_test_maxTag) {
+    char *data = (char *)alloca(100);
+    ProtobufBuffer buf(data);
+
+    // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
+    const u32 max_tag = 536870911;
+    buf.field(max_tag, (u32) 3);
+
+    CHECK_EQ(buf.offset(), 6);
+    // Check the value of the first 5 bytes as a varint
+    u32 sum = (unsigned char) buf.data()[5] & 0b01111111;
+    for (int idx = 4; idx >= 0; --idx) {
+        sum <<= 7;
+        sum += ((unsigned char) buf.data()[idx] & 0b01111111);
+    }
+    CHECK_EQ(sum, (max_tag << 3) | VARINT);
+    CHECK_EQ((unsigned char)buf.data()[5], 3);
+
+}
