@@ -12,10 +12,6 @@ namespace Otlp {
 
 namespace ProfilesData {
   const protobuf_index_t resource_profiles = 1;
-  const protobuf_index_t mapping_table = 2;
-  const protobuf_index_t location_table = 3;
-  const protobuf_index_t function_table = 4;
-  const protobuf_index_t string_table = 6;
 }
 
 namespace ResourceProfiles {
@@ -29,10 +25,14 @@ namespace ScopeProfiles {
 namespace Profile {
   const protobuf_index_t sample_type = 1;
   const protobuf_index_t sample = 2;
-  const protobuf_index_t location_indices = 3;
-  const protobuf_index_t period_type = 6;
-  const protobuf_index_t period = 7;
-  const protobuf_index_t profile_id = 10;
+  const protobuf_index_t mapping_table = 3;
+  const protobuf_index_t location_table = 4;
+  const protobuf_index_t location_indices = 5;
+  const protobuf_index_t function_table = 6;
+  const protobuf_index_t period_type = 13;
+  const protobuf_index_t period = 14;
+  const protobuf_index_t string_table = 10;
+  const protobuf_index_t profile_id = 17;
 }
 
 namespace ValueType {
