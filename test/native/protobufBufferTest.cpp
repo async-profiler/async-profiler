@@ -113,6 +113,30 @@ TEST_CASE(Buffer_test_nestedField) {
   CHECK_EQ((unsigned char)buf.data()[7], 1);
 }
 
+TEST_CASE(Buffer_test_nestedMessageWithString) {
+    char *data = (char *)alloca(100);
+    ProtobufBuffer buf(data);
+
+    {
+    ProtobufBuffer nested1 = buf.startMessage(3);
+    ProtobufBuffer nested2 = nested1.startMessage(4);
+    nested2.field(5, "ciao");
+    }
+
+    CHECK_EQ(buf.offset(), (1 + 3) + (1 + 3 + 1 + 1 + 4));
+    CHECK_EQ((unsigned char)buf.data()[0], (3 << 3) | LEN);
+    CHECK_EQ((unsigned char)buf.data()[1], 10 | 0b10000000);
+    CHECK_EQ((unsigned char)buf.data()[2], 0b10000000);
+    CHECK_EQ((unsigned char)buf.data()[3], 0);
+    CHECK_EQ((unsigned char)buf.data()[4], (4 << 3) | LEN);
+    CHECK_EQ((unsigned char)buf.data()[5], 6 | 0b10000000);
+    CHECK_EQ((unsigned char)buf.data()[6], 0b10000000);
+    CHECK_EQ((unsigned char)buf.data()[7], 0);
+    CHECK_EQ((unsigned char)buf.data()[8], (5 << 3) | LEN);
+    CHECK_EQ((unsigned char)buf.data()[9], 4);
+    CHECK_EQ(strncmp(buf.data() + 10, "ciao", 4), 0);
+}
+
 TEST_CASE(Buffer_test_map) {
   char *data = (char *)alloca(100);
   ProtobufBuffer buf(data);
