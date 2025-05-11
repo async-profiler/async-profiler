@@ -130,10 +130,11 @@ TEST_CASE(Buffer_test_nestedField) {
   char *data = (char *)alloca(100);
   ProtobufBuffer buf(data);
 
-  protobuf_field_mark_t mark = buf.startMessage(4);
-  buf.field(3, (u32)10);
-  buf.field(5, true);
-  buf.commitMessage(mark);
+  {
+    ProtobufBuffer childMessage = buf.startMessage(4);
+    childMessage.field(3, (u32)10);
+    childMessage.field(5, true);
+  }
 
   CHECK_EQ(buf.offset(), 8);
   CHECK_EQ((unsigned char)buf.data()[0], (4 << 3) | LEN);
