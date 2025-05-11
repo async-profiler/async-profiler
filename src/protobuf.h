@@ -11,11 +11,11 @@
 #include <string.h>
 #include <type_traits>
 
-typedef const u8 protobuf_t;
+typedef const u32 protobuf_t;
 static protobuf_t VARINT = 0;
 static protobuf_t LEN = 2;
 
-typedef u8 protobuf_index_t;
+typedef u32 protobuf_index_t;
 
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
