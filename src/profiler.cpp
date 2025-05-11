@@ -1674,7 +1674,7 @@ void Profiler::dumpOtlp(Arguments& args) {
     char uuid[37];
     uuid_unparse_lower(binuuid, uuid);
     profile.field(Otlp::Profile::profile_id, uuid);
-    profile.field(Otlp::Profile::period, args._interval);
+    profile.field(Otlp::Profile::period, (u64) args._interval);
 
     {
     ProtobufBuffer sample_type = profile.startMessage(Otlp::Profile::sample_type);
@@ -1698,7 +1698,7 @@ void Profiler::dumpOtlp(Arguments& args) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        int num_frames = trace->num_frames;
+        u32 num_frames = trace->num_frames;
         for (int j = 0; j < num_frames; j++) {
             const char* frame_name = fn.name(trace->frames[j]);
 
@@ -1710,7 +1710,7 @@ void Profiler::dumpOtlp(Arguments& args) {
 
         {
         ProtobufBuffer sample = profile.startMessage(Otlp::Profile::sample);
-        sample.field(Otlp::Sample::value, 1);
+        sample.field(Otlp::Sample::value, (u32) 1);
         sample.field(Otlp::Sample::locations_start_index, locations_count - num_frames);
         sample.field(Otlp::Sample::locations_length, num_frames);
         }
@@ -1729,7 +1729,7 @@ void Profiler::dumpOtlp(Arguments& args) {
         {
         ProtobufBuffer location = profiles_data.startMessage(Otlp::ProfilesData::location_table);
         // TODO: Fix me when more Mappings are added
-        location.field(Otlp::Location::mapping_index, 0);
+        location.field(Otlp::Location::mapping_index, (u32) 0);
         ProtobufBuffer line = location.startMessage(Otlp::Location::line);
         line.field(Otlp::Line::function_index, it.second);
         }
