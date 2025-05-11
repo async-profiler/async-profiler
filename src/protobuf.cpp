@@ -33,26 +33,6 @@ void ProtobufBuffer::field(protobuf_index_t index, u64 n) {
   putVarInt<>(n);
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, int n) {
-  tag(index, I32);
-  put32(n);
-}
-
-void ProtobufBuffer::field(protobuf_index_t index, float n) {
-  tag(index, I32);
-  putFloat(n);
-}
-
-void ProtobufBuffer::field(protobuf_index_t index, long n) {
-  tag(index, I64);
-  put64(n);
-}
-
-void ProtobufBuffer::field(protobuf_index_t index, double n) {
-  tag(index, I64);
-  putDouble(n);
-}
-
 void ProtobufBuffer::field(protobuf_index_t index, const char *s) {
   field(index, s, strlen(s));
 }
