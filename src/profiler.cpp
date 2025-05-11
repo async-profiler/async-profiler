@@ -40,7 +40,6 @@
 #include "vmStructs.h"
 #include <map>
 #include <unordered_map>
-#include "uuid/uuid.h"
 
 
 // The instance is not deleted on purpose, since profiler structures
