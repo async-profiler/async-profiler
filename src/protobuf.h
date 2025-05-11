@@ -13,9 +13,7 @@
 
 typedef const u8 protobuf_t;
 static protobuf_t VARINT = 0;
-static protobuf_t I64 = 1;
 static protobuf_t LEN = 2;
-static protobuf_t I32 = 5;
 
 typedef u8 protobuf_index_t;
 
@@ -140,12 +138,6 @@ public:
   void field(protobuf_index_t index, bool b);
   void field(protobuf_index_t index, u32 n);
   void field(protobuf_index_t index, u64 n);
-  // I32
-  void field(protobuf_index_t index, int n);
-  void field(protobuf_index_t index, float n);
-  // I64
-  void field(protobuf_index_t index, long n);
-  void field(protobuf_index_t index, double n);
   // LEN
   void field(protobuf_index_t index, const char *s);
   void field(protobuf_index_t index, const char *s, size_t len);
