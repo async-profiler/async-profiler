@@ -1692,7 +1692,7 @@ void Profiler::dumpOtlp(Arguments& args) {
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
         u32 num_frames = trace->num_frames;
-        for (u32 j = 0; j < num_frames; j++) {
+        for (u32 j = 0; j < num_frames; ++j) {
             u32 function_idx = maybeAddToIdxMap(function_idx_map, functions_vec, fn.name(trace->frames[j]));
             profile.field(Otlp::Profile::location_indices, function_idx);
         }
