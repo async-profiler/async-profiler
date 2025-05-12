@@ -9,7 +9,7 @@
 #include <string.h>
 
 TEST_CASE(Buffer_test_var32_0) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(3, (u32)0);
@@ -20,7 +20,7 @@ TEST_CASE(Buffer_test_var32_0) {
 }
 
 TEST_CASE(Buffer_test_var32_150) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(3, (u32)150);
@@ -32,7 +32,7 @@ TEST_CASE(Buffer_test_var32_150) {
 }
 
 TEST_CASE(Buffer_test_var64_LargeNumber) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(1, (u64)17574838338834838);
@@ -50,7 +50,7 @@ TEST_CASE(Buffer_test_var64_LargeNumber) {
 }
 
 TEST_CASE(Buffer_test_var32_bool) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(3, false);
@@ -67,7 +67,7 @@ TEST_CASE(Buffer_test_var32_bool) {
 }
 
 TEST_CASE(Buffer_test_repeated_u32) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(1, (u32) 34);
@@ -81,7 +81,7 @@ TEST_CASE(Buffer_test_repeated_u32) {
 }
 
 TEST_CASE(Buffer_test_string) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   buf.field(4, "ciao");
@@ -93,7 +93,7 @@ TEST_CASE(Buffer_test_string) {
 }
 
 TEST_CASE(Buffer_test_nestedField) {
-  char *data = (char *)alloca(100);
+  char data[100];
   ProtobufBuffer buf(data);
 
   {
@@ -114,7 +114,7 @@ TEST_CASE(Buffer_test_nestedField) {
 }
 
 TEST_CASE(Buffer_test_nestedMessageWithString) {
-    char *data = (char *)alloca(100);
+    char data[100];
     ProtobufBuffer buf(data);
 
     {
@@ -138,7 +138,7 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
 }
 
 TEST_CASE(Buffer_test_maxTag) {
-    char *data = (char *)alloca(100);
+    char data[100];
     ProtobufBuffer buf(data);
 
     // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
