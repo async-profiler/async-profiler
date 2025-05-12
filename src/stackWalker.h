@@ -24,13 +24,6 @@ struct StackContext {
         this->fp = fp;
         this->cpu = 0;
     }
-
-    void set(const void* pc, uintptr_t sp, uintptr_t fp, u64 cpu) {
-        this->pc = pc;
-        this->sp = sp;
-        this->fp = fp;
-        this->cpu = cpu;
-    }
 };
 
 // Detail level of VMStructs stack walking
