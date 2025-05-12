@@ -5,6 +5,7 @@
 
 #include "testRunner.hpp"
 #include "arguments.h"
+#include "os.h"
 
 TEST_CASE(Parse_all_mode_no_override) {
     Arguments args;
@@ -17,9 +18,9 @@ TEST_CASE(Parse_all_mode_no_override) {
     ASSERT_EQ(args._lock, DEFAULT_LOCK_INTERVAL);
     ASSERT_EQ(args._live, true);
     const char* expected_event = EVENT_CPU;
-    #ifdef __APPLE__
-    expected_event = NULL;
-    #endif
+    if (!OS::isLinux()) {
+        expected_event = NULL;
+    }
     ASSERT_EQ(args._event, expected_event);
 }
 

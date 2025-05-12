@@ -165,6 +165,7 @@ class Arguments {
     long _nativemem;
     long _lock;
     long _wall;
+    bool _all;
     int _jstackdepth;
     int _signal;
     const char* _file;
@@ -208,7 +209,6 @@ class Arguments {
     double _minwidth;
     bool _reverse;
     bool _inverted;
-    bool _all;
 
     Arguments() :
         _buf(NULL),
