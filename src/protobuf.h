@@ -65,8 +65,6 @@ public:
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
   ProtobufBuffer startMessage(protobuf_index_t index);
-
-  template <typename K, typename V> void mapEntry(int mapIndex, K key, V value);
 };
 
 template <typename T>
@@ -84,13 +82,6 @@ ProtobufBuffer::putVarInt(size_t offset, T n) {
   }
   _data[offset++] = (char)n;
   return offset;
-}
-
-template <typename K, typename V>
-void ProtobufBuffer::mapEntry(int mapIndex, K key, V value) {
-  ProtobufBuffer mapMessage = startMessage(mapIndex);
-  mapMessage.field(1, key);
-  mapMessage.field(2, value);
 }
 
 #endif // _PROTOBUF_H
