@@ -336,7 +336,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                             sp = frame.senderSP();
                             fp = *(uintptr_t*)fp;
                         } else {
-                            frame.unwindIncompleteFrame((uintptr_t&)pc, sp, fp);
+                            frame.unwindIncompleteIntFrame((uintptr_t&)pc, sp, fp);
                         }
                         continue;
                     }

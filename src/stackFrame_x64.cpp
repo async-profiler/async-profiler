@@ -18,8 +18,6 @@
 #  define REG(l, m)  _ucontext->uc_mcontext.gregs[REG_##l]
 #endif
 
-const u32 EPILOGUE = 0xec8b4855; // push %rbp, mov %rsp,%rbp
-
 
 uintptr_t& StackFrame::pc() {
     return (uintptr_t&)REG(RIP, rip);
@@ -86,7 +84,7 @@ bool StackFrame::unwindStub(instruction_t* entry, const char* name, uintptr_t& p
         pc = ((uintptr_t*)sp)[0] - 1;
         sp += 8;
         return true;
-    } else if (entry != NULL && *(unsigned int*)entry == EPILOGUE) {
+    } else if (entry != NULL && *(unsigned int*)entry == 0xec8b4855) {
         // The stub begins with
         //   push rbp
         //   mov  rbp, rsp
@@ -225,7 +223,7 @@ bool StackFrame::checkInterruptedSyscall() {
 
 // Though the frame is not complete, but according to the analysis of the instructions, we can use fp to unwind.
 // see https://github.com/async-profiler/async-profiler/pull/1234
-void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+void StackFrame::unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     // If the current instruction (see 0x00007fffe4b4a27b) is to push sender sp onto stack,
     // then using sender_sp_offset we get random value, this may leads to incomplete stacks (shown as rare [unknown]).
     // The following instructions use R13 to save other values, so we can not always use it to read sender sp.

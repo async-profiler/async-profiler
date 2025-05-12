@@ -67,14 +67,13 @@ class StackFrame {
     bool unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindAtomicStub(const void*& pc);
+    void unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
 
     void adjustSP(const void* entry, const void* pc, uintptr_t& sp);
 
     bool skipFaultInstruction();
 
     bool checkInterruptedSyscall();
-
-    void unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
 
     // Check if PC points to a syscall instruction
     static bool isSyscall(instruction_t* pc);

@@ -240,7 +240,7 @@ bool StackFrame::checkInterruptedSyscall() {
 #endif
 }
 
-void StackFrame::unwindIncompleteFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+void StackFrame::unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
     pc = (uintptr_t)stripPointer(*(void**)sp);
     sp = senderSP();
 }
