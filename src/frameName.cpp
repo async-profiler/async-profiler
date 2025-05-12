@@ -304,7 +304,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         case BCI_CPU: {
             int cpu = (int)(uintptr_t)frame.method_id;
             char buf[32];
-            snprintf(buf, sizeof(buf), "[CPU-%d]", cpu >> 1);
+            snprintf(buf, sizeof(buf), "[CPU-%d]", cpu & 0x7fff);
             return _str.assign(buf).c_str();
         }
         default: {

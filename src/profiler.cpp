@@ -699,7 +699,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
     if (_add_cpu_frame) {
-        num_frames += makeFrame(frames + num_frames, BCI_CPU, (java_ctx.cpu << 1) | 0x1);
+        num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
     if (stack_walk_begin != 0) {
@@ -1173,6 +1173,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Cannot start wall clock with the selected event");
     } else if (_engine != &perf_events && args._target_cpu != -1) {
         return Error("target-cpu is only supported with perf_events");
+    } else if (_engine != &perf_events && args._record_cpu) {
+        return Error("record-cpu is only supported with perf_events");
     }
 
     _cstack = args._cstack;
