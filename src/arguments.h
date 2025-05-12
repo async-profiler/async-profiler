@@ -222,6 +222,7 @@ class Arguments {
         _nativemem(-1),
         _lock(-1),
         _wall(-1),
+        _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),
         _file(NULL),
@@ -263,8 +264,7 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _inverted(false),
-        _all(false) {
+        _inverted(false) {
     }
 
     ~Arguments();
