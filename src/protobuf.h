@@ -18,7 +18,6 @@ typedef u32 protobuf_index_t;
 
 // We assume the length of a nested field can be represented with 3 varint
 // bytes.
-// TODO: What if it doesn't? Do we need to account for this case?
 const size_t nested_field_byte_count = 3;
 
 class ProtobufBuffer {
