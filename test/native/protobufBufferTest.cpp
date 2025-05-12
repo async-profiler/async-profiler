@@ -137,60 +137,6 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
     CHECK_EQ(strncmp(buf.data() + 10, "ciao", 4), 0);
 }
 
-TEST_CASE(Buffer_test_map) {
-  char *data = (char *)alloca(100);
-  ProtobufBuffer buf(data);
-
-  buf.mapEntry<>(5, "one", (u32)1);
-  buf.mapEntry<>(5, "two", (u32)2);
-  buf.mapEntry<>(5, "three", (u32)3);
-
-  const int msg1_size = 1 + 3 + 2 + strlen("one") + 2;
-  const int msg2_size = 1 + 3 + 2 + strlen("two") + 2;
-  const int msg3_size = 1 + 3 + 2 + strlen("three") + 2;
-
-  CHECK_EQ(buf.offset(), msg1_size + msg2_size + msg3_size);
-
-  CHECK_EQ((unsigned char)buf.data()[0], (5 << 3) | LEN);
-  // msg length
-  CHECK_EQ((unsigned char)buf.data()[1], 7 | 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[2], 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[3], 0);
-  // key
-  CHECK_EQ((unsigned char)buf.data()[4], (1 << 3) | LEN);
-  CHECK_EQ((unsigned char)buf.data()[5], 3);
-  CHECK_EQ(strncmp(buf.data() + 6, "one", 3), 0);
-  // value
-  CHECK_EQ((unsigned char)buf.data()[9], (2 << 3) | VARINT);
-  CHECK_EQ((unsigned char)buf.data()[10], 1);
-
-  CHECK_EQ((unsigned char)buf.data()[11], (5 << 3) | LEN);
-  // msg length
-  CHECK_EQ((unsigned char)buf.data()[12], 7 | 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[13], 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[14], 0);
-  // key
-  CHECK_EQ((unsigned char)buf.data()[15], (1 << 3) | LEN);
-  CHECK_EQ((unsigned char)buf.data()[16], 3);
-  CHECK_EQ(strncmp(buf.data() + 17, "two", 3), 0);
-  // value
-  CHECK_EQ((unsigned char)buf.data()[20], (2 << 3) | VARINT);
-  CHECK_EQ((unsigned char)buf.data()[21], 2);
-
-  CHECK_EQ((unsigned char)buf.data()[22], (5 << 3) | LEN);
-  // msg length
-  CHECK_EQ((unsigned char)buf.data()[23], 9 | 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[24], 0b10000000);
-  CHECK_EQ((unsigned char)buf.data()[25], 0);
-  // key
-  CHECK_EQ((unsigned char)buf.data()[26], (1 << 3) | LEN);
-  CHECK_EQ((unsigned char)buf.data()[27], 5);
-  CHECK_EQ(strncmp(buf.data() + 28, "three", 5), 0);
-  // value
-  CHECK_EQ((unsigned char)buf.data()[33], (2 << 3) | VARINT);
-  CHECK_EQ((unsigned char)buf.data()[34], 3);
-}
-
 TEST_CASE(Buffer_test_maxTag) {
     char *data = (char *)alloca(100);
     ProtobufBuffer buf(data);

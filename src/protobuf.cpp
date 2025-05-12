@@ -14,8 +14,6 @@ ProtobufBuffer::~ProtobufBuffer() {
 }
 
 void ProtobufBuffer::tag(protobuf_index_t index, protobuf_t type) {
-  // index is 3100 maximum
-  // (https://protobuf.dev/programming-guides/proto-limits/)
   putVarInt<>((u32) index << 3 | type);
 }
 
