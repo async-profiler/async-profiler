@@ -10,19 +10,20 @@ import one.profiler.test.*;
 public class ComptaskTests {
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,event=Compile::Init",
+        agentArgs = "start,features=comptask,event=Compile::Init,collapsed",
         // -Xbatch                            : Compilation happens synchronously as soon as the method becomes eligible for compilation
         // -XX:CompileThreshold=1             : Methods are compiled when they are first called
         // -XX:-TieredCompilation             : Disable tiered compilation, otherwise CompileThreshold is ignored
         // -XX:CompileCommand=compileonly,... : Select only specific methods to be compiled
-        jvmArgs = "-Xbatch -XX:CompileThreshold=1 -XX:-TieredCompilation -XX:CompileCommand=compileonly,test.comptask.Main::toBeCompiled",
+        jvmArgs = "-Xbatch -XX:CompileThreshold=1 -XX:-TieredCompilation -XX:CompileCommand=compileonly,test.comptask.Main::main",
         jvm = Jvm.HOTSPOT,
         // No perf_events on MacOS
-        os = Os.LINUX
+        os = Os.LINUX,
+        output = true
     )
     public void testCompTask(TestProcess p) throws Exception {
-        Thread.sleep(1500);
-        Output out = p.profile("stop -o collapsed");
-        assert out.contains("test/comptask/Main.toBeCompiled;C2Compiler::compile_method");
+        Output out = p.waitForExit(TestProcess.STDOUT);
+        assert p.exitCode() == 0;
+        assert out.contains("test/comptask/Main.main;C2Compiler::compile_method");
     }
 }

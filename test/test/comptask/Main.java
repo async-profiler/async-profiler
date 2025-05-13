@@ -9,14 +9,6 @@ public class Main {
     public static volatile double sink = 0;
 
     public static void main(String[] args) throws Exception {
-        // Wait so the profiler has time to start
-        Thread.sleep(1000);
-        toBeCompiled();
-        // Wait so the profiler has time to stop gracefully
-        Thread.sleep(1000);
-    }
-
-    public static void toBeCompiled() throws Exception {
         // Simulate some CPU-bound work
         double result = 0;
         for (int j = 0; j < 1000000; j++) {
