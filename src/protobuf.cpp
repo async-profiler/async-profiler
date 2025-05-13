@@ -6,13 +6,6 @@
 #include "protobuf.h"
 #include <string.h>
 
-ProtobufBuffer::~ProtobufBuffer() {
-  if (_parent_message == nullptr) {
-    return;
-  }
-  _parent_message->commitMessage(offset());
-}
-
 void ProtobufBuffer::putVarInt(u32 n) {
   _offset = putVarInt(_offset, n);
 }
@@ -72,19 +65,18 @@ void ProtobufBuffer::field(protobuf_index_t index, const unsigned char* s, size_
   _offset += len;
 }
 
-ProtobufBuffer ProtobufBuffer::startMessage(protobuf_index_t index) {
+protobuf_mark_t ProtobufBuffer::startMessage(protobuf_index_t index) {
   tag(index, LEN);
   _offset += nested_field_byte_count;
-  return ProtobufBuffer(this);
+  return _offset;
 }
 
-void ProtobufBuffer::commitMessage(size_t message_length) {
-  size_t message_length_encode = message_length;
+void ProtobufBuffer::commitMessage(protobuf_mark_t mark) {
+  size_t message_length = _offset - mark;
   for (size_t i = 0; i < nested_field_byte_count - 1; ++i) {
-    size_t idx = _offset - nested_field_byte_count + i;
-    _data[idx] = (unsigned char) (0x80 | (message_length_encode & 0x7f));
-    message_length_encode >>= 7;
+    size_t idx = mark - nested_field_byte_count + i;
+    _data[idx] = (unsigned char) (0x80 | (message_length & 0x7f));
+    message_length >>= 7;
   }
-  _data[_offset - 1] = (unsigned char) message_length_encode;
-  _offset += message_length;
+  _data[mark - 1] = (unsigned char) message_length;
 }

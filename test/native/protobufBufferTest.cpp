@@ -96,17 +96,16 @@ TEST_CASE(Buffer_test_nestedField) {
   unsigned char data[100];
   ProtobufBuffer buf(data);
 
-  {
-    ProtobufBuffer childMessage = buf.startMessage(4);
-    childMessage.field(3, (u32)10);
-    childMessage.field(5, true);
-  }
+  protobuf_mark_t mark = buf.startMessage(4);
+  buf.field(3, (u32)10);
+  buf.field(5, true);
+  buf.commitMessage(mark);
 
   CHECK_EQ(buf.offset(), 8);
   CHECK_EQ(buf.data()[0], (4 << 3) | LEN);
   CHECK_EQ(buf.data()[1], 4 | 0x80); // Length of the field with continuation bit as MSB
   CHECK_EQ(buf.data()[2], 0x80);     // Continuation bit MSB
-  CHECK_EQ(buf.data()[3], 0);              // Continuation bit MSB
+  CHECK_EQ(buf.data()[3], 0);        // Continuation bit MSB
   CHECK_EQ(buf.data()[4], (3 << 3) | VARINT);
   CHECK_EQ(buf.data()[5], 10);
   CHECK_EQ(buf.data()[6], (5 << 3) | VARINT);
@@ -117,11 +116,11 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
     unsigned char data[100];
     ProtobufBuffer buf(data);
 
-    {
-    ProtobufBuffer nested1 = buf.startMessage(3);
-    ProtobufBuffer nested2 = nested1.startMessage(4);
-    nested2.field(5, "ciao");
-    }
+    protobuf_mark_t mark1 = buf.startMessage(3);
+    protobuf_mark_t mark2 = buf.startMessage(4);
+    buf.field(5, "ciao");
+    buf.commitMessage(mark1);
+    buf.commitMessage(mark2);
 
     CHECK_EQ(buf.offset(), (1 + 3) + (1 + 3 + 1 + 1 + 4));
     CHECK_EQ(buf.data()[0], (3 << 3) | LEN);
