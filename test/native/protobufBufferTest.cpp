@@ -106,42 +106,42 @@ TEST_CASE(Buffer_test_nestedField) {
 }
 
 TEST_CASE(Buffer_test_nestedMessageWithString) {
-    ProtobufBuffer buf(100);
+  ProtobufBuffer buf(100);
 
-    protobuf_mark_t mark1 = buf.startMessage(3);
-    protobuf_mark_t mark2 = buf.startMessage(4);
-    buf.field(5, "ciao");
-    buf.commitMessage(mark1);
-    buf.commitMessage(mark2);
+  protobuf_mark_t mark1 = buf.startMessage(3);
+  protobuf_mark_t mark2 = buf.startMessage(4);
+  buf.field(5, "ciao");
+  buf.commitMessage(mark1);
+  buf.commitMessage(mark2);
 
-    CHECK_EQ(buf.offset(), (1 + 3) + (1 + 3 + 1 + 1 + 4));
-    CHECK_EQ(buf.data()[0], (3 << 3) | LEN);
-    CHECK_EQ(buf.data()[1], 10 | 0x80);
-    CHECK_EQ(buf.data()[2], 0x80);
-    CHECK_EQ(buf.data()[3], 0);
-    CHECK_EQ(buf.data()[4], (4 << 3) | LEN);
-    CHECK_EQ(buf.data()[5], 6 | 0x80);
-    CHECK_EQ(buf.data()[6], 0x80);
-    CHECK_EQ(buf.data()[7], 0);
-    CHECK_EQ(buf.data()[8], (5 << 3) | LEN);
-    CHECK_EQ(buf.data()[9], 4);
-    CHECK_EQ(strncmp((const char*) buf.data() + 10, "ciao", 4), 0);
+  CHECK_EQ(buf.offset(), (1 + 3) + (1 + 3 + 1 + 1 + 4));
+  CHECK_EQ(buf.data()[0], (3 << 3) | LEN);
+  CHECK_EQ(buf.data()[1], 10 | 0x80);
+  CHECK_EQ(buf.data()[2], 0x80);
+  CHECK_EQ(buf.data()[3], 0);
+  CHECK_EQ(buf.data()[4], (4 << 3) | LEN);
+  CHECK_EQ(buf.data()[5], 6 | 0x80);
+  CHECK_EQ(buf.data()[6], 0x80);
+  CHECK_EQ(buf.data()[7], 0);
+  CHECK_EQ(buf.data()[8], (5 << 3) | LEN);
+  CHECK_EQ(buf.data()[9], 4);
+  CHECK_EQ(strncmp((const char*) buf.data() + 10, "ciao", 4), 0);
 }
 
 TEST_CASE(Buffer_test_maxTag) {
-    ProtobufBuffer buf(100);
+  ProtobufBuffer buf(100);
 
-    // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
-    const protobuf_mark_t max_tag = 536870911;
-    buf.field(max_tag, (u64) 3);
+  // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
+  const protobuf_mark_t max_tag = 536870911;
+  buf.field(max_tag, (u64) 3);
 
-    CHECK_EQ(buf.offset(), 6);
-    // Check the value of the first 5 bytes as a varint
-    u32 sum = buf.data()[5] & 0x7f;
-    for (int idx = 4; idx >= 0; --idx) {
-        sum <<= 7;
-        sum += ( buf.data()[idx] & 0x7f);
-    }
-    CHECK_EQ(sum, (max_tag << 3) | VARINT);
-    CHECK_EQ(buf.data()[5], 3);
+  CHECK_EQ(buf.offset(), 6);
+  // Check the value of the first 5 bytes as a varint
+  u32 sum = buf.data()[5] & 0x7f;
+  for (int idx = 4; idx >= 0; --idx) {
+      sum <<= 7;
+      sum += ( buf.data()[idx] & 0x7f);
+  }
+  CHECK_EQ(sum, (max_tag << 3) | VARINT);
+  CHECK_EQ(buf.data()[5], 3);
 }
