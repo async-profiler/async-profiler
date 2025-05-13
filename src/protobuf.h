@@ -36,7 +36,10 @@ private:
 
 public:
   ProtobufBuffer(size_t initial_capacity) : _capacity(initial_capacity), _offset(0) {
-    _data = (unsigned char*) malloc(initial_capacity * sizeof(unsigned char));
+    if (_capacity == 0) {
+      _capacity = 1;
+    }
+    _data = (unsigned char*) malloc(_capacity * sizeof(unsigned char));
   }
   ~ProtobufBuffer() {
     free(_data);
