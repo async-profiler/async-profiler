@@ -45,6 +45,7 @@ public:
   const unsigned char* data() const { return _data; }
 
   size_t offset() const { return _offset; }
+  size_t capacity() const { return _capacity; }
 
   // VARINT
   void field(protobuf_index_t index, bool b);
