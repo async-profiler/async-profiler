@@ -512,6 +512,9 @@ int main(int argc, const char** argv) {
         } else if (arg == "--nostop") {
             params << ",nostop";
 
+        } else if (arg == "--all") {
+            params << ",all";
+
         } else if (arg == "--all-user") {
             params << ",alluser";
 
@@ -547,8 +550,6 @@ int main(int argc, const char** argv) {
             // The last argument is the application name as it would appear in the jps tool
             pid = jps("jps -J-XX:+PerfDisableSharedMem", arg.str());
 
-        } else if (arg == "--all") {
-            params << ",all";
         } else {
             fprintf(stderr, "Unrecognized option: %s\n", arg.str());
             return 1;

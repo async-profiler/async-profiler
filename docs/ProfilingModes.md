@@ -237,7 +237,7 @@ This command enables the default set of events included in `--all`:
 asprof --all -f profile.jfr
 ```
 
-or combine it with `--alloc`/`--wall`/`--lock`/`--nativemem` flags to override individual settings. For example:
+or combine it with `--alloc`/`--wall`/`--lock`/`--nativemem` options to override individual settings. For example:
 
 ```
 asprof --all --alloc 2m --lock 10ms -f profile.jfr
