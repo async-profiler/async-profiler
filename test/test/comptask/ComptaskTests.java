@@ -11,6 +11,10 @@ public class ComptaskTests {
     @Test(
         mainClass = Main.class,
         agentArgs = "start,features=comptask,event=Compile::Init",
+        // -Xbatch                            : Compilation happens synchronously as soon as the method becomes eligible for compilation
+        // -XX:CompileThreshold=1             : Methods are compiled when they are first called
+        // -XX:-TieredCompilation             : Disable tiered compilation, otherwise CompileThreshold is ignored
+        // -XX:CompileCommand=compileonly,... : Select only specific methods to be compiled
         jvmArgs = "-Xbatch -XX:CompileThreshold=1 -XX:-TieredCompilation -XX:CompileCommand=compileonly,test.comptask.Main::toBeCompiled",
         jvm = Jvm.HOTSPOT,
         // No perf_events on MacOS
