@@ -94,6 +94,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     target-cpu=CPU   - sample threads on a specific CPU (perf_events only, default: -1)
+//     record-cpu       - record which cpu a sample was taken on
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas
@@ -368,6 +369,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+            
+            CASE("record-cpu")
+                _record_cpu = true;
 
             CASE("live")
                 _live = true;

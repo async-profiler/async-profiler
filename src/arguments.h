@@ -182,6 +182,7 @@ class Arguments {
     bool _quiet;
     bool _threads;
     bool _sched;
+    bool _record_cpu;
     bool _live;
     bool _nofree;
     bool _nobatch;
@@ -239,6 +240,7 @@ class Arguments {
         _quiet(false),
         _threads(false),
         _sched(false),
+        _record_cpu(false),
         _live(false),
         _nofree(false),
         _nobatch(false),
