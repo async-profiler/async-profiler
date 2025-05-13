@@ -36,6 +36,10 @@ void ProtobufBuffer::field(protobuf_index_t index, const char *s) {
 }
 
 void ProtobufBuffer::field(protobuf_index_t index, const char *s, size_t len) {
+  field(index, (const unsigned char*) s, strlen(s));
+}
+
+void ProtobufBuffer::field(protobuf_index_t index, const unsigned char *s, size_t len) {
   tag(index, LEN);
   putVarInt<>(len);
   memcpy(_data + _offset, s, len);
@@ -56,7 +60,7 @@ void ProtobufBuffer::commitMessage(size_t message_length) {
   size_t message_length_encode = message_length;
   for (size_t i = 0; i < nested_field_byte_count - 1; ++i) {
     _data[_offset - nested_field_byte_count + i] =
-        (char)(0b10000000 | (message_length_encode & 0b01111111));
+        (char)(0x80 | (message_length_encode & 0x7f));
     message_length_encode >>= 7;
   }
   _data[_offset - 1] = (char)message_length_encode;

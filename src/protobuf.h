@@ -23,7 +23,7 @@ const size_t nested_field_byte_count = 3;
 class ProtobufBuffer {
 private:
   ProtobufBuffer *_parent_message;
-  char *_data;
+  unsigned char *_data;
   size_t _offset;
 
   ProtobufBuffer(ProtobufBuffer *parent) :
@@ -44,13 +44,13 @@ private:
   void commitMessage(size_t message_length);
 
 public:
-  ProtobufBuffer(char *data) :
+  ProtobufBuffer(unsigned char *data) :
     _data(data),
     _offset(0),
     _parent_message(nullptr) {}
   ~ProtobufBuffer();
 
-  const char *data() const { return _data; }
+  const unsigned char *data() const { return _data; }
 
   size_t offset() const { return _offset; }
 
@@ -61,6 +61,7 @@ public:
   // LEN
   void field(protobuf_index_t index, const char *s);
   void field(protobuf_index_t index, const char *s, size_t len);
+  void field(protobuf_index_t index, const unsigned char *s, size_t len);
   void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
   ProtobufBuffer startMessage(protobuf_index_t index);
@@ -76,7 +77,7 @@ template <typename T>
 typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
 ProtobufBuffer::putVarInt(size_t offset, T n) {
   while ((n >> 7) != 0) {
-    _data[offset++] = (char)(0b10000000 | (n & 0b01111111));
+    _data[offset++] = (char)(0x80 | (n & 0x7f));
     n >>= 7;
   }
   _data[offset++] = (char)n;
