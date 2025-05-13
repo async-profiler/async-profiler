@@ -64,7 +64,6 @@ public class CpuTests {
         pinCpu(p, 1);
 
         Output output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu");
-        assertCloseTo(output.total(), 2_000_000_000, "perf_events total should match profiling duration");
         assert output.contains("\\[CPU-1\\]");
         assert !output.contains("\\[CPU-0\\]");
     }

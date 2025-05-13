@@ -302,11 +302,12 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
 
         case BCI_CPU: {
-            int cpu = (int)(uintptr_t)frame.method_id;
+            int cpu = ((int)(uintptr_t)frame.method_id) & 0x7fff;
             char buf[32];
-            snprintf(buf, sizeof(buf), "[CPU-%d]", cpu & 0x7fff);
+            snprintf(buf, sizeof(buf), "[CPU-%d]", cpu);
             return _str.assign(buf).c_str();
         }
+
         default: {
             const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
 

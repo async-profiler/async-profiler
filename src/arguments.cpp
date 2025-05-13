@@ -87,13 +87,13 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     filter=FILTER    - thread filter
 //     threads          - profile different threads separately
 //     sched            - group threads by scheduling policy
-//     record-cpu       - record which cpu a sample was taken on (default: false)
 //     cstack=MODE      - how to collect C stack frames in addition to Java stack
 //                        MODE is 'fp', 'dwarf', 'lbr', 'vm' or 'no'
 //     clock=SOURCE     - clock source for JFR timestamps: 'tsc' or 'monotonic'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     target-cpu=CPU   - sample threads on a specific CPU (perf_events only, default: -1)
+//     record-cpu       - record which cpu a sample was taken on
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas

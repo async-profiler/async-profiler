@@ -1129,7 +1129,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
         _add_cpu_frame = args._record_cpu;
-
         unlockAll();
 
         // Reset thread names and IDs
