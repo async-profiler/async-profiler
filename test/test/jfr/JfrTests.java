@@ -83,7 +83,7 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag without event override.
-     * We can't run this test in MacOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
+     * We can't run this test in macOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
      * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
@@ -104,7 +104,7 @@ public class JfrTests {
                 events.add(eventName);
             }
         }
-        if (p.currentOs() == Os.LINUX) { // MacOS uses Wall Clock profiling engine
+        if (p.currentOs() == Os.LINUX) { // macOS uses Wall Clock profiling engine
             assert events.contains("jdk.ExecutionSample"); // cpu profiling
         }
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
@@ -117,7 +117,7 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag with event override
-     * We can't run this test in MacOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
+     * We can't run this test in macOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
      * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.

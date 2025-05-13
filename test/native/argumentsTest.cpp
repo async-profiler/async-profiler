@@ -17,10 +17,7 @@ TEST_CASE(Parse_all_mode_no_override) {
     ASSERT_EQ(args._nativemem, DEFAULT_ALLOC_INTERVAL);
     ASSERT_EQ(args._lock, DEFAULT_LOCK_INTERVAL);
     ASSERT_EQ(args._live, true);
-    const char* expected_event = NULL;
-    if (OS::isLinux()) {
-        expected_event = EVENT_CPU;
-    }
+    const char* expected_event = OS::isLinux() ? EVENT_CPU : NULL;
     ASSERT_EQ(args._event, expected_event);
 }
 
