@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "arch.h"
 
 struct TestCase;
 

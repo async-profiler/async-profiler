@@ -165,6 +165,7 @@ class Arguments {
     long _nativemem;
     long _lock;
     long _wall;
+    bool _all;
     int _jstackdepth;
     int _signal;
     const char* _file;
@@ -221,6 +222,7 @@ class Arguments {
         _nativemem(-1),
         _lock(-1),
         _wall(-1),
+        _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),
         _file(NULL),
