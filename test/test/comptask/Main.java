@@ -8,7 +8,7 @@ package test.comptask;
 public class Main {
     public static volatile double sink = 0;
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         // Simulate some CPU-bound work
         double result = 0;
         for (int j = 0; j < 1000000; j++) {
