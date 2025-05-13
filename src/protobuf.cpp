@@ -8,14 +8,14 @@
 
 static size_t computeVarIntByteSize(u64 value) {
   if (value <= 0x7F) return 1;
-  else if (value <= 0x3FFF) return 2;
-  else if (value <= 0x1FFFFF) return 3;
-  else if (value <= 0xFFFFFFF) return 4;
-  else if (value <= 0x7FFFFFFFF) return 5;
-  else if (value <= 0x3FFFFFFFFFF) return 6;
-  else if (value <= 0x1FFFFFFFFFFFF) return 7;
-  else if (value <= 0xFFFFFFFFFFFFFF) return 8;
-  else if (value <= 0x7FFFFFFFFFFFFFFF) return 9;
+  if (value <= 0x3FFF) return 2;
+  if (value <= 0x1FFFFF) return 3;
+  if (value <= 0xFFFFFFF) return 4;
+  if (value <= 0x7FFFFFFFF) return 5;
+  if (value <= 0x3FFFFFFFFFF) return 6;
+  if (value <= 0x1FFFFFFFFFFFF) return 7;
+  if (value <= 0xFFFFFFFFFFFFFF) return 8;
+  if (value <= 0x7FFFFFFFFFFFFFFF) return 9;
   return 10;
 }
 
