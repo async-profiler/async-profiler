@@ -780,6 +780,10 @@ Error PerfEvents::check(Arguments& args) {
     }
 #endif
 
+    if (args._record_cpu) {
+        attr.sample_type |= PERF_SAMPLE_CPU;
+    }
+
     int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
     if (fd == -1) {
         return Error(strerror(errno));
@@ -888,7 +892,6 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
             struct perf_event_header* hdr = ring.seek(tail);
 
             if (hdr->type == PERF_RECORD_SAMPLE) {
-
                 if (_record_cpu) {
                     java_ctx->cpu = ring.next();
                 }
