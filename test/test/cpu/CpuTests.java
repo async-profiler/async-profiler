@@ -58,6 +58,20 @@ public class CpuTests {
         Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --target-cpu 0");
         assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
+    
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    public void perfEventsRecordCpuEventsCount(TestProcess p) throws Exception {
+
+        try {
+          Output out = p.profile("-d 2 -e ctimer -i 100ms --total -o collapsed --record-cpu");
+          throw new IllegalStateException("Profiling should have failed");
+        } catch (IOException expectedException) {
+          // Expected exception, as non perf_event profilers do not support --record-cpu
+        }
+
+        Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu");
+        assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
+    }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsTargetCpuWithFdtransferEventsCount(TestProcess p) throws Exception {
