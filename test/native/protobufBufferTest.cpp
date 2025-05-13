@@ -145,3 +145,25 @@ TEST_CASE(Buffer_test_maxTag) {
   CHECK_EQ(sum, (max_tag << 3) | VARINT);
   CHECK_EQ(buf.data()[5], 3);
 }
+
+TEST_CASE(Buffer_test_relocation) {
+  ProtobufBuffer buf(0);
+  CHECK_EQ(buf.capacity(), 1);
+  CHECK_EQ(buf.offset(), 0);
+
+  buf.field(2, (u64) 3);
+  CHECK_EQ(buf.capacity(), 2);
+  CHECK_EQ(buf.offset(), 2);
+
+  buf.field(3, (u64) 4);
+  CHECK_EQ(buf.capacity(), 4);
+  CHECK_EQ(buf.offset(), 4);
+
+  buf.field(4, "abc");
+  CHECK_EQ(buf.capacity(), 16);
+  CHECK_EQ(buf.offset(), 9);
+
+  buf.field(5, "123");
+  CHECK_EQ(buf.capacity(), 16);
+  CHECK_EQ(buf.offset(), 14);
+}
