@@ -22,7 +22,6 @@ struct StackContext {
         this->pc = pc;
         this->sp = sp;
         this->fp = fp;
-        this->cpu = 0;
     }
 };
 
