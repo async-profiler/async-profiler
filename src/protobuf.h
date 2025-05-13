@@ -62,7 +62,6 @@ public:
   void field(protobuf_index_t index, const char *s);
   void field(protobuf_index_t index, const char *s, size_t len);
   void field(protobuf_index_t index, const unsigned char *s, size_t len);
-  void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
 
   ProtobufBuffer startMessage(protobuf_index_t index);
 };

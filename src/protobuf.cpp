@@ -46,10 +46,6 @@ void ProtobufBuffer::field(protobuf_index_t index, const unsigned char *s, size_
   _offset += len;
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len) {
-  field(index, buffer.data(), buffer.offset());
-}
-
 ProtobufBuffer ProtobufBuffer::startMessage(protobuf_index_t index) {
   tag(index, LEN);
   _offset += nested_field_byte_count;
