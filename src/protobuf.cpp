@@ -57,15 +57,15 @@ void ProtobufBuffer::field(protobuf_index_t index, u64 n) {
   putVarInt(n);
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const char *s) {
+void ProtobufBuffer::field(protobuf_index_t index, const char* s) {
   field(index, s, strlen(s));
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const char *s, size_t len) {
+void ProtobufBuffer::field(protobuf_index_t index, const char* s, size_t len) {
   field(index, (const unsigned char*) s, strlen(s));
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const unsigned char *s, size_t len) {
+void ProtobufBuffer::field(protobuf_index_t index, const unsigned char* s, size_t len) {
   tag(index, LEN);
   putVarInt((u64) len);
   memcpy(_data + _offset, s, len);

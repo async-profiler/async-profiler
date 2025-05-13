@@ -21,11 +21,11 @@ const size_t nested_field_byte_count = 3;
 
 class ProtobufBuffer {
 private:
-  ProtobufBuffer *_parent_message;
-  unsigned char *_data;
+  ProtobufBuffer* _parent_message;
+  unsigned char* _data;
   size_t _offset;
 
-  ProtobufBuffer(ProtobufBuffer *parent) :
+  ProtobufBuffer(ProtobufBuffer* parent) :
     _data(parent->_data + parent->offset()),
     _offset(0),
     _parent_message(parent) {}
@@ -40,13 +40,13 @@ private:
   void commitMessage(size_t message_length);
 
 public:
-  ProtobufBuffer(unsigned char *data) :
+  ProtobufBuffer(unsigned char* data) :
     _data(data),
     _offset(0),
     _parent_message(nullptr) {}
   ~ProtobufBuffer();
 
-  const unsigned char *data() const { return _data; }
+  const unsigned char* data() const { return _data; }
 
   size_t offset() const { return _offset; }
 
@@ -55,9 +55,9 @@ public:
   void field(protobuf_index_t index, u32 n);
   void field(protobuf_index_t index, u64 n);
   // LEN
-  void field(protobuf_index_t index, const char *s);
-  void field(protobuf_index_t index, const char *s, size_t len);
-  void field(protobuf_index_t index, const unsigned char *s, size_t len);
+  void field(protobuf_index_t index, const char* s);
+  void field(protobuf_index_t index, const char* s, size_t len);
+  void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
   ProtobufBuffer startMessage(protobuf_index_t index);
 };
