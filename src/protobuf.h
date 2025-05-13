@@ -16,8 +16,7 @@ static protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
 
-// We assume the length of a nested field can be represented with 3 varint
-// bytes.
+// We assume the length of a nested field can be represented with 3 varint bytes.
 const size_t nested_field_byte_count = 3;
 
 class ProtobufBuffer {
