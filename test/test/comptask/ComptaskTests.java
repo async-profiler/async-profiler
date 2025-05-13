@@ -9,8 +9,8 @@ import one.profiler.test.*;
 
 public class ComptaskTests {
     @Test(
-        mainClass = Main.class, 
-        agentArgs = "start,features=comptask,event=Compile::Init", 
+        mainClass = Main.class,
+        agentArgs = "start,features=comptask,event=Compile::Init",
         jvmArgs = "-Xbatch -XX:CompileThreshold=1 -XX:-TieredCompilation -XX:CompileCommand=compileonly,test.comptask.Main::toBeCompiled",
         jvm = Jvm.HOTSPOT,
         // No perf_events on MacOS
