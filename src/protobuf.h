@@ -31,13 +31,10 @@ private:
     _offset(0),
     _parent_message(parent) {}
 
-  template <typename T>
-  typename std::enable_if<std::is_unsigned<T>::value, void>::type
-  putVarInt(T n);
-
-  template <typename T>
-  typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
-  putVarInt(size_t offset, T n);
+  void putVarInt(u32 n);
+  size_t putVarInt(size_t offset, u32 n);
+  void putVarInt(u64 n);
+  size_t putVarInt(size_t offset, u64 n);
 
   void tag(protobuf_index_t index, protobuf_t type);
 
@@ -65,22 +62,5 @@ public:
 
   ProtobufBuffer startMessage(protobuf_index_t index);
 };
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, void>::type
-ProtobufBuffer::putVarInt(T n) {
-  _offset = putVarInt(_offset, n);
-}
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
-ProtobufBuffer::putVarInt(size_t offset, T n) {
-  while ((n >> 7) != 0) {
-    _data[offset++] = (char)(0x80 | (n & 0x7f));
-    n >>= 7;
-  }
-  _data[offset++] = (char)n;
-  return offset;
-}
 
 #endif // _PROTOBUF_H
