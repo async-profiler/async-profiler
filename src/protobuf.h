@@ -9,6 +9,7 @@
 #include "arch.h"
 #include <string.h>
 #include <type_traits>
+#include <stdlib.h>
 
 typedef const u32 protobuf_t;
 static protobuf_t VARINT = 0;
@@ -23,19 +24,23 @@ const size_t nested_field_byte_count = 3;
 class ProtobufBuffer {
 private:
   unsigned char* _data;
+  size_t _capacity;
   size_t _offset;
 
-  void putVarInt(u32 n);
-  size_t putVarInt(size_t offset, u32 n);
   void putVarInt(u64 n);
   size_t putVarInt(size_t offset, u64 n);
 
   void tag(protobuf_index_t index, protobuf_t type);
 
+  void ensureCapacity(size_t new_data_size);
+
 public:
-  ProtobufBuffer(unsigned char* data) :
-    _data(data),
-    _offset(0) {}
+  ProtobufBuffer(size_t initial_capacity) : _capacity(initial_capacity), _offset(0) {
+    _data = (unsigned char*) malloc(initial_capacity * sizeof(unsigned char));
+  }
+  ~ProtobufBuffer() {
+    free(_data);
+  }
 
   const unsigned char* data() const { return _data; }
 
@@ -43,7 +48,6 @@ public:
 
   // VARINT
   void field(protobuf_index_t index, bool b);
-  void field(protobuf_index_t index, u32 n);
   void field(protobuf_index_t index, u64 n);
   // LEN
   void field(protobuf_index_t index, const char* s);

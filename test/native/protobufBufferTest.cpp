@@ -9,10 +9,9 @@
 #include <string.h>
 
 TEST_CASE(Buffer_test_var32_0) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
-  buf.field(3, (u32)0);
+  buf.field(3, (u64)0);
 
   CHECK_EQ(buf.offset(), 2);
   CHECK_EQ(buf.data()[0], (3 << 3) | VARINT);
@@ -20,10 +19,9 @@ TEST_CASE(Buffer_test_var32_0) {
 }
 
 TEST_CASE(Buffer_test_var32_150) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
-  buf.field(3, (u32)150);
+  buf.field(3, (u64)150);
 
   CHECK_EQ(buf.offset(), 3);
   CHECK_EQ(buf.data()[0], (3 << 3) | VARINT);
@@ -32,8 +30,7 @@ TEST_CASE(Buffer_test_var32_150) {
 }
 
 TEST_CASE(Buffer_test_var64_LargeNumber) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
   buf.field(1, (u64)17574838338834838);
 
@@ -50,8 +47,7 @@ TEST_CASE(Buffer_test_var64_LargeNumber) {
 }
 
 TEST_CASE(Buffer_test_var32_bool) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
   buf.field(3, false);
   buf.field(4, true);
@@ -66,12 +62,11 @@ TEST_CASE(Buffer_test_var32_bool) {
   CHECK_EQ(buf.data()[5], 1);
 }
 
-TEST_CASE(Buffer_test_repeated_u32) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+TEST_CASE(Buffer_test_repeated_u64) {
+  ProtobufBuffer buf(100);
 
-  buf.field(1, (u32) 34);
-  buf.field(1, (u32) 28);
+  buf.field(1, (u64) 34);
+  buf.field(1, (u64) 28);
 
   CHECK_EQ(buf.offset(), 4);
   CHECK_EQ(buf.data()[0], (1 << 3) | VARINT);
@@ -81,8 +76,7 @@ TEST_CASE(Buffer_test_repeated_u32) {
 }
 
 TEST_CASE(Buffer_test_string) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
   buf.field(4, "ciao");
 
@@ -93,11 +87,10 @@ TEST_CASE(Buffer_test_string) {
 }
 
 TEST_CASE(Buffer_test_nestedField) {
-  unsigned char data[100];
-  ProtobufBuffer buf(data);
+  ProtobufBuffer buf(100);
 
   protobuf_mark_t mark = buf.startMessage(4);
-  buf.field(3, (u32)10);
+  buf.field(3, (u64)10);
   buf.field(5, true);
   buf.commitMessage(mark);
 
@@ -113,8 +106,7 @@ TEST_CASE(Buffer_test_nestedField) {
 }
 
 TEST_CASE(Buffer_test_nestedMessageWithString) {
-    unsigned char data[100];
-    ProtobufBuffer buf(data);
+    ProtobufBuffer buf(100);
 
     protobuf_mark_t mark1 = buf.startMessage(3);
     protobuf_mark_t mark2 = buf.startMessage(4);
@@ -137,16 +129,15 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
 }
 
 TEST_CASE(Buffer_test_maxTag) {
-    unsigned char data[100];
-    ProtobufBuffer buf(data);
+    ProtobufBuffer buf(100);
 
     // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
-    const u32 max_tag = 536870911;
-    buf.field(max_tag, (u32) 3);
+    const protobuf_mark_t max_tag = 536870911;
+    buf.field(max_tag, (u64) 3);
 
     CHECK_EQ(buf.offset(), 6);
     // Check the value of the first 5 bytes as a varint
-    u32 sum =  buf.data()[5] & 0x7f;
+    u32 sum = buf.data()[5] & 0x7f;
     for (int idx = 4; idx >= 0; --idx) {
         sum <<= 7;
         sum += ( buf.data()[idx] & 0x7f);
