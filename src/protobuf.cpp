@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "protobuf.h"
 #include <string.h>
+#include "protobuf.h"
 
 size_t computeVarIntByteSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)

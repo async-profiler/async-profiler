@@ -6,11 +6,11 @@
 #ifndef _PROTOBUF_H
 #define _PROTOBUF_H
 
-#include "arch.h"
 #include <sys/param.h>
 #include <string.h>
 #include <type_traits>
 #include <stdlib.h>
+#include "arch.h"
 
 typedef const u32 protobuf_t;
 protobuf_t VARINT = 0;
