@@ -841,12 +841,25 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 }
 
 static bool isValidHandle(const CodeCache* cc, void* handle) {
-    struct link_map* map;
-    // validate that the current loaded library is the same library that was observed during the /proc/self/maps processing
-    if (handle != NULL && dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0) {
-        return cc->imageBase() == (const char*)map->l_addr;
+    Dl_info dl_info;
+
+    // Check handle exists & shared objects are still available at original base image
+    if (handle == NULL || dladdr(cc->imageBase(), &dl_info) == 0) {
+        return false;
     }
-    return false;
+
+    // Check that originally discovered base image is same as found base image
+    if (cc->imageBase() != (const char*) dl_info.dli_fbase) {
+        return false;
+    }
+
+    const char* cc_slash_ptr = strrchr(cc->name(), '/');
+    const char* cc_lib_name = cc_slash_ptr == NULL ? cc->name() : cc_slash_ptr + 1;
+
+    const char* dlinfo_slash_ptr = strrchr(dl_info.dli_fname, '/');
+    const char* dlinfo_lib_name = dlinfo_slash_ptr == NULL ? dl_info.dli_fname : dlinfo_slash_ptr + 1;
+
+    return strcmp(dlinfo_lib_name, cc_lib_name) == 0;
 }
 
 UnloadProtection::UnloadProtection(const CodeCache *cc) {
