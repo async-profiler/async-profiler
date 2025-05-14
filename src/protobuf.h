@@ -7,6 +7,7 @@
 #define _PROTOBUF_H
 
 #include "arch.h"
+#include <sys/param.h>
 #include <string.h>
 #include <type_traits>
 #include <stdlib.h>
@@ -37,10 +38,7 @@ private:
 
 public:
   ProtobufBuffer(size_t initial_capacity) : _offset(0) {
-    if (initial_capacity < minimum_initial_size) {
-      initial_capacity = minimum_initial_size;
-    }
-    _capacity = initial_capacity;
+    _capacity = MAX(minimum_initial_size, initial_capacity);
     _data = (unsigned char*) malloc(_capacity);
   }
   ~ProtobufBuffer() {

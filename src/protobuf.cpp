@@ -4,7 +4,6 @@
  */
 
 #include "protobuf.h"
-#include <sys/param.h>
 #include <string.h>
 
 static size_t computeVarIntByteSize(u64 value) {
