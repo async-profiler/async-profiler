@@ -13,15 +13,15 @@
 #include <stdlib.h>
 
 typedef const u32 protobuf_t;
-static protobuf_t VARINT = 0;
-static protobuf_t LEN = 2;
+protobuf_t VARINT = 0;
+protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
 typedef u32 protobuf_mark_t;
 
 // We assume the length of a nested field can be represented with 3 varint bytes.
-const size_t nested_field_byte_count = 3;
-const size_t minimum_initial_size = 16;
+const size_t NESTED_FIELD_BYTE_COUNT = 3;
+const size_t MINIMUM_INITIAL_SIZE = 16;
 
 size_t computeVarIntByteSize(u64 value);
 
@@ -40,7 +40,7 @@ private:
 
 public:
     ProtobufBuffer(size_t initial_capacity) : _offset(0) {
-        _capacity = MAX(minimum_initial_size, initial_capacity);
+        _capacity = MAX(MINIMUM_INITIAL_SIZE, initial_capacity);
         _data = (unsigned char*) malloc(_capacity);
     }
     ~ProtobufBuffer() {

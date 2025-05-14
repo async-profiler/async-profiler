@@ -70,15 +70,15 @@ void ProtobufBuffer::field(protobuf_index_t index, const unsigned char* s, size_
 protobuf_mark_t ProtobufBuffer::startMessage(protobuf_index_t index) {
     tag(index, LEN);
 
-    ensureCapacity(nested_field_byte_count);
-    _offset += nested_field_byte_count;
+    ensureCapacity(NESTED_FIELD_BYTE_COUNT);
+    _offset += NESTED_FIELD_BYTE_COUNT;
     return _offset;
 }
 
 void ProtobufBuffer::commitMessage(protobuf_mark_t mark) {
     size_t message_length = _offset - mark;
-    for (size_t i = 0; i < nested_field_byte_count - 1; ++i) {
-        size_t idx = mark - nested_field_byte_count + i;
+    for (size_t i = 0; i < NESTED_FIELD_BYTE_COUNT - 1; ++i) {
+        size_t idx = mark - NESTED_FIELD_BYTE_COUNT + i;
         _data[idx] = (unsigned char) (0x80 | (message_length & 0x7f));
         message_length >>= 7;
     }
