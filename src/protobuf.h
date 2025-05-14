@@ -26,7 +26,7 @@ const size_t MINIMUM_INITIAL_SIZE = 16;
 size_t computeVarIntByteSize(u64 value);
 
 class ProtobufBuffer {
-private:
+  private:
     unsigned char* _data;
     size_t _capacity;
     size_t _offset;
@@ -38,7 +38,7 @@ private:
 
     void ensureCapacity(size_t new_data_size);
 
-public:
+  public:
     ProtobufBuffer(size_t initial_capacity) : _offset(0) {
         _capacity = MAX(MINIMUM_INITIAL_SIZE, initial_capacity);
         _data = (unsigned char*) malloc(_capacity);
