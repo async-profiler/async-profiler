@@ -20,6 +20,7 @@ typedef u32 protobuf_mark_t;
 
 // We assume the length of a nested field can be represented with 3 varint bytes.
 const size_t nested_field_byte_count = 3;
+const size_t minimum_initial_size = 16;
 
 class ProtobufBuffer {
 private:
@@ -35,10 +36,11 @@ private:
   void ensureCapacity(size_t new_data_size);
 
 public:
-  ProtobufBuffer(size_t initial_capacity) : _capacity(initial_capacity), _offset(0) {
-    if (_capacity == 0) {
-      _capacity = 1;
+  ProtobufBuffer(size_t initial_capacity) : _offset(0) {
+    if (initial_capacity < minimum_initial_size) {
+      initial_capacity = minimum_initial_size;
     }
+    _capacity = initial_capacity;
     _data = (unsigned char*) malloc(_capacity);
   }
   ~ProtobufBuffer() {
