@@ -25,41 +25,41 @@ const size_t minimum_initial_size = 16;
 
 class ProtobufBuffer {
 private:
-  unsigned char* _data;
-  size_t _capacity;
-  size_t _offset;
+    unsigned char* _data;
+    size_t _capacity;
+    size_t _offset;
 
-  void putVarInt(u64 n);
-  size_t putVarInt(size_t offset, u64 n);
+    void putVarInt(u64 n);
+    size_t putVarInt(size_t offset, u64 n);
 
-  void tag(protobuf_index_t index, protobuf_t type);
+    void tag(protobuf_index_t index, protobuf_t type);
 
-  void ensureCapacity(size_t new_data_size);
+    void ensureCapacity(size_t new_data_size);
 
 public:
-  ProtobufBuffer(size_t initial_capacity) : _offset(0) {
-    _capacity = MAX(minimum_initial_size, initial_capacity);
-    _data = (unsigned char*) malloc(_capacity);
-  }
-  ~ProtobufBuffer() {
-    free(_data);
-  }
+    ProtobufBuffer(size_t initial_capacity) : _offset(0) {
+        _capacity = MAX(minimum_initial_size, initial_capacity);
+        _data = (unsigned char*) malloc(_capacity);
+    }
+    ~ProtobufBuffer() {
+        free(_data);
+    }
 
-  const unsigned char* data() const { return _data; }
+    const unsigned char* data() const { return _data; }
 
-  size_t offset() const { return _offset; }
-  size_t capacity() const { return _capacity; }
+    size_t offset() const { return _offset; }
+    size_t capacity() const { return _capacity; }
 
-  // VARINT
-  void field(protobuf_index_t index, bool b);
-  void field(protobuf_index_t index, u64 n);
-  // LEN
-  void field(protobuf_index_t index, const char* s);
-  void field(protobuf_index_t index, const char* s, size_t len);
-  void field(protobuf_index_t index, const unsigned char* s, size_t len);
+    // VARINT
+    void field(protobuf_index_t index, bool b);
+    void field(protobuf_index_t index, u64 n);
+    // LEN
+    void field(protobuf_index_t index, const char* s);
+    void field(protobuf_index_t index, const char* s, size_t len);
+    void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
-  protobuf_mark_t startMessage(protobuf_index_t index);
-  void commitMessage(protobuf_mark_t mark);
+    protobuf_mark_t startMessage(protobuf_index_t index);
+    void commitMessage(protobuf_mark_t mark);
 };
 
 #endif // _PROTOBUF_H
