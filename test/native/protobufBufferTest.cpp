@@ -9,7 +9,7 @@
 #include <string.h>
 
 TEST_CASE(Buffer_test_var32_0) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(3, (u64)0);
 
@@ -19,7 +19,7 @@ TEST_CASE(Buffer_test_var32_0) {
 }
 
 TEST_CASE(Buffer_test_var32_150) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(3, (u64)150);
 
@@ -30,7 +30,7 @@ TEST_CASE(Buffer_test_var32_150) {
 }
 
 TEST_CASE(Buffer_test_var64_LargeNumber) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(1, (u64)17574838338834838);
 
@@ -47,7 +47,7 @@ TEST_CASE(Buffer_test_var64_LargeNumber) {
 }
 
 TEST_CASE(Buffer_test_var32_bool) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(3, false);
     buf.field(4, true);
@@ -63,7 +63,7 @@ TEST_CASE(Buffer_test_var32_bool) {
 }
 
 TEST_CASE(Buffer_test_repeated_u64) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(1, (u64) 34);
     buf.field(1, (u64) 28);
@@ -76,7 +76,7 @@ TEST_CASE(Buffer_test_repeated_u64) {
 }
 
 TEST_CASE(Buffer_test_string) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     buf.field(4, "ciao");
 
@@ -87,7 +87,7 @@ TEST_CASE(Buffer_test_string) {
 }
 
 TEST_CASE(Buffer_test_nestedField) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     protobuf_mark_t mark = buf.startMessage(4);
     buf.field(3, (u64)10);
@@ -106,7 +106,7 @@ TEST_CASE(Buffer_test_nestedField) {
 }
 
 TEST_CASE(Buffer_test_nestedMessageWithString) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     protobuf_mark_t mark1 = buf.startMessage(3);
     protobuf_mark_t mark2 = buf.startMessage(4);
@@ -129,7 +129,7 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
 }
 
 TEST_CASE(Buffer_test_maxTag) {
-    ProtobufBuffer buf(100);
+    ProtoBuffer buf(100);
 
     // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
     const protobuf_mark_t max_tag = 536870911;
@@ -147,7 +147,7 @@ TEST_CASE(Buffer_test_maxTag) {
 }
 
 TEST_CASE(Buffer_test_relocation) {
-    ProtobufBuffer buf(0);
+    ProtoBuffer buf(0);
     CHECK_EQ(buf.capacity(), 16);
     CHECK_EQ(buf.offset(), 0);
 
@@ -170,15 +170,15 @@ TEST_CASE(Buffer_test_relocation) {
 }
 
 TEST_CASE(Buffer_test_VarIntByteSize) {
-    CHECK_EQ(ProtobufBuffer::varIntSize(0), 1);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x7F), 1);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x3FFF), 2);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x1FFFFF), 3);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFF), 4);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x7FFFFFFFF), 5);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x3FFFFFFFFFF), 6);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x1FFFFFFFFFFFF), 7);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFFFFFFFFF), 8);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0x7FFFFFFFFFFFFFFF), 9);
-    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFFFFFFFFFFF), 10);
+    CHECK_EQ(ProtoBuffer::varIntSize(0), 1);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x7F), 1);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x3FFF), 2);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x1FFFFF), 3);
+    CHECK_EQ(ProtoBuffer::varIntSize(0xFFFFFFF), 4);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x7FFFFFFFF), 5);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x3FFFFFFFFFF), 6);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x1FFFFFFFFFFFF), 7);
+    CHECK_EQ(ProtoBuffer::varIntSize(0xFFFFFFFFFFFFFF), 8);
+    CHECK_EQ(ProtoBuffer::varIntSize(0x7FFFFFFFFFFFFFFF), 9);
+    CHECK_EQ(ProtoBuffer::varIntSize(0xFFFFFFFFFFFFFFFF), 10);
 }

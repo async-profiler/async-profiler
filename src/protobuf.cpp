@@ -6,7 +6,7 @@
 #include <string.h>
 #include "protobuf.h"
 
-size_t ProtobufBuffer::varIntSize(u64 value) {
+size_t ProtoBuffer::varIntSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)
     // => size_varint = ceil[(64 - __builtin_clzll(value | 1)) / 7]
     // but ceil[N / 7] = floor[(N + 6) / 7
@@ -16,18 +16,18 @@ size_t ProtobufBuffer::varIntSize(u64 value) {
     return (640 - __builtin_clzll(value | 1) * 9) / 64;
 }
 
-void ProtobufBuffer::ensureCapacity(size_t new_data_size) {
+void ProtoBuffer::ensureCapacity(size_t new_data_size) {
     size_t expected_capacity = _offset + new_data_size;
     if (expected_capacity <= _capacity) return;
     _capacity = MAX(expected_capacity, _capacity * 2);
     _data = (unsigned char*) realloc(_data, _capacity);
 }
 
-void ProtobufBuffer::putVarInt(u64 n) {
+void ProtoBuffer::putVarInt(u64 n) {
     _offset = putVarInt(_offset, n);
 }
 
-size_t ProtobufBuffer::putVarInt(size_t offset, u64 n) {
+size_t ProtoBuffer::putVarInt(size_t offset, u64 n) {
     ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
         _data[offset++] = (unsigned char) (0x80 | (n & 0x7f));
@@ -37,28 +37,28 @@ size_t ProtobufBuffer::putVarInt(size_t offset, u64 n) {
     return offset;
 }
 
-void ProtobufBuffer::tag(protobuf_index_t index, protobuf_t type) {
+void ProtoBuffer::tag(protobuf_index_t index, protobuf_t type) {
     putVarInt((u64) (index << 3 | type));
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, bool b) {
+void ProtoBuffer::field(protobuf_index_t index, bool b) {
     field(index, (u64) b);
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, u64 n) {
+void ProtoBuffer::field(protobuf_index_t index, u64 n) {
     tag(index, VARINT);
     putVarInt(n);
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const char* s) {
+void ProtoBuffer::field(protobuf_index_t index, const char* s) {
     field(index, s, strlen(s));
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const char* s, size_t len) {
+void ProtoBuffer::field(protobuf_index_t index, const char* s, size_t len) {
     field(index, (const unsigned char*) s, strlen(s));
 }
 
-void ProtobufBuffer::field(protobuf_index_t index, const unsigned char* s, size_t len) {
+void ProtoBuffer::field(protobuf_index_t index, const unsigned char* s, size_t len) {
     tag(index, LEN);
     putVarInt((u64) len);
 
@@ -67,7 +67,7 @@ void ProtobufBuffer::field(protobuf_index_t index, const unsigned char* s, size_
     _offset += len;
 }
 
-protobuf_mark_t ProtobufBuffer::startMessage(protobuf_index_t index) {
+protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index) {
     tag(index, LEN);
 
     ensureCapacity(NESTED_FIELD_BYTE_COUNT);
@@ -75,7 +75,7 @@ protobuf_mark_t ProtobufBuffer::startMessage(protobuf_index_t index) {
     return _offset;
 }
 
-void ProtobufBuffer::commitMessage(protobuf_mark_t mark) {
+void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
     size_t message_length = _offset - mark;
     for (size_t i = 0; i < NESTED_FIELD_BYTE_COUNT - 1; ++i) {
         size_t idx = mark - NESTED_FIELD_BYTE_COUNT + i;

@@ -23,7 +23,7 @@ typedef u32 protobuf_mark_t;
 const size_t NESTED_FIELD_BYTE_COUNT = 3;
 const size_t MINIMUM_INITIAL_SIZE = 16;
 
-class ProtobufBuffer {
+class ProtoBuffer {
   private:
     unsigned char* _data;
     size_t _capacity;
@@ -37,11 +37,11 @@ class ProtobufBuffer {
     void ensureCapacity(size_t new_data_size);
 
   public:
-    ProtobufBuffer(size_t initial_capacity) : _offset(0) {
+    ProtoBuffer(size_t initial_capacity) : _offset(0) {
         _capacity = MAX(MINIMUM_INITIAL_SIZE, initial_capacity);
         _data = (unsigned char*) malloc(_capacity);
     }
-    ~ProtobufBuffer() {
+    ~ProtoBuffer() {
         free(_data);
     }
 
