@@ -4,6 +4,7 @@
  */
 
 #include "protobuf.h"
+#include <sys/param.h>
 #include <string.h>
 
 static size_t computeVarIntByteSize(u64 value) {
@@ -21,9 +22,8 @@ static size_t computeVarIntByteSize(u64 value) {
 
 void ProtobufBuffer::ensureCapacity(size_t new_data_size) {
   size_t expected_capacity = _offset + new_data_size;
-  while (expected_capacity > _capacity) {
-    _capacity *= 2;
-  }
+  if (expected_capacity <= _capacity) return;
+  _capacity = MAX(expected_capacity, _capacity * 2);
   _data = (unsigned char*) realloc(_data, _capacity);
 }
 
