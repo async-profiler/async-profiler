@@ -209,9 +209,8 @@ jobs:
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
-      - name: Setup core dump
+      - name: Setup core dump collection
         run: |
-          ulimit -c unlimited
           case "${{ matrix.runson.name }}" in
             macos*)
               sudo sysctl -w kern.corefile=core.%P
@@ -223,6 +222,7 @@ jobs:
           esac
       - name: Run integration tests
         run: |
+          ulimit -c unlimited
           mkdir -p build/jar
           cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
           make build/test.jar
