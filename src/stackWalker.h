@@ -16,6 +16,7 @@ struct StackContext {
     const void* pc;
     uintptr_t sp;
     uintptr_t fp;
+    u64 cpu;
 
     void set(const void* pc, uintptr_t sp, uintptr_t fp) {
         this->pc = pc;

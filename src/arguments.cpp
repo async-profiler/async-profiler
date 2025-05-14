@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include "arguments.h"
+#include "os.h"
 
 
 // Arguments of the last start/resume command; reused for shutdown and restart
@@ -93,6 +94,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     alluser          - include only user-mode events
 //     fdtransfer       - use fdtransfer to pass fds to the profiler
 //     target-cpu=CPU   - sample threads on a specific CPU (perf_events only, default: -1)
+//     record-cpu       - record which cpu a sample was taken on
 //     simple           - simple class names instead of FQN
 //     dot              - dotted class names
 //     norm             - normalize names of hidden classes / lambdas
@@ -223,7 +225,7 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
-                } else if (_event != NULL) {
+                } else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
                     _event = value;
@@ -250,7 +252,7 @@ Error Arguments::parse(const char* args) {
                 _nofree = true;
 
             CASE("lock")
-                _lock = value == NULL ? 0 : parseUnits(value, NANOS);
+                _lock = value == NULL ? DEFAULT_LOCK_INTERVAL : parseUnits(value, NANOS);
 
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
@@ -259,6 +261,25 @@ Error Arguments::parse(const char* args) {
                 if (_event != NULL) {
                     msg = "Duplicate event argument";
                 } else {
+                    _event = EVENT_CPU;
+                }
+
+            CASE("all")
+                _all = true;
+                _live = true;
+                if (_wall < 0) {
+                    _wall = 0;
+                }
+                if (_alloc < 0) {
+                    _alloc = 0;
+                }
+                if (_lock < 0) {
+                    _lock = DEFAULT_LOCK_INTERVAL;
+                }
+                if (_nativemem < 0) {
+                    _nativemem = DEFAULT_ALLOC_INTERVAL;
+                }
+                if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
                 }
 
@@ -348,6 +369,9 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
+            
+            CASE("record-cpu")
+                _record_cpu = true;
 
             CASE("live")
                 _live = true;

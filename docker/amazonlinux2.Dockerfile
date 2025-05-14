@@ -23,7 +23,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
 RUN amazon-linux-extras enable python3.8 && \
     yum update -y && \
-    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar python38 && \
+    yum install -y gcc-c++ libstdc++-static binutils make java-11-amazon-corretto patchelf tar sudo python38 && \
     yum clean all && \
     rm -rf /var/cache/yum && \
     python -m ensurepip && \
@@ -35,3 +35,4 @@ RUN cat <<EOF > /root/setup.sh
 mkdir -p "$NODE_JS_LOCATION/bin"
 ln --force --symbolic "/usr/local/bin/node" "$NODE_JS_LOCATION/bin/node"
 EOF
+RUN chmod +x /root/setup.sh

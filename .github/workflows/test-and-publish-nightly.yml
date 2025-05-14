@@ -65,9 +65,10 @@ jobs:
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
-          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -82,6 +83,13 @@ jobs:
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
           path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+      - name: Upload debug info
+        uses: actions/upload-artifact@v4
+        if: matrix.runson.display != 'macos'
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
+          path: ${{ steps.build.outputs.debug_archive }}
           if-no-files-found: error
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -201,8 +209,20 @@ jobs:
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Setup core dump collection
+        run: |
+          case "${{ matrix.runson.name }}" in
+            macos*)
+              sudo sysctl -w kern.corefile=core.%P
+              sudo sysctl kern.coredump=1
+            ;;
+            *)
+              echo "$GITHUB_WORKSPACE/core" | sudo tee /proc/sys/kernel/core_pattern
+            ;;
+          esac
       - name: Run integration tests
         run: |
+          ulimit -c unlimited
           mkdir -p build/jar
           cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
           make build/test.jar
@@ -218,6 +238,16 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
+      - name: Upload integration test core dump
+        uses: actions/upload-artifact@v4
+        # Always upload, especially after test failure
+        if: always()
+        with:
+          name: integration-test-core-dump-${{ matrix.runson.display }}-${{ matrix.java-version }}-${{ steps.set_variables.outputs.short_sha }}
+          retention-days: 1
+          if-no-files-found: ignore
+          path: |
+            core*
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
