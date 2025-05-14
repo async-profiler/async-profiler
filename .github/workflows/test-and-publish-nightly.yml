@@ -247,7 +247,7 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
           path: |
-            core.*
+            core*
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
