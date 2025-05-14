@@ -140,7 +140,7 @@ TEST_CASE(Buffer_test_maxTag) {
     u32 sum = buf.data()[5] & 0x7f;
     for (int idx = 4; idx >= 0; --idx) {
             sum <<= 7;
-            sum += ( buf.data()[idx] & 0x7f);
+            sum += (buf.data()[idx] & 0x7f);
     }
     CHECK_EQ(sum, (max_tag << 3) | VARINT);
     CHECK_EQ(buf.data()[5], 3);
