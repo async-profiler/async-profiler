@@ -39,7 +39,7 @@ public:
     if (_capacity == 0) {
       _capacity = 1;
     }
-    _data = (unsigned char*) malloc(_capacity * sizeof(unsigned char));
+    _data = (unsigned char*) malloc(_capacity);
   }
   ~ProtobufBuffer() {
     free(_data);

@@ -24,7 +24,7 @@ void ProtobufBuffer::ensureCapacity(size_t new_data_size) {
   while (expected_capacity > _capacity) {
     _capacity *= 2;
   }
-  _data = (unsigned char*) realloc(_data, _capacity * sizeof(unsigned char));
+  _data = (unsigned char*) realloc(_data, _capacity);
 }
 
 void ProtobufBuffer::putVarInt(u64 n) {
