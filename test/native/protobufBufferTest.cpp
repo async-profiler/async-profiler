@@ -148,22 +148,23 @@ TEST_CASE(Buffer_test_maxTag) {
 
 TEST_CASE(Buffer_test_relocation) {
   ProtobufBuffer buf(0);
-  CHECK_EQ(buf.capacity(), 1);
+  CHECK_EQ(buf.capacity(), 16);
   CHECK_EQ(buf.offset(), 0);
 
-  buf.field(2, (u64) 3);
-  CHECK_EQ(buf.capacity(), 2);
-  CHECK_EQ(buf.offset(), 2);
-
-  buf.field(3, (u64) 4);
-  CHECK_EQ(buf.capacity(), 4);
-  CHECK_EQ(buf.offset(), 4);
+  for (int i = 0; i < 8; ++i) buf.field(2, (u64) i);
+  CHECK_EQ(buf.capacity(), 16);
+  CHECK_EQ(buf.offset(), 16);
 
   buf.field(4, "abc");
-  CHECK_EQ(buf.capacity(), 16);
-  CHECK_EQ(buf.offset(), 9);
+  CHECK_EQ(buf.capacity(), 32);
+  CHECK_EQ(buf.offset(), 21);
 
-  buf.field(5, "123");
-  CHECK_EQ(buf.capacity(), 16);
-  CHECK_EQ(buf.offset(), 14);
+  // check everything was relocated properly
+  for (int i = 0; i < 8; ++i) {
+    CHECK_EQ(buf.data()[i*2], (2 << 3) | VARINT);
+    CHECK_EQ(buf.data()[i*2+1], i);
+  }
+  CHECK_EQ(buf.data()[16], (4 << 3) | LEN);
+  CHECK_EQ(buf.data()[17], 3);
+  CHECK_EQ(strncmp((const char*) buf.data() + 18, "abc", 3), 0);
 }
