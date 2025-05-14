@@ -170,15 +170,15 @@ TEST_CASE(Buffer_test_relocation) {
 }
 
 TEST_CASE(Buffer_test_VarIntByteSize) {
-    CHECK_EQ(computeVarIntByteSize(0), 1);
-    CHECK_EQ(computeVarIntByteSize(0x7F), 1);
-    CHECK_EQ(computeVarIntByteSize(0x3FFF), 2);
-    CHECK_EQ(computeVarIntByteSize(0x1FFFFF), 3);
-    CHECK_EQ(computeVarIntByteSize(0xFFFFFFF), 4);
-    CHECK_EQ(computeVarIntByteSize(0x7FFFFFFFF), 5);
-    CHECK_EQ(computeVarIntByteSize(0x3FFFFFFFFFF), 6);
-    CHECK_EQ(computeVarIntByteSize(0x1FFFFFFFFFFFF), 7);
-    CHECK_EQ(computeVarIntByteSize(0xFFFFFFFFFFFFFF), 8);
-    CHECK_EQ(computeVarIntByteSize(0x7FFFFFFFFFFFFFFF), 9);
-    CHECK_EQ(computeVarIntByteSize(0xFFFFFFFFFFFFFFFF), 10);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0), 1);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x7F), 1);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x3FFF), 2);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x1FFFFF), 3);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFF), 4);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x7FFFFFFFF), 5);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x3FFFFFFFFFF), 6);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x1FFFFFFFFFFFF), 7);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFFFFFFFFF), 8);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0x7FFFFFFFFFFFFFFF), 9);
+    CHECK_EQ(ProtobufBuffer::varIntSize(0xFFFFFFFFFFFFFFFF), 10);
 }

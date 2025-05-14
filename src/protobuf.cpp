@@ -6,7 +6,7 @@
 #include <string.h>
 #include "protobuf.h"
 
-size_t computeVarIntByteSize(u64 value) {
+size_t ProtobufBuffer::varIntSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)
     // => size_varint = ceil[(64 - __builtin_clzll(value | 1)) / 7]
     // but ceil[N / 7] = floor[(N + 6) / 7
@@ -28,7 +28,7 @@ void ProtobufBuffer::putVarInt(u64 n) {
 }
 
 size_t ProtobufBuffer::putVarInt(size_t offset, u64 n) {
-    ensureCapacity(computeVarIntByteSize(n));
+    ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
         _data[offset++] = (unsigned char) (0x80 | (n & 0x7f));
         n >>= 7;

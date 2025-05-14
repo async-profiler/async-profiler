@@ -23,7 +23,7 @@ typedef u32 protobuf_mark_t;
 const size_t NESTED_FIELD_BYTE_COUNT = 3;
 const size_t MINIMUM_INITIAL_SIZE = 16;
 
-size_t computeVarIntByteSize(u64 value);
+size_t varIntSize(u64 value);
 
 class ProtobufBuffer {
   private:
@@ -62,6 +62,8 @@ class ProtobufBuffer {
 
     protobuf_mark_t startMessage(protobuf_index_t index);
     void commitMessage(protobuf_mark_t mark);
+
+    static size_t varIntSize(u64 value);
 };
 
 #endif // _PROTOBUF_H
