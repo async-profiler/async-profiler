@@ -218,7 +218,7 @@ jobs:
               sudo sysctl kern.coredump=1
             ;;
             *)
-              echo 'core' | sudo tee /proc/sys/kernel/core_pattern
+              echo "$GITHUB_WORKSPACE/core" | sudo tee /proc/sys/kernel/core_pattern
             ;;
           esac
       - name: Run integration tests
