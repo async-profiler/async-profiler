@@ -6,7 +6,7 @@
 #include "protobuf.h"
 #include <string.h>
 
-static size_t computeVarIntByteSize(u64 value) {
+size_t computeVarIntByteSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)
     // => size_varint = ceil[(64 - __builtin_clzll(value | 1)) / 7]
     // but ceil[N / 7] = floor[(N + 6) / 7
