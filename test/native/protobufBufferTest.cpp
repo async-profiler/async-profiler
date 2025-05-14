@@ -168,3 +168,17 @@ TEST_CASE(Buffer_test_relocation) {
     CHECK_EQ(buf.data()[17], 3);
     CHECK_EQ(strncmp((const char*) buf.data() + 18, "abc", 3), 0);
 }
+
+TEST_CASE(Buffer_test_VarIntByteSize) {
+    CHECK_EQ(computeVarIntByteSize(0), 1);
+    CHECK_EQ(computeVarIntByteSize(0x7F), 1);
+    CHECK_EQ(computeVarIntByteSize(0x3FFF), 2);
+    CHECK_EQ(computeVarIntByteSize(0x1FFFFF), 3);
+    CHECK_EQ(computeVarIntByteSize(0xFFFFFFF), 4);
+    CHECK_EQ(computeVarIntByteSize(0x7FFFFFFFF), 5);
+    CHECK_EQ(computeVarIntByteSize(0x3FFFFFFFFFF), 6);
+    CHECK_EQ(computeVarIntByteSize(0x1FFFFFFFFFFFF), 7);
+    CHECK_EQ(computeVarIntByteSize(0xFFFFFFFFFFFFFF), 8);
+    CHECK_EQ(computeVarIntByteSize(0x7FFFFFFFFFFFFFFF), 9);
+    CHECK_EQ(computeVarIntByteSize(0xFFFFFFFFFFFFFFFF), 10);
+}

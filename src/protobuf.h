@@ -23,6 +23,8 @@ typedef u32 protobuf_mark_t;
 const size_t nested_field_byte_count = 3;
 const size_t minimum_initial_size = 16;
 
+static size_t computeVarIntByteSize(u64 value);
+
 class ProtobufBuffer {
 private:
     unsigned char* _data;
