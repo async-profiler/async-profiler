@@ -6,9 +6,6 @@
 #ifndef _PROTOBUF_H
 #define _PROTOBUF_H
 
-#include <sys/param.h>
-#include <string.h>
-#include <stdlib.h>
 #include "arch.h"
 
 typedef const u32 protobuf_t;

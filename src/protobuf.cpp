@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <sys/param.h>
+#include <string.h>
+#include <stdlib.h>
 #include "protobuf.h"
 
 size_t ProtoBuffer::varIntSize(u64 value) {
