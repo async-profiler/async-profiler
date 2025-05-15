@@ -62,9 +62,9 @@ namespace Line {
 }
 
 namespace AggregationTemporality {
-  const u32 unspecified = 0;
-  const u32 delta = 1;
-  const u32 cumulative = 2;
+  const u64 unspecified = 0;
+  const u64 delta = 1;
+  const u64 cumulative = 2;
 }
 
 }
