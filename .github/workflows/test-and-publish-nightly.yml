@@ -209,6 +209,17 @@ jobs:
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Download async-profiler debug artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.set_variables.outputs.artifact_name }}-debug
+          path: async_profiler_debug
+      - name: Extract async-profiler debug artifact
+        id: extract_debug_artifact
+        run: |
+          debug_archive=$(basename $(find async_profiler_debug -type f -iname "async-profiler-*" ))
+          tar xvf async_profiler_debug/$debug_archive
+          echo "debug_symbols=$(find . -type f -name "libasyncProfiler.so.debug")" >> $GITHUB_OUTPUT
       - name: Setup core dump collection
         if: matrix.runson.display != 'macos'
         run: |
@@ -244,8 +255,10 @@ jobs:
             executable="${core_file#*_}"
             executable="${executable%_*}"
             asprof_address=$(gdb --batch -ex "info sharedlibrary" $executable core | awk '/libasyncProfiler\.so/ && $1 ~ /^0x/ {print $1}')
-            asprof_symbols_file=${{ steps.extract_debug_artifact.outputs.debug_symbols }}
-            gdb --batch -ex "add-symbol-file $asprof_symbols_file $asprof_address" -ex "bt" $executable core
+            gdb --batch \
+              -ex "add-symbol-file ${{ steps.extract_debug_artifact.outputs.debug_symbols }} $asprof_address" \
+              -ex "bt" \
+              $executable $core_file
           done
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
