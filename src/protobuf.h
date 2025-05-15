@@ -6,6 +6,7 @@
 #ifndef _PROTOBUF_H
 #define _PROTOBUF_H
 
+#include <sys/types.h>
 #include "arch.h"
 
 typedef const u32 protobuf_t;
@@ -33,13 +34,8 @@ class ProtoBuffer {
     void ensureCapacity(size_t new_data_size);
 
   public:
-    ProtoBuffer(size_t initial_capacity) : _offset(0) {
-        _capacity = MAX(MINIMUM_INITIAL_SIZE, initial_capacity);
-        _data = (unsigned char*) malloc(_capacity);
-    }
-    ~ProtoBuffer() {
-        free(_data);
-    }
+    ProtoBuffer(size_t initial_capacity);
+    ~ProtoBuffer();
 
     const unsigned char* data() const { return _data; }
 

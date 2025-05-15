@@ -8,6 +8,15 @@
 #include <stdlib.h>
 #include "protobuf.h"
 
+ProtoBuffer::ProtoBuffer(size_t initial_capacity) : _offset(0) {
+    _capacity = MAX(MINIMUM_INITIAL_SIZE, initial_capacity);
+    _data = (unsigned char*) malloc(_capacity);
+}
+
+ProtoBuffer::~ProtoBuffer() {
+    free(_data);
+}
+
 size_t ProtoBuffer::varIntSize(u64 value) {
     // size_varint = ceil(size_in_bits(value) / 7)
     // => size_varint = ceil[(64 - __builtin_clzll(value | 1)) / 7]
