@@ -210,17 +210,12 @@ jobs:
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Setup core dump collection
+        if: matrix.runson.display != 'macos'
         run: |
-          case "${{ matrix.runson.name }}" in
-            macos*)
-              sudo sysctl -w kern.corefile=core.%P
-              sudo sysctl kern.coredump=1
-            ;;
-            *)
-              echo "$GITHUB_WORKSPACE/core" | sudo tee /proc/sys/kernel/core_pattern
-            ;;
-          esac
-      - name: Run integration tests
+          echo 'core_%e_%p' > /proc/sys/kernel/core_pattern
+      - name: Run integration tests\
+        id: run
+        shell: bash
         run: |
           ulimit -c unlimited
           mkdir -p build/jar
@@ -229,6 +224,7 @@ jobs:
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
           make test-java -j
+          echo "core_dumps_count=$(ls core_* | wc -l)" >> $GITHUB_OUTPUT
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         # Always upload, especially after test failure
@@ -238,16 +234,19 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
-      - name: Upload integration test core dump
-        uses: actions/upload-artifact@v4
-        # Always upload, especially after test failure
-        if: always()
-        with:
-          name: integration-test-core-dump-${{ matrix.runson.display }}-${{ matrix.java-version }}-${{ steps.set_variables.outputs.short_sha }}
-          retention-days: 1
-          if-no-files-found: ignore
-          path: |
-            core*
+      - name: Print GDB stacktrace
+        if: ${{ steps.run.outputs.core_dumps_count > 0 }}
+        shell: bash
+        run: |
+          for core_file in $(ls core_*); do
+            echo "Printing stacktrace for $core_file"
+            apt update -y && apt install -y gdb
+            executable="${core_file#*_}"
+            executable="${executable%_*}"
+            asprof_address=$(gdb --batch -ex "info sharedlibrary" $executable core | awk '/libasyncProfiler\.so/ && $1 ~ /^0x/ {print $1}')
+            asprof_symbols_file=${{ steps.extract_debug_artifact.outputs.debug_symbols }}
+            gdb --batch -ex "add-symbol-file $asprof_symbols_file $asprof_address" -ex "bt" $executable core
+          done
   publish-only-on-push:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
