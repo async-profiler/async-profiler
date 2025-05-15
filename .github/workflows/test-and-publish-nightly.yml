@@ -225,8 +225,8 @@ jobs:
       - name: Setup core dump collection
         if: ${{ !contains(matrix.runson.display, 'macos') }}
         run: |
-          echo 'core_%e_%p' > /proc/sys/kernel/core_pattern
-      - name: Run integration tests\
+          echo 'core_%E_%p' > /proc/sys/kernel/core_pattern
+      - name: Run integration tests
         shell: bash
         run: |
           ulimit -c unlimited
@@ -247,18 +247,22 @@ jobs:
             hs_err*.log
       - name: Check core dumps on disk
         id: check_core_dumps
-        if: always()
-        run: echo "core_dumps_count=$(ls core_* | wc -l)" >> $GITHUB_OUTPUT
+        if: ${{ failure() && !contains(matrix.runson.display, 'macos') }}
+        run: echo "core_dumps_count=$(ls core_* 2> /dev/null | wc -l)" >> $GITHUB_OUTPUT
       - name: Print GDB stacktrace
-        if: ${{ steps.check_core_dumps.outputs.core_dumps_count > 0 && !contains(matrix.runson.display, 'macos') }}
+        if: ${{ failure() && steps.check_core_dumps.outputs.core_dumps_count != '0' && !contains(matrix.runson.display, 'macos') }}
         shell: bash
         run: |
+          apt update -y && apt install -y gdb
           for core_file in $(ls core_*); do
             echo "Printing stacktrace for $core_file"
-            apt update -y && apt install -y gdb
-            executable="${core_file#*_}"
-            executable="${executable%_*}"
-            asprof_address=$(gdb --batch -ex "info sharedlibrary" $executable core | awk '/libasyncProfiler\.so/ && $1 ~ /^0x/ {print $1}')
+            # Remove 'core_' prefix
+            trimmed="${core_file#core_}"
+            # and PID suffix
+            trimmed="${trimmed%_[0-9]*}"
+            # Replace '!' with '/'
+            executable="${trimmed//\!//}"
+            asprof_address=$(gdb --batch -ex "info sharedlibrary" $executable $core_file | awk '/libasyncProfiler\.so/ && $1 ~ /^0x/ {print $1}')
             gdb --batch \
               -ex "add-symbol-file ${{ steps.extract_debug_artifact.outputs.debug_symbols }} $asprof_address" \
               -ex "bt" \
