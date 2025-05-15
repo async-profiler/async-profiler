@@ -83,7 +83,6 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag without event override.
-     * We can't run this test in macOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
      * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
@@ -115,7 +114,6 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag with event override
-     * We can't run this test in macOS x64 due to: https://github.com/async-profiler/async-profiler/issues/1193.
      * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
