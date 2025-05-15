@@ -9,10 +9,13 @@ endif
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
 PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
+DEBUG_PACKAGE_NAME=$(PACKAGE_NAME)-debug
+DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
 ASPROF=bin/asprof
 JFRCONV=bin/jfrconv
 LIB_PROFILER=lib/libasyncProfiler.$(SOEXT)
+LIB_PROFILER_DEBUG=libasyncProfiler.$(SOEXT).debug
 ASPROF_HEADER=include/asprof.h
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
@@ -21,11 +24,13 @@ TEST_JAR=test.jar
 CC ?= gcc
 CXX ?= g++
 STRIP ?= strip
+OBJCOPY ?= objcopy
 
 ifneq ($(CROSS_COMPILE),)
 CC := $(CROSS_COMPILE)gcc
 CXX := $(CROSS_COMPILE)g++
 STRIP := $(CROSS_COMPILE)strip
+OBJCOPY := $(CROSS_COMPILE)objcopy
 endif
 
 CFLAGS_EXTRA ?=
@@ -84,7 +89,7 @@ ifeq ($(OS),Darwin)
     MERGE=false
   endif
 else
-  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections
+  CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb
   ifeq ($(MERGE),true)
     CXXFLAGS += -fwhole-program
   endif
@@ -139,6 +144,9 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	tar czf $@ -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 	rm -r $(PACKAGE_DIR)
 
+	tar czf $(DEBUG_PACKAGE_NAME).tar.gz -C $(DEBUG_PACKAGE_DIR)/.. $(DEBUG_PACKAGE_NAME)
+	rm -r $(DEBUG_PACKAGE_DIR)
+
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
 ifneq ($(GITHUB_ACTIONS), true)
@@ -149,10 +157,18 @@ endif
 	rm -r $(PACKAGE_DIR)
 
 $(PACKAGE_DIR): all LICENSE README.md
-	mkdir -p $(PACKAGE_DIR)
+	rm -rf $@
+	mkdir -p $(PACKAGE_DIR) $(DEBUG_PACKAGE_DIR)
 	cp -RP build/bin build/lib build/include LICENSE README.md $(PACKAGE_DIR)/
 	chmod -R 755 $(PACKAGE_DIR)
 	chmod 644 $(PACKAGE_DIR)/lib/* $(PACKAGE_DIR)/include/* $(PACKAGE_DIR)/LICENSE $(PACKAGE_DIR)/README.md
+
+ifeq ($(OS_TAG),linux)
+	$(STRIP) --only-keep-debug build/$(LIB_PROFILER) -o $(DEBUG_PACKAGE_DIR)/$(LIB_PROFILER_DEBUG)
+	$(STRIP) -g $@/$(LIB_PROFILER)
+	$(OBJCOPY) --add-gnu-debuglink=$(DEBUG_PACKAGE_DIR)/$(LIB_PROFILER_DEBUG) $@/$(LIB_PROFILER)
+	chmod 644 $(DEBUG_PACKAGE_DIR)/*
+endif
 
 build/%:
 	mkdir -p $@

@@ -698,6 +698,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
     }
+    if (_add_cpu_frame) {
+        num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
+    }
 
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
@@ -1125,6 +1128,7 @@ Error Profiler::start(Arguments& args, bool reset) {
         _add_event_frame = args._output != OUTPUT_JFR;
         _add_thread_frame = args._threads && args._output != OUTPUT_JFR;
         _add_sched_frame = args._sched;
+        _add_cpu_frame = args._record_cpu;
         unlockAll();
 
         // Reset thread names and IDs
@@ -1168,6 +1172,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         return Error("Cannot start wall clock with the selected event");
     } else if (_engine != &perf_events && args._target_cpu != -1) {
         return Error("target-cpu is only supported with perf_events");
+    } else if (_engine != &perf_events && args._record_cpu) {
+        return Error("record-cpu is only supported with perf_events");
     }
 
     _cstack = args._cstack;
@@ -1522,6 +1528,10 @@ void Profiler::dumpFlameGraph(Writer& out, Arguments& args, bool tree) {
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }
                 if (_add_thread_frame) {
+                    const char* frame_name = fn.name(trace->frames[--num_frames]);
+                    f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
+                }
+                if (_add_cpu_frame) {
                     const char* frame_name = fn.name(trace->frames[--num_frames]);
                     f = flamegraph.addChild(f, frame_name, FRAME_NATIVE, counter);
                 }

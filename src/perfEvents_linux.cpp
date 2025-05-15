@@ -531,6 +531,7 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
+bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
 
 int PerfEvents::createForThread(int tid) {
@@ -589,6 +590,10 @@ int PerfEvents::createForThread(int tid) {
 #else
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
+
+    if (_record_cpu) {
+        attr.sample_type |= PERF_SAMPLE_CPU;
+    }
 
     int fd;
     if (FdTransferClient::hasPeer()) {
@@ -775,6 +780,10 @@ Error PerfEvents::check(Arguments& args) {
     }
 #endif
 
+    if (args._record_cpu) {
+        attr.sample_type |= PERF_SAMPLE_CPU;
+    }
+
     int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
     if (fd == -1) {
         return Error(strerror(errno));
@@ -797,6 +806,7 @@ Error PerfEvents::start(Arguments& args) {
     }
 
     _target_cpu = args._target_cpu;
+    _record_cpu = args._record_cpu;
 
     if (args._interval < 0) {
         return Error("interval must be positive");
@@ -880,7 +890,12 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
         while (tail < head) {
             struct perf_event_header* hdr = ring.seek(tail);
+
             if (hdr->type == PERF_RECORD_SAMPLE) {
+                if (_record_cpu) {
+                    java_ctx->cpu = ring.next();
+                }
+
                 u64 nr = ring.next();
                 while (nr-- > 0) {
                     u64 ip = ring.next();
