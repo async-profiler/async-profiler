@@ -97,8 +97,8 @@ TEST_CASE(Buffer_test_nestedField) {
     CHECK_EQ(buf.offset(), 8);
     CHECK_EQ(buf.data()[0], (4 << 3) | LEN);
     CHECK_EQ(buf.data()[1], 4 | 0x80); // Length of the field with continuation bit as MSB
-    CHECK_EQ(buf.data()[2], 0x80);         // Continuation bit MSB
-    CHECK_EQ(buf.data()[3], 0);                // Continuation bit MSB
+    CHECK_EQ(buf.data()[2], 0x80);     // Continuation bit MSB
+    CHECK_EQ(buf.data()[3], 0);        // Continuation bit MSB
     CHECK_EQ(buf.data()[4], (3 << 3) | VARINT);
     CHECK_EQ(buf.data()[5], 10);
     CHECK_EQ(buf.data()[6], (5 << 3) | VARINT);
@@ -139,8 +139,8 @@ TEST_CASE(Buffer_test_maxTag) {
     // Check the value of the first 5 bytes as a varint
     u32 sum = buf.data()[5] & 0x7f;
     for (int idx = 4; idx >= 0; --idx) {
-            sum <<= 7;
-            sum += (buf.data()[idx] & 0x7f);
+        sum <<= 7;
+        sum += (buf.data()[idx] & 0x7f);
     }
     CHECK_EQ(sum, (max_tag << 3) | VARINT);
     CHECK_EQ(buf.data()[5], 3);
