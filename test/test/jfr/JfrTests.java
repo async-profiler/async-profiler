@@ -83,7 +83,6 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag without event override.
-     * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
@@ -114,7 +113,6 @@ public class JfrTests {
 
     /**
      * Test to validate profiling output with "--all" flag with event override
-     * Once it is fixed, we can remove the `os` and `arch` arguments.
      *
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
