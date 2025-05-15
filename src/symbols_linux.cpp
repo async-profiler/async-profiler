@@ -859,6 +859,7 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
     const char* dlinfo_slash_ptr = strrchr(dl_info.dli_fname, '/');
     const char* dlinfo_lib_name = dlinfo_slash_ptr == NULL ? dl_info.dli_fname : dlinfo_slash_ptr + 1;
 
+    // Safeguard from comparisons between e.g. libpthread.so.0 and libpthread-2.28.so
     const char* small_name;
     const char* big_name;
     if (strlen(cc_lib_name) < strlen(dlinfo_lib_name)) {
