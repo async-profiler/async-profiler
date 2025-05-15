@@ -118,9 +118,13 @@ bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
 }
 
+void StackFrame::unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    pc = (uintptr_t)stripPointer(*(void**)sp);
+    sp = senderSP();
+}
+
 bool StackFrame::isSyscall(instruction_t* pc) {
     // swi #0
     return *pc == 0xef000000;
 }
-
 #endif // defined(__arm__) || defined(__thumb__)
