@@ -11,60 +11,60 @@
 namespace Otlp {
 
 namespace ProfilesData {
-  const protobuf_index_t resource_profiles = 1;
+    const protobuf_index_t resource_profiles = 1;
 }
 
 namespace ResourceProfiles {
-  const protobuf_index_t scope_profiles = 2;
+    const protobuf_index_t scope_profiles = 2;
 }
 
 namespace ScopeProfiles {
-  const protobuf_index_t profiles = 2;
+    const protobuf_index_t profiles = 2;
 }
 
 namespace Profile {
-  const protobuf_index_t sample_type = 1;
-  const protobuf_index_t sample = 2;
-  const protobuf_index_t mapping_table = 3;
-  const protobuf_index_t location_table = 4;
-  const protobuf_index_t location_indices = 5;
-  const protobuf_index_t function_table = 6;
-  const protobuf_index_t period_type = 13;
-  const protobuf_index_t period = 14;
-  const protobuf_index_t string_table = 10;
-  const protobuf_index_t profile_id = 17;
+    const protobuf_index_t sample_type = 1;
+    const protobuf_index_t sample = 2;
+    const protobuf_index_t mapping_table = 3;
+    const protobuf_index_t location_table = 4;
+    const protobuf_index_t location_indices = 5;
+    const protobuf_index_t function_table = 6;
+    const protobuf_index_t period_type = 13;
+    const protobuf_index_t period = 14;
+    const protobuf_index_t string_table = 10;
+    const protobuf_index_t profile_id = 17;
 }
 
 namespace ValueType {
-  const protobuf_index_t type_strindex = 1;
-  const protobuf_index_t unit_strindex = 2;
-  const protobuf_index_t aggregation_temporality = 3;
+    const protobuf_index_t type_strindex = 1;
+    const protobuf_index_t unit_strindex = 2;
+    const protobuf_index_t aggregation_temporality = 3;
 }
 
 namespace Sample {
-  const protobuf_index_t locations_start_index = 1;
-  const protobuf_index_t locations_length = 2;
-  const protobuf_index_t value = 3;
+    const protobuf_index_t locations_start_index = 1;
+    const protobuf_index_t locations_length = 2;
+    const protobuf_index_t value = 3;
 }
 
 namespace Location {
-  const protobuf_index_t mapping_index = 1;
-  const protobuf_index_t line = 3;
+    const protobuf_index_t mapping_index = 1;
+    const protobuf_index_t line = 3;
 }
 
 namespace Function {
-  const protobuf_index_t name_strindex = 1;
-  const protobuf_index_t filename_strindex = 3;
+    const protobuf_index_t name_strindex = 1;
+    const protobuf_index_t filename_strindex = 3;
 }
 
 namespace Line {
-  const protobuf_index_t function_index = 1;
+    const protobuf_index_t function_index = 1;
 }
 
 namespace AggregationTemporality {
-  const u64 unspecified = 0;
-  const u64 delta = 1;
-  const u64 cumulative = 2;
+    const u64 unspecified = 0;
+    const u64 delta = 1;
+    const u64 cumulative = 2;
 }
 
 }
