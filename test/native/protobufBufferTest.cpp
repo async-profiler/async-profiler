@@ -5,7 +5,6 @@
 
 #include "protobuf.h"
 #include "testRunner.hpp"
-#include <cstdint>
 #include <string.h>
 
 TEST_CASE(Buffer_test_var32_0) {
