@@ -6,82 +6,54 @@
 #ifndef _PROTOBUF_H
 #define _PROTOBUF_H
 
+#include <sys/types.h>
 #include "arch.h"
-#include <string.h>
-#include <type_traits>
 
 typedef const u32 protobuf_t;
-static protobuf_t VARINT = 0;
-static protobuf_t LEN = 2;
+protobuf_t VARINT = 0;
+protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
+typedef u32 protobuf_mark_t;
 
-// We assume the length of a nested field can be represented with 3 varint
-// bytes.
-// TODO: What if it doesn't? Do we need to account for this case?
-const size_t nested_field_byte_count = 3;
+// We assume the length of a nested field can be represented with 3 varint bytes.
+const size_t NESTED_FIELD_BYTE_COUNT = 3;
+const size_t MINIMUM_INITIAL_SIZE = 16;
 
-class ProtobufBuffer {
-private:
-  ProtobufBuffer *_parent_message;
-  char *_data;
-  size_t _offset;
+class ProtoBuffer {
+  private:
+    unsigned char* _data;
+    size_t _capacity;
+    size_t _offset;
 
-  ProtobufBuffer(ProtobufBuffer *parent) :
-    _data(parent->_data + parent->offset()),
-    _offset(0),
-    _parent_message(parent) {}
+    void putVarInt(u64 n);
+    size_t putVarInt(size_t offset, u64 n);
 
-  template <typename T>
-  typename std::enable_if<std::is_unsigned<T>::value, void>::type
-  putVarInt(T n);
+    void tag(protobuf_index_t index, protobuf_t type);
 
-  template <typename T>
-  typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
-  putVarInt(size_t offset, T n);
+    void ensureCapacity(size_t new_data_size);
 
-  void tag(protobuf_index_t index, protobuf_t type);
+  public:
+    ProtoBuffer(size_t initial_capacity);
+    ~ProtoBuffer();
 
-  void commitMessage(size_t message_length);
+    const unsigned char* data() const { return _data; }
 
-public:
-  ProtobufBuffer(char *data) :
-    _data(data),
-    _offset(0),
-    _parent_message(nullptr) {}
-  ~ProtobufBuffer();
+    size_t offset() const { return _offset; }
+    size_t capacity() const { return _capacity; }
 
-  const char *data() const { return _data; }
+    // VARINT
+    void field(protobuf_index_t index, bool b);
+    void field(protobuf_index_t index, u64 n);
+    // LEN
+    void field(protobuf_index_t index, const char* s);
+    void field(protobuf_index_t index, const char* s, size_t len);
+    void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
-  size_t offset() const { return _offset; }
+    protobuf_mark_t startMessage(protobuf_index_t index);
+    void commitMessage(protobuf_mark_t mark);
 
-  // VARINT
-  void field(protobuf_index_t index, bool b);
-  void field(protobuf_index_t index, u32 n);
-  void field(protobuf_index_t index, u64 n);
-  // LEN
-  void field(protobuf_index_t index, const char *s);
-  void field(protobuf_index_t index, const char *s, size_t len);
-  void field(protobuf_index_t index, const ProtobufBuffer buffer, size_t len);
-
-  ProtobufBuffer startMessage(protobuf_index_t index);
+    static size_t varIntSize(u64 value);
 };
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, void>::type
-ProtobufBuffer::putVarInt(T n) {
-  _offset = putVarInt(_offset, n);
-}
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, size_t>::type
-ProtobufBuffer::putVarInt(size_t offset, T n) {
-  while ((n >> 7) != 0) {
-    _data[offset++] = (char)(0b10000000 | (n & 0b01111111));
-    n >>= 7;
-  }
-  _data[offset++] = (char)n;
-  return offset;
-}
 
 #endif // _PROTOBUF_H
