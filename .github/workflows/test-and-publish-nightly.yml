@@ -211,19 +211,19 @@ jobs:
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Download async-profiler debug artifact
         uses: actions/download-artifact@v4
-        if: matrix.runson.display != 'macos'
+        if: ${{ !contains(matrix.runson.display, 'macos') }}
         with:
           name: ${{ steps.set_variables.outputs.artifact_name }}-debug
           path: async_profiler_debug
       - name: Extract async-profiler debug artifact
         id: extract_debug_artifact
-        if: matrix.runson.display != 'macos'
+        if: ${{ !contains(matrix.runson.display, 'macos') }}
         run: |
           debug_archive=$(basename $(find async_profiler_debug -type f -iname "async-profiler-*" ))
           tar xvf async_profiler_debug/$debug_archive
           echo "debug_symbols=$(find . -type f -name "libasyncProfiler.so.debug")" >> $GITHUB_OUTPUT
       - name: Setup core dump collection
-        if: matrix.runson.display != 'macos'
+        if: ${{ !contains(matrix.runson.display, 'macos') }}
         run: |
           echo 'core_%e_%p' > /proc/sys/kernel/core_pattern
       - name: Run integration tests\
@@ -248,7 +248,7 @@ jobs:
             build/test/logs/
             hs_err*.log
       - name: Print GDB stacktrace
-        if: ${{ steps.run.outputs.core_dumps_count > 0 && matrix.runson.display != 'macos' }}
+        if: ${{ steps.run.outputs.core_dumps_count > 0 && !contains(matrix.runson.display, 'macos') }}
         shell: bash
         run: |
           for core_file in $(ls core_*); do
