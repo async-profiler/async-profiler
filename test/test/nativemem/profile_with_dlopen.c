@@ -12,7 +12,7 @@
 #ifdef __APPLE__
 #define LIB_EXT ".dylib"
 #else
-#define LIB_EXT ".so
+#define LIB_EXT ".so"
 #endif
 
 #define ASSERT_NO_DLERROR(sym)            \
