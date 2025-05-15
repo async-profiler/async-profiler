@@ -98,10 +98,6 @@ static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
-const int OS::prot_read = PROT_READ;
-const int OS::prot_write = PROT_WRITE;
-const int OS::prot_copy = PROT_NONE;
-const int OS::prot_exec = PROT_EXEC;
 
 
 u64 OS::nanotime() {

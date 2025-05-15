@@ -269,7 +269,7 @@ void CodeCache::makeImportsPatchable() {
         uintptr_t patch_start = (uintptr_t)min_import & ~OS::page_mask;
         uintptr_t patch_end = (uintptr_t)max_import & ~OS::page_mask;
         uintptr_t patch_size = patch_end - patch_start + OS::page_size;
-        OS::protect(patch_start, patch_size, OS::prot_read | OS::prot_write | OS::prot_copy);
+        OS::protect(patch_start, patch_size, PROT_READ | PROT_WRITE);
     }
 }
 

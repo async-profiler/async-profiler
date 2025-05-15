@@ -89,10 +89,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr")
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr")
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -123,8 +121,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr")
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;

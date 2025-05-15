@@ -354,10 +354,10 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
     uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
 
-    if (OS::protect(start_page, end_page - start_page, OS::prot_read | OS::prot_write | OS::prot_copy | OS::prot_exec) == 0) {
+    if (OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
         memcpy(func, patch, size);
         __builtin___clear_cache(func, func + size);
-        OS::protect(start_page, end_page - start_page, OS::prot_read | OS::prot_write | OS::prot_copy);
+        OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE);
     }
 }
 

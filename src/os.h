@@ -65,10 +65,6 @@ class OS {
   public:
     static const size_t page_size;
     static const size_t page_mask;
-    static const int prot_read;
-    static const int prot_write;
-    static const int prot_exec;
-    static const int prot_copy;
 
     static u64 nanotime();
     static u64 micros();
