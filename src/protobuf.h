@@ -8,7 +8,6 @@
 
 #include <sys/param.h>
 #include <string.h>
-#include <type_traits>
 #include <stdlib.h>
 #include "arch.h"
 
