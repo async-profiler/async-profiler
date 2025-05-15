@@ -876,7 +876,7 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
     }
 
     size_t libname_length = extension_start - small_name;
-    return strncmp(small_name, big_name, libname_length);
+    return strncmp(small_name, big_name, libname_length) == 0;
 }
 
 UnloadProtection::UnloadProtection(const CodeCache *cc) {
