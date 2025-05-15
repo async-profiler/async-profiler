@@ -859,7 +859,23 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
     const char* dlinfo_slash_ptr = strrchr(dl_info.dli_fname, '/');
     const char* dlinfo_lib_name = dlinfo_slash_ptr == NULL ? dl_info.dli_fname : dlinfo_slash_ptr + 1;
 
-    return strcmp(dlinfo_lib_name, cc_lib_name) == 0;
+    const char* small_name;
+    const char* big_name;
+    if (strlen(cc_lib_name) < strlen(dlinfo_lib_name)) {
+        small_name = cc_lib_name;
+        big_name = dlinfo_lib_name;
+    } else {
+        small_name = dlinfo_lib_name;
+        big_name = cc_lib_name;
+    }
+
+    const char* extension_start = strstr(small_name, ".so");
+    if (extension_start == NULL) {
+        return strcmp(dlinfo_lib_name, cc_lib_name) == 0;
+    }
+
+    size_t libname_length = extension_start - small_name;
+    return strncmp(small_name, big_name, libname_length);
 }
 
 UnloadProtection::UnloadProtection(const CodeCache *cc) {
