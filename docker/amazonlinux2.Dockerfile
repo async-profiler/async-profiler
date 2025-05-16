@@ -2,7 +2,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 RUN amazon-linux-extras enable python3.8
 
-RUN yum update -y && yum install -y git make python38 gcc10 gcc10-c++ binutils tar
+RUN yum update -y && yum install -y git make python38 gcc10-c++ gdb binutils tar
 
 ARG node_version=20.19.1
 ARG node_sha256=babcd5b9e3216510b89305e6774bcdb2905ca98ff60028b67f163eb8296b6665
@@ -35,3 +35,4 @@ RUN cat <<EOF > /root/setup.sh
 mkdir -p "$NODE_JS_LOCATION/bin"
 ln --force --symbolic "/usr/local/bin/node" "$NODE_JS_LOCATION/bin/node"
 EOF
+RUN chmod +x /root/setup.sh
