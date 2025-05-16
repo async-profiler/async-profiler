@@ -80,11 +80,11 @@ static const void* _main_phdr = getMainPhdr();
 static const char* _ld_base = (const char*)getauxval(AT_BASE);
 
 static bool isMainExecutable(const char* image_base, const void* map_end) {
-    return _main_phdr && _main_phdr >= image_base && _main_phdr < map_end;
+    return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
 }
 
 static bool isLoader(const char* image_base) {
-    return _ld_base && _ld_base == image_base;
+    return _ld_base == image_base;
 }
 
 class SymbolDesc {
