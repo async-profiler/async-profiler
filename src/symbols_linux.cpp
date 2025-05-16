@@ -842,41 +842,14 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
 static bool isValidHandle(const CodeCache* cc, void* handle) {
     Dl_info dl_info;
+    struct link_map* map;
 
-    // Check handle exists & shared objects are still available at original base image
-    if (handle == NULL || dladdr(cc->imageBase(), &dl_info) == 0) {
+    // Check shared objects are still available at original base image
+    if (handle == NULL || dlinfo(handle, RTLD_DI_LINKMAP, &map) != 0 || dladdr(map->l_ld, &dl_info) == 0) {
         return false;
     }
 
-    // Check that originally discovered base image is same as found base image
-    if (cc->imageBase() != (const char*) dl_info.dli_fbase) {
-        return false;
-    }
-
-    const char* cc_slash_ptr = strrchr(cc->name(), '/');
-    const char* cc_lib_name = cc_slash_ptr == NULL ? cc->name() : cc_slash_ptr + 1;
-
-    const char* dlinfo_slash_ptr = strrchr(dl_info.dli_fname, '/');
-    const char* dlinfo_lib_name = dlinfo_slash_ptr == NULL ? dl_info.dli_fname : dlinfo_slash_ptr + 1;
-
-    // Safeguard from comparisons between e.g. libpthread.so.0 and libpthread-2.28.so
-    const char* small_name;
-    const char* big_name;
-    if (strlen(cc_lib_name) < strlen(dlinfo_lib_name)) {
-        small_name = cc_lib_name;
-        big_name = dlinfo_lib_name;
-    } else {
-        small_name = dlinfo_lib_name;
-        big_name = cc_lib_name;
-    }
-
-    const char* extension_start = strstr(small_name, ".so");
-    if (extension_start == NULL) {
-        return strcmp(dlinfo_lib_name, cc_lib_name) == 0;
-    }
-
-    size_t libname_length = extension_start - small_name;
-    return strncmp(small_name, big_name, libname_length) == 0;
+    return cc->imageBase() == (const char*)dl_info.dli_fbase;
 }
 
 UnloadProtection::UnloadProtection(const CodeCache *cc) {
