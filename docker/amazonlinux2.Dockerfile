@@ -2,7 +2,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2
 
 RUN amazon-linux-extras enable python3.8
 
-RUN yum update -y && yum install -y git make python38 gcc10 gcc10-c++ binutils tar
+RUN yum update -y && yum install -y git make python38 gcc10-c++ gdb binutils tar
 
 ARG node_version=20.19.1
 ARG node_sha256=babcd5b9e3216510b89305e6774bcdb2905ca98ff60028b67f163eb8296b6665
@@ -23,7 +23,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2
 COPY --from=0 /usr/local/bin/node /usr/local/bin/node
 RUN amazon-linux-extras enable python3.8 && \
     yum update -y && \
-    yum install -y gcc-c++ libstdc++-static binutils make java-11-amazon-corretto patchelf tar sudo python38 && \
+    yum install -y gcc-c++ binutils make java-11-amazon-corretto patchelf tar python38 && \
     yum clean all && \
     rm -rf /var/cache/yum && \
     python -m ensurepip && \
