@@ -76,7 +76,8 @@ enum SHORT_ENUM Output {
     OUTPUT_COLLAPSED,
     OUTPUT_FLAMEGRAPH,
     OUTPUT_TREE,
-    OUTPUT_JFR
+    OUTPUT_JFR,
+    OUTPUT_OTLP
 };
 
 enum JfrOption {

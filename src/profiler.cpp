@@ -3,14 +3,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <fstream>
 #include <algorithm>
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include "protobuf.h"
+#include "otlp.h"
 #include "profiler.h"
 #include "perfEvents.h"
 #include "ctimer.h"
@@ -35,6 +40,8 @@
 #include "symbols.h"
 #include "tsc.h"
 #include "vmStructs.h"
+#include <map>
+#include <unordered_map>
 
 
 // The instance is not deleted on purpose, since profiler structures
@@ -1402,6 +1409,9 @@ Error Profiler::dump(Writer& out, Arguments& args) {
                 unlockAll();
             }
             break;
+        case OUTPUT_OTLP:
+            dumpOtlp(args);
+            break;
         default:
             return Error("No output format selected");
     }
@@ -1645,6 +1655,94 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
             out << buf;
         }
     }
+}
+
+static inline u64 maybeAddToIdxMap(std::unordered_map<std::string, u64>& idx_map,
+        std::vector<std::string>& values, const std::string& value) {
+    const auto& pair = idx_map.insert({value, idx_map.size()});
+    if (pair.second) {
+        values.push_back(value);
+    }
+    return pair.first->second;
+}
+
+void Profiler::dumpOtlp(Arguments& args) {
+    ProtoBuffer buffer(1000);
+
+    std::unordered_map<std::string, u64> string_idx_map;
+    std::vector<std::string> strings_vec;
+    std::unordered_map<std::string, u64> function_idx_map;
+    std::vector<std::string> functions_vec;
+
+    protobuf_mark_t scope_profiles_mark = buffer.startMessage(Otlp::ResourceProfiles::scope_profiles);
+    protobuf_mark_t profile_mark = buffer.startMessage(Otlp::ScopeProfiles::profiles);
+
+    // TODO: Include per-binary debug info
+    protobuf_mark_t mapping_mark = buffer.startMessage(Otlp::Profile::mapping_table);
+    buffer.commitMessage(mapping_mark);
+
+    buffer.field(Otlp::Profile::period, (u64) args._interval);
+
+    protobuf_mark_t sample_type_mark = buffer.startMessage(Otlp::Profile::sample_type);
+    buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "samples"));
+    buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "count"));
+    buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
+    buffer.commitMessage(sample_type_mark);
+
+    protobuf_mark_t period_type_mark = buffer.startMessage(Otlp::Profile::period_type);
+    buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "cpu"));
+    buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "nanoseconds"));
+    buffer.commitMessage(period_type_mark);
+
+    std::vector<CallTraceSample*> samples;
+    _call_trace_storage.collectSamples(samples);
+
+    u64 frames_seen = 0;
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+    for (auto it = samples.begin(); it != samples.end(); ++it) {
+        CallTrace* trace = (*it)->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace)) continue;
+
+        u64 num_frames = trace->num_frames;
+        for (u64 j = 0; j < num_frames; ++j) {
+            u64 function_idx = maybeAddToIdxMap(function_idx_map, functions_vec, fn.name(trace->frames[j]));
+            buffer.field(Otlp::Profile::location_indices, function_idx);
+        }
+
+        protobuf_mark_t sample_mark = buffer.startMessage(Otlp::Profile::sample);
+        buffer.field(Otlp::Sample::locations_start_index, frames_seen);
+        buffer.field(Otlp::Sample::locations_length, num_frames);
+        buffer.field(Otlp::Sample::value, (u64) 1);
+        buffer.commitMessage(sample_mark);
+
+        frames_seen += num_frames;
+    }
+
+    for (u64 function_idx = 0; function_idx < functions_vec.size(); ++function_idx) {
+        protobuf_mark_t function_mark = buffer.startMessage(Otlp::Profile::function_table);
+        u64 function_name_strindex = maybeAddToIdxMap(string_idx_map, strings_vec, functions_vec[function_idx]);
+        buffer.field(Otlp::Function::name_strindex, function_name_strindex);
+        buffer.commitMessage(function_mark);
+
+        protobuf_mark_t location_mark = buffer.startMessage(Otlp::Profile::location_table);
+        // TODO: Fix me when more Mappings are added
+        buffer.field(Otlp::Location::mapping_index, (u64) 0);
+        protobuf_mark_t line_mark = buffer.startMessage(Otlp::Location::line);
+        buffer.field(Otlp::Line::function_index, function_idx);
+        buffer.commitMessage(line_mark);
+        buffer.commitMessage(location_mark);
+    }
+
+    for (const auto& s : strings_vec) {
+        buffer.field(Otlp::Profile::string_table, s.data(), s.length());
+    }
+
+    buffer.commitMessage(profile_mark);
+    buffer.commitMessage(scope_profiles_mark);
+
+    int fd = open(args.file(), O_CREAT | O_RDWR | O_TRUNC, 0644);
+    write(fd, buffer.data(), buffer.offset());
+    close(fd);
 }
 
 time_t Profiler::addTimeout(time_t start, int timeout) {
