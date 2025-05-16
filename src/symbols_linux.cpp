@@ -80,11 +80,11 @@ static const void* _main_phdr = getMainPhdr();
 static const char* _ld_base = (const char*)getauxval(AT_BASE);
 
 static bool isMainExecutable(const char* image_base, const void* map_end) {
-    return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
+    return _main_phdr && _main_phdr >= image_base && _main_phdr < map_end;
 }
 
 static bool isLoader(const char* image_base) {
-    return _ld_base != NULL && _ld_base == image_base;
+    return _ld_base && _ld_base == image_base;
 }
 
 class SymbolDesc {
@@ -776,10 +776,6 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-bool hasDeletedSuffix(const char* name, size_t len) {
-    return len > 10 && strcmp(name + len - 10, " (deleted)") == 0;
-}
-
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
@@ -863,7 +859,7 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
 
     const char* stripped_name;
     size_t name_len = strlen(cc->name());
-    if (hasDeletedSuffix(cc->name(), name_len)) {
+    if (name_len > 10 && strcmp(cc->name() + name_len - 10, " (deleted)") == 0) {
         char* buf = (char*) alloca(name_len);
         memcpy(buf, cc->name(), name_len);
         buf[name_len - 10] = 0;
