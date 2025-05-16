@@ -244,7 +244,6 @@ void** CodeCache::findImport(ImportId id) {
 void CodeCache::patchImport(ImportId id, void* hook_func) {
     if (!_imports_patchable) {
         makeImportsPatchable();
-        _imports_patchable = true;
     }
 
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
