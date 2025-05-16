@@ -97,11 +97,6 @@ class Profiler {
     const void* _call_stub_begin;
     const void* _call_stub_end;
 
-    // dlopen() hook support
-    void** _dlopen_entry;
-    static void* dlopen_hook(const char* filename, int flags);
-    void switchLibraryTrap(bool enable);
-
     Error installTraps(const char* begin, const char* end, bool nostop);
     void uninstallTraps();
 
@@ -152,6 +147,7 @@ class Profiler {
     void dumpCollapsed(Writer& out, Arguments& args);
     void dumpFlameGraph(Writer& out, Arguments& args, bool tree);
     void dumpText(Writer& out, Arguments& args);
+    static void uninstallHooks();
 
     static Profiler* const _instance;
 
@@ -173,8 +169,7 @@ class Profiler {
         _runtime_stubs("[stubs]"),
         _native_libs(),
         _call_stub_begin(NULL),
-        _call_stub_end(NULL),
-        _dlopen_entry(NULL) {
+        _call_stub_end(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
@@ -227,6 +222,7 @@ class Profiler {
     static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void wakeupHandler(int signo);
     static void setupSignalHandlers();
+    static void installHooks();
 
     // CompiledMethodLoad is also needed to enable DebugNonSafepoints info by default
     static void JNICALL CompiledMethodLoad(jvmtiEnv* jvmti, jmethodID method,

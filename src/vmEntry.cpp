@@ -10,6 +10,7 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "asprof.h"
+#include "hooks.h"
 #include "j9Ext.h"
 #include "j9ObjectSampler.h"
 #include "javaApi.h"
@@ -296,6 +297,9 @@ bool VM::init(JavaVM* vm, bool attach) {
     } else {
         _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     }
+
+    // Initialize hook installation
+    Hooks::init();
 
     return true;
 }

@@ -861,6 +861,9 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
         return;
     }
 
+    if (cc->name() == NULL) {
+        return;
+    }
     const char* stripped_name;
     size_t name_len = strlen(cc->name());
     if (hasDeletedSuffix(cc->name(), name_len)) {

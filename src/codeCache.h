@@ -107,6 +107,7 @@ class CodeCache {
 
   private:
     char* _name;
+    const char* _short_name;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
@@ -117,6 +118,7 @@ class CodeCache {
     unsigned int _plt_size;
 
     void** _imports[NUM_IMPORTS][NUM_IMPORT_TYPES];
+    void* _orig_import_references[NUM_IMPORTS][NUM_IMPORT_TYPES];
     bool _imports_patchable;
     bool _debug_symbols;
 
@@ -143,6 +145,10 @@ class CodeCache {
 
     const char* name() const {
         return _name;
+    }
+
+    const char* shortName() const {
+        return _short_name;
     }
 
     const void* minAddress() const {
@@ -200,6 +206,7 @@ class CodeCache {
     void addImport(void** entry, const char* name);
     void** findImport(ImportId id);
     void patchImport(ImportId, void* hook_func);
+    void unpatchImport(ImportId id);
 
     CodeBlob* findBlob(const char* name);
     CodeBlob* findBlobByAddress(const void* address);

@@ -32,6 +32,10 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
                      const void* min_address, const void* max_address,
                      const char* image_base) {
     _name = NativeFunc::create(name, -1);
+    if (_name != NULL) {
+        _short_name = strrchr(_name, '/');
+        _short_name = _short_name == NULL ? _name : _short_name + 1;
+    }
 
     _lib_index = lib_index;
     _min_address = min_address;
@@ -43,6 +47,7 @@ CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
     _plt_size = 0;
 
     memset(_imports, 0, sizeof(_imports));
+    memset(_orig_import_references, 0, sizeof(_orig_import_references));
     _imports_patchable = imports_patchable;
     _debug_symbols = false;
 
@@ -179,8 +184,9 @@ const void* CodeCache::findSymbolByPrefix(const char* prefix, int prefix_len) {
 
 void CodeCache::saveImport(ImportId id, void** entry) {
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
-        if (_imports[id][ty] == nullptr) {
+        if (_imports[id][ty] == nullptr && entry != NULL) {
             _imports[id][ty] = entry;
+            _orig_import_references[id][ty] = *entry;
             return;
         }
     }
@@ -244,13 +250,24 @@ void** CodeCache::findImport(ImportId id) {
 void CodeCache::patchImport(ImportId id, void* hook_func) {
     if (!_imports_patchable) {
         makeImportsPatchable();
-        _imports_patchable = true;
     }
 
     for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
         void** entry = _imports[id][ty];
         if (entry != NULL) {
             *entry = hook_func;
+        }
+    }
+}
+
+void CodeCache::unpatchImport(ImportId id) {
+    if (!_imports_patchable) {
+        makeImportsPatchable();
+    }
+
+    for (int ty = 0; ty < NUM_IMPORT_TYPES; ty++) {
+        if (_orig_import_references[id][ty] != NULL) {
+            *_imports[id][ty] = _orig_import_references[id][ty];
         }
     }
 }

@@ -25,7 +25,7 @@ class LateInitializer {
 
         if (!checkJvmLoaded()) {
             const char* command = getenv("ASPROF_COMMAND");
-            if (command != NULL && Hooks::init(false)) {
+            if (command != NULL && Hooks::init()) {
                 startProfiler(command);
             }
         }

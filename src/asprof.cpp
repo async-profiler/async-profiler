@@ -16,7 +16,7 @@ static asprof_error_t asprof_error(const char* msg) {
 
 
 DLLEXPORT void asprof_init() {
-    Hooks::init(true);
+    Hooks::init();
 }
 
 DLLEXPORT const char* asprof_error_str(asprof_error_t err) {

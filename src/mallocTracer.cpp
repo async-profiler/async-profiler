@@ -150,6 +150,25 @@ void MallocTracer::patchLibraries() {
     }
 }
 
+void MallocTracer::unpatchLibraries() {
+    MutexLocker ml(_patch_lock);
+
+    CodeCacheArray* native_libs = Profiler::instance()->nativeLibs();
+    while (_patched_libs > 0) {
+        CodeCache* cc = (*native_libs)[--_patched_libs];
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
+            continue;
+        }
+        cc->unpatchImport(im_malloc);
+        cc->unpatchImport(im_realloc);
+        cc->unpatchImport(im_free);
+        cc->unpatchImport(im_aligned_alloc);
+        cc->unpatchImport(im_calloc);
+        cc->unpatchImport(im_posix_memalign);
+    }
+}
+
 void MallocTracer::recordMalloc(void* address, size_t size) {
     if (updateCounter(_allocated_bytes, size, _interval)) {
         MallocEvent event;

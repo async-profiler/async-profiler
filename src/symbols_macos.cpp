@@ -178,7 +178,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             break;
         }
 
-        CodeCache* cc = new CodeCache(path, count, true);
+        CodeCache* cc = new CodeCache(path, count);
         UnloadProtection handle(cc);
         if (handle.isValid()) {
             MachOParser parser(cc, image_base);

@@ -7,14 +7,13 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <string.h>
 #include "hooks.h"
 #include "asprof.h"
 #include "cpuEngine.h"
 #include "mallocTracer.h"
 #include "profiler.h"
 #include "symbols.h"
-
+#include "vmStructs.h"
 
 #define ADDRESS_OF(sym) ({ \
     void* addr = dlsym(RTLD_NEXT, #sym); \
@@ -88,83 +87,52 @@ static void pthread_exit_hook(void* retval) {
 }
 
 
-typedef void* (*dlopen_t)(const char*, int);
-static dlopen_t _orig_dlopen = NULL;
-
-static void* dlopen_hook_impl(const char* filename, int flags, bool patch) {
+static void* dlopen_hook_impl(const char* filename, int flags) {
     Log::debug("dlopen: %s", filename);
-    void* result = _orig_dlopen(filename, flags);
+    void* result = dlopen(filename, flags);
     if (result != NULL && filename != NULL) {
         Profiler::instance()->updateSymbols(false);
-        if (patch) {
-            Hooks::patchLibraries();
-        }
-        MallocTracer::installHooks();
+        Profiler::installHooks();
     }
     return result;
 }
 
-static void* dlopen_hook(const char* filename, int flags) {
-    return dlopen_hook_impl(filename, flags, true);
-}
-
-
-// LD_PRELOAD hooks
-
-extern "C" WEAK DLLEXPORT
-int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
-    if (_orig_pthread_create == NULL) {
-        _orig_pthread_create = ADDRESS_OF(pthread_create);
+// Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
+// HotSpot puts VMThread into TLS on thread start, and resets on thread end.
+static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
+    if (key != VMThread::key()) {
+        return pthread_setspecific(key, value);
     }
-    if (Hooks::initialized()) {
-        return pthread_create_hook(thread, attr, start_routine, arg);
-    }
-    return _orig_pthread_create(thread, attr, start_routine, arg);
-}
 
-extern "C" WEAK DLLEXPORT
-void pthread_exit(void* retval) {
-    if (_orig_pthread_exit == NULL) {
-        _orig_pthread_exit = ADDRESS_OF(pthread_exit);
+    if (pthread_getspecific(key) == value) {
+        return 0;
     }
-    if (Hooks::initialized()) {
-        pthread_exit_hook(retval);
+
+    if (value != NULL) {
+        int result = pthread_setspecific(key, value);
+        CpuEngine::onThreadStart();
+        return result;
     } else {
-        _orig_pthread_exit(retval);
+        CpuEngine::onThreadEnd();
+        return pthread_setspecific(key, value);
     }
-    abort();  // to suppress gcc warning
 }
-
-extern "C" WEAK DLLEXPORT
-void* dlopen(const char* filename, int flags) {
-    if (_orig_dlopen == NULL) {
-        _orig_dlopen = ADDRESS_OF(dlopen);
-    }
-    if (Hooks::initialized()) {
-        return dlopen_hook_impl(filename, flags, false);
-    }
-    return _orig_dlopen(filename, flags);
-}
-
 
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;
 bool Hooks::_initialized = false;
 
-bool Hooks::init(bool attach) {
+bool Hooks::init() {
     if (!__sync_bool_compare_and_swap(&_initialized, false, true)) {
         return false;
     }
 
     Profiler::setupSignalHandlers();
 
-    if (attach) {
-        Profiler::instance()->updateSymbols(false);
-        _orig_pthread_create = ADDRESS_OF(pthread_create);
-        _orig_pthread_exit = ADDRESS_OF(pthread_exit);
-        _orig_dlopen = ADDRESS_OF(dlopen);
-        patchLibraries();
-    }
+    Profiler::instance()->updateSymbols(false);
+    _orig_pthread_create = ADDRESS_OF(pthread_create);
+    _orig_pthread_exit = ADDRESS_OF(pthread_exit);
+    patchLibraries();
 
     atexit(shutdown);
 
@@ -190,9 +158,27 @@ void Hooks::patchLibraries() {
 
         if (!cc->contains((const void*)Hooks::init)) {
             // Let libasyncProfiler always use original dlopen
-            cc->patchImport(im_dlopen, (void*)dlopen_hook);
+            cc->patchImport(im_dlopen, (void*)dlopen_hook_impl);
+            cc->patchImport(im_pthread_setspecific, (void*)pthread_setspecific_hook);
         }
         cc->patchImport(im_pthread_create, (void*)pthread_create_hook);
         cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
+    }
+}
+
+void Hooks::unpatchLibraries() {
+    MutexLocker ml(_patch_lock);
+
+    CodeCacheArray* native_libs = Profiler::instance()->nativeLibs();
+    while (_patched_libs > 0) {
+        CodeCache* cc = (*native_libs)[--_patched_libs];
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
+            continue;
+        }
+        cc->unpatchImport(im_dlopen);
+        cc->unpatchImport(im_pthread_setspecific);
+        cc->unpatchImport(im_pthread_create);
+        cc->unpatchImport(im_pthread_exit);
     }
 }
