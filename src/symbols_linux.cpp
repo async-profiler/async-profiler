@@ -849,10 +849,8 @@ static bool isValidHandle(const CodeCache* cc, void* handle) {
 }
 
 UnloadProtection::UnloadProtection(const CodeCache *cc) {
-    _lib_handle = NULL;
-    _valid = false;
-
     if (OS::isMusl() || isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
+        _lib_handle = NULL;
         _valid = true;
         return;
     }
