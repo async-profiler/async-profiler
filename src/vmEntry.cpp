@@ -10,6 +10,7 @@
 #include "vmEntry.h"
 #include "arguments.h"
 #include "asprof.h"
+#include "hooks.h"
 #include "j9Ext.h"
 #include "j9ObjectSampler.h"
 #include "javaApi.h"
@@ -297,6 +298,9 @@ bool VM::init(JavaVM* vm, bool attach) {
         _jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_INIT, NULL);
     }
 
+    // Initialize hook installation
+    Hooks::init();
+
     return true;
 }
 
@@ -354,10 +358,10 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
     uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
 
-    if (mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
+    if (OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
         memcpy(func, patch, size);
         __builtin___clear_cache(func, func + size);
-        mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
+        OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE);
     }
 }
 
