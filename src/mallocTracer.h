@@ -57,6 +57,7 @@ class MallocTracer : public Engine {
         return _nofree;
     }
 
+    static void unpatchLibraries();
     static void recordMalloc(void* address, size_t size);
     static void recordFree(void* address);
 };

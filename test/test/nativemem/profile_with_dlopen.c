@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#define LIB_EXT ".dylib"
+#else
+#define LIB_EXT ".so"
+#endif
+
 #define ASSERT_NO_DLERROR(sym)            \
     if (sym == NULL) {                    \
         err = dlerror();                  \
@@ -43,7 +49,7 @@ int main(int argc, char** argv) {
     int dlopen_first = strcmp(argv[1], "dlopen_first") == 0 ? 1 : 0;
     const char* filename = argv[2];
 
-    void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
+    void* libprof = dlopen("build/lib/libasyncProfiler" LIB_EXT, RTLD_NOW);
     ASSERT_NO_DLERROR(libprof);
 
     asprof_init_t asprof_init = ((asprof_init_t)dlsym(libprof, "asprof_init"));
@@ -58,7 +64,7 @@ int main(int argc, char** argv) {
 
     // Load libcallsmalloc.so before or after starting the profiler, based on args.
     if (dlopen_first) {
-        lib = dlopen("libcallsmalloc.so", RTLD_NOW);
+        lib = dlopen("build/test/lib/libcallsmalloc" LIB_EXT, RTLD_NOW);
         ASSERT_NO_DLERROR(lib);
     }
 
@@ -70,7 +76,7 @@ int main(int argc, char** argv) {
     ASSERT_NO_ASPROF_ERR(asprof_err);
 
     if (!dlopen_first) {
-        lib = dlopen("libcallsmalloc.so", RTLD_NOW);
+        lib = dlopen("build/test/lib/libcallsmalloc" LIB_EXT, RTLD_NOW);
         ASSERT_NO_DLERROR(lib);
     }
 

@@ -10,6 +10,7 @@
 #include "os.h"
 #include "profiler.h"
 #include "tsc.h"
+#include "symbols.h"
 #include <dlfcn.h>
 #include <string.h>
 
@@ -126,6 +127,11 @@ void MallocTracer::patchLibraries() {
             continue;
         }
 
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
+            continue;
+        }
+
         cc->patchImport(im_malloc, (void*)malloc_hook);
         cc->patchImport(im_realloc, (void*)realloc_hook);
         cc->patchImport(im_free, (void*)free_hook);
@@ -141,6 +147,25 @@ void MallocTracer::patchLibraries() {
             cc->patchImport(im_calloc, (void*)calloc_hook);
             cc->patchImport(im_posix_memalign, (void*)posix_memalign_hook);
         }
+    }
+}
+
+void MallocTracer::unpatchLibraries() {
+    MutexLocker ml(_patch_lock);
+
+    CodeCacheArray* native_libs = Profiler::instance()->nativeLibs();
+    while (_patched_libs > 0) {
+        CodeCache* cc = (*native_libs)[--_patched_libs];
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
+            continue;
+        }
+        cc->unpatchImport(im_malloc);
+        cc->unpatchImport(im_realloc);
+        cc->unpatchImport(im_free);
+        cc->unpatchImport(im_aligned_alloc);
+        cc->unpatchImport(im_calloc);
+        cc->unpatchImport(im_posix_memalign);
     }
 }
 

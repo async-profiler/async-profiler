@@ -10,7 +10,6 @@
 #include "profiler.h"
 #include "stackWalker.h"
 #include "tsc.h"
-#include "vmStructs.h"
 
 
 void** CpuEngine::_pthread_entry = NULL;
@@ -21,25 +20,6 @@ CStack CpuEngine::_cstack;
 int CpuEngine::_signal;
 bool CpuEngine::_count_overrun;
 
-// Intercept thread creation/termination by patching libjvm's GOT entry for pthread_setspecific().
-// HotSpot puts VMThread into TLS on thread start, and resets on thread end.
-static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
-    if (key != VMThread::key()) {
-        return pthread_setspecific(key, value);
-    }
-    if (pthread_getspecific(key) == value) {
-        return 0;
-    }
-
-    if (value != NULL) {
-        int result = pthread_setspecific(key, value);
-        CpuEngine::onThreadStart();
-        return result;
-    } else {
-        CpuEngine::onThreadEnd();
-        return pthread_setspecific(key, value);
-    }
-}
 
 void CpuEngine::onThreadStart() {
     CpuEngine* current = __atomic_load_n(&_current, __ATOMIC_ACQUIRE);
@@ -55,14 +35,8 @@ void CpuEngine::onThreadEnd() {
     }
 }
 
-bool CpuEngine::setupThreadHook() {
-    if (_pthread_entry != NULL) {
-        return true;
-    }
-
-    if (!VM::loaded()) {
-        static void* dummy_pthread_entry;
-        _pthread_entry = &dummy_pthread_entry;
+bool CpuEngine::validateThreadHook() {
+    if (!VM::loaded() || _pthread_entry != NULL) {
         return true;
     }
 
@@ -78,13 +52,11 @@ bool CpuEngine::setupThreadHook() {
     return lib != NULL && (_pthread_entry = lib->findImport(im_pthread_setspecific)) != NULL;
 }
 
-void CpuEngine::enableThreadHook() {
-    *_pthread_entry = (void*)pthread_setspecific_hook;
+void CpuEngine::enableEngine() {
     __atomic_store_n(&_current, this, __ATOMIC_RELEASE);
 }
 
-void CpuEngine::disableThreadHook() {
-    *_pthread_entry = (void*)pthread_setspecific;
+void CpuEngine::disableEngine() {
     __atomic_store_n(&_current, NULL, __ATOMIC_RELEASE);
 }
 

@@ -28,6 +28,7 @@
 #include "flightRecorder.h"
 #include "fdtransferClient.h"
 #include "frameName.h"
+#include "hooks.h"
 #include "os.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
@@ -277,12 +278,9 @@ CodeCache* Profiler::findLibraryByName(const char* lib_name) {
     const size_t lib_name_len = strlen(lib_name);
     const int native_lib_count = _native_libs.count();
     for (int i = 0; i < native_lib_count; i++) {
-        const char* s = _native_libs[i]->name();
-        if (s != NULL) {
-            const char* p = strrchr(s, '/');
-            if (p != NULL && strncmp(p + 1, lib_name, lib_name_len) == 0) {
-                return _native_libs[i];
-            }
+        const char* s = _native_libs[i]->shortName();
+        if (s != NULL && strncmp(s, lib_name, lib_name_len) == 0) {
+            return _native_libs[i];
         }
     }
     return NULL;
@@ -793,22 +791,6 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
     _jfr.recordLog(level, message, len);
 }
 
-void* Profiler::dlopen_hook(const char* filename, int flags) {
-    void* result = dlopen(filename, flags);
-    if (result != NULL) {
-        instance()->updateSymbols(false);
-        MallocTracer::installHooks();
-    }
-    return result;
-}
-
-void Profiler::switchLibraryTrap(bool enable) {
-    if (_dlopen_entry != NULL) {
-        void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
-        __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
-    }
-}
-
 Error Profiler::installTraps(const char* begin, const char* end, bool nostop) {
     const void* begin_addr = NULL;
     if (begin != NULL && (begin_addr = resolveSymbol(begin)) == NULL) {
@@ -1059,11 +1041,9 @@ Error Profiler::checkJvmCapabilities() {
             return Error("Could not find VMThread bridge. Unsupported JVM?");
         }
 
-        if (_dlopen_entry == NULL) {
-            CodeCache* lib = findJvmLibrary("libj9prt");
-            if (lib == NULL || (_dlopen_entry = lib->findImport(im_dlopen)) == NULL) {
-                return Error("Could not set dlopen hook. Unsupported JVM?");
-            }
+        CodeCache* lib = findJvmLibrary("libj9prt");
+        if (lib == NULL || lib->findImport(im_dlopen) == NULL) {
+            return Error("Could not set dlopen hook. Unsupported JVM?");
         }
 
         if (!VMStructs::libjvm()->hasDebugSymbols()) {
@@ -1197,13 +1177,14 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (error) {
         return error;
     }
-    switchLibraryTrap(true);
+
+    installHooks();
 
     if (args._output == OUTPUT_JFR) {
         error = _jfr.start(args, reset);
         if (error) {
             uninstallTraps();
-            switchLibraryTrap(false);
+            uninstallHooks();
             return error;
         }
     }
@@ -1266,7 +1247,7 @@ error2:
 
 error1:
     uninstallTraps();
-    switchLibraryTrap(false);
+    uninstallHooks();
 
     lockAll();
     _jfr.stop();
@@ -1291,7 +1272,7 @@ Error Profiler::stop(bool restart) {
 
     _engine->stop();
 
-    switchLibraryTrap(false);
+    uninstallHooks();
     switchThreadEvents(JVMTI_DISABLE);
     updateJavaThreadNames();
     updateNativeThreadNames();
@@ -1913,4 +1894,14 @@ void Profiler::shutdown(Arguments& args) {
     }
 
     _state = TERMINATED;
+}
+
+void Profiler::installHooks() {
+    Hooks::patchLibraries();
+    MallocTracer::installHooks();
+}
+
+void Profiler::uninstallHooks() {
+    Hooks::unpatchLibraries();
+    MallocTracer::unpatchLibraries();
 }
