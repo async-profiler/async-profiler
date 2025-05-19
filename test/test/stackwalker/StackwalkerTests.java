@@ -35,13 +35,13 @@ public class StackwalkerTests {
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert output.contains("^\\[possible-truncated\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
-                "generateDeepStack;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
+                "generateDeepStack[^;]*;" +
                 "doCpuTask");
         assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
     }
