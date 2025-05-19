@@ -52,9 +52,9 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^(__clone;)?" +
-                "(start_thread|thread_start);" +
-                "(_pthread_start;)?" +
+        assert output.contains("^([^\\[;]+;)?" + // Root can be different on different systems
+                "(start_thread;|thread_start;)?" + // Mac Vs Linux
+                "(_pthread_start;)?" + // Mac specific frame
                 "ThreadJavaMain;" +
                 "JavaMain;" +
                 "jni_CallStaticVoidMethod;" +
