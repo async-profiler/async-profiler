@@ -6,11 +6,11 @@
 #include <jni.h>
 #include <math.h>
 
-double doCpuTask() {
+JNIEXPORT double doCpuTask() {
     int i = 0;
     double result = 0;
 
-    while (i < 10000000) {
+    while (i < 100000000) {
         i++;
         result += sqrt(i);
         result += pow(i, sqrt(i));
@@ -18,7 +18,7 @@ double doCpuTask() {
     return result;
 }
 
-__attribute__((unused)) double generateDeepStack(int count) {
+__attribute__((unused)) JNIEXPORT double generateDeepStack(int count) {
     char frame[0x20000];
     (void)frame;
 

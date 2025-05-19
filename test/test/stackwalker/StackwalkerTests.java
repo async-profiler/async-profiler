@@ -64,7 +64,7 @@ public class StackwalkerTests {
                 "test/stackwalker/Stackwalker.main_\\[0\\];" +
                 "test/stackwalker/Stackwalker.walkStackComplete_\\[0\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackComplete;" +
-                "doCpuTask;");
+                "doCpuTask");
         assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
     }
 
@@ -77,7 +77,7 @@ public class StackwalkerTests {
         assert output.contains("^test/stackwalker/Stackwalker.main_\\[0\\];" +
                 "test/stackwalker/Stackwalker.walkStackComplete_\\[0\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackComplete;" +
-                "doCpuTask;");
+                "doCpuTask");
         assert !output.contains("break_entry_frame");
     }
 }
