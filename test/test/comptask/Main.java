@@ -11,92 +11,92 @@ public class Main {
     // This function should take a long time to compile
     public static void main(String[] args) {
         double result = 0;
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
 
-        for (int j = 0; j < 1000000; j++) {
+        for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
