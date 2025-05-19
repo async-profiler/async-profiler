@@ -41,8 +41,11 @@ jobs:
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
+      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
     name: "Build and unit test (${{ matrix.runson.display }})"
     steps:
+      - name: Run container setup
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -62,9 +65,10 @@ jobs:
             ;;
             *)
               make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
-          echo "archive=$(basename $(find . -type f -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+          echo "archive=$(find . -type f -name "async-profiler-*" -not -name "*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
         shell: bash
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -79,6 +83,13 @@ jobs:
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}
           path: ${{ steps.build.outputs.archive }}
+          if-no-files-found: error
+      - name: Upload debug info
+        uses: actions/upload-artifact@v4
+        if: matrix.runson.display != 'macos'
+        with:
+          name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
+          path: ${{ steps.build.outputs.debug_archive }}
           if-no-files-found: error
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -130,12 +141,32 @@ jobs:
             java-distribution: corretto
             asprof-binaries-job: linux-x64
             image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
+          - runson:
+              display: amazonlinux2
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
+            # GHA provides Node.js by attaching a volume to the container. The container path is
+            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
+            volumes: '["/tmp/node20:/__e/node20"]'
+            asprof-binaries-job: linux-x64
+          - runson:
+              display: amazonlinux2023
+              name: ubuntu-latest
+            java-version: 11
+            java-distribution: corretto
+            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
+            asprof-binaries-job: linux-x64
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
       options: --privileged
+      volumes: ${{ fromJSON(matrix.volumes || '[]') }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
     steps:
+      - name: Run container setup
+        run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
       - name: Setup Java
         uses: actions/setup-java@v4
         # https://github.com/actions/setup-java/issues/678#issuecomment-2446279753
