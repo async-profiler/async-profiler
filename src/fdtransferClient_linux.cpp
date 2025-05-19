@@ -47,14 +47,16 @@ bool FdTransferClient::connectToServer(const char *path) {
     return true;
 }
 
-int FdTransferClient::requestPerfFd(int *tid, int target_cpu, struct perf_event_attr *attr) {
+int FdTransferClient::requestPerfFd(int* tid, int target_cpu, struct perf_event_attr* attr, const char* probe_name) {
     struct perf_fd_request request;
     request.header.type = PERF_FD;
     request.tid = *tid;
     request.target_cpu = target_cpu;
     memcpy(&request.attr, attr, sizeof(request.attr));
+    *stpncpy(request.probe_name, probe_name, sizeof(request.probe_name) - 1) = 0;
 
-    if (RESTARTABLE(send(_peer, &request, sizeof(request), 0)) != sizeof(request)) {
+    size_t request_size = sizeof(request) - sizeof(request.probe_name) + strlen(request.probe_name) + 1;
+    if (RESTARTABLE(send(_peer, &request, request_size, 0)) != request_size) {
         Log::warn("FdTransferClient send(): %s", strerror(errno));
         return -1;
     }

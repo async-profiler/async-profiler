@@ -181,7 +181,7 @@ struct PerfEventType {
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
 
-    static char probe_func[256];
+    static char probe_func[MAX_PROBE_LEN];
 
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size
@@ -367,6 +367,9 @@ struct PerfEventType {
     }
 
     static PerfEventType* forName(const char* name) {
+        // Reset probe_func, since it is used in FdTransferClient
+        probe_func[0] = 0;
+
         // "cpu" is an alias for "cpu-clock"
         if (strcmp(name, EVENT_CPU) == 0) {
             return &AVAILABLE_EVENTS[IDX_CPU];
@@ -487,7 +490,7 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {NULL}
 };
 
-char PerfEventType::probe_func[256];
+char PerfEventType::probe_func[MAX_PROBE_LEN];
 
 
 class RingBuffer {
@@ -597,7 +600,7 @@ int PerfEvents::createForThread(int tid) {
 
     int fd;
     if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr);
+        fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr, PerfEventType::probe_func);
     } else {
         fd = syscall(__NR_perf_event_open, &attr, tid, _target_cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (fd == -1 && errno == EINVAL) {
