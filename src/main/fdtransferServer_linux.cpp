@@ -5,6 +5,7 @@
 
 #ifdef __linux__
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,6 +115,11 @@ bool FdTransferServer::serveRequests(int peer_pid) {
             struct perf_fd_request *request = (struct perf_fd_request*)req;
             int perf_fd = -1;
             int error;
+
+            if (request->probe_name[0]) {
+                // kprobe/uprobe name must be in the address space of the current process
+                request->attr.config1 = (__u64)(uintptr_t)request->probe_name;
+            }
 
             // In pid == 0 mode, allow all perf_event_open requests.
             // Otherwise, verify the thread belongs to PID.

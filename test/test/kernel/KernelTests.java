@@ -35,6 +35,13 @@ public class KernelTests {
         assert out.contains("sys_getdents");
     }
 
+    @Test(mainClass = ListFiles.class, os = Os.LINUX)
+    public void kprobe(TestProcess p) throws Exception {
+        p.profile("-e kprobe:fd_install -d 2 -o collapsed -f %f --fdtransfer", true);
+        Output out = p.readFile("%f");
+        assert out.contains("java/io/File.list;.+;fd_install_\\[k]");
+    }
+
     @Test(mainClass = ListFiles.class, os = {Os.MACOS, Os.WINDOWS})
     public void notLinux(TestProcess p) throws Exception {
         try {
