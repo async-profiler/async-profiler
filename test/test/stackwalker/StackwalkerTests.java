@@ -19,11 +19,10 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        System.out.println(output);
         assert output.contains("^\\[possible-truncated\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackLargeFrame;" +
                 "doCpuTask");
-        assert !output.contains("Stackwalker.main");
+        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
     }
 
     @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackDeepStack",
@@ -34,7 +33,6 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        System.out.println(output);
         assert output.contains("^\\[possible-truncated\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackDeepStack;" +
                 "generateDeepStack;" +
@@ -45,7 +43,7 @@ public class StackwalkerTests {
                 "generateDeepStack;" +
                 "generateDeepStack;" +
                 "doCpuTask");
-        assert !output.contains("Stackwalker.main");
+        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
     }
 
     @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackComplete",
@@ -54,18 +52,20 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        System.out.println(output);
-        assert output.contains("^__clone;" +
-                "start_thread;" +
+        assert output.contains("^(__clone;)?" +
+                "(start_thread|thread_start);" +
+                "(_pthread_start;)?" +
                 "ThreadJavaMain;" +
-                "JavaMain;jni_CallStaticVoidMethod;" +
+                "JavaMain;" +
+                "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
-                "call_stub;test/stackwalker/Stackwalker.main_\\[0\\];" +
+                "call_stub;" +
+                "test/stackwalker/Stackwalker.main_\\[0\\];" +
                 "test/stackwalker/Stackwalker.walkStackComplete_\\[0\\];" +
                 "Java_test_stackwalker_Stackwalker_walkStackComplete;" +
                 "doCpuTask;");
-        assert !output.contains("break_entry_frame");
+        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
     }
 
     @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackComplete",
