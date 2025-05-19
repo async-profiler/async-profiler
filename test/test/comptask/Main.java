@@ -101,73 +101,6 @@ public class Main {
         }
         sink += result;
 
-
-        
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -193,68 +126,6 @@ public class Main {
         }
         sink += result;
 
-
-        
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
-        for (int j = 0; j < 5; j++) {
-            result += Math.sin(j) * Math.cos(j);
-        }
-        sink += result;
-
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -285,8 +156,6 @@ public class Main {
         }
         sink += result;
 
-
-        
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -376,9 +245,7 @@ public class Main {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
-
 
-        
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -469,8 +336,6 @@ public class Main {
         }
         sink += result;
 
-
-        
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -561,8 +426,6 @@ public class Main {
         }
         sink += result;
 
-
-        
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }
@@ -652,9 +515,7 @@ public class Main {
             result += Math.sin(j) * Math.cos(j);
         }
         sink += result;
-
 
-        
         for (int j = 0; j < 5; j++) {
             result += Math.sin(j) * Math.cos(j);
         }

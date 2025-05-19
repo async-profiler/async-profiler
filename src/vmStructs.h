@@ -10,7 +10,6 @@
 #include <stdint.h>
 #include <string.h>
 #include "codeCache.h"
-#include "safeAccess.h"
 
 
 class VMStructs {
@@ -375,10 +374,10 @@ class VMThread : VMStructs {
 
     VMMethod* compiledMethod() {
         const char* env = *(const char**) at(_comp_env_offset);
-        if (goodPtr(env)) {
-            const char* task = (const char*) SafeAccess::load((void**) (env + _comp_task_offset));
-            if (goodPtr(task)) {
-                return (VMMethod*) SafeAccess::load((void**) (task + _comp_method_offset));
+        if (env != NULL) {
+            const char* task = *(const char**) (env + _comp_task_offset);
+            if (task != NULL) {
+                return *(VMMethod**) (task + _comp_method_offset);
             }
         }
         return NULL;
