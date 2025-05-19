@@ -41,6 +41,22 @@ Idea of the test (the behavior applies as of 0c72a8d):
     => AP tries to patch an inaccessible memory location
     => SEGFAULT
 */
+/*
+Here is the flow of the test:
+1. dlopen libcallsmalloc.so
+2. dlclose libcallsmalloc.so
+3. Start the profiler in nativemem mode
+4. Stop the profiler
+
+Expected output:
+The profiler should not crash.
+
+Explanation:
+AP remembers opening the first occurrence of libcallsmalloc.so in its code cache.
+Thus, when it's started in nativemem profiling mode, AP will try to patch it as part
+of the native hooks. If this happens, a SEGFAULT occurs because the memory location
+recorded is no longer valid.
+*/
 int main() {
     char *err;
 
