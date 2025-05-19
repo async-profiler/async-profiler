@@ -10,13 +10,12 @@ import one.profiler.test.*;
 public class ComptaskTests {
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,interval=10ns,collapsed",
+        agentArgs = "start,features=comptask,collapsed,file=%f",
         jvmArgs = "-Xcomp",
-        jvm = Jvm.HOTSPOT,
-        output = true
+        jvm = Jvm.HOTSPOT
     )
     public void testCompTask(TestProcess p) throws Exception {
-        Output out = p.waitForExit(TestProcess.STDOUT);
+        Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
         assert out.contains("CompileBroker::invoke_compiler_on_method;test/comptask/Main.main");
     }
