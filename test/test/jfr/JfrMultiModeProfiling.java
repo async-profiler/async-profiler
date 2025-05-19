@@ -14,7 +14,7 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * Process to simulate lock contention and allocate objects.
  */
-public class JfrMutliModeProfiling {
+public class JfrMultiModeProfiling {
     private static final Object lock = new Object();
 
     private static volatile Object sink;
@@ -23,7 +23,7 @@ public class JfrMutliModeProfiling {
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         for (int i = 0; i < 10; i++) {
-            executor.submit(JfrMutliModeProfiling::cpuIntensiveIncrement);
+            executor.submit(JfrMultiModeProfiling::cpuIntensiveIncrement);
         }
         executor.shutdown();
         allocate();
