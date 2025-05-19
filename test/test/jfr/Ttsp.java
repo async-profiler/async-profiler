@@ -14,8 +14,6 @@ public class Ttsp {
     private static final long SAFEPOINT_INTERVAL_MS = 200;
     private static final long MEMORY_SIZE = 500 * 1024 * 1024;
 
-    public static volatile long sink;
-
     static void requestSafepoint() {
         ManagementFactory.getThreadMXBean().dumpAllThreads(false, false);
     }
@@ -34,10 +32,9 @@ public class Ttsp {
         Unsafe unsafe = getUnsafe();
         long address = unsafe.allocateMemory(MEMORY_SIZE);
 
-        byte value = 0;
+        long value = 0;
         while (!Thread.interrupted()) {
-            value = (byte) (((int) (value) + 1) % ((int) Byte.MAX_VALUE + 1));
-            unsafe.setMemory(address, MEMORY_SIZE, value);
+            unsafe.setMemory(address, MEMORY_SIZE, (byte) (value++ % Byte.MAX_VALUE + 1));
         }
     }
 
