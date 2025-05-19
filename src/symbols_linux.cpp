@@ -836,7 +836,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     }
 }
 
-static bool isValidHandle(const CodeCache* cc, void* handle) {
+static bool checkHandleConsistency(const CodeCache* cc, void* handle) {
     Dl_info dl_info;
     struct link_map* map;
 
@@ -866,7 +866,7 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
     _lib_handle = dlopen(stripped_name, RTLD_LAZY | RTLD_NOLOAD);
-    _valid = isValidHandle(cc, _lib_handle);
+    _valid = checkHandleConsistency(cc, _lib_handle);
 }
 
 UnloadProtection::~UnloadProtection() {
