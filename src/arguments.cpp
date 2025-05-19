@@ -411,6 +411,10 @@ Error Arguments::parse(const char* args) {
             CASE("mcache")
                 _mcache = value == NULL ? 1 : (unsigned char)strtol(value, NULL, 0);
 
+            CASE("ttsp")
+                _begin = "SafepointSynchronize::begin";
+                _end = "RuntimeService::record_safepoint_synchronized";
+
             CASE("begin")
                 _begin = value;
 
