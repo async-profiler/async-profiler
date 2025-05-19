@@ -101,9 +101,10 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class)
+    @Test(mainClass = Ttsp.class, agentArgs = "start,event=cpu,ttsp,nostop,interval=1ms,jfr,file=%f")
     public void ttspNostop(TestProcess p) throws Exception {
-        p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
+        p.waitForExit();
+        assert p.exitCode() == 0;
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
