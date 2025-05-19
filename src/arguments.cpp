@@ -107,6 +107,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     begin=FUNCTION   - begin profiling when FUNCTION is executed
 //     end=FUNCTION     - end profiling when FUNCTION is executed
 //     nostop           - do not stop profiling outside --begin/--end window
+//     ttsp             - only time-to-safepoint profiling
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree (defaults to icicle graph)
@@ -447,6 +448,13 @@ Error Arguments::parse(const char* args) {
 
             CASE("nostop")
                 _nostop = true;
+
+            CASE("ttsp")
+                if (_begin != NULL || _end != NULL) {
+                    msg = "begin and end must both be empty when ttsp is set";
+                }
+                _begin = "SafepointSynchronize::begin";
+                _end = "RuntimeService::record_safepoint_synchronized";
 
             // FlameGraph options
             CASE("title")
