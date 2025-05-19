@@ -57,6 +57,7 @@ public class StackwalkerTests {
                 "(_pthread_start;)?" + // Mac specific frame
                 "ThreadJavaMain;" +
                 "JavaMain;" +
+                "(invokeStaticMainWithArgs;)?" + // Added in newer JDK versions => 24
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
