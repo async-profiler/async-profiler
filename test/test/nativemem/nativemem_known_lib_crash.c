@@ -60,7 +60,7 @@ int main() {
     void* lib = dlopen("libcallsmalloc.so", RTLD_NOW | RTLD_GLOBAL);
     ASSERT_NO_DLERROR(lib);
 
-    asprof_error_t asprof_err = asprof_execute("start,cstack=dwarf,collapsed", outputCallback);
+    asprof_error_t asprof_err = asprof_execute("start,collapsed", outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
 
     asprof_err = asprof_execute("stop", NULL);
@@ -68,7 +68,7 @@ int main() {
 
     dlclose(lib);
 
-    asprof_err = asprof_execute("start,nativemem,cstack=dwarf,collapsed", outputCallback);
+    asprof_err = asprof_execute("start,nativemem,collapsed", outputCallback);
     ASSERT_NO_ASPROF_ERR(asprof_err);
 
     asprof_err = asprof_execute("stop", NULL);
