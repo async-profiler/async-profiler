@@ -10,8 +10,8 @@ import one.profiler.test.*;
 public class ComptaskTests {
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,collapsed,file=%f",
-        jvmArgs = "-XX:+PrintCompilation -Xcomp",
+        agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%f",
+        jvmArgs = "-Xcomp",
         jvm = Jvm.HOTSPOT
     )
     public void testCompTask(TestProcess p) throws Exception {
