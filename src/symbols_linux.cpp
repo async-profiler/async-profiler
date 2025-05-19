@@ -855,15 +855,12 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
         return;
     }
 
-    const char* stripped_name;
-    size_t name_len = strlen(cc->name());
-    if (name_len > 10 && strcmp(cc->name() + name_len - 10, " (deleted)") == 0) {
-        char* buf = (char*) alloca(name_len);
-        memcpy(buf, cc->name(), name_len);
-        buf[name_len - 10] = 0;
+    const char* stripped_name = cc->name();
+    size_t name_len = strlen(stripped_name);
+    if (name_len > 10 && strcmp(stripped_name + name_len - 10, " (deleted)") == 0) {
+        char* buf = (char*) alloca(name_len - 9);
+        *stpncpy(buf, stripped_name, name_len - 10) = 0;
         stripped_name = buf;
-    } else {
-        stripped_name = cc->name();
     }
 
     // Protect library from unloading while parsing in-memory ELF program headers.
