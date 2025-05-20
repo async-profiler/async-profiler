@@ -104,11 +104,14 @@ void BufferTryNoCopyWriter::write(const char* data, size_t len) {
     if (_buf == nullptr) {
         _buf = data;
         _size = len;
-    } else {
+        return;
+    }
+
+    if (_fallback_writer == nullptr) {
         _fallback_writer = new BufferWriter(_size + len);
         _fallback_writer->write(_buf, _size);
-        _fallback_writer->write(data, len);
     }
+    _fallback_writer->write(data, len);
 }
 
 void CallbackWriter::write(const char* data, size_t len) {
