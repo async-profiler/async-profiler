@@ -507,7 +507,7 @@ int main(int argc, const char** argv) {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {
-            params << ",begin=SafepointSynchronize::begin,end=RuntimeService::record_safepoint_synchronized";
+            params << ",ttsp";
 
         } else if (arg == "--nostop") {
             params << ",nostop";
