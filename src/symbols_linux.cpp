@@ -13,7 +13,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <dlfcn.h>
 #include <elf.h>
 #include <errno.h>
 #include <unistd.h>
@@ -52,8 +51,11 @@ static void applyPatch(CodeCache* cc) {
     if (patch_libnet) {
         size_t len = strlen(cc->name());
         if (len >= 10 && strcmp(cc->name() + len - 10, "/libnet.so") == 0) {
-            cc->patchImport(im_poll, (void*)poll_hook);
-            patch_libnet = false;
+            UnloadProtection handle(cc);
+            if (handle.isValid()) {
+                cc->patchImport(im_poll, (void*)poll_hook);
+                patch_libnet = false;
+            }
         }
     }
 }
@@ -64,6 +66,25 @@ static void applyPatch(CodeCache* cc) {}
 
 #endif
 
+static const void* getMainPhdr() {
+    void* main_phdr = NULL;
+    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
+        *(const void**)data = info->dlpi_phdr;
+        return 1;
+    }, &main_phdr);
+    return main_phdr;
+}
+
+static const void* _main_phdr = getMainPhdr();
+static const char* _ld_base = (const char*)getauxval(AT_BASE);
+
+static bool isMainExecutable(const char* image_base, const void* map_end) {
+    return _main_phdr != NULL && _main_phdr >= image_base && _main_phdr < map_end;
+}
+
+static bool isLoader(const char* image_base) {
+    return _ld_base == image_base;
+}
 
 class SymbolDesc {
   private:
@@ -776,29 +797,12 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     std::unordered_map<u64, SharedLibrary> libs;
     collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
 
-    const char* ld_base = (const char*)getauxval(AT_BASE);
-    if (!ld_base) {
-        Log::warn("Cannot determine base address of the loader");
-    }
-
-    const void* main_phdr = NULL;
-    dl_iterate_phdr([](struct dl_phdr_info* info, size_t size, void* data) {
-        *(const void**)data = info->dlpi_phdr;
-        return 1;
-    }, &main_phdr);
-
     for (auto& it : libs) {
         u64 inode = it.first;
         _parsed_inodes.insert(inode);
 
         SharedLibrary& lib = it.second;
-        CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end);
-
-        // Strip " (deleted)" suffix so that removed library can be reopened
-        size_t len = strlen(lib.file);
-        if (len > 10 && strcmp(lib.file + len - 10, " (deleted)") == 0) {
-            lib.file[len - 10] = 0;
-        }
+        CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
 
         if (strchr(lib.file, ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
@@ -812,23 +816,9 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
-            dlerror();  // reset any error from previous dl function calls
-
-            // Protect library from unloading while parsing in-memory ELF program headers.
-            // Also, dlopen() ensures the library is fully loaded.
-            // Main executable and ld-linux interpreter cannot be dlopen'ed, but dlerror() returns NULL for them on some systems.
-            void* handle = dlopen(lib.file, RTLD_LAZY | RTLD_NOLOAD);
-
-            // Parse main executable and the loader (ld.so) regardless of dlopen result, since they cannot be unloaded.
-            bool is_main_exe = main_phdr >= lib.image_base && main_phdr < lib.map_end;
-            bool is_loader = ld_base == lib.image_base;
-
-            if (handle != NULL || is_main_exe || is_loader) {
+            UnloadProtection handle(cc);
+            if (handle.isValid()) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
-            }
-
-            if (handle != NULL) {
-                dlclose(handle);
             }
         }
 
@@ -842,6 +832,46 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
         Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
         _libs_limit_reported = true;
+    }
+}
+
+// Check that the base address of the shared object has not changed
+static bool verifyBaseAddress(const CodeCache* cc, void* lib_handle) {
+    Dl_info dl_info;
+    struct link_map* map;
+
+    if (dlinfo(lib_handle, RTLD_DI_LINKMAP, &map) != 0 || dladdr(map->l_ld, &dl_info) == 0) {
+        return false;
+    }
+
+    return cc->imageBase() == (const char*)dl_info.dli_fbase;
+}
+
+UnloadProtection::UnloadProtection(const CodeCache *cc) {
+    if (OS::isMusl() || isMainExecutable(cc->imageBase(), cc->maxAddress()) || isLoader(cc->imageBase())) {
+        _lib_handle = NULL;
+        _valid = true;
+        return;
+    }
+
+    // dlopen() can reopen previously loaded libraries even if the underlying file has been deleted
+    const char* stripped_name = cc->name();
+    size_t name_len = strlen(stripped_name);
+    if (name_len > 10 && strcmp(stripped_name + name_len - 10, " (deleted)") == 0) {
+        char* buf = (char*) alloca(name_len - 9);
+        *stpncpy(buf, stripped_name, name_len - 10) = 0;
+        stripped_name = buf;
+    }
+
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    _lib_handle = dlopen(stripped_name, RTLD_LAZY | RTLD_NOLOAD);
+    _valid = _lib_handle != NULL && verifyBaseAddress(cc, _lib_handle);
+}
+
+UnloadProtection::~UnloadProtection() {
+    if (_lib_handle != NULL) {
+        dlclose(_lib_handle);
     }
 }
 
