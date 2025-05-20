@@ -25,7 +25,7 @@ public class StackwalkerTests {
         assert output.contains("^\\[possibly-truncated\\];" +
                 "Java_test_stackwalker_StackGenerator_generateLargeFrame;" +
                 "doCpuTask");
-        assert !output.contains("\\[possibly-truncated\\].*Stackwalker.main");
+        assert !output.contains("\\[possibly-truncated\\].*StackGenerator.main");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
