@@ -3,18 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <fstream>
 #include <algorithm>
 #include <dlfcn.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
-#include "otlp.h"
+#include <unordered_map>
 #include "profiler.h"
 #include "perfEvents.h"
 #include "ctimer.h"
@@ -33,14 +30,13 @@
 #include "fdtransferClient.h"
 #include "frameName.h"
 #include "os.h"
+#include "otlp.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
 #include "symbols.h"
 #include "tsc.h"
 #include "vmStructs.h"
-#include <map>
-#include <unordered_map>
 
 
 // The instance is not deleted on purpose, since profiler structures
