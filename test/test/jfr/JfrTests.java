@@ -96,10 +96,17 @@ public class JfrTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
+        String vmSpecificationVersion = null;
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.InitialSystemProperty") &&
+                    event.getString("key").equals("java.vm.specification.version")) {
+                    vmSpecificationVersion = event.getString("value");
+                }
+
                 events.add(eventName);
             }
         }
@@ -109,7 +116,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(vmSpecificationVersion); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -128,10 +135,17 @@ public class JfrTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
+        String vmSpecificationVersion = null;
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.InitialSystemProperty") &&
+                    event.getString("key").equals("java.vm.specification.version")) {
+                    vmSpecificationVersion = event.getString("value");
+                }
+
                 events.add(eventName);
                 if (eventName.equals("jdk.ExecutionSample")) {
                     // This means that only instrumented method was profiled and overall CPU profiling was skipped
@@ -142,7 +156,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(vmSpecificationVersion); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -198,8 +212,10 @@ public class JfrTests {
         });
     }
 
-    private static boolean checkJdkVersionEarlierThan11() {
-        String javaVersion = System.getProperty("java.version");
-        return javaVersion.startsWith("1.") || Integer.parseInt(javaVersion.split("\\.")[0]) < 11;
+    private static boolean checkJdkVersionEarlierThan11(String vmSpecificationVersion) {
+        if (vmSpecificationVersion == null) {
+            throw new IllegalArgumentException("vmSpecificationVersion should not be null");
+        }
+        return vmSpecificationVersion.startsWith("1.") || Integer.parseInt(vmSpecificationVersion.split("\\.")[0]) < 11;
     }
 }
