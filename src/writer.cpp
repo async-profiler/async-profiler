@@ -94,6 +94,11 @@ void BufferWriter::write(const char* data, size_t len) {
     _size = new_size;
 }
 
+void BufferNoCopyWriter::write(const char* data, size_t len) {
+    _buf = data;
+    _size = len;
+}
+
 void CallbackWriter::write(const char* data, size_t len) {
     if (_output_callback != NULL) {
         _output_callback(data, len);

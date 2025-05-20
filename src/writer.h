@@ -83,6 +83,23 @@ class BufferWriter : public Writer {
     virtual void write(const char* data, size_t len);
 };
 
+class BufferNoCopyWriter : public Writer {
+  private:
+    const char* _buf;
+    size_t _size;
+
+  public:
+    const char* buf() const {
+        return _buf;
+    }
+
+    size_t size() const {
+        return _size;
+    }
+
+    virtual void write(const char* data, size_t len);
+};
+
 class CallbackWriter : public Writer {
   private:
     asprof_writer_t _output_callback;
