@@ -23,7 +23,7 @@ public class Ttsp {
             Field f = Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             return (Unsafe) f.get(null);
-        } catch(Exception exception) {
+        } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
     }
