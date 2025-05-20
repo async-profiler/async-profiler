@@ -9,6 +9,7 @@
 #include "mallocTracer.h"
 #include "os.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "tsc.h"
 #include <dlfcn.h>
 #include <string.h>
@@ -120,9 +121,13 @@ void MallocTracer::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-
         if (cc->contains((const void*)MallocTracer::initialize)) {
             // Let libasyncProfiler always use original allocation methods
+            continue;
+        }
+
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
             continue;
         }
 
