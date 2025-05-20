@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <time.h>
+#include "protobuf.h"
 #include "arch.h"
 #include "arguments.h"
 #include "callTraceStorage.h"
@@ -64,6 +65,7 @@ class Profiler {
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
+    ProtoBuffer _otlp_buffer{0};
     Engine* _engine;
     Engine* _alloc_engine;
     int _event_mask;
@@ -152,7 +154,7 @@ class Profiler {
     void dumpCollapsed(Writer& out, Arguments& args);
     void dumpFlameGraph(Writer& out, Arguments& args, bool tree);
     void dumpText(Writer& out, Arguments& args);
-    void dumpOtlp(Arguments& args);
+    void dumpOtlp(Writer& out, Arguments& args);
 
     static Profiler* const _instance;
 

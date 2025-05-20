@@ -95,6 +95,33 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     return NULL;
 }
 
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_AsyncProfiler_executeAndGetBuffer0(JNIEnv* env, jobject unused, jstring command) {
+    Arguments args;
+    const char* command_str = env->GetStringUTFChars(command, NULL);
+    Error error = args.parse(command_str);
+    env->ReleaseStringUTFChars(command, command_str);
+
+    if (error) {
+        throwNew(env, "java/lang/IllegalArgumentException", error.message());
+        return NULL;
+    }
+    if (args.hasOutputFile()) {
+        throwNew(env, "java/lang/IllegalArgumentException", "executeAndGetBuffer calls should not specify an output file argument");
+    }
+
+    Log::open(args);
+
+    BufferNoCopyWriter out;
+    error = Profiler::instance()->runInternal(args, out);
+    if (error) {
+        throwNew(env, "java/lang/IllegalStateException", error.message());
+        return NULL;
+    }
+
+    return env->NewDirectByteBuffer((void*) out.buf(), out.size());
+}
+
 extern "C" DLLEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
     return (jlong)Profiler::instance()->total_samples();

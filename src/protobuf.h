@@ -41,6 +41,7 @@ class ProtoBuffer {
 
     size_t offset() const { return _offset; }
     size_t capacity() const { return _capacity; }
+    void reset() { _offset = 0; }
 
     // VARINT
     void field(protobuf_index_t index, bool b);
