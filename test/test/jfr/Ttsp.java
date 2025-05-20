@@ -36,6 +36,8 @@ public class Ttsp {
         while (!Thread.interrupted()) {
             unsafe.setMemory(address, MEMORY_SIZE, (byte) (value++ % Byte.MAX_VALUE + 1));
         }
+
+        unsafe.freeMemory(address);
     }
 
     public static void main(String[] args) throws Exception {
