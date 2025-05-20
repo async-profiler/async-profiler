@@ -226,7 +226,7 @@ build-test: build-test-cpp build-test-java
 
 build-test-libs:
 	@mkdir -p $(TEST_LIB_DIR)
-	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnistackwalker.$(SOEXT) test/native/libs/jnistackwalker.c
+	$(CC) -fno-optimize-sibling-calls -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjninativestacks.$(SOEXT) test/native/libs/jninativestacks.c
 
 ifeq ($(OS_TAG),linux)
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libreladyn.$(SOEXT) test/native/libs/reladyn.c

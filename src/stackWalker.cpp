@@ -408,7 +408,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
         // Check unwind limits
         if (sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
-            fillFrame(frames[depth++], BCI_ERROR, "[possible-truncated]");
+            fillFrame(frames[depth++], BCI_ERROR, "[possibly-truncated]");
             break;
         }
 
@@ -432,7 +432,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 sp = defaultSenderSP(sp, fp);
                 if (sp < prev_sp || sp >= bottom || !aligned(sp)) {
                     // Check unwind limits
-                    if (sp >= bottom) fillFrame(frames[depth++], BCI_ERROR, "[possible-truncated]");
+                    if (sp >= bottom) fillFrame(frames[depth++], BCI_ERROR, "[possibly-truncated]");
                     break;
                 }
             } else if (depth <= 1) {

@@ -11,30 +11,33 @@ import one.profiler.test.TestProcess;
 
 public class StackwalkerTests {
 
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackLargeFrame",
+    private static final String FRAME = "([^\\[;]+;)";
+    private static final String OPTIONAL_FRAME = FRAME + "?";
+
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "largeFrame",
             agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr", nameSuffix = "VMX")
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackLargeFrame",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "largeFrame",
             agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr", nameSuffix = "VM")
     public void largeFrame(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^\\[possible-truncated\\];" +
-                "Java_test_stackwalker_Stackwalker_walkStackLargeFrame;" +
+        assert output.contains("^\\[possibly-truncated\\];" +
+                "Java_test_stackwalker_StackGenerator_generateLargeFrame;" +
                 "doCpuTask");
-        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
+        assert !output.contains("\\[possibly-truncated\\].*Stackwalker.main");
     }
 
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackDeepStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
             agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr", nameSuffix = "VMX")
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackDeepStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
             agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr", nameSuffix = "VM")
     public void deepStack(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^\\[possible-truncated\\];" +
-                "Java_test_stackwalker_Stackwalker_walkStackDeepStack;" +
+        assert output.contains("^\\[possibly-truncated\\];" +
+                "Java_test_stackwalker_StackGenerator_generateDeepStack;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
@@ -43,18 +46,18 @@ public class StackwalkerTests {
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "doCpuTask");
-        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
+        assert !output.contains("\\[possibly-truncated\\].*StackGenerator.main");
     }
 
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackComplete",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
             agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr")
     public void normalStackVMX(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^([^\\[;]+;)?" + // Root can be different on different systems
-                "(start_thread;|thread_start;)?" + // Mac Vs Linux
-                "(_pthread_start;)?" + // Mac specific frame
+        assert output.contains("^" +
+                FRAME + // Root can be different on different systems
+                OPTIONAL_FRAME + // It's possible to have an additional thread frame depending on the OS
                 "ThreadJavaMain;" +
                 "JavaMain;" +
                 "(invokeStaticMainWithArgs;)?" + // Added in newer JDK versions => 24
@@ -62,23 +65,23 @@ public class StackwalkerTests {
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
                 "call_stub;" +
-                "test/stackwalker/Stackwalker.main_\\[0\\];" +
-                "test/stackwalker/Stackwalker.walkStackComplete_\\[0\\];" +
-                "Java_test_stackwalker_Stackwalker_walkStackComplete;" +
+                "test/stackwalker/StackGenerator.main_\\[0\\];" +
+                "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
+                "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
                 "doCpuTask");
-        assert !output.contains("\\[possible-truncated\\].*Stackwalker.main");
+        assert !output.contains("\\[possibly-truncated\\]");
     }
 
-    @Test(mainClass = Stackwalker.class, jvmArgs = "-Xss5m", args = "walkStackComplete",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
             agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr")
     public void normalStackVM(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^test/stackwalker/Stackwalker.main_\\[0\\];" +
-                "test/stackwalker/Stackwalker.walkStackComplete_\\[0\\];" +
-                "Java_test_stackwalker_Stackwalker_walkStackComplete;" +
+        assert output.contains("^test/stackwalker/StackGenerator.main_\\[0\\];" +
+                "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
+                "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
                 "doCpuTask");
-        assert !output.contains("break_entry_frame");
+        assert !output.contains("\\[possibly-truncated\\]");
     }
 }
