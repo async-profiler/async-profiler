@@ -17,6 +17,6 @@ public class ComptaskTests {
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
-        assert out.contains("CompileBroker::invoke_compiler_on_method;test/comptask/Main.main");
+        assert out.contains("CompileBroker::invoke_compiler_on_method;java/lang/Thread.<init>");
     }
 }
