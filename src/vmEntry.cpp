@@ -96,7 +96,8 @@ static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
 }
 
 static bool isCompilerEntry(const char* blob_name) {
-    return strncmp(blob_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0;
+    return strncmp(blob_name, "_ZN8Compiler14compile_method", 28) == 0 ||
+           strncmp(blob_name, "_ZN10C2Compiler14compile_method", 31) == 0;
 }
 
 static void* resolveMethodId(void** mid) {
