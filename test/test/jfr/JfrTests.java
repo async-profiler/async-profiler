@@ -14,7 +14,6 @@ import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -63,7 +62,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -89,10 +88,10 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -123,8 +122,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX)
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
