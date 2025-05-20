@@ -88,10 +88,10 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX, jvmVer = {11, Integer.MAX_VALUE})
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX, jvmVer = {11, Integer.MAX_VALUE})
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64, jvmVer = {11, Integer.MAX_VALUE})
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64, jvmVer = {11, Integer.MAX_VALUE})
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,lock=10ms,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -109,7 +109,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -122,8 +122,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX, jvmVer = {11, Integer.MAX_VALUE})
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64, jvmVer = {11, Integer.MAX_VALUE})
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.LINUX)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr", os = Os.MACOS, arch = Arch.ARM64)
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -142,7 +142,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -153,14 +153,13 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class, agentArgs = "start,event=cpu,ttsp,interval=1ms,jfr,file=%f")
+    @Test(mainClass = Ttsp.class)
     public void ttsp(TestProcess p) throws Exception {
-        p.waitForExit();
-        assert p.exitCode() == 0;
+        p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
 
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert out.samples("Ttsp.delaySafepoint") >= 10;
+        assert out.samples("indexOfTest") >= 10;
     }
 
     /**
@@ -169,10 +168,9 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class, agentArgs = "start,event=cpu,ttsp,nostop,interval=1ms,jfr,file=%f")
+    @Test(mainClass = Ttsp.class)
     public void ttspNostop(TestProcess p) throws Exception {
-        p.waitForExit();
-        assert p.exitCode() == 0;
+        p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
@@ -196,5 +194,10 @@ public class JfrTests {
             // check that the current sample takes place during a profiling window, allowing for a 10ms buffer at each end
             return entryEnd.isBefore(event.getStartTime());
         });
+    }
+
+    private static boolean checkJdkVersionEarlierThan11() {
+        String javaVersion = System.getProperty("java.version");
+        return javaVersion.startsWith("1.") || Integer.parseInt(javaVersion.split("\\.")[0]) < 11;
     }
 }

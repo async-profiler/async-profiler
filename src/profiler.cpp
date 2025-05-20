@@ -1214,6 +1214,10 @@ Error Profiler::start(Arguments& args, bool reset) {
     }
 
     if (_event_mask & EM_ALLOC) {
+        if (args._all && VM::hotspot_version() < 11) {
+            Log::debug("'live' option was quietly removed, only supported on OpenJDK 11+");
+            args._live = false;
+        }
         _alloc_engine = selectAllocEngine(args._alloc, args._live);
         error = _alloc_engine->start(args);
         if (error) {
