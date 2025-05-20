@@ -364,14 +364,12 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 // as Java frames returned by AGCT. Terminate the scan here.
                 return depth;
             } else if (mark == MARK_COMPILER_ENTRY && _features.comp_task) {
-                if (depth > 0 && strstr((const char*) frames[depth-1].method_id, "14compile_method") != NULL) {
-                    // Insert current compile task as a pseudo Java frame
-                    jmethodID compile_task = getCurrentCompileTask();
-                    if (compile_task != NULL) {
-                        frames[depth].bci = 0;
-                        frames[depth].method_id = compile_task;
-                        depth++;
-                    }
+                // Insert current compile task as a pseudo Java frame
+                jmethodID compile_task = getCurrentCompileTask();
+                if (compile_task != NULL) {
+                    frames[depth].bci = 0;
+                    frames[depth].method_id = compile_task;
+                    depth++;
                 }
             }
         }
