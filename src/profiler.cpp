@@ -1679,12 +1679,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.field(Otlp::Profile::period, (u64) args._interval);
 
     protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Otlp::Profile::sample_type);
+    // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
     _otlp_buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "samples"));
     _otlp_buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "count"));
     _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
     _otlp_buffer.commitMessage(sample_type_mark);
 
     protobuf_mark_t period_type_mark = _otlp_buffer.startMessage(Otlp::Profile::period_type);
+    // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
     _otlp_buffer.field(Otlp::ValueType::type_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "cpu"));
     _otlp_buffer.field(Otlp::ValueType::unit_strindex, maybeAddToIdxMap(string_idx_map, strings_vec, "nanoseconds"));
     _otlp_buffer.commitMessage(period_type_mark);
