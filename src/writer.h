@@ -83,18 +83,26 @@ class BufferWriter : public Writer {
     virtual void write(const char* data, size_t len);
 };
 
-class BufferNoCopyWriter : public Writer {
+// A BufferWriter which tries to avoid copies by keeping the pointer towards
+// the first buffer it sees, and falls back to BufferWriter otherwise.
+class BufferTryNoCopyWriter : public Writer {
   private:
     const char* _buf;
     size_t _size;
+    // Fallback to this writer if no-copy is not possible
+    BufferWriter* _fallback_writer;
 
   public:
+    BufferTryNoCopyWriter() : _buf(nullptr), _fallback_writer(nullptr) {
+    }
+    ~BufferTryNoCopyWriter();
+
     const char* buf() const {
-        return _buf;
+        return _fallback_writer == nullptr ? _buf : _fallback_writer->buf();
     }
 
     size_t size() const {
-        return _size;
+        return _fallback_writer == nullptr ? _size : _fallback_writer->size();
     }
 
     virtual void write(const char* data, size_t len);

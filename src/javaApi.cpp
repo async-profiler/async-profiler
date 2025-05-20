@@ -112,7 +112,7 @@ Java_one_profiler_AsyncProfiler_executeAndGetBuffer0(JNIEnv* env, jobject unused
 
     Log::open(args);
 
-    BufferNoCopyWriter out;
+    BufferTryNoCopyWriter out;
     error = Profiler::instance()->runInternal(args, out);
     if (error) {
         throwNew(env, "java/lang/IllegalStateException", error.message());
