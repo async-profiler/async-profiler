@@ -7,14 +7,12 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
-import one.profiler.test.Arch;
 import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -63,7 +61,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,jfr,file=%f")
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -87,8 +85,8 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,file=%f.jfr")
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,file=%f.jfr")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,alloc=100,file=%f.jfr")
     public void allModeNoEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -117,7 +115,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMutliModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr")
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,all,event=java.util.Properties.getProperty,alloc=100,file=%f.jfr")
     public void allModeEventOverride(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;

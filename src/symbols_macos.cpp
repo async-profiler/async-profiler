@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 
 #include <unordered_set>
+#include <vector>
 #include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
@@ -13,7 +14,19 @@
 #include <mach-o/nlist.h>
 #include "symbols.h"
 #include "log.h"
-#include <vector>
+
+UnloadProtection::UnloadProtection(const CodeCache *cc) {
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    _lib_handle = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    _valid = _lib_handle != NULL;
+}
+
+UnloadProtection::~UnloadProtection() {
+    if (_lib_handle != NULL) {
+        dlclose(_lib_handle);
+    }
+}
 
 class MachOParser {
   private:
@@ -54,14 +67,14 @@ class MachOParser {
         _cc->setDebugSymbols(debug_symbols);
     }
 
-    void loadImports(const section_64* symbol_section, const char* text_base, const nlist_64* symbols, 
+    void loadImports(const section_64* symbol_section, const char* text_base, const nlist_64* symbols,
                      const char* string_table, const uint32_t* dynamic_symbols) {
         const uint32_t* dynamic_symbol_indices = dynamic_symbols + symbol_section->reserved1;
         void** dynamic_symbol_references = (void**)((uintptr_t)text_base + symbol_section->addr);
 
         for (uint64_t i = 0; i < symbol_section->size / sizeof(void*); i++) {
             const uint32_t dynamic_symbol_index = dynamic_symbol_indices[i];
-            if (dynamic_symbol_index == INDIRECT_SYMBOL_ABS || dynamic_symbol_index == INDIRECT_SYMBOL_LOCAL 
+            if (dynamic_symbol_index == INDIRECT_SYMBOL_ABS || dynamic_symbol_index == INDIRECT_SYMBOL_LOCAL
                     || dynamic_symbol_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) {
                 continue;
             }
@@ -165,21 +178,16 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             break;
         }
 
-        // Protect the library from unloading while parsing symbols
-        void* handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD);
-        if (handle == NULL) {
-            continue;
-        }
-
         CodeCache* cc = new CodeCache(path, count);
-        MachOParser parser(cc, image_base);
-        if (!parser.parse()) {
-            Log::warn("Could not parse symbols from %s", path);
+        UnloadProtection handle(cc);
+        if (handle.isValid()) {
+            MachOParser parser(cc, image_base);
+            if (!parser.parse()) {
+                Log::warn("Could not parse symbols from %s", path);
+            }
+            cc->sort();
+            array->add(cc);
         }
-        dlclose(handle);
-
-        cc->sort();
-        array->add(cc);
     }
 }
 
