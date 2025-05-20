@@ -100,11 +100,7 @@ class CodeBlob {
 
 class FrameDesc;
 
-class UnloadProtection;
-
 class CodeCache {
-  friend UnloadProtection;
-
   private:
     char* _name;
     short _lib_index;
@@ -212,6 +208,8 @@ class CodeCache {
     FrameDesc* findFrameDesc(const void* pc);
 
     size_t usedMemory();
+
+    friend class UnloadProtection;
 };
 
 

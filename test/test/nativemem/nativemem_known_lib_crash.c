@@ -28,20 +28,6 @@ void outputCallback(const char* buffer, size_t size) {
 }
 
 /*
-Idea of the test (the behavior applies as of 0c72a8d):
-- We load libcallsmalloc.so
-- We start AP without nativemem mode
-    => 'malloc' is not hooked
-- We stop AP
-- We dlclose libcallsmalloc.so
-    => Memory region(s) for libcallsmalloc.so are now unmapped.
-- We restart AP in nativemem mode 
-    => we try to hook 'malloc'
-- AP remembers the previous instance libcallsmalloc.so
-    => AP tries to patch an inaccessible memory location
-    => SEGFAULT
-*/
-/*
 Here is the flow of the test:
 1. dlopen libcallsmalloc.so
 2. dlclose libcallsmalloc.so

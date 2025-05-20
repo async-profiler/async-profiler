@@ -20,7 +20,6 @@
 #include <link.h>
 #include <linux/limits.h>
 #include <sys/auxv.h>
-#include <link.h>
 #include "symbols.h"
 #include "dwarf.h"
 #include "fdtransferClient.h"
@@ -836,12 +835,12 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     }
 }
 
-static bool checkHandleConsistency(const CodeCache* cc, void* handle) {
+// Check that the base address of the shared object has not changed
+static bool verifyBaseAddress(const CodeCache* cc, void* lib_handle) {
     Dl_info dl_info;
     struct link_map* map;
 
-    // Check shared objects are still available at original base image
-    if (handle == NULL || dlinfo(handle, RTLD_DI_LINKMAP, &map) != 0 || dladdr(map->l_ld, &dl_info) == 0) {
+    if (dlinfo(lib_handle, RTLD_DI_LINKMAP, &map) != 0 || dladdr(map->l_ld, &dl_info) == 0) {
         return false;
     }
 
@@ -855,6 +854,7 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
         return;
     }
 
+    // dlopen() can reopen previously loaded libraries even if the underlying file has been deleted
     const char* stripped_name = cc->name();
     size_t name_len = strlen(stripped_name);
     if (name_len > 10 && strcmp(stripped_name + name_len - 10, " (deleted)") == 0) {
@@ -866,7 +866,7 @@ UnloadProtection::UnloadProtection(const CodeCache *cc) {
     // Protect library from unloading while parsing in-memory ELF program headers.
     // Also, dlopen() ensures the library is fully loaded.
     _lib_handle = dlopen(stripped_name, RTLD_LAZY | RTLD_NOLOAD);
-    _valid = checkHandleConsistency(cc, _lib_handle);
+    _valid = _lib_handle != NULL && verifyBaseAddress(cc, _lib_handle);
 }
 
 UnloadProtection::~UnloadProtection() {

@@ -9,8 +9,8 @@
 #include "mallocTracer.h"
 #include "os.h"
 #include "profiler.h"
-#include "tsc.h"
 #include "symbols.h"
+#include "tsc.h"
 #include <dlfcn.h>
 #include <string.h>
 
