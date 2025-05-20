@@ -1698,6 +1698,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
+        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+        if (counter == 0) continue;
+
         u64 num_frames = trace->num_frames;
         for (u64 j = 0; j < num_frames; ++j) {
             u64 function_idx = maybeAddToIdxMap(function_idx_map, functions_vec, fn.name(trace->frames[j]));
@@ -1707,7 +1710,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t sample_mark = _otlp_buffer.startMessage(Otlp::Profile::sample);
         _otlp_buffer.field(Otlp::Sample::locations_start_index, frames_seen);
         _otlp_buffer.field(Otlp::Sample::locations_length, num_frames);
-        _otlp_buffer.field(Otlp::Sample::value, (u64) 1);
+        _otlp_buffer.field(Otlp::Sample::value, counter);
         _otlp_buffer.commitMessage(sample_mark);
 
         frames_seen += num_frames;
