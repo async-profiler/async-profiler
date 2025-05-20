@@ -13,6 +13,7 @@
 #include "cpuEngine.h"
 #include "mallocTracer.h"
 #include "profiler.h"
+#include "symbols.h"
 
 
 #define ADDRESS_OF(sym) ({ \
@@ -182,6 +183,11 @@ void Hooks::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
+        UnloadProtection handle(cc);
+        if (!handle.isValid()) {
+            continue;
+        }
+
         if (!cc->contains((const void*)Hooks::init)) {
             // Let libasyncProfiler always use original dlopen
             cc->patchImport(im_dlopen, (void*)dlopen_hook);

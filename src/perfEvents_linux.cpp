@@ -181,7 +181,7 @@ struct PerfEventType {
     static PerfEventType AVAILABLE_EVENTS[];
     static FunctionWithCounter KNOWN_FUNCTIONS[];
 
-    static char probe_func[256];
+    static char probe_func[MAX_PROBE_LEN];
 
     // Find which argument of a known function serves as a profiling counter,
     // e.g. the first argument of malloc() is allocation size
@@ -367,6 +367,9 @@ struct PerfEventType {
     }
 
     static PerfEventType* forName(const char* name) {
+        // Reset probe_func, since it is used in FdTransferClient
+        probe_func[0] = 0;
+
         // "cpu" is an alias for "cpu-clock"
         if (strcmp(name, EVENT_CPU) == 0) {
             return &AVAILABLE_EVENTS[IDX_CPU];
@@ -487,7 +490,7 @@ FunctionWithCounter PerfEventType::KNOWN_FUNCTIONS[] = {
     {NULL}
 };
 
-char PerfEventType::probe_func[256];
+char PerfEventType::probe_func[MAX_PROBE_LEN];
 
 
 class RingBuffer {
@@ -531,6 +534,7 @@ PerfEvent* PerfEvents::_events = NULL;
 PerfEventType* PerfEvents::_event_type = NULL;
 bool PerfEvents::_alluser;
 bool PerfEvents::_kernel_stack;
+bool PerfEvents::_record_cpu;
 int PerfEvents::_target_cpu;
 
 int PerfEvents::createForThread(int tid) {
@@ -590,9 +594,13 @@ int PerfEvents::createForThread(int tid) {
 #warning "Compiling without LBR support. Kernel headers 4.1+ required"
 #endif
 
+    if (_record_cpu) {
+        attr.sample_type |= PERF_SAMPLE_CPU;
+    }
+
     int fd;
     if (FdTransferClient::hasPeer()) {
-        fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr);
+        fd = FdTransferClient::requestPerfFd(&tid, _target_cpu, &attr, PerfEventType::probe_func);
     } else {
         fd = syscall(__NR_perf_event_open, &attr, tid, _target_cpu, -1, PERF_FLAG_FD_CLOEXEC);
         if (fd == -1 && errno == EINVAL) {
@@ -775,6 +783,10 @@ Error PerfEvents::check(Arguments& args) {
     }
 #endif
 
+    if (args._record_cpu) {
+        attr.sample_type |= PERF_SAMPLE_CPU;
+    }
+
     int fd = syscall(__NR_perf_event_open, &attr, 0, args._target_cpu, -1, 0);
     if (fd == -1) {
         return Error(strerror(errno));
@@ -797,6 +809,7 @@ Error PerfEvents::start(Arguments& args) {
     }
 
     _target_cpu = args._target_cpu;
+    _record_cpu = args._record_cpu;
 
     if (args._interval < 0) {
         return Error("interval must be positive");
@@ -880,7 +893,12 @@ int PerfEvents::walk(int tid, void* ucontext, const void** callchain, int max_de
 
         while (tail < head) {
             struct perf_event_header* hdr = ring.seek(tail);
+
             if (hdr->type == PERF_RECORD_SAMPLE) {
+                if (_record_cpu) {
+                    java_ctx->cpu = ring.next();
+                }
+
                 u64 nr = ring.next();
                 while (nr-- > 0) {
                     u64 ip = ring.next();

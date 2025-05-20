@@ -14,7 +14,6 @@ import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
-import one.profiler.test.Jvm;
 
 public class CpuTests {
 
@@ -58,6 +57,15 @@ public class CpuTests {
         Output outRightCpu = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --target-cpu 0");
         assertCloseTo(outRightCpu.total(), 2_000_000_000, "perf_events total should match profiling duration");
     }
+    
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    public void perfEventsRecordCpuEventsCount(TestProcess p) throws Exception {
+        pinCpu(p, 1);
+
+        Output output = p.profile("-d 2 -e cpu-clock -i 100ms --total -o collapsed --record-cpu");
+        assert output.contains("\\[CPU-1\\]");
+        assert !output.contains("\\[CPU-0\\]");
+    }
 
     @Test(mainClass = CpuBurner.class, os = Os.LINUX)
     public void perfEventsTargetCpuWithFdtransferEventsCount(TestProcess p) throws Exception {
@@ -82,6 +90,22 @@ public class CpuTests {
     public void ctimerDoesNotSupportTargetCpu(TestProcess p) throws Exception {
         try {
             Output out = p.profile("-e ctimer --target-cpu 1");
+            throw new IllegalStateException("Profiling should have failed");
+        } catch (IOException expectedException) {}
+    }
+
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    public void itimerDoesNotSupportRecordCpu(TestProcess p) throws Exception {
+        try {
+            Output out = p.profile("-e itimer --record-cpu");
+            throw new IllegalStateException("Profiling should have failed");
+        } catch (IOException expectedException) {}
+    }
+
+    @Test(mainClass = CpuBurner.class, os = Os.LINUX)
+    public void ctimerDoesNotSupportRecordCpu(TestProcess p) throws Exception {
+        try {
+            Output out = p.profile("-e ctimer --record-cpu");
             throw new IllegalStateException("Profiling should have failed");
         } catch (IOException expectedException) {}
     }

@@ -14,6 +14,18 @@
 #include "symbols.h"
 #include "log.h"
 
+UnloadProtection::UnloadProtection(const CodeCache *cc) {
+    // Protect library from unloading while parsing in-memory ELF program headers.
+    // Also, dlopen() ensures the library is fully loaded.
+    _lib_handle = dlopen(cc->name(), RTLD_LAZY | RTLD_NOLOAD);
+    _valid = _lib_handle != NULL;
+}
+
+UnloadProtection::~UnloadProtection() {
+    if (_lib_handle != NULL) {
+        dlclose(_lib_handle);
+    }
+}
 
 class MachOParser {
   private:
@@ -152,22 +164,16 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         }
 
         const char* path = _dyld_get_image_name(i);
-
-        // Protect the library from unloading while parsing symbols
-        void* handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD);
-        if (handle == NULL) {
-            continue;
-        }
-
         CodeCache* cc = new CodeCache(path, count, true);
-        MachOParser parser(cc, image_base);
-        if (!parser.parse()) {
-            Log::warn("Could not parse symbols from %s", path);
+        UnloadProtection handle(cc);
+        if (handle.isValid()) {
+            MachOParser parser(cc, image_base);
+            if (!parser.parse()) {
+                Log::warn("Could not parse symbols from %s", path);
+            }
+            cc->sort();
+            array->add(cc);
         }
-        dlclose(handle);
-
-        cc->sort();
-        array->add(cc);
     }
 }
 
