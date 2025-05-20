@@ -71,9 +71,8 @@ void AllocTracer::recordAllocation(void* ucontext, EventType event_type, uintptr
 
 Error AllocTracer::check(Arguments& args) {
     if (args._live) {
-        // This engine is only going to be selected in Profiler::selectAllocEngine
-        // when can_generate_sampled_object_alloc_events is not available, i.e.
-        // JDK<11.
+        // This engine is only going to be selected in Profiler::selectAllocEngine when can_generate_sampled_object_alloc_events
+        // is not available, i.e. JDK<11.
         return Error("'live' option is supported on OpenJDK 11+");
     }
 
