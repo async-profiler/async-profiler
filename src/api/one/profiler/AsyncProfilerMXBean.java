@@ -5,6 +5,8 @@
 
 package one.profiler;
 
+import java.nio.ByteBuffer;
+
 /**
  * AsyncProfiler interface for JMX server.
  * How to register AsyncProfiler MBean:
@@ -29,4 +31,5 @@ public interface AsyncProfilerMXBean {
     String dumpCollapsed(Counter counter);
     String dumpTraces(int maxTraces);
     String dumpFlat(int maxMethods);
+    ByteBuffer dumpOtlp();
 }
