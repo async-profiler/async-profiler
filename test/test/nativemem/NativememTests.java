@@ -200,7 +200,7 @@ public class NativememTests {
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
 
-    @Test(os = Os.LINUX, sh = "%testbin/nativemem_known_lib_crash %f.jfr", output = true, env = {"LD_LIBRARY_PATH=build/test/lib:build/lib"})
+    @Test(sh = "%testbin/nativemem_known_lib_crash %f.jfr")
     public void nativememKnownLibCrash(TestProcess p) throws Exception {
         p.waitForExit();
         Assert.isEqual(p.exitCode(), 0);
