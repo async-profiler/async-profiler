@@ -62,7 +62,7 @@ public class MallocLeakAggregator implements EventCollector {
 
         wrapped.beforeChunk();
         for (Event e : addresses.values()) {
-            if (e.time < timeCutoff) {
+            if (e.time <= timeCutoff) {
                 wrapped.collect(e);
             }
         }
