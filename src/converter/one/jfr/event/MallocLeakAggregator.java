@@ -11,18 +11,19 @@ import java.util.Map;
 import java.util.HashMap;
 
 public class MallocLeakAggregator implements EventCollector {
-    // Ignore allocations made in the last 10% of profiling session:
-    // they are too young to be considered a leak
-    private static final double TAIL = 0.1;
-
     private final EventCollector wrapped;
+    private final double tail;
     private final Map<Long, MallocEvent> addresses;
     private List<MallocEvent> events;
     private long minTime = Long.MAX_VALUE;
     private long maxTime = Long.MIN_VALUE;
 
-    public MallocLeakAggregator(EventCollector wrapped) {
+    public MallocLeakAggregator(EventCollector wrapped, double tail) {
+        if (tail < 0.0 || tail > 1.0) {
+            throw new IllegalArgumentException("tail must be between 0 and 1");
+        }
         this.wrapped = wrapped;
+        this.tail = tail;
         this.addresses = new HashMap<>();
     }
 
@@ -55,8 +56,9 @@ public class MallocLeakAggregator implements EventCollector {
 
     @Override
     public boolean finish() {
-        // Do not consider as leaks allocations made after the cutoff
-        long timeCutoff = (long) (minTime * TAIL + maxTime * (1.0 - TAIL));
+        // Ignore tail allocations made in the last N% of profiling session:
+        // they are too young to be considered a leak
+        long timeCutoff = (long) (minTime * tail + maxTime * (1.0 - tail));
 
         wrapped.beforeChunk();
         for (Event e : addresses.values()) {
