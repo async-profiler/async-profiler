@@ -125,6 +125,7 @@ To avoid bias towards youngest allocations not freed by the end of the profiling
 leak profiler ignores tail allocations made in the last 10% of the profiling period.
 Tail length can be altered with `--tail` option that accepts `ratio` or `percent%` as an argument.
 For example, to ignore allocations in the last 2 minutes of a 10 minutes profile, use
+
 ```
 jfrconf --nativemem --leak --tail 20% app.jfr app-leak.html
 ```
