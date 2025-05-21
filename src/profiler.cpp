@@ -61,6 +61,7 @@ static ProfilingWindow profiling_window;
 
 typedef void* (*dlopen_t)(const char*, int);
 static dlopen_t _original_dlopen = NULL;
+static bool _dlopen_hook_uninstalled = true;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -806,11 +807,23 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
 
 void Profiler::switchLibraryTrap(bool enable) {
     if (_dlopen_entry != NULL) {
-        // Save the GOT entry for dlopen
-        if (enable && _original_dlopen != (void*)dlopen_hook) {
+        // Save the GOT entry for dlopen if not already part of the callback chain
+        if (enable && _dlopen_hook_uninstalled && _original_dlopen != (void*)dlopen_hook) {
             _original_dlopen = (dlopen_t)(*_dlopen_entry);
         }
+
+        // If already part of the callback chain don't break it
+        if (enable && (!_dlopen_hook_uninstalled || _original_dlopen == (void*)dlopen_hook)) {
+            return;
+        }
+
+        // A different process changed the GOT entry => Mark as part of the chain to avoid future loops & break of the chain
+        if (!enable && *_dlopen_entry != (void*)dlopen_hook) {
+            _dlopen_hook_uninstalled = false;
+            return;
+        }
         void* impl = enable ? (void*)dlopen_hook : (void*)_original_dlopen;
+        _dlopen_hook_uninstalled = true;
         __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
     }
 }
