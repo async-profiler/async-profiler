@@ -59,6 +59,8 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+typedef void* (*dlopen_t)(const char*, int);
+static dlopen_t _original_dlopen = NULL;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -794,7 +796,7 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 }
 
 void* Profiler::dlopen_hook(const char* filename, int flags) {
-    void* result = dlopen(filename, flags);
+    void* result = _original_dlopen(filename, flags);
     if (result != NULL) {
         instance()->updateSymbols(false);
         MallocTracer::installHooks();
@@ -804,7 +806,11 @@ void* Profiler::dlopen_hook(const char* filename, int flags) {
 
 void Profiler::switchLibraryTrap(bool enable) {
     if (_dlopen_entry != NULL) {
-        void* impl = enable ? (void*)dlopen_hook : (void*)dlopen;
+        // Save the GOT entry for dlopen
+        if (enable && _original_dlopen != (void*)dlopen_hook) {
+            _original_dlopen = (dlopen_t)(*_dlopen_entry);
+        }
+        void* impl = enable ? (void*)dlopen_hook : (void*)_original_dlopen;
         __atomic_store_n(_dlopen_entry, impl, __ATOMIC_RELEASE);
     }
 }
