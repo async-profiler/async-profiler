@@ -96,10 +96,6 @@ public class Runner {
         return Integer.parseInt(prop);
     }
 
-    private static boolean enabled(RunnableTest rt, TestDeclaration decl) {
-        return rt.test().enabled() && decl.matches(rt.method());
-    }
-
     private static boolean applicable(Test test) {
         Os[] os = test.os();
         Arch[] arch = test.arch();
@@ -112,7 +108,7 @@ public class Runner {
     }
 
     private static TestResult run(RunnableTest rt, TestDeclaration decl) {
-        if (!enabled(rt, decl)) {
+        if (!rt.test().enabled() || decl.skips(rt.method())) {
             return TestResult.skipDisabled();
         }
         if (!applicable(rt.test())) {

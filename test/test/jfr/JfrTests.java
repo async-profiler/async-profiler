@@ -96,10 +96,17 @@ public class JfrTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
+        String vmSpecificationVersion = null;
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.InitialSystemProperty") &&
+                    event.getString("key").equals("java.vm.specification.version")) {
+                    vmSpecificationVersion = event.getString("value");
+                }
+
                 events.add(eventName);
             }
         }
@@ -109,7 +116,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(vmSpecificationVersion); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -128,10 +135,17 @@ public class JfrTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Set<String> events = new HashSet<>();
+        String vmSpecificationVersion = null;
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.InitialSystemProperty") &&
+                    event.getString("key").equals("java.vm.specification.version")) {
+                    vmSpecificationVersion = event.getString("value");
+                }
+
                 events.add(eventName);
                 if (eventName.equals("jdk.ExecutionSample")) {
                     // This means that only instrumented method was profiled and overall CPU profiling was skipped
@@ -142,7 +156,7 @@ public class JfrTests {
         assert events.contains("jdk.JavaMonitorEnter"); // lock profiling
         assert events.contains("jdk.ObjectAllocationInNewTLAB"); // alloc profiling
         assert events.contains("profiler.WallClockSample"); // wall clock profiling
-        assert events.contains("profiler.LiveObject"); // profiling of live objects
+        assert events.contains("profiler.LiveObject") || checkJdkVersionEarlierThan11(vmSpecificationVersion); // profiling of live objects
         assert events.contains("profiler.Malloc"); // nativemem profiling
         assert events.contains("profiler.Free"); // nativemem profiling
     }
@@ -153,13 +167,14 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class)
+    @Test(mainClass = Ttsp.class, agentArgs = "start,event=cpu,ttsp,interval=1ms,jfr,file=%f")
     public void ttsp(TestProcess p) throws Exception {
-        p.profile("-d 3 -i 1ms --ttsp -f %f.jfr");
+        p.waitForExit();
+        assert p.exitCode() == 0;
         assert !containsSamplesOutsideWindow(p) : "Expected no samples outside of ttsp window";
 
         Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert out.samples("indexOfTest") >= 10;
+        assert out.samples("delaySafepoint") >= 10;
     }
 
     /**
@@ -168,9 +183,10 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = Ttsp.class)
+    @Test(mainClass = Ttsp.class, agentArgs = "start,event=cpu,ttsp,nostop,interval=1ms,jfr,file=%f")
     public void ttspNostop(TestProcess p) throws Exception {
-        p.profile("-d 3 -i 1ms --ttsp --nostop -f %f.jfr");
+        p.waitForExit();
+        assert p.exitCode() == 0;
         assert containsSamplesOutsideWindow(p) : "Expected to find samples outside of ttsp window";
     }
 
@@ -194,5 +210,12 @@ public class JfrTests {
             // check that the current sample takes place during a profiling window, allowing for a 10ms buffer at each end
             return entryEnd.isBefore(event.getStartTime());
         });
+    }
+
+    private static boolean checkJdkVersionEarlierThan11(String vmSpecificationVersion) {
+        if (vmSpecificationVersion == null) {
+            throw new IllegalArgumentException("vmSpecificationVersion should not be null");
+        }
+        return vmSpecificationVersion.startsWith("1.") || Integer.parseInt(vmSpecificationVersion.split("\\.")[0]) < 11;
     }
 }

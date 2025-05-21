@@ -58,13 +58,15 @@ public class TestDeclaration {
         return new TestDeclaration(allTestDirs, filters, skipFilters);
     }
 
-    private static List<RunnableTest> getRunnableTests(String dir) {
+    private List<RunnableTest> getRunnableTests(String dir) {
         String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
         try {
             List<RunnableTest> rts = new ArrayList<>();
             for (Method m : Class.forName(className).getMethods()) {
-                for (Test t : m.getAnnotationsByType(Test.class)) {
-                    rts.add(new RunnableTest(m, t));
+                if (includes(m)) {
+                    for (Test t : m.getAnnotationsByType(Test.class)) {
+                        rts.add(new RunnableTest(m, t));
+                    }
                 }
             }
             return rts;
@@ -75,19 +77,22 @@ public class TestDeclaration {
 
     public List<RunnableTest> getRunnableTests() {
         return allDirs.stream()
-            .flatMap(g -> getRunnableTests(g).stream())
+            .flatMap(dir -> getRunnableTests(dir).stream())
             .sorted(Comparator.comparing(RunnableTest::testName))
             .collect(Collectors.toList());
     }
 
-    public boolean matches(Method m) {
+    public boolean includes(Method m) {
+        return includeGlobs.isEmpty() || matches(m, includeGlobs);
+    }
+
+    public boolean skips(Method m) {
+        return !skipGlobs.isEmpty() && matches(m, skipGlobs);
+    }
+
+    private static boolean matches(Method m, List<Pattern> patterns) {
         String name = m.getDeclaringClass().getSimpleName() + '.' + m.getName();
-
-        if (includeGlobs.isEmpty() || includeGlobs.stream().anyMatch(f -> f.matcher(name).matches())) {
-            return skipGlobs.isEmpty() || skipGlobs.stream().noneMatch(f -> f.matcher(name).matches());
-        }
-
-        return false;
+        return patterns.stream().anyMatch(p -> p.matcher(name).matches());
     }
 
     private static Pattern filterFrom(String s) {
