@@ -22,7 +22,7 @@ public class DumpOtlp extends BusyLoops {
         }
 
         // TODO: Should we test this further?
-        ByteBuffer profile = AsyncProfiler.getInstance().dumpOtlp();
-        System.out.println(profile);
+        byte[] profile = AsyncProfiler.getInstance().dumpOtlp();
+        System.out.println(profile.length);
     }
 }

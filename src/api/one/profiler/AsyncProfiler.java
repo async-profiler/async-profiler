@@ -234,17 +234,13 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     /**
      * Dump collected data in OTLP format.
-     * <p>
-     * The returned buffer is read-only, and its memory will be reused upon the
-     * next call to {@link #dumpOtlp}. The buffer is only valid until Async-Profiler
-     * is alive.
      *
      * @return OTLP representation of the profile
      */
     @Override
-    public ByteBuffer dumpOtlp() {
+    public byte[] dumpOtlp() {
         try {
-            return executeAndGetBuffer0("otlp");
+            return executeAndGetByteArray0("otlp");
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -290,7 +286,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
-    private native ByteBuffer executeAndGetBuffer0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
+    private native byte[] executeAndGetByteArray0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
 }
