@@ -49,6 +49,7 @@ JFR options:
     --live             Build allocation profile from live objects only during conversion
     --nativemem        Generate native memory allocation profile
     --leak             Only include memory leaks in nativemem
+    --tail RATIO       Ignore tail allocations for leak profiling (10% by default)
     --lock             Generate only Lock contention profile during conversion
  -t --threads          Split stack traces by threads
  -s --state LIST       Filter thread states: runnable, sleeping, default. State name is case insensitive
