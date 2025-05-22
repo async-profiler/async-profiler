@@ -1653,28 +1653,30 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 }
 
 /*
- * If the value has been seen already, return its idx in `values`. If not, update the map,
- * add the value to `values`, and return the index.
+ * If the value has been seen already, return its idx in `values`.
+ * If not, update the map and return the index.
  */
 static inline u64 getOrSetIndex(
         std::unordered_map<std::string, u64>& idx_map,
-        std::vector<std::string>& values,
         const std::string& value
 ) {
-    const auto& pair = idx_map.insert({value, idx_map.size()});
-    if (pair.second) {
-        values.push_back(value);
+    return idx_map.insert({value, idx_map.size()}).first->second;
+}
+
+static std::vector<std::string> toOrderedVector(const std::unordered_map<std::string, u64>& idx_map) {
+    std::vector<std::string> vec;
+    vec.reserve(idx_map.size());
+    for (const auto& it : idx_map) {
+        vec[it.second] = it.first;
     }
-    return pair.first->second;
+    return vec;
 }
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.reset();
 
     std::unordered_map<std::string, u64> string_idx_map;
-    std::vector<std::string> strings_vec;
     std::unordered_map<std::string, u64> function_idx_map;
-    std::vector<std::string> functions_vec;
 
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(Otlp::ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = _otlp_buffer.startMessage(Otlp::ScopeProfiles::profiles);
@@ -1687,15 +1689,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Otlp::Profile::sample_type);
     // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
-    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, strings_vec, "samples"));
-    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, strings_vec, "count"));
+    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, "samples"));
+    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, "count"));
     _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
     _otlp_buffer.commitMessage(sample_type_mark);
 
     protobuf_mark_t period_type_mark = _otlp_buffer.startMessage(Otlp::Profile::period_type);
     // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
-    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, strings_vec, "cpu"));
-    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, strings_vec, "nanoseconds"));
+    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, "cpu"));
+    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, "nanoseconds"));
     _otlp_buffer.commitMessage(period_type_mark);
 
     std::vector<CallTraceSample*> samples;
@@ -1712,7 +1714,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         u64 num_frames = trace->num_frames;
         for (u64 j = 0; j < num_frames; ++j) {
-            u64 function_idx = getOrSetIndex(function_idx_map, functions_vec, fn.name(trace->frames[j]));
+            u64 function_idx = getOrSetIndex(function_idx_map, fn.name(trace->frames[j]));
             _otlp_buffer.field(Otlp::Profile::location_indices, function_idx);
         }
 
@@ -1725,9 +1727,10 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         frames_seen += num_frames;
     }
 
+    std::vector<std::string> functions_vec = toOrderedVector(function_idx_map);
     for (u64 function_idx = 0; function_idx < functions_vec.size(); ++function_idx) {
         protobuf_mark_t function_mark = _otlp_buffer.startMessage(Otlp::Profile::function_table);
-        u64 function_name_strindex = getOrSetIndex(string_idx_map, strings_vec, functions_vec[function_idx]);
+        u64 function_name_strindex = getOrSetIndex(string_idx_map, functions_vec[function_idx]);
         _otlp_buffer.field(Otlp::Function::name_strindex, function_name_strindex);
         _otlp_buffer.commitMessage(function_mark);
 
@@ -1740,7 +1743,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         _otlp_buffer.commitMessage(location_mark);
     }
 
-    for (const auto& s : strings_vec) {
+    for (const auto& s : toOrderedVector(string_idx_map)) {
         _otlp_buffer.field(Otlp::Profile::string_table, s.data(), s.length());
     }
 
