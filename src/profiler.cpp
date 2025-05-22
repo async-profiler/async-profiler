@@ -1727,10 +1727,13 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         frames_seen += num_frames;
     }
 
-    std::vector<std::string> functions_vec = toOrderedVector(function_idx_map);
-    for (u32 function_idx = 0; function_idx < functions_vec.size(); ++function_idx) {
+    const std::string* function_arr[function_idx_map.size()];
+    for (const auto& it : function_idx_map) {
+        function_arr[it.second] = &it.first;
+    }
+    for (u64 function_idx = 0; function_idx < function_idx_map.size(); ++function_idx) {
         protobuf_mark_t function_mark = _otlp_buffer.startMessage(Otlp::Profile::function_table);
-        u32 function_name_strindex = getOrSetIndex(string_idx_map, functions_vec[function_idx]);
+        u32 function_name_strindex = getOrSetIndex(string_idx_map, *function_arr[function_idx]);
         _otlp_buffer.field(Otlp::Function::name_strindex, function_name_strindex);
         _otlp_buffer.commitMessage(function_mark);
 
@@ -1743,8 +1746,13 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         _otlp_buffer.commitMessage(location_mark);
     }
 
-    for (const auto& s : toOrderedVector(string_idx_map)) {
-        _otlp_buffer.field(Otlp::Profile::string_table, s.data(), s.length());
+    const std::string* string_arr[string_idx_map.size()];
+    for (const auto& it : string_idx_map) {
+        string_arr[it.second] = &it.first;
+    }
+    for (u32 idx = 0; idx < string_idx_map.size(); ++idx) {
+        const std::string* s = string_arr[idx];
+        _otlp_buffer.field(Otlp::Profile::string_table, s->data(), s->length());
     }
 
     _otlp_buffer.commitMessage(profile_mark);
