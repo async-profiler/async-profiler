@@ -1663,15 +1663,6 @@ static inline u32 getOrSetIndex(
     return idx_map.insert({value, idx_map.size()}).first->second;
 }
 
-static std::vector<std::string> toOrderedVector(const std::unordered_map<std::string, u32>& idx_map) {
-    std::vector<std::string> vec;
-    vec.reserve(idx_map.size());
-    for (const auto& it : idx_map) {
-        vec[it.second] = it.first;
-    }
-    return vec;
-}
-
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.reset();
 
