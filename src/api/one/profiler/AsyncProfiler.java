@@ -240,7 +240,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     @Override
     public byte[] dumpOtlp() {
         try {
-            return executeAndGetByteArray0("otlp");
+            return execute1("otlp");
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -286,7 +286,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
-    private native byte[] executeAndGetByteArray0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
+    private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
 }

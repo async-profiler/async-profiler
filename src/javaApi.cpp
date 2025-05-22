@@ -96,7 +96,7 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
 }
 
 extern "C" DLLEXPORT jbyteArray JNICALL
-Java_one_profiler_AsyncProfiler_executeAndGetByteArray0(JNIEnv* env, jobject unused, jstring command) {
+Java_one_profiler_AsyncProfiler_execute1(JNIEnv* env, jobject unused, jstring command) {
     Arguments args;
     const char* command_str = env->GetStringUTFChars(command, NULL);
     Error error = args.parse(command_str);
