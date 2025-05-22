@@ -1656,14 +1656,14 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
  * If the value has been seen already, return its idx in `values`.
  * If not, update the map and return the index.
  */
-static inline u64 getOrSetIndex(
-        std::unordered_map<std::string, u64>& idx_map,
+static inline u32 getOrSetIndex(
+        std::unordered_map<std::string, u32>& idx_map,
         const std::string& value
 ) {
     return idx_map.insert({value, idx_map.size()}).first->second;
 }
 
-static std::vector<std::string> toOrderedVector(const std::unordered_map<std::string, u64>& idx_map) {
+static std::vector<std::string> toOrderedVector(const std::unordered_map<std::string, u32>& idx_map) {
     std::vector<std::string> vec;
     vec.reserve(idx_map.size());
     for (const auto& it : idx_map) {
@@ -1675,8 +1675,8 @@ static std::vector<std::string> toOrderedVector(const std::unordered_map<std::st
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.reset();
 
-    std::unordered_map<std::string, u64> string_idx_map;
-    std::unordered_map<std::string, u64> function_idx_map;
+    std::unordered_map<std::string, u32> string_idx_map;
+    std::unordered_map<std::string, u32> function_idx_map;
 
     protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(Otlp::ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = _otlp_buffer.startMessage(Otlp::ScopeProfiles::profiles);
@@ -1728,15 +1728,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     std::vector<std::string> functions_vec = toOrderedVector(function_idx_map);
-    for (u64 function_idx = 0; function_idx < functions_vec.size(); ++function_idx) {
+    for (u32 function_idx = 0; function_idx < functions_vec.size(); ++function_idx) {
         protobuf_mark_t function_mark = _otlp_buffer.startMessage(Otlp::Profile::function_table);
-        u64 function_name_strindex = getOrSetIndex(string_idx_map, functions_vec[function_idx]);
+        u32 function_name_strindex = getOrSetIndex(string_idx_map, functions_vec[function_idx]);
         _otlp_buffer.field(Otlp::Function::name_strindex, function_name_strindex);
         _otlp_buffer.commitMessage(function_mark);
 
         protobuf_mark_t location_mark = _otlp_buffer.startMessage(Otlp::Profile::location_table);
         // TODO: Fix me when more Mappings are added
-        _otlp_buffer.field(Otlp::Location::mapping_index, (u64) 0);
+        _otlp_buffer.field(Otlp::Location::mapping_index, (u32) 0);
         protobuf_mark_t line_mark = _otlp_buffer.startMessage(Otlp::Location::line);
         _otlp_buffer.field(Otlp::Line::function_index, function_idx);
         _otlp_buffer.commitMessage(line_mark);

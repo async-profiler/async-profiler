@@ -56,6 +56,11 @@ void ProtoBuffer::field(protobuf_index_t index, bool b) {
     field(index, (u64) b);
 }
 
+void ProtoBuffer::field(protobuf_index_t index, u32 n) {
+    tag(index, VARINT);
+    putVarInt(n);
+}
+
 void ProtoBuffer::field(protobuf_index_t index, u64 n) {
     tag(index, VARINT);
     putVarInt(n);

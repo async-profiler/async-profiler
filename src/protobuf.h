@@ -45,6 +45,7 @@ class ProtoBuffer {
 
     // VARINT
     void field(protobuf_index_t index, bool b);
+    void field(protobuf_index_t index, u32 n);
     void field(protobuf_index_t index, u64 n);
     // LEN
     void field(protobuf_index_t index, const char* s);
