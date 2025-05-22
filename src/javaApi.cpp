@@ -108,6 +108,7 @@ Java_one_profiler_AsyncProfiler_execute1(JNIEnv* env, jobject unused, jstring co
     }
     if (args.hasOutputFile()) {
         throwNew(env, "java/lang/IllegalArgumentException", "executeAndGetBuffer calls should not specify an output file argument");
+        return NULL;
     }
 
     Log::open(args);
