@@ -12,8 +12,11 @@
 #include "tsc.h"
 #include "vmStructs.h"
 
+typedef int (*pthread_setspecific_t)(pthread_key_t, const void*);
 
 void** CpuEngine::_pthread_entry = NULL;
+static pthread_setspecific_t _original_pthread_setspecific = NULL;
+static bool _pthread_setspecific_hook_uninstalled = true;
 CpuEngine* CpuEngine::_current = NULL;
 
 long CpuEngine::_interval;
@@ -25,19 +28,19 @@ bool CpuEngine::_count_overrun;
 // HotSpot puts VMThread into TLS on thread start, and resets on thread end.
 static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     if (key != VMThread::key()) {
-        return pthread_setspecific(key, value);
+        return _original_pthread_setspecific(key, value);
     }
     if (pthread_getspecific(key) == value) {
         return 0;
     }
 
     if (value != NULL) {
-        int result = pthread_setspecific(key, value);
+        int result = _original_pthread_setspecific(key, value);
         CpuEngine::onThreadStart();
         return result;
     } else {
         CpuEngine::onThreadEnd();
-        return pthread_setspecific(key, value);
+        return _original_pthread_setspecific(key, value);
     }
 }
 
@@ -56,13 +59,7 @@ void CpuEngine::onThreadEnd() {
 }
 
 bool CpuEngine::setupThreadHook() {
-    if (_pthread_entry != NULL) {
-        return true;
-    }
-
-    if (!VM::loaded()) {
-        static void* dummy_pthread_entry;
-        _pthread_entry = &dummy_pthread_entry;
+    if (_pthread_entry != NULL || !VM::loaded()) {
         return true;
     }
 
@@ -79,12 +76,24 @@ bool CpuEngine::setupThreadHook() {
 }
 
 void CpuEngine::enableThreadHook() {
-    *_pthread_entry = (void*)pthread_setspecific_hook;
+    if (_pthread_entry != NULL) {
+        // Insert async-profiler to part of the callback chain if not already part of it
+        if (_pthread_setspecific_hook_uninstalled && _original_pthread_setspecific != pthread_setspecific_hook) {
+            _original_pthread_setspecific = (pthread_setspecific_t)(*_pthread_entry);
+            *_pthread_entry = (void*)pthread_setspecific_hook;
+        }
+    }
     __atomic_store_n(&_current, this, __ATOMIC_RELEASE);
 }
 
 void CpuEngine::disableThreadHook() {
-    *_pthread_entry = (void*)pthread_setspecific;
+    _pthread_setspecific_hook_uninstalled = false;
+
+    // If different process changed the hooks don't break the chain
+    if (_pthread_entry != NULL && *_pthread_entry == (void*)pthread_setspecific_hook) {
+        *_pthread_entry = (void*)_original_pthread_setspecific;
+        _pthread_setspecific_hook_uninstalled = true;
+    }
     __atomic_store_n(&_current, NULL, __ATOMIC_RELEASE);
 }
 
