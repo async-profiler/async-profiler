@@ -675,7 +675,7 @@ Mutex Symbols::_parse_lock;
 bool Symbols::_have_kernel_symbols = false;
 bool Symbols::_libs_limit_reported = false;
 static std::unordered_set<u64> _parsed_inodes;
-static bool in_parse_libraries = false;
+static bool _in_parse_libraries = false;
 
 void Symbols::parseKernelSymbols(CodeCache* cc) {
     int fd;
@@ -779,10 +779,10 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
 void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     MutexLocker ml(_parse_lock);
 
-    if (in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
+    if (_in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
         return;
     }
-    in_parse_libraries = true;
+    _in_parse_libraries = true;
 
     if (kernel_symbols && !haveKernelSymbols()) {
         CodeCache* cc = new CodeCache("[kernel]");
@@ -831,12 +831,12 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         array->add(cc);
     }
 
-    in_parse_libraries = false;
-
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
         Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
         _libs_limit_reported = true;
     }
+
+    _in_parse_libraries = false;
 }
 
 // Check that the base address of the shared object has not changed
