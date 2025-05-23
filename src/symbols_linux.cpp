@@ -757,13 +757,15 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
         }
 
         if (map.isExecutable()) {
+            if (libs.find(inode) == libs.end()) {
+                max_count--;
+            }
             SharedLibrary& lib = libs[inode];
             if (lib.file == nullptr) {
                 lib.file = strdup(map.file());
                 lib.map_start = map_start;
                 lib.map_end = map_end;
                 lib.image_base = inode == last_inode ? image_base : NULL;
-                max_count--;
             } else {
                 // The same library may have multiple executable segments mapped
                 lib.map_end = map_end;
@@ -813,10 +815,15 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             // Be careful: executable file is not always ELF, e.g. classes.jsa
             ElfParser::parseFile(cc, lib.map_start, lib.file, true);
         } else {
+            UnloadProtection handle(cc);
+            // Due to async-profiler issue #1273, it's possible for a recursive dlopen to happen at UnloadProtection
+            // This check is needed to prevent parsing the lib & adding it when limit was reached by the internal dlopen call
+            if (array->count() >= MAX_NATIVE_LIBS) {
+                break;
+            }
             // Parse debug symbols first
             ElfParser::parseFile(cc, lib.image_base, lib.file, true);
 
-            UnloadProtection handle(cc);
             if (handle.isValid()) {
                 ElfParser::parseProgramHeaders(cc, lib.image_base, lib.map_end, OS::isMusl());
             }
@@ -824,20 +831,14 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         free(lib.file);
 
-        // Due to async-profiler issue #1273, it's possible for a recursive dlopen to happen at UnloadProtection
-        // This means this check is needed before adding the library to the CodeCache list
-        if (array->count() >= MAX_NATIVE_LIBS) {
-            // Record first instance of reaching limit for the profiler
-            if (!_libs_limit_reported) {
-                Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
-                _libs_limit_reported = true;
-            }
-            break;
-        }
-
         cc->sort();
         applyPatch(cc);
         array->add(cc);
+    }
+
+    if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
+        Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
+        _libs_limit_reported = true;
     }
 }
 
