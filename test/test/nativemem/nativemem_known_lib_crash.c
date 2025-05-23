@@ -8,6 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __APPLE__
+#define LIB_EXT ".dylib"
+#else
+#define LIB_EXT ".so"
+#endif
+
 #define ASSERT_NO_DLERROR(sym)            \
     if (sym == NULL) {                    \
         err = dlerror();                  \
@@ -46,7 +52,7 @@ recorded is no longer valid.
 int main() {
     char *err;
 
-    void* libprof = dlopen("libasyncProfiler.so", RTLD_NOW);
+    void* libprof = dlopen("build/lib/libasyncProfiler" LIB_EXT, RTLD_NOW);
     ASSERT_NO_DLERROR(libprof);
 
     asprof_init_t asprof_init = (asprof_init_t)dlsym(libprof, "asprof_init");
@@ -59,7 +65,7 @@ int main() {
     asprof_error_str_t asprof_error_str = (asprof_error_str_t)dlsym(libprof, "asprof_error_str");
     ASSERT_NO_DLERROR(asprof_error_str);
 
-    void* lib = dlopen("libcallsmalloc.so", RTLD_NOW | RTLD_GLOBAL);
+    void* lib = dlopen("build/test/lib/libcallsmalloc" LIB_EXT, RTLD_NOW | RTLD_GLOBAL);
     ASSERT_NO_DLERROR(lib);
 
     dlclose(lib);
