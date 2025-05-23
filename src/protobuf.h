@@ -26,8 +26,8 @@ class ProtoBuffer {
     size_t _capacity;
     size_t _offset;
 
+    void putVarInt(u32 n);
     void putVarInt(u64 n);
-    size_t putVarInt(size_t offset, u64 n);
 
     void tag(protobuf_index_t index, protobuf_t type);
 
@@ -41,9 +41,11 @@ class ProtoBuffer {
 
     size_t offset() const { return _offset; }
     size_t capacity() const { return _capacity; }
+    void reset() { _offset = 0; }
 
     // VARINT
     void field(protobuf_index_t index, bool b);
+    void field(protobuf_index_t index, u32 n);
     void field(protobuf_index_t index, u64 n);
     // LEN
     void field(protobuf_index_t index, const char* s);

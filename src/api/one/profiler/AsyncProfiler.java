@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -232,6 +233,20 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     }
 
     /**
+     * Dump collected data in OTLP format.
+     *
+     * @return OTLP representation of the profile
+     */
+    @Override
+    public byte[] dumpOtlp() {
+        try {
+            return execute1("otlp");
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
      * Add the given thread to the set of profiled threads.
      * 'filter' option must be enabled to use this method.
      *
@@ -270,6 +285,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native void stop0() throws IllegalStateException;
 
     private native String execute0(String command) throws IllegalArgumentException, IllegalStateException, IOException;
+
+    private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
 }
