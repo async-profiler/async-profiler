@@ -827,6 +827,11 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         cc->sort();
         applyPatch(cc);
         array->add(cc);
+
+        // Don't continue parsing libs as limit was reached
+        if (array->count() >= MAX_NATIVE_LIBS) {
+            break;
+        }
     }
 
     if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
