@@ -67,6 +67,7 @@ class StackFrame {
     bool unwindStub(instruction_t* entry, const char* name, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindCompiled(NMethod* nm, uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
     bool unwindAtomicStub(const void*& pc);
+    void unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp);
 
     void adjustSP(const void* entry, const void* pc, uintptr_t& sp);
 
