@@ -824,19 +824,20 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
         free(lib.file);
 
+        // Due to async-profiler issue #1273, it's possible for a recursive dlopen to happen at UnloadProtection
+        // This means this check is needed before adding the library to the CodeCache list
+        if (array->count() >= MAX_NATIVE_LIBS) {
+            // Record first instance of reaching limit for the profiler
+            if (!_libs_limit_reported) {
+                Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
+                _libs_limit_reported = true;
+            }
+            break;
+        }
+
         cc->sort();
         applyPatch(cc);
         array->add(cc);
-
-        // Don't continue parsing libs as limit was reached
-        if (array->count() >= MAX_NATIVE_LIBS) {
-            break;
-        }
-    }
-
-    if (array->count() >= MAX_NATIVE_LIBS && !_libs_limit_reported) {
-        Log::warn("Number of parsed libraries reached the limit of %d", MAX_NATIVE_LIBS);
-        _libs_limit_reported = true;
     }
 }
 
