@@ -804,7 +804,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
         _parsed_inodes.insert(inode);
 
         SharedLibrary& lib = it.second;
-        CodeCache* cc = new CodeCache(lib.file, array->count(), false, lib.map_start, lib.map_end, lib.image_base);
+        CodeCache* cc = new CodeCache(lib.file, array->count(), lib.map_start, lib.map_end, lib.image_base);
 
         if (strchr(lib.file, ':') != NULL) {
             // Do not try to parse pseudofiles like anon_inode:name, /memfd:name
