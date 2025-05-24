@@ -14,12 +14,6 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#ifdef __clang__
-#  define NO_OPTIMIZE __attribute__((optnone))
-#else
-#  define NO_OPTIMIZE __attribute__((optimize("O1")))
-#endif
-
 extern "C" void* malloc_hook(size_t size) {
     void* ret = malloc(size);
     if (MallocTracer::running() && ret && size) {

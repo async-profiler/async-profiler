@@ -28,26 +28,37 @@ public class NativememTests {
     private static final int POSIX_MEMALIGN_SIZE = 30000193;
     private static final int ALIGNED_ALLOC_SIZE = 30002009;
 
+    /**
+     * On MUSL:
+     * - calloc calls malloc internally
+     * - posixMemalign calls aligned_alloc_hook internally
+     * While unwinding the stack it's highly possible that distance between stack frames goes further than what async-profiler
+     * Considers safe to continue the unwinding process, this in turn creates incomplete stacks for calloc & posix_memalign
+     * As such a pattern check is used to make sure even incomplete stacks are accounted for
+     */
+    private static final String CALLOC_PATTERN = "Java_test_nativemem_Native_calloc|Native.calloc;calloc;malloc_hook";
+    private static final String POSIX_MEM_ALIGN_PATTERN = "Java_test_nativemem_Native_posixMemalign|Native.posixMemalign;posix_memalign;aligned_alloc_hook";
+
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem,total,collapsed,file=%f", args = "once")
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
         Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), MALLOC_SIZE);
-        Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), CALLOC_SIZE);
+        Assert.isEqual(out.samples(CALLOC_PATTERN), CALLOC_SIZE);
     }
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX, agentArgs = "start,nativemem=10000000,total,collapsed,file=%f", args = "once")
     public void canAgentFilterMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), 0);
-        Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), 0);
+        Assert.isEqual(out.samples(CALLOC_PATTERN), 0);
     }
 
     @Test(mainClass = CallsMallocCalloc.class, os = Os.LINUX)
     public void canAsprofTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
-        long samplesCalloc = out.samples("Java_test_nativemem_Native_calloc");
+        long samplesCalloc = out.samples(CALLOC_PATTERN);
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);
@@ -80,10 +91,12 @@ public class NativememTests {
         Output out = p.profile("-e nativemem --total -o collapsed -d 2");
 
         long samplesMalloc = out.samples("Java_test_nativemem_Native_malloc");
-        long samplesCalloc = out.samples("Java_test_nativemem_Native_calloc");
+        long samplesCalloc = out.samples(CALLOC_PATTERN);
         long samplesRealloc = out.samples("Java_test_nativemem_Native_realloc");
-        long samplesPosixMemalign = out.samples("Java_test_nativemem_Native_posixMemalign");
+        long samplesPosixMemalign = out.samples(POSIX_MEM_ALIGN_PATTERN);
         long samplesAlignedAlloc = out.samples("Java_test_nativemem_Native_alignedAlloc");
+
+        System.out.println(out);
 
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);
