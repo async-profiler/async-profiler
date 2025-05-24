@@ -96,8 +96,6 @@ public class NativememTests {
         long samplesPosixMemalign = out.samples(POSIX_MEM_ALIGN_PATTERN);
         long samplesAlignedAlloc = out.samples("Java_test_nativemem_Native_alignedAlloc");
 
-        System.out.println(out);
-
         Assert.isGreater(samplesMalloc, 0);
         Assert.isGreater(samplesCalloc, 0);
         Assert.isGreater(samplesRealloc, 0);
