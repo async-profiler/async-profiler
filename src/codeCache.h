@@ -124,13 +124,12 @@ class CodeCache {
     CodeBlob* _blobs;
 
     void expand();
-    void makeImportsPatchable();
+    bool makeImportsPatchable();
     void saveImport(ImportId id, void** entry);
 
   public:
     CodeCache(const char* name,
               short lib_index = -1,
-              bool imports_patchable = false,
               const void* min_address = NO_MIN_ADDRESS,
               const void* max_address = NO_MAX_ADDRESS,
               const char* image_base = NULL);

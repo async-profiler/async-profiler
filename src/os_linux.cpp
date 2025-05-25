@@ -384,4 +384,8 @@ void OS::freePageCache(int fd, off_t start_offset) {
     posix_fadvise(fd, start_offset & ~page_mask, 0, POSIX_FADV_DONTNEED);
 }
 
+int OS::mprotect(void* addr, size_t size, int prot) {
+    return ::mprotect(addr, size, prot);
+}
+
 #endif // __linux__
