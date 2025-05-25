@@ -96,7 +96,8 @@ static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
 }
 
 static bool isCompilerEntry(const char* blob_name) {
-    return strncmp(blob_name, "_ZN13CompileBroker25invoke_compiler_on_method", 45) == 0;
+    return strncmp(blob_name, "_ZN8Compiler14compile_method", 28) == 0 ||
+           strncmp(blob_name, "_ZN10C2Compiler14compile_method", 31) == 0;
 }
 
 static void* resolveMethodId(void** mid) {
@@ -354,10 +355,10 @@ void VM::applyPatch(char* func, const char* patch, const char* end_patch) {
     uintptr_t start_page = (uintptr_t)func & ~OS::page_mask;
     uintptr_t end_page = ((uintptr_t)func + size + OS::page_mask) & ~OS::page_mask;
 
-    if (OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
+    if (OS::mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_WRITE | PROT_EXEC) == 0) {
         memcpy(func, patch, size);
         __builtin___clear_cache(func, func + size);
-        OS::protect(start_page, end_page - start_page, PROT_READ | PROT_WRITE);
+        OS::mprotect((void*)start_page, end_page - start_page, PROT_READ | PROT_EXEC);
     }
 }
 

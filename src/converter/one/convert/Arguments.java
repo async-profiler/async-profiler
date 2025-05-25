@@ -19,6 +19,7 @@ public class Arguments {
     public Pattern exclude;
     public double minwidth;
     public double grain;
+    public double tail = 0.1;
     public int skip;
     public boolean help;
     public boolean reverse;
@@ -69,7 +70,7 @@ public class Arguments {
                 } else if (type == int.class) {
                     f.setInt(this, Integer.parseInt(args[++i]));
                 } else if (type == double.class) {
-                    f.setDouble(this, Double.parseDouble(args[++i]));
+                    f.setDouble(this, parseRatio(args[++i]));
                 } else if (type == long.class) {
                     f.setLong(this, parseTimestamp(args[++i]));
                 } else if (type == Pattern.class) {
@@ -102,6 +103,14 @@ public class Arguments {
             default:
                 return String.valueOf(c);
         }
+    }
+
+    // Absolute floating point value or percentage followed by %
+    private static double parseRatio(String value) {
+        if (value.endsWith("%")) {
+            return Double.parseDouble(value.substring(0, value.length() - 1)) / 100;
+        }
+        return Double.parseDouble(value);
     }
 
     // Milliseconds or HH:mm:ss.S or yyyy-MM-dd'T'HH:mm:ss.S

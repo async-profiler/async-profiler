@@ -362,10 +362,9 @@ void OS::freePageCache(int fd, off_t start_offset) {
     // Not supported on macOS
 }
 
-int OS::protect(uintptr_t start_address, uintptr_t size, int access) {
-    // If write permission append VM_PROT_COPY to access request
-    access = access | (access & PROT_WRITE ? VM_PROT_COPY : VM_PROT_NONE);
-    return vm_protect(mach_task_self(), start_address, size, 0, access);
+int OS::mprotect(void* addr, size_t size, int prot) {
+    if (prot & PROT_WRITE) prot |= VM_PROT_COPY;
+    return vm_protect(mach_task_self(), (vm_address_t)addr, size, 0, prot);
 }
 
 #endif // __APPLE__

@@ -48,8 +48,8 @@ void Trap::pair(Trap& second) {
 // Patch instruction at the entry point
 bool Trap::patch(instruction_t insn) {
     if (_unprotect) {
-        int prot = PROT_READ | PROT_WRITE | (WX_MEMORY ? 0 : PROT_EXEC);
-        if (OS::protect((_entry & -OS::page_size), OS::page_size, prot) != 0) {
+        int prot = WX_MEMORY ? (PROT_READ | PROT_WRITE) : (PROT_READ | PROT_WRITE | PROT_EXEC);
+        if (OS::mprotect((void*)(_entry & -OS::page_size), OS::page_size, prot) != 0) {
             return false;
         }
     }
@@ -58,7 +58,7 @@ bool Trap::patch(instruction_t insn) {
     flushCache(_entry);
 
     if (_protect) {
-        OS::protect((_entry & -OS::page_size), OS::page_size, PROT_READ | PROT_EXEC);
+        OS::mprotect((void*)(_entry & -OS::page_size), OS::page_size, PROT_READ | PROT_EXEC);
     }
     return true;
 }

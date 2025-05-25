@@ -103,7 +103,7 @@ class OS {
     static int createMemoryFile(const char* name);
     static void copyFile(int src_fd, int dst_fd, off_t offset, size_t size);
     static void freePageCache(int fd, off_t start_offset);
-    static int protect(uintptr_t start_address, uintptr_t size, int access);
+    static int mprotect(void* addr, size_t size, int prot);
 };
 
 #endif // _OS_H

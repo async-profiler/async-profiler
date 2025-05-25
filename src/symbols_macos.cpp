@@ -32,30 +32,33 @@ class MachOParser {
   private:
     CodeCache* _cc;
     const mach_header* _image_base;
+    const char* _vmaddr_slide;
 
     static const char* add(const void* base, uint64_t offset) {
         return (const char*)base + offset;
     }
 
-    void findSymbolPtrSection(const segment_command_64* sc, std::vector<const section_64*>& symbol_sections) {
+    void findSymbolPtrSection(const segment_command_64* sc, const section_64** section_ptr) {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
             uint32_t section_type = section->flags & SECTION_TYPE;
-            if (section_type == S_LAZY_SYMBOL_POINTERS || section_type == S_NON_LAZY_SYMBOL_POINTERS) {
-                symbol_sections.push_back(section);
+            if (section_type == S_NON_LAZY_SYMBOL_POINTERS) {
+                section_ptr[0] = section;
+            } else if (section_type == S_LAZY_SYMBOL_POINTERS) {
+                section_ptr[1] = section;
             }
             section++;
         }
     }
 
-    void loadSymbols(const symtab_command* symtab, const char* text_base, const char* link_base) {
+    void loadSymbols(const symtab_command* symtab, const char* link_base) {
         const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
         bool debug_symbols = false;
 
         for (uint32_t i = 0; i < symtab->nsyms; i++) {
             if ((sym->n_type & 0xee) == 0x0e && sym->n_value != 0) {
-                const char* addr = text_base + sym->n_value;
+                const char* addr = _vmaddr_slide + sym->n_value;
                 const char* name = str_table + sym->n_un.n_strx;
                 if (name[0] == '_') name++;
                 _cc->add(addr, 0, name);
@@ -67,28 +70,27 @@ class MachOParser {
         _cc->setDebugSymbols(debug_symbols);
     }
 
-    void loadImports(const section_64* symbol_section, const char* text_base, const nlist_64* symbols,
-                     const char* string_table, const uint32_t* dynamic_symbols) {
-        const uint32_t* dynamic_symbol_indices = dynamic_symbols + symbol_section->reserved1;
-        void** dynamic_symbol_references = (void**)((uintptr_t)text_base + symbol_section->addr);
+    void loadImports(const symtab_command* symtab, const dysymtab_command* dysymtab,
+                     const section_64* symbol_ptr_section, const char* link_base) {
+        const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
+        const char* str_table = add(link_base, symtab->stroff);
 
-        for (uint64_t i = 0; i < symbol_section->size / sizeof(void*); i++) {
-            const uint32_t dynamic_symbol_index = dynamic_symbol_indices[i];
-            if (dynamic_symbol_index == INDIRECT_SYMBOL_ABS || dynamic_symbol_index == INDIRECT_SYMBOL_LOCAL
-                    || dynamic_symbol_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) {
-                continue;
-            }
-            const char* symbol_name = string_table + symbols[dynamic_symbol_index].n_un.n_strx;
-            if (symbol_name[0] == '_' && symbol_name[1] != '\0') {
-                // first character in symbol name is always '_' so it's skipped
-                _cc->addImport(&dynamic_symbol_references[i], symbol_name + 1);
+        const uint32_t* isym = (const uint32_t*)add(link_base, dysymtab->indirectsymoff) + symbol_ptr_section->reserved1;
+        uint32_t isym_count = symbol_ptr_section->size / sizeof(void*);
+        void** slot = (void**)(_vmaddr_slide + symbol_ptr_section->addr);
+
+        for (uint32_t i = 0; i < isym_count; i++) {
+            if ((isym[i] & (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) == 0) {
+                const char* name = str_table + sym[isym[i]].n_un.n_strx;
+                if (name[0] == '_') name++;
+                _cc->addImport(&slot[i], name);
             }
         }
     }
 
   public:
-    MachOParser(CodeCache* cc, const mach_header* image_base) : _cc(cc), _image_base(image_base) {
-    }
+    MachOParser(CodeCache* cc, const mach_header* image_base, const char* vmaddr_slide) :
+        _cc(cc), _image_base(image_base), _vmaddr_slide(vmaddr_slide) {}
 
     bool parse() {
         if (_image_base->magic != MH_MAGIC_64) {
@@ -98,52 +100,38 @@ class MachOParser {
         const mach_header_64* header = (const mach_header_64*)_image_base;
         const load_command* lc = (const load_command*)(header + 1);
 
-        const char* UNDEFINED = (const char*)-1;
-        const char* text_base = UNDEFINED;
-        const char* link_base = UNDEFINED;
-        const symtab_command* symbol_table = NULL;
-        const dysymtab_command* dynamic_symbol_table = NULL;
-        std::vector<const section_64*> symbol_sections;
+        const char* link_base = NULL;
+        const section_64* symbol_ptr[2] = {NULL, NULL};
+        const symtab_command* symtab = NULL;
+        const dysymtab_command* dysymtab = NULL;
 
         for (uint32_t i = 0; i < header->ncmds; i++) {
             if (lc->cmd == LC_SEGMENT_64) {
                 const segment_command_64* sc = (const segment_command_64*)lc;
-                if (strcmp(sc->segname, SEG_TEXT) == 0) {
-                    text_base = (const char*)_image_base - sc->vmaddr;
-                    _cc->setTextBase(text_base);
+                if (strcmp(sc->segname, "__TEXT") == 0) {
                     _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
-                } else if (strcmp(sc->segname, SEG_LINKEDIT) == 0) {
-                    link_base = text_base + sc->vmaddr - sc->fileoff;
-                } else if (strcmp(sc->segname, "__DATA_CONST") == 0 || strcmp(sc->segname, SEG_DATA) == 0) {
-                    findSymbolPtrSection(sc, symbol_sections);
+                } else if (strcmp(sc->segname, "__LINKEDIT") == 0) {
+                    link_base = _vmaddr_slide + sc->vmaddr - sc->fileoff;
+                } else if (strcmp(sc->segname, "__DATA") == 0 || strcmp(sc->segname, "__DATA_CONST") == 0) {
+                    findSymbolPtrSection(sc, symbol_ptr);
                 }
             } else if (lc->cmd == LC_SYMTAB) {
-                symbol_table = (const symtab_command*)lc;
+                symtab = (const symtab_command*)lc;
             } else if (lc->cmd == LC_DYSYMTAB) {
-                dynamic_symbol_table = (const dysymtab_command*)lc;
+                dysymtab = (const dysymtab_command*)lc;
             }
             lc = (const load_command*)add(lc, lc->cmdsize);
         }
 
-        // can't parse symbol table
-        if (text_base == UNDEFINED || link_base == UNDEFINED || symbol_table == NULL) {
-            return true;
-        }
-        loadSymbols(symbol_table, text_base, link_base);
+        if (symtab != NULL && link_base != NULL) {
+            loadSymbols(symtab, link_base);
 
-        // can't parse dynamic symbols table
-        if (dynamic_symbol_table == NULL || dynamic_symbol_table->nindirectsyms == 0 || symbol_sections.empty()) {
-            return true;
+            if (dysymtab != NULL) {
+                if (symbol_ptr[0] != NULL) loadImports(symtab, dysymtab, symbol_ptr[0], link_base);
+                if (symbol_ptr[1] != NULL) loadImports(symtab, dysymtab, symbol_ptr[1], link_base);
+            }
         }
 
-        nlist_64* symbols = (nlist_64*)(link_base + symbol_table->symoff);
-        uint32_t* dynamic_symbols = (uint32_t*)(link_base + dynamic_symbol_table->indirectsymoff);
-        char* string_table = (char*)(link_base + symbol_table->stroff);
-
-        // Load imports for library
-        for (auto symbol_section : symbol_sections) {
-            loadImports(symbol_section, text_base, symbols, string_table, dynamic_symbols);
-        }
         return true;
     }
 };
@@ -178,15 +166,22 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             break;
         }
 
+        const char* path = _dyld_get_image_name(i);
+        const char* vmaddr_slide = (const char*)_dyld_get_image_vmaddr_slide(i);
+
         CodeCache* cc = new CodeCache(path, count);
+        cc->setTextBase(vmaddr_slide);
+
         UnloadProtection handle(cc);
         if (handle.isValid()) {
-            MachOParser parser(cc, image_base);
+            MachOParser parser(cc, image_base, vmaddr_slide);
             if (!parser.parse()) {
                 Log::warn("Could not parse symbols from %s", path);
             }
             cc->sort();
             array->add(cc);
+        } else {
+            delete cc;
         }
     }
 }
