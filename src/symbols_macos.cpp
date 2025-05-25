@@ -6,7 +6,6 @@
 #ifdef __APPLE__
 
 #include <unordered_set>
-#include <vector>
 #include <dlfcn.h>
 #include <string.h>
 #include <mach-o/dyld.h>
@@ -151,8 +150,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
 
     for (uint32_t i = 0; i < images; i++) {
         const mach_header* image_base = _dyld_get_image_header(i);
-        const char* path = _dyld_get_image_name(i);
-
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
         }
