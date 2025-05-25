@@ -31,6 +31,10 @@ int reladyn() {
     indirect_pthread_setspecific = pthread_setspecific;
     indirect_pthread_setspecific(key, "Thread-specific value");
 
+    // static pointer don't get reported in lazy nor none lazy symbol sections when discovering the symbols for MacOs
+#ifdef __APPLE__
+    static_pthread_exit = pthread_exit;
+#endif
     // Use pthread_exit via the static pointer, forces into .rela.dyn as R_X86_64_64.
     static_pthread_exit(NULL);
 
