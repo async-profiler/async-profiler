@@ -55,6 +55,10 @@ class ProtoBuffer {
     protobuf_mark_t startMessage(protobuf_index_t index);
     void commitMessage(protobuf_mark_t mark);
 
+    void appendRepeated(bool b);
+    void appendRepeated(u32 n);
+    void appendRepeated(u64 n);
+
     static size_t varIntSize(u64 value);
 };
 

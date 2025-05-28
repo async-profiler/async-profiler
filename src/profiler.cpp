@@ -1694,28 +1694,37 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 
-    u64 frames_seen = 0;
+    u32 samples_counter_cache[samples.size()];
+    u32 samples_num_frames_cache[samples.size()];
+    size_t samples_idx = 0;
+
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+    protobuf_mark_t location_indices_mark = _otlp_buffer.startMessage(Otlp::Profile::location_indices);
     for (auto it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        u64 counter = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (counter == 0) continue;
+        samples_counter_cache[samples_idx] = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+        if (samples_counter_cache[samples_idx] == 0) continue;
 
-        u64 num_frames = trace->num_frames;
-        for (u64 j = 0; j < num_frames; ++j) {
+        samples_num_frames_cache[samples_idx] = trace->num_frames;
+        for (u64 j = 0; j < samples_num_frames_cache[samples_idx]; ++j) {
             u64 function_idx = getOrSetIndex(function_idx_map, fn.name(trace->frames[j]));
-            _otlp_buffer.field(Otlp::Profile::location_indices, function_idx);
+            _otlp_buffer.appendRepeated(function_idx);
         }
+        ++samples_idx;
+    }
+    _otlp_buffer.commitMessage(location_indices_mark);
 
+    u64 frames_seen = 0;
+    for (samples_idx = 0; samples_idx < samples.size() && samples_counter_cache[samples_idx] > 0; samples_idx++) {
         protobuf_mark_t sample_mark = _otlp_buffer.startMessage(Otlp::Profile::sample);
         _otlp_buffer.field(Otlp::Sample::locations_start_index, frames_seen);
-        _otlp_buffer.field(Otlp::Sample::locations_length, num_frames);
-        _otlp_buffer.field(Otlp::Sample::value, counter);
+        _otlp_buffer.field(Otlp::Sample::locations_length, samples_num_frames_cache[samples_idx]);
+        _otlp_buffer.field(Otlp::Sample::value, samples_counter_cache[samples_idx]);
         _otlp_buffer.commitMessage(sample_mark);
 
-        frames_seen += num_frames;
+        frames_seen += samples_num_frames_cache[samples_idx];
     }
 
     const std::string* function_arr[function_idx_map.size()];

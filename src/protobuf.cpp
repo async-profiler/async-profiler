@@ -104,3 +104,15 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
     }
     _data[mark - 1] = (unsigned char) message_length;
 }
+
+void ProtoBuffer::appendRepeated(bool b) {
+    putVarInt((u32) b);
+}
+
+void ProtoBuffer::appendRepeated(u32 n) {
+    putVarInt(n);
+}
+
+void ProtoBuffer::appendRepeated(u64 n) {
+    putVarInt(n);
+}
