@@ -1682,7 +1682,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
     _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, "samples"));
     _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, "count"));
-    _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::delta);
+    _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::cumulative);
     _otlp_buffer.commitMessage(sample_type_mark);
 
     protobuf_mark_t period_type_mark = _otlp_buffer.startMessage(Otlp::Profile::period_type);
