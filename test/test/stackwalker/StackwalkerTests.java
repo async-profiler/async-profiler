@@ -26,7 +26,7 @@ public class StackwalkerTests {
                 "doCpuTask");
 
         // There will be no stack frame that contains both main & generateLargeFrame method
-        assert !output.contains(".*Stackwalker.main.*Java_test_stackwalker_StackGenerator_generateLargeFrame");
+        assert !output.contains(".*StackGenerator.main.*Java_test_stackwalker_StackGenerator_generateLargeFrame");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
