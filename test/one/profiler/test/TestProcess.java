@@ -65,12 +65,14 @@ public class TestProcess implements Closeable {
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
+    private final Integer currentJvmVersion;
 
-    public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
+    public TestProcess(Test test, Integer jvmVersion, Os currentOs, String logDir) throws Exception {
         this.test = test;
         this.currentOs = currentOs;
         this.logDir = logDir;
         this.inputs = test.inputs();
+        this.currentJvmVersion = jvmVersion;
 
         List<String> cmd = buildCommandLine(test);
         log.log(Level.FINE, "Running " + cmd);
@@ -109,6 +111,10 @@ public class TestProcess implements Closeable {
 
     public Os currentOs() {
         return this.currentOs;
+    }
+
+    public Integer currentJvmVersion() {
+        return this.currentJvmVersion;
     }
 
     public String profilerLibPath() {

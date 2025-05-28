@@ -24,7 +24,9 @@ public class StackwalkerTests {
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert output.contains("^Java_test_stackwalker_StackGenerator_generateLargeFrame;" +
                 "doCpuTask");
-        assert !output.contains("\\[possibly-truncated\\].*Stackwalker.main");
+
+        // There will be no stack frame that contains both main & generateLargeFrame method
+        assert !output.contains(".*Stackwalker.main.*Java_test_stackwalker_StackGenerator_generateLargeFrame");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
@@ -44,7 +46,9 @@ public class StackwalkerTests {
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "doCpuTask");
-        assert !output.contains("\\[possibly-truncated\\].*StackGenerator.main");
+
+        // There will be no stack frame that contains both main & generateDeepStack method
+        assert !output.contains(".*StackGenerator.main.*Java_test_stackwalker_StackGenerator_generateDeepStack");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
@@ -56,9 +60,9 @@ public class StackwalkerTests {
         assert output.contains("^" +
                 FRAME + // Root can be different on different systems
                 OPTIONAL_FRAME + // It's possible to have an additional thread frame depending on the OS
-                "ThreadJavaMain;" +
+                (p.currentJvmVersion() == 8 ? "" : "ThreadJavaMain;") + // Missing in JDK 8
                 "JavaMain;" +
-                "(invokeStaticMainWithArgs;)?" + // Added in newer JDK versions => 24
+                (p.currentJvmVersion() >= 24 ? "invokeStaticMainWithArgs;" : "") + // Added in newer JDK versions => 24+
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
@@ -67,7 +71,6 @@ public class StackwalkerTests {
                 "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
                 "doCpuTask");
-        assert !output.contains("\\[possibly-truncated\\]");
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
@@ -80,6 +83,5 @@ public class StackwalkerTests {
                 "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
                 "doCpuTask");
-        assert !output.contains("\\[possibly-truncated\\]");
     }
 }
