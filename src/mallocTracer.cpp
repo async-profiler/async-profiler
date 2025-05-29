@@ -112,12 +112,25 @@ void MallocTracer::initialize() {
     assert(lib);
 
     // Guarantee that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
-    void *ptr = NULL;
-    free(calloc(1, 1));
-    free(realloc(malloc(1), 2));
-    posix_memalign(&ptr, 1, 1);
-    free(ptr);
-    free(aligned_alloc(1, 1));
+    void* ptr = calloc(1, 1);
+    if (ptr) free(ptr);
+
+    ptr = malloc(1);
+    if (ptr) {
+        if (void* reallocPtr = realloc(ptr, 2)) {
+            free(reallocPtr);
+        } else {
+            free(ptr);
+        }
+    }
+
+    ptr = NULL;
+    if (posix_memalign(&ptr, 1, 1) == 0) {
+        free(ptr);
+    }
+
+    ptr = aligned_alloc(1, 1);
+    if (ptr) free(ptr);
 
     _orig_malloc = (malloc_t)*lib->findImport(im_malloc);
     _orig_free = (free_t)*lib->findImport(im_free);
