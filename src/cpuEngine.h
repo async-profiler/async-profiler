@@ -9,9 +9,13 @@
 #include <signal.h>
 #include "engine.h"
 
+class CpuEnginePause;
 
 // Base class for CPU sampling engines: PerfEvents, CTimer, ITimer
 class CpuEngine : public Engine {
+  private:
+    static CpuEngine* getCurrent();
+
   protected:
     static void** _pthread_entry;
     static CpuEngine* _current;
@@ -36,6 +40,9 @@ class CpuEngine : public Engine {
     virtual int createForThread(int tid) { return -1; }
     virtual void destroyForThread(int tid) {}
 
+    virtual void pause() {}
+    virtual void resume() {}
+
   public:
     const char* title() {
         return "CPU profile";
@@ -47,6 +54,21 @@ class CpuEngine : public Engine {
 
     static void onThreadStart();
     static void onThreadEnd();
+
+    friend CpuEnginePause;
+};
+
+class CpuEnginePause {
+  private:
+    CpuEngine* _current;
+
+  public:
+    CpuEnginePause() : _current(CpuEngine::getCurrent()) {
+      if (_current != NULL) _current->pause();
+    }
+    ~CpuEnginePause() {
+      if (_current != NULL) _current->resume();
+    }
 };
 
 #endif // _CPUENGINE_H

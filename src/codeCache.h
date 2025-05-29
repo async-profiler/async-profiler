@@ -18,6 +18,7 @@ const int MAX_NATIVE_LIBS = 2048;
 
 enum ImportId {
     im_dlopen,
+    im_clone,
     im_pthread_create,
     im_pthread_exit,
     im_pthread_setspecific,

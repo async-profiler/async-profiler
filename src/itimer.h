@@ -18,6 +18,8 @@ class ITimer : public CpuEngine {
     Error check(Arguments& args);
     Error start(Arguments& args);
     void stop();
+
+    // TODO: pause resume
 };
 
 #endif // _ITIMER_H
