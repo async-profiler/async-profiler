@@ -197,6 +197,9 @@ void CodeCache::addImport(void** entry, const char* name) {
             if (strcmp(name, "calloc") == 0) {
                 saveImport(im_calloc, entry);
             }
+            if (strcmp(name, "clone") == 0) {
+                saveImport(im_clone, entry);
+            }
             break;
         case 'd':
             if (strcmp(name, "dlopen") == 0) {
