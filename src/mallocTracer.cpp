@@ -20,8 +20,22 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
+typedef void* (*malloc_t)(size_t);
+typedef void (*free_t)(void*);
+typedef void* (*calloc_t)(size_t,size_t);
+typedef void* (*realloc_t)(void*, size_t);
+typedef int (*posix_memalign_t)(void**, size_t, size_t);
+typedef void* (*aligned_alloc_t)(size_t, size_t);
+
+malloc_t _orig_malloc;
+free_t _orig_free;
+calloc_t _orig_calloc;
+realloc_t _orig_realloc;
+posix_memalign_t _orig_posix_memalign;
+aligned_alloc_t _orig_aligned_alloc;
+
 extern "C" void* malloc_hook(size_t size) {
-    void* ret = malloc(size);
+    void* ret = _orig_malloc(size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -29,7 +43,7 @@ extern "C" void* malloc_hook(size_t size) {
 }
 
 extern "C" void* calloc_hook(size_t num, size_t size) {
-    void* ret = calloc(num, size);
+    void* ret = _orig_calloc(num, size);
     if (MallocTracer::running() && ret && num && size) {
         MallocTracer::recordMalloc(ret, num * size);
     }
@@ -39,11 +53,11 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
 extern "C" NO_OPTIMIZE
 void* calloc_hook_dummy(size_t num, size_t size) {
-    return calloc(num, size);
+    return _orig_calloc(num, size);
 }
 
 extern "C" void* realloc_hook(void* addr, size_t size) {
-    void* ret = realloc(addr, size);
+    void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
         if (addr && !MallocTracer::nofree()) {
             MallocTracer::recordFree(addr);
@@ -56,14 +70,14 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 }
 
 extern "C" void free_hook(void* addr) {
-    free(addr);
+    _orig_free(addr);
     if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
 
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    int ret = posix_memalign(memptr, alignment, size);
+    int ret = _orig_posix_memalign(memptr, alignment, size);
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
     }
@@ -73,11 +87,11 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
 extern "C" NO_OPTIMIZE
 int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
-    return posix_memalign(memptr, alignment, size);
+    return _orig_posix_memalign(memptr, alignment, size);
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    void* ret = aligned_alloc(alignment, size);
+    void* ret = _orig_aligned_alloc(alignment, size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -96,6 +110,21 @@ volatile bool MallocTracer::_running = false;
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
+
+    // Guarantee that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
+    void *ptr = NULL;
+    free(calloc(1, 1));
+    free(realloc(malloc(1), 2));
+    posix_memalign(&ptr, 1, 1);
+    free(ptr);
+    free(aligned_alloc(1, 1));
+
+    _orig_malloc = (malloc_t)*lib->findImport(im_malloc);
+    _orig_free = (free_t)*lib->findImport(im_free);
+    _orig_calloc = (calloc_t)*lib->findImport(im_calloc);
+    _orig_realloc = (realloc_t)*lib->findImport(im_realloc);
+    _orig_posix_memalign = (posix_memalign_t)*lib->findImport(im_posix_memalign);
+    _orig_aligned_alloc = (aligned_alloc_t)*lib->findImport(im_aligned_alloc);
 
     lib->mark(
         [](const char* s) -> bool {
@@ -121,10 +150,6 @@ void MallocTracer::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        if (cc->contains((const void*)MallocTracer::initialize)) {
-            // Let libasyncProfiler always use original allocation methods
-            continue;
-        }
 
         UnloadProtection handle(cc);
         if (!handle.isValid()) {
