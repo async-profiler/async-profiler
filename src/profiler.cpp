@@ -117,19 +117,6 @@ static inline int makeFrame(ASGCT_CallFrame* frames, jint type, const char* id) 
 }
 
 
-// Avoid syscall when possible
-static inline int fastThreadId() {
-    VMThread* vm_thread;
-    if (VMStructs::hasNativeThreadId() && (vm_thread = VMThread::current()) != NULL) {
-        int thread_id = vm_thread->osThreadId();
-        if (thread_id > 0) {
-            return thread_id;
-        }
-    }
-    return OS::threadId();
-}
-
-
 void Profiler::addJavaMethod(const void* address, int length, jmethodID method) {
     CodeHeap::updateBounds(address, (const char*)address + length);
 }
@@ -615,7 +602,7 @@ void Profiler::fillFrameTypes(ASGCT_CallFrame* frames, int num_frames, NMethod* 
 u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Event* event) {
     atomicInc(_total_samples);
 
-    int tid = fastThreadId();
+    int tid = OS::threadId();
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -762,7 +749,7 @@ void Profiler::recordEventOnly(EventType event_type, Event* event) {
         return;
     }
 
-    int tid = fastThreadId();
+    int tid = OS::threadId();
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&

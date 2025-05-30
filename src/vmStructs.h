@@ -347,10 +347,7 @@ class VMThread : VMStructs {
 
     static int nativeThreadId(JNIEnv* jni, jthread thread);
 
-    int osThreadId() {
-        const char* osthread = *(const char**) at(_thread_osthread_offset);
-        return osthread != NULL ? *(int*)(osthread + _osthread_id_offset) : -1;
-    }
+    int osThreadId();
 
     int state() {
         return _thread_state_offset >= 0 ? *(int*) at(_thread_state_offset) : 0;
