@@ -638,7 +638,7 @@ int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
 int VMThread::osThreadId() {
     const char* osthread = *(const char**) at(_thread_osthread_offset);
     if (osthread != NULL) {
-        // Java thread may be in the middle of termination, and its osthread structutre just released
+        // Java thread may be in the middle of termination, and its osthread structure just released
         return SafeAccess::load32((u32*)(osthread + _osthread_id_offset), (u32)-1);
     }
     return -1;
