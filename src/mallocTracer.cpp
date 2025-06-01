@@ -107,30 +107,26 @@ int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 volatile bool MallocTracer::_running = false;
 
+// Function guarantees that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
+// Optimization is turned off to avoid any of the symbols being optimized out on MacOs via LC_DYLD_CHAINED_FIXUPS
+NO_OPTIMIZE
+void guaranteeSymbols() {
+    free(calloc(1, 1));
+    free(aligned_alloc(1, 1));
+
+    void* ptr = malloc(1);
+    ptr = ptr ? realloc(ptr, 2) : ptr;
+    free(ptr);
+
+    ptr = NULL;
+    if (posix_memalign(&ptr, 1, 1) == 0) free(ptr);
+}
+
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
 
-    // Guarantee that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
-    void* ptr = calloc(1, 1);
-    if (ptr) free(ptr);
-
-    ptr = malloc(1);
-    if (ptr) {
-        if (void* reallocPtr = realloc(ptr, 2)) {
-            free(reallocPtr);
-        } else {
-            free(ptr);
-        }
-    }
-
-    ptr = NULL;
-    if (posix_memalign(&ptr, 1, 1) == 0) {
-        free(ptr);
-    }
-
-    ptr = aligned_alloc(1, 1);
-    if (ptr) free(ptr);
+    guaranteeSymbols();
 
     _orig_malloc = (malloc_t)*lib->findImport(im_malloc);
     _orig_free = (free_t)*lib->findImport(im_free);
