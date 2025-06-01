@@ -43,11 +43,11 @@ TEST_CASE(ResolveFromRela_dyn_R_GLOB_DAT) {
     ASSERT_RESOLVE(im_pthread_setspecific);
 }
 
+#ifdef __linux__
+
 TEST_CASE(ResolveFromRela_dyn_R_ABS64) {
     ASSERT_RESOLVE(im_pthread_exit);
 }
-
-#ifdef __linux__
 
 TEST_CASE(VirtAddrDifferentLoadAddr) {
     const void* sym = resolveSymbol("libvaddrdif" EXT, "vaddrdif_square");
