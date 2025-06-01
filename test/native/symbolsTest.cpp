@@ -4,6 +4,10 @@
  */
 
 #ifdef __linux__
+#define EXT ".so"
+#else
+#define EXT ".dylib"
+#endif
 
 #include "codeCache.h"
 #include "profiler.h"
@@ -22,7 +26,7 @@ const void* resolveSymbol(const char* lib, const char* name) {
 
 #define ASSERT_RESOLVE(id)                                                             \
     {                                                                                  \
-        void* result = dlopen("libreladyn.so", RTLD_NOW); /* see reladyn.c */          \
+        void* result = dlopen("libreladyn" EXT, RTLD_NOW); /* see reladyn.c */         \
         ASSERT(result);                                                                \
         Profiler::instance()->updateSymbols(false);                                    \
         CodeCache* libreladyn = Profiler::instance()->findLibraryByName("libreladyn"); \
@@ -39,12 +43,14 @@ TEST_CASE(ResolveFromRela_dyn_R_GLOB_DAT) {
     ASSERT_RESOLVE(im_pthread_setspecific);
 }
 
+#ifdef __linux__
+
 TEST_CASE(ResolveFromRela_dyn_R_ABS64) {
     ASSERT_RESOLVE(im_pthread_exit);
 }
 
 TEST_CASE(VirtAddrDifferentLoadAddr) {
-    const void* sym = resolveSymbol("libvaddrdif.so", "vaddrdif_square");
+    const void* sym = resolveSymbol("libvaddrdif" EXT, "vaddrdif_square");
     ASSERT(sym);
 
     int (*square)(int) = (int (*)(int))sym;
@@ -52,7 +58,7 @@ TEST_CASE(VirtAddrDifferentLoadAddr) {
 }
 
 TEST_CASE(MappedTwiceAtZeroOffset) {
-    const void* sym = resolveSymbol("libtwiceatzero.so", "twiceatzero_hello");
+    const void* sym = resolveSymbol("libtwiceatzero" EXT, "twiceatzero_hello");
     // Resolving the symbol without crashing is enough for this test case.
     ASSERT(sym);
 
@@ -61,13 +67,13 @@ TEST_CASE(MappedTwiceAtZeroOffset) {
 }
 
 TEST_CASE(MultipleMatchingSymbols) {
-    const void* sym = resolveSymbol("multiplematching.so", "Class::function");
+    const void* sym = resolveSymbol("multiplematching" EXT, "Class::function");
     ASSERT(sym);
 
-    const void* sym_ok = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv");
+    const void* sym_ok = resolveSymbol("multiplematching" EXT, "_ZN5Class8functionEv");
     ASSERT_EQ(sym, sym_ok);
 
-    const void* sym_cold = resolveSymbol("multiplematching.so", "_ZN5Class8functionEv.cold");
+    const void* sym_cold = resolveSymbol("multiplematching" EXT, "_ZN5Class8functionEv.cold");
     ASSERT_NE(sym, sym_cold);
 }
 

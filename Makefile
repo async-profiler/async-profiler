@@ -253,7 +253,7 @@ build-test-bins:
 
 test-cpp: build-test-cpp
 	echo "Running cpp tests..."
-	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
+	LD_LIBRARY_PATH="$(TEST_LIB_DIR)" DYLD_LIBRARY_PATH="$(TEST_LIB_DIR)" build/test/cpptests
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
