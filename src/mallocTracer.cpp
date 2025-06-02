@@ -20,12 +20,9 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
-#define SAVE_IMPORT(TYPE) ({ \
-    _unused_sink += (uintptr_t)TYPE; \
-    _orig_##TYPE = (decltype(_orig_##TYPE))*lib->findImport(im_##TYPE); \
-})
+#define SAVE_IMPORT(FUNC) \
+    _orig_##FUNC = (decltype(_orig_##FUNC))*lib->findImport(im_##FUNC);
 
-static volatile uintptr_t _unused_sink;
 static void* (*_orig_malloc)(size_t);
 static void (*_orig_free)(void*);
 static void* (*_orig_calloc)(size_t,size_t);
@@ -106,29 +103,27 @@ int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 volatile bool MallocTracer::_running = false;
 
-// Function guarantees that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
-// Optimization is turned off to avoid any of the symbols being optimized out on MacOs via LC_DYLD_CHAINED_FIXUPS
-/*
-NO_OPTIMIZE
-void guaranteeSymbols() {
+static void resolveMallocSymbols() {
+    static volatile intptr_t sink;
+
     void* p0 = malloc(1);
     void* p1 = realloc(p0, 2);
     void* p2 = calloc(1, 1);
     void* p3 = aligned_alloc(1, 1);
-    void* p4 = NULL; posix_memalign(&p4, 1, 1);
-    free(p4);
+    void* p4 = NULL;
+    if (posix_memalign(&p4, 1, 1) == 0) free(p4);
     free(p3);
     free(p2);
     free(p1);
-    printf("x = 0x%lx\n", (uintptr_t)p1 + (uintptr_t)p2 + (uintptr_t)p3 + (uintptr_t)p4);
+
+    sink = (intptr_t)p1 + (intptr_t)p2 + (intptr_t)p3 + (intptr_t)p4;
 }
-*/
 
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
 
-    // guaranteeSymbols();
+    resolveMallocSymbols();
 
     SAVE_IMPORT(malloc);
     SAVE_IMPORT(free);
