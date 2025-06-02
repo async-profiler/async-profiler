@@ -58,11 +58,11 @@ public class StackwalkerTests {
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert output.contains("^" +
-                FRAME + // Root can be different on different systems
-                OPTIONAL_FRAME + // It's possible to have an additional thread frame depending on the OS
-                OPTIONAL_FRAME + // ThreadJavaMain frame could be missing in Some JDK version (8)
+                FRAME +          // Platform-dependent root frame
+                OPTIONAL_FRAME + // Platform-dependent
+                OPTIONAL_FRAME + // ThreadJavaMain frame could be missing in JDK 8
                 "JavaMain;" +
-                OPTIONAL_FRAME + // Some newer JDK versions (24) added "invokeStaticMainWithArgs" method
+                OPTIONAL_FRAME + // JDK 22 added "invokeStaticMainWithArgs" function
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
