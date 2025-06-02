@@ -52,11 +52,14 @@ class SafeAccess {
     }
 
     static uintptr_t skipLoadArg(uintptr_t pc) {
-#if defined(__aarch64__)
         if ((pc - (uintptr_t)load32) < 16 || (pc - (uintptr_t)loadPtr) < 16) {
-            return 4;
-        }
+#if defined(__x86_64__) || defined(__i386__)
+            if (*(u8*)pc == 0x8b) return 2;      // mov eax, [reg]
+            if (*(u16*)pc == 0x8b48) return 3;   // mov rax, [reg]
+#else
+            return sizeof(instruction_t);
 #endif
+        }
         return 0;
     }
 };

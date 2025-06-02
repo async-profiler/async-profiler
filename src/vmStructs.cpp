@@ -635,6 +635,15 @@ int VMThread::nativeThreadId(JNIEnv* jni, jthread thread) {
     return VM::isOpenJ9() ? J9Ext::GetOSThreadID(thread) : -1;
 }
 
+int VMThread::osThreadId() {
+    const char* osthread = *(const char**) at(_thread_osthread_offset);
+    if (osthread != NULL) {
+        // Java thread may be in the middle of termination, and its osthread structure just released
+        return SafeAccess::load32((u32*)(osthread + _osthread_id_offset), (u32)-1);
+    }
+    return -1;
+}
+
 jmethodID VMMethod::id() {
     // We may find a bogus NMethod during stack walking, it does not always point to a valid VMMethod
     const char* const_method = (const char*) SafeAccess::load((void**) at(_method_constmethod_offset));
