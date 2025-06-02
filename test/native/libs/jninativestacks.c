@@ -18,7 +18,7 @@ JNIEXPORT double doCpuTask() {
     return result;
 }
 
-__attribute__((unused)) JNIEXPORT double generateDeepStack(int count) {
+JNIEXPORT double generateDeepStack(int count) {
     char frame[0x20000];
     // Prevent from being optimized by compiler
     (void)frame;
@@ -30,20 +30,20 @@ __attribute__((unused)) JNIEXPORT double generateDeepStack(int count) {
     }
 }
 
-__attribute__((unused)) JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_generateLargeFrame(JNIEnv* env, jclass cls) {
+JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_largeFrame(JNIEnv* env, jclass cls) {
     char frame[0x50000];
     // Prevent from being optimized by compiler
     (void)frame;
     return doCpuTask();
 }
 
-__attribute__((unused)) JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_generateDeepStack(JNIEnv* env, jclass cls) {
+JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_deepFrame(JNIEnv* env, jclass cls) {
     char frame[0x30000];
     // Prevent from being optimized by compiler
     (void)frame;
     return generateDeepStack(6);
 }
 
-JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_generateCompleteStack(JNIEnv* env, jclass cls) {
+JNIEXPORT jdouble JNICALL Java_test_stackwalker_StackGenerator_leafFrame(JNIEnv* env, jclass cls) {
     return doCpuTask();
 }

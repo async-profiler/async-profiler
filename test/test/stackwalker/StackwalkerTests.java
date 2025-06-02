@@ -22,22 +22,22 @@ public class StackwalkerTests {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^Java_test_stackwalker_StackGenerator_generateLargeFrame;" +
+        assert output.contains("^Java_test_stackwalker_StackGenerator_largeFrame;" +
                 "doCpuTask");
 
-        // There will be no stack frame that contains both main & generateLargeFrame method
-        assert !output.contains(".*StackGenerator.main.*Java_test_stackwalker_StackGenerator_generateLargeFrame");
+        // There will be no stack frame that contains both main & largeFrame method
+        assert !output.contains(".*main.*largeFrame");
     }
 
-    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepFrame",
             agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr", nameSuffix = "VMX")
-    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepFrame",
             agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr", nameSuffix = "VM")
     public void deepStack(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
-        assert output.contains("^Java_test_stackwalker_StackGenerator_generateDeepStack;" +
+        assert output.contains("^Java_test_stackwalker_StackGenerator_deepFrame;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
@@ -47,11 +47,11 @@ public class StackwalkerTests {
                 "generateDeepStack[^;]*;" +
                 "doCpuTask");
 
-        // There will be no stack frame that contains both main & generateDeepStack method
-        assert !output.contains(".*StackGenerator.main.*Java_test_stackwalker_StackGenerator_generateDeepStack");
+        // There will be no stack frame that contains both main & deepFrame method
+        assert !output.contains(".*main.*deepFrame");
     }
 
-    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "leafFrame",
             agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr")
     public void normalStackVMX(TestProcess p) throws Exception {
         p.waitForExit();
@@ -60,28 +60,28 @@ public class StackwalkerTests {
         assert output.contains("^" +
                 FRAME + // Root can be different on different systems
                 OPTIONAL_FRAME + // It's possible to have an additional thread frame depending on the OS
-                (p.currentJvmVersion() == 8 ? "" : "ThreadJavaMain;") + // Missing in JDK 8
+                OPTIONAL_FRAME + // ThreadJavaMain frame could be missing in Some JDK version (8)
                 "JavaMain;" +
-                (p.currentJvmVersion() >= 24 ? "invokeStaticMainWithArgs;" : "") + // Added in newer JDK versions => 24+
+                OPTIONAL_FRAME + // Some newer JDK versions (24) added "invokeStaticMainWithArgs" method
                 "jni_CallStaticVoidMethod;" +
                 "jni_invoke_static;" +
                 "JavaCalls::call_helper;" +
                 "call_stub;" +
                 "test/stackwalker/StackGenerator.main_\\[0\\];" +
-                "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
-                "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
+                "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
+                "Java_test_stackwalker_StackGenerator_leafFrame;" +
                 "doCpuTask");
     }
 
-    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "completeStack",
+    @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "leafFrame",
             agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr")
     public void normalStackVM(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert output.contains("^test/stackwalker/StackGenerator.main_\\[0\\];" +
-                "test/stackwalker/StackGenerator.generateCompleteStack_\\[0\\];" +
-                "Java_test_stackwalker_StackGenerator_generateCompleteStack;" +
+                "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
+                "Java_test_stackwalker_StackGenerator_leafFrame;" +
                 "doCpuTask");
     }
 }
