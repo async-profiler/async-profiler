@@ -20,19 +20,16 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
-typedef void* (*malloc_t)(size_t);
-typedef void (*free_t)(void*);
-typedef void* (*calloc_t)(size_t,size_t);
-typedef void* (*realloc_t)(void*, size_t);
-typedef int (*posix_memalign_t)(void**, size_t, size_t);
-typedef void* (*aligned_alloc_t)(size_t, size_t);
+#define SAVE_IMPORT(TYPE) ({ \
+    _orig_##TYPE = (decltype(_orig_##TYPE))*lib->findImport(im_##TYPE); \
+})
 
-malloc_t _orig_malloc;
-free_t _orig_free;
-calloc_t _orig_calloc;
-realloc_t _orig_realloc;
-posix_memalign_t _orig_posix_memalign;
-aligned_alloc_t _orig_aligned_alloc;
+static void* (*_orig_malloc)(size_t);
+static void (*_orig_free)(void*);
+static void* (*_orig_calloc)(size_t,size_t);
+static void* (*_orig_realloc)(void*, size_t);
+static int (*_orig_posix_memalign)(void**, size_t, size_t);
+static void* (*_orig_aligned_alloc)(size_t, size_t);
 
 extern "C" void* malloc_hook(size_t size) {
     void* ret = _orig_malloc(size);
@@ -128,12 +125,12 @@ void MallocTracer::initialize() {
 
     guaranteeSymbols();
 
-    _orig_malloc = (malloc_t)*lib->findImport(im_malloc);
-    _orig_free = (free_t)*lib->findImport(im_free);
-    _orig_calloc = (calloc_t)*lib->findImport(im_calloc);
-    _orig_realloc = (realloc_t)*lib->findImport(im_realloc);
-    _orig_posix_memalign = (posix_memalign_t)*lib->findImport(im_posix_memalign);
-    _orig_aligned_alloc = (aligned_alloc_t)*lib->findImport(im_aligned_alloc);
+    SAVE_IMPORT(malloc);
+    SAVE_IMPORT(free);
+    SAVE_IMPORT(calloc);
+    SAVE_IMPORT(realloc);
+    SAVE_IMPORT(posix_memalign);
+    SAVE_IMPORT(aligned_alloc);
 
     lib->mark(
         [](const char* s) -> bool {
