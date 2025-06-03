@@ -20,13 +20,12 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
-#define SAVE_IMPORT(TYPE) ({ \
-    _orig_##TYPE = (decltype(_orig_##TYPE))*lib->findImport(im_##TYPE); \
-})
+#define SAVE_IMPORT(FUNC) \
+    _orig_##FUNC = (decltype(_orig_##FUNC))*lib->findImport(im_##FUNC)
 
 static void* (*_orig_malloc)(size_t);
 static void (*_orig_free)(void*);
-static void* (*_orig_calloc)(size_t,size_t);
+static void* (*_orig_calloc)(size_t, size_t);
 static void* (*_orig_realloc)(void*, size_t);
 static int (*_orig_posix_memalign)(void**, size_t, size_t);
 static void* (*_orig_aligned_alloc)(size_t, size_t);
@@ -104,7 +103,8 @@ int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 volatile bool MallocTracer::_running = false;
 
-// Function guarantees that memory allocation functions will exist in the generated Shared Objects as to be parsed by 'OS_symbols' files/methods
+// Call each intercepted function at least once to ensure
+// its GOT entry is updated with a correct target address
 static void resolveMallocSymbols() {
     static volatile intptr_t sink;
 
