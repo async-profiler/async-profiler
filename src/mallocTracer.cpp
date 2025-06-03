@@ -20,8 +20,18 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
+#define SAVE_IMPORT(FUNC) \
+    _orig_##FUNC = (decltype(_orig_##FUNC))*lib->findImport(im_##FUNC)
+
+static void* (*_orig_malloc)(size_t);
+static void (*_orig_free)(void*);
+static void* (*_orig_calloc)(size_t, size_t);
+static void* (*_orig_realloc)(void*, size_t);
+static int (*_orig_posix_memalign)(void**, size_t, size_t);
+static void* (*_orig_aligned_alloc)(size_t, size_t);
+
 extern "C" void* malloc_hook(size_t size) {
-    void* ret = malloc(size);
+    void* ret = _orig_malloc(size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -29,7 +39,7 @@ extern "C" void* malloc_hook(size_t size) {
 }
 
 extern "C" void* calloc_hook(size_t num, size_t size) {
-    void* ret = calloc(num, size);
+    void* ret = _orig_calloc(num, size);
     if (MallocTracer::running() && ret && num && size) {
         MallocTracer::recordMalloc(ret, num * size);
     }
@@ -39,11 +49,11 @@ extern "C" void* calloc_hook(size_t num, size_t size) {
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
 extern "C" NO_OPTIMIZE
 void* calloc_hook_dummy(size_t num, size_t size) {
-    return calloc(num, size);
+    return _orig_calloc(num, size);
 }
 
 extern "C" void* realloc_hook(void* addr, size_t size) {
-    void* ret = realloc(addr, size);
+    void* ret = _orig_realloc(addr, size);
     if (MallocTracer::running() && ret) {
         if (addr && !MallocTracer::nofree()) {
             MallocTracer::recordFree(addr);
@@ -56,14 +66,14 @@ extern "C" void* realloc_hook(void* addr, size_t size) {
 }
 
 extern "C" void free_hook(void* addr) {
-    free(addr);
+    _orig_free(addr);
     if (MallocTracer::running() && !MallocTracer::nofree() && addr) {
         MallocTracer::recordFree(addr);
     }
 }
 
 extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size) {
-    int ret = posix_memalign(memptr, alignment, size);
+    int ret = _orig_posix_memalign(memptr, alignment, size);
     if (MallocTracer::running() && ret == 0 && memptr && *memptr && size) {
         MallocTracer::recordMalloc(*memptr, size);
     }
@@ -73,11 +83,11 @@ extern "C" int posix_memalign_hook(void** memptr, size_t alignment, size_t size)
 // Make sure this is not optimized away (function-scoped -fno-optimize-sibling-calls)
 extern "C" NO_OPTIMIZE
 int posix_memalign_hook_dummy(void** memptr, size_t alignment, size_t size) {
-    return posix_memalign(memptr, alignment, size);
+    return _orig_posix_memalign(memptr, alignment, size);
 }
 
 extern "C" void* aligned_alloc_hook(size_t alignment, size_t size) {
-    void* ret = aligned_alloc(alignment, size);
+    void* ret = _orig_aligned_alloc(alignment, size);
     if (MallocTracer::running() && ret && size) {
         MallocTracer::recordMalloc(ret, size);
     }
@@ -93,9 +103,36 @@ int MallocTracer::_patched_libs = 0;
 bool MallocTracer::_initialized = false;
 volatile bool MallocTracer::_running = false;
 
+// Call each intercepted function at least once to ensure
+// its GOT entry is updated with a correct target address
+static void resolveMallocSymbols() {
+    static volatile intptr_t sink;
+
+    void* p0 = malloc(1);
+    void* p1 = realloc(p0, 2);
+    void* p2 = calloc(1, 1);
+    void* p3 = aligned_alloc(1, 1);
+    void* p4 = NULL;
+    if (posix_memalign(&p4, 1, 1) == 0) free(p4);
+    free(p3);
+    free(p2);
+    free(p1);
+
+    sink = (intptr_t)p1 + (intptr_t)p2 + (intptr_t)p3 + (intptr_t)p4;
+}
+
 void MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
+
+    resolveMallocSymbols();
+
+    SAVE_IMPORT(malloc);
+    SAVE_IMPORT(free);
+    SAVE_IMPORT(calloc);
+    SAVE_IMPORT(realloc);
+    SAVE_IMPORT(posix_memalign);
+    SAVE_IMPORT(aligned_alloc);
 
     lib->mark(
         [](const char* s) -> bool {
@@ -121,10 +158,6 @@ void MallocTracer::patchLibraries() {
 
     while (_patched_libs < native_lib_count) {
         CodeCache* cc = (*native_libs)[_patched_libs++];
-        if (cc->contains((const void*)MallocTracer::initialize)) {
-            // Let libasyncProfiler always use original allocation methods
-            continue;
-        }
 
         UnloadProtection handle(cc);
         if (!handle.isValid()) {
