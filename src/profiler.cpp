@@ -1677,17 +1677,10 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.field(Otlp::Profile::period, (u64) args._interval);
 
     protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Otlp::Profile::sample_type);
-    // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
-    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, "samples"));
-    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, "count"));
+    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, _engine->type()));
+    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, _engine->units()));
     _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::cumulative);
     _otlp_buffer.commitMessage(sample_type_mark);
-
-    protobuf_mark_t period_type_mark = _otlp_buffer.startMessage(Otlp::Profile::period_type);
-    // TODO: This should be changed when other profling modes (e.g. alloc), or --total are used
-    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, "cpu"));
-    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, "nanoseconds"));
-    _otlp_buffer.commitMessage(period_type_mark);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
