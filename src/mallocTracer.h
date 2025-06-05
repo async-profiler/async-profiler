@@ -7,7 +7,6 @@
 #define _MALLOCTRACER_H
 
 #include <stdint.h>
-
 #include "engine.h"
 #include "event.h"
 #include "mutex.h"
