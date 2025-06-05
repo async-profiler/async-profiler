@@ -234,6 +234,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     /**
      * Dump collected data in OTLP format.
+     * <p>
+     * This API is UNSTABLE and might change or be removed in the next version of async-profiler.
      *
      * @return OTLP representation of the profile
      */
