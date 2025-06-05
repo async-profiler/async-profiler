@@ -34,18 +34,22 @@ void ProtoBuffer::ensureCapacity(size_t new_data_size) {
     _data = (unsigned char*) realloc(_data, _capacity);
 }
 
-void ProtoBuffer::putVarInt(u64 n) {
-    _offset = putVarInt(_offset, n);
-}
-
-size_t ProtoBuffer::putVarInt(size_t offset, u64 n) {
+void ProtoBuffer::putVarInt(u32 n) {
     ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
-        _data[offset++] = (unsigned char) (0x80 | (n & 0x7f));
+        _data[_offset++] = (unsigned char) (0x80 | (n & 0x7f));
         n >>= 7;
     }
-    _data[offset++] = (unsigned char) n;
-    return offset;
+    _data[_offset++] = (unsigned char) n;
+}
+
+void ProtoBuffer::putVarInt(u64 n) {
+    ensureCapacity(varIntSize(n));
+    while ((n >> 7) != 0) {
+        _data[_offset++] = (unsigned char) (0x80 | (n & 0x7f));
+        n >>= 7;
+    }
+    _data[_offset++] = (unsigned char) n;
 }
 
 void ProtoBuffer::tag(protobuf_index_t index, protobuf_t type) {
@@ -54,6 +58,11 @@ void ProtoBuffer::tag(protobuf_index_t index, protobuf_t type) {
 
 void ProtoBuffer::field(protobuf_index_t index, bool b) {
     field(index, (u64) b);
+}
+
+void ProtoBuffer::field(protobuf_index_t index, u32 n) {
+    tag(index, VARINT);
+    putVarInt(n);
 }
 
 void ProtoBuffer::field(protobuf_index_t index, u64 n) {
@@ -94,4 +103,16 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
         message_length >>= 7;
     }
     _data[mark - 1] = (unsigned char) message_length;
+}
+
+void ProtoBuffer::appendRepeated(bool b) {
+    putVarInt((u32) b);
+}
+
+void ProtoBuffer::appendRepeated(u32 n) {
+    putVarInt(n);
+}
+
+void ProtoBuffer::appendRepeated(u64 n) {
+    putVarInt(n);
 }
