@@ -243,6 +243,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     VMThread* vm_thread = VMThread::current();
     void* saved_exception = vm_thread != NULL ? vm_thread->exception() : NULL;
 
+    JavaFrameAnchor* anchor = nullptr;
+
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
 
@@ -255,6 +257,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             }
             return depth;
         }
+        anchor = vm_thread->anchor();
     }
 
     // Walk until the bottom of the stack or until the first Java frame
@@ -388,6 +391,19 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         uintptr_t prev_sp = sp;
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
+        if (f == NULL && anchor && anchor->lastJavaSP() != 0) {
+            if (anchor->lastJavaPC() == nullptr) {
+                sp = anchor->lastJavaSP();
+                pc = ((const void**)sp)[-1];
+                fp = anchor->lastJavaFP();
+            } else {
+                fillFrame(frames[depth++], BCI_ERROR, "skipped_frames");
+                sp = anchor->lastJavaSP();
+                fp = anchor->lastJavaFP();
+                pc = anchor->lastJavaPC();
+            }
+            continue;
+        }
 
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
