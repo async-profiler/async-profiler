@@ -41,15 +41,19 @@ static int pthread_setspecific_hook(pthread_key_t key, const void* value) {
     }
 }
 
+CpuEngine* CpuEngine::getCurrent() {
+    return __atomic_load_n(&_current, __ATOMIC_ACQUIRE);
+}
+
 void CpuEngine::onThreadStart() {
-    CpuEngine* current = __atomic_load_n(&_current, __ATOMIC_ACQUIRE);
+    CpuEngine* current = getCurrent();
     if (current != NULL) {
         current->createForThread(OS::threadId());
     }
 }
 
 void CpuEngine::onThreadEnd() {
-    CpuEngine* current = __atomic_load_n(&_current, __ATOMIC_ACQUIRE);
+    CpuEngine* current = getCurrent();
     if (current != NULL) {
         current->destroyForThread(OS::threadId());
     }

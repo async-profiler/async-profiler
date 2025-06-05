@@ -18,6 +18,9 @@ class CTimer : public CpuEngine {
     int createForThread(int tid);
     void destroyForThread(int tid);
 
+    void pause() { destroyForThread(OS::threadId()); }
+    void resume() { createForThread(OS::threadId()); }
+
   public:
     const char* type() {
         return "ctimer";

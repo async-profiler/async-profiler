@@ -8,6 +8,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstdarg>
+#include <errno.h>
 #include "hooks.h"
 #include "asprof.h"
 #include "cpuEngine.h"
@@ -27,6 +29,9 @@ struct ThreadEntry {
     ThreadFunc start_routine;
     void* arg;
 };
+
+typedef int (*clone_t)(int (*__fn) (void *__arg), void *__child_stack, int __flags, void *__arg, ...);
+static clone_t _orig_clone = NULL;
 
 typedef int (*pthread_create_t)(pthread_t*, const pthread_attr_t*, ThreadFunc, void*);
 static pthread_create_t _orig_pthread_create = NULL;
@@ -66,6 +71,20 @@ static void* thread_start_wrapper(void* e) {
     CpuEngine::onThreadEnd();
 
     return result;
+}
+
+static int clone_hook(int (*__fn) (void *__arg), void *__child_stack, int __flags, void *__arg, ...) {
+    fprintf(stderr, "Hooked\n");
+    va_list args;
+    va_start(args, __arg);
+    int orig_output = _orig_clone(__fn, __child_stack, __flags, __arg, args);
+    va_end(args);
+
+    if (orig_output >= 0 || errno != EINTR) return orig_output;
+
+    fprintf(stderr, "Pause\n");
+    CpuEnginePause pause;
+    return _orig_clone(__fn, __child_stack, __flags, __arg, args);
 }
 
 static int pthread_create_hook(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
@@ -110,6 +129,24 @@ static void* dlopen_hook(const char* filename, int flags) {
 
 
 // LD_PRELOAD hooks
+
+extern "C" WEAK DLLEXPORT
+int clone(int (*__fn) (void *__arg), void *__child_stack, int __flags, void *__arg, ...) {
+    if (_orig_clone == NULL) {
+        _orig_clone = ADDRESS_OF(clone);
+    }
+
+    va_list args;
+    va_start(args, __arg);
+    int orig_output;
+    if (Hooks::initialized()) {
+        orig_output = clone_hook(__fn, __child_stack, __flags, __arg, args);
+    } else {
+        orig_output = _orig_clone(__fn, __child_stack, __flags, __arg, args);
+    }
+    va_end(args);
+    return orig_output;
+}
 
 extern "C" WEAK DLLEXPORT
 int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
@@ -160,6 +197,7 @@ bool Hooks::init(bool attach) {
 
     if (attach) {
         Profiler::instance()->updateSymbols(false);
+        _orig_clone = ADDRESS_OF(clone);
         _orig_pthread_create = ADDRESS_OF(pthread_create);
         _orig_pthread_exit = ADDRESS_OF(pthread_exit);
         _orig_dlopen = ADDRESS_OF(dlopen);
@@ -192,6 +230,7 @@ void Hooks::patchLibraries() {
             // Let libasyncProfiler always use original dlopen
             cc->patchImport(im_dlopen, (void*)dlopen_hook);
         }
+        cc->patchImport(im_clone, (void*)clone_hook);
         cc->patchImport(im_pthread_create, (void*)pthread_create_hook);
         cc->patchImport(im_pthread_exit, (void*)pthread_exit_hook);
     }

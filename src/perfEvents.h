@@ -32,6 +32,9 @@ class PerfEvents : public CpuEngine {
     int createForThread(int tid);
     void destroyForThread(int tid);
 
+    void pause() { destroyForThread(OS::threadId()); }
+    void resume() { createForThread(OS::threadId()); }
+
   public:
     Error check(Arguments& args);
     Error start(Arguments& args);
