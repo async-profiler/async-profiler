@@ -125,9 +125,11 @@ static int read_response(int fd, const char* cmd, int print_output) {
         ssize_t bytes = read(fd, buf + off, size - off);
         if (bytes == 0) {
             fprintf(stderr, "Unexpected EOF reading response\n");
+            free(buf);
             return 1;
         } else if (bytes < 0) {
             perror("Error reading response");
+            free(buf);
             return 1;
         }
 
@@ -137,7 +139,13 @@ static int read_response(int fd, const char* cmd, int print_output) {
         }
 
         if (off >= size) {
-            buf = realloc(buf, size *= 2);
+            char* temp_buf = realloc(buf, size *= 2);
+            if (temp_buf == NULL) {
+                free(buf);
+                fprintf(stderr, "Failed to reallocate memory for response\n");
+                return 1;
+            }
+            buf = temp_buf;
         }
     }
 
