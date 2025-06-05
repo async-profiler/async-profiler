@@ -146,6 +146,9 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
         uintptr_t prev_sp = sp;
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
+        if (f == NULL) {
+            break;
+        }
 
         u8 cfa_reg = (u8)f->cfa;
         int cfa_off = f->cfa >> 8;
