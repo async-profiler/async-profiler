@@ -6,9 +6,10 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
+TMP_DIR=/tmp
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
-PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
+PACKAGE_DIR=$(TMP_DIR)/$(PACKAGE_NAME)
 DEBUG_PACKAGE_NAME=$(PACKAGE_NAME)-debug
 DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
@@ -130,6 +131,14 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+# OTLP Protobuf
+OPENTELEMETRY_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
+OPENTELEMETRY_PROTO_GEN_OUTPUT=test/opentelemetry-proto-gen-java
+# TODO: https://github.com/open-telemetry/build-tools/issues/410
+PROTOBUF_JAVA_VERSION=3.25.8
+PROTOBUF_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_JAVA_VERSION)/protobuf-java-$(PROTOBUF_JAVA_VERSION).jar
+PROTOBUF_JAVA_JAR=protobuf-java.jar
+DEPS_DIR=build/deps
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -258,7 +267,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(DEPS_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -269,9 +278,13 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+$(DEPS_DIR)/$(PROTOBUF_JAVA_JAR): Makefile
+	mkdir -p $(DEPS_DIR)
+	curl -o $(DEPS_DIR)/$(PROTOBUF_JAVA_JAR) $(PROTOBUF_JAVA_JAR_URL)
+
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*:$(DEPS_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 check-md:
@@ -285,3 +298,13 @@ clean-coverage:
 
 clean:
 	$(RM) -r build
+
+update-otlp:
+	rm -rf $(OPENTELEMETRY_PROTO_PATH)
+	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OPENTELEMETRY_PROTO_PATH)
+	find $(OPENTELEMETRY_PROTO_PATH)/opentelemetry/proto/ \
+		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
+		-delete
+	cd $(OPENTELEMETRY_PROTO_PATH) && make gen-java
+	rm -rf $(OPENTELEMETRY_PROTO_GEN_OUTPUT)
+	cp -r $(OPENTELEMETRY_PROTO_PATH)/gen/java $(OPENTELEMETRY_PROTO_GEN_OUTPUT)
