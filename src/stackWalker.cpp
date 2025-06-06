@@ -247,6 +247,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     void* saved_exception = vm_thread != NULL ? vm_thread->exception() : NULL;
 
     JavaFrameAnchor* anchor = nullptr;
+    bool unwound_from_anchor = false;
+    bool has_java_frame = false;
 
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
@@ -266,6 +268,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
+            has_java_frame = true;
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
@@ -394,18 +397,24 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         uintptr_t prev_sp = sp;
         CodeCache* cc = profiler->findLibraryByAddress(pc);
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
-        if (f == NULL && anchor && anchor->lastJavaSP() != 0) {
-            if (anchor->lastJavaPC() == nullptr) {
-                sp = anchor->lastJavaSP();
-                pc = ((const void**)sp)[-1];
-                fp = anchor->lastJavaFP();
-            } else {
+        if (f == NULL) {
+            if (anchor && anchor->lastJavaSP() != 0) {
+                if (unwound_from_anchor || has_java_frame) break;
+                if (anchor->lastJavaPC() == nullptr) {
+                    sp = anchor->lastJavaSP();
+                    pc = ((const void**)sp)[-1];
+                    fp = anchor->lastJavaFP();
+                } else {
+                    sp = anchor->lastJavaSP();
+                    fp = anchor->lastJavaFP();
+                    pc = anchor->lastJavaPC();
+                }
                 fillFrame(frames[depth++], BCI_ERROR, "skipped_frames");
-                sp = anchor->lastJavaSP();
-                fp = anchor->lastJavaFP();
-                pc = anchor->lastJavaPC();
+                unwound_from_anchor = true;
+                continue;
+            } else {
+                break;
             }
-            continue;
         }
 
         u8 cfa_reg = (u8)f->cfa;
