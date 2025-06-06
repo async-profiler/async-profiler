@@ -399,7 +399,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
         if (f == NULL) {
             if (anchor && anchor->lastJavaSP() != 0) {
-                if (unwound_from_anchor || has_java_frame) break;
+                if (detail == VM_EXPERT && (unwound_from_anchor || has_java_frame)) break;
                 if (anchor->lastJavaPC() == nullptr) {
                     sp = anchor->lastJavaSP();
                     pc = ((const void**)sp)[-1];
