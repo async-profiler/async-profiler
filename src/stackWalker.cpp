@@ -400,6 +400,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         if (f == NULL) {
             if (anchor && anchor->lastJavaSP() != 0) {
                 if (detail == VM_EXPERT && (unwound_from_anchor || has_java_frame)) break;
+
+                fillFrame(frames[depth++], BCI_ERROR, "skipped_frames");
                 if (anchor->lastJavaPC() == nullptr) {
                     sp = anchor->lastJavaSP();
                     pc = ((const void**)sp)[-1];
@@ -409,7 +411,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     fp = anchor->lastJavaFP();
                     pc = anchor->lastJavaPC();
                 }
-                fillFrame(frames[depth++], BCI_ERROR, "skipped_frames");
+                // Check if the next frame is below on the current stack
+                if (sp < prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
+                    break;
+                }
                 unwound_from_anchor = true;
                 continue;
             } else {
