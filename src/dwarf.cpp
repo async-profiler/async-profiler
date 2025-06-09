@@ -127,6 +127,7 @@ void DwarfParser::parseFde() {
     u32 fde_loc_end = range_start + range_len;
     _ptr += getLeb();
     parseInstructions(range_start, fde_start + fde_len, fde_loc_end);
+    addRecord(range_start + range_len, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT);
 }
 
 void DwarfParser::parseInstructions(u32 loc, const char* end, u32 fde_loc_end) {

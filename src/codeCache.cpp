@@ -307,7 +307,6 @@ FrameDesc* CodeCache::findFrameDesc(const void* pc) {
       	} else {
             return NULL;
       	}
-        return &_dwarf_table[low - 1];
     } else if (target_loc - _plt_offset < _plt_size) {
         return &FrameDesc::empty_frame;
     } else {
