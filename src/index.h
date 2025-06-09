@@ -18,21 +18,21 @@ class Index {
   
   public:
     u32 recordIndex(std::string value) {
-      return idx_map.insert({value, idx_map.size()}).first->second;
+        return idx_map.insert({value, idx_map.size()}).first->second;
     }
 
     u32 size() const {
-      return idx_map.size();
+        return idx_map.size();
     }
 
     void forEachOrdered(std::function<void(const std::string&)> consumer) const {
-      const std::string* arr[idx_map.size()];
-      for (const auto& it : idx_map) {
+        const std::string* arr[idx_map.size()];
+        for (const auto& it : idx_map) {
         arr[it.second] = &it.first;
-      }
-      for (u32 idx = 0; idx < size(); ++idx) {
-        consumer(*arr[idx]);
-      }
+        }
+        for (u32 idx = 0; idx < size(); ++idx) {
+            consumer(*arr[idx]);
+        }
     }
 };
 
