@@ -247,8 +247,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     void* saved_exception = vm_thread != NULL ? vm_thread->exception() : NULL;
 
     JavaFrameAnchor* anchor = nullptr;
-    bool unwound_from_anchor = false;
-    bool has_java_frame = false;
 
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
@@ -268,7 +266,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
-            has_java_frame = true;
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
@@ -399,8 +396,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         FrameDesc* f = cc != NULL ? cc->findFrameDesc(pc) : &FrameDesc::default_frame;
         if (f == NULL) {
             if (anchor && anchor->lastJavaSP() != 0) {
-                if (detail == VM_EXPERT && (unwound_from_anchor || has_java_frame)) break;
-
                 fillFrame(frames[depth++], BCI_ERROR, "skipped_frames");
                 if (anchor->lastJavaPC() == nullptr) {
                     sp = anchor->lastJavaSP();
@@ -415,7 +410,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 if (sp < prev_sp || sp >= prev_sp + MAX_FRAME_SIZE || sp >= bottom) {
                     break;
                 }
-                unwound_from_anchor = true;
                 continue;
             } else {
                 break;
