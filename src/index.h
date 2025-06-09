@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef _OTLP_H
-#define _OTLP_H
+#ifndef _INDEX_H
+#define _INDEX_H
 
 #include <functional>
 #include <string>
