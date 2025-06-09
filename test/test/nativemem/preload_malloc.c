@@ -57,7 +57,8 @@ void initAsyncProfiler() {
 void preloadOrderTest() {
     unsigned char* ptr = (unsigned char*)malloc(1999993);
 
-    for (int i = 0; i < 1999993; i++) {
+    int i;
+    for (i = 0; i < 1999993; i++) {
         if (ptr[i] != 0xff) {
             fprintf(stderr, "malloc error, expected 0xff but found 0x%x\n", ptr[i]);
             exit(1);
