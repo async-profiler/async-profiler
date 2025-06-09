@@ -9,7 +9,7 @@
 #include "arch.h"
 
 // Keeps track of values seen and their index of occurrence
-class IndexContainer {
+class Index {
   private:
     std::unordered_map<std::string, u32> idx_map;
   

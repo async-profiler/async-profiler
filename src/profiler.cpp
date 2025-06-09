@@ -1653,7 +1653,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, IndexContainer& string_idx_container, const char* unit) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, Index& string_idx_container, const char* unit) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type);
     otlp_buffer.field(ValueType::type_strindex, string_idx_container.recordIndex(engine->type()));
@@ -1666,8 +1666,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer{OTLP_BUFFER_INITIAL_SIZE};
 
-    IndexContainer string_idx_container;
-    IndexContainer function_idx_container;
+    Index string_idx_container;
+    Index function_idx_container;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
