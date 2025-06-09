@@ -65,7 +65,6 @@ class Profiler {
     ThreadFilter _thread_filter;
     CallTraceStorage _call_trace_storage;
     FlightRecorder _jfr;
-    ProtoBuffer _otlp_buffer{0};
     Engine* _engine;
     Engine* _alloc_engine;
     int _event_mask;

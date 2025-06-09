@@ -10,6 +10,8 @@
 
 namespace Otlp {
 
+const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
+
 namespace ProfilesDictionary {
     const protobuf_index_t mapping_table = 1;
     const protobuf_index_t location_table = 2;
