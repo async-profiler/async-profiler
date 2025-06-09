@@ -28,7 +28,7 @@ class Index {
     void forEachOrdered(std::function<void(const std::string&)> consumer) const {
         const std::string* arr[idx_map.size()];
         for (const auto& it : idx_map) {
-        arr[it.second] = &it.first;
+            arr[it.second] = &it.first;
         }
         for (u32 idx = 0; idx < size(); ++idx) {
             consumer(*arr[idx]);
