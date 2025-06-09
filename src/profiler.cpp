@@ -1663,6 +1663,15 @@ static inline u32 getOrSetIndex(
     return idx_map.insert({value, idx_map.size()}).first->second;
 }
 
+static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, std::unordered_map<std::string, u32>& string_idx_map, const char* unit) {
+    using namespace Otlp;
+    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type);
+    otlp_buffer.field(ValueType::type_strindex, getOrSetIndex(string_idx_map, engine->type()));
+    otlp_buffer.field(ValueType::unit_strindex, getOrSetIndex(string_idx_map, unit));
+    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
+    otlp_buffer.commitMessage(sample_type_mark);
+}
+
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
 
@@ -1678,16 +1687,19 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     _otlp_buffer.field(Profile::period, (u64) args._interval);
 
-    protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Profile::sample_type);
-    _otlp_buffer.field(ValueType::type_strindex, getOrSetIndex(string_idx_map, _engine->type()));
-    _otlp_buffer.field(ValueType::unit_strindex, getOrSetIndex(string_idx_map, _engine->units()));
-    _otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
-    _otlp_buffer.commitMessage(sample_type_mark);
+    // TODO: Test this once it gets reviewed
+    if (args._counter == COUNTER_TOTAL) {
+        recordSampleType(_otlp_buffer, _engine, string_idx_map, _engine->units());
+        recordSampleType(_otlp_buffer, _engine, string_idx_map, "count");
+    } else if (args._counter == COUNTER_SAMPLES) {
+        recordSampleType(_otlp_buffer, _engine, string_idx_map, "count");
+        recordSampleType(_otlp_buffer, _engine, string_idx_map, _engine->units());
+    }
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 
-    u32 samples_counter[samples.size()];
+    u32 samples_counter[samples.size()][2];
     u32 samples_num_frames[samples.size()];
     size_t samples_idx = 0;
 
@@ -1697,8 +1709,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        samples_counter[samples_idx] = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (samples_counter[samples_idx] == 0) continue;
+        if (args._counter == COUNTER_TOTAL) {
+            samples_counter[samples_idx][0] = (*it)->counter;
+            samples_counter[samples_idx][1] = (*it)->samples;
+        } else if (args._counter == COUNTER_SAMPLES) {
+            samples_counter[samples_idx][0] = (*it)->samples;
+            samples_counter[samples_idx][1] = (*it)->counter;
+        }
+        if (samples_counter[samples_idx][0] == 0) continue;
 
         samples_num_frames[samples_idx] = trace->num_frames;
         for (u64 j = 0; j < samples_num_frames[samples_idx]; ++j) {
@@ -1710,11 +1728,17 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.commitMessage(location_indices_mark);
 
     u64 frames_seen = 0;
-    for (samples_idx = 0; samples_idx < samples.size() && samples_counter[samples_idx] > 0; samples_idx++) {
+    for (samples_idx = 0; samples_idx < samples.size() && samples_counter[samples_idx][0] > 0; samples_idx++) {
         protobuf_mark_t sample_mark = _otlp_buffer.startMessage(Profile::sample);
         _otlp_buffer.field(Sample::locations_start_index, frames_seen);
         _otlp_buffer.field(Sample::locations_length, samples_num_frames[samples_idx]);
-        _otlp_buffer.field(Sample::value, samples_counter[samples_idx]);
+
+        protobuf_mark_t sample_value_mark = _otlp_buffer.startMessage(Sample::value);
+        for (size_t sample_counter_idx = 0; sample_counter_idx < 2; ++sample_counter_idx) {
+            _otlp_buffer.appendRepeated(samples_counter[samples_idx][sample_counter_idx]);
+        }
+        _otlp_buffer.commitMessage(sample_value_mark);
+
         _otlp_buffer.commitMessage(sample_mark);
 
         frames_seen += samples_num_frames[samples_idx];
