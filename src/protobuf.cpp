@@ -56,15 +56,6 @@ void ProtoBuffer::tag(protobuf_index_t index, protobuf_t type) {
     putVarInt((u64) (index << 3 | type));
 }
 
-void ProtoBuffer::field(protobuf_index_t index, bool b) {
-    field(index, (u64) b);
-}
-
-void ProtoBuffer::field(protobuf_index_t index, u32 n) {
-    tag(index, VARINT);
-    putVarInt(n);
-}
-
 void ProtoBuffer::field(protobuf_index_t index, u64 n) {
     tag(index, VARINT);
     putVarInt(n);
@@ -103,14 +94,6 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
         message_length >>= 7;
     }
     _data[mark - 1] = (unsigned char) message_length;
-}
-
-void ProtoBuffer::appendRepeated(bool b) {
-    putVarInt((u32) b);
-}
-
-void ProtoBuffer::appendRepeated(u32 n) {
-    putVarInt(n);
 }
 
 void ProtoBuffer::appendRepeated(u64 n) {

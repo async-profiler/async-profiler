@@ -1664,42 +1664,44 @@ static inline u32 getOrSetIndex(
 }
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
+    using namespace Otlp;
+
     // _otlp_buffer contains a ProfileData message
     _otlp_buffer.reset();
 
     std::unordered_map<std::string, u32> string_idx_map;
     std::unordered_map<std::string, u32> function_idx_map;
 
-    protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(Otlp::ProfilesData::resource_profiles);
-    protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(Otlp::ResourceProfiles::scope_profiles);
-    protobuf_mark_t profile_mark = _otlp_buffer.startMessage(Otlp::ScopeProfiles::profiles);
+    protobuf_mark_t resource_profiles_mark = _otlp_buffer.startMessage(ProfilesData::resource_profiles);
+    protobuf_mark_t scope_profiles_mark = _otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
+    protobuf_mark_t profile_mark = _otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    _otlp_buffer.field(Otlp::Profile::period, (u64) args._interval);
+    _otlp_buffer.field(Profile::period, (u64) args._interval);
 
-    protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Otlp::Profile::sample_type);
-    _otlp_buffer.field(Otlp::ValueType::type_strindex, getOrSetIndex(string_idx_map, _engine->type()));
-    _otlp_buffer.field(Otlp::ValueType::unit_strindex, getOrSetIndex(string_idx_map, _engine->units()));
-    _otlp_buffer.field(Otlp::ValueType::aggregation_temporality, Otlp::AggregationTemporality::cumulative);
+    protobuf_mark_t sample_type_mark = _otlp_buffer.startMessage(Profile::sample_type);
+    _otlp_buffer.field(ValueType::type_strindex, getOrSetIndex(string_idx_map, _engine->type()));
+    _otlp_buffer.field(ValueType::unit_strindex, getOrSetIndex(string_idx_map, _engine->units()));
+    _otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
     _otlp_buffer.commitMessage(sample_type_mark);
 
     std::vector<CallTraceSample*> samples;
     _call_trace_storage.collectSamples(samples);
 
-    u32 samples_counter_cache[samples.size()];
-    u32 samples_num_frames_cache[samples.size()];
+    u32 samples_counter[samples.size()];
+    u32 samples_num_frames[samples.size()];
     size_t samples_idx = 0;
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    protobuf_mark_t location_indices_mark = _otlp_buffer.startMessage(Otlp::Profile::location_indices);
+    protobuf_mark_t location_indices_mark = _otlp_buffer.startMessage(Profile::location_indices);
     for (auto it = samples.begin(); it != samples.end(); ++it) {
         CallTrace* trace = (*it)->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        samples_counter_cache[samples_idx] = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
-        if (samples_counter_cache[samples_idx] == 0) continue;
+        samples_counter[samples_idx] = args._counter == COUNTER_SAMPLES ? (*it)->samples : (*it)->counter;
+        if (samples_counter[samples_idx] == 0) continue;
 
-        samples_num_frames_cache[samples_idx] = trace->num_frames;
-        for (u64 j = 0; j < samples_num_frames_cache[samples_idx]; ++j) {
+        samples_num_frames[samples_idx] = trace->num_frames;
+        for (u64 j = 0; j < samples_num_frames[samples_idx]; ++j) {
             u64 function_idx = getOrSetIndex(function_idx_map, fn.name(trace->frames[j]));
             _otlp_buffer.appendRepeated(function_idx);
         }
@@ -1708,25 +1710,25 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _otlp_buffer.commitMessage(location_indices_mark);
 
     u64 frames_seen = 0;
-    for (samples_idx = 0; samples_idx < samples.size() && samples_counter_cache[samples_idx] > 0; samples_idx++) {
-        protobuf_mark_t sample_mark = _otlp_buffer.startMessage(Otlp::Profile::sample);
-        _otlp_buffer.field(Otlp::Sample::locations_start_index, frames_seen);
-        _otlp_buffer.field(Otlp::Sample::locations_length, samples_num_frames_cache[samples_idx]);
-        _otlp_buffer.field(Otlp::Sample::value, samples_counter_cache[samples_idx]);
+    for (samples_idx = 0; samples_idx < samples.size() && samples_counter[samples_idx] > 0; samples_idx++) {
+        protobuf_mark_t sample_mark = _otlp_buffer.startMessage(Profile::sample);
+        _otlp_buffer.field(Sample::locations_start_index, frames_seen);
+        _otlp_buffer.field(Sample::locations_length, samples_num_frames[samples_idx]);
+        _otlp_buffer.field(Sample::value, samples_counter[samples_idx]);
         _otlp_buffer.commitMessage(sample_mark);
 
-        frames_seen += samples_num_frames_cache[samples_idx];
+        frames_seen += samples_num_frames[samples_idx];
     }
 
     _otlp_buffer.commitMessage(profile_mark);
     _otlp_buffer.commitMessage(scope_profiles_mark);
     _otlp_buffer.commitMessage(resource_profiles_mark);
 
-    protobuf_mark_t dictionary_mark = _otlp_buffer.startMessage(Otlp::ProfilesData::dictionary);
+    protobuf_mark_t dictionary_mark = _otlp_buffer.startMessage(ProfilesData::dictionary);
 
     // Write mapping_table
     // TODO: Include per-binary debug info
-    protobuf_mark_t mapping_mark = _otlp_buffer.startMessage(Otlp::ProfilesDictionary::mapping_table);
+    protobuf_mark_t mapping_mark = _otlp_buffer.startMessage(ProfilesDictionary::mapping_table);
     _otlp_buffer.commitMessage(mapping_mark);
 
     // Convert function map (name to index) to an array (index to name mapping) for fast ordered access
@@ -1737,19 +1739,19 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // Write function_table
     for (u64 function_idx = 0; function_idx < function_idx_map.size(); ++function_idx) {
-        protobuf_mark_t function_mark = _otlp_buffer.startMessage(Otlp::ProfilesDictionary::function_table);
+        protobuf_mark_t function_mark = _otlp_buffer.startMessage(ProfilesDictionary::function_table);
         u32 function_name_strindex = getOrSetIndex(string_idx_map, *function_arr[function_idx]);
-        _otlp_buffer.field(Otlp::Function::name_strindex, function_name_strindex);
+        _otlp_buffer.field(Function::name_strindex, function_name_strindex);
         _otlp_buffer.commitMessage(function_mark);
     }
 
     // Write location_table
     for (u64 function_idx = 0; function_idx < function_idx_map.size(); ++function_idx) {
-        protobuf_mark_t location_mark = _otlp_buffer.startMessage(Otlp::ProfilesDictionary::location_table);
+        protobuf_mark_t location_mark = _otlp_buffer.startMessage(ProfilesDictionary::location_table);
         // TODO: Fix me when more Mappings are added
-        _otlp_buffer.field(Otlp::Location::mapping_index, (u32) 0);
-        protobuf_mark_t line_mark = _otlp_buffer.startMessage(Otlp::Location::line);
-        _otlp_buffer.field(Otlp::Line::function_index, function_idx);
+        _otlp_buffer.field(Location::mapping_index, (u64) 0);
+        protobuf_mark_t line_mark = _otlp_buffer.startMessage(Location::line);
+        _otlp_buffer.field(Line::function_index, function_idx);
         _otlp_buffer.commitMessage(line_mark);
         _otlp_buffer.commitMessage(location_mark);
     }
@@ -1762,7 +1764,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write string_table
     for (u32 idx = 0; idx < string_idx_map.size(); ++idx) {
         const std::string* s = string_arr[idx];
-        _otlp_buffer.field(Otlp::ProfilesDictionary::string_table, s->data(), s->length());
+        _otlp_buffer.field(ProfilesDictionary::string_table, s->data(), s->length());
     }
 
     _otlp_buffer.commitMessage(dictionary_mark);

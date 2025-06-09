@@ -43,9 +43,6 @@ class ProtoBuffer {
     size_t capacity() const { return _capacity; }
     void reset() { _offset = 0; }
 
-    // VARINT
-    void field(protobuf_index_t index, bool b);
-    void field(protobuf_index_t index, u32 n);
     void field(protobuf_index_t index, u64 n);
     // LEN
     void field(protobuf_index_t index, const char* s);
@@ -55,8 +52,6 @@ class ProtoBuffer {
     protobuf_mark_t startMessage(protobuf_index_t index);
     void commitMessage(protobuf_mark_t mark);
 
-    void appendRepeated(bool b);
-    void appendRepeated(u32 n);
     void appendRepeated(u64 n);
 
     static size_t varIntSize(u64 value);
