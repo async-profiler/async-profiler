@@ -1744,7 +1744,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
-    function_idx_container.forEachInOrder([&] (const std::string& function_name) {
+    function_idx_container.forEachOrdered([&] (const std::string& function_name) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table);
         u32 function_name_strindex = string_idx_container.recordIndex(function_name);
         otlp_buffer.field(Function::name_strindex, function_name_strindex);
@@ -1763,7 +1763,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     // Write string_table
-    string_idx_container.forEachInOrder([&] (const std::string& s) {
+    string_idx_container.forEachOrdered([&] (const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
     });
 

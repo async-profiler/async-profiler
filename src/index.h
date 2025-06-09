@@ -22,7 +22,7 @@ class IndexContainer {
       return idx_map.size();
     }
 
-    void forEachInOrder(std::function<void(const std::string&)> consumer) const {
+    void forEachOrdered(std::function<void(const std::string&)> consumer) const {
       const std::string* arr[idx_map.size()];
       for (const auto& it : idx_map) {
         arr[it.second] = &it.first;
