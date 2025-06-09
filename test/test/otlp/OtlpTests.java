@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
@@ -73,7 +74,7 @@ public class OtlpTests {
 
             stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(0) + (oldValue == null ? 0 : oldValue));
         }
-        return stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).toList();
+        return stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
     }
 
     private static String getFrameName(int locationIndex, ProfilesDictionary dictionary) {
