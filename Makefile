@@ -299,12 +299,28 @@ clean-coverage:
 clean:
 	$(RM) -r build
 
+.ONESHELL:
 update-otlp:
 	rm -rf $(OPENTELEMETRY_PROTO_PATH)
 	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OPENTELEMETRY_PROTO_PATH)
 	find $(OPENTELEMETRY_PROTO_PATH)/opentelemetry/proto/ \
 		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
 		-delete
-	cd $(OPENTELEMETRY_PROTO_PATH) && make gen-java
+	# Install packages as root
+	CONTAINER_ID=$$(docker run --detach --rm -v $(OPENTELEMETRY_PROTO_PATH):/opentelemetry-proto alpine sh -c ' \
+		apk update && \
+		apk add protoc findutils && \
+		sleep infinity')
+	# Compile classes as the user of Makefile to prevent permission issues
+	docker exec -u $$(id -u):$$(id -g) $$CONTAINER_ID sh -c ' \
+		cd /opentelemetry-proto && \
+		mkdir -p gen/java && \
+		# Loop until protoc is found
+		while true; do
+			protoc --help > /dev/null 2>&1;
+			if [ $$? -eq 0 ]; then break; fi;
+			sleep 1
+		done
+		protoc --java_out=./gen/java $$(find . -name "*.proto")'; docker kill $$CONTAINER_ID
 	rm -rf $(OPENTELEMETRY_PROTO_GEN_OUTPUT)
 	cp -r $(OPENTELEMETRY_PROTO_PATH)/gen/java $(OPENTELEMETRY_PROTO_GEN_OUTPUT)
