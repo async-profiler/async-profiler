@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifndef _OTLP_H
+#define _OTLP_H
+
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -32,3 +35,5 @@ class Index {
       }
     }
 };
+
+#endif // _INDEX_H
