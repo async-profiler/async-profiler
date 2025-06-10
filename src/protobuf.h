@@ -26,9 +26,6 @@ class ProtoBuffer {
     size_t _capacity;
     size_t _offset;
 
-    void putVarInt(u32 n);
-    void putVarInt(u64 n);
-
     void tag(protobuf_index_t index, protobuf_t type);
 
     void ensureCapacity(size_t new_data_size);
@@ -52,8 +49,7 @@ class ProtoBuffer {
     protobuf_mark_t startMessage(protobuf_index_t index);
     void commitMessage(protobuf_mark_t mark);
 
-    void appendRepeated(u64 n);
-
+    void putVarInt(u64 n);
     static size_t varIntSize(u64 value);
 };
 

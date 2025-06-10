@@ -1709,7 +1709,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         samples_num_frames[samples_idx] = trace->num_frames;
         for (u64 j = 0; j < samples_num_frames[samples_idx]; ++j) {
             u64 function_idx = function_idx_container.recordIndex(fn.name(trace->frames[j]));
-            otlp_buffer.appendRepeated(function_idx);
+            otlp_buffer.putVarInt(function_idx);
         }
         ++samples_idx;
     }
@@ -1723,7 +1723,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value);
         for (size_t sample_counter_idx = 0; sample_counter_idx < 2; ++sample_counter_idx) {
-            otlp_buffer.appendRepeated(samples_counter[samples_idx][sample_counter_idx]);
+            otlp_buffer.putVarInt(samples_counter[samples_idx][sample_counter_idx]);
         }
         otlp_buffer.commitMessage(sample_value_mark);
 

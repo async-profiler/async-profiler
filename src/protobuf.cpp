@@ -34,15 +34,6 @@ void ProtoBuffer::ensureCapacity(size_t new_data_size) {
     _data = (unsigned char*) realloc(_data, _capacity);
 }
 
-void ProtoBuffer::putVarInt(u32 n) {
-    ensureCapacity(varIntSize(n));
-    while ((n >> 7) != 0) {
-        _data[_offset++] = (unsigned char) (0x80 | (n & 0x7f));
-        n >>= 7;
-    }
-    _data[_offset++] = (unsigned char) n;
-}
-
 void ProtoBuffer::putVarInt(u64 n) {
     ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
@@ -94,8 +85,4 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
         message_length >>= 7;
     }
     _data[mark - 1] = (unsigned char) message_length;
-}
-
-void ProtoBuffer::appendRepeated(u64 n) {
-    putVarInt(n);
 }
