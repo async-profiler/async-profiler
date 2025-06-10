@@ -1652,11 +1652,11 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, Index& strings, const char* unit) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type);
-    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(engine->type()));
-    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(unit));
+    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
+    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
     otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
     otlp_buffer.commitMessage(sample_type_mark);
 }
@@ -1671,8 +1671,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    recordSampleType(otlp_buffer, _engine, strings, "count");
-    recordSampleType(otlp_buffer, _engine, strings, _engine->units());
+    recordSampleType(otlp_buffer, strings, _engine->type(), "count");
+    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
