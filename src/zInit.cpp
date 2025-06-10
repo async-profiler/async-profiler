@@ -23,7 +23,7 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        if (!checkJvmLoaded()) {
+        if (!checkJvmLoaded() && checkPreload(dl_info)) {
             const char* command = getenv("ASPROF_COMMAND");
             if (command != NULL && Hooks::init(false)) {
                 startProfiler(command);
@@ -32,7 +32,17 @@ class LateInitializer {
     }
 
   private:
-    bool checkJvmLoaded() {
+    static bool checkPreload(Dl_info dl_info) {
+        const char* preload = getenv("LD_PRELOAD");
+        if (preload == NULL) {
+            return false;
+        }
+
+        // prevent profiler from auto starting on dlopen when ASPROF_COMMAND is defined
+        return strstr(preload, dl_info.dli_fname) != NULL;
+    }
+
+    static bool checkJvmLoaded() {
         Profiler* profiler = Profiler::instance();
         profiler->updateSymbols(false);
 
