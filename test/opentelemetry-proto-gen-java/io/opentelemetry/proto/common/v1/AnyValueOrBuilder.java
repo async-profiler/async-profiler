@@ -98,5 +98,5 @@ public interface AnyValueOrBuilder extends
    */
   com.google.protobuf.ByteString getBytesValue();
 
-  public io.opentelemetry.proto.common.v1.AnyValue.ValueCase getValueCase();
+  io.opentelemetry.proto.common.v1.AnyValue.ValueCase getValueCase();
 }

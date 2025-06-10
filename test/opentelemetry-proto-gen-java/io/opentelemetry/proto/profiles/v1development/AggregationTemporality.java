@@ -26,12 +26,15 @@ public enum AggregationTemporality
    ** DELTA is an AggregationTemporality for a profiler which reports
    *changes since last report time. Successive metrics contain aggregation of
    *values from continuous and non-overlapping intervals.
+   *
    *The values for a DELTA metric are based only on the time interval
    *associated with one measurement cycle. There is no dependency on
    *previous measurements like is the case for CUMULATIVE metrics.
+   *
    *For example, consider a system measuring the number of requests that
    *it receives and reports the sum of these requests every second as a
    *DELTA metric:
+   *
    *1. The system starts receiving at time=t_0.
    *2. A request is received, the system measures 1 request.
    *3. A request is received, the system measures 1 request.
@@ -58,9 +61,11 @@ public enum AggregationTemporality
    *in some form. If this state is lost or invalidated, the CUMULATIVE metric
    *values MUST be reset and a new fixed start time following the last
    *reported measurement time sent MUST be used.
+   *
    *For example, consider a system measuring the number of requests that
    *it receives and reports the sum of these requests every second as a
    *CUMULATIVE metric:
+   *
    *1. The system starts receiving at time=t_0.
    *2. A request is received, the system measures 1 request.
    *3. A request is received, the system measures 1 request.
@@ -79,6 +84,7 @@ public enum AggregationTemporality
    *12. The 1 second collection cycle ends. A metric is exported for the
    *number of requests received over the interval of time t_1 to
    *t_1+1 with a value of 1.
+   *
    *Note: Even though, when reporting changes since last report time, using
    *CUMULATIVE is valid, it is not recommended. 
    * </pre>
@@ -102,12 +108,15 @@ public enum AggregationTemporality
    ** DELTA is an AggregationTemporality for a profiler which reports
    *changes since last report time. Successive metrics contain aggregation of
    *values from continuous and non-overlapping intervals.
+   *
    *The values for a DELTA metric are based only on the time interval
    *associated with one measurement cycle. There is no dependency on
    *previous measurements like is the case for CUMULATIVE metrics.
+   *
    *For example, consider a system measuring the number of requests that
    *it receives and reports the sum of these requests every second as a
    *DELTA metric:
+   *
    *1. The system starts receiving at time=t_0.
    *2. A request is received, the system measures 1 request.
    *3. A request is received, the system measures 1 request.
@@ -134,9 +143,11 @@ public enum AggregationTemporality
    *in some form. If this state is lost or invalidated, the CUMULATIVE metric
    *values MUST be reset and a new fixed start time following the last
    *reported measurement time sent MUST be used.
+   *
    *For example, consider a system measuring the number of requests that
    *it receives and reports the sum of these requests every second as a
    *CUMULATIVE metric:
+   *
    *1. The system starts receiving at time=t_0.
    *2. A request is received, the system measures 1 request.
    *3. A request is received, the system measures 1 request.
@@ -155,6 +166,7 @@ public enum AggregationTemporality
    *12. The 1 second collection cycle ends. A metric is exported for the
    *number of requests received over the interval of time t_1 to
    *t_1+1 with a value of 1.
+   *
    *Note: Even though, when reporting changes since last report time, using
    *CUMULATIVE is valid, it is not recommended. 
    * </pre>

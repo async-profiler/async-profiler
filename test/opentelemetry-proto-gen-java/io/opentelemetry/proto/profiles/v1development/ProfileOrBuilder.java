@@ -274,6 +274,7 @@ public interface ProfileOrBuilder extends
    * <pre>
    * A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
    * all zeroes is considered invalid.
+   *
    * This field is required.
    * </pre>
    *
@@ -334,10 +335,12 @@ public interface ProfileOrBuilder extends
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -353,10 +356,12 @@ public interface ProfileOrBuilder extends
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -372,10 +377,12 @@ public interface ProfileOrBuilder extends
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one

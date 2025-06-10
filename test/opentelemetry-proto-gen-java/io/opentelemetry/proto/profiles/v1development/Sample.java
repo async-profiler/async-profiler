@@ -35,138 +35,6 @@ private static final long serialVersionUID = 0L;
     return new Sample();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private Sample(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 8: {
-
-            locationsStartIndex_ = input.readInt32();
-            break;
-          }
-          case 16: {
-
-            locationsLength_ = input.readInt32();
-            break;
-          }
-          case 24: {
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              value_ = newLongList();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            value_.addLong(input.readInt64());
-            break;
-          }
-          case 26: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000001) != 0) && input.getBytesUntilLimit() > 0) {
-              value_ = newLongList();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              value_.addLong(input.readInt64());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          case 32: {
-            if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            attributeIndices_.addInt(input.readInt32());
-            break;
-          }
-          case 34: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000002) != 0) && input.getBytesUntilLimit() > 0) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              attributeIndices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          case 40: {
-            bitField0_ |= 0x00000001;
-            linkIndex_ = input.readInt32();
-            break;
-          }
-          case 48: {
-            if (!((mutable_bitField0_ & 0x00000008) != 0)) {
-              timestampsUnixNano_ = newLongList();
-              mutable_bitField0_ |= 0x00000008;
-            }
-            timestampsUnixNano_.addLong(input.readUInt64());
-            break;
-          }
-          case 50: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000008) != 0) && input.getBytesUntilLimit() > 0) {
-              timestampsUnixNano_ = newLongList();
-              mutable_bitField0_ |= 0x00000008;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              timestampsUnixNano_.addLong(input.readUInt64());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        value_.makeImmutable(); // C
-      }
-      if (((mutable_bitField0_ & 0x00000002) != 0)) {
-        attributeIndices_.makeImmutable(); // C
-      }
-      if (((mutable_bitField0_ & 0x00000008) != 0)) {
-        timestampsUnixNano_.makeImmutable(); // C
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.profiles.v1development.ProfilesProto.internal_static_opentelemetry_proto_profiles_v1development_Sample_descriptor;
@@ -182,7 +50,7 @@ private static final long serialVersionUID = 0L;
 
   private int bitField0_;
   public static final int LOCATIONS_START_INDEX_FIELD_NUMBER = 1;
-  private int locationsStartIndex_;
+  private int locationsStartIndex_ = 0;
   /**
    * <pre>
    * locations_start_index along with locations_length refers to to a slice of locations in Profile.location_indices.
@@ -197,7 +65,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int LOCATIONS_LENGTH_FIELD_NUMBER = 2;
-  private int locationsLength_;
+  private int locationsLength_ = 0;
   /**
    * <pre>
    * locations_length along with locations_start_index refers to a slice of locations in Profile.location_indices.
@@ -213,7 +81,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int VALUE_FIELD_NUMBER = 3;
-  private com.google.protobuf.Internal.LongList value_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.LongList value_ =
+      emptyLongList();
   /**
    * <pre>
    * The type and unit of each value is defined by the corresponding
@@ -268,7 +138,9 @@ private static final long serialVersionUID = 0L;
   private int valueMemoizedSerializedSize = -1;
 
   public static final int ATTRIBUTE_INDICES_FIELD_NUMBER = 4;
-  private com.google.protobuf.Internal.IntList attributeIndices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList attributeIndices_ =
+      emptyIntList();
   /**
    * <pre>
    * References to attributes in ProfilesDictionary.attribute_table. [optional]
@@ -308,7 +180,7 @@ private static final long serialVersionUID = 0L;
   private int attributeIndicesMemoizedSerializedSize = -1;
 
   public static final int LINK_INDEX_FIELD_NUMBER = 5;
-  private int linkIndex_;
+  private int linkIndex_ = 0;
   /**
    * <pre>
    * Reference to link in ProfilesDictionary.link_table. [optional]
@@ -335,7 +207,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int TIMESTAMPS_UNIX_NANO_FIELD_NUMBER = 6;
-  private com.google.protobuf.Internal.LongList timestampsUnixNano_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.LongList timestampsUnixNano_ =
+      emptyLongList();
   /**
    * <pre>
    * Timestamps associated with Sample represented in nanoseconds. These timestamps are expected
@@ -422,7 +296,7 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < timestampsUnixNano_.size(); i++) {
       output.writeUInt64NoTag(timestampsUnixNano_.getLong(i));
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -485,7 +359,7 @@ private static final long serialVersionUID = 0L;
       }
       timestampsUnixNanoMemoizedSerializedSize = dataSize;
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -515,7 +389,7 @@ private static final long serialVersionUID = 0L;
     }
     if (!getTimestampsUnixNanoList()
         .equals(other.getTimestampsUnixNanoList())) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -546,7 +420,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + TIMESTAMPS_UNIX_NANO_FIELD_NUMBER;
       hash = (53 * hash) + getTimestampsUnixNanoList().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -595,11 +469,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Sample parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Sample parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -670,34 +546,24 @@ private static final long serialVersionUID = 0L;
 
     // Construct using io.opentelemetry.proto.profiles.v1development.Sample.newBuilder()
     private Builder() {
-      maybeForceBuilderInitialization();
+
     }
 
     private Builder(
         com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       super(parent);
-      maybeForceBuilderInitialization();
-    }
-    private void maybeForceBuilderInitialization() {
-      if (com.google.protobuf.GeneratedMessageV3
-              .alwaysUseFieldBuilders) {
-      }
+
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       locationsStartIndex_ = 0;
-
       locationsLength_ = 0;
-
       value_ = emptyLongList();
-      bitField0_ = (bitField0_ & ~0x00000001);
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000002);
       linkIndex_ = 0;
-      bitField0_ = (bitField0_ & ~0x00000004);
       timestampsUnixNano_ = emptyLongList();
-      bitField0_ = (bitField0_ & ~0x00000008);
       return this;
     }
 
@@ -724,32 +590,37 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.profiles.v1development.Sample buildPartial() {
       io.opentelemetry.proto.profiles.v1development.Sample result = new io.opentelemetry.proto.profiles.v1development.Sample(this);
+      if (bitField0_ != 0) { buildPartial0(result); }
+      onBuilt();
+      return result;
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.profiles.v1development.Sample result) {
       int from_bitField0_ = bitField0_;
-      int to_bitField0_ = 0;
-      result.locationsStartIndex_ = locationsStartIndex_;
-      result.locationsLength_ = locationsLength_;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        value_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000001);
+      if (((from_bitField0_ & 0x00000001) != 0)) {
+        result.locationsStartIndex_ = locationsStartIndex_;
       }
-      result.value_ = value_;
-      if (((bitField0_ & 0x00000002) != 0)) {
-        attributeIndices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000002);
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.locationsLength_ = locationsLength_;
       }
-      result.attributeIndices_ = attributeIndices_;
       if (((from_bitField0_ & 0x00000004) != 0)) {
+        value_.makeImmutable();
+        result.value_ = value_;
+      }
+      if (((from_bitField0_ & 0x00000008) != 0)) {
+        attributeIndices_.makeImmutable();
+        result.attributeIndices_ = attributeIndices_;
+      }
+      int to_bitField0_ = 0;
+      if (((from_bitField0_ & 0x00000010) != 0)) {
         result.linkIndex_ = linkIndex_;
         to_bitField0_ |= 0x00000001;
       }
-      if (((bitField0_ & 0x00000008) != 0)) {
+      if (((from_bitField0_ & 0x00000020) != 0)) {
         timestampsUnixNano_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        result.timestampsUnixNano_ = timestampsUnixNano_;
       }
-      result.timestampsUnixNano_ = timestampsUnixNano_;
-      result.bitField0_ = to_bitField0_;
-      onBuilt();
-      return result;
+      result.bitField0_ |= to_bitField0_;
     }
 
     @java.lang.Override
@@ -805,7 +676,8 @@ private static final long serialVersionUID = 0L;
       if (!other.value_.isEmpty()) {
         if (value_.isEmpty()) {
           value_ = other.value_;
-          bitField0_ = (bitField0_ & ~0x00000001);
+          value_.makeImmutable();
+          bitField0_ |= 0x00000004;
         } else {
           ensureValueIsMutable();
           value_.addAll(other.value_);
@@ -815,7 +687,8 @@ private static final long serialVersionUID = 0L;
       if (!other.attributeIndices_.isEmpty()) {
         if (attributeIndices_.isEmpty()) {
           attributeIndices_ = other.attributeIndices_;
-          bitField0_ = (bitField0_ & ~0x00000002);
+          attributeIndices_.makeImmutable();
+          bitField0_ |= 0x00000008;
         } else {
           ensureAttributeIndicesIsMutable();
           attributeIndices_.addAll(other.attributeIndices_);
@@ -828,14 +701,15 @@ private static final long serialVersionUID = 0L;
       if (!other.timestampsUnixNano_.isEmpty()) {
         if (timestampsUnixNano_.isEmpty()) {
           timestampsUnixNano_ = other.timestampsUnixNano_;
-          bitField0_ = (bitField0_ & ~0x00000008);
+          timestampsUnixNano_.makeImmutable();
+          bitField0_ |= 0x00000020;
         } else {
           ensureTimestampsUnixNanoIsMutable();
           timestampsUnixNano_.addAll(other.timestampsUnixNano_);
         }
         onChanged();
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -850,17 +724,93 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.profiles.v1development.Sample parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 8: {
+              locationsStartIndex_ = input.readInt32();
+              bitField0_ |= 0x00000001;
+              break;
+            } // case 8
+            case 16: {
+              locationsLength_ = input.readInt32();
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 16
+            case 24: {
+              long v = input.readInt64();
+              ensureValueIsMutable();
+              value_.addLong(v);
+              break;
+            } // case 24
+            case 26: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureValueIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                value_.addLong(input.readInt64());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 26
+            case 32: {
+              int v = input.readInt32();
+              ensureAttributeIndicesIsMutable();
+              attributeIndices_.addInt(v);
+              break;
+            } // case 32
+            case 34: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureAttributeIndicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                attributeIndices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 34
+            case 40: {
+              linkIndex_ = input.readInt32();
+              bitField0_ |= 0x00000010;
+              break;
+            } // case 40
+            case 48: {
+              long v = input.readUInt64();
+              ensureTimestampsUnixNanoIsMutable();
+              timestampsUnixNano_.addLong(v);
+              break;
+            } // case 48
+            case 50: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureTimestampsUnixNanoIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                timestampsUnixNano_.addLong(input.readUInt64());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 50
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.profiles.v1development.Sample) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -888,8 +838,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setLocationsStartIndex(int value) {
-      
+
       locationsStartIndex_ = value;
+      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -902,7 +853,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearLocationsStartIndex() {
-      
+      bitField0_ = (bitField0_ & ~0x00000001);
       locationsStartIndex_ = 0;
       onChanged();
       return this;
@@ -933,8 +884,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setLocationsLength(int value) {
-      
+
       locationsLength_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
@@ -948,7 +900,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearLocationsLength() {
-      
+      bitField0_ = (bitField0_ & ~0x00000002);
       locationsLength_ = 0;
       onChanged();
       return this;
@@ -956,10 +908,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.LongList value_ = emptyLongList();
     private void ensureValueIsMutable() {
-      if (!((bitField0_ & 0x00000001) != 0)) {
-        value_ = mutableCopy(value_);
-        bitField0_ |= 0x00000001;
-       }
+      if (!value_.isModifiable()) {
+        value_ = makeMutableCopy(value_);
+      }
+      bitField0_ |= 0x00000004;
     }
     /**
      * <pre>
@@ -976,8 +928,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Long>
         getValueList() {
-      return ((bitField0_ & 0x00000001) != 0) ?
-               java.util.Collections.unmodifiableList(value_) : value_;
+      value_.makeImmutable();
+      return value_;
     }
     /**
      * <pre>
@@ -1029,8 +981,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setValue(
         int index, long value) {
+
       ensureValueIsMutable();
       value_.setLong(index, value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1049,8 +1003,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addValue(long value) {
+
       ensureValueIsMutable();
       value_.addLong(value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1073,6 +1029,7 @@ private static final long serialVersionUID = 0L;
       ensureValueIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, value_);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1091,17 +1048,17 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearValue() {
       value_ = emptyLongList();
-      bitField0_ = (bitField0_ & ~0x00000001);
+      bitField0_ = (bitField0_ & ~0x00000004);
       onChanged();
       return this;
     }
 
     private com.google.protobuf.Internal.IntList attributeIndices_ = emptyIntList();
     private void ensureAttributeIndicesIsMutable() {
-      if (!((bitField0_ & 0x00000002) != 0)) {
-        attributeIndices_ = mutableCopy(attributeIndices_);
-        bitField0_ |= 0x00000002;
-       }
+      if (!attributeIndices_.isModifiable()) {
+        attributeIndices_ = makeMutableCopy(attributeIndices_);
+      }
+      bitField0_ |= 0x00000008;
     }
     /**
      * <pre>
@@ -1113,8 +1070,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getAttributeIndicesList() {
-      return ((bitField0_ & 0x00000002) != 0) ?
-               java.util.Collections.unmodifiableList(attributeIndices_) : attributeIndices_;
+      attributeIndices_.makeImmutable();
+      return attributeIndices_;
     }
     /**
      * <pre>
@@ -1151,8 +1108,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setAttributeIndices(
         int index, int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.setInt(index, value);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1166,8 +1125,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addAttributeIndices(int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.addInt(value);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1185,6 +1146,7 @@ private static final long serialVersionUID = 0L;
       ensureAttributeIndicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, attributeIndices_);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1198,7 +1160,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearAttributeIndices() {
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000002);
+      bitField0_ = (bitField0_ & ~0x00000008);
       onChanged();
       return this;
     }
@@ -1214,7 +1176,7 @@ private static final long serialVersionUID = 0L;
      */
     @java.lang.Override
     public boolean hasLinkIndex() {
-      return ((bitField0_ & 0x00000004) != 0);
+      return ((bitField0_ & 0x00000010) != 0);
     }
     /**
      * <pre>
@@ -1238,8 +1200,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setLinkIndex(int value) {
-      bitField0_ |= 0x00000004;
+
       linkIndex_ = value;
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1252,7 +1215,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearLinkIndex() {
-      bitField0_ = (bitField0_ & ~0x00000004);
+      bitField0_ = (bitField0_ & ~0x00000010);
       linkIndex_ = 0;
       onChanged();
       return this;
@@ -1260,10 +1223,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.LongList timestampsUnixNano_ = emptyLongList();
     private void ensureTimestampsUnixNanoIsMutable() {
-      if (!((bitField0_ & 0x00000008) != 0)) {
-        timestampsUnixNano_ = mutableCopy(timestampsUnixNano_);
-        bitField0_ |= 0x00000008;
-       }
+      if (!timestampsUnixNano_.isModifiable()) {
+        timestampsUnixNano_ = makeMutableCopy(timestampsUnixNano_);
+      }
+      bitField0_ |= 0x00000020;
     }
     /**
      * <pre>
@@ -1276,8 +1239,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Long>
         getTimestampsUnixNanoList() {
-      return ((bitField0_ & 0x00000008) != 0) ?
-               java.util.Collections.unmodifiableList(timestampsUnixNano_) : timestampsUnixNano_;
+      timestampsUnixNano_.makeImmutable();
+      return timestampsUnixNano_;
     }
     /**
      * <pre>
@@ -1317,8 +1280,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setTimestampsUnixNano(
         int index, long value) {
+
       ensureTimestampsUnixNanoIsMutable();
       timestampsUnixNano_.setLong(index, value);
+      bitField0_ |= 0x00000020;
       onChanged();
       return this;
     }
@@ -1333,8 +1298,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addTimestampsUnixNano(long value) {
+
       ensureTimestampsUnixNanoIsMutable();
       timestampsUnixNano_.addLong(value);
+      bitField0_ |= 0x00000020;
       onChanged();
       return this;
     }
@@ -1353,6 +1320,7 @@ private static final long serialVersionUID = 0L;
       ensureTimestampsUnixNanoIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, timestampsUnixNano_);
+      bitField0_ |= 0x00000020;
       onChanged();
       return this;
     }
@@ -1367,7 +1335,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearTimestampsUnixNano() {
       timestampsUnixNano_ = emptyLongList();
-      bitField0_ = (bitField0_ & ~0x00000008);
+      bitField0_ = (bitField0_ & ~0x00000020);
       onChanged();
       return this;
     }
@@ -1404,7 +1372,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new Sample(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

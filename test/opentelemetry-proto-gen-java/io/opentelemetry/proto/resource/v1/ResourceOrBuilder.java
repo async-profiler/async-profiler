@@ -75,7 +75,9 @@ public interface ResourceOrBuilder extends
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -86,7 +88,9 @@ public interface ResourceOrBuilder extends
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -96,7 +100,9 @@ public interface ResourceOrBuilder extends
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -106,7 +112,9 @@ public interface ResourceOrBuilder extends
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -117,7 +125,9 @@ public interface ResourceOrBuilder extends
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *

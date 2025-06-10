@@ -49,6 +49,7 @@ public interface LocationOrBuilder extends
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -63,6 +64,7 @@ public interface LocationOrBuilder extends
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -76,6 +78,7 @@ public interface LocationOrBuilder extends
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -89,6 +92,7 @@ public interface LocationOrBuilder extends
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -103,6 +107,7 @@ public interface LocationOrBuilder extends
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"

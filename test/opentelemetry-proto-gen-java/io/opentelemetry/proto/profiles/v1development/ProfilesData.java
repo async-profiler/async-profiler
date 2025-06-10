@@ -8,9 +8,11 @@ package io.opentelemetry.proto.profiles.v1development;
  * ProfilesData represents the profiles data that can be stored in persistent storage,
  * OR can be embedded by other protocols that transfer OTLP profiles data but do not
  * implement the OTLP protocol.
+ *
  * The main difference between this message and collector protocol is that
  * in this message there will not be any "control" or "metadata" specific to
  * OTLP protocol.
+ *
  * When new fields are added into this message, the OTLP request MUST be updated
  * as well.
  * </pre>
@@ -37,76 +39,6 @@ private static final long serialVersionUID = 0L;
     return new ProfilesData();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private ProfilesData(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 10: {
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              resourceProfiles_ = new java.util.ArrayList<io.opentelemetry.proto.profiles.v1development.ResourceProfiles>();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            resourceProfiles_.add(
-                input.readMessage(io.opentelemetry.proto.profiles.v1development.ResourceProfiles.parser(), extensionRegistry));
-            break;
-          }
-          case 18: {
-            io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.Builder subBuilder = null;
-            if (dictionary_ != null) {
-              subBuilder = dictionary_.toBuilder();
-            }
-            dictionary_ = input.readMessage(io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.parser(), extensionRegistry);
-            if (subBuilder != null) {
-              subBuilder.mergeFrom(dictionary_);
-              dictionary_ = subBuilder.buildPartial();
-            }
-
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        resourceProfiles_ = java.util.Collections.unmodifiableList(resourceProfiles_);
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.profiles.v1development.ProfilesProto.internal_static_opentelemetry_proto_profiles_v1development_ProfilesData_descriptor;
@@ -120,7 +52,9 @@ private static final long serialVersionUID = 0L;
             io.opentelemetry.proto.profiles.v1development.ProfilesData.class, io.opentelemetry.proto.profiles.v1development.ProfilesData.Builder.class);
   }
 
+  private int bitField0_;
   public static final int RESOURCE_PROFILES_FIELD_NUMBER = 1;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.profiles.v1development.ResourceProfiles> resourceProfiles_;
   /**
    * <pre>
@@ -222,7 +156,7 @@ private static final long serialVersionUID = 0L;
    */
   @java.lang.Override
   public boolean hasDictionary() {
-    return dictionary_ != null;
+    return ((bitField0_ & 0x00000001) != 0);
   }
   /**
    * <pre>
@@ -245,7 +179,7 @@ private static final long serialVersionUID = 0L;
    */
   @java.lang.Override
   public io.opentelemetry.proto.profiles.v1development.ProfilesDictionaryOrBuilder getDictionaryOrBuilder() {
-    return getDictionary();
+    return dictionary_ == null ? io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.getDefaultInstance() : dictionary_;
   }
 
   private byte memoizedIsInitialized = -1;
@@ -265,10 +199,10 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < resourceProfiles_.size(); i++) {
       output.writeMessage(1, resourceProfiles_.get(i));
     }
-    if (dictionary_ != null) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       output.writeMessage(2, getDictionary());
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -281,11 +215,11 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(1, resourceProfiles_.get(i));
     }
-    if (dictionary_ != null) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(2, getDictionary());
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -307,7 +241,7 @@ private static final long serialVersionUID = 0L;
       if (!getDictionary()
           .equals(other.getDictionary())) return false;
     }
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -326,7 +260,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + DICTIONARY_FIELD_NUMBER;
       hash = (53 * hash) + getDictionary().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -375,11 +309,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.ProfilesData parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.ProfilesData parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -426,9 +362,11 @@ private static final long serialVersionUID = 0L;
    * ProfilesData represents the profiles data that can be stored in persistent storage,
    * OR can be embedded by other protocols that transfer OTLP profiles data but do not
    * implement the OTLP protocol.
+   *
    * The main difference between this message and collector protocol is that
    * in this message there will not be any "control" or "metadata" specific to
    * OTLP protocol.
+   *
    * When new fields are added into this message, the OTLP request MUST be updated
    * as well.
    * </pre>
@@ -466,21 +404,23 @@ private static final long serialVersionUID = 0L;
       if (com.google.protobuf.GeneratedMessageV3
               .alwaysUseFieldBuilders) {
         getResourceProfilesFieldBuilder();
+        getDictionaryFieldBuilder();
       }
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       if (resourceProfilesBuilder_ == null) {
         resourceProfiles_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000001);
       } else {
+        resourceProfiles_ = null;
         resourceProfilesBuilder_.clear();
       }
-      if (dictionaryBuilder_ == null) {
-        dictionary_ = null;
-      } else {
-        dictionary_ = null;
+      bitField0_ = (bitField0_ & ~0x00000001);
+      dictionary_ = null;
+      if (dictionaryBuilder_ != null) {
+        dictionaryBuilder_.dispose();
         dictionaryBuilder_ = null;
       }
       return this;
@@ -509,7 +449,13 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.profiles.v1development.ProfilesData buildPartial() {
       io.opentelemetry.proto.profiles.v1development.ProfilesData result = new io.opentelemetry.proto.profiles.v1development.ProfilesData(this);
-      int from_bitField0_ = bitField0_;
+      buildPartialRepeatedFields(result);
+      if (bitField0_ != 0) { buildPartial0(result); }
+      onBuilt();
+      return result;
+    }
+
+    private void buildPartialRepeatedFields(io.opentelemetry.proto.profiles.v1development.ProfilesData result) {
       if (resourceProfilesBuilder_ == null) {
         if (((bitField0_ & 0x00000001) != 0)) {
           resourceProfiles_ = java.util.Collections.unmodifiableList(resourceProfiles_);
@@ -519,13 +465,18 @@ private static final long serialVersionUID = 0L;
       } else {
         result.resourceProfiles_ = resourceProfilesBuilder_.build();
       }
-      if (dictionaryBuilder_ == null) {
-        result.dictionary_ = dictionary_;
-      } else {
-        result.dictionary_ = dictionaryBuilder_.build();
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.profiles.v1development.ProfilesData result) {
+      int from_bitField0_ = bitField0_;
+      int to_bitField0_ = 0;
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.dictionary_ = dictionaryBuilder_ == null
+            ? dictionary_
+            : dictionaryBuilder_.build();
+        to_bitField0_ |= 0x00000001;
       }
-      onBuilt();
-      return result;
+      result.bitField0_ |= to_bitField0_;
     }
 
     @java.lang.Override
@@ -601,7 +552,7 @@ private static final long serialVersionUID = 0L;
       if (other.hasDictionary()) {
         mergeDictionary(other.getDictionary());
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -616,17 +567,50 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.profiles.v1development.ProfilesData parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              io.opentelemetry.proto.profiles.v1development.ResourceProfiles m =
+                  input.readMessage(
+                      io.opentelemetry.proto.profiles.v1development.ResourceProfiles.parser(),
+                      extensionRegistry);
+              if (resourceProfilesBuilder_ == null) {
+                ensureResourceProfilesIsMutable();
+                resourceProfiles_.add(m);
+              } else {
+                resourceProfilesBuilder_.addMessage(m);
+              }
+              break;
+            } // case 10
+            case 18: {
+              input.readMessage(
+                  getDictionaryFieldBuilder().getBuilder(),
+                  extensionRegistry);
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 18
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.profiles.v1development.ProfilesData) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -1063,7 +1047,7 @@ private static final long serialVersionUID = 0L;
      * @return Whether the dictionary field is set.
      */
     public boolean hasDictionary() {
-      return dictionaryBuilder_ != null || dictionary_ != null;
+      return ((bitField0_ & 0x00000002) != 0);
     }
     /**
      * <pre>
@@ -1093,11 +1077,11 @@ private static final long serialVersionUID = 0L;
           throw new NullPointerException();
         }
         dictionary_ = value;
-        onChanged();
       } else {
         dictionaryBuilder_.setMessage(value);
       }
-
+      bitField0_ |= 0x00000002;
+      onChanged();
       return this;
     }
     /**
@@ -1111,11 +1095,11 @@ private static final long serialVersionUID = 0L;
         io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.Builder builderForValue) {
       if (dictionaryBuilder_ == null) {
         dictionary_ = builderForValue.build();
-        onChanged();
       } else {
         dictionaryBuilder_.setMessage(builderForValue.build());
       }
-
+      bitField0_ |= 0x00000002;
+      onChanged();
       return this;
     }
     /**
@@ -1127,17 +1111,20 @@ private static final long serialVersionUID = 0L;
      */
     public Builder mergeDictionary(io.opentelemetry.proto.profiles.v1development.ProfilesDictionary value) {
       if (dictionaryBuilder_ == null) {
-        if (dictionary_ != null) {
-          dictionary_ =
-            io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.newBuilder(dictionary_).mergeFrom(value).buildPartial();
+        if (((bitField0_ & 0x00000002) != 0) &&
+          dictionary_ != null &&
+          dictionary_ != io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.getDefaultInstance()) {
+          getDictionaryBuilder().mergeFrom(value);
         } else {
           dictionary_ = value;
         }
-        onChanged();
       } else {
         dictionaryBuilder_.mergeFrom(value);
       }
-
+      if (dictionary_ != null) {
+        bitField0_ |= 0x00000002;
+        onChanged();
+      }
       return this;
     }
     /**
@@ -1148,14 +1135,13 @@ private static final long serialVersionUID = 0L;
      * <code>.opentelemetry.proto.profiles.v1development.ProfilesDictionary dictionary = 2;</code>
      */
     public Builder clearDictionary() {
-      if (dictionaryBuilder_ == null) {
-        dictionary_ = null;
-        onChanged();
-      } else {
-        dictionary_ = null;
+      bitField0_ = (bitField0_ & ~0x00000002);
+      dictionary_ = null;
+      if (dictionaryBuilder_ != null) {
+        dictionaryBuilder_.dispose();
         dictionaryBuilder_ = null;
       }
-
+      onChanged();
       return this;
     }
     /**
@@ -1166,7 +1152,7 @@ private static final long serialVersionUID = 0L;
      * <code>.opentelemetry.proto.profiles.v1development.ProfilesDictionary dictionary = 2;</code>
      */
     public io.opentelemetry.proto.profiles.v1development.ProfilesDictionary.Builder getDictionaryBuilder() {
-      
+      bitField0_ |= 0x00000002;
       onChanged();
       return getDictionaryFieldBuilder().getBuilder();
     }
@@ -1238,7 +1224,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new ProfilesData(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

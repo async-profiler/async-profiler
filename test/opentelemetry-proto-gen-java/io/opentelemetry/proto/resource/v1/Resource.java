@@ -31,80 +31,6 @@ private static final long serialVersionUID = 0L;
     return new Resource();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private Resource(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 10: {
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              attributes_ = new java.util.ArrayList<io.opentelemetry.proto.common.v1.KeyValue>();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            attributes_.add(
-                input.readMessage(io.opentelemetry.proto.common.v1.KeyValue.parser(), extensionRegistry));
-            break;
-          }
-          case 16: {
-
-            droppedAttributesCount_ = input.readUInt32();
-            break;
-          }
-          case 26: {
-            if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-              entityRefs_ = new java.util.ArrayList<io.opentelemetry.proto.common.v1.EntityRef>();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            entityRefs_.add(
-                input.readMessage(io.opentelemetry.proto.common.v1.EntityRef.parser(), extensionRegistry));
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        attributes_ = java.util.Collections.unmodifiableList(attributes_);
-      }
-      if (((mutable_bitField0_ & 0x00000002) != 0)) {
-        entityRefs_ = java.util.Collections.unmodifiableList(entityRefs_);
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.resource.v1.ResourceProto.internal_static_opentelemetry_proto_resource_v1_Resource_descriptor;
@@ -119,6 +45,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ATTRIBUTES_FIELD_NUMBER = 1;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.common.v1.KeyValue> attributes_;
   /**
    * <pre>
@@ -189,7 +116,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int DROPPED_ATTRIBUTES_COUNT_FIELD_NUMBER = 2;
-  private int droppedAttributesCount_;
+  private int droppedAttributesCount_ = 0;
   /**
    * <pre>
    * dropped_attributes_count is the number of dropped attributes. If the value is 0, then
@@ -205,11 +132,14 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ENTITY_REFS_FIELD_NUMBER = 3;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.common.v1.EntityRef> entityRefs_;
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -222,7 +152,9 @@ private static final long serialVersionUID = 0L;
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -236,7 +168,9 @@ private static final long serialVersionUID = 0L;
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -249,7 +183,9 @@ private static final long serialVersionUID = 0L;
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -262,7 +198,9 @@ private static final long serialVersionUID = 0L;
   /**
    * <pre>
    * Set of entities that participate in this Resource.
+   *
    * Note: keys in the references MUST exist in attributes of this message.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -297,7 +235,7 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < entityRefs_.size(); i++) {
       output.writeMessage(3, entityRefs_.get(i));
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -318,7 +256,7 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(3, entityRefs_.get(i));
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -339,7 +277,7 @@ private static final long serialVersionUID = 0L;
         != other.getDroppedAttributesCount()) return false;
     if (!getEntityRefsList()
         .equals(other.getEntityRefsList())) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -360,7 +298,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + ENTITY_REFS_FIELD_NUMBER;
       hash = (53 * hash) + getEntityRefsList().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -409,11 +347,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.resource.v1.Resource parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.resource.v1.Resource parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -481,38 +421,33 @@ private static final long serialVersionUID = 0L;
 
     // Construct using io.opentelemetry.proto.resource.v1.Resource.newBuilder()
     private Builder() {
-      maybeForceBuilderInitialization();
+
     }
 
     private Builder(
         com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       super(parent);
-      maybeForceBuilderInitialization();
-    }
-    private void maybeForceBuilderInitialization() {
-      if (com.google.protobuf.GeneratedMessageV3
-              .alwaysUseFieldBuilders) {
-        getAttributesFieldBuilder();
-        getEntityRefsFieldBuilder();
-      }
+
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       if (attributesBuilder_ == null) {
         attributes_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000001);
       } else {
+        attributes_ = null;
         attributesBuilder_.clear();
       }
+      bitField0_ = (bitField0_ & ~0x00000001);
       droppedAttributesCount_ = 0;
-
       if (entityRefsBuilder_ == null) {
         entityRefs_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000002);
       } else {
+        entityRefs_ = null;
         entityRefsBuilder_.clear();
       }
+      bitField0_ = (bitField0_ & ~0x00000004);
       return this;
     }
 
@@ -539,7 +474,13 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.resource.v1.Resource buildPartial() {
       io.opentelemetry.proto.resource.v1.Resource result = new io.opentelemetry.proto.resource.v1.Resource(this);
-      int from_bitField0_ = bitField0_;
+      buildPartialRepeatedFields(result);
+      if (bitField0_ != 0) { buildPartial0(result); }
+      onBuilt();
+      return result;
+    }
+
+    private void buildPartialRepeatedFields(io.opentelemetry.proto.resource.v1.Resource result) {
       if (attributesBuilder_ == null) {
         if (((bitField0_ & 0x00000001) != 0)) {
           attributes_ = java.util.Collections.unmodifiableList(attributes_);
@@ -549,18 +490,22 @@ private static final long serialVersionUID = 0L;
       } else {
         result.attributes_ = attributesBuilder_.build();
       }
-      result.droppedAttributesCount_ = droppedAttributesCount_;
       if (entityRefsBuilder_ == null) {
-        if (((bitField0_ & 0x00000002) != 0)) {
+        if (((bitField0_ & 0x00000004) != 0)) {
           entityRefs_ = java.util.Collections.unmodifiableList(entityRefs_);
-          bitField0_ = (bitField0_ & ~0x00000002);
+          bitField0_ = (bitField0_ & ~0x00000004);
         }
         result.entityRefs_ = entityRefs_;
       } else {
         result.entityRefs_ = entityRefsBuilder_.build();
       }
-      onBuilt();
-      return result;
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.resource.v1.Resource result) {
+      int from_bitField0_ = bitField0_;
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.droppedAttributesCount_ = droppedAttributesCount_;
+      }
     }
 
     @java.lang.Override
@@ -640,7 +585,7 @@ private static final long serialVersionUID = 0L;
         if (!other.entityRefs_.isEmpty()) {
           if (entityRefs_.isEmpty()) {
             entityRefs_ = other.entityRefs_;
-            bitField0_ = (bitField0_ & ~0x00000002);
+            bitField0_ = (bitField0_ & ~0x00000004);
           } else {
             ensureEntityRefsIsMutable();
             entityRefs_.addAll(other.entityRefs_);
@@ -653,7 +598,7 @@ private static final long serialVersionUID = 0L;
             entityRefsBuilder_.dispose();
             entityRefsBuilder_ = null;
             entityRefs_ = other.entityRefs_;
-            bitField0_ = (bitField0_ & ~0x00000002);
+            bitField0_ = (bitField0_ & ~0x00000004);
             entityRefsBuilder_ = 
               com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
                  getEntityRefsFieldBuilder() : null;
@@ -662,7 +607,7 @@ private static final long serialVersionUID = 0L;
           }
         }
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -677,17 +622,61 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.resource.v1.Resource parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              io.opentelemetry.proto.common.v1.KeyValue m =
+                  input.readMessage(
+                      io.opentelemetry.proto.common.v1.KeyValue.parser(),
+                      extensionRegistry);
+              if (attributesBuilder_ == null) {
+                ensureAttributesIsMutable();
+                attributes_.add(m);
+              } else {
+                attributesBuilder_.addMessage(m);
+              }
+              break;
+            } // case 10
+            case 16: {
+              droppedAttributesCount_ = input.readUInt32();
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 16
+            case 26: {
+              io.opentelemetry.proto.common.v1.EntityRef m =
+                  input.readMessage(
+                      io.opentelemetry.proto.common.v1.EntityRef.parser(),
+                      extensionRegistry);
+              if (entityRefsBuilder_ == null) {
+                ensureEntityRefsIsMutable();
+                entityRefs_.add(m);
+              } else {
+                entityRefsBuilder_.addMessage(m);
+              }
+              break;
+            } // case 26
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.resource.v1.Resource) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -1065,8 +1054,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setDroppedAttributesCount(int value) {
-      
+
       droppedAttributesCount_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
@@ -1080,7 +1070,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearDroppedAttributesCount() {
-      
+      bitField0_ = (bitField0_ & ~0x00000002);
       droppedAttributesCount_ = 0;
       onChanged();
       return this;
@@ -1089,9 +1079,9 @@ private static final long serialVersionUID = 0L;
     private java.util.List<io.opentelemetry.proto.common.v1.EntityRef> entityRefs_ =
       java.util.Collections.emptyList();
     private void ensureEntityRefsIsMutable() {
-      if (!((bitField0_ & 0x00000002) != 0)) {
+      if (!((bitField0_ & 0x00000004) != 0)) {
         entityRefs_ = new java.util.ArrayList<io.opentelemetry.proto.common.v1.EntityRef>(entityRefs_);
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
        }
     }
 
@@ -1101,7 +1091,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1117,7 +1109,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1133,7 +1127,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1149,7 +1145,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1172,7 +1170,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1192,7 +1192,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1214,7 +1216,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1237,7 +1241,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1257,7 +1263,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1277,7 +1285,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1298,7 +1308,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1307,7 +1319,7 @@ private static final long serialVersionUID = 0L;
     public Builder clearEntityRefs() {
       if (entityRefsBuilder_ == null) {
         entityRefs_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000002);
+        bitField0_ = (bitField0_ & ~0x00000004);
         onChanged();
       } else {
         entityRefsBuilder_.clear();
@@ -1317,7 +1329,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1336,7 +1350,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1349,7 +1365,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1365,7 +1383,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1382,7 +1402,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1395,7 +1417,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1409,7 +1433,9 @@ private static final long serialVersionUID = 0L;
     /**
      * <pre>
      * Set of entities that participate in this Resource.
+     *
      * Note: keys in the references MUST exist in attributes of this message.
+     *
      * Status: [Development]
      * </pre>
      *
@@ -1426,7 +1452,7 @@ private static final long serialVersionUID = 0L;
         entityRefsBuilder_ = new com.google.protobuf.RepeatedFieldBuilderV3<
             io.opentelemetry.proto.common.v1.EntityRef, io.opentelemetry.proto.common.v1.EntityRef.Builder, io.opentelemetry.proto.common.v1.EntityRefOrBuilder>(
                 entityRefs_,
-                ((bitField0_ & 0x00000002) != 0),
+                ((bitField0_ & 0x00000004) != 0),
                 getParentForChildren(),
                 isClean());
         entityRefs_ = null;
@@ -1466,7 +1492,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new Resource(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

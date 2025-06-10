@@ -31,102 +31,6 @@ private static final long serialVersionUID = 0L;
     return new Location();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private Location(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 8: {
-            bitField0_ |= 0x00000001;
-            mappingIndex_ = input.readInt32();
-            break;
-          }
-          case 16: {
-
-            address_ = input.readUInt64();
-            break;
-          }
-          case 26: {
-            if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-              line_ = new java.util.ArrayList<io.opentelemetry.proto.profiles.v1development.Line>();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            line_.add(
-                input.readMessage(io.opentelemetry.proto.profiles.v1development.Line.parser(), extensionRegistry));
-            break;
-          }
-          case 32: {
-
-            isFolded_ = input.readBool();
-            break;
-          }
-          case 40: {
-            if (!((mutable_bitField0_ & 0x00000004) != 0)) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000004;
-            }
-            attributeIndices_.addInt(input.readInt32());
-            break;
-          }
-          case 42: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000004) != 0) && input.getBytesUntilLimit() > 0) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000004;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              attributeIndices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000002) != 0)) {
-        line_ = java.util.Collections.unmodifiableList(line_);
-      }
-      if (((mutable_bitField0_ & 0x00000004) != 0)) {
-        attributeIndices_.makeImmutable(); // C
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.profiles.v1development.ProfilesProto.internal_static_opentelemetry_proto_profiles_v1development_Location_descriptor;
@@ -142,7 +46,7 @@ private static final long serialVersionUID = 0L;
 
   private int bitField0_;
   public static final int MAPPING_INDEX_FIELD_NUMBER = 1;
-  private int mappingIndex_;
+  private int mappingIndex_ = 0;
   /**
    * <pre>
    * Reference to mapping in ProfilesDictionary.mapping_table.
@@ -173,7 +77,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ADDRESS_FIELD_NUMBER = 2;
-  private long address_;
+  private long address_ = 0L;
   /**
    * <pre>
    * The instruction address for this location, if available.  It
@@ -192,12 +96,14 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int LINE_FIELD_NUMBER = 3;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.profiles.v1development.Line> line_;
   /**
    * <pre>
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -214,6 +120,7 @@ private static final long serialVersionUID = 0L;
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -231,6 +138,7 @@ private static final long serialVersionUID = 0L;
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -247,6 +155,7 @@ private static final long serialVersionUID = 0L;
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -263,6 +172,7 @@ private static final long serialVersionUID = 0L;
    * Multiple line indicates this location has inlined functions,
    * where the last entry represents the caller into which the
    * preceding entries were inlined.
+   *
    * E.g., if memcpy() is inlined into printf:
    *    line[0].function_name == "memcpy"
    *    line[1].function_name == "printf"
@@ -277,7 +187,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int IS_FOLDED_FIELD_NUMBER = 4;
-  private boolean isFolded_;
+  private boolean isFolded_ = false;
   /**
    * <pre>
    * Provides an indication that multiple symbols map to this location's
@@ -296,7 +206,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ATTRIBUTE_INDICES_FIELD_NUMBER = 5;
-  private com.google.protobuf.Internal.IntList attributeIndices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList attributeIndices_ =
+      emptyIntList();
   /**
    * <pre>
    * References to attributes in ProfilesDictionary.attribute_table. [optional]
@@ -369,7 +281,7 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < attributeIndices_.size(); i++) {
       output.writeInt32NoTag(attributeIndices_.getInt(i));
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -408,7 +320,7 @@ private static final long serialVersionUID = 0L;
       }
       attributeIndicesMemoizedSerializedSize = dataSize;
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -436,7 +348,7 @@ private static final long serialVersionUID = 0L;
         != other.getIsFolded()) return false;
     if (!getAttributeIndicesList()
         .equals(other.getAttributeIndicesList())) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -465,7 +377,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + ATTRIBUTE_INDICES_FIELD_NUMBER;
       hash = (53 * hash) + getAttributeIndicesList().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -514,11 +426,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Location parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Location parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -586,37 +500,29 @@ private static final long serialVersionUID = 0L;
 
     // Construct using io.opentelemetry.proto.profiles.v1development.Location.newBuilder()
     private Builder() {
-      maybeForceBuilderInitialization();
+
     }
 
     private Builder(
         com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       super(parent);
-      maybeForceBuilderInitialization();
-    }
-    private void maybeForceBuilderInitialization() {
-      if (com.google.protobuf.GeneratedMessageV3
-              .alwaysUseFieldBuilders) {
-        getLineFieldBuilder();
-      }
+
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       mappingIndex_ = 0;
-      bitField0_ = (bitField0_ & ~0x00000001);
       address_ = 0L;
-
       if (lineBuilder_ == null) {
         line_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000002);
       } else {
+        line_ = null;
         lineBuilder_.clear();
       }
-      isFolded_ = false;
-
-      attributeIndices_ = emptyIntList();
       bitField0_ = (bitField0_ & ~0x00000004);
+      isFolded_ = false;
+      attributeIndices_ = emptyIntList();
       return this;
     }
 
@@ -643,31 +549,42 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.profiles.v1development.Location buildPartial() {
       io.opentelemetry.proto.profiles.v1development.Location result = new io.opentelemetry.proto.profiles.v1development.Location(this);
+      buildPartialRepeatedFields(result);
+      if (bitField0_ != 0) { buildPartial0(result); }
+      onBuilt();
+      return result;
+    }
+
+    private void buildPartialRepeatedFields(io.opentelemetry.proto.profiles.v1development.Location result) {
+      if (lineBuilder_ == null) {
+        if (((bitField0_ & 0x00000004) != 0)) {
+          line_ = java.util.Collections.unmodifiableList(line_);
+          bitField0_ = (bitField0_ & ~0x00000004);
+        }
+        result.line_ = line_;
+      } else {
+        result.line_ = lineBuilder_.build();
+      }
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.profiles.v1development.Location result) {
       int from_bitField0_ = bitField0_;
       int to_bitField0_ = 0;
       if (((from_bitField0_ & 0x00000001) != 0)) {
         result.mappingIndex_ = mappingIndex_;
         to_bitField0_ |= 0x00000001;
       }
-      result.address_ = address_;
-      if (lineBuilder_ == null) {
-        if (((bitField0_ & 0x00000002) != 0)) {
-          line_ = java.util.Collections.unmodifiableList(line_);
-          bitField0_ = (bitField0_ & ~0x00000002);
-        }
-        result.line_ = line_;
-      } else {
-        result.line_ = lineBuilder_.build();
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.address_ = address_;
       }
-      result.isFolded_ = isFolded_;
-      if (((bitField0_ & 0x00000004) != 0)) {
+      if (((from_bitField0_ & 0x00000008) != 0)) {
+        result.isFolded_ = isFolded_;
+      }
+      if (((from_bitField0_ & 0x00000010) != 0)) {
         attributeIndices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000004);
+        result.attributeIndices_ = attributeIndices_;
       }
-      result.attributeIndices_ = attributeIndices_;
-      result.bitField0_ = to_bitField0_;
-      onBuilt();
-      return result;
+      result.bitField0_ |= to_bitField0_;
     }
 
     @java.lang.Override
@@ -724,7 +641,7 @@ private static final long serialVersionUID = 0L;
         if (!other.line_.isEmpty()) {
           if (line_.isEmpty()) {
             line_ = other.line_;
-            bitField0_ = (bitField0_ & ~0x00000002);
+            bitField0_ = (bitField0_ & ~0x00000004);
           } else {
             ensureLineIsMutable();
             line_.addAll(other.line_);
@@ -737,7 +654,7 @@ private static final long serialVersionUID = 0L;
             lineBuilder_.dispose();
             lineBuilder_ = null;
             line_ = other.line_;
-            bitField0_ = (bitField0_ & ~0x00000002);
+            bitField0_ = (bitField0_ & ~0x00000004);
             lineBuilder_ = 
               com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
                  getLineFieldBuilder() : null;
@@ -752,14 +669,15 @@ private static final long serialVersionUID = 0L;
       if (!other.attributeIndices_.isEmpty()) {
         if (attributeIndices_.isEmpty()) {
           attributeIndices_ = other.attributeIndices_;
-          bitField0_ = (bitField0_ & ~0x00000004);
+          attributeIndices_.makeImmutable();
+          bitField0_ |= 0x00000010;
         } else {
           ensureAttributeIndicesIsMutable();
           attributeIndices_.addAll(other.attributeIndices_);
         }
         onChanged();
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -774,17 +692,74 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.profiles.v1development.Location parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 8: {
+              mappingIndex_ = input.readInt32();
+              bitField0_ |= 0x00000001;
+              break;
+            } // case 8
+            case 16: {
+              address_ = input.readUInt64();
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 16
+            case 26: {
+              io.opentelemetry.proto.profiles.v1development.Line m =
+                  input.readMessage(
+                      io.opentelemetry.proto.profiles.v1development.Line.parser(),
+                      extensionRegistry);
+              if (lineBuilder_ == null) {
+                ensureLineIsMutable();
+                line_.add(m);
+              } else {
+                lineBuilder_.addMessage(m);
+              }
+              break;
+            } // case 26
+            case 32: {
+              isFolded_ = input.readBool();
+              bitField0_ |= 0x00000008;
+              break;
+            } // case 32
+            case 40: {
+              int v = input.readInt32();
+              ensureAttributeIndicesIsMutable();
+              attributeIndices_.addInt(v);
+              break;
+            } // case 40
+            case 42: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureAttributeIndicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                attributeIndices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 42
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.profiles.v1development.Location) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -830,8 +805,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setMappingIndex(int value) {
-      bitField0_ |= 0x00000001;
+
       mappingIndex_ = value;
+      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -883,8 +859,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setAddress(long value) {
-      
+
       address_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
@@ -901,7 +878,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearAddress() {
-      
+      bitField0_ = (bitField0_ & ~0x00000002);
       address_ = 0L;
       onChanged();
       return this;
@@ -910,9 +887,9 @@ private static final long serialVersionUID = 0L;
     private java.util.List<io.opentelemetry.proto.profiles.v1development.Line> line_ =
       java.util.Collections.emptyList();
     private void ensureLineIsMutable() {
-      if (!((bitField0_ & 0x00000002) != 0)) {
+      if (!((bitField0_ & 0x00000004) != 0)) {
         line_ = new java.util.ArrayList<io.opentelemetry.proto.profiles.v1development.Line>(line_);
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
        }
     }
 
@@ -924,6 +901,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -943,6 +921,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -962,6 +941,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -981,6 +961,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1007,6 +988,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1030,6 +1012,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1055,6 +1038,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1081,6 +1065,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1104,6 +1089,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1127,6 +1113,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1151,6 +1138,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1161,7 +1149,7 @@ private static final long serialVersionUID = 0L;
     public Builder clearLine() {
       if (lineBuilder_ == null) {
         line_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000002);
+        bitField0_ = (bitField0_ & ~0x00000004);
         onChanged();
       } else {
         lineBuilder_.clear();
@@ -1173,6 +1161,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1195,6 +1184,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1211,6 +1201,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1230,6 +1221,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1250,6 +1242,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1266,6 +1259,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1283,6 +1277,7 @@ private static final long serialVersionUID = 0L;
      * Multiple line indicates this location has inlined functions,
      * where the last entry represents the caller into which the
      * preceding entries were inlined.
+     *
      * E.g., if memcpy() is inlined into printf:
      *    line[0].function_name == "memcpy"
      *    line[1].function_name == "printf"
@@ -1301,7 +1296,7 @@ private static final long serialVersionUID = 0L;
         lineBuilder_ = new com.google.protobuf.RepeatedFieldBuilderV3<
             io.opentelemetry.proto.profiles.v1development.Line, io.opentelemetry.proto.profiles.v1development.Line.Builder, io.opentelemetry.proto.profiles.v1development.LineOrBuilder>(
                 line_,
-                ((bitField0_ & 0x00000002) != 0),
+                ((bitField0_ & 0x00000004) != 0),
                 getParentForChildren(),
                 isClean());
         line_ = null;
@@ -1340,8 +1335,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setIsFolded(boolean value) {
-      
+
       isFolded_ = value;
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1358,7 +1354,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearIsFolded() {
-      
+      bitField0_ = (bitField0_ & ~0x00000008);
       isFolded_ = false;
       onChanged();
       return this;
@@ -1366,10 +1362,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.IntList attributeIndices_ = emptyIntList();
     private void ensureAttributeIndicesIsMutable() {
-      if (!((bitField0_ & 0x00000004) != 0)) {
-        attributeIndices_ = mutableCopy(attributeIndices_);
-        bitField0_ |= 0x00000004;
-       }
+      if (!attributeIndices_.isModifiable()) {
+        attributeIndices_ = makeMutableCopy(attributeIndices_);
+      }
+      bitField0_ |= 0x00000010;
     }
     /**
      * <pre>
@@ -1381,8 +1377,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getAttributeIndicesList() {
-      return ((bitField0_ & 0x00000004) != 0) ?
-               java.util.Collections.unmodifiableList(attributeIndices_) : attributeIndices_;
+      attributeIndices_.makeImmutable();
+      return attributeIndices_;
     }
     /**
      * <pre>
@@ -1419,8 +1415,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setAttributeIndices(
         int index, int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.setInt(index, value);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1434,8 +1432,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addAttributeIndices(int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.addInt(value);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1453,6 +1453,7 @@ private static final long serialVersionUID = 0L;
       ensureAttributeIndicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, attributeIndices_);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1466,7 +1467,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearAttributeIndices() {
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000004);
+      bitField0_ = (bitField0_ & ~0x00000010);
       onChanged();
       return this;
     }
@@ -1503,7 +1504,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new Location(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

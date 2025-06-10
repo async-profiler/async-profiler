@@ -8,6 +8,7 @@ package io.opentelemetry.proto.profiles.v1development;
  * Represents a complete profile, including sample types, samples,
  * mappings to binaries, locations, functions, string table, and additional metadata.
  * It modifies and annotates pprof Profile with OpenTelemetry specific fields.
+ *
  * Note that whilst fields in this message retain the name and field id from pprof in most cases
  * for ease of understanding data migration, it is not intended that pprof:Profile and
  * OpenTelemetry:Profile encoding be wire compatible.
@@ -42,201 +43,6 @@ private static final long serialVersionUID = 0L;
     return new Profile();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private Profile(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 10: {
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              sampleType_ = new java.util.ArrayList<io.opentelemetry.proto.profiles.v1development.ValueType>();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            sampleType_.add(
-                input.readMessage(io.opentelemetry.proto.profiles.v1development.ValueType.parser(), extensionRegistry));
-            break;
-          }
-          case 18: {
-            if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-              sample_ = new java.util.ArrayList<io.opentelemetry.proto.profiles.v1development.Sample>();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            sample_.add(
-                input.readMessage(io.opentelemetry.proto.profiles.v1development.Sample.parser(), extensionRegistry));
-            break;
-          }
-          case 24: {
-            if (!((mutable_bitField0_ & 0x00000004) != 0)) {
-              locationIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000004;
-            }
-            locationIndices_.addInt(input.readInt32());
-            break;
-          }
-          case 26: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000004) != 0) && input.getBytesUntilLimit() > 0) {
-              locationIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000004;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              locationIndices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          case 32: {
-
-            timeNanos_ = input.readInt64();
-            break;
-          }
-          case 40: {
-
-            durationNanos_ = input.readInt64();
-            break;
-          }
-          case 50: {
-            io.opentelemetry.proto.profiles.v1development.ValueType.Builder subBuilder = null;
-            if (periodType_ != null) {
-              subBuilder = periodType_.toBuilder();
-            }
-            periodType_ = input.readMessage(io.opentelemetry.proto.profiles.v1development.ValueType.parser(), extensionRegistry);
-            if (subBuilder != null) {
-              subBuilder.mergeFrom(periodType_);
-              periodType_ = subBuilder.buildPartial();
-            }
-
-            break;
-          }
-          case 56: {
-
-            period_ = input.readInt64();
-            break;
-          }
-          case 64: {
-            if (!((mutable_bitField0_ & 0x00000008) != 0)) {
-              commentStrindices_ = newIntList();
-              mutable_bitField0_ |= 0x00000008;
-            }
-            commentStrindices_.addInt(input.readInt32());
-            break;
-          }
-          case 66: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000008) != 0) && input.getBytesUntilLimit() > 0) {
-              commentStrindices_ = newIntList();
-              mutable_bitField0_ |= 0x00000008;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              commentStrindices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          case 72: {
-
-            defaultSampleTypeIndex_ = input.readInt32();
-            break;
-          }
-          case 82: {
-
-            profileId_ = input.readBytes();
-            break;
-          }
-          case 88: {
-
-            droppedAttributesCount_ = input.readUInt32();
-            break;
-          }
-          case 98: {
-            java.lang.String s = input.readStringRequireUtf8();
-
-            originalPayloadFormat_ = s;
-            break;
-          }
-          case 106: {
-
-            originalPayload_ = input.readBytes();
-            break;
-          }
-          case 112: {
-            if (!((mutable_bitField0_ & 0x00000010) != 0)) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000010;
-            }
-            attributeIndices_.addInt(input.readInt32());
-            break;
-          }
-          case 114: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000010) != 0) && input.getBytesUntilLimit() > 0) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000010;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              attributeIndices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        sampleType_ = java.util.Collections.unmodifiableList(sampleType_);
-      }
-      if (((mutable_bitField0_ & 0x00000002) != 0)) {
-        sample_ = java.util.Collections.unmodifiableList(sample_);
-      }
-      if (((mutable_bitField0_ & 0x00000004) != 0)) {
-        locationIndices_.makeImmutable(); // C
-      }
-      if (((mutable_bitField0_ & 0x00000008) != 0)) {
-        commentStrindices_.makeImmutable(); // C
-      }
-      if (((mutable_bitField0_ & 0x00000010) != 0)) {
-        attributeIndices_.makeImmutable(); // C
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.profiles.v1development.ProfilesProto.internal_static_opentelemetry_proto_profiles_v1development_Profile_descriptor;
@@ -250,7 +56,9 @@ private static final long serialVersionUID = 0L;
             io.opentelemetry.proto.profiles.v1development.Profile.class, io.opentelemetry.proto.profiles.v1development.Profile.Builder.class);
   }
 
+  private int bitField0_;
   public static final int SAMPLE_TYPE_FIELD_NUMBER = 1;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.profiles.v1development.ValueType> sampleType_;
   /**
    * <pre>
@@ -346,6 +154,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int SAMPLE_FIELD_NUMBER = 2;
+  @SuppressWarnings("serial")
   private java.util.List<io.opentelemetry.proto.profiles.v1development.Sample> sample_;
   /**
    * <pre>
@@ -406,7 +215,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int LOCATION_INDICES_FIELD_NUMBER = 3;
-  private com.google.protobuf.Internal.IntList locationIndices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList locationIndices_ =
+      emptyIntList();
   /**
    * <pre>
    * References to locations in ProfilesDictionary.location_table.
@@ -446,7 +257,7 @@ private static final long serialVersionUID = 0L;
   private int locationIndicesMemoizedSerializedSize = -1;
 
   public static final int TIME_NANOS_FIELD_NUMBER = 4;
-  private long timeNanos_;
+  private long timeNanos_ = 0L;
   /**
    * <pre>
    * Time of collection (UTC) represented as nanoseconds past the epoch.
@@ -461,7 +272,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int DURATION_NANOS_FIELD_NUMBER = 5;
-  private long durationNanos_;
+  private long durationNanos_ = 0L;
   /**
    * <pre>
    * Duration of the profile, if a duration makes sense.
@@ -488,7 +299,7 @@ private static final long serialVersionUID = 0L;
    */
   @java.lang.Override
   public boolean hasPeriodType() {
-    return periodType_ != null;
+    return ((bitField0_ & 0x00000001) != 0);
   }
   /**
    * <pre>
@@ -513,11 +324,11 @@ private static final long serialVersionUID = 0L;
    */
   @java.lang.Override
   public io.opentelemetry.proto.profiles.v1development.ValueTypeOrBuilder getPeriodTypeOrBuilder() {
-    return getPeriodType();
+    return periodType_ == null ? io.opentelemetry.proto.profiles.v1development.ValueType.getDefaultInstance() : periodType_;
   }
 
   public static final int PERIOD_FIELD_NUMBER = 7;
-  private long period_;
+  private long period_ = 0L;
   /**
    * <pre>
    * The number of events between sampled occurrences.
@@ -532,7 +343,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int COMMENT_STRINDICES_FIELD_NUMBER = 8;
-  private com.google.protobuf.Internal.IntList commentStrindices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList commentStrindices_ =
+      emptyIntList();
   /**
    * <pre>
    * Free-form text associated with the profile. The text is displayed as is
@@ -584,7 +397,7 @@ private static final long serialVersionUID = 0L;
   private int commentStrindicesMemoizedSerializedSize = -1;
 
   public static final int DEFAULT_SAMPLE_TYPE_INDEX_FIELD_NUMBER = 9;
-  private int defaultSampleTypeIndex_;
+  private int defaultSampleTypeIndex_ = 0;
   /**
    * <pre>
    * Index into the sample_type array to the default sample type.
@@ -599,11 +412,12 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int PROFILE_ID_FIELD_NUMBER = 10;
-  private com.google.protobuf.ByteString profileId_;
+  private com.google.protobuf.ByteString profileId_ = com.google.protobuf.ByteString.EMPTY;
   /**
    * <pre>
    * A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
    * all zeroes is considered invalid.
+   *
    * This field is required.
    * </pre>
    *
@@ -616,7 +430,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int DROPPED_ATTRIBUTES_COUNT_FIELD_NUMBER = 11;
-  private int droppedAttributesCount_;
+  private int droppedAttributesCount_ = 0;
   /**
    * <pre>
    * dropped_attributes_count is the number of attributes that were discarded. Attributes
@@ -633,7 +447,8 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ORIGINAL_PAYLOAD_FORMAT_FIELD_NUMBER = 12;
-  private volatile java.lang.Object originalPayloadFormat_;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object originalPayloadFormat_ = "";
   /**
    * <pre>
    * Specifies format of the original payload. Common values are defined in semantic conventions. [required if original_payload is present]
@@ -679,7 +494,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ORIGINAL_PAYLOAD_FIELD_NUMBER = 13;
-  private com.google.protobuf.ByteString originalPayload_;
+  private com.google.protobuf.ByteString originalPayload_ = com.google.protobuf.ByteString.EMPTY;
   /**
    * <pre>
    * Original payload can be stored in this field. This can be useful for users who want to get the original payload.
@@ -699,16 +514,20 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ATTRIBUTE_INDICES_FIELD_NUMBER = 14;
-  private com.google.protobuf.Internal.IntList attributeIndices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList attributeIndices_ =
+      emptyIntList();
   /**
    * <pre>
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -728,10 +547,12 @@ private static final long serialVersionUID = 0L;
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -749,10 +570,12 @@ private static final long serialVersionUID = 0L;
    * References to attributes in attribute_table. [optional]
    * It is a collection of key/value pairs. Note, global attributes
    * like server name can be set using the resource API. Examples of attributes:
+   *
    *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
    *     "/http/server_latency": 300
    *     "abc.com/myattribute": true
    *     "abc.com/score": 10.239
+   *
    * The OpenTelemetry API specification further restricts the allowed value types:
    * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
    * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -802,7 +625,7 @@ private static final long serialVersionUID = 0L;
     if (durationNanos_ != 0L) {
       output.writeInt64(5, durationNanos_);
     }
-    if (periodType_ != null) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       output.writeMessage(6, getPeriodType());
     }
     if (period_ != 0L) {
@@ -837,7 +660,7 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < attributeIndices_.size(); i++) {
       output.writeInt32NoTag(attributeIndices_.getInt(i));
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -876,7 +699,7 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeInt64Size(5, durationNanos_);
     }
-    if (periodType_ != null) {
+    if (((bitField0_ & 0x00000001) != 0)) {
       size += com.google.protobuf.CodedOutputStream
         .computeMessageSize(6, getPeriodType());
     }
@@ -931,7 +754,7 @@ private static final long serialVersionUID = 0L;
       }
       attributeIndicesMemoizedSerializedSize = dataSize;
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -977,7 +800,7 @@ private static final long serialVersionUID = 0L;
         .equals(other.getOriginalPayload())) return false;
     if (!getAttributeIndicesList()
         .equals(other.getAttributeIndicesList())) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -1031,7 +854,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + ATTRIBUTE_INDICES_FIELD_NUMBER;
       hash = (53 * hash) + getAttributeIndicesList().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -1080,11 +903,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Profile parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Profile parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -1131,6 +956,7 @@ private static final long serialVersionUID = 0L;
    * Represents a complete profile, including sample types, samples,
    * mappings to binaries, locations, functions, string table, and additional metadata.
    * It modifies and annotates pprof Profile with OpenTelemetry specific fields.
+   *
    * Note that whilst fields in this message retain the name and field id from pprof in most cases
    * for ease of understanding data migration, it is not intended that pprof:Profile and
    * OpenTelemetry:Profile encoding be wire compatible.
@@ -1170,51 +996,43 @@ private static final long serialVersionUID = 0L;
               .alwaysUseFieldBuilders) {
         getSampleTypeFieldBuilder();
         getSampleFieldBuilder();
+        getPeriodTypeFieldBuilder();
       }
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       if (sampleTypeBuilder_ == null) {
         sampleType_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000001);
       } else {
+        sampleType_ = null;
         sampleTypeBuilder_.clear();
       }
+      bitField0_ = (bitField0_ & ~0x00000001);
       if (sampleBuilder_ == null) {
         sample_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000002);
       } else {
+        sample_ = null;
         sampleBuilder_.clear();
       }
+      bitField0_ = (bitField0_ & ~0x00000002);
       locationIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000004);
       timeNanos_ = 0L;
-
       durationNanos_ = 0L;
-
-      if (periodTypeBuilder_ == null) {
-        periodType_ = null;
-      } else {
-        periodType_ = null;
+      periodType_ = null;
+      if (periodTypeBuilder_ != null) {
+        periodTypeBuilder_.dispose();
         periodTypeBuilder_ = null;
       }
       period_ = 0L;
-
       commentStrindices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000008);
       defaultSampleTypeIndex_ = 0;
-
       profileId_ = com.google.protobuf.ByteString.EMPTY;
-
       droppedAttributesCount_ = 0;
-
       originalPayloadFormat_ = "";
-
       originalPayload_ = com.google.protobuf.ByteString.EMPTY;
-
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000010);
       return this;
     }
 
@@ -1241,7 +1059,13 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.profiles.v1development.Profile buildPartial() {
       io.opentelemetry.proto.profiles.v1development.Profile result = new io.opentelemetry.proto.profiles.v1development.Profile(this);
-      int from_bitField0_ = bitField0_;
+      buildPartialRepeatedFields(result);
+      if (bitField0_ != 0) { buildPartial0(result); }
+      onBuilt();
+      return result;
+    }
+
+    private void buildPartialRepeatedFields(io.opentelemetry.proto.profiles.v1development.Profile result) {
       if (sampleTypeBuilder_ == null) {
         if (((bitField0_ & 0x00000001) != 0)) {
           sampleType_ = java.util.Collections.unmodifiableList(sampleType_);
@@ -1260,36 +1084,54 @@ private static final long serialVersionUID = 0L;
       } else {
         result.sample_ = sampleBuilder_.build();
       }
-      if (((bitField0_ & 0x00000004) != 0)) {
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.profiles.v1development.Profile result) {
+      int from_bitField0_ = bitField0_;
+      if (((from_bitField0_ & 0x00000004) != 0)) {
         locationIndices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000004);
+        result.locationIndices_ = locationIndices_;
       }
-      result.locationIndices_ = locationIndices_;
-      result.timeNanos_ = timeNanos_;
-      result.durationNanos_ = durationNanos_;
-      if (periodTypeBuilder_ == null) {
-        result.periodType_ = periodType_;
-      } else {
-        result.periodType_ = periodTypeBuilder_.build();
+      if (((from_bitField0_ & 0x00000008) != 0)) {
+        result.timeNanos_ = timeNanos_;
       }
-      result.period_ = period_;
-      if (((bitField0_ & 0x00000008) != 0)) {
+      if (((from_bitField0_ & 0x00000010) != 0)) {
+        result.durationNanos_ = durationNanos_;
+      }
+      int to_bitField0_ = 0;
+      if (((from_bitField0_ & 0x00000020) != 0)) {
+        result.periodType_ = periodTypeBuilder_ == null
+            ? periodType_
+            : periodTypeBuilder_.build();
+        to_bitField0_ |= 0x00000001;
+      }
+      if (((from_bitField0_ & 0x00000040) != 0)) {
+        result.period_ = period_;
+      }
+      if (((from_bitField0_ & 0x00000080) != 0)) {
         commentStrindices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        result.commentStrindices_ = commentStrindices_;
       }
-      result.commentStrindices_ = commentStrindices_;
-      result.defaultSampleTypeIndex_ = defaultSampleTypeIndex_;
-      result.profileId_ = profileId_;
-      result.droppedAttributesCount_ = droppedAttributesCount_;
-      result.originalPayloadFormat_ = originalPayloadFormat_;
-      result.originalPayload_ = originalPayload_;
-      if (((bitField0_ & 0x00000010) != 0)) {
+      if (((from_bitField0_ & 0x00000100) != 0)) {
+        result.defaultSampleTypeIndex_ = defaultSampleTypeIndex_;
+      }
+      if (((from_bitField0_ & 0x00000200) != 0)) {
+        result.profileId_ = profileId_;
+      }
+      if (((from_bitField0_ & 0x00000400) != 0)) {
+        result.droppedAttributesCount_ = droppedAttributesCount_;
+      }
+      if (((from_bitField0_ & 0x00000800) != 0)) {
+        result.originalPayloadFormat_ = originalPayloadFormat_;
+      }
+      if (((from_bitField0_ & 0x00001000) != 0)) {
+        result.originalPayload_ = originalPayload_;
+      }
+      if (((from_bitField0_ & 0x00002000) != 0)) {
         attributeIndices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000010);
+        result.attributeIndices_ = attributeIndices_;
       }
-      result.attributeIndices_ = attributeIndices_;
-      onBuilt();
-      return result;
+      result.bitField0_ |= to_bitField0_;
     }
 
     @java.lang.Override
@@ -1391,7 +1233,8 @@ private static final long serialVersionUID = 0L;
       if (!other.locationIndices_.isEmpty()) {
         if (locationIndices_.isEmpty()) {
           locationIndices_ = other.locationIndices_;
-          bitField0_ = (bitField0_ & ~0x00000004);
+          locationIndices_.makeImmutable();
+          bitField0_ |= 0x00000004;
         } else {
           ensureLocationIndicesIsMutable();
           locationIndices_.addAll(other.locationIndices_);
@@ -1413,7 +1256,8 @@ private static final long serialVersionUID = 0L;
       if (!other.commentStrindices_.isEmpty()) {
         if (commentStrindices_.isEmpty()) {
           commentStrindices_ = other.commentStrindices_;
-          bitField0_ = (bitField0_ & ~0x00000008);
+          commentStrindices_.makeImmutable();
+          bitField0_ |= 0x00000080;
         } else {
           ensureCommentStrindicesIsMutable();
           commentStrindices_.addAll(other.commentStrindices_);
@@ -1431,6 +1275,7 @@ private static final long serialVersionUID = 0L;
       }
       if (!other.getOriginalPayloadFormat().isEmpty()) {
         originalPayloadFormat_ = other.originalPayloadFormat_;
+        bitField0_ |= 0x00000800;
         onChanged();
       }
       if (other.getOriginalPayload() != com.google.protobuf.ByteString.EMPTY) {
@@ -1439,14 +1284,15 @@ private static final long serialVersionUID = 0L;
       if (!other.attributeIndices_.isEmpty()) {
         if (attributeIndices_.isEmpty()) {
           attributeIndices_ = other.attributeIndices_;
-          bitField0_ = (bitField0_ & ~0x00000010);
+          attributeIndices_.makeImmutable();
+          bitField0_ |= 0x00002000;
         } else {
           ensureAttributeIndicesIsMutable();
           attributeIndices_.addAll(other.attributeIndices_);
         }
         onChanged();
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -1461,17 +1307,151 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.profiles.v1development.Profile parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              io.opentelemetry.proto.profiles.v1development.ValueType m =
+                  input.readMessage(
+                      io.opentelemetry.proto.profiles.v1development.ValueType.parser(),
+                      extensionRegistry);
+              if (sampleTypeBuilder_ == null) {
+                ensureSampleTypeIsMutable();
+                sampleType_.add(m);
+              } else {
+                sampleTypeBuilder_.addMessage(m);
+              }
+              break;
+            } // case 10
+            case 18: {
+              io.opentelemetry.proto.profiles.v1development.Sample m =
+                  input.readMessage(
+                      io.opentelemetry.proto.profiles.v1development.Sample.parser(),
+                      extensionRegistry);
+              if (sampleBuilder_ == null) {
+                ensureSampleIsMutable();
+                sample_.add(m);
+              } else {
+                sampleBuilder_.addMessage(m);
+              }
+              break;
+            } // case 18
+            case 24: {
+              int v = input.readInt32();
+              ensureLocationIndicesIsMutable();
+              locationIndices_.addInt(v);
+              break;
+            } // case 24
+            case 26: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureLocationIndicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                locationIndices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 26
+            case 32: {
+              timeNanos_ = input.readInt64();
+              bitField0_ |= 0x00000008;
+              break;
+            } // case 32
+            case 40: {
+              durationNanos_ = input.readInt64();
+              bitField0_ |= 0x00000010;
+              break;
+            } // case 40
+            case 50: {
+              input.readMessage(
+                  getPeriodTypeFieldBuilder().getBuilder(),
+                  extensionRegistry);
+              bitField0_ |= 0x00000020;
+              break;
+            } // case 50
+            case 56: {
+              period_ = input.readInt64();
+              bitField0_ |= 0x00000040;
+              break;
+            } // case 56
+            case 64: {
+              int v = input.readInt32();
+              ensureCommentStrindicesIsMutable();
+              commentStrindices_.addInt(v);
+              break;
+            } // case 64
+            case 66: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureCommentStrindicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                commentStrindices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 66
+            case 72: {
+              defaultSampleTypeIndex_ = input.readInt32();
+              bitField0_ |= 0x00000100;
+              break;
+            } // case 72
+            case 82: {
+              profileId_ = input.readBytes();
+              bitField0_ |= 0x00000200;
+              break;
+            } // case 82
+            case 88: {
+              droppedAttributesCount_ = input.readUInt32();
+              bitField0_ |= 0x00000400;
+              break;
+            } // case 88
+            case 98: {
+              originalPayloadFormat_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000800;
+              break;
+            } // case 98
+            case 106: {
+              originalPayload_ = input.readBytes();
+              bitField0_ |= 0x00001000;
+              break;
+            } // case 106
+            case 112: {
+              int v = input.readInt32();
+              ensureAttributeIndicesIsMutable();
+              attributeIndices_.addInt(v);
+              break;
+            } // case 112
+            case 114: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureAttributeIndicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                attributeIndices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 114
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.profiles.v1development.Profile) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -2228,10 +2208,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.IntList locationIndices_ = emptyIntList();
     private void ensureLocationIndicesIsMutable() {
-      if (!((bitField0_ & 0x00000004) != 0)) {
-        locationIndices_ = mutableCopy(locationIndices_);
-        bitField0_ |= 0x00000004;
-       }
+      if (!locationIndices_.isModifiable()) {
+        locationIndices_ = makeMutableCopy(locationIndices_);
+      }
+      bitField0_ |= 0x00000004;
     }
     /**
      * <pre>
@@ -2243,8 +2223,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getLocationIndicesList() {
-      return ((bitField0_ & 0x00000004) != 0) ?
-               java.util.Collections.unmodifiableList(locationIndices_) : locationIndices_;
+      locationIndices_.makeImmutable();
+      return locationIndices_;
     }
     /**
      * <pre>
@@ -2281,8 +2261,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setLocationIndices(
         int index, int value) {
+
       ensureLocationIndicesIsMutable();
       locationIndices_.setInt(index, value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -2296,8 +2278,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addLocationIndices(int value) {
+
       ensureLocationIndicesIsMutable();
       locationIndices_.addInt(value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -2315,6 +2299,7 @@ private static final long serialVersionUID = 0L;
       ensureLocationIndicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, locationIndices_);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -2356,8 +2341,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setTimeNanos(long value) {
-      
+
       timeNanos_ = value;
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -2370,7 +2356,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearTimeNanos() {
-      
+      bitField0_ = (bitField0_ & ~0x00000008);
       timeNanos_ = 0L;
       onChanged();
       return this;
@@ -2399,8 +2385,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setDurationNanos(long value) {
-      
+
       durationNanos_ = value;
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -2413,7 +2400,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearDurationNanos() {
-      
+      bitField0_ = (bitField0_ & ~0x00000010);
       durationNanos_ = 0L;
       onChanged();
       return this;
@@ -2432,7 +2419,7 @@ private static final long serialVersionUID = 0L;
      * @return Whether the periodType field is set.
      */
     public boolean hasPeriodType() {
-      return periodTypeBuilder_ != null || periodType_ != null;
+      return ((bitField0_ & 0x00000020) != 0);
     }
     /**
      * <pre>
@@ -2464,11 +2451,11 @@ private static final long serialVersionUID = 0L;
           throw new NullPointerException();
         }
         periodType_ = value;
-        onChanged();
       } else {
         periodTypeBuilder_.setMessage(value);
       }
-
+      bitField0_ |= 0x00000020;
+      onChanged();
       return this;
     }
     /**
@@ -2483,11 +2470,11 @@ private static final long serialVersionUID = 0L;
         io.opentelemetry.proto.profiles.v1development.ValueType.Builder builderForValue) {
       if (periodTypeBuilder_ == null) {
         periodType_ = builderForValue.build();
-        onChanged();
       } else {
         periodTypeBuilder_.setMessage(builderForValue.build());
       }
-
+      bitField0_ |= 0x00000020;
+      onChanged();
       return this;
     }
     /**
@@ -2500,17 +2487,20 @@ private static final long serialVersionUID = 0L;
      */
     public Builder mergePeriodType(io.opentelemetry.proto.profiles.v1development.ValueType value) {
       if (periodTypeBuilder_ == null) {
-        if (periodType_ != null) {
-          periodType_ =
-            io.opentelemetry.proto.profiles.v1development.ValueType.newBuilder(periodType_).mergeFrom(value).buildPartial();
+        if (((bitField0_ & 0x00000020) != 0) &&
+          periodType_ != null &&
+          periodType_ != io.opentelemetry.proto.profiles.v1development.ValueType.getDefaultInstance()) {
+          getPeriodTypeBuilder().mergeFrom(value);
         } else {
           periodType_ = value;
         }
-        onChanged();
       } else {
         periodTypeBuilder_.mergeFrom(value);
       }
-
+      if (periodType_ != null) {
+        bitField0_ |= 0x00000020;
+        onChanged();
+      }
       return this;
     }
     /**
@@ -2522,14 +2512,13 @@ private static final long serialVersionUID = 0L;
      * <code>.opentelemetry.proto.profiles.v1development.ValueType period_type = 6;</code>
      */
     public Builder clearPeriodType() {
-      if (periodTypeBuilder_ == null) {
-        periodType_ = null;
-        onChanged();
-      } else {
-        periodType_ = null;
+      bitField0_ = (bitField0_ & ~0x00000020);
+      periodType_ = null;
+      if (periodTypeBuilder_ != null) {
+        periodTypeBuilder_.dispose();
         periodTypeBuilder_ = null;
       }
-
+      onChanged();
       return this;
     }
     /**
@@ -2541,7 +2530,7 @@ private static final long serialVersionUID = 0L;
      * <code>.opentelemetry.proto.profiles.v1development.ValueType period_type = 6;</code>
      */
     public io.opentelemetry.proto.profiles.v1development.ValueType.Builder getPeriodTypeBuilder() {
-      
+      bitField0_ |= 0x00000020;
       onChanged();
       return getPeriodTypeFieldBuilder().getBuilder();
     }
@@ -2606,8 +2595,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setPeriod(long value) {
-      
+
       period_ = value;
+      bitField0_ |= 0x00000040;
       onChanged();
       return this;
     }
@@ -2620,7 +2610,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearPeriod() {
-      
+      bitField0_ = (bitField0_ & ~0x00000040);
       period_ = 0L;
       onChanged();
       return this;
@@ -2628,10 +2618,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.IntList commentStrindices_ = emptyIntList();
     private void ensureCommentStrindicesIsMutable() {
-      if (!((bitField0_ & 0x00000008) != 0)) {
-        commentStrindices_ = mutableCopy(commentStrindices_);
-        bitField0_ |= 0x00000008;
-       }
+      if (!commentStrindices_.isModifiable()) {
+        commentStrindices_ = makeMutableCopy(commentStrindices_);
+      }
+      bitField0_ |= 0x00000080;
     }
     /**
      * <pre>
@@ -2647,8 +2637,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getCommentStrindicesList() {
-      return ((bitField0_ & 0x00000008) != 0) ?
-               java.util.Collections.unmodifiableList(commentStrindices_) : commentStrindices_;
+      commentStrindices_.makeImmutable();
+      return commentStrindices_;
     }
     /**
      * <pre>
@@ -2697,8 +2687,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setCommentStrindices(
         int index, int value) {
+
       ensureCommentStrindicesIsMutable();
       commentStrindices_.setInt(index, value);
+      bitField0_ |= 0x00000080;
       onChanged();
       return this;
     }
@@ -2716,8 +2708,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addCommentStrindices(int value) {
+
       ensureCommentStrindicesIsMutable();
       commentStrindices_.addInt(value);
+      bitField0_ |= 0x00000080;
       onChanged();
       return this;
     }
@@ -2739,6 +2733,7 @@ private static final long serialVersionUID = 0L;
       ensureCommentStrindicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, commentStrindices_);
+      bitField0_ |= 0x00000080;
       onChanged();
       return this;
     }
@@ -2756,7 +2751,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearCommentStrindices() {
       commentStrindices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000008);
+      bitField0_ = (bitField0_ & ~0x00000080);
       onChanged();
       return this;
     }
@@ -2784,8 +2779,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setDefaultSampleTypeIndex(int value) {
-      
+
       defaultSampleTypeIndex_ = value;
+      bitField0_ |= 0x00000100;
       onChanged();
       return this;
     }
@@ -2798,7 +2794,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearDefaultSampleTypeIndex() {
-      
+      bitField0_ = (bitField0_ & ~0x00000100);
       defaultSampleTypeIndex_ = 0;
       onChanged();
       return this;
@@ -2809,6 +2805,7 @@ private static final long serialVersionUID = 0L;
      * <pre>
      * A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
      * all zeroes is considered invalid.
+     *
      * This field is required.
      * </pre>
      *
@@ -2823,6 +2820,7 @@ private static final long serialVersionUID = 0L;
      * <pre>
      * A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
      * all zeroes is considered invalid.
+     *
      * This field is required.
      * </pre>
      *
@@ -2831,11 +2829,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setProfileId(com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  
+      if (value == null) { throw new NullPointerException(); }
       profileId_ = value;
+      bitField0_ |= 0x00000200;
       onChanged();
       return this;
     }
@@ -2843,6 +2839,7 @@ private static final long serialVersionUID = 0L;
      * <pre>
      * A globally unique identifier for a profile. The ID is a 16-byte array. An ID with
      * all zeroes is considered invalid.
+     *
      * This field is required.
      * </pre>
      *
@@ -2850,7 +2847,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearProfileId() {
-      
+      bitField0_ = (bitField0_ & ~0x00000200);
       profileId_ = getDefaultInstance().getProfileId();
       onChanged();
       return this;
@@ -2883,8 +2880,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setDroppedAttributesCount(int value) {
-      
+
       droppedAttributesCount_ = value;
+      bitField0_ |= 0x00000400;
       onChanged();
       return this;
     }
@@ -2899,7 +2897,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearDroppedAttributesCount() {
-      
+      bitField0_ = (bitField0_ & ~0x00000400);
       droppedAttributesCount_ = 0;
       onChanged();
       return this;
@@ -2958,11 +2956,9 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setOriginalPayloadFormat(
         java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  
+      if (value == null) { throw new NullPointerException(); }
       originalPayloadFormat_ = value;
+      bitField0_ |= 0x00000800;
       onChanged();
       return this;
     }
@@ -2975,8 +2971,8 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearOriginalPayloadFormat() {
-      
       originalPayloadFormat_ = getDefaultInstance().getOriginalPayloadFormat();
+      bitField0_ = (bitField0_ & ~0x00000800);
       onChanged();
       return this;
     }
@@ -2991,12 +2987,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setOriginalPayloadFormatBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
-      
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
       originalPayloadFormat_ = value;
+      bitField0_ |= 0x00000800;
       onChanged();
       return this;
     }
@@ -3034,11 +3028,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setOriginalPayload(com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  
+      if (value == null) { throw new NullPointerException(); }
       originalPayload_ = value;
+      bitField0_ |= 0x00001000;
       onChanged();
       return this;
     }
@@ -3056,7 +3048,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearOriginalPayload() {
-      
+      bitField0_ = (bitField0_ & ~0x00001000);
       originalPayload_ = getDefaultInstance().getOriginalPayload();
       onChanged();
       return this;
@@ -3064,20 +3056,22 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.IntList attributeIndices_ = emptyIntList();
     private void ensureAttributeIndicesIsMutable() {
-      if (!((bitField0_ & 0x00000010) != 0)) {
-        attributeIndices_ = mutableCopy(attributeIndices_);
-        bitField0_ |= 0x00000010;
-       }
+      if (!attributeIndices_.isModifiable()) {
+        attributeIndices_ = makeMutableCopy(attributeIndices_);
+      }
+      bitField0_ |= 0x00002000;
     }
     /**
      * <pre>
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3089,18 +3083,20 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getAttributeIndicesList() {
-      return ((bitField0_ & 0x00000010) != 0) ?
-               java.util.Collections.unmodifiableList(attributeIndices_) : attributeIndices_;
+      attributeIndices_.makeImmutable();
+      return attributeIndices_;
     }
     /**
      * <pre>
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3118,10 +3114,12 @@ private static final long serialVersionUID = 0L;
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3140,10 +3138,12 @@ private static final long serialVersionUID = 0L;
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3157,8 +3157,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setAttributeIndices(
         int index, int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.setInt(index, value);
+      bitField0_ |= 0x00002000;
       onChanged();
       return this;
     }
@@ -3167,10 +3169,12 @@ private static final long serialVersionUID = 0L;
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3182,8 +3186,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addAttributeIndices(int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.addInt(value);
+      bitField0_ |= 0x00002000;
       onChanged();
       return this;
     }
@@ -3192,10 +3198,12 @@ private static final long serialVersionUID = 0L;
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3211,6 +3219,7 @@ private static final long serialVersionUID = 0L;
       ensureAttributeIndicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, attributeIndices_);
+      bitField0_ |= 0x00002000;
       onChanged();
       return this;
     }
@@ -3219,10 +3228,12 @@ private static final long serialVersionUID = 0L;
      * References to attributes in attribute_table. [optional]
      * It is a collection of key/value pairs. Note, global attributes
      * like server name can be set using the resource API. Examples of attributes:
+     *
      *     "/http/user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36"
      *     "/http/server_latency": 300
      *     "abc.com/myattribute": true
      *     "abc.com/score": 10.239
+     *
      * The OpenTelemetry API specification further restricts the allowed value types:
      * https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/common/README.md#attribute
      * Attribute keys MUST be unique (it is not allowed to have more than one
@@ -3234,7 +3245,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearAttributeIndices() {
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000010);
+      bitField0_ = (bitField0_ & ~0x00002000);
       onChanged();
       return this;
     }
@@ -3271,7 +3282,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new Profile(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

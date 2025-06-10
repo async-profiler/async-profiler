@@ -7,6 +7,7 @@ package io.opentelemetry.proto.common.v1;
  * <pre>
  * A reference to an Entity.
  * Entity represents an object of interest associated with produced telemetry: e.g spans, metrics, profiles, or logs.
+ *
  * Status: [Development]
  * </pre>
  *
@@ -24,8 +25,10 @@ private static final long serialVersionUID = 0L;
   private EntityRef() {
     schemaUrl_ = "";
     type_ = "";
-    idKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-    descriptionKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+    idKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
+    descriptionKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
   }
 
   @java.lang.Override
@@ -35,87 +38,6 @@ private static final long serialVersionUID = 0L;
     return new EntityRef();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private EntityRef(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 10: {
-            java.lang.String s = input.readStringRequireUtf8();
-
-            schemaUrl_ = s;
-            break;
-          }
-          case 18: {
-            java.lang.String s = input.readStringRequireUtf8();
-
-            type_ = s;
-            break;
-          }
-          case 26: {
-            java.lang.String s = input.readStringRequireUtf8();
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              idKeys_ = new com.google.protobuf.LazyStringArrayList();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            idKeys_.add(s);
-            break;
-          }
-          case 34: {
-            java.lang.String s = input.readStringRequireUtf8();
-            if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-              descriptionKeys_ = new com.google.protobuf.LazyStringArrayList();
-              mutable_bitField0_ |= 0x00000002;
-            }
-            descriptionKeys_.add(s);
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        idKeys_ = idKeys_.getUnmodifiableView();
-      }
-      if (((mutable_bitField0_ & 0x00000002) != 0)) {
-        descriptionKeys_ = descriptionKeys_.getUnmodifiableView();
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.common.v1.CommonProto.internal_static_opentelemetry_proto_common_v1_EntityRef_descriptor;
@@ -130,16 +52,19 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int SCHEMA_URL_FIELD_NUMBER = 1;
-  private volatile java.lang.Object schemaUrl_;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object schemaUrl_ = "";
   /**
    * <pre>
    * The Schema URL, if known. This is the identifier of the Schema that the entity data
    * is recorded in. To learn more about Schema URL see
    * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+   *
    * This schema_url applies to the data in this message and to the Resource attributes
    * referenced by id_keys and description_keys.
    * TODO: discuss if we are happy with this somewhat complicated definition of what
    * the schema_url applies to.
+   *
    * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
    * </pre>
    *
@@ -164,10 +89,12 @@ private static final long serialVersionUID = 0L;
    * The Schema URL, if known. This is the identifier of the Schema that the entity data
    * is recorded in. To learn more about Schema URL see
    * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+   *
    * This schema_url applies to the data in this message and to the Resource attributes
    * referenced by id_keys and description_keys.
    * TODO: discuss if we are happy with this somewhat complicated definition of what
    * the schema_url applies to.
+   *
    * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
    * </pre>
    *
@@ -190,7 +117,8 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int TYPE_FIELD_NUMBER = 2;
-  private volatile java.lang.Object type_;
+  @SuppressWarnings("serial")
+  private volatile java.lang.Object type_ = "";
   /**
    * <pre>
    * Defines the type of the entity. MUST not change during the lifetime of the entity.
@@ -240,7 +168,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ID_KEYS_FIELD_NUMBER = 3;
-  private com.google.protobuf.LazyStringList idKeys_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.LazyStringArrayList idKeys_ =
+      com.google.protobuf.LazyStringArrayList.emptyList();
   /**
    * <pre>
    * Attribute Keys that identify the entity.
@@ -299,7 +229,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int DESCRIPTION_KEYS_FIELD_NUMBER = 4;
-  private com.google.protobuf.LazyStringList descriptionKeys_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.LazyStringArrayList descriptionKeys_ =
+      com.google.protobuf.LazyStringArrayList.emptyList();
   /**
    * <pre>
    * Descriptive (non-identifying) attribute keys of the entity.
@@ -387,7 +319,7 @@ private static final long serialVersionUID = 0L;
     for (int i = 0; i < descriptionKeys_.size(); i++) {
       com.google.protobuf.GeneratedMessageV3.writeString(output, 4, descriptionKeys_.getRaw(i));
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -418,7 +350,7 @@ private static final long serialVersionUID = 0L;
       size += dataSize;
       size += 1 * getDescriptionKeysList().size();
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -441,7 +373,7 @@ private static final long serialVersionUID = 0L;
         .equals(other.getIdKeysList())) return false;
     if (!getDescriptionKeysList()
         .equals(other.getDescriptionKeysList())) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -464,7 +396,7 @@ private static final long serialVersionUID = 0L;
       hash = (37 * hash) + DESCRIPTION_KEYS_FIELD_NUMBER;
       hash = (53 * hash) + getDescriptionKeysList().hashCode();
     }
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -513,11 +445,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.common.v1.EntityRef parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.common.v1.EntityRef parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -563,6 +497,7 @@ private static final long serialVersionUID = 0L;
    * <pre>
    * A reference to an Entity.
    * Entity represents an object of interest associated with produced telemetry: e.g spans, metrics, profiles, or logs.
+   *
    * Status: [Development]
    * </pre>
    *
@@ -587,30 +522,24 @@ private static final long serialVersionUID = 0L;
 
     // Construct using io.opentelemetry.proto.common.v1.EntityRef.newBuilder()
     private Builder() {
-      maybeForceBuilderInitialization();
+
     }
 
     private Builder(
         com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       super(parent);
-      maybeForceBuilderInitialization();
-    }
-    private void maybeForceBuilderInitialization() {
-      if (com.google.protobuf.GeneratedMessageV3
-              .alwaysUseFieldBuilders) {
-      }
+
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       schemaUrl_ = "";
-
       type_ = "";
-
-      idKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-      bitField0_ = (bitField0_ & ~0x00000001);
-      descriptionKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-      bitField0_ = (bitField0_ & ~0x00000002);
+      idKeys_ =
+          com.google.protobuf.LazyStringArrayList.emptyList();
+      descriptionKeys_ =
+          com.google.protobuf.LazyStringArrayList.emptyList();
       return this;
     }
 
@@ -637,21 +566,27 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.common.v1.EntityRef buildPartial() {
       io.opentelemetry.proto.common.v1.EntityRef result = new io.opentelemetry.proto.common.v1.EntityRef(this);
-      int from_bitField0_ = bitField0_;
-      result.schemaUrl_ = schemaUrl_;
-      result.type_ = type_;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        idKeys_ = idKeys_.getUnmodifiableView();
-        bitField0_ = (bitField0_ & ~0x00000001);
-      }
-      result.idKeys_ = idKeys_;
-      if (((bitField0_ & 0x00000002) != 0)) {
-        descriptionKeys_ = descriptionKeys_.getUnmodifiableView();
-        bitField0_ = (bitField0_ & ~0x00000002);
-      }
-      result.descriptionKeys_ = descriptionKeys_;
+      if (bitField0_ != 0) { buildPartial0(result); }
       onBuilt();
       return result;
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.common.v1.EntityRef result) {
+      int from_bitField0_ = bitField0_;
+      if (((from_bitField0_ & 0x00000001) != 0)) {
+        result.schemaUrl_ = schemaUrl_;
+      }
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.type_ = type_;
+      }
+      if (((from_bitField0_ & 0x00000004) != 0)) {
+        idKeys_.makeImmutable();
+        result.idKeys_ = idKeys_;
+      }
+      if (((from_bitField0_ & 0x00000008) != 0)) {
+        descriptionKeys_.makeImmutable();
+        result.descriptionKeys_ = descriptionKeys_;
+      }
     }
 
     @java.lang.Override
@@ -700,16 +635,18 @@ private static final long serialVersionUID = 0L;
       if (other == io.opentelemetry.proto.common.v1.EntityRef.getDefaultInstance()) return this;
       if (!other.getSchemaUrl().isEmpty()) {
         schemaUrl_ = other.schemaUrl_;
+        bitField0_ |= 0x00000001;
         onChanged();
       }
       if (!other.getType().isEmpty()) {
         type_ = other.type_;
+        bitField0_ |= 0x00000002;
         onChanged();
       }
       if (!other.idKeys_.isEmpty()) {
         if (idKeys_.isEmpty()) {
           idKeys_ = other.idKeys_;
-          bitField0_ = (bitField0_ & ~0x00000001);
+          bitField0_ |= 0x00000004;
         } else {
           ensureIdKeysIsMutable();
           idKeys_.addAll(other.idKeys_);
@@ -719,14 +656,14 @@ private static final long serialVersionUID = 0L;
       if (!other.descriptionKeys_.isEmpty()) {
         if (descriptionKeys_.isEmpty()) {
           descriptionKeys_ = other.descriptionKeys_;
-          bitField0_ = (bitField0_ & ~0x00000002);
+          bitField0_ |= 0x00000008;
         } else {
           ensureDescriptionKeysIsMutable();
           descriptionKeys_.addAll(other.descriptionKeys_);
         }
         onChanged();
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -741,17 +678,52 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.common.v1.EntityRef parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 10: {
+              schemaUrl_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000001;
+              break;
+            } // case 10
+            case 18: {
+              type_ = input.readStringRequireUtf8();
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 18
+            case 26: {
+              java.lang.String s = input.readStringRequireUtf8();
+              ensureIdKeysIsMutable();
+              idKeys_.add(s);
+              break;
+            } // case 26
+            case 34: {
+              java.lang.String s = input.readStringRequireUtf8();
+              ensureDescriptionKeysIsMutable();
+              descriptionKeys_.add(s);
+              break;
+            } // case 34
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.common.v1.EntityRef) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -762,10 +734,12 @@ private static final long serialVersionUID = 0L;
      * The Schema URL, if known. This is the identifier of the Schema that the entity data
      * is recorded in. To learn more about Schema URL see
      * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+     *
      * This schema_url applies to the data in this message and to the Resource attributes
      * referenced by id_keys and description_keys.
      * TODO: discuss if we are happy with this somewhat complicated definition of what
      * the schema_url applies to.
+     *
      * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
      * </pre>
      *
@@ -789,10 +763,12 @@ private static final long serialVersionUID = 0L;
      * The Schema URL, if known. This is the identifier of the Schema that the entity data
      * is recorded in. To learn more about Schema URL see
      * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+     *
      * This schema_url applies to the data in this message and to the Resource attributes
      * referenced by id_keys and description_keys.
      * TODO: discuss if we are happy with this somewhat complicated definition of what
      * the schema_url applies to.
+     *
      * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
      * </pre>
      *
@@ -817,10 +793,12 @@ private static final long serialVersionUID = 0L;
      * The Schema URL, if known. This is the identifier of the Schema that the entity data
      * is recorded in. To learn more about Schema URL see
      * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+     *
      * This schema_url applies to the data in this message and to the Resource attributes
      * referenced by id_keys and description_keys.
      * TODO: discuss if we are happy with this somewhat complicated definition of what
      * the schema_url applies to.
+     *
      * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
      * </pre>
      *
@@ -830,11 +808,9 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setSchemaUrl(
         java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  
+      if (value == null) { throw new NullPointerException(); }
       schemaUrl_ = value;
+      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -843,10 +819,12 @@ private static final long serialVersionUID = 0L;
      * The Schema URL, if known. This is the identifier of the Schema that the entity data
      * is recorded in. To learn more about Schema URL see
      * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+     *
      * This schema_url applies to the data in this message and to the Resource attributes
      * referenced by id_keys and description_keys.
      * TODO: discuss if we are happy with this somewhat complicated definition of what
      * the schema_url applies to.
+     *
      * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
      * </pre>
      *
@@ -854,8 +832,8 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearSchemaUrl() {
-      
       schemaUrl_ = getDefaultInstance().getSchemaUrl();
+      bitField0_ = (bitField0_ & ~0x00000001);
       onChanged();
       return this;
     }
@@ -864,10 +842,12 @@ private static final long serialVersionUID = 0L;
      * The Schema URL, if known. This is the identifier of the Schema that the entity data
      * is recorded in. To learn more about Schema URL see
      * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+     *
      * This schema_url applies to the data in this message and to the Resource attributes
      * referenced by id_keys and description_keys.
      * TODO: discuss if we are happy with this somewhat complicated definition of what
      * the schema_url applies to.
+     *
      * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
      * </pre>
      *
@@ -877,12 +857,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setSchemaUrlBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
-      
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
       schemaUrl_ = value;
+      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -946,11 +924,9 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setType(
         java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  
+      if (value == null) { throw new NullPointerException(); }
       type_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
@@ -965,8 +941,8 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearType() {
-      
       type_ = getDefaultInstance().getType();
+      bitField0_ = (bitField0_ & ~0x00000002);
       onChanged();
       return this;
     }
@@ -983,22 +959,21 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setTypeBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
-      
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
       type_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
 
-    private com.google.protobuf.LazyStringList idKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+    private com.google.protobuf.LazyStringArrayList idKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
     private void ensureIdKeysIsMutable() {
-      if (!((bitField0_ & 0x00000001) != 0)) {
+      if (!idKeys_.isModifiable()) {
         idKeys_ = new com.google.protobuf.LazyStringArrayList(idKeys_);
-        bitField0_ |= 0x00000001;
-       }
+      }
+      bitField0_ |= 0x00000004;
     }
     /**
      * <pre>
@@ -1012,7 +987,8 @@ private static final long serialVersionUID = 0L;
      */
     public com.google.protobuf.ProtocolStringList
         getIdKeysList() {
-      return idKeys_.getUnmodifiableView();
+      idKeys_.makeImmutable();
+      return idKeys_;
     }
     /**
      * <pre>
@@ -1070,11 +1046,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setIdKeys(
         int index, java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureIdKeysIsMutable();
+      if (value == null) { throw new NullPointerException(); }
+      ensureIdKeysIsMutable();
       idKeys_.set(index, value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1091,11 +1066,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder addIdKeys(
         java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureIdKeysIsMutable();
+      if (value == null) { throw new NullPointerException(); }
+      ensureIdKeysIsMutable();
       idKeys_.add(value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1115,6 +1089,7 @@ private static final long serialVersionUID = 0L;
       ensureIdKeysIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, idKeys_);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -1129,8 +1104,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearIdKeys() {
-      idKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-      bitField0_ = (bitField0_ & ~0x00000001);
+      idKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
+      bitField0_ = (bitField0_ & ~0x00000004);;
       onChanged();
       return this;
     }
@@ -1147,22 +1123,22 @@ private static final long serialVersionUID = 0L;
      */
     public Builder addIdKeysBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
       ensureIdKeysIsMutable();
       idKeys_.add(value);
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
 
-    private com.google.protobuf.LazyStringList descriptionKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+    private com.google.protobuf.LazyStringArrayList descriptionKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
     private void ensureDescriptionKeysIsMutable() {
-      if (!((bitField0_ & 0x00000002) != 0)) {
+      if (!descriptionKeys_.isModifiable()) {
         descriptionKeys_ = new com.google.protobuf.LazyStringArrayList(descriptionKeys_);
-        bitField0_ |= 0x00000002;
-       }
+      }
+      bitField0_ |= 0x00000008;
     }
     /**
      * <pre>
@@ -1177,7 +1153,8 @@ private static final long serialVersionUID = 0L;
      */
     public com.google.protobuf.ProtocolStringList
         getDescriptionKeysList() {
-      return descriptionKeys_.getUnmodifiableView();
+      descriptionKeys_.makeImmutable();
+      return descriptionKeys_;
     }
     /**
      * <pre>
@@ -1239,11 +1216,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setDescriptionKeys(
         int index, java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureDescriptionKeysIsMutable();
+      if (value == null) { throw new NullPointerException(); }
+      ensureDescriptionKeysIsMutable();
       descriptionKeys_.set(index, value);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1261,11 +1237,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder addDescriptionKeys(
         java.lang.String value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureDescriptionKeysIsMutable();
+      if (value == null) { throw new NullPointerException(); }
+      ensureDescriptionKeysIsMutable();
       descriptionKeys_.add(value);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1286,6 +1261,7 @@ private static final long serialVersionUID = 0L;
       ensureDescriptionKeysIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, descriptionKeys_);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1301,8 +1277,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearDescriptionKeys() {
-      descriptionKeys_ = com.google.protobuf.LazyStringArrayList.EMPTY;
-      bitField0_ = (bitField0_ & ~0x00000002);
+      descriptionKeys_ =
+        com.google.protobuf.LazyStringArrayList.emptyList();
+      bitField0_ = (bitField0_ & ~0x00000008);;
       onChanged();
       return this;
     }
@@ -1320,12 +1297,11 @@ private static final long serialVersionUID = 0L;
      */
     public Builder addDescriptionKeysBytes(
         com.google.protobuf.ByteString value) {
-      if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
+      if (value == null) { throw new NullPointerException(); }
+      checkByteStringIsUtf8(value);
       ensureDescriptionKeysIsMutable();
       descriptionKeys_.add(value);
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -1362,7 +1338,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new EntityRef(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

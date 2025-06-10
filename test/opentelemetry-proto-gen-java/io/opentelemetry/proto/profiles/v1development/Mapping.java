@@ -31,115 +31,6 @@ private static final long serialVersionUID = 0L;
     return new Mapping();
   }
 
-  @java.lang.Override
-  public final com.google.protobuf.UnknownFieldSet
-  getUnknownFields() {
-    return this.unknownFields;
-  }
-  private Mapping(
-      com.google.protobuf.CodedInputStream input,
-      com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-      throws com.google.protobuf.InvalidProtocolBufferException {
-    this();
-    if (extensionRegistry == null) {
-      throw new java.lang.NullPointerException();
-    }
-    int mutable_bitField0_ = 0;
-    com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-        com.google.protobuf.UnknownFieldSet.newBuilder();
-    try {
-      boolean done = false;
-      while (!done) {
-        int tag = input.readTag();
-        switch (tag) {
-          case 0:
-            done = true;
-            break;
-          case 8: {
-
-            memoryStart_ = input.readUInt64();
-            break;
-          }
-          case 16: {
-
-            memoryLimit_ = input.readUInt64();
-            break;
-          }
-          case 24: {
-
-            fileOffset_ = input.readUInt64();
-            break;
-          }
-          case 32: {
-
-            filenameStrindex_ = input.readInt32();
-            break;
-          }
-          case 40: {
-            if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            attributeIndices_.addInt(input.readInt32());
-            break;
-          }
-          case 42: {
-            int length = input.readRawVarint32();
-            int limit = input.pushLimit(length);
-            if (!((mutable_bitField0_ & 0x00000001) != 0) && input.getBytesUntilLimit() > 0) {
-              attributeIndices_ = newIntList();
-              mutable_bitField0_ |= 0x00000001;
-            }
-            while (input.getBytesUntilLimit() > 0) {
-              attributeIndices_.addInt(input.readInt32());
-            }
-            input.popLimit(limit);
-            break;
-          }
-          case 48: {
-
-            hasFunctions_ = input.readBool();
-            break;
-          }
-          case 56: {
-
-            hasFilenames_ = input.readBool();
-            break;
-          }
-          case 64: {
-
-            hasLineNumbers_ = input.readBool();
-            break;
-          }
-          case 72: {
-
-            hasInlineFrames_ = input.readBool();
-            break;
-          }
-          default: {
-            if (!parseUnknownField(
-                input, unknownFields, extensionRegistry, tag)) {
-              done = true;
-            }
-            break;
-          }
-        }
-      }
-    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-      throw e.setUnfinishedMessage(this);
-    } catch (com.google.protobuf.UninitializedMessageException e) {
-      throw e.asInvalidProtocolBufferException().setUnfinishedMessage(this);
-    } catch (java.io.IOException e) {
-      throw new com.google.protobuf.InvalidProtocolBufferException(
-          e).setUnfinishedMessage(this);
-    } finally {
-      if (((mutable_bitField0_ & 0x00000001) != 0)) {
-        attributeIndices_.makeImmutable(); // C
-      }
-      this.unknownFields = unknownFields.build();
-      makeExtensionsImmutable();
-    }
-  }
   public static final com.google.protobuf.Descriptors.Descriptor
       getDescriptor() {
     return io.opentelemetry.proto.profiles.v1development.ProfilesProto.internal_static_opentelemetry_proto_profiles_v1development_Mapping_descriptor;
@@ -154,7 +45,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int MEMORY_START_FIELD_NUMBER = 1;
-  private long memoryStart_;
+  private long memoryStart_ = 0L;
   /**
    * <pre>
    * Address at which the binary (or DLL) is loaded into memory.
@@ -169,7 +60,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int MEMORY_LIMIT_FIELD_NUMBER = 2;
-  private long memoryLimit_;
+  private long memoryLimit_ = 0L;
   /**
    * <pre>
    * The limit of the address range occupied by this mapping.
@@ -184,7 +75,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int FILE_OFFSET_FIELD_NUMBER = 3;
-  private long fileOffset_;
+  private long fileOffset_ = 0L;
   /**
    * <pre>
    * Offset in the binary that corresponds to the first mapped address.
@@ -199,7 +90,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int FILENAME_STRINDEX_FIELD_NUMBER = 4;
-  private int filenameStrindex_;
+  private int filenameStrindex_ = 0;
   /**
    * <pre>
    * The object this entry is loaded from.  This can be a filename on
@@ -216,7 +107,9 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int ATTRIBUTE_INDICES_FIELD_NUMBER = 5;
-  private com.google.protobuf.Internal.IntList attributeIndices_;
+  @SuppressWarnings("serial")
+  private com.google.protobuf.Internal.IntList attributeIndices_ =
+      emptyIntList();
   /**
    * <pre>
    * References to attributes in ProfilesDictionary.attribute_table. [optional]
@@ -256,7 +149,7 @@ private static final long serialVersionUID = 0L;
   private int attributeIndicesMemoizedSerializedSize = -1;
 
   public static final int HAS_FUNCTIONS_FIELD_NUMBER = 6;
-  private boolean hasFunctions_;
+  private boolean hasFunctions_ = false;
   /**
    * <pre>
    * The following fields indicate the resolution of symbolic info.
@@ -271,7 +164,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int HAS_FILENAMES_FIELD_NUMBER = 7;
-  private boolean hasFilenames_;
+  private boolean hasFilenames_ = false;
   /**
    * <code>bool has_filenames = 7;</code>
    * @return The hasFilenames.
@@ -282,7 +175,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int HAS_LINE_NUMBERS_FIELD_NUMBER = 8;
-  private boolean hasLineNumbers_;
+  private boolean hasLineNumbers_ = false;
   /**
    * <code>bool has_line_numbers = 8;</code>
    * @return The hasLineNumbers.
@@ -293,7 +186,7 @@ private static final long serialVersionUID = 0L;
   }
 
   public static final int HAS_INLINE_FRAMES_FIELD_NUMBER = 9;
-  private boolean hasInlineFrames_;
+  private boolean hasInlineFrames_ = false;
   /**
    * <code>bool has_inline_frames = 9;</code>
    * @return The hasInlineFrames.
@@ -349,7 +242,7 @@ private static final long serialVersionUID = 0L;
     if (hasInlineFrames_ != false) {
       output.writeBool(9, hasInlineFrames_);
     }
-    unknownFields.writeTo(output);
+    getUnknownFields().writeTo(output);
   }
 
   @java.lang.Override
@@ -404,7 +297,7 @@ private static final long serialVersionUID = 0L;
       size += com.google.protobuf.CodedOutputStream
         .computeBoolSize(9, hasInlineFrames_);
     }
-    size += unknownFields.getSerializedSize();
+    size += getUnknownFields().getSerializedSize();
     memoizedSize = size;
     return size;
   }
@@ -437,7 +330,7 @@ private static final long serialVersionUID = 0L;
         != other.getHasLineNumbers()) return false;
     if (getHasInlineFrames()
         != other.getHasInlineFrames()) return false;
-    if (!unknownFields.equals(other.unknownFields)) return false;
+    if (!getUnknownFields().equals(other.getUnknownFields())) return false;
     return true;
   }
 
@@ -475,7 +368,7 @@ private static final long serialVersionUID = 0L;
     hash = (37 * hash) + HAS_INLINE_FRAMES_FIELD_NUMBER;
     hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
         getHasInlineFrames());
-    hash = (29 * hash) + unknownFields.hashCode();
+    hash = (29 * hash) + getUnknownFields().hashCode();
     memoizedHashCode = hash;
     return hash;
   }
@@ -524,11 +417,13 @@ private static final long serialVersionUID = 0L;
     return com.google.protobuf.GeneratedMessageV3
         .parseWithIOException(PARSER, input, extensionRegistry);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Mapping parseDelimitedFrom(java.io.InputStream input)
       throws java.io.IOException {
     return com.google.protobuf.GeneratedMessageV3
         .parseDelimitedWithIOException(PARSER, input);
   }
+
   public static io.opentelemetry.proto.profiles.v1development.Mapping parseDelimitedFrom(
       java.io.InputStream input,
       com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -597,40 +492,27 @@ private static final long serialVersionUID = 0L;
 
     // Construct using io.opentelemetry.proto.profiles.v1development.Mapping.newBuilder()
     private Builder() {
-      maybeForceBuilderInitialization();
+
     }
 
     private Builder(
         com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
       super(parent);
-      maybeForceBuilderInitialization();
-    }
-    private void maybeForceBuilderInitialization() {
-      if (com.google.protobuf.GeneratedMessageV3
-              .alwaysUseFieldBuilders) {
-      }
+
     }
     @java.lang.Override
     public Builder clear() {
       super.clear();
+      bitField0_ = 0;
       memoryStart_ = 0L;
-
       memoryLimit_ = 0L;
-
       fileOffset_ = 0L;
-
       filenameStrindex_ = 0;
-
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000001);
       hasFunctions_ = false;
-
       hasFilenames_ = false;
-
       hasLineNumbers_ = false;
-
       hasInlineFrames_ = false;
-
       return this;
     }
 
@@ -657,22 +539,41 @@ private static final long serialVersionUID = 0L;
     @java.lang.Override
     public io.opentelemetry.proto.profiles.v1development.Mapping buildPartial() {
       io.opentelemetry.proto.profiles.v1development.Mapping result = new io.opentelemetry.proto.profiles.v1development.Mapping(this);
-      int from_bitField0_ = bitField0_;
-      result.memoryStart_ = memoryStart_;
-      result.memoryLimit_ = memoryLimit_;
-      result.fileOffset_ = fileOffset_;
-      result.filenameStrindex_ = filenameStrindex_;
-      if (((bitField0_ & 0x00000001) != 0)) {
-        attributeIndices_.makeImmutable();
-        bitField0_ = (bitField0_ & ~0x00000001);
-      }
-      result.attributeIndices_ = attributeIndices_;
-      result.hasFunctions_ = hasFunctions_;
-      result.hasFilenames_ = hasFilenames_;
-      result.hasLineNumbers_ = hasLineNumbers_;
-      result.hasInlineFrames_ = hasInlineFrames_;
+      if (bitField0_ != 0) { buildPartial0(result); }
       onBuilt();
       return result;
+    }
+
+    private void buildPartial0(io.opentelemetry.proto.profiles.v1development.Mapping result) {
+      int from_bitField0_ = bitField0_;
+      if (((from_bitField0_ & 0x00000001) != 0)) {
+        result.memoryStart_ = memoryStart_;
+      }
+      if (((from_bitField0_ & 0x00000002) != 0)) {
+        result.memoryLimit_ = memoryLimit_;
+      }
+      if (((from_bitField0_ & 0x00000004) != 0)) {
+        result.fileOffset_ = fileOffset_;
+      }
+      if (((from_bitField0_ & 0x00000008) != 0)) {
+        result.filenameStrindex_ = filenameStrindex_;
+      }
+      if (((from_bitField0_ & 0x00000010) != 0)) {
+        attributeIndices_.makeImmutable();
+        result.attributeIndices_ = attributeIndices_;
+      }
+      if (((from_bitField0_ & 0x00000020) != 0)) {
+        result.hasFunctions_ = hasFunctions_;
+      }
+      if (((from_bitField0_ & 0x00000040) != 0)) {
+        result.hasFilenames_ = hasFilenames_;
+      }
+      if (((from_bitField0_ & 0x00000080) != 0)) {
+        result.hasLineNumbers_ = hasLineNumbers_;
+      }
+      if (((from_bitField0_ & 0x00000100) != 0)) {
+        result.hasInlineFrames_ = hasInlineFrames_;
+      }
     }
 
     @java.lang.Override
@@ -734,7 +635,8 @@ private static final long serialVersionUID = 0L;
       if (!other.attributeIndices_.isEmpty()) {
         if (attributeIndices_.isEmpty()) {
           attributeIndices_ = other.attributeIndices_;
-          bitField0_ = (bitField0_ & ~0x00000001);
+          attributeIndices_.makeImmutable();
+          bitField0_ |= 0x00000010;
         } else {
           ensureAttributeIndicesIsMutable();
           attributeIndices_.addAll(other.attributeIndices_);
@@ -753,7 +655,7 @@ private static final long serialVersionUID = 0L;
       if (other.getHasInlineFrames() != false) {
         setHasInlineFrames(other.getHasInlineFrames());
       }
-      this.mergeUnknownFields(other.unknownFields);
+      this.mergeUnknownFields(other.getUnknownFields());
       onChanged();
       return this;
     }
@@ -768,17 +670,86 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
-      io.opentelemetry.proto.profiles.v1development.Mapping parsedMessage = null;
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
       try {
-        parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 8: {
+              memoryStart_ = input.readUInt64();
+              bitField0_ |= 0x00000001;
+              break;
+            } // case 8
+            case 16: {
+              memoryLimit_ = input.readUInt64();
+              bitField0_ |= 0x00000002;
+              break;
+            } // case 16
+            case 24: {
+              fileOffset_ = input.readUInt64();
+              bitField0_ |= 0x00000004;
+              break;
+            } // case 24
+            case 32: {
+              filenameStrindex_ = input.readInt32();
+              bitField0_ |= 0x00000008;
+              break;
+            } // case 32
+            case 40: {
+              int v = input.readInt32();
+              ensureAttributeIndicesIsMutable();
+              attributeIndices_.addInt(v);
+              break;
+            } // case 40
+            case 42: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              ensureAttributeIndicesIsMutable();
+              while (input.getBytesUntilLimit() > 0) {
+                attributeIndices_.addInt(input.readInt32());
+              }
+              input.popLimit(limit);
+              break;
+            } // case 42
+            case 48: {
+              hasFunctions_ = input.readBool();
+              bitField0_ |= 0x00000020;
+              break;
+            } // case 48
+            case 56: {
+              hasFilenames_ = input.readBool();
+              bitField0_ |= 0x00000040;
+              break;
+            } // case 56
+            case 64: {
+              hasLineNumbers_ = input.readBool();
+              bitField0_ |= 0x00000080;
+              break;
+            } // case 64
+            case 72: {
+              hasInlineFrames_ = input.readBool();
+              bitField0_ |= 0x00000100;
+              break;
+            } // case 72
+            default: {
+              if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                done = true; // was an endgroup tag
+              }
+              break;
+            } // default:
+          } // switch (tag)
+        } // while (!done)
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        parsedMessage = (io.opentelemetry.proto.profiles.v1development.Mapping) e.getUnfinishedMessage();
         throw e.unwrapIOException();
       } finally {
-        if (parsedMessage != null) {
-          mergeFrom(parsedMessage);
-        }
-      }
+        onChanged();
+      } // finally
       return this;
     }
     private int bitField0_;
@@ -806,8 +777,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setMemoryStart(long value) {
-      
+
       memoryStart_ = value;
+      bitField0_ |= 0x00000001;
       onChanged();
       return this;
     }
@@ -820,7 +792,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearMemoryStart() {
-      
+      bitField0_ = (bitField0_ & ~0x00000001);
       memoryStart_ = 0L;
       onChanged();
       return this;
@@ -849,8 +821,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setMemoryLimit(long value) {
-      
+
       memoryLimit_ = value;
+      bitField0_ |= 0x00000002;
       onChanged();
       return this;
     }
@@ -863,7 +836,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearMemoryLimit() {
-      
+      bitField0_ = (bitField0_ & ~0x00000002);
       memoryLimit_ = 0L;
       onChanged();
       return this;
@@ -892,8 +865,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setFileOffset(long value) {
-      
+
       fileOffset_ = value;
+      bitField0_ |= 0x00000004;
       onChanged();
       return this;
     }
@@ -906,7 +880,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearFileOffset() {
-      
+      bitField0_ = (bitField0_ & ~0x00000004);
       fileOffset_ = 0L;
       onChanged();
       return this;
@@ -939,8 +913,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setFilenameStrindex(int value) {
-      
+
       filenameStrindex_ = value;
+      bitField0_ |= 0x00000008;
       onChanged();
       return this;
     }
@@ -955,7 +930,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearFilenameStrindex() {
-      
+      bitField0_ = (bitField0_ & ~0x00000008);
       filenameStrindex_ = 0;
       onChanged();
       return this;
@@ -963,10 +938,10 @@ private static final long serialVersionUID = 0L;
 
     private com.google.protobuf.Internal.IntList attributeIndices_ = emptyIntList();
     private void ensureAttributeIndicesIsMutable() {
-      if (!((bitField0_ & 0x00000001) != 0)) {
-        attributeIndices_ = mutableCopy(attributeIndices_);
-        bitField0_ |= 0x00000001;
-       }
+      if (!attributeIndices_.isModifiable()) {
+        attributeIndices_ = makeMutableCopy(attributeIndices_);
+      }
+      bitField0_ |= 0x00000010;
     }
     /**
      * <pre>
@@ -978,8 +953,8 @@ private static final long serialVersionUID = 0L;
      */
     public java.util.List<java.lang.Integer>
         getAttributeIndicesList() {
-      return ((bitField0_ & 0x00000001) != 0) ?
-               java.util.Collections.unmodifiableList(attributeIndices_) : attributeIndices_;
+      attributeIndices_.makeImmutable();
+      return attributeIndices_;
     }
     /**
      * <pre>
@@ -1016,8 +991,10 @@ private static final long serialVersionUID = 0L;
      */
     public Builder setAttributeIndices(
         int index, int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.setInt(index, value);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1031,8 +1008,10 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder addAttributeIndices(int value) {
+
       ensureAttributeIndicesIsMutable();
       attributeIndices_.addInt(value);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1050,6 +1029,7 @@ private static final long serialVersionUID = 0L;
       ensureAttributeIndicesIsMutable();
       com.google.protobuf.AbstractMessageLite.Builder.addAll(
           values, attributeIndices_);
+      bitField0_ |= 0x00000010;
       onChanged();
       return this;
     }
@@ -1063,7 +1043,7 @@ private static final long serialVersionUID = 0L;
      */
     public Builder clearAttributeIndices() {
       attributeIndices_ = emptyIntList();
-      bitField0_ = (bitField0_ & ~0x00000001);
+      bitField0_ = (bitField0_ & ~0x00000010);
       onChanged();
       return this;
     }
@@ -1091,8 +1071,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setHasFunctions(boolean value) {
-      
+
       hasFunctions_ = value;
+      bitField0_ |= 0x00000020;
       onChanged();
       return this;
     }
@@ -1105,7 +1086,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearHasFunctions() {
-      
+      bitField0_ = (bitField0_ & ~0x00000020);
       hasFunctions_ = false;
       onChanged();
       return this;
@@ -1126,8 +1107,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setHasFilenames(boolean value) {
-      
+
       hasFilenames_ = value;
+      bitField0_ |= 0x00000040;
       onChanged();
       return this;
     }
@@ -1136,7 +1118,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearHasFilenames() {
-      
+      bitField0_ = (bitField0_ & ~0x00000040);
       hasFilenames_ = false;
       onChanged();
       return this;
@@ -1157,8 +1139,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setHasLineNumbers(boolean value) {
-      
+
       hasLineNumbers_ = value;
+      bitField0_ |= 0x00000080;
       onChanged();
       return this;
     }
@@ -1167,7 +1150,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearHasLineNumbers() {
-      
+      bitField0_ = (bitField0_ & ~0x00000080);
       hasLineNumbers_ = false;
       onChanged();
       return this;
@@ -1188,8 +1171,9 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder setHasInlineFrames(boolean value) {
-      
+
       hasInlineFrames_ = value;
+      bitField0_ |= 0x00000100;
       onChanged();
       return this;
     }
@@ -1198,7 +1182,7 @@ private static final long serialVersionUID = 0L;
      * @return This builder for chaining.
      */
     public Builder clearHasInlineFrames() {
-      
+      bitField0_ = (bitField0_ & ~0x00000100);
       hasInlineFrames_ = false;
       onChanged();
       return this;
@@ -1236,7 +1220,18 @@ private static final long serialVersionUID = 0L;
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-      return new Mapping(input, extensionRegistry);
+      Builder builder = newBuilder();
+      try {
+        builder.mergeFrom(input, extensionRegistry);
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(builder.buildPartial());
+      } catch (com.google.protobuf.UninitializedMessageException e) {
+        throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(e)
+            .setUnfinishedMessage(builder.buildPartial());
+      }
+      return builder.buildPartial();
     }
   };
 

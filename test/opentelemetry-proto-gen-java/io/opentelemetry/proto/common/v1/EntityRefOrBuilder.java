@@ -12,10 +12,12 @@ public interface EntityRefOrBuilder extends
    * The Schema URL, if known. This is the identifier of the Schema that the entity data
    * is recorded in. To learn more about Schema URL see
    * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+   *
    * This schema_url applies to the data in this message and to the Resource attributes
    * referenced by id_keys and description_keys.
    * TODO: discuss if we are happy with this somewhat complicated definition of what
    * the schema_url applies to.
+   *
    * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
    * </pre>
    *
@@ -28,10 +30,12 @@ public interface EntityRefOrBuilder extends
    * The Schema URL, if known. This is the identifier of the Schema that the entity data
    * is recorded in. To learn more about Schema URL see
    * https://opentelemetry.io/docs/specs/otel/schemas/#schema-url
+   *
    * This schema_url applies to the data in this message and to the Resource attributes
    * referenced by id_keys and description_keys.
    * TODO: discuss if we are happy with this somewhat complicated definition of what
    * the schema_url applies to.
+   *
    * This field obsoletes the schema_url field in ResourceMetrics/ResourceSpans/ResourceLogs.
    * </pre>
    *
