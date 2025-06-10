@@ -9,6 +9,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "arch.h"
 
 // Keeps track of values seen and their index of occurrence
@@ -26,7 +27,7 @@ class Index {
     }
 
     void forEachOrdered(std::function<void(const std::string&)> consumer) const {
-        const std::string* arr[_idx_map.size()];
+        std::vector<const std::string*> arr{_idx_map.size()};
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
         }

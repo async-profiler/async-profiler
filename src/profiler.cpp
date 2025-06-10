@@ -1674,24 +1674,24 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     recordSampleType(otlp_buffer, _engine, strings, "count");
     recordSampleType(otlp_buffer, _engine, strings, _engine->units());
 
-    std::vector<CallTraceSample*> callTraceSamples;
-    _call_trace_storage.collectSamples(callTraceSamples);
+    std::vector<CallTraceSample*> call_trace_samples;
+    _call_trace_storage.collectSamples(call_trace_samples);
 
     struct SampleInfo {
         u64 counter;
         u64 samples;
         u32 num_frames;
     };
-    std::vector<SampleInfo> samplesInfo;
-    samplesInfo.reserve(callTraceSamples.size());
+    std::vector<SampleInfo> samples_info;
+    samples_info.reserve(call_trace_samples.size());
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (const auto& callTraceSample : callTraceSamples) {
-        CallTrace* trace = callTraceSample->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace) || callTraceSample->samples == 0) continue;
+    for (const auto& call_trace_sample : call_trace_samples) {
+        CallTrace* trace = call_trace_sample->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace) || call_trace_sample->samples == 0) continue;
 
-        samplesInfo.push_back(SampleInfo{callTraceSample->samples, callTraceSample->counter, (u32) trace->num_frames});
+        samples_info.push_back(SampleInfo{call_trace_sample->samples, call_trace_sample->counter, (u32) trace->num_frames});
         for (u32 j = 0; j < trace->num_frames; ++j) {
             u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
@@ -1700,7 +1700,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(location_indices_mark);
 
     u64 frames_seen = 0;
-    for (const SampleInfo& sampleInfo : samplesInfo) {
+    for (const SampleInfo& sampleInfo : samples_info) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, sampleInfo.num_frames);
