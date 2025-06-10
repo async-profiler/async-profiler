@@ -33,6 +33,8 @@ public class TestProcess implements Closeable {
     public static final String LIBPROF = "%lib";
     public static final String TESTBIN = "%testbin";
     public static final String TESTLIB = "%testlib";
+    public static final String PRELOAD = "%preload";
+    public static final String EXT = "%ext";
 
     private static final String JAVA_HOME = System.getProperty("java.home");
 
@@ -86,10 +88,11 @@ public class TestProcess implements Closeable {
         for (String env : test.env()) {
             String[] keyValue = env.split("=", 2);
             if (keyValue.length == 2) {
-                pb.environment().put(keyValue[0], substituteFiles(keyValue[1]));
+                pb.environment().put(substituteFiles(keyValue[0]), substituteFiles(keyValue[1]));
             }
         }
         pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
+        pb.environment().put("DYLD_FORCE_FLAT_NAMESPACE", "1");
 
         this.p = pb.start();
 
@@ -121,6 +124,13 @@ public class TestProcess implements Closeable {
 
     public String testLibPath() {
         return "build/test/lib";
+    }
+
+    public String preload() {
+        if (currentOs().equals(Os.MACOS)) {
+            return "DYLD_INSERT_LIBRARIES";
+        }
+        return "LD_PRELOAD";
     }
 
     private List<String> buildCommandLine(Test test) {
@@ -202,6 +212,12 @@ public class TestProcess implements Closeable {
         }
         if (fileId.equals(TESTLIB)) {
             return testLibPath();
+        }
+        if (fileId.equals(PRELOAD)) {
+            return preload();
+        }
+        if (fileId.equals(EXT)) {
+            return currentOs().getLibExt();
         }
         return createTempFile(fileId, ext).getPath();
     }

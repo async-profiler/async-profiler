@@ -143,7 +143,7 @@ class Profiler {
 
     static void* pthreadTimerEntry(void* arg) {
         instance()->timerLoop(arg);
-        return NULL;
+        pthread_exit(NULL);
     }
 
     void lockAll();

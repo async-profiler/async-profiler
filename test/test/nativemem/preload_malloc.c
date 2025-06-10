@@ -9,6 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __APPLE__
+#define LIB_EXT ".dylib"
+#else
+#define LIB_EXT ".so"
+#endif
+
 asprof_error_str_t _asprof_error_str;
 asprof_execute_t _asprof_execute;
 asprof_init_t _asprof_init;
@@ -45,7 +51,7 @@ void executeAsyncProfilerCommand(char* cmd) {
 }
 
 void initAsyncProfiler() {
-    void* libprof = openLib("libasyncProfiler.so");
+    void* libprof = openLib("build/lib/libasyncProfiler" LIB_EXT);
 
     _asprof_init = (asprof_init_t)getSymbol(libprof, "asprof_init");
     _asprof_init();
