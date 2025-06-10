@@ -17,7 +17,7 @@ class Index {
     std::unordered_map<std::string, u32> _idx_map;
   
   public:
-    u32 recordIndex(std::string value) {
+    u32 indexOf(std::string value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
 

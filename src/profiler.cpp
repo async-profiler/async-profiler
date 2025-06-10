@@ -1652,11 +1652,11 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, Index& string_idx_container, const char* unit) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, Index& strings, const char* unit) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type);
-    otlp_buffer.field(ValueType::type_strindex, string_idx_container.recordIndex(engine->type()));
-    otlp_buffer.field(ValueType::unit_strindex, string_idx_container.recordIndex(unit));
+    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(engine->type()));
+    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(unit));
     otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
     otlp_buffer.commitMessage(sample_type_mark);
 }
@@ -1665,8 +1665,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer{OTLP_BUFFER_INITIAL_SIZE};
 
-    Index string_idx_container;
-    Index function_idx_container;
+    Index strings;
+    Index functions;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1676,11 +1676,11 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // TODO: Test this once it gets reviewed
     if (args._counter == COUNTER_TOTAL) {
-        recordSampleType(otlp_buffer, _engine, string_idx_container, _engine->units());
-        recordSampleType(otlp_buffer, _engine, string_idx_container, "count");
+        recordSampleType(otlp_buffer, _engine, strings, _engine->units());
+        recordSampleType(otlp_buffer, _engine, strings, "count");
     } else if (args._counter == COUNTER_SAMPLES) {
-        recordSampleType(otlp_buffer, _engine, string_idx_container, "count");
-        recordSampleType(otlp_buffer, _engine, string_idx_container, _engine->units());
+        recordSampleType(otlp_buffer, _engine, strings, "count");
+        recordSampleType(otlp_buffer, _engine, strings, _engine->units());
     }
 
     std::vector<CallTraceSample*> samples;
@@ -1707,7 +1707,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         samples_num_frames[samples_idx] = trace->num_frames;
         for (u64 j = 0; j < samples_num_frames[samples_idx]; ++j) {
-            u64 function_idx = function_idx_container.recordIndex(fn.name(trace->frames[j]));
+            u64 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
         }
         ++samples_idx;
@@ -1743,15 +1743,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
-    function_idx_container.forEachOrdered([&] (const std::string& function_name) {
+    functions.forEachOrdered([&] (const std::string& function_name) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table);
-        u32 function_name_strindex = string_idx_container.recordIndex(function_name);
-        otlp_buffer.field(Function::name_strindex, function_name_strindex);
+        otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
         otlp_buffer.commitMessage(function_mark);
     });
 
     // Write location_table
-    for (u64 function_idx = 0; function_idx < function_idx_container.size(); ++function_idx) {
+    for (u64 function_idx = 0; function_idx < functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table);
         // TODO: Fix me when more Mappings are added
         otlp_buffer.field(Location::mapping_index, (u64) 0);
@@ -1762,7 +1761,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     }
 
     // Write string_table
-    string_idx_container.forEachOrdered([&] (const std::string& s) {
+    strings.forEachOrdered([&] (const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
     });
 
