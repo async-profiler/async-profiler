@@ -31,6 +31,7 @@
 #include "frameName.h"
 #include "os.h"
 #include "otlp.h"
+#include "protobuf.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"
@@ -1687,11 +1688,11 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (const auto& call_trace_sample : call_trace_samples) {
-        CallTrace* trace = call_trace_sample->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace) || call_trace_sample->samples == 0) continue;
+    for (const auto& cts : call_trace_samples) {
+        CallTrace* trace = cts->acquireTrace();
+        if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        samples_info.push_back(SampleInfo{call_trace_sample->samples, call_trace_sample->counter, (u32) trace->num_frames});
+        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (u32) trace->num_frames});
         for (u32 j = 0; j < trace->num_frames; ++j) {
             u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
@@ -1700,19 +1701,19 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(location_indices_mark);
 
     u64 frames_seen = 0;
-    for (const SampleInfo& sampleInfo : samples_info) {
+    for (const SampleInfo& si : samples_info) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, sampleInfo.num_frames);
+        otlp_buffer.field(Sample::locations_length, si.num_frames);
 
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value);
-        otlp_buffer.putVarInt(sampleInfo.samples);
-        otlp_buffer.putVarInt(sampleInfo.counter);
+        otlp_buffer.putVarInt(si.samples);
+        otlp_buffer.putVarInt(si.counter);
         otlp_buffer.commitMessage(sample_value_mark);
 
         otlp_buffer.commitMessage(sample_mark);
 
-        frames_seen += sampleInfo.num_frames;
+        frames_seen += si.num_frames;
     }
 
     otlp_buffer.commitMessage(profile_mark);

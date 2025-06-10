@@ -9,7 +9,6 @@
 #include <map>
 #include <string>
 #include <time.h>
-#include "protobuf.h"
 #include "arch.h"
 #include "arguments.h"
 #include "callTraceStorage.h"

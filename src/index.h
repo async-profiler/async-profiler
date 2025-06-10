@@ -27,7 +27,7 @@ class Index {
     }
 
     void forEachOrdered(std::function<void(const std::string&)> consumer) const {
-        std::vector<const std::string*> arr{_idx_map.size()};
+        std::vector<const std::string*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
         }
