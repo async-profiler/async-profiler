@@ -34,12 +34,17 @@ public class OtlpTests {
         ProfilesData profilesData = waitAndGetProfileData(p);
 
         Profile profile = getFirstProfile(profilesData);
-        assert profile.getSampleTypeList().size() == 1;
+        assert profile.getSampleTypeList().size() == 2;
 
-        ValueType sampleType = profile.getSampleType(0);
-        assert profilesData.getDictionary().getStringTable(sampleType.getTypeStrindex()).equals("itimer");
-        assert profilesData.getDictionary().getStringTable(sampleType.getUnitStrindex()).equals("ns");
-        assert sampleType.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+        ValueType sampleType0 = profile.getSampleType(0);
+        assert profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()).equals("itimer");
+        assert profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()).equals("count");
+        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+
+        ValueType sampleType1 = profile.getSampleType(1);
+        assert profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()).equals("itimer");
+        assert profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()).equals("ns");
+        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
