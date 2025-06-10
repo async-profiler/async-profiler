@@ -1702,11 +1702,11 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     u64 frames_seen = 0;
     for (const SampleInfo& si : samples_info) {
-        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample);
+        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, si.num_frames);
 
-        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value);
+        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(si.samples);
         otlp_buffer.putVarInt(si.counter);
         otlp_buffer.commitMessage(sample_value_mark);
@@ -1724,7 +1724,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // Write mapping_table
     // TODO: Include per-binary debug info
-    protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table);
+    protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
@@ -1741,7 +1741,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
         otlp_buffer.field(Location::mapping_index, (u64) 0);
-        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line);
+        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
         otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
