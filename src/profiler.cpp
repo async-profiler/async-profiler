@@ -1736,8 +1736,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write location_table
     for (u64 function_idx = 0; function_idx < functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table);
-        // TODO: Fix me when more Mappings are added
-        otlp_buffer.field(Location::mapping_index, (u64) 0);
         protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line);
         otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);
