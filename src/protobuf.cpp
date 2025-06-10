@@ -69,20 +69,35 @@ void ProtoBuffer::field(protobuf_index_t index, const unsigned char* s, size_t l
     _offset += len;
 }
 
-protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index) {
+protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t len_byte_count) {
     tag(index, LEN);
 
-    ensureCapacity(NESTED_FIELD_BYTE_COUNT);
-    _offset += NESTED_FIELD_BYTE_COUNT;
-    return _offset;
+    ensureCapacity(len_byte_count);
+
+    protobuf_mark_t mark{_offset, len_byte_count};
+    _offset += len_byte_count;
+    return mark;
 }
 
-void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
-    size_t message_length = _offset - mark;
-    for (size_t i = 0; i < NESTED_FIELD_BYTE_COUNT - 1; ++i) {
-        size_t idx = mark - NESTED_FIELD_BYTE_COUNT + i;
-        _data[idx] = (unsigned char) (0x80 | (message_length & 0x7f));
-        message_length >>= 7;
+void ProtoBuffer::commitMessage(const protobuf_mark_t& mark) {
+    size_t actual_len = _offset - (mark.message_start + mark.expected_len_byte_count);
+    size_t actual_len_byte_count = varIntSize(actual_len);
+    if (actual_len_byte_count > mark.expected_len_byte_count) {
+        _offset = mark.message_start;
+        // The tag is already accounted for before mark.message_start
+        ensureCapacity(actual_len_byte_count + actual_len);
+        memmove(_data + mark.message_start + actual_len_byte_count,
+                _data + mark.message_start + mark.expected_len_byte_count,
+                actual_len);
+        _offset = mark.message_start + actual_len_byte_count + actual_len;
+    } else {
+        actual_len_byte_count = mark.expected_len_byte_count;
     }
-    _data[mark - 1] = (unsigned char) message_length;
+
+    for (size_t i = 0; i < actual_len_byte_count - 1; ++i) {
+        size_t idx = mark.message_start + i;
+        _data[idx] = (unsigned char) (0x80 | (actual_len & 0x7f));
+        actual_len >>= 7;
+    }
+    _data[mark.message_start + actual_len_byte_count - 1] = (unsigned char) actual_len;
 }

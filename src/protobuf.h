@@ -14,7 +14,10 @@ protobuf_t VARINT = 0;
 protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
-typedef u32 protobuf_mark_t;
+struct protobuf_mark_t {
+    size_t message_start;
+    size_t expected_len_byte_count;
+};
 
 // We assume the length of a nested field can be represented with 3 varint bytes.
 const size_t NESTED_FIELD_BYTE_COUNT = 3;
@@ -46,8 +49,8 @@ class ProtoBuffer {
     void field(protobuf_index_t index, const char* s, size_t len);
     void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
-    protobuf_mark_t startMessage(protobuf_index_t index);
-    void commitMessage(protobuf_mark_t mark);
+    protobuf_mark_t startMessage(protobuf_index_t index, size_t len_byte_count = NESTED_FIELD_BYTE_COUNT);
+    void commitMessage(const protobuf_mark_t& mark);
 
     void putVarInt(u64 n);
     static size_t varIntSize(u64 value);
