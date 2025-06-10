@@ -17,11 +17,6 @@ import one.profiler.test.*;
 import io.opentelemetry.proto.profiles.v1development.*;
 
 public class OtlpTests {
-    static {
-        // TODO: https://github.com/open-telemetry/build-tools/issues/410
-        System.setProperty("com.google.protobuf.use_unsafe_pre22_gencode", "true");
-    }
-
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void testOtlpReadable(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfileData(p);

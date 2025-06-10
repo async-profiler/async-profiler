@@ -134,8 +134,7 @@ endif
 # OTLP Protobuf
 OPENTELEMETRY_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
 OPENTELEMETRY_PROTO_GEN_OUTPUT=test/opentelemetry-proto-gen-java
-# TODO: https://github.com/open-telemetry/build-tools/issues/410
-PROTOBUF_JAVA_VERSION=3.25.8
+PROTOBUF_JAVA_VERSION=4.31.1
 PROTOBUF_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_JAVA_VERSION)/protobuf-java-$(PROTOBUF_JAVA_VERSION).jar
 PROTOBUF_JAVA_JAR=protobuf-java.jar
 DEPS_DIR=build/deps
