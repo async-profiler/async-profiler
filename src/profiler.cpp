@@ -1664,7 +1664,6 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Engine* engine, Index& st
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer{OTLP_BUFFER_INITIAL_SIZE};
-
     Index strings;
     Index functions;
 
@@ -1672,16 +1671,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    otlp_buffer.field(Profile::period, (u64) args._interval);
-
-    // TODO: Test this once it gets reviewed
-    if (args._counter == COUNTER_TOTAL) {
-        recordSampleType(otlp_buffer, _engine, strings, _engine->units());
-        recordSampleType(otlp_buffer, _engine, strings, "count");
-    } else if (args._counter == COUNTER_SAMPLES) {
-        recordSampleType(otlp_buffer, _engine, strings, "count");
-        recordSampleType(otlp_buffer, _engine, strings, _engine->units());
-    }
+    recordSampleType(otlp_buffer, _engine, strings, "count");
+    recordSampleType(otlp_buffer, _engine, strings, _engine->units());
 
     std::vector<CallTraceSample*> callTraceSamples;
     _call_trace_storage.collectSamples(callTraceSamples);
@@ -1698,13 +1689,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
     for (const auto& callTraceSample : callTraceSamples) {
         CallTrace* trace = callTraceSample->acquireTrace();
-        if (trace == NULL || excludeTrace(&fn, trace)) continue;
-
-        if (args._counter == COUNTER_SAMPLES && callTraceSample->samples == 0 ||
-            args._counter == COUNTER_TOTAL && callTraceSample->counter == 0) continue;
+        if (trace == NULL || excludeTrace(&fn, trace) || callTraceSample->samples == 0) continue;
 
         samplesInfo.push_back(SampleInfo{callTraceSample->samples, callTraceSample->counter, (u32) trace->num_frames});
-
         for (u32 j = 0; j < trace->num_frames; ++j) {
             u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
@@ -1719,13 +1706,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.field(Sample::locations_length, sampleInfo.num_frames);
 
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value);
-        if (args._counter == COUNTER_SAMPLES) {
-            otlp_buffer.putVarInt(sampleInfo.samples);
-            otlp_buffer.putVarInt(sampleInfo.counter);
-        } else if (args._counter == COUNTER_TOTAL) {
-            otlp_buffer.putVarInt(sampleInfo.counter);
-            otlp_buffer.putVarInt(sampleInfo.samples);
-        }
+        otlp_buffer.putVarInt(sampleInfo.samples);
+        otlp_buffer.putVarInt(sampleInfo.counter);
         otlp_buffer.commitMessage(sample_value_mark);
 
         otlp_buffer.commitMessage(sample_mark);
