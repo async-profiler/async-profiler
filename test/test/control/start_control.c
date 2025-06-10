@@ -13,6 +13,12 @@ asprof_error_str_t _asprof_error_str;
 asprof_execute_t _asprof_execute;
 asprof_init_t _asprof_init;
 
+#ifdef __APPLE__
+#define LIB_EXT ".dylib"
+#else
+#define LIB_EXT ".so"
+#endif
+
 void* openLib(const char* name) {
     void* ptr = dlopen(name, RTLD_NOW);
     if (ptr == NULL) {
@@ -45,7 +51,7 @@ void executeAsyncProfilerCommand(const char* cmd) {
 }
 
 void initAsyncProfiler() {
-    void* libprof = openLib("libasyncProfiler.so");
+    void* libprof = openLib("build/lib/libasyncProfiler" LIB_EXT);
 
     _asprof_init = (asprof_init_t)getSymbol(libprof, "asprof_init");
     _asprof_init();
