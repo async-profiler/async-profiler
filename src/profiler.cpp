@@ -1683,52 +1683,54 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         recordSampleType(otlp_buffer, _engine, strings, _engine->units());
     }
 
-    std::vector<CallTraceSample*> samples;
-    _call_trace_storage.collectSamples(samples);
+    std::vector<CallTraceSample*> callTraceSamples;
+    _call_trace_storage.collectSamples(callTraceSamples);
 
-    u32 samples_counter[samples.size()][2];
-    u32 samples_num_frames[samples.size()];
-    size_t samples_idx = 0;
+    struct SampleInfo {
+        u64 counter;
+        u64 samples;
+        u32 num_frames;
+    };
+    std::vector<SampleInfo> samplesInfo;
+    samplesInfo.reserve(callTraceSamples.size());
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (auto it = samples.begin(); it != samples.end(); ++it) {
-        CallTrace* trace = (*it)->acquireTrace();
+    for (const auto& callTraceSample : callTraceSamples) {
+        CallTrace* trace = callTraceSample->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace)) continue;
 
-        if (args._counter == COUNTER_TOTAL) {
-            samples_counter[samples_idx][0] = (*it)->counter;
-            samples_counter[samples_idx][1] = (*it)->samples;
-        } else if (args._counter == COUNTER_SAMPLES) {
-            samples_counter[samples_idx][0] = (*it)->samples;
-            samples_counter[samples_idx][1] = (*it)->counter;
-        }
-        if (samples_counter[samples_idx][0] == 0) continue;
+        if (args._counter == COUNTER_SAMPLES && callTraceSample->samples == 0 ||
+            args._counter == COUNTER_TOTAL && callTraceSample->counter == 0) continue;
 
-        samples_num_frames[samples_idx] = trace->num_frames;
-        for (u64 j = 0; j < samples_num_frames[samples_idx]; ++j) {
-            u64 function_idx = functions.indexOf(fn.name(trace->frames[j]));
+        samplesInfo.push_back(SampleInfo{callTraceSample->samples, callTraceSample->counter, (u32) trace->num_frames});
+
+        for (u32 j = 0; j < trace->num_frames; ++j) {
+            u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
         }
-        ++samples_idx;
     }
     otlp_buffer.commitMessage(location_indices_mark);
 
     u64 frames_seen = 0;
-    for (samples_idx = 0; samples_idx < samples.size() && samples_counter[samples_idx][0] > 0; samples_idx++) {
+    for (const SampleInfo& sampleInfo : samplesInfo) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, samples_num_frames[samples_idx]);
+        otlp_buffer.field(Sample::locations_length, sampleInfo.num_frames);
 
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value);
-        for (size_t sample_counter_idx = 0; sample_counter_idx < 2; ++sample_counter_idx) {
-            otlp_buffer.putVarInt(samples_counter[samples_idx][sample_counter_idx]);
+        if (args._counter == COUNTER_SAMPLES) {
+            otlp_buffer.putVarInt(sampleInfo.samples);
+            otlp_buffer.putVarInt(sampleInfo.counter);
+        } else if (args._counter == COUNTER_TOTAL) {
+            otlp_buffer.putVarInt(sampleInfo.counter);
+            otlp_buffer.putVarInt(sampleInfo.samples);
         }
         otlp_buffer.commitMessage(sample_value_mark);
 
         otlp_buffer.commitMessage(sample_mark);
 
-        frames_seen += samples_num_frames[samples_idx];
+        frames_seen += sampleInfo.num_frames;
     }
 
     otlp_buffer.commitMessage(profile_mark);
