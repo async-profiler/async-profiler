@@ -134,4 +134,20 @@ public class Arguments {
 
         return cal.getTimeInMillis();
     }
+
+    public String getValueType() {
+        if (nativemem) return "malloc";
+        if (alloc || live) return "allocations";
+        if (lock) return "locks";
+        return "cpu";
+    }
+
+    public String getSampleUnits() {
+        return "count";
+    }
+
+    public String getTotalUnits() {
+        if (nativemem || alloc || live) return "bytes";
+        return "nanoseconds";
+    }
 }
