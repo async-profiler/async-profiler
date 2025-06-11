@@ -38,7 +38,7 @@ void ProtoBuffer::ensureCapacity(size_t new_data_size) {
 void ProtoBuffer::putVarInt(u64 n) {
     ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
-        _data[_offset++] = (unsigned char) (0x80 | (n & 0x7f));
+        _data[_offset++] = (unsigned char) (0x80 | n);
         n >>= 7;
     }
     _data[_offset++] = (unsigned char) n;
@@ -87,9 +87,8 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
     size_t actual_len = _offset - (message_start + max_len_byte_count);
     assert(varIntSize(actual_len) <= max_len_byte_count);
 
-    for (size_t i = 0; i < max_len_byte_count - 1; ++i) {
-        size_t idx = message_start + i;
-        _data[idx] = 0x80 | (unsigned char)actual_len;
+    for (size_t i = 0; i < max_len_byte_count - 1; i++) {
+        _data[message_start + i] = (unsigned char) (0x80 | actual_len);
         actual_len >>= 7;
     }
     _data[message_start + max_len_byte_count - 1] = (unsigned char) actual_len;

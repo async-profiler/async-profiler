@@ -1691,8 +1691,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (u32) trace->num_frames});
-        for (u32 j = 0; j < trace->num_frames; ++j) {
+        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (u32)trace->num_frames});
+        for (int j = 0; j < trace->num_frames; j++) {
             u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
         }
@@ -1721,8 +1721,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    // Write mapping_table
-    // TODO: Include per-binary debug info
+    // Write mapping_table. Not currently used, but required by some parsers
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
@@ -1736,10 +1735,10 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write location_table
     for (u64 function_idx = 0; function_idx < functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
-        // TODO: set to the proper mapping when new mapping are added.
+        // TODO: set to the proper mapping when new mappings are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
-        otlp_buffer.field(Location::mapping_index, (u64) 0);
+        otlp_buffer.field(Location::mapping_index, (u64)0);
         protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
         otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);

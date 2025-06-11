@@ -5,8 +5,6 @@
 
 package one.profiler;
 
-import java.nio.ByteBuffer;
-
 /**
  * AsyncProfiler interface for JMX server.
  * How to register AsyncProfiler MBean:
