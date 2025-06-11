@@ -37,7 +37,6 @@ void* getSymbol(void* lib, const char* name) {
     return ptr;
 }
 
-
 void outputCallback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stdout);
 }

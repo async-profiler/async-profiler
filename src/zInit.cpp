@@ -16,14 +16,14 @@ class LateInitializer {
   public:
     LateInitializer() {
         Dl_info dl_info;
-        if (dladdr((const void*)Hooks::init, &dl_info) && dl_info.dli_fname != NULL) {
+        if (!OS::isMusl() && dladdr((const void*)Hooks::init, &dl_info) && dl_info.dli_fname != NULL) {
             // Make sure async-profiler DSO cannot be unloaded, since it contains JVM callbacks.
             // This is not relevant for musl, where dlclose() is no-op.
             // Can't use ELF NODELETE flag because of https://sourceware.org/bugzilla/show_bug.cgi?id=20839
-            if (!OS::isMusl()) dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
+            dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        if (!checkJvmLoaded() && checkPreload(dl_info)) {
+        if (!checkJvmLoaded() && checkPreload()) {
             const char* command = getenv("ASPROF_COMMAND");
             if (command != NULL && Hooks::init(false)) {
                 startProfiler(command);
@@ -32,14 +32,11 @@ class LateInitializer {
     }
 
   private:
-    static bool checkPreload(Dl_info dl_info) {
-        const char* preload = getenv("LD_PRELOAD");
-        if (preload == NULL) {
-            return false;
-        }
+    static bool checkPreload() {
+        CodeCache* dlopen_cc = Profiler::instance()->findLibraryByAddress((const void*)dlopen);
+        CodeCache* current_cc = Profiler::instance()->findLibraryByAddress((const void*)Hooks::init);
 
-        // prevent profiler from auto starting on dlopen when ASPROF_COMMAND is defined
-        return strstr(preload, dl_info.dli_fname) != NULL;
+        return (void*)dlopen_cc == (void*)current_cc;
     }
 
     static bool checkJvmLoaded() {
