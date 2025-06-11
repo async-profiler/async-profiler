@@ -1663,7 +1663,7 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const cha
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
-    ProtoBuffer otlp_buffer{OTLP_BUFFER_INITIAL_SIZE};
+    ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
     Index functions;
 
