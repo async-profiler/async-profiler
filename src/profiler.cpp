@@ -31,7 +31,6 @@
 #include "frameName.h"
 #include "os.h"
 #include "otlp.h"
-#include "protobuf.h"
 #include "safeAccess.h"
 #include "stackFrame.h"
 #include "stackWalker.h"

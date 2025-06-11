@@ -89,7 +89,7 @@ void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
 
     for (size_t i = 0; i < max_len_byte_count - 1; ++i) {
         size_t idx = message_start + i;
-        _data[idx] = (unsigned char) (0x80 | (actual_len & 0x7f));
+        _data[idx] = 0x80 | (unsigned char)actual_len;
         actual_len >>= 7;
     }
     _data[message_start + max_len_byte_count - 1] = (unsigned char) actual_len;

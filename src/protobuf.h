@@ -48,7 +48,7 @@ class ProtoBuffer {
     void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
     protobuf_mark_t startMessage(protobuf_index_t index, size_t max_len_byte_count = NESTED_FIELD_BYTE_COUNT);
-    void commitMessage(const protobuf_mark_t& mark);
+    void commitMessage(protobuf_mark_t mark);
 
     void putVarInt(u64 n);
     static size_t varIntSize(u64 value);
