@@ -1655,7 +1655,7 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
 
 static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
     using namespace Otlp;
-    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type);
+    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
     otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
     otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
     otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
@@ -1729,14 +1729,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // Write function_table
     functions.forEachOrdered([&] (const std::string& function_name) {
-        protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table);
+        protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
         otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
         otlp_buffer.commitMessage(function_mark);
     });
 
     // Write location_table
     for (u64 function_idx = 0; function_idx < functions.size(); ++function_idx) {
-        protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table);
+        protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
         // TODO: set to the proper mapping when new mapping are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
