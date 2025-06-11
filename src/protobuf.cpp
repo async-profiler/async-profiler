@@ -80,8 +80,8 @@ protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t len_byt
 }
 
 void ProtoBuffer::commitMessage(const protobuf_mark_t& mark) {
-    u32 expected_len_byte_count = mark & 7;
-    u32 message_start = mark >> 3;
+    size_t expected_len_byte_count = mark & 7;
+    size_t message_start = mark >> 3;
 
     size_t actual_len = _offset - (message_start + expected_len_byte_count);
     size_t actual_len_byte_count = varIntSize(actual_len);
