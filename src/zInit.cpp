@@ -33,15 +33,10 @@ class LateInitializer {
 
   private:
     static bool checkPreload() {
-#ifdef __linux__
         CodeCache* dlopen_cc = Profiler::instance()->findLibraryByAddress((const void*)dlopen);
         CodeCache* current_cc = Profiler::instance()->findLibraryByAddress((const void*)Hooks::init);
 
         return (void*)dlopen_cc == (void*)current_cc;
-#else
-        // LD_PRELOAD isn't supported on MacOs
-        return false;
-#endif
     }
 
     static bool checkJvmLoaded() {
