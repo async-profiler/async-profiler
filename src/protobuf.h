@@ -14,7 +14,7 @@ protobuf_t VARINT = 0;
 protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
-// 3 bits for requested byte count for the message size
+// 3 bits for the maximum byte count for the message size
 // 61 bits for the message start
 typedef u64 protobuf_mark_t;
 
@@ -47,7 +47,7 @@ class ProtoBuffer {
     void field(protobuf_index_t index, const char* s, size_t len);
     void field(protobuf_index_t index, const unsigned char* s, size_t len);
 
-    protobuf_mark_t startMessage(protobuf_index_t index, size_t len_byte_count = NESTED_FIELD_BYTE_COUNT);
+    protobuf_mark_t startMessage(protobuf_index_t index, size_t max_len_byte_count = NESTED_FIELD_BYTE_COUNT);
     void commitMessage(const protobuf_mark_t& mark);
 
     void putVarInt(u64 n);

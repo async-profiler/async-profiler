@@ -129,44 +129,6 @@ TEST_CASE(Buffer_test_nestedMessageWithString) {
     CHECK_EQ(strncmp((const char*) buf.data() + 10, "ciao", 4), 0);
 }
 
-TEST_CASE(Buffer_test_wrongExpectedLenByteCount) {
-    ProtoBuffer buf(100);
-
-    protobuf_mark_t mark = buf.startMessage(3, 1);
-    unsigned char s[128];
-    for (unsigned char i = 0; i < 128; ++i) s[i] = i;
-    buf.field(5, s, 128);
-    buf.commitMessage(mark);
-
-    CHECK_EQ(buf.offset(), 1 + 2 + 1 + 2 + 128);
-    CHECK_EQ(buf.data()[0], (3 << 3) | LEN);
-    CHECK_EQ(readVarInt(buf.data() + 1), 1 + 2 + 128);
-    CHECK_EQ(buf.data()[3], (5 << 3) | LEN);
-    CHECK_EQ(readVarInt(buf.data() + 4), 128);
-    for (unsigned char i = 0; i < 128; ++i) CHECK_EQ(buf.data()[i + 6], i);
-}
-
-TEST_CASE(Buffer_test_wrongExpectedLenByteCountWithNestedMessage) {
-    ProtoBuffer buf(100);
-
-    protobuf_mark_t mark1 = buf.startMessage(3, 1);
-    protobuf_mark_t mark2 = buf.startMessage(4, 1);
-    unsigned char s[128];
-    for (unsigned char i = 0; i < 128; ++i) s[i] = i;
-    buf.field(5, s, 128);
-    buf.commitMessage(mark2);
-    buf.commitMessage(mark1);
-
-    CHECK_EQ(buf.offset(), 1 + 2 + 1 + 2 + 1 + 2 + 128);
-    CHECK_EQ(buf.data()[0], (3 << 3) | LEN);
-    CHECK_EQ(readVarInt(buf.data() + 1), 1 + 2 + 1 + 2 + 128);
-    CHECK_EQ(buf.data()[3], (4 << 3) | LEN);
-    CHECK_EQ(readVarInt(buf.data() + 4), 1 + 2 + 128);
-    CHECK_EQ(buf.data()[6], (5 << 3) | LEN);
-    CHECK_EQ(readVarInt(buf.data() + 7), 128);
-    for (unsigned char i = 0; i < 128; ++i) CHECK_EQ(buf.data()[i + 9], i);
-}
-
 TEST_CASE(Buffer_test_maxTag) {
     ProtoBuffer buf(100);
 

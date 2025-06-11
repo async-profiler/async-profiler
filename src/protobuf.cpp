@@ -6,6 +6,7 @@
 #include <sys/param.h>
 #include <string.h>
 #include <stdlib.h>
+#include "assert.h"
 #include "protobuf.h"
 
 ProtoBuffer::ProtoBuffer(size_t initial_capacity) : _offset(0) {
@@ -69,38 +70,27 @@ void ProtoBuffer::field(protobuf_index_t index, const unsigned char* s, size_t l
     _offset += len;
 }
 
-protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t len_byte_count) {
+protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t max_len_byte_count) {
     tag(index, LEN);
 
-    ensureCapacity(len_byte_count);
+    ensureCapacity(max_len_byte_count);
 
-    protobuf_mark_t mark = _offset << 3 | len_byte_count;
-    _offset += len_byte_count;
+    protobuf_mark_t mark = _offset << 3 | max_len_byte_count;
+    _offset += max_len_byte_count;
     return mark;
 }
 
 void ProtoBuffer::commitMessage(const protobuf_mark_t& mark) {
-    size_t expected_len_byte_count = mark & 7;
+    size_t max_len_byte_count = mark & 7;
     size_t message_start = mark >> 3;
 
-    size_t actual_len = _offset - (message_start + expected_len_byte_count);
-    size_t actual_len_byte_count = varIntSize(actual_len);
-    if (actual_len_byte_count > expected_len_byte_count) {
-        _offset = message_start;
-        // The tag is already accounted for before message_start
-        ensureCapacity(actual_len_byte_count + actual_len);
-        memmove(_data + message_start + actual_len_byte_count,
-                _data + message_start + expected_len_byte_count,
-                actual_len);
-        _offset = message_start + actual_len_byte_count + actual_len;
-    } else {
-        actual_len_byte_count = expected_len_byte_count;
-    }
+    size_t actual_len = _offset - (message_start + max_len_byte_count);
+    assert(varIntSize(actual_len) <= max_len_byte_count);
 
-    for (size_t i = 0; i < actual_len_byte_count - 1; ++i) {
+    for (size_t i = 0; i < max_len_byte_count - 1; ++i) {
         size_t idx = message_start + i;
         _data[idx] = (unsigned char) (0x80 | (actual_len & 0x7f));
         actual_len >>= 7;
     }
-    _data[message_start + actual_len_byte_count - 1] = (unsigned char) actual_len;
+    _data[message_start + max_len_byte_count - 1] = (unsigned char) actual_len;
 }
