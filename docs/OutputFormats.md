@@ -60,4 +60,4 @@ async-profiler currently supports the following output formats:
   some of many options to visualize `jfr` files. More details [here](JfrVisualization.md).
 
 - `otlp` - OpenTelemetry protocol format for [profiling data](https://opentelemetry.io/blog/2024/profiling). Support for this output format should be considered experimental, backword-incompatible
-changes may happen in future releases of Async-Profiler.
+  changes may happen in future releases of Async-Profiler.
