@@ -19,8 +19,7 @@ struct protobuf_mark_t {
     size_t expected_len_byte_count;
 };
 
-// We assume the length of a nested field can be represented with 3 varint bytes.
-const size_t NESTED_FIELD_BYTE_COUNT = 3;
+const size_t NESTED_FIELD_BYTE_COUNT = 5;
 const size_t MINIMUM_INITIAL_SIZE = 16;
 
 class ProtoBuffer {
