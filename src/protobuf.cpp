@@ -80,7 +80,7 @@ protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t max_len
     return mark;
 }
 
-void ProtoBuffer::commitMessage(const protobuf_mark_t& mark) {
+void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
     size_t max_len_byte_count = mark & 7;
     size_t message_start = mark >> 3;
 
