@@ -90,7 +90,7 @@ TEST_CASE(Buffer_test_string) {
 TEST_CASE(Buffer_test_nestedField) {
     ProtoBuffer buf(100);
 
-    protobuf_mark_t mark = buf.startMessage(4);
+    protobuf_mark_t mark = buf.startMessage(4, 3);
     buf.field(3, (u64)10);
     buf.field(5, true);
     buf.commitMessage(mark);
@@ -109,8 +109,8 @@ TEST_CASE(Buffer_test_nestedField) {
 TEST_CASE(Buffer_test_nestedMessageWithString) {
     ProtoBuffer buf(100);
 
-    protobuf_mark_t mark1 = buf.startMessage(3);
-    protobuf_mark_t mark2 = buf.startMessage(4);
+    protobuf_mark_t mark1 = buf.startMessage(3, 3);
+    protobuf_mark_t mark2 = buf.startMessage(4, 3);
     buf.field(5, "ciao");
     buf.commitMessage(mark1);
     buf.commitMessage(mark2);

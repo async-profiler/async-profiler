@@ -14,10 +14,9 @@ protobuf_t VARINT = 0;
 protobuf_t LEN = 2;
 
 typedef u32 protobuf_index_t;
-struct protobuf_mark_t {
-    size_t message_start;
-    size_t expected_len_byte_count;
-};
+// 3 bits for requested byte count for the message size
+// 61 bits for the message start
+typedef u64 protobuf_mark_t;
 
 const size_t NESTED_FIELD_BYTE_COUNT = 5;
 const size_t MINIMUM_INITIAL_SIZE = 16;
