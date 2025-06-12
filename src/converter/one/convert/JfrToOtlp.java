@@ -42,35 +42,7 @@ public class JfrToOtlp extends JfrConverter {
 
         int locationIndicesMark = otlpProto.startField(Otlp.Profile.LOCATION_INDICES);
         List<SampleInfo> sampleInfos = new ArrayList<>();
-        collector.forEach(
-                new NormalizedEventVisitor() {
-
-                    @Override
-                    public void visitImpl(Event event, long samples, long value) {
-                        StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
-                        if (stackTrace == null) {
-                            return;
-                        }
-
-                        Arguments args = JfrToOtlp.this.args;
-                        long[] methods = stackTrace.methods;
-                        byte[] types = stackTrace.types;
-                        int[] locations = stackTrace.locations;
-
-                        for (int i = methods.length; --i >= 0; ) {
-                            String methodName = getMethodName(methods[i], types[i]);
-                            int location;
-                            if (args.lines && (location = locations[i] >>> 16) != 0) {
-                                methodName += ":" + location;
-                            } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
-                                methodName += "@" + location;
-                            }
-                            otlpProto.writeLong(functionPool.index(methodName));
-                        }
-
-                        sampleInfos.add(new SampleInfo(samples, value, methods.length));
-                    }
-                });
+        collector.forEach(new OtlpEventVisitor(sampleInfos));
         otlpProto.commitField(locationIndicesMark);
 
         long framesSeen = 0;
@@ -161,6 +133,40 @@ public class JfrToOtlp extends JfrConverter {
         }
         try (FileOutputStream out = new FileOutputStream(output)) {
             converter.dump(out);
+        }
+    }
+
+    private final class OtlpEventVisitor extends NormalizedEventVisitor {
+        private final List<SampleInfo> sampleInfos;
+
+        public OtlpEventVisitor(List<SampleInfo> sampleInfos) {
+            this.sampleInfos = sampleInfos;
+        }
+
+        @Override
+        public void visitImpl(Event event, long samples, long value) {
+            StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
+            if (stackTrace == null) {
+                return;
+            }
+
+            Arguments args = JfrToOtlp.this.args;
+            long[] methods = stackTrace.methods;
+            byte[] types = stackTrace.types;
+            int[] locations = stackTrace.locations;
+
+            for (int i = methods.length; --i >= 0; ) {
+                String methodName = getMethodName(methods[i], types[i]);
+                int location;
+                if (args.lines && (location = locations[i] >>> 16) != 0) {
+                    methodName += ":" + location;
+                } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
+                    methodName += "@" + location;
+                }
+                otlpProto.writeLong(functionPool.index(methodName));
+            }
+
+            sampleInfos.add(new SampleInfo(samples, value, methods.length));
         }
     }
 
