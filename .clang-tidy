@@ -19,7 +19,7 @@ CheckOptions:
   - key: readability-identifier-naming.LocalVariableCase
     value: lower_case
   - key: readability-identifier-naming.LocalVariableIgnoredRegexp
-    value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R)'
+    value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R|s_)'
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
   - key: google-readability-braces-around-statements.ShortStatementLines
