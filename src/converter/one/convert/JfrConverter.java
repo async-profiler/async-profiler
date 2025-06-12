@@ -264,7 +264,7 @@ public abstract class JfrConverter extends Classifier {
     // For lock events, convert lock duration from ticks to nanoseconds.
     protected abstract class AggregatedEventVisitor extends NormalizedEventVisitor {
         @Override
-        protected void visitImpl(Event event, long samples, long value) {
+        protected final void visitImpl(Event event, long samples, long value) {
             visit(event, args.total ? value : samples);
         }
 

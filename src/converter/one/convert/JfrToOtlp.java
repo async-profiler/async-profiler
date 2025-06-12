@@ -19,7 +19,7 @@ import java.util.List;
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
-    private final Index<String> functionsPool = new Index<>(String.class, "");
+    private final Index<String> functionPool = new Index<>(String.class, "");
     private final Proto otlpProto = new Proto(1024);
 
     private final int resourceProfilesMark;
@@ -67,7 +67,7 @@ public class JfrToOtlp extends JfrConverter {
                                 methodName += "@" + location;
                             }
                             stack.push(methodName, types[i]);
-                            otlpProto.writeLong(functionsPool.index(methodName));
+                            otlpProto.writeLong(functionPool.index(methodName));
                         }
 
                         sampleInfos.add(new SampleInfo(samples, value, stack.size));
@@ -132,14 +132,14 @@ public class JfrToOtlp extends JfrConverter {
         otlpProto.commitField(mappingMark);
 
         // Write function table
-        for (String functionName : functionsPool.keys()) {
+        for (String functionName : functionPool.keys()) {
             int functionMark = otlpProto.startField(Otlp.ProfilesDictionary.FUNCTION_TABLE);
             otlpProto.field(Otlp.Function.NAME_STRINDEX, stringPool.index(functionName));
             otlpProto.commitField(functionMark);
         }
 
         // Write location table
-        for (long functionIdx = 0; functionIdx < functionsPool.size(); ++functionIdx) {
+        for (long functionIdx = 0; functionIdx < functionPool.size(); ++functionIdx) {
             int locationMark = otlpProto.startField(Otlp.ProfilesDictionary.LOCATION_TABLE);
             otlpProto.field(Otlp.Location.MAPPING_INDEX, 0);
             int lineMark = otlpProto.startField(Otlp.Location.LINE);
