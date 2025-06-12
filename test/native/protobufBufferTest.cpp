@@ -7,42 +7,44 @@
 #include "testRunner.hpp"
 #include <string.h>
 
-TEST_CASE(Buffer_test_var32_0) {
+static u64 readVarInt(const unsigned char* data) {
+    size_t idx = 0;
+    u64 output = 0;
+    while (data[idx] & 0x80) {
+        output += ((u64) data[idx] & 0x7F) << (7 * idx);
+        idx++;
+    }
+    return output + ((u64) data[idx] << (7 * idx));
+}
+
+TEST_CASE(Buffer_test_varint_0) {
     ProtoBuffer buf(100);
 
     buf.field(3, (u64)0);
 
     CHECK_EQ(buf.offset(), 2);
     CHECK_EQ(buf.data()[0], (3 << 3) | VARINT);
-    CHECK_EQ(buf.data()[1], 0);
+    CHECK_EQ(readVarInt(buf.data() + 1), 0);
 }
 
-TEST_CASE(Buffer_test_var32_150) {
+TEST_CASE(Buffer_test_varint_150) {
     ProtoBuffer buf(100);
 
     buf.field(3, (u64)150);
 
     CHECK_EQ(buf.offset(), 3);
     CHECK_EQ(buf.data()[0], (3 << 3) | VARINT);
-    CHECK_EQ(buf.data()[1], 150);
-    CHECK_EQ(buf.data()[2], 1);
+    CHECK_EQ(readVarInt(buf.data() + 1), 150);
 }
 
-TEST_CASE(Buffer_test_var64_LargeNumber) {
+TEST_CASE(Buffer_test_varint_LargeNumber) {
     ProtoBuffer buf(100);
 
     buf.field(1, (u64)17574838338834838);
 
     CHECK_EQ(buf.offset(), 9);
     CHECK_EQ(buf.data()[0], (1 << 3) | VARINT);
-    CHECK_EQ(buf.data()[1], 150);
-    CHECK_EQ(buf.data()[2], 163);
-    CHECK_EQ(buf.data()[3], 175);
-    CHECK_EQ(buf.data()[4], 225);
-    CHECK_EQ(buf.data()[5], 142);
-    CHECK_EQ(buf.data()[6], 135);
-    CHECK_EQ(buf.data()[7], 156);
-    CHECK_EQ(buf.data()[8], 31);
+    CHECK_EQ(readVarInt(buf.data() + 1), 17574838338834838);
 }
 
 TEST_CASE(Buffer_test_var32_bool) {
@@ -88,7 +90,7 @@ TEST_CASE(Buffer_test_string) {
 TEST_CASE(Buffer_test_nestedField) {
     ProtoBuffer buf(100);
 
-    protobuf_mark_t mark = buf.startMessage(4);
+    protobuf_mark_t mark = buf.startMessage(4, 3);
     buf.field(3, (u64)10);
     buf.field(5, true);
     buf.commitMessage(mark);
@@ -107,8 +109,8 @@ TEST_CASE(Buffer_test_nestedField) {
 TEST_CASE(Buffer_test_nestedMessageWithString) {
     ProtoBuffer buf(100);
 
-    protobuf_mark_t mark1 = buf.startMessage(3);
-    protobuf_mark_t mark2 = buf.startMessage(4);
+    protobuf_mark_t mark1 = buf.startMessage(3, 3);
+    protobuf_mark_t mark2 = buf.startMessage(4, 3);
     buf.field(5, "ciao");
     buf.commitMessage(mark1);
     buf.commitMessage(mark2);
@@ -131,7 +133,7 @@ TEST_CASE(Buffer_test_maxTag) {
     ProtoBuffer buf(100);
 
     // https://protobuf.dev/programming-guides/proto3/#assigning-field-numbers
-    const protobuf_mark_t max_tag = 536870911;
+    const protobuf_index_t max_tag = 536870911;
     buf.field(max_tag, (u64) 3);
 
     CHECK_EQ(buf.offset(), 6);

@@ -125,9 +125,11 @@ static int read_response(int fd, const char* cmd, int print_output) {
         ssize_t bytes = read(fd, buf + off, size - off);
         if (bytes == 0) {
             fprintf(stderr, "Unexpected EOF reading response\n");
+            free(buf);
             return 1;
         } else if (bytes < 0) {
             perror("Error reading response");
+            free(buf);
             return 1;
         }
 
