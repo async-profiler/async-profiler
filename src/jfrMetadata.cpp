@@ -280,7 +280,4 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage"))
 
         << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
-
-    // The map is used only during construction
-    _strings.clear();
 }
