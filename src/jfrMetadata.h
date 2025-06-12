@@ -7,7 +7,6 @@
 #define _JFRMETADATA_H
 
 #include <string>
-#include <map>
 #include <vector>
 #include <stdio.h>
 #include <string.h>
