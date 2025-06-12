@@ -32,16 +32,14 @@ class LateInitializer {
     }
 
   private:
-    // Function checks if the current async-profiler shared object is preloaded or not
-    // This is done by checking which shared object the dlopen belongs to
-    // If that shared object is the same as the current shared object that would mean that the profiler is in PRELOAD mode
-    // However if the dlopen belongs to a different shared object that would indicate that the profiler started in a different mode
     static bool checkPreload(){
         Dl_info current_info;
         if (dladdr((const void*)Hooks::init, &current_info) == 0 || current_info.dli_fname == NULL) {
             return false;
         }
 
+        // On Linux: Check if dlopen belong to the profiler shared objects
+        // If the dlopen is found inside the profiler shared objects that is a good indication that the profiler is preloaded
         if (OS::isLinux()) {
             Dl_info dlopen_info;
             if (dladdr((const void*)dlopen, &dlopen_info) == 0 || dlopen_info.dli_fname == NULL) {
@@ -51,6 +49,8 @@ class LateInitializer {
             return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
         }
 
+        // On MacOs: Check if the profiler is a part of the DYLD_INSERT_LIBRARIES environment variable
+        // dladdr for dlopen will always resolve to the current shared objects due to the declaration of dlopen in the hooks.cpp file
         const char* preload = getenv("DYLD_INSERT_LIBRARIES");
         if (preload == NULL) {
             return false;
