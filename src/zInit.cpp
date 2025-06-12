@@ -44,8 +44,6 @@ class LateInitializer {
             return false;
         }
 
-        fprintf(stderr, "%s => %s\n", current_info.dli_fname, dlopen_info.dli_fname);
-
         return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
     }
 
