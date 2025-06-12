@@ -31,6 +31,9 @@ class Otlp {
         static final int SAMPLE_TYPE = 1;
         static final int SAMPLE = 2;
         static final int LOCATION_INDICES = 3;
+        static final int TIME_NANOS = 4;
+        static final int DURATION_NANOS = 5;
+        static final int ORIGINAL_PAYLOAD = 13;
     }
 
     static final class ValueType {

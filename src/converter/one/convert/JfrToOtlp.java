@@ -16,9 +16,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Converts .jfr output to OpenTelemetry protocol.
- */
+/** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionsPool = new Index<>(String.class, "");
@@ -26,69 +24,56 @@ public class JfrToOtlp extends JfrConverter {
 
     private final int resourceProfilesMark;
     private final int scopeProfilesMark;
-    private final int profileMark;
-    private final int locationIndicesMark;
-    private final List<SampleInfo> sampleInfos = new ArrayList<>();
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
 
         resourceProfilesMark = otlpProto.startField(Otlp.ProfilesData.RESOURCE_PROFILES);
         scopeProfilesMark = otlpProto.startField(Otlp.ResourceProfiles.SCOPE_PROFILES);
-        profileMark = otlpProto.startField(Otlp.ScopeProfiles.PROFILES);
-
-        int sampleTypeSamplesMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getSampleUnits()));
-        otlpProto.field(Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
-        otlpProto.commitField(sampleTypeSamplesMark);
-
-        int sampleTypeTotalMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getTotalUnits()));
-        otlpProto.field(Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
-        otlpProto.commitField(sampleTypeTotalMark);
-
-        locationIndicesMark = otlpProto.startField(Otlp.Profile.LOCATION_INDICES);
     }
 
-    // TODO: Do we need to aggregate across different chunks? Is it handled by the JfrReader?
     @Override
     protected void convertChunk() {
-        collector.forEach(new NormalizedEventVisitor() {
-            final CallStack stack = new CallStack();
+        int profileMark = otlpProto.startField(Otlp.ScopeProfiles.PROFILES);
 
-            @Override
-            public void visitImpl(Event event, long samples, long value) {
-                StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
-                if (stackTrace == null) {
-                    return;
-                }
+        writeSampleTypes();
+        writeTimingInformation();
+        otlpProto.field(Otlp.Profile.ORIGINAL_PAYLOAD, jfr.currentChunk());
 
-                Arguments args = JfrToOtlp.this.args;
-                long[] methods = stackTrace.methods;
-                byte[] types = stackTrace.types;
-                int[] locations = stackTrace.locations;
+        int locationIndicesMark = otlpProto.startField(Otlp.Profile.LOCATION_INDICES);
+        List<SampleInfo> sampleInfos = new ArrayList<>();
+        collector.forEach(
+                new NormalizedEventVisitor() {
+                    final CallStack stack = new CallStack();
 
-                for (int i = methods.length; --i >= 0; ) {
-                    String methodName = getMethodName(methods[i], types[i]);
-                    int location;
-                    if (args.lines && (location = locations[i] >>> 16) != 0) {
-                        methodName += ":" + location;
-                    } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
-                        methodName += "@" + location;
+                    @Override
+                    public void visitImpl(Event event, long samples, long value) {
+                        StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
+                        if (stackTrace == null) {
+                            return;
+                        }
+
+                        Arguments args = JfrToOtlp.this.args;
+                        long[] methods = stackTrace.methods;
+                        byte[] types = stackTrace.types;
+                        int[] locations = stackTrace.locations;
+
+                        for (int i = methods.length; --i >= 0; ) {
+                            String methodName = getMethodName(methods[i], types[i]);
+                            int location;
+                            if (args.lines && (location = locations[i] >>> 16) != 0) {
+                                methodName += ":" + location;
+                            } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
+                                methodName += "@" + location;
+                            }
+                            stack.push(methodName, types[i]);
+                            otlpProto.writeLong(functionsPool.index(methodName));
+                        }
+
+                        sampleInfos.add(new SampleInfo(samples, value, stack.size));
+                        stack.clear();
                     }
-                    stack.push(methodName, types[i]);
-                    otlpProto.writeLong(functionsPool.index(methodName));
-                }
-
-                sampleInfos.add(new SampleInfo(samples, value, stack.size));
-                stack.clear();
-            }
-        });
-    }
-
-    public void dump(OutputStream out) throws IOException {
+                });
         otlpProto.commitField(locationIndicesMark);
 
         long framesSeen = 0;
@@ -108,6 +93,30 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         otlpProto.commitField(profileMark);
+    }
+
+    private void writeSampleTypes() {
+        int sampleTypeSamplesMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
+        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
+        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getSampleUnits()));
+        otlpProto.field(
+                Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
+        otlpProto.commitField(sampleTypeSamplesMark);
+
+        int sampleTypeTotalMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
+        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
+        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getTotalUnits()));
+        otlpProto.field(
+                Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
+        otlpProto.commitField(sampleTypeTotalMark);
+    }
+
+    private void writeTimingInformation() {
+        otlpProto.field(Otlp.Profile.TIME_NANOS, jfr.getChunkStartNanos());
+        otlpProto.field(Otlp.Profile.DURATION_NANOS, jfr.chunkDurationNanos());
+    }
+
+    public void dump(OutputStream out) throws IOException {
         otlpProto.commitField(scopeProfilesMark);
         otlpProto.commitField(resourceProfilesMark);
 
@@ -146,7 +155,6 @@ public class JfrToOtlp extends JfrConverter {
 
         otlpProto.commitField(profilesDictionaryMark);
     }
-
 
     public static void convert(String input, String output, Arguments args) throws IOException {
         JfrToOtlp converter;

@@ -106,6 +106,10 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public ByteBuffer currentChunk() {
+        return buf.asReadOnlyBuffer();
+    }
+
     public boolean eof() {
         return state >= STATE_EOF;
     }
@@ -116,6 +120,14 @@ public class JfrReader implements Closeable {
 
     public long durationNanos() {
         return endNanos - startNanos;
+    }
+
+    public long getChunkStartNanos() {
+        return chunkStartNanos;
+    }
+
+    public long chunkDurationNanos() {
+        return chunkEndNanos - chunkStartNanos;
     }
 
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
