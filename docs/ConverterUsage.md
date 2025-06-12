@@ -8,9 +8,9 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 | Source    | html | collapsed | pprof | pb.gz | heatmap | otlp |
 | --------- | ---- | --------- | ----- | ----- | ------- | ---- |
-| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      | ✅    |
-| html      | ✅   | ✅        | ❌    | ❌    | ❌      | ❌    |
-| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      | ❌    |
+| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      | ✅   |
+| html      | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
+| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
 
 ## Usage
 
