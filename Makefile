@@ -278,9 +278,9 @@ coverage: clean-coverage
 test: test-cpp test-java
 
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
-	if [ ! -f $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR) ]; then
-		echo "Missing $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR), build it with 'make update-otlp-classes-jar'"
-		exit 1
+	if [ ! -f "$(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR)" ]; then \
+		echo "Missing $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR), build it with 'make update-otlp-classes-jar'"; \
+		exit 1; \
 	fi
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*" -d build/test $(TEST_SOURCES)
