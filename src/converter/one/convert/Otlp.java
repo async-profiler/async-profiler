@@ -5,7 +5,7 @@
 
 package one.convert;
 
-class Otlp {
+final class Otlp {
 
     static final class ProfilesDictionary {
         static final int MAPPING_TABLE = 1;
