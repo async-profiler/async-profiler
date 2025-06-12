@@ -19,6 +19,12 @@ public class ApiTests {
         assert out.contains("BusyLoops.method3;");
     }
 
+    @Test(mainClass = DumpOtlp.class, jvmArgs = "-Djava.library.path=build/lib")
+    public void otlp(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+    }
+
     @Test(mainClass = StopResume.class, jvmArgs = "-Djava.library.path=build/lib", output = true)
     public void stopResume(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
