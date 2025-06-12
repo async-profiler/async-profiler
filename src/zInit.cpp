@@ -13,7 +13,7 @@
 // This should be called only after all other statics are initialized.
 // Therefore, put it in the last file in the alphabetic order.
 class LateInitializer {
-public:
+  public:
     LateInitializer() {
         Dl_info dl_info;
         if (!OS::isMusl() && dladdr((const void*)Hooks::init, &dl_info) && dl_info.dli_fname != NULL) {
@@ -31,7 +31,7 @@ public:
         }
     }
 
-private:
+  private:
     // Function checks if the current async-profiler shared object is preloaded or not
     // This is done by checking which shared object the dlopen belongs to
     // If that shared object is the same as the current shared object that would mean that the profiler is in PRELOAD mode
