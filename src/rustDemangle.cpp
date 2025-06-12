@@ -45,10 +45,10 @@ struct demangle_legacy {
 
 // private version of memrchr to avoid _GNU_SOURCE
 static void *demangle_memrchr(const void *s, int c, size_t n) {
-    const uint8_t *s_ = (uint8_t *)s;
+    const uint8_t *bytes = (uint8_t *)s;
     for (; n != 0; n--) {
-        if (s_[n-1] == c) {
-            return (void*)&s_[n-1];
+        if (bytes[n-1] == c) {
+            return (void*)&bytes[n-1];
         }
     }
     return NULL;

@@ -1,0 +1,26 @@
+Checks: >
+  -*,
+  readability-identifier-naming,
+  google-readability-braces-around-statements,
+  performance-*,
+  -performance-no-int-to-ptr,
+  bugprone-*,
+  -bugprone-reserved-identifier,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-macro-parentheses,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-branch-clone,
+  -bugprone-not-null-terminated-result,
+  -bugprone-signed-char-misuse,
+  -bugprone-sizeof-expression
+CheckOptions:
+  - key: readability-identifier-naming.LocalVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.LocalVariableIgnoredRegexp
+    value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R)'
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: _
+  - key: google-readability-braces-around-statements.ShortStatementLines
+    value: '1'

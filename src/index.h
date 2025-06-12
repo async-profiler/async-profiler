@@ -18,7 +18,7 @@ class Index {
     std::unordered_map<std::string, u32> _idx_map;
   
   public:
-    u32 indexOf(std::string value) {
+    u32 indexOf(const std::string& value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
 
@@ -26,7 +26,7 @@ class Index {
         return _idx_map.size();
     }
 
-    void forEachOrdered(std::function<void(const std::string&)> consumer) const {
+    void forEachOrdered(const std::function<void(const std::string&)>& consumer) const {
         std::vector<const std::string*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
