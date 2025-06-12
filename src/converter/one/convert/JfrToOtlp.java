@@ -44,7 +44,6 @@ public class JfrToOtlp extends JfrConverter {
         List<SampleInfo> sampleInfos = new ArrayList<>();
         collector.forEach(
                 new NormalizedEventVisitor() {
-                    final CallStack stack = new CallStack();
 
                     @Override
                     public void visitImpl(Event event, long samples, long value) {
@@ -66,12 +65,10 @@ public class JfrToOtlp extends JfrConverter {
                             } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
                                 methodName += "@" + location;
                             }
-                            stack.push(methodName, types[i]);
                             otlpProto.writeLong(functionPool.index(methodName));
                         }
 
-                        sampleInfos.add(new SampleInfo(samples, value, stack.size));
-                        stack.clear();
+                        sampleInfos.add(new SampleInfo(samples, value, methods.length));
                     }
                 });
         otlpProto.commitField(locationIndicesMark);
