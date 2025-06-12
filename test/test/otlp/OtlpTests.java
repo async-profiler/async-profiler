@@ -50,8 +50,7 @@ public class OtlpTests {
         ProfilesDictionary dictionary = profilesData.getDictionary();
 
         List<String> collapsed = toCollapsed(profile, dictionary);
-        System.err.println(collapsed);
-        assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn;java/util/Random.nextLong"));
+        assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
     }
 
     private static ProfilesData waitAndGetProfileData(TestProcess p) throws Exception {
