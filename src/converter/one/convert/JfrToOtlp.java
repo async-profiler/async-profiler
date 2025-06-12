@@ -122,7 +122,7 @@ public class JfrToOtlp extends JfrConverter {
 
         writeProfileDictionary();
 
-        out.write(otlpProto.buffer());
+        out.write(otlpProto.buffer(), 0, otlpProto.size());
     }
 
     private void writeProfileDictionary() {
