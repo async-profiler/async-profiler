@@ -110,7 +110,6 @@ static void* dlopen_hook(const char* filename, int flags) {
 
 
 // LD_PRELOAD hooks
-#ifdef __linux__
 
 extern "C" WEAK DLLEXPORT
 int pthread_create(pthread_t* thread, const pthread_attr_t* attr, ThreadFunc start_routine, void* arg) {
@@ -146,8 +145,6 @@ void* dlopen(const char* filename, int flags) {
     }
     return _orig_dlopen(filename, flags);
 }
-
-#endif
 
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;

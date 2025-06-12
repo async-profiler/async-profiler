@@ -42,12 +42,24 @@ class LateInitializer {
             return false;
         }
 
-        Dl_info dlopen_info;
-        if (dladdr((const void*)dlopen, &dlopen_info) == 0 || dlopen_info.dli_fname == NULL) {
+        if (OS::isLinux()) {
+            Dl_info dlopen_info;
+            if (dladdr((const void*)dlopen, &dlopen_info) == 0 || dlopen_info.dli_fname == NULL) {
+                return false;
+            }
+
+            return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
+        }
+
+        const char* preload = getenv("DYLD_INSERT_LIBRARIES");
+        if (preload == NULL) {
             return false;
         }
 
-        return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
+        const char* lib_name = strrchr(current_info.dli_fname, '/');
+        lib_name = lib_name == NULL ? current_info.dli_fname : lib_name + 1;
+
+        return strstr(preload, lib_name) != NULL;
     }
 
     static bool checkJvmLoaded() {
