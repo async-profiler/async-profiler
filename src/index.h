@@ -18,7 +18,7 @@ class Index {
     std::unordered_map<std::string, size_t> _idx_map;
   
   public:
-    size_t indexOf(std::string value) {
+    size_t indexOf(const std::string& value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
 
