@@ -325,5 +325,5 @@ update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
 			sleep 1
 		done
 		protoc --java_out=./gen/java $$(find . -name "*.proto")'; docker kill $$CONTAINER_ID
-	find $(OPENTELEMETRY_PROTO_PATH)/gen/java -name "*.java" | xargs javac -cp $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) -d $(OPENTELEMETRY_PROTO_PATH)/build
+	find $(OPENTELEMETRY_PROTO_PATH)/gen/java -name "*.java" | xargs $(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -cp $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) -d $(OPENTELEMETRY_PROTO_PATH)/build
 	$(JAR) cvf $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR) -C $(OPENTELEMETRY_PROTO_PATH)/build .
