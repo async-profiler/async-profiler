@@ -64,5 +64,4 @@ class Otlp {
     static final class AggregationTemporality {
         static final int CUMULATIVE = 2;
     }
-
 }
