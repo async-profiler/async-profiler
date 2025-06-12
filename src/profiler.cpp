@@ -1667,7 +1667,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     struct SampleInfo {
         u64 counter;
         u64 samples;
-        u32 num_frames;
+        size_t num_frames;
     };
     std::vector<SampleInfo> samples_info;
     samples_info.reserve(call_trace_samples.size());
@@ -1678,15 +1678,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (u32)trace->num_frames});
+        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (size_t)trace->num_frames});
         for (int j = 0; j < trace->num_frames; j++) {
-            u32 function_idx = functions.indexOf(fn.name(trace->frames[j]));
+            size_t function_idx = functions.indexOf(fn.name(trace->frames[j]));
             otlp_buffer.putVarInt(function_idx);
         }
     }
     otlp_buffer.commitMessage(location_indices_mark);
 
-    u64 frames_seen = 0;
+    size_t frames_seen = 0;
     for (const SampleInfo& si : samples_info) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
@@ -1720,7 +1720,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     });
 
     // Write location_table
-    for (u64 function_idx = 0; function_idx < functions.size(); ++function_idx) {
+    for (size_t function_idx = 0; function_idx < functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
         // TODO: set to the proper mapping when new mappings are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers

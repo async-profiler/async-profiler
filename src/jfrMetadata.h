@@ -11,6 +11,7 @@
 #include <vector>
 #include <stdio.h>
 #include <string.h>
+#include "index.h"
 
 
 enum JfrType {
@@ -93,17 +94,10 @@ class Attribute {
 
 class Element {
   protected:
-    static std::map<std::string, int> _string_map;
-    static std::vector<std::string> _strings;
+    static Index _strings;
 
     static int getId(const char* s) {
-        std::string str(s);
-        int id = _string_map[str];
-        if (id == 0) {
-            id = _string_map[str] = _string_map.size();
-            _strings.push_back(str);
-        }
-        return id - 1;
+        return _strings.indexOf(s);
     }
 
   public:
@@ -236,8 +230,12 @@ class JfrMetadata : Element {
         return &_root;
     }
 
-    static std::vector<std::string>& strings() {
-        return _strings;
+    static void forEachStringOrdered(std::function<void(const std::string&)> consumer) {
+        _strings.forEachOrdered(consumer);
+    }
+
+    static size_t stringsSize() {
+        return _strings.size();
     }
 };
 
