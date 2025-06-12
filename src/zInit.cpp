@@ -33,10 +33,20 @@ class LateInitializer {
 
   private:
     static bool checkPreload() {
-        CodeCache* dlopen_cc = Profiler::instance()->findLibraryByAddress((const void*)dlopen);
-        CodeCache* current_cc = Profiler::instance()->findLibraryByAddress((const void*)Hooks::init);
+        Dl_info dlopen_info;
+        Dl_info current_info;
 
-        return (void*)dlopen_cc == (void*)current_cc;
+        if (dladdr((const void*)Hooks::init, &current_info) == 0 || current_info.dli_fname == NULL) {
+            return false;
+        }
+
+        if (dladdr((const void*)dlopen, &dlopen_info) == 0 || dlopen_info.dli_fname == NULL) {
+            return false;
+        }
+
+        fprintf(stderr, "%s => %s\n", current_info.dli_fname, dlopen_info.dli_fname);
+
+        return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
     }
 
     static bool checkJvmLoaded() {
