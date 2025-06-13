@@ -112,7 +112,7 @@ public class JfrToOtlp extends JfrConverter {
             otlpProto.commitField(functionMark);
         }
 
-        KeyValue frameTypeKv = new KeyValue(FRAME_TYPE_ATTRIBUTE_KEY, "abort-marker");
+        KeyValue frameTypeKv = new KeyValue(FRAME_TYPE_ATTRIBUTE_KEY, "jvm");
         int frameTypeKvAttributeIdx = attributesPool.index(frameTypeKv);
 
         // Write location table
