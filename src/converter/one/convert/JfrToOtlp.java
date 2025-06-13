@@ -66,15 +66,15 @@ public class JfrToOtlp extends JfrConverter {
 
     private void writeSampleTypes() {
         int sampleTypeSamplesMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getSampleUnits()));
+        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(getValueType()));
+        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(getSampleUnits()));
         otlpProto.field(
                 Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
         otlpProto.commitField(sampleTypeSamplesMark);
 
         int sampleTypeTotalMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(args.getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(args.getTotalUnits()));
+        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX, stringPool.index(getValueType()));
+        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX, stringPool.index(getTotalUnits()));
         otlpProto.field(
                 Otlp.ValueType.AGGREGATION_TEMPORALITY, Otlp.AggregationTemporality.CUMULATIVE);
         otlpProto.commitField(sampleTypeTotalMark);

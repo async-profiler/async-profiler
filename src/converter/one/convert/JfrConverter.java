@@ -260,6 +260,22 @@ public abstract class JfrConverter extends Classifier {
                 methodType == TYPE_KERNEL;
     }
 
+    public String getValueType() {
+        if (args.nativemem) return "malloc";
+        if (args.alloc || args.live) return "allocations";
+        if (args.lock) return "locks";
+        return "cpu";
+    }
+
+    public String getSampleUnits() {
+        return "count";
+    }
+
+    public String getTotalUnits() {
+        if (args.nativemem || args.alloc || args.live) return "bytes";
+        return "nanoseconds";
+    }
+
     // Select sum(samples) or sum(value) depending on the --total option.
     // For lock events, convert lock duration from ticks to nanoseconds.
     protected abstract class AggregatedEventVisitor extends NormalizedEventVisitor {

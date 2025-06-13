@@ -27,7 +27,7 @@ public class JfrToPprof extends JfrConverter {
     public JfrToPprof(JfrReader jfr, Arguments args) {
         super(jfr, args);
 
-        profile.field(1, valueType(args.getValueType(), args.total ? args.getTotalUnits() : args.getSampleUnits()))
+        profile.field(1, valueType(getValueType(), args.total ? getTotalUnits() : getSampleUnits()))
                 .field(13, strings.index("Produced by async-profiler"));
     }
 
