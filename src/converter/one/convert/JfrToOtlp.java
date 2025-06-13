@@ -21,7 +21,7 @@ import java.util.Objects;
 public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionPool = new Index<>(String.class, "");
-    private final Index<Line> linePool = new Index<>(Line.class, null);
+    private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
     private final Proto otlpProto = new Proto(1024);
 
     private final int resourceProfilesMark;
@@ -185,6 +185,8 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class Line {
+        private static final Line EMPTY = new Line(0, 0);
+
         private final int functionIdx;
         private final int lineNumber;
 
