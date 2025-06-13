@@ -59,4 +59,6 @@ final class OtlpConstants {
     static final int
             KEY_VALUE_key = 1,
             KEY_VALUE_value = 2;
+
+    static final int ANY_VALUE_string_value = 1;
 }

@@ -138,7 +138,11 @@ public class JfrToOtlp extends JfrConverter {
         for (KeyValue keyValue : attributesPool.keys()) {
             int attributeMark = otlpProto.startField(PROFILES_DICTIONARY_attribute_table);
             otlpProto.field(KEY_VALUE_key, keyValue.key);
-            otlpProto.field(KEY_VALUE_value, keyValue.value);
+
+            int valueMark = otlpProto.startField(KEY_VALUE_value);
+            otlpProto.field(ANY_VALUE_string_value, keyValue.value);
+            otlpProto.commitField(valueMark);
+
             otlpProto.commitField(attributeMark);
         }
 
