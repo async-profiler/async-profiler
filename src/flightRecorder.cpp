@@ -778,7 +778,7 @@ class Recording {
         buf->putVar32(0);
         buf->putVar32(0x7fffffff);  // must not clash with JFR metadata ID, or 'jfr print' will break
 
-        buf->putVar32(JfrMetadata::stringsSize());
+        buf->putVar32(JfrMetadata::strings().size());
         JfrMetadata::forEachStringOrdered([&] (const std::string& s) {
             buf->putUtf8(s.c_str());
         });

@@ -233,8 +233,8 @@ class JfrMetadata : Element {
         _strings.forEachOrdered(consumer);
     }
 
-    static size_t stringsSize() {
-        return _strings.size();
+    static const Index& strings() {
+        return _strings;
     }
 };
 
