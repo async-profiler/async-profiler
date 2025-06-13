@@ -18,6 +18,13 @@ class Index {
     std::unordered_map<std::string, size_t> _idx_map;
   
   public:
+    Index() = default;
+
+    Index(const Index&) = delete;
+    Index(Index&&) = delete;
+    Index& operator=(const Index&) = delete;
+    Index& operator=(Index&&) = delete;
+
     size_t indexOf(const std::string& value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
