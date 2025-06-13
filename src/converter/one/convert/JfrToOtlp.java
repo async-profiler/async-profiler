@@ -212,8 +212,10 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public boolean equals(Object o) {
-            if (!(o instanceof Line line)) return false;
-            return functionIdx == line.functionIdx && lineNumber == line.lineNumber;
+            if (!(o instanceof Line)) return false;
+
+            Line other = (Line) o;
+            return functionIdx == other.functionIdx && lineNumber == other.lineNumber;
         }
 
         @Override
