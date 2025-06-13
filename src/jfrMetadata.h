@@ -229,10 +229,6 @@ class JfrMetadata : Element {
         return &_root;
     }
 
-    static void forEachStringOrdered(std::function<void(const std::string&)> consumer) {
-        _strings.forEachOrdered(consumer);
-    }
-
     static const Index& strings() {
         return _strings;
     }
