@@ -7,61 +7,127 @@ package one.convert;
 
 final class Otlp {
 
-    static final class ProfilesDictionary {
-        static final int MAPPING_TABLE = 1;
-        static final int LOCATION_TABLE = 2;
-        static final int FUNCTION_TABLE = 3;
-        static final int STRING_TABLE = 5;
+    enum ProfilesDictionary {
+        MAPPING_TABLE(1),
+        LOCATION_TABLE(2),
+        FUNCTION_TABLE(3),
+        STRING_TABLE(5);
+
+        public final int index;
+
+        ProfilesDictionary(int index) {
+            this.index = index;
+        }
     }
 
-    static final class ProfilesData {
-        static final int RESOURCE_PROFILES = 1;
-        static final int DICTIONARY = 2;
+    enum ProfilesData {
+        RESOURCE_PROFILES(1),
+        DICTIONARY(2);
+
+        public final int index;
+
+        ProfilesData(int index) {
+            this.index = index;
+        }
     }
 
-    static final class ResourceProfiles {
-        static final int SCOPE_PROFILES = 2;
+    enum ResourceProfiles {
+        SCOPE_PROFILES(2);
+
+        public final int index;
+
+        ResourceProfiles(int index) {
+            this.index = index;
+        }
     }
 
-    static final class ScopeProfiles {
-        static final int PROFILES = 2;
+    enum ScopeProfiles {
+        PROFILES(2);
+
+        public final int index;
+
+        ScopeProfiles(int index) {
+            this.index = index;
+        }
     }
 
-    static final class Profile {
-        static final int SAMPLE_TYPE = 1;
-        static final int SAMPLE = 2;
-        static final int LOCATION_INDICES = 3;
-        static final int TIME_NANOS = 4;
-        static final int DURATION_NANOS = 5;
-        static final int ORIGINAL_PAYLOAD = 13;
+    enum Profile {
+        SAMPLE_TYPE(1),
+        SAMPLE(2),
+        LOCATION_INDICES(3),
+        TIME_NANOS(4),
+        DURATION_NANOS(5),
+        ORIGINAL_PAYLOAD(13);
+
+        public final int index;
+
+        Profile(int index) {
+            this.index = index;
+        }
     }
 
-    static final class ValueType {
-        static final int TYPE_STRINDEX = 1;
-        static final int UNIT_STRINDEX = 2;
-        static final int AGGREGATION_TEMPORALITY = 3;
+    enum ValueType {
+        TYPE_STRINDEX(1),
+        UNIT_STRINDEX(2),
+        AGGREGATION_TEMPORALITY(3);
+
+        public final int index;
+
+        ValueType(int index) {
+            this.index = index;
+        }
     }
 
-    static final class Sample {
-        static final int LOCATIONS_START_INDEX = 1;
-        static final int LOCATIONS_LENGTH = 2;
-        static final int VALUE = 3;
+    enum Sample {
+        LOCATIONS_START_INDEX(1),
+        LOCATIONS_LENGTH(2),
+        VALUE(3);
+
+        public final int index;
+
+        Sample(int index) {
+            this.index = index;
+        }
     }
 
-    static final class Location {
-        static final int MAPPING_INDEX = 1;
-        static final int LINE = 3;
+    enum Location {
+        MAPPING_INDEX(1),
+        LINE(3);
+
+        public final int index;
+
+        Location(int index) {
+            this.index = index;
+        }
     }
 
-    static final class Function {
-        static final int NAME_STRINDEX = 1;
+    enum Function {
+        NAME_STRINDEX(1);
+
+        public final int index;
+
+        Function(int index) {
+            this.index = index;
+        }
     }
 
-    static final class Line {
-        static final int FUNCTION_INDEX = 1;
+    enum Line {
+        FUNCTION_INDEX(1);
+
+        public final int index;
+
+        Line(int index) {
+            this.index = index;
+        }
     }
 
-    static final class AggregationTemporality {
-        static final int CUMULATIVE = 2;
+    enum AggregationTemporality {
+        CUMULATIVE(2);
+
+        public final int value;
+
+        AggregationTemporality(int value) {
+            this.value = value;
+        }
     }
 }
