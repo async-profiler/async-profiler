@@ -6,8 +6,7 @@
 #include "jfrMetadata.h"
 
 
-std::map<std::string, int> Element::_string_map;
-std::vector<std::string> Element::_strings;
+Index Element::_strings;
 
 JfrMetadata JfrMetadata::_root;
 
@@ -281,7 +280,4 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << type("jdk.jfr.Percentage", T_PERCENTAGE, "Percentage"))
 
         << element("region").attribute("locale", "en_US").attribute("gmtOffset", "0");
-
-    // The map is used only during construction
-    _string_map.clear();
 }
