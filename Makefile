@@ -6,9 +6,10 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
+TMP_DIR=/tmp
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
-PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
+PACKAGE_DIR=$(TMP_DIR)/$(PACKAGE_NAME)
 DEBUG_PACKAGE_NAME=$(PACKAGE_NAME)-debug
 DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
@@ -130,6 +131,13 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+# OTLP Protobuf
+OPENTELEMETRY_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
+OPENTELEMETRY_PROTO_JAR=opentelemetry-gen-classes.jar
+PROTOBUF_JAVA_VERSION=4.31.1
+PROTOBUF_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_JAVA_VERSION)/protobuf-java-$(PROTOBUF_JAVA_VERSION).jar
+PROTOBUF_JAVA_JAR=protobuf-java.jar
+TEST_DEPS_DIR=test/deps
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -258,7 +266,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -269,9 +277,13 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
+	if [ ! -f "$(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR)" ]; then \
+		echo "Missing $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR), build it with 'make update-otlp-classes-jar'"; \
+		exit 1; \
+	fi
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 check-md:
@@ -285,3 +297,33 @@ clean-coverage:
 
 clean:
 	$(RM) -r build
+
+$(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR): Makefile
+	mkdir -p $(TEST_DEPS_DIR)
+	curl -o $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) $(PROTOBUF_JAVA_JAR_URL)
+
+.ONESHELL:
+update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
+	$(RM) -rf $(OPENTELEMETRY_PROTO_PATH)
+	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OPENTELEMETRY_PROTO_PATH)
+	find $(OPENTELEMETRY_PROTO_PATH)/opentelemetry/proto/ \
+		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
+		-delete
+	# Install packages as root
+	CONTAINER_ID=$$(docker run --detach --rm -v $(OPENTELEMETRY_PROTO_PATH):/opentelemetry-proto alpine sh -c ' \
+		apk update && \
+		apk add protoc findutils && \
+		sleep infinity')
+	# Compile classes as the user of Makefile to prevent permission issues
+	docker exec -u $$(id -u):$$(id -g) $$CONTAINER_ID sh -c ' \
+		cd /opentelemetry-proto && \
+		mkdir -p gen/java && \
+		# Loop until protoc is found
+		while true; do
+			protoc --help > /dev/null 2>&1;
+			if [ $$? -eq 0 ]; then break; fi;
+			sleep 1
+		done
+		protoc --java_out=./gen/java $$(find . -name "*.proto")'; docker kill $$CONTAINER_ID
+	find $(OPENTELEMETRY_PROTO_PATH)/gen/java -name "*.java" | xargs $(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -cp $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) -d $(OPENTELEMETRY_PROTO_PATH)/build
+	$(JAR) cvf $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR) -C $(OPENTELEMETRY_PROTO_PATH)/build .
