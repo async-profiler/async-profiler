@@ -40,6 +40,8 @@ public class JfrReader implements Closeable {
     private final long fileSize;
     private long filePosition;
     private byte state;
+    private long currentChunkStart;
+    private long currentChunkSize;
 
     public long startNanos = Long.MAX_VALUE;
     public long endNanos = Long.MIN_VALUE;
@@ -106,6 +108,13 @@ public class JfrReader implements Closeable {
         }
     }
 
+    public ByteBuffer currentChunk() {
+        ByteBuffer chunk = buf.duplicate().asReadOnlyBuffer();
+        chunk.position((int) currentChunkStart);
+        chunk.limit((int) currentChunkSize);
+        return chunk;
+    }
+
     public boolean eof() {
         return state >= STATE_EOF;
     }
@@ -116,6 +125,14 @@ public class JfrReader implements Closeable {
 
     public long durationNanos() {
         return endNanos - startNanos;
+    }
+
+    public long getChunkStartNanos() {
+        return chunkStartNanos;
+    }
+
+    public long chunkDurationNanos() {
+        return chunkEndNanos - chunkStartNanos;
     }
 
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
@@ -280,9 +297,9 @@ public class JfrReader implements Closeable {
             throw new IOException("Unsupported JFR version: " + (version >>> 16) + "." + (version & 0xffff));
         }
 
-        long chunkStart = filePosition + pos;
-        long chunkSize = buf.getLong(pos + 8);
-        if (chunkStart + chunkSize > fileSize) {
+        currentChunkStart = filePosition + pos;
+        currentChunkSize = buf.getLong(pos + 8);
+        if (currentChunkStart + currentChunkSize > fileSize) {
             state = STATE_INCOMPLETE;
             return false;
         }
@@ -306,11 +323,11 @@ public class JfrReader implements Closeable {
         types.clear();
         typesByName.clear();
 
-        readMeta(chunkStart + metaOffset);
-        readConstantPool(chunkStart + cpOffset);
+        readMeta(currentChunkStart + metaOffset);
+        readConstantPool(currentChunkStart + cpOffset);
         cacheEventTypes();
 
-        seek(chunkStart + CHUNK_HEADER_SIZE);
+        seek(currentChunkStart + CHUNK_HEADER_SIZE);
         state = STATE_READING;
         return true;
     }

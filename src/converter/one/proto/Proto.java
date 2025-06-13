@@ -6,6 +6,7 @@
 package one.proto;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -60,6 +61,12 @@ public class Proto {
     public Proto field(int index, byte[] bytes) {
         tag(index, 2);
         writeBytes(bytes, 0, bytes.length);
+        return this;
+    }
+
+    public Proto field(int index, ByteBuffer bytes) {
+        tag(index, 2);
+        writeBytes(bytes);
         return this;
     }
 
@@ -123,9 +130,14 @@ public class Proto {
     }
 
     public void writeBytes(byte[] bytes, int offset, int length) {
+        writeBytes(ByteBuffer.wrap(bytes, offset, length));
+    }
+
+    public void writeBytes(ByteBuffer bytes) {
+        int length = bytes.limit();
         writeInt(length);
         ensureCapacity(length);
-        System.arraycopy(bytes, offset, buf, pos, length);
+        bytes.get(buf, pos, length);
         pos += length;
     }
 
