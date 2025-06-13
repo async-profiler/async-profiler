@@ -177,7 +177,6 @@ public class JfrToOtlp extends JfrConverter {
             long[] methods = stackTrace.methods;
             int[] locations = stackTrace.locations;
 
-            Classifier.Category category = getCategory(stackTrace);
             for (int i = methods.length; --i >= 0; ) {
                 String methodName = getMethodName(methods[i], stackTrace.types[i]);
                 int lineNumber = locations[i] >>> 16;
