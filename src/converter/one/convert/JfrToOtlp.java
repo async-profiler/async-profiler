@@ -20,7 +20,8 @@ import java.util.Objects;
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
-    private final Index<Function> functionPool = new Index<>(Function.class, null);
+    private final Index<String> functionPool = new Index<>(String.class, "");
+    private final Index<Line> linePool = new Index<>(Line.class, null);
     private final Proto otlpProto = new Proto(1024);
 
     private final int resourceProfilesMark;
@@ -103,24 +104,22 @@ public class JfrToOtlp extends JfrConverter {
         int mappingMark = otlpProto.startField(Otlp.ProfilesDictionary.MAPPING_TABLE.index);
         otlpProto.commitField(mappingMark);
 
-        Function[] orderedFunctions = functionPool.keys();
-
         // Write function table
-        for (Function function : orderedFunctions) {
+        for (String functionName : functionPool.keys()) {
             int functionMark = otlpProto.startField(Otlp.ProfilesDictionary.FUNCTION_TABLE.index);
-            int functionNameStrindex = stringPool.index(function.functionName);
+            int functionNameStrindex = stringPool.index(functionName);
             otlpProto.field(Otlp.Function.NAME_STRINDEX.index, functionNameStrindex);
             otlpProto.commitField(functionMark);
         }
 
         // Write location table
-        for (int functionIdx = 0; functionIdx < orderedFunctions.length; ++functionIdx) {
+        for (Line line : linePool.keys()) {
             int locationMark = otlpProto.startField(Otlp.ProfilesDictionary.LOCATION_TABLE.index);
             otlpProto.field(Otlp.Location.MAPPING_INDEX.index, 0);
 
             int lineMark = otlpProto.startField(Otlp.Location.LINE.index);
-            otlpProto.field(Otlp.Line.FUNCTION_INDEX.index, functionIdx);
-            otlpProto.field(Otlp.Line.LINE.index, orderedFunctions[functionIdx].lineNumber);
+            otlpProto.field(Otlp.Line.FUNCTION_INDEX.index, line.functionIdx);
+            otlpProto.field(Otlp.Line.LINE.index, line.lineNumber);
             otlpProto.commitField(lineMark);
 
             otlpProto.commitField(locationMark);
@@ -159,15 +158,14 @@ public class JfrToOtlp extends JfrConverter {
                 return;
             }
 
-            Arguments args = JfrToOtlp.this.args;
             long[] methods = stackTrace.methods;
-            byte[] types = stackTrace.types;
             int[] locations = stackTrace.locations;
 
             for (int i = methods.length; --i >= 0; ) {
-                String methodName = getMethodName(methods[i], types[i]);
+                String methodName = getMethodName(methods[i], stackTrace.types[i]);
                 int lineNumber = locations[i] >>> 16;
-                otlpProto.writeLong(functionPool.index(new Function(methodName, lineNumber)));
+                int functionIdx = functionPool.index(methodName);
+                otlpProto.writeLong(linePool.index(new Line(functionIdx, lineNumber)));
             }
 
             sampleInfos.add(new SampleInfo(samples, value, methods.length));
@@ -186,29 +184,28 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
-    private static final class Function {
-        private final String functionName;
+    private static final class Line {
+        private final int functionIdx;
         private final int lineNumber;
 
-        private Function(String functionName, int lineNumber) {
-            this.functionName = functionName;
+        private Line(int functionIdx, int lineNumber) {
+            this.functionIdx = functionIdx;
             this.lineNumber = lineNumber;
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (!(obj instanceof Function)) {
+            if (!(obj instanceof Line)) {
                 return false;
             }
 
-            Function other = (Function) obj;
-            return Objects.equals(functionName, other.functionName)
-                    && lineNumber == other.lineNumber;
+            Line other = (Line) obj;
+            return Objects.equals(functionIdx, other.functionIdx) && lineNumber == other.lineNumber;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(functionName, lineNumber);
+            return Objects.hash(functionIdx, lineNumber);
         }
     }
 }
