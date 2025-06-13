@@ -5,6 +5,8 @@
 
 package one.convert;
 
+import static one.convert.OtlpConstants.*;
+
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
@@ -30,30 +32,30 @@ public class JfrToOtlp extends JfrConverter {
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
 
-        resourceProfilesMark = otlpProto.startField(Otlp.ProfilesData.RESOURCE_PROFILES.index);
-        scopeProfilesMark = otlpProto.startField(Otlp.ResourceProfiles.SCOPE_PROFILES.index);
+        resourceProfilesMark = otlpProto.startField(PROFILES_DATA_resource_profiles);
+        scopeProfilesMark = otlpProto.startField(RESOURCE_PROFILES_scope_profiles);
     }
 
     @Override
     protected void convertChunk() {
-        int profileMark = otlpProto.startField(Otlp.ScopeProfiles.PROFILES.index);
+        int profileMark = otlpProto.startField(SCOPE_PROFILES_profiles);
 
         writeSampleTypes();
         writeTimingInformation();
-        otlpProto.field(Otlp.Profile.ORIGINAL_PAYLOAD.index, jfr.currentChunk());
+        otlpProto.field(PROFILE_original_payload, jfr.currentChunk());
 
-        int locationIndicesMark = otlpProto.startField(Otlp.Profile.LOCATION_INDICES.index);
+        int locationIndicesMark = otlpProto.startField(PROFILE_location_indices);
         List<SampleInfo> sampleInfos = new ArrayList<>();
         collector.forEach(new OtlpEventVisitor(sampleInfos));
         otlpProto.commitField(locationIndicesMark);
 
         long framesSeen = 0;
         for (SampleInfo si : sampleInfos) {
-            int sampleMark = otlpProto.startField(Otlp.Profile.SAMPLE.index);
-            otlpProto.field(Otlp.Sample.LOCATIONS_START_INDEX.index, framesSeen);
-            otlpProto.field(Otlp.Sample.LOCATIONS_LENGTH.index, si.numFrames);
+            int sampleMark = otlpProto.startField(PROFILE_sample);
+            otlpProto.field(SAMPLE_locations_start_index, framesSeen);
+            otlpProto.field(SAMPLE_locations_length, si.numFrames);
 
-            int sampleValueMark = otlpProto.startField(Otlp.Sample.VALUE.index);
+            int sampleValueMark = otlpProto.startField(SAMPLE_value);
             otlpProto.writeLong(si.samples);
             otlpProto.writeLong(si.value);
             otlpProto.commitField(sampleValueMark);
@@ -67,26 +69,22 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSampleTypes() {
-        int sampleTypeSamplesMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE.index);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX.index, stringPool.index(getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX.index, stringPool.index(getSampleUnits()));
-        otlpProto.field(
-                Otlp.ValueType.AGGREGATION_TEMPORALITY.index,
-                Otlp.AggregationTemporality.CUMULATIVE.value);
+        int sampleTypeSamplesMark = otlpProto.startField(PROFILE_sample_type);
+        otlpProto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+        otlpProto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
+        otlpProto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
         otlpProto.commitField(sampleTypeSamplesMark);
 
-        int sampleTypeTotalMark = otlpProto.startField(Otlp.Profile.SAMPLE_TYPE.index);
-        otlpProto.field(Otlp.ValueType.TYPE_STRINDEX.index, stringPool.index(getValueType()));
-        otlpProto.field(Otlp.ValueType.UNIT_STRINDEX.index, stringPool.index(getTotalUnits()));
-        otlpProto.field(
-                Otlp.ValueType.AGGREGATION_TEMPORALITY.index,
-                Otlp.AggregationTemporality.CUMULATIVE.value);
+        int sampleTypeTotalMark = otlpProto.startField(PROFILE_sample_type);
+        otlpProto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
+        otlpProto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
+        otlpProto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
         otlpProto.commitField(sampleTypeTotalMark);
     }
 
     private void writeTimingInformation() {
-        otlpProto.field(Otlp.Profile.TIME_NANOS.index, jfr.getChunkStartNanos());
-        otlpProto.field(Otlp.Profile.DURATION_NANOS.index, jfr.chunkDurationNanos());
+        otlpProto.field(PROFILE_time_nanos, jfr.getChunkStartNanos());
+        otlpProto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
     }
 
     public void dump(OutputStream out) throws IOException {
@@ -99,27 +97,27 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeProfileDictionary() {
-        int profilesDictionaryMark = otlpProto.startField(Otlp.ProfilesData.DICTIONARY.index);
+        int profilesDictionaryMark = otlpProto.startField(PROFILES_DATA_dictionary);
 
-        int mappingMark = otlpProto.startField(Otlp.ProfilesDictionary.MAPPING_TABLE.index);
+        int mappingMark = otlpProto.startField(PROFILES_DICTIONARY_mapping_table);
         otlpProto.commitField(mappingMark);
 
         // Write function table
         for (String functionName : functionPool.keys()) {
-            int functionMark = otlpProto.startField(Otlp.ProfilesDictionary.FUNCTION_TABLE.index);
+            int functionMark = otlpProto.startField(PROFILES_DICTIONARY_function_table);
             int functionNameStrindex = stringPool.index(functionName);
-            otlpProto.field(Otlp.Function.NAME_STRINDEX.index, functionNameStrindex);
+            otlpProto.field(FUNCTION_name_strindex, functionNameStrindex);
             otlpProto.commitField(functionMark);
         }
 
         // Write location table
         for (Line line : linePool.keys()) {
-            int locationMark = otlpProto.startField(Otlp.ProfilesDictionary.LOCATION_TABLE.index);
-            otlpProto.field(Otlp.Location.MAPPING_INDEX.index, 0);
+            int locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table);
+            otlpProto.field(LOCATION_mapping_index, 0);
 
-            int lineMark = otlpProto.startField(Otlp.Location.LINE.index);
-            otlpProto.field(Otlp.Line.FUNCTION_INDEX.index, line.functionIdx);
-            otlpProto.field(Otlp.Line.LINE.index, line.lineNumber);
+            int lineMark = otlpProto.startField(LOCATION_line);
+            otlpProto.field(LINE_function_index, line.functionIdx);
+            otlpProto.field(LINE_line, line.lineNumber);
             otlpProto.commitField(lineMark);
 
             otlpProto.commitField(locationMark);
@@ -127,7 +125,7 @@ public class JfrToOtlp extends JfrConverter {
 
         // Write string table
         for (String s : stringPool.keys()) {
-            otlpProto.field(Otlp.ProfilesDictionary.STRING_TABLE.index, s);
+            otlpProto.field(PROFILES_DICTIONARY_string_table, s);
         }
 
         otlpProto.commitField(profilesDictionaryMark);
