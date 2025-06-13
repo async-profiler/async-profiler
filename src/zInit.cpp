@@ -23,7 +23,7 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        if (!checkJvmLoaded()) {
+        if (!checkJvmLoaded() && checkPreload()) {
             const char* command = getenv("ASPROF_COMMAND");
             if (command != NULL && Hooks::init(false)) {
                 startProfiler(command);
@@ -32,7 +32,37 @@ class LateInitializer {
     }
 
   private:
-    bool checkJvmLoaded() {
+    static bool checkPreload(){
+        Dl_info current_info;
+        if (dladdr((const void*)Hooks::init, &current_info) == 0 || current_info.dli_fname == NULL) {
+            return false;
+        }
+
+        // On Linux: Check if dlopen belong to the profiler shared objects
+        // If the dlopen is found inside the profiler shared objects that is a good indication that the profiler is preloaded
+        if (OS::isLinux()) {
+            Dl_info dlopen_info;
+            if (dladdr((const void*)dlopen, &dlopen_info) == 0 || dlopen_info.dli_fname == NULL) {
+                return false;
+            }
+
+            return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
+        }
+
+        // On MacOs: Check if the profiler is a part of the DYLD_INSERT_LIBRARIES environment variable
+        // dladdr for dlopen will always resolve to the current shared objects due to the declaration of dlopen in the hooks.cpp file
+        const char* preload = getenv("DYLD_INSERT_LIBRARIES");
+        if (preload == NULL) {
+            return false;
+        }
+
+        const char* lib_name = strrchr(current_info.dli_fname, '/');
+        lib_name = lib_name == NULL ? current_info.dli_fname : lib_name + 1;
+
+        return strstr(preload, lib_name) != NULL;
+    }
+
+    static bool checkJvmLoaded() {
         Profiler* profiler = Profiler::instance();
         profiler->updateSymbols(false);
 
