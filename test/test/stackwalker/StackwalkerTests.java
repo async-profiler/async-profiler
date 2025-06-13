@@ -23,10 +23,10 @@ public class StackwalkerTests {
         assert p.exitCode() == 0;
         Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
         assert output.contains("^Java_test_stackwalker_StackGenerator_largeFrame;" +
-                "doCpuTask");
+                "doCpuTask") : "Captured Stack: " + output;
 
         // There will be no stack frame that contains both main & largeFrame method
-        assert !output.contains(".*main.*largeFrame");
+        assert !output.contains(".*main.*largeFrame") : "Captured Stack: " + output;
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "deepFrame",
@@ -45,10 +45,10 @@ public class StackwalkerTests {
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
                 "generateDeepStack[^;]*;" +
-                "doCpuTask");
+                "doCpuTask") : "Captured Stack: " + output;
 
         // There will be no stack frame that contains both main & deepFrame method
-        assert !output.contains(".*main.*deepFrame");
+        assert !output.contains(".*main.*deepFrame") : "Captured Stack: " + output;
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "leafFrame",
@@ -70,7 +70,7 @@ public class StackwalkerTests {
                 "test/stackwalker/StackGenerator.main_\\[0\\];" +
                 "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +
-                "doCpuTask");
+                "doCpuTask") : "Captured Stack: " + output;
     }
 
     @Test(mainClass = StackGenerator.class, jvmArgs = "-Xss5m", args = "leafFrame",
@@ -82,6 +82,6 @@ public class StackwalkerTests {
         assert output.contains("^test/stackwalker/StackGenerator.main_\\[0\\];" +
                 "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +
-                "doCpuTask");
+                "doCpuTask") : "Captured Stack: " + output;
     }
 }
