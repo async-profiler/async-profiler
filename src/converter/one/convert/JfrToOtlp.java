@@ -238,8 +238,10 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public boolean equals(Object o) {
-            if (!(o instanceof KeyValue keyValue)) return false;
-            return Objects.equals(key, keyValue.key) && Objects.equals(value, keyValue.value);
+            if (!(o instanceof KeyValue)) return false;
+
+            KeyValue other = (KeyValue) o;
+            return Objects.equals(key, other.key) && Objects.equals(value, other.value);
         }
 
         @Override
