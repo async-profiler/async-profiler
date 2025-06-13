@@ -113,13 +113,13 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         KeyValue frameTypeKv = new KeyValue(FRAME_TYPE_ATTRIBUTE_KEY, "abort-marker");
+        int frameTypeKvAttributeIdx = attributesPool.index(frameTypeKv);
 
         // Write location table
         for (Line line : linePool.keys()) {
             int locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table);
             otlpProto.field(LOCATION_mapping_index, 0);
-
-            otlpProto.field(LOCATION_attribute_indices, attributesPool.index(frameTypeKv));
+            otlpProto.field(LOCATION_attribute_indices, frameTypeKvAttributeIdx);
 
             int lineMark = otlpProto.startField(LOCATION_line);
             otlpProto.field(LINE_function_index, line.functionIdx);
