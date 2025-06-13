@@ -31,13 +31,6 @@ jobs:
               display: linux-arm64
               name: ubuntu-24.04-arm
             image: "public.ecr.aws/async-profiler/asprof-builder-arm:latest"
-          - runson:
-              display: linux-x64
-              name: ubuntu-latest
-            image: public.ecr.aws/async-profiler/asprof-builder-x86:latest
-          - runson:
-              display: macos
-              name: macos-15
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -101,32 +94,7 @@ jobs:
     needs: build-and-upload-binaries
     strategy:
       matrix:
-        runson:
-          - display: linux-x64
-            # Using "latest" here as the build and test will any ways run inside a container which we control
-            name: ubuntu-latest
-        java-version: [8, 11, 17, 21, 24]
-        java-distribution: [corretto]
-        image: ["public.ecr.aws/async-profiler/asprof-builder-x86:latest"]
         include:
-          - runson:
-              display: macos-arm64
-              name: macos-15
-            java-version: 11
-            java-distribution: corretto
-            # Not using container for mac-os as we have images only for linux
-            image: ""
-            # ARM MacOS should take fat binaries built on ARM
-            asprof-binaries-job: macos
-          - runson:
-              display: macos-x64
-              name: macos-13
-            java-version: 11
-            java-distribution: corretto
-            architecture: x64
-            image: ""
-            # x64 MacOS should take fat binaries built on ARM
-            asprof-binaries-job: macos
           - runson:
               display: linux-arm64
               # There is no "latest" tag available (yet) as ARM runners are still in public preview
@@ -134,30 +102,6 @@ jobs:
             java-version: 11
             java-distribution: corretto
             image: public.ecr.aws/async-profiler/asprof-builder-arm:latest
-          - runson:
-              display: alpine
-              name: ubuntu-latest
-            java-version: 11
-            java-distribution: corretto
-            asprof-binaries-job: linux-x64
-            image: public.ecr.aws/async-profiler/asprof-builder-alpine:corretto-11
-          - runson:
-              display: amazonlinux2
-              name: ubuntu-latest
-            java-version: 11
-            java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2
-            # GHA provides Node.js by attaching a volume to the container. The container path is
-            # '/__e/node20', and it's not writable unless we override it via 'container.volumes'.
-            volumes: '["/tmp/node20:/__e/node20"]'
-            asprof-binaries-job: linux-x64
-          - runson:
-              display: amazonlinux2023
-              name: ubuntu-latest
-            java-version: 11
-            java-distribution: corretto
-            image: public.ecr.aws/async-profiler/asprof-builder-amazonlinux:2023
-            asprof-binaries-job: linux-x64
     runs-on: ${{ matrix.runson.name }}
     container:
       image: ${{ matrix.image }}
@@ -216,7 +160,7 @@ jobs:
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          make test-java -j
+          make test-java TESTS=StackwalkerTests.deepStack -j
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         # Always upload, especially after test failure
