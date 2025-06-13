@@ -7,11 +7,15 @@ package one.convert;
 
 final class OtlpConstants {
 
+    // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/profiles.md
+    static final String FRAME_TYPE_ATTRIBUTE_KEY = "profile.frame.type";
+
     static final int
             PROFILES_DICTIONARY_mapping_table = 1,
             PROFILES_DICTIONARY_location_table = 2,
             PROFILES_DICTIONARY_function_table = 3,
-            PROFILES_DICTIONARY_string_table = 5;
+            PROFILES_DICTIONARY_string_table = 5,
+            PROFILES_DICTIONARY_attribute_table = 6;
 
     static final int
             PROFILES_DATA_resource_profiles = 1,
@@ -41,7 +45,8 @@ final class OtlpConstants {
 
     static final int
             LOCATION_mapping_index = 1,
-            LOCATION_line = 3;
+            LOCATION_line = 3,
+            LOCATION_attribute_indices = 5;
 
     static final int
             LINE_function_index = 1,
@@ -50,4 +55,8 @@ final class OtlpConstants {
     static final int FUNCTION_name_strindex = 1;
 
     static final int AGGREGATION_TEMPORARALITY_cumulative = 2;
+
+    static final int
+            KEY_VALUE_key = 1,
+            KEY_VALUE_value = 2;
 }

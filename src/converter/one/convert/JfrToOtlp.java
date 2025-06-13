@@ -24,6 +24,8 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionPool = new Index<>(String.class, "");
     private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
+    private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
+
     private final Proto otlpProto = new Proto(1024);
 
     private final int resourceProfilesMark;
@@ -110,10 +112,14 @@ public class JfrToOtlp extends JfrConverter {
             otlpProto.commitField(functionMark);
         }
 
+        KeyValue frameTypeKv = new KeyValue(FRAME_TYPE_ATTRIBUTE_KEY, "abort-marker");
+
         // Write location table
         for (Line line : linePool.keys()) {
             int locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table);
             otlpProto.field(LOCATION_mapping_index, 0);
+
+            otlpProto.field(LOCATION_attribute_indices, attributesPool.index(frameTypeKv));
 
             int lineMark = otlpProto.startField(LOCATION_line);
             otlpProto.field(LINE_function_index, line.functionIdx);
@@ -126,6 +132,14 @@ public class JfrToOtlp extends JfrConverter {
         // Write string table
         for (String s : stringPool.keys()) {
             otlpProto.field(PROFILES_DICTIONARY_string_table, s);
+        }
+
+        // Write attributes table
+        for (KeyValue keyValue : attributesPool.keys()) {
+            int attributeMark = otlpProto.startField(PROFILES_DICTIONARY_attribute_table);
+            otlpProto.field(KEY_VALUE_key, keyValue.key);
+            otlpProto.field(KEY_VALUE_value, keyValue.value);
+            otlpProto.commitField(attributeMark);
         }
 
         otlpProto.commitField(profilesDictionaryMark);
@@ -159,11 +173,14 @@ public class JfrToOtlp extends JfrConverter {
             long[] methods = stackTrace.methods;
             int[] locations = stackTrace.locations;
 
+            Classifier.Category category = getCategory(stackTrace);
             for (int i = methods.length; --i >= 0; ) {
                 String methodName = getMethodName(methods[i], stackTrace.types[i]);
                 int lineNumber = locations[i] >>> 16;
                 int functionIdx = functionPool.index(methodName);
-                otlpProto.writeLong(linePool.index(new Line(functionIdx, lineNumber)));
+
+                Line line = new Line(functionIdx, lineNumber);
+                otlpProto.writeLong(linePool.index(line));
             }
 
             sampleInfos.add(new SampleInfo(samples, value, methods.length));
@@ -171,11 +188,11 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class SampleInfo {
-        public final long samples;
-        public final long value;
-        public final long numFrames;
+        final long samples;
+        final long value;
+        final long numFrames;
 
-        public SampleInfo(long samples, long value, long numFrames) {
+        SampleInfo(long samples, long value, long numFrames) {
             this.samples = samples;
             this.value = value;
             this.numFrames = numFrames;
@@ -183,10 +200,10 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class Line {
-        private static final Line EMPTY = new Line(0, 0);
+        static final Line EMPTY = new Line(0, 0);
 
-        private final int functionIdx;
-        private final int lineNumber;
+        final int functionIdx;
+        final int lineNumber;
 
         private Line(int functionIdx, int lineNumber) {
             this.functionIdx = functionIdx;
@@ -194,18 +211,38 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         @Override
-        public boolean equals(Object obj) {
-            if (!(obj instanceof Line)) {
-                return false;
-            }
-
-            Line other = (Line) obj;
-            return Objects.equals(functionIdx, other.functionIdx) && lineNumber == other.lineNumber;
+        public boolean equals(Object o) {
+            if (!(o instanceof Line line)) return false;
+            return functionIdx == line.functionIdx && lineNumber == line.lineNumber;
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(functionIdx, lineNumber);
+        }
+    }
+
+    private static final class KeyValue {
+        static final KeyValue EMPTY = new KeyValue("", "");
+
+        final String key;
+        // Only string value is fine for now
+        final String value;
+
+        private KeyValue(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof KeyValue keyValue)) return false;
+            return Objects.equals(key, keyValue.key) && Objects.equals(value, keyValue.value);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(key, value);
         }
     }
 }
