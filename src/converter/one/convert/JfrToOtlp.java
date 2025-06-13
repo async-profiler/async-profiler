@@ -57,6 +57,9 @@ public class JfrToOtlp extends JfrConverter {
             otlpProto.field(SAMPLE_locations_start_index, framesSeen);
             otlpProto.field(SAMPLE_locations_length, si.numFrames);
 
+            KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
+            otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
+
             int sampleValueMark = otlpProto.startField(SAMPLE_value);
             otlpProto.writeLong(si.samples);
             otlpProto.writeLong(si.value);
@@ -186,7 +189,8 @@ public class JfrToOtlp extends JfrConverter {
                 otlpProto.writeLong(linePool.index(line));
             }
 
-            sampleInfos.add(new SampleInfo(samples, value, methods.length));
+            sampleInfos.add(
+                    new SampleInfo(samples, value, methods.length, getThreadName(event.tid)));
         }
     }
 
@@ -194,11 +198,13 @@ public class JfrToOtlp extends JfrConverter {
         final long samples;
         final long value;
         final long numFrames;
+        final String threadName;
 
-        SampleInfo(long samples, long value, long numFrames) {
+        public SampleInfo(long samples, long value, long numFrames, String threadName) {
             this.samples = samples;
             this.value = value;
             this.numFrames = numFrames;
+            this.threadName = threadName;
         }
     }
 
