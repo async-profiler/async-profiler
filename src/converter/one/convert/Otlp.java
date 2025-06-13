@@ -101,22 +101,23 @@ final class Otlp {
         }
     }
 
+    enum Line {
+        FUNCTION_INDEX(1),
+        LINE(2);
+
+        public final int index;
+
+        Line(int index) {
+            this.index = index;
+        }
+    }
+
     enum Function {
         NAME_STRINDEX(1);
 
         public final int index;
 
         Function(int index) {
-            this.index = index;
-        }
-    }
-
-    enum Line {
-        FUNCTION_INDEX(1);
-
-        public final int index;
-
-        Line(int index) {
             this.index = index;
         }
     }

@@ -15,11 +15,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
     private final Index<String> stringPool = new Index<>(String.class, "");
-    private final Index<String> functionPool = new Index<>(String.class, "");
+    private final Index<Function> functionPool = new Index<>(Function.class, null);
     private final Proto otlpProto = new Proto(1024);
 
     private final int resourceProfilesMark;
@@ -102,20 +103,26 @@ public class JfrToOtlp extends JfrConverter {
         int mappingMark = otlpProto.startField(Otlp.ProfilesDictionary.MAPPING_TABLE.index);
         otlpProto.commitField(mappingMark);
 
+        Function[] orderedFunctions = functionPool.keys();
+
         // Write function table
-        for (String functionName : functionPool.keys()) {
+        for (Function function : orderedFunctions) {
             int functionMark = otlpProto.startField(Otlp.ProfilesDictionary.FUNCTION_TABLE.index);
-            otlpProto.field(Otlp.Function.NAME_STRINDEX.index, stringPool.index(functionName));
+            int functionNameStrindex = stringPool.index(function.functionName);
+            otlpProto.field(Otlp.Function.NAME_STRINDEX.index, functionNameStrindex);
             otlpProto.commitField(functionMark);
         }
 
         // Write location table
-        for (long functionIdx = 0; functionIdx < functionPool.size(); ++functionIdx) {
+        for (int functionIdx = 0; functionIdx < orderedFunctions.length; ++functionIdx) {
             int locationMark = otlpProto.startField(Otlp.ProfilesDictionary.LOCATION_TABLE.index);
             otlpProto.field(Otlp.Location.MAPPING_INDEX.index, 0);
+
             int lineMark = otlpProto.startField(Otlp.Location.LINE.index);
             otlpProto.field(Otlp.Line.FUNCTION_INDEX.index, functionIdx);
+            otlpProto.field(Otlp.Line.LINE.index, orderedFunctions[functionIdx].lineNumber);
             otlpProto.commitField(lineMark);
+
             otlpProto.commitField(locationMark);
         }
 
@@ -159,13 +166,8 @@ public class JfrToOtlp extends JfrConverter {
 
             for (int i = methods.length; --i >= 0; ) {
                 String methodName = getMethodName(methods[i], types[i]);
-                int location;
-                if (args.lines && (location = locations[i] >>> 16) != 0) {
-                    methodName += ":" + location;
-                } else if (args.bci && (location = locations[i] & 0xffff) != 0) {
-                    methodName += "@" + location;
-                }
-                otlpProto.writeLong(functionPool.index(methodName));
+                int lineNumber = locations[i] >>> 16;
+                otlpProto.writeLong(functionPool.index(new Function(methodName, lineNumber)));
             }
 
             sampleInfos.add(new SampleInfo(samples, value, methods.length));
@@ -181,6 +183,32 @@ public class JfrToOtlp extends JfrConverter {
             this.samples = samples;
             this.value = value;
             this.numFrames = numFrames;
+        }
+    }
+
+    private static final class Function {
+        private final String functionName;
+        private final int lineNumber;
+
+        private Function(String functionName, int lineNumber) {
+            this.functionName = functionName;
+            this.lineNumber = lineNumber;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof Function)) {
+                return false;
+            }
+
+            Function other = (Function) obj;
+            return Objects.equals(functionName, other.functionName)
+                    && lineNumber == other.lineNumber;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(functionName, lineNumber);
         }
     }
 }
