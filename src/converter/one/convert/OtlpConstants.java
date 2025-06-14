@@ -42,7 +42,8 @@ final class OtlpConstants {
             SAMPLE_locations_start_index = 1,
             SAMPLE_locations_length = 2,
             SAMPLE_value = 3,
-            SAMPLE_attribute_indices = 4;
+            SAMPLE_attribute_indices = 4,
+            SAMPLE_timestamps_unix_nano = 6;
 
     static final int
             LOCATION_mapping_index = 1,

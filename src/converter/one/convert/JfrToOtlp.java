@@ -56,6 +56,7 @@ public class JfrToOtlp extends JfrConverter {
             int sampleMark = otlpProto.startField(PROFILE_sample);
             otlpProto.field(SAMPLE_locations_start_index, framesSeen);
             otlpProto.field(SAMPLE_locations_length, si.numFrames);
+            otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
 
             KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
             otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
@@ -189,8 +190,11 @@ public class JfrToOtlp extends JfrConverter {
                 otlpProto.writeLong(linePool.index(line));
             }
 
+            long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
+            long timeNanos = jfr.chunkStartNanos + msFromStart * 1_000_000;
             sampleInfos.add(
-                    new SampleInfo(samples, value, methods.length, getThreadName(event.tid)));
+                    new SampleInfo(
+                            samples, value, methods.length, getThreadName(event.tid), timeNanos));
         }
     }
 
@@ -199,12 +203,15 @@ public class JfrToOtlp extends JfrConverter {
         final long value;
         final long numFrames;
         final String threadName;
+        final long timeNanos;
 
-        public SampleInfo(long samples, long value, long numFrames, String threadName) {
+        public SampleInfo(
+                long samples, long value, long numFrames, String threadName, long timeNanos) {
             this.samples = samples;
             this.value = value;
             this.numFrames = numFrames;
             this.threadName = threadName;
+            this.timeNanos = timeNanos;
         }
     }
 
