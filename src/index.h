@@ -7,15 +7,15 @@
 #define _INDEX_H
 
 #include <functional>
-#include <string>
 #include <unordered_map>
 #include <vector>
 #include "arch.h"
 
 // Keeps track of values seen and their index of occurrence
+template<class T>
 class Index {
   private:
-    std::unordered_map<std::string, size_t> _idx_map;
+    std::unordered_map<T, size_t> _idx_map;
   
   public:
     Index() = default;
@@ -25,7 +25,7 @@ class Index {
     Index& operator=(const Index&) = delete;
     Index& operator=(Index&&) = delete;
 
-    size_t indexOf(const std::string& value) {
+    size_t indexOf(const T& value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
 
@@ -33,8 +33,8 @@ class Index {
         return _idx_map.size();
     }
 
-    void forEachOrdered(std::function<void(const std::string&)> consumer) const {
-        std::vector<const std::string*> arr(_idx_map.size());
+    void forEachOrdered(std::function<void(const T&)> consumer) const {
+        std::vector<const T*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
         }

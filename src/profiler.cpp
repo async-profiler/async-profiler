@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <sys/param.h>
 #include "index.h"
 #include "profiler.h"
@@ -254,6 +255,14 @@ const char* Profiler::getLibraryName(const char* native_symbol) {
             const char* p = strrchr(s, '/');
             return p != NULL ? p + 1 : s;
         }
+    }
+    return NULL;
+}
+
+const CodeCache* Profiler::getLibrary(const char* native_symbol) {
+    short lib_index = NativeFunc::libIndex(native_symbol);
+    if (lib_index >= 0 && lib_index < _native_libs.count()) {
+        return _native_libs[lib_index];
     }
     return NULL;
 }
@@ -1639,24 +1648,29 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, Index<std::string>& strings, const char* type, const char* units) {
     using namespace Otlp;
-    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
-    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
-    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
-    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
+    protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::SAMPLE_TYPE, 1);
+    otlp_buffer.field(ValueType::TYPE_STRINDEX, strings.indexOf(type));
+    otlp_buffer.field(ValueType::UNIT_STRINDEX, strings.indexOf(units));
+    otlp_buffer.field(ValueType::AGGREGATION_TEMPORALITY, AggregationTemporality::cumulative);
     otlp_buffer.commitMessage(sample_type_mark);
 }
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
-    Index strings;
-    Index functions;
 
-    protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
-    protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
-    protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
+    Index<std::string> strings;
+    Index<Function> functions;
+    Index<Mapping> mappings;
+    const size_t empty_mapping_idx = mappings.indexOf(Mapping{0, 0, strings.indexOf("")});
+
+    Index<Location> locations;
+
+    protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::RESOURCE_PROFILES);
+    protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::SCOPE_PROFILES);
+    protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::PROFILES);
 
     recordSampleType(otlp_buffer, strings, _engine->type(), "count");
     recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
@@ -1665,34 +1679,64 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _call_trace_storage.collectSamples(call_trace_samples);
 
     struct SampleInfo {
-        u64 counter;
         u64 samples;
+        u64 counter;
         size_t num_frames;
     };
     std::vector<SampleInfo> samples_info;
     samples_info.reserve(call_trace_samples.size());
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
+
+    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::LOCATION_INDICES);
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         samples_info.push_back(SampleInfo{cts->samples, cts->counter, (size_t)trace->num_frames});
+
         for (int j = 0; j < trace->num_frames; j++) {
-            size_t function_idx = functions.indexOf(fn.name(trace->frames[j]));
-            otlp_buffer.putVarInt(function_idx);
+            FrameInfo frame_info = fn.frameInfo(trace->frames[j]);
+            const CodeCache* cc = frame_info.get_lib();
+
+            if (frame_info.get_name() == nullptr) continue;
+            size_t function_name_strindex = strings.indexOf(frame_info.get_name());
+
+            size_t function_system_name_strindex;
+            if (frame_info.get_system_name() == nullptr) function_system_name_strindex = strings.indexOf("");
+            else function_system_name_strindex = strings.indexOf(frame_info.get_system_name());
+
+            size_t function_filename_strindex;
+            if (frame_info.get_file_name() == nullptr) function_filename_strindex = strings.indexOf("");
+            else function_filename_strindex = strings.indexOf(frame_info.get_file_name());
+
+            size_t function_idx = functions.indexOf(
+                Function{function_name_strindex, function_system_name_strindex, function_filename_strindex});
+
+            size_t mapping_idx = empty_mapping_idx;
+            if (cc != nullptr) {
+                size_t lib_name_strindex;
+                if (cc->name() != nullptr) lib_name_strindex = strings.indexOf(cc->name());
+                else lib_name_strindex = strings.indexOf("");
+
+                mapping_idx = mappings.indexOf(
+                    Mapping{(uintptr_t) cc->minAddress(), (uintptr_t) cc->maxAddress(), lib_name_strindex});
+            }
+
+            size_t location_idx = locations.indexOf(
+                Location{mapping_idx, frame_info.get_address(), Line{function_idx, frame_info.get_line()}});
+            otlp_buffer.putVarInt(location_idx);
         }
     }
     otlp_buffer.commitMessage(location_indices_mark);
 
     size_t frames_seen = 0;
     for (const SampleInfo& si : samples_info) {
-        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, si.num_frames);
+        protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::SAMPLE, 1);
+        otlp_buffer.field(Sample::LOCATIONS_START_INDEX, frames_seen);
+        otlp_buffer.field(Sample::LOCATIONS_LENGTH, si.num_frames);
 
-        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
+        protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::VALUE, 1);
         otlp_buffer.putVarInt(si.samples);
         otlp_buffer.putVarInt(si.counter);
         otlp_buffer.commitMessage(sample_value_mark);
@@ -1706,35 +1750,46 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(scope_profiles_mark);
     otlp_buffer.commitMessage(resource_profiles_mark);
 
-    protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
+    protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::DICTIONARY);
 
     // Write mapping_table. Not currently used, but required by some parsers
-    protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
+    protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::MAPPING_TABLE, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
-    functions.forEachOrdered([&] (const std::string& function_name) {
-        protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
+    functions.forEachOrdered([&] (const Function& function) {
+        protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::FUNCTION_TABLE, 1);
+        otlp_buffer.field(Function::NAME_STRINDEX, function.name_strindex);
+        otlp_buffer.field(Function::FILENAME_STRINDEX, function.file_name_strindex);
         otlp_buffer.commitMessage(function_mark);
     });
 
     // Write location_table
-    for (size_t function_idx = 0; function_idx < functions.size(); ++function_idx) {
-        protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
-        // TODO: set to the proper mapping when new mappings are added.
-        // For now we keep a dummy default mapping_index for all locations because some parsers
-        // would fail otherwise
-        otlp_buffer.field(Location::mapping_index, (u64)0);
-        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
-        otlp_buffer.field(Line::function_index, function_idx);
+    locations.forEachOrdered([&] (const Location& location) {
+        protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::LOCATION_TABLE, 1);
+        otlp_buffer.field(Location::MAPPING_INDEX, (u64) location.mapping_index);
+        otlp_buffer.field(Location::ADDRESS, (u64) location.address);
+
+        protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::LINE, 1);
+        otlp_buffer.field(Line::FUNCTION_INDEX, location.line.function_index);
+        otlp_buffer.field(Line::LINE, location.line.line);
         otlp_buffer.commitMessage(line_mark);
+
         otlp_buffer.commitMessage(location_mark);
-    }
+    });
 
     // Write string_table
     strings.forEachOrdered([&] (const std::string& s) {
-        otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
+        otlp_buffer.field(ProfilesDictionary::STRING_TABLE, s.data(), s.length());
+    });
+
+    // Write mapping table
+    mappings.forEachOrdered([&] (const Mapping& mapping) {
+        protobuf_mark_t mapping_table_mark = otlp_buffer.startMessage(ProfilesDictionary::MAPPING_TABLE);
+        otlp_buffer.field(Mapping::MEMORY_START, mapping.memory_start);
+        otlp_buffer.field(Mapping::MEMORY_LIMIT, mapping.memory_limit);
+        otlp_buffer.field(Mapping::FILENAME_STRINDEX, mapping.file_name_strindex);
+        otlp_buffer.commitMessage(mapping_table_mark);
     });
 
     otlp_buffer.commitMessage(dictionary_mark);

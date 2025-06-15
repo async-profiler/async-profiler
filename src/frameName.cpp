@@ -116,8 +116,8 @@ void FrameName::buildFilter(std::vector<Matcher>& vector, const char* base, int 
     }
 }
 
-const char* FrameName::decodeNativeSymbol(const char* name) {
-    const char* lib_name = (_style & STYLE_LIB_NAMES) ? Profiler::instance()->getLibraryName(name) : NULL;
+const char* FrameName::decodeNativeSymbol(const char* name, const CodeCache* cc) {
+    const char* lib_name = (_style & STYLE_LIB_NAMES) ? cc->name() : NULL;
 
     if (Demangle::needsDemangling(name)) {
         char* demangled = Demangle::demangle(name, _style & STYLE_SIGNATURES);
@@ -254,14 +254,18 @@ void FrameName::javaClassName(const char* symbol, size_t length, int style) {
     }
 }
 
-const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
+FrameInfo FrameName::frameInfo(ASGCT_CallFrame& frame, bool for_matching) {
     if (frame.method_id == NULL) {
-        return "[unknown]";
+        return FrameInfo("[unknown]");
     }
 
     switch (frame.bci) {
-        case BCI_NATIVE_FRAME:
-            return decodeNativeSymbol((const char*)frame.method_id);
+        case BCI_NATIVE_FRAME: {
+            const char* system_name = (const char*)frame.method_id;
+            const CodeCache* cc = Profiler::instance()->getLibrary(system_name);
+            const char* frame_name = decodeNativeSymbol(system_name, cc);
+            return FrameInfo(frame_name, system_name, cc);
+        }
 
         case BCI_ALLOC:
         case BCI_ALLOC_OUTSIDE_TLAB:
@@ -272,7 +276,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             if (!for_matching && !(_style & STYLE_DOTTED)) {
                 _str += frame.bci == BCI_ALLOC_OUTSIDE_TLAB ? "_[k]" : "_[i]";
             }
-            return _str.c_str();
+            return FrameInfo(_str.c_str());
         }
 
         case BCI_THREAD_ID: {
@@ -280,32 +284,35 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             MutexLocker ml(_thread_names_lock);
             ThreadMap::iterator it = _thread_names.find(tid);
             if (for_matching) {
-                return it != _thread_names.end() ? it->second.c_str() : "";
+                const char* frame_name = it != _thread_names.end() ? it->second.c_str() : "";
+                return FrameInfo(frame_name);
             }
 
             char buf[32];
             snprintf(buf, sizeof(buf), "tid=%d]", tid);
             if (it != _thread_names.end()) {
-                return _str.assign("[").append(it->second).append(" ").append(buf).c_str();
+                _str.assign("[").append(it->second).append(" ").append(buf);
             } else {
-                return _str.assign("[").append(buf).c_str();
+                _str.assign("[").append(buf);
             }
+            return FrameInfo(_str.c_str());
         }
 
         case BCI_ADDRESS: {
             char buf[32];
             snprintf(buf, sizeof(buf), "%p", frame.method_id);
-            return _str.assign(buf).c_str();
+            return FrameInfo(_str.assign(buf).c_str());
         }
 
         case BCI_ERROR:
-            return _str.assign("[").append((const char*)frame.method_id).append("]").c_str();
+            _str.assign("[").append((const char*)frame.method_id).append("]");
+            return FrameInfo(_str.c_str());
 
         case BCI_CPU: {
             int cpu = ((int)(uintptr_t)frame.method_id) & 0x7fff;
             char buf[32];
             snprintf(buf, sizeof(buf), "[CPU-%d]", cpu);
-            return _str.assign(buf).c_str();
+            return FrameInfo(_str.assign(buf).c_str());
         }
 
         default: {
@@ -316,9 +323,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
                 it->second[0] = _cache_epoch;
                 const char* name = it->second.c_str() + 1;
                 if (type_suffix != NULL) {
-                    return _str.assign(name).append(type_suffix).c_str();
+                    _str.assign(name).append(type_suffix);
+                    return FrameInfo(_str.c_str());
                 }
-                return name;
+                return FrameInfo(name);
             }
 
             javaMethodName(frame.method_id);
@@ -326,9 +334,13 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             if (type_suffix != NULL) {
                 _str += type_suffix;
             }
-            return _str.c_str();
+            return FrameInfo(_str.c_str());
         }
     }
+}
+
+const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
+    return frameInfo(frame).get_name();
 }
 
 FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {

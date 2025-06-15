@@ -217,6 +217,7 @@ class Profiler {
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
+    const CodeCache* getLibrary(const char* native_symbol);
     CodeCache* findJvmLibrary(const char* lib_name);
     CodeCache* findLibraryByName(const char* lib_name);
     CodeCache* findLibraryByAddress(const void* address);
