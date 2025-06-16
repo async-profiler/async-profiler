@@ -340,7 +340,7 @@ FrameInfo FrameName::frameInfo(ASGCT_CallFrame& frame, bool for_matching) {
 }
 
 const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
-    return frameInfo(frame).get_name();
+    return frameInfo(frame, for_matching).get_name();
 }
 
 FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {

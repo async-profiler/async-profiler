@@ -9,12 +9,6 @@
 #include <cstdint>
 #include "protobuf.h"
 
-#define NO_COPY_MOVE(TypeName)                   \
-  TypeName(const TypeName&) = delete;            \
-  TypeName(TypeName&&) = delete;                 \
-  TypeName& operator=(const TypeName&) = delete; \
-  TypeName& operator=(TypeName&&) = delete;      \
-
 namespace Otlp {
 
 const u32 OTLP_BUFFER_INITIAL_SIZE = 5120;
