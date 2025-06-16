@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include "arguments.h"
+#include "codeCache.h"
 #include "mutex.h"
 #include "vmEntry.h"
 
