@@ -248,15 +248,14 @@ const void* Profiler::resolveSymbol(const char* name) {
 
 // For BCI_NATIVE_FRAME, library index is encoded ahead of the symbol name
 const char* Profiler::getLibraryName(const char* native_symbol) {
-    short lib_index = NativeFunc::libIndex(native_symbol);
-    if (lib_index >= 0 && lib_index < _native_libs.count()) {
-        const char* s = _native_libs[lib_index]->name();
-        if (s != NULL) {
-            const char* p = strrchr(s, '/');
-            return p != NULL ? p + 1 : s;
-        }
-    }
-    return NULL;
+    const CodeCache* cc = getLibrary(native_symbol);
+    if (cc == NULL) return NULL;
+
+    const char* s = cc->name();
+    if (s == NULL) return NULL;
+
+    const char* p = strrchr(s, '/');
+    return p != NULL ? p + 1 : s;
 }
 
 const CodeCache* Profiler::getLibrary(const char* native_symbol) {
