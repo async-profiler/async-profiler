@@ -1664,7 +1664,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     Index<Function> functions;
     Index<Mapping> mappings;
     const size_t empty_mapping_idx = mappings.indexOf(Mapping{0, 0, strings.indexOf("")});
-
     Index<Location> locations;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::RESOURCE_PROFILES);
