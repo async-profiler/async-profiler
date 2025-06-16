@@ -53,21 +53,7 @@ public class JfrToOtlp extends JfrConverter {
 
         long framesSeen = 0;
         for (SampleInfo si : sampleInfos) {
-            int sampleMark = otlpProto.startField(PROFILE_sample);
-            otlpProto.field(SAMPLE_locations_start_index, framesSeen);
-            otlpProto.field(SAMPLE_locations_length, si.numFrames);
-            otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
-
-            KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
-            otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
-
-            int sampleValueMark = otlpProto.startField(SAMPLE_value);
-            otlpProto.writeLong(si.samples);
-            otlpProto.writeLong(si.value);
-            otlpProto.commitField(sampleValueMark);
-
-            otlpProto.commitField(sampleMark);
-
+            writeSample(si, framesSeen);
             framesSeen += si.numFrames;
         }
 
@@ -93,6 +79,23 @@ public class JfrToOtlp extends JfrConverter {
         otlpProto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
     }
 
+    private void writeSample(SampleInfo si, long framesSeen) {
+        int sampleMark = otlpProto.startField(PROFILE_sample);
+        otlpProto.field(SAMPLE_locations_start_index, framesSeen);
+        otlpProto.field(SAMPLE_locations_length, si.numFrames);
+        otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
+
+        KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
+        otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
+
+        int sampleValueMark = otlpProto.startField(SAMPLE_value);
+        otlpProto.writeLong(si.samples);
+        otlpProto.writeLong(si.value);
+        otlpProto.commitField(sampleValueMark);
+
+        otlpProto.commitField(sampleMark);
+    }
+
     public void dump(OutputStream out) throws IOException {
         otlpProto.commitField(scopeProfilesMark);
         otlpProto.commitField(resourceProfilesMark);
@@ -116,14 +119,10 @@ public class JfrToOtlp extends JfrConverter {
             otlpProto.commitField(functionMark);
         }
 
-        KeyValue frameTypeKv = new KeyValue(FRAME_TYPE_ATTRIBUTE_KEY, "jvm");
-        int frameTypeKvAttributeIdx = attributesPool.index(frameTypeKv);
-
         // Write location table
         for (Line line : linePool.keys()) {
             int locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table);
             otlpProto.field(LOCATION_mapping_index, 0);
-            otlpProto.field(LOCATION_attribute_indices, frameTypeKvAttributeIdx);
 
             int lineMark = otlpProto.startField(LOCATION_line);
             otlpProto.field(LINE_function_index, line.functionIdx);
