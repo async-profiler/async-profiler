@@ -89,6 +89,7 @@ ifeq ($(OS),Darwin)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
     MERGE=false
   endif
+  SHA256SUM="shasum -a 256"
 else
   CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb
   ifeq ($(MERGE),true)
@@ -99,6 +100,7 @@ else
   SOEXT=so
   PACKAGE_EXT=tar.gz
   OS_TAG=linux
+  SHA256SUM="sha256sum"
 endif
 
 ifeq ($(ARCH_TAG),)
@@ -302,7 +304,7 @@ clean:
 $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR): Makefile
 	mkdir -p $(TEST_DEPS_DIR)
 	curl -o $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) $(PROTOBUF_JAVA_JAR_URL)
-	echo $(PROTOBUF_JAVA_JAR_SHA256) $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) | sha256sum --check
+	echo "$(PROTOBUF_JAVA_JAR_SHA256)  $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)" | $(SHA256SUM) --check
 
 .ONESHELL:
 update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
