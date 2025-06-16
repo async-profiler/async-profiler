@@ -135,6 +135,7 @@ endif
 OPENTELEMETRY_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
 OPENTELEMETRY_PROTO_JAR=opentelemetry-gen-classes.jar
 PROTOBUF_JAVA_VERSION=4.31.1
+PROTOBUF_JAVA_JAR_SHA256=d60dfe7c68a0d38a248cca96924f289dc7e1966a887ee7cae397701af08575ae
 PROTOBUF_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_JAVA_VERSION)/protobuf-java-$(PROTOBUF_JAVA_VERSION).jar
 PROTOBUF_JAVA_JAR=protobuf-java.jar
 TEST_DEPS_DIR=test/deps
@@ -301,6 +302,7 @@ clean:
 $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR): Makefile
 	mkdir -p $(TEST_DEPS_DIR)
 	curl -o $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) $(PROTOBUF_JAVA_JAR_URL)
+	echo $(PROTOBUF_JAVA_JAR_SHA256) $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) | sha256sum --check
 
 .ONESHELL:
 update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
