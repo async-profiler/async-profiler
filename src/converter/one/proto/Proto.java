@@ -6,7 +6,6 @@
 package one.proto;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -14,8 +13,6 @@ import java.util.Arrays;
  * varints, doubles, ASCII strings and embedded messages
  */
 public class Proto {
-    private static final int DEFAULT_MAX_LEN_BYTE_COUNT = 3;
-
     private byte[] buf;
     private int pos;
 
@@ -66,20 +63,10 @@ public class Proto {
         return this;
     }
 
-    public Proto field(int index, ByteBuffer bytes) {
-        tag(index, 2);
-        writeBytes(bytes);
-        return this;
-    }
-
     public Proto field(int index, Proto proto) {
         tag(index, 2);
         writeBytes(proto.buf, 0, proto.pos);
         return this;
-    }
-
-    public int startField(int index) {
-        return startField(index, DEFAULT_MAX_LEN_BYTE_COUNT).messageStart;
     }
 
     public Mark startField(int index, int maxLenByteCount) {
@@ -87,10 +74,6 @@ public class Proto {
         ensureCapacity(maxLenByteCount);
         pos += maxLenByteCount;
         return new Mark(pos, maxLenByteCount);
-    }
-
-    public void commitField(int start) {
-        commitField(new Mark(start, DEFAULT_MAX_LEN_BYTE_COUNT));
     }
 
     public void commitField(Mark mark) {
@@ -144,14 +127,9 @@ public class Proto {
     }
 
     public void writeBytes(byte[] bytes, int offset, int length) {
-        writeBytes(ByteBuffer.wrap(bytes, offset, length));
-    }
-
-    public void writeBytes(ByteBuffer bytes) {
-        int length = bytes.limit();
         writeInt(length);
         ensureCapacity(length);
-        bytes.get(buf, pos, length);
+        System.arraycopy(bytes, offset, buf, pos, length);
         pos += length;
     }
 

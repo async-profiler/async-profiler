@@ -69,7 +69,7 @@ public class JfrToPprof extends JfrConverter {
     }
 
     private Proto sample(Proto s, Event event, long value) {
-        int packedLocations = s.startField(1);
+        Proto.Mark packedLocations = s.startField(1, 3);
 
         long classId = event.classId();
         if (classId != 0) {
