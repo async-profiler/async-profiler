@@ -69,25 +69,30 @@ public class Proto {
         return this;
     }
 
-    public Mark startField(int index, int maxLenByteCount) {
+    // 32 bits for the start position
+    // 32 bits for the max length byte count
+    public long startField(int index, int maxLenByteCount) {
         tag(index, 2);
         ensureCapacity(maxLenByteCount);
         pos += maxLenByteCount;
-        return new Mark(pos, maxLenByteCount);
+        return ((long) pos << 32) | maxLenByteCount;
     }
 
-    public void commitField(Mark mark) {
-        int actualLength = pos - mark.messageStart;
-        if (actualLength >= (long) 1 << (7 * mark.maxLenByteCount)) {
+    public void commitField(long mark) {
+        int messageStart = (int) (mark >> 32);
+        int maxLenByteCount = (int) mark;
+
+        int actualLength = pos - messageStart;
+        if (actualLength >= 1L << (7 * maxLenByteCount)) {
             throw new IllegalArgumentException("Field too large");
         }
 
-        int lenBytesStart = mark.messageStart - mark.maxLenByteCount;
-        for (int i = 0; i < mark.maxLenByteCount - 1; ++i) {
-            buf[lenBytesStart + i] = (byte) (0x80 | (actualLength & 0x7f));
+        int lenBytesStart = messageStart - maxLenByteCount;
+        for (int i = 0; i < maxLenByteCount - 1; ++i) {
+            buf[lenBytesStart + i] = (byte) (0x80 | actualLength);
             actualLength >>>= 7;
         }
-        buf[lenBytesStart + mark.maxLenByteCount - 1] = (byte) actualLength;
+        buf[lenBytesStart + maxLenByteCount - 1] = (byte) actualLength;
     }
 
     public void writeInt(int n) {
@@ -142,16 +147,6 @@ public class Proto {
         if (pos + length > buf.length) {
             int newLength = buf.length * 2;
             buf = Arrays.copyOf(buf, newLength < 0 ? 0x7ffffff0 : Math.max(newLength, pos + length));
-        }
-    }
-
-    public static final class Mark {
-        private final int messageStart;
-        private final int maxLenByteCount;
-
-        public Mark(int messageStart, int maxLenByteCount) {
-            this.messageStart = messageStart;
-            this.maxLenByteCount = maxLenByteCount;
         }
     }
 }
