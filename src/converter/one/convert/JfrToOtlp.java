@@ -168,9 +168,10 @@ public class JfrToOtlp extends JfrConverter {
 
     private final class OtlpEventVisitor implements EventCollector.Visitor {
         private final List<SampleInfo> sampleInfos;
-        // These represent reusable sublists of location in Profile.location_indices
-        private final Map<int[], Integer> locationIndicesCache = new HashMap<>();
-        private int nextLocationIdx;
+        // JFR constant pool stacktrace ID to Range
+        private final Map<Integer, Range> idToRange = new HashMap<>();
+        // Indexes into Profile.location_indices
+        private int nextLocationIdx = 0;
 
         public OtlpEventVisitor(List<SampleInfo> sampleInfos) {
             this.sampleInfos = sampleInfos;
@@ -181,33 +182,27 @@ public class JfrToOtlp extends JfrConverter {
             double factor = counterFactor();
             value = factor == 1.0 ? value : (long) (value * factor);
 
-            StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
-            if (stackTrace == null) {
-                return;
-            }
-
-            int[] locationIndices = new int[stackTrace.methods.length];
-            for (int i = 0; i < stackTrace.methods.length; ++i) {
-                locationIndices[i] = linePool.index(makeLine(stackTrace, i));
-            }
-
-            Range range;
-            Integer locationStartIdx = locationIndicesCache.get(locationIndices);
-            if (locationStartIdx != null) {
-                range = new Range(locationStartIdx, locationIndices.length);
-            } else {
-                range = new Range(nextLocationIdx, locationIndices.length);
-                locationIndicesCache.put(locationIndices, nextLocationIdx);
-                for (int i : locationIndices) {
-                    otlpProto.writeLong(i);
-                }
-                nextLocationIdx += locationIndices.length;
-            }
-
             long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
             long timeNanos = jfr.chunkStartNanos + msFromStart * 1_000_000;
+
+            Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
             sampleInfos.add(
                     new SampleInfo(samples, value, range, getThreadName(event.tid), timeNanos));
+        }
+
+        // Range of values in Profile.location_indices
+        private Range computeLocationRange(int stackTraceId) {
+            StackTrace stackTrace = jfr.stackTraces.get(stackTraceId);
+            if (stackTrace == null) {
+                return new Range(0, 0);
+            }
+            for (int i = 0; i < stackTrace.methods.length; ++i) {
+                Line line = makeLine(stackTrace, i);
+                int locationIdx = linePool.index(line);
+                otlpProto.writeInt(locationIdx);
+            }
+            nextLocationIdx += stackTrace.methods.length;
+            return new Range(nextLocationIdx, stackTrace.methods.length);
         }
     }
 
@@ -237,8 +232,6 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class Range {
-        static final Range EMPTY = new Range(0, 0);
-
         final long start;
         final long length;
 
