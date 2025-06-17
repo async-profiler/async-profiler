@@ -19,6 +19,8 @@ import java.util.*;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
+    private static final int BIG_MESSAGE_BYTE_COUNT = 5;
+
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionPool = new Index<>(String.class, "");
     private final Index<Line> linePool = new Index<>(Line.class, Line.EMPTY);
@@ -32,8 +34,10 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     public void convert() throws IOException {
-        int resourceProfilesMark = otlpProto.startField(PROFILES_DATA_resource_profiles);
-        int scopeProfilesMark = otlpProto.startField(RESOURCE_PROFILES_scope_profiles);
+        Proto.Mark resourceProfilesMark =
+                otlpProto.startField(PROFILES_DATA_resource_profiles, BIG_MESSAGE_BYTE_COUNT);
+        Proto.Mark scopeProfilesMark =
+                otlpProto.startField(RESOURCE_PROFILES_scope_profiles, BIG_MESSAGE_BYTE_COUNT);
         super.convert();
         otlpProto.commitField(scopeProfilesMark);
         otlpProto.commitField(resourceProfilesMark);
@@ -43,12 +47,14 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        int profileMark = otlpProto.startField(SCOPE_PROFILES_profiles);
+        Proto.Mark profileMark =
+                otlpProto.startField(SCOPE_PROFILES_profiles, BIG_MESSAGE_BYTE_COUNT);
 
         writeSampleTypes();
         writeTimingInformation();
 
-        int locationIndicesMark = otlpProto.startField(PROFILE_location_indices);
+        Proto.Mark locationIndicesMark =
+                otlpProto.startField(PROFILE_location_indices, BIG_MESSAGE_BYTE_COUNT);
         List<SampleInfo> sampleInfos = new ArrayList<>();
         collector.forEach(new OtlpEventVisitor(sampleInfos));
         otlpProto.commitField(locationIndicesMark);
@@ -58,13 +64,13 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSampleTypes() {
-        int sampleTypeSamplesMark = otlpProto.startField(PROFILE_sample_type);
+        Proto.Mark sampleTypeSamplesMark = otlpProto.startField(PROFILE_sample_type, 1);
         otlpProto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
         otlpProto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
         otlpProto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
         otlpProto.commitField(sampleTypeSamplesMark);
 
-        int sampleTypeTotalMark = otlpProto.startField(PROFILE_sample_type);
+        Proto.Mark sampleTypeTotalMark = otlpProto.startField(PROFILE_sample_type, 1);
         otlpProto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
         otlpProto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
         otlpProto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
@@ -77,7 +83,7 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSample(SampleInfo si) {
-        int sampleMark = otlpProto.startField(PROFILE_sample);
+        Proto.Mark sampleMark = otlpProto.startField(PROFILE_sample, 1);
         otlpProto.field(SAMPLE_locations_start_index, si.locationsRange.start);
         otlpProto.field(SAMPLE_locations_length, si.locationsRange.length);
         otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
@@ -85,7 +91,7 @@ public class JfrToOtlp extends JfrConverter {
         KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
         otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
 
-        int sampleValueMark = otlpProto.startField(SAMPLE_value);
+        Proto.Mark sampleValueMark = otlpProto.startField(SAMPLE_value, 1);
         otlpProto.writeLong(si.samples);
         otlpProto.writeLong(si.value);
         otlpProto.commitField(sampleValueMark);
@@ -98,14 +104,16 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeProfileDictionary() {
-        int profilesDictionaryMark = otlpProto.startField(PROFILES_DATA_dictionary);
+        Proto.Mark profilesDictionaryMark =
+                otlpProto.startField(PROFILES_DATA_dictionary, BIG_MESSAGE_BYTE_COUNT);
 
-        int mappingMark = otlpProto.startField(PROFILES_DICTIONARY_mapping_table);
+        // Mapping[0] must be a default mapping according to the spec
+        Proto.Mark mappingMark = otlpProto.startField(PROFILES_DICTIONARY_mapping_table, 1);
         otlpProto.commitField(mappingMark);
 
         // Write function table
         for (String functionName : functionPool.keys()) {
-            int functionMark = otlpProto.startField(PROFILES_DICTIONARY_function_table);
+            Proto.Mark functionMark = otlpProto.startField(PROFILES_DICTIONARY_function_table, 1);
             int functionNameStrindex = stringPool.index(functionName);
             otlpProto.field(FUNCTION_name_strindex, functionNameStrindex);
             otlpProto.commitField(functionMark);
@@ -113,10 +121,10 @@ public class JfrToOtlp extends JfrConverter {
 
         // Write location table
         for (Line line : linePool.keys()) {
-            int locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table);
+            Proto.Mark locationMark = otlpProto.startField(PROFILES_DICTIONARY_location_table, 1);
             otlpProto.field(LOCATION_mapping_index, 0);
 
-            int lineMark = otlpProto.startField(LOCATION_line);
+            Proto.Mark lineMark = otlpProto.startField(LOCATION_line, 1);
             otlpProto.field(LINE_function_index, line.functionIdx);
             otlpProto.field(LINE_line, line.lineNumber);
             otlpProto.commitField(lineMark);
@@ -131,10 +139,12 @@ public class JfrToOtlp extends JfrConverter {
 
         // Write attributes table
         for (KeyValue keyValue : attributesPool.keys()) {
-            int attributeMark = otlpProto.startField(PROFILES_DICTIONARY_attribute_table);
+            Proto.Mark attributeMark =
+                    otlpProto.startField(
+                            PROFILES_DICTIONARY_attribute_table, BIG_MESSAGE_BYTE_COUNT);
             otlpProto.field(KEY_VALUE_key, keyValue.key);
 
-            int valueMark = otlpProto.startField(KEY_VALUE_value);
+            Proto.Mark valueMark = otlpProto.startField(KEY_VALUE_value, BIG_MESSAGE_BYTE_COUNT);
             otlpProto.field(ANY_VALUE_string_value, keyValue.value);
             otlpProto.commitField(valueMark);
 

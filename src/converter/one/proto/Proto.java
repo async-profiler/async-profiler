@@ -14,6 +14,8 @@ import java.util.Arrays;
  * varints, doubles, ASCII strings and embedded messages
  */
 public class Proto {
+    private static final int DEFAULT_MAX_LEN_BYTE_COUNT = 3;
+
     private byte[] buf;
     private int pos;
 
@@ -77,20 +79,32 @@ public class Proto {
     }
 
     public int startField(int index) {
-        tag(index, 2);
-        ensureCapacity(3);
-        return pos += 3;
+        return startField(index, DEFAULT_MAX_LEN_BYTE_COUNT).messageStart;
     }
 
-    public void commitField(int mark) {
-        int length = pos - mark;
-        if (length >= 1 << (7 * 3)) {
+    public Mark startField(int index, int maxLenByteCount) {
+        tag(index, 2);
+        ensureCapacity(maxLenByteCount);
+        pos += maxLenByteCount;
+        return new Mark(pos, maxLenByteCount);
+    }
+
+    public void commitField(int start) {
+        commitField(new Mark(start, DEFAULT_MAX_LEN_BYTE_COUNT));
+    }
+
+    public void commitField(Mark mark) {
+        int actualLength = pos - mark.messageStart;
+        if (actualLength >= 1 << (7 * mark.maxLenByteCount)) {
             throw new IllegalArgumentException("Field too large");
         }
 
-        buf[mark - 3] = (byte) (0x80 | (length & 0x7f));
-        buf[mark - 2] = (byte) (0x80 | ((length >>> 7) & 0x7f));
-        buf[mark - 1] = (byte) (length >>> 14);
+        int lenBytesStart = mark.messageStart - mark.maxLenByteCount;
+        for (int i = 0; i < mark.maxLenByteCount - 1; ++i) {
+            buf[lenBytesStart + i] = (byte) (0x80 | (actualLength & 0x7f));
+            actualLength >>>= 7;
+        }
+        buf[lenBytesStart + mark.maxLenByteCount - 1] = (byte) actualLength;
     }
 
     public void writeInt(int n) {
@@ -150,6 +164,16 @@ public class Proto {
         if (pos + length > buf.length) {
             int newLength = buf.length * 2;
             buf = Arrays.copyOf(buf, newLength < 0 ? 0x7ffffff0 : Math.max(newLength, pos + length));
+        }
+    }
+
+    public static final class Mark {
+        private final int messageStart;
+        private final int maxLenByteCount;
+
+        public Mark(int messageStart, int maxLenByteCount) {
+            this.messageStart = messageStart;
+            this.maxLenByteCount = maxLenByteCount;
         }
     }
 }
