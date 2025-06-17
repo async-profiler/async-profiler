@@ -15,9 +15,7 @@ import one.proto.Proto;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
@@ -54,12 +52,7 @@ public class JfrToOtlp extends JfrConverter {
         List<SampleInfo> sampleInfos = new ArrayList<>();
         collector.forEach(new OtlpEventVisitor(sampleInfos));
         otlpProto.commitField(locationIndicesMark);
-
-        long framesSeen = 0;
-        for (SampleInfo si : sampleInfos) {
-            writeSample(si, framesSeen);
-            framesSeen += si.numFrames;
-        }
+        sampleInfos.forEach(this::writeSample);
 
         otlpProto.commitField(profileMark);
     }
@@ -83,10 +76,10 @@ public class JfrToOtlp extends JfrConverter {
         otlpProto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
     }
 
-    private void writeSample(SampleInfo si, long framesSeen) {
+    private void writeSample(SampleInfo si) {
         int sampleMark = otlpProto.startField(PROFILE_sample);
-        otlpProto.field(SAMPLE_locations_start_index, framesSeen);
-        otlpProto.field(SAMPLE_locations_length, si.numFrames);
+        otlpProto.field(SAMPLE_locations_start_index, si.locationsRange.start);
+        otlpProto.field(SAMPLE_locations_length, si.locationsRange.length);
         otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
 
         KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
@@ -164,6 +157,9 @@ public class JfrToOtlp extends JfrConverter {
 
     private final class OtlpEventVisitor extends NormalizedEventVisitor {
         private final List<SampleInfo> sampleInfos;
+        // These represent reusable sublists of location in Profile.location_indices
+        private final Map<int[], Integer> locationIndicesCache = new HashMap<>();
+        private int nextLocationIdx;
 
         public OtlpEventVisitor(List<SampleInfo> sampleInfos) {
             this.sampleInfos = sampleInfos;
@@ -176,40 +172,80 @@ public class JfrToOtlp extends JfrConverter {
                 return;
             }
 
-            long[] methods = stackTrace.methods;
-            int[] locations = stackTrace.locations;
+            int[] locationIndices = new int[stackTrace.methods.length];
+            for (int i = 0; i < stackTrace.methods.length; ++i) {
+                locationIndices[i] = linePool.index(makeLine(stackTrace, i));
+            }
 
-            for (int i = 0; i < methods.length; ++i) {
-                String methodName = getMethodName(methods[i], stackTrace.types[i]);
-                int lineNumber = locations[i] >>> 16;
-                int functionIdx = functionPool.index(methodName);
-
-                Line line = new Line(functionIdx, lineNumber);
-                otlpProto.writeLong(linePool.index(line));
+            Range range;
+            Integer locationStartIdx = locationIndicesCache.get(locationIndices);
+            if (locationStartIdx != null) {
+                range = new Range(locationStartIdx, locationIndices.length);
+            } else {
+                range = new Range(nextLocationIdx, locationIndices.length);
+                locationIndicesCache.put(locationIndices, nextLocationIdx);
+                for (int i : locationIndices) {
+                    otlpProto.writeLong(i);
+                }
+                nextLocationIdx += locationIndices.length;
             }
 
             long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
             long timeNanos = jfr.chunkStartNanos + msFromStart * 1_000_000;
             sampleInfos.add(
-                    new SampleInfo(
-                            samples, value, methods.length, getThreadName(event.tid), timeNanos));
+                    new SampleInfo(samples, value, range, getThreadName(event.tid), timeNanos));
         }
+    }
+
+    private Line makeLine(StackTrace stackTrace, int i) {
+        String methodName = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+        int lineNumber = stackTrace.locations[i] >>> 16;
+        int functionIdx = functionPool.index(methodName);
+        return new Line(functionIdx, lineNumber);
     }
 
     private static final class SampleInfo {
         final long samples;
         final long value;
-        final long numFrames;
+        // Indices into ProfilesDictionary.location_table
+        final Range locationsRange;
         final String threadName;
         final long timeNanos;
 
         public SampleInfo(
-                long samples, long value, long numFrames, String threadName, long timeNanos) {
+                long samples, long value, Range locationsRange, String threadName, long timeNanos) {
             this.samples = samples;
             this.value = value;
-            this.numFrames = numFrames;
+            this.locationsRange = locationsRange;
             this.threadName = threadName;
             this.timeNanos = timeNanos;
+        }
+    }
+
+    private static final class Range {
+        static final Range EMPTY = new Range(0, 0);
+
+        final long start;
+        final long length;
+
+        public Range(long start, long length) {
+            this.start = start;
+            this.length = length;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Range)) return false;
+
+            Range range = (Range) o;
+            return start == range.start && length == range.length;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = 17;
+            result = (int) (31 * result + start);
+            return (int) (31 * result + length);
         }
     }
 
