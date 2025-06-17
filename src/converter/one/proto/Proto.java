@@ -95,7 +95,7 @@ public class Proto {
 
     public void commitField(Mark mark) {
         int actualLength = pos - mark.messageStart;
-        if (actualLength >= 1 << (7 * mark.maxLenByteCount)) {
+        if (actualLength >= (long) 1 << (7 * mark.maxLenByteCount)) {
             throw new IllegalArgumentException("Field too large");
         }
 
