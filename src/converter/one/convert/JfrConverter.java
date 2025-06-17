@@ -283,9 +283,10 @@ public abstract class JfrConverter extends Classifier {
     // Select sum(samples) or sum(value) depending on the --total option.
     // For lock events, convert lock duration from ticks to nanoseconds.
     protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
+        private final double factor = counterFactor();
+
         @Override
         public final void visit(Event event, long samples, long value) {
-            double factor = counterFactor();
             visit(event, factor == 0.0 ? samples : factor == 1.0 ? value : (long) (value * factor));
         }
 

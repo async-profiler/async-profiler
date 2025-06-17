@@ -239,21 +239,6 @@ public class JfrToOtlp extends JfrConverter {
             this.start = start;
             this.length = length;
         }
-
-        @Override
-        public boolean equals(Object o) {
-            if (!(o instanceof Range)) return false;
-
-            Range range = (Range) o;
-            return start == range.start && length == range.length;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = 17;
-            result = (int) (31 * result + start);
-            return (int) (31 * result + length);
-        }
     }
 
     private static final class Line {
