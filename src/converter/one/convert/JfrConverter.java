@@ -276,25 +276,19 @@ public abstract class JfrConverter extends Classifier {
         return "nanoseconds";
     }
 
+    public double counterFactor() {
+        return args.lock ? 1e9 / jfr.ticksPerSec : 1.0;
+    }
+
     // Select sum(samples) or sum(value) depending on the --total option.
     // For lock events, convert lock duration from ticks to nanoseconds.
-    protected abstract class AggregatedEventVisitor extends NormalizedEventVisitor {
+    protected abstract class AggregatedEventVisitor implements EventCollector.Visitor {
         @Override
-        protected final void visitImpl(Event event, long samples, long value) {
-            visit(event, args.total ? value : samples);
+        public final void visit(Event event, long samples, long value) {
+            double factor = counterFactor();
+            visit(event, factor == 0.0 ? samples : factor == 1.0 ? value : (long) (value * factor));
         }
 
         protected abstract void visit(Event event, long value);
-    }
-
-    protected abstract class NormalizedEventVisitor implements EventCollector.Visitor {
-        final double factor = args.lock ? 1e9 / jfr.ticksPerSec : 1.0;
-
-        @Override
-        public final void visit(Event event, long samples, long value) {
-            visitImpl(event, samples, factor == 1.0 ? value : (long) (value * factor));
-        }
-
-        protected abstract void visitImpl(Event event, long samples, long value);
     }
 }

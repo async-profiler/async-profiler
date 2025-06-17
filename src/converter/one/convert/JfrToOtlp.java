@@ -10,6 +10,7 @@ import static one.convert.OtlpConstants.*;
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
+import one.jfr.event.EventCollector;
 import one.proto.Proto;
 
 import java.io.FileOutputStream;
@@ -165,7 +166,7 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
-    private final class OtlpEventVisitor extends NormalizedEventVisitor {
+    private final class OtlpEventVisitor implements EventCollector.Visitor {
         private final List<SampleInfo> sampleInfos;
         // These represent reusable sublists of location in Profile.location_indices
         private final Map<int[], Integer> locationIndicesCache = new HashMap<>();
@@ -176,7 +177,10 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         @Override
-        public void visitImpl(Event event, long samples, long value) {
+        public void visit(Event event, long samples, long value) {
+            double factor = counterFactor();
+            value = factor == 1.0 ? value : (long) (value * factor);
+
             StackTrace stackTrace = jfr.stackTraces.get(event.stackTraceId);
             if (stackTrace == null) {
                 return;
