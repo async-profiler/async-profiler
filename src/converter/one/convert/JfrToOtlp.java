@@ -234,7 +234,9 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public int hashCode() {
-            return Objects.hash(functionIdx, lineNumber);
+            int result = 17;
+            result = 31 * result + functionIdx;
+            return 31 * result + lineNumber;
         }
     }
 
@@ -260,7 +262,9 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public int hashCode() {
-            return Objects.hash(key, value);
+            int result = 17;
+            result = 31 * result + key.hashCode();
+            return 31 * result + value.hashCode();
         }
     }
 }
