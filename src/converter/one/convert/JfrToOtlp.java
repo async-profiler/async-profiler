@@ -44,7 +44,6 @@ public class JfrToOtlp extends JfrConverter {
 
         writeSampleTypes();
         writeTimingInformation();
-        otlpProto.field(PROFILE_original_payload, jfr.currentChunk());
 
         int locationIndicesMark = otlpProto.startField(PROFILE_location_indices);
         List<SampleInfo> sampleInfos = new ArrayList<>();
