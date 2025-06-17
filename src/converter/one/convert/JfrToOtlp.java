@@ -53,12 +53,13 @@ public class JfrToOtlp extends JfrConverter {
         writeSampleTypes();
         writeTimingInformation();
 
+        List<Integer> locationIndices = new ArrayList<>();
+        collector.forEach(new OtlpEventToSampleVisitor(locationIndices));
+
         long locationIndicesMark =
                 otlpProto.startField(PROFILE_location_indices, BIG_MESSAGE_BYTE_COUNT);
-        List<SampleInfo> sampleInfos = new ArrayList<>();
-        collector.forEach(new OtlpEventVisitor(sampleInfos));
+        locationIndices.forEach(otlpProto::writeInt);
         otlpProto.commitField(locationIndicesMark);
-        sampleInfos.forEach(this::writeSample);
 
         otlpProto.commitField(profileMark);
     }
@@ -80,23 +81,6 @@ public class JfrToOtlp extends JfrConverter {
     private void writeTimingInformation() {
         otlpProto.field(PROFILE_time_nanos, jfr.getChunkStartNanos());
         otlpProto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
-    }
-
-    private void writeSample(SampleInfo si) {
-        long sampleMark = otlpProto.startField(PROFILE_sample, 1);
-        otlpProto.field(SAMPLE_locations_start_index, si.locationsRange.start);
-        otlpProto.field(SAMPLE_locations_length, si.locationsRange.length);
-        otlpProto.field(SAMPLE_timestamps_unix_nano, si.timeNanos);
-
-        KeyValue threadNameAttribute = new KeyValue("thread.name", si.threadName);
-        otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
-
-        long sampleValueMark = otlpProto.startField(SAMPLE_value, 1);
-        otlpProto.writeLong(si.samples);
-        otlpProto.writeLong(si.value);
-        otlpProto.commitField(sampleValueMark);
-
-        otlpProto.commitField(sampleMark);
     }
 
     public void dump(OutputStream out) throws IOException {
@@ -165,28 +149,40 @@ public class JfrToOtlp extends JfrConverter {
         }
     }
 
-    private final class OtlpEventVisitor implements EventCollector.Visitor {
-        private final List<SampleInfo> sampleInfos;
+    private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
+        private final List<Integer> locationIndices;
+        private final double factor = counterFactor();
+
         // JFR constant pool stacktrace ID to Range
         private final Map<Integer, Range> idToRange = new HashMap<>();
-        // Indexes into Profile.location_indices
+        // Next index to be used for a location into Profile.location_indices
         private int nextLocationIdx = 0;
 
-        public OtlpEventVisitor(List<SampleInfo> sampleInfos) {
-            this.sampleInfos = sampleInfos;
+        public OtlpEventToSampleVisitor(List<Integer> locationIndices) {
+            this.locationIndices = locationIndices;
         }
 
         @Override
         public void visit(Event event, long samples, long value) {
-            double factor = counterFactor();
-            value = factor == 1.0 ? value : (long) (value * factor);
-
             long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
             long timeNanos = jfr.chunkStartNanos + msFromStart * 1_000_000;
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
-            sampleInfos.add(
-                    new SampleInfo(samples, value, range, getThreadName(event.tid), timeNanos));
+
+            long sampleMark = otlpProto.startField(PROFILE_sample, 1);
+            otlpProto.field(SAMPLE_locations_start_index, range.start);
+            otlpProto.field(SAMPLE_locations_length, range.length);
+            otlpProto.field(SAMPLE_timestamps_unix_nano, timeNanos);
+
+            KeyValue threadNameAttribute = new KeyValue("thread.name", getThreadName(event.tid));
+            otlpProto.field(SAMPLE_attribute_indices, attributesPool.index(threadNameAttribute));
+
+            long sampleValueMark = otlpProto.startField(SAMPLE_value, 1);
+            otlpProto.writeLong(samples);
+            otlpProto.writeLong(factor == 1.0 ? value : (long) (value * factor));
+            otlpProto.commitField(sampleValueMark);
+
+            otlpProto.commitField(sampleMark);
         }
 
         // Range of values in Profile.location_indices
@@ -196,9 +192,7 @@ public class JfrToOtlp extends JfrConverter {
                 return new Range(0, 0);
             }
             for (int i = 0; i < stackTrace.methods.length; ++i) {
-                Line line = makeLine(stackTrace, i);
-                int locationIdx = linePool.index(line);
-                otlpProto.writeInt(locationIdx);
+                locationIndices.add(linePool.index(makeLine(stackTrace, i)));
             }
             nextLocationIdx += stackTrace.methods.length;
             return new Range(nextLocationIdx, stackTrace.methods.length);
