@@ -5,8 +5,6 @@
 
 package one.convert;
 
-import static one.convert.OtlpConstants.*;
-
 import one.jfr.JfrReader;
 import one.jfr.StackTrace;
 import one.jfr.event.Event;
@@ -17,6 +15,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
+
+import static one.convert.OtlpConstants.*;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
@@ -197,8 +197,9 @@ public class JfrToOtlp extends JfrConverter {
             for (int i = 0; i < stackTrace.methods.length; ++i) {
                 locationIndices.add(linePool.index(makeLine(stackTrace, i)));
             }
+            Range range = new Range(nextLocationIdx, stackTrace.methods.length);
             nextLocationIdx += stackTrace.methods.length;
-            return new Range(nextLocationIdx, stackTrace.methods.length);
+            return range;
         }
 
         private Line makeLine(StackTrace stackTrace, int i) {
