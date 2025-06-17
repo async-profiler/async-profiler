@@ -197,30 +197,12 @@ public class JfrToOtlp extends JfrConverter {
             nextLocationIdx += stackTrace.methods.length;
             return new Range(nextLocationIdx, stackTrace.methods.length);
         }
-    }
 
-    private Line makeLine(StackTrace stackTrace, int i) {
-        String methodName = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
-        int lineNumber = stackTrace.locations[i] >>> 16;
-        int functionIdx = functionPool.index(methodName);
-        return new Line(functionIdx, lineNumber);
-    }
-
-    private static final class SampleInfo {
-        final long samples;
-        final long value;
-        // Indices into ProfilesDictionary.location_table
-        final Range locationsRange;
-        final String threadName;
-        final long timeNanos;
-
-        public SampleInfo(
-                long samples, long value, Range locationsRange, String threadName, long timeNanos) {
-            this.samples = samples;
-            this.value = value;
-            this.locationsRange = locationsRange;
-            this.threadName = threadName;
-            this.timeNanos = timeNanos;
+        private Line makeLine(StackTrace stackTrace, int i) {
+            String methodName = getMethodName(stackTrace.methods[i], stackTrace.types[i]);
+            int lineNumber = stackTrace.locations[i] >>> 16;
+            int functionIdx = functionPool.index(methodName);
+            return new Line(functionIdx, lineNumber);
         }
     }
 
