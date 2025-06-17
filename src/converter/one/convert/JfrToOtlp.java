@@ -231,10 +231,10 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private static final class Range {
-        final long start;
-        final long length;
+        final int start;
+        final int length;
 
-        public Range(long start, long length) {
+        public Range(int start, int length) {
             this.start = start;
             this.length = length;
         }
