@@ -28,14 +28,19 @@ public class JfrToOtlp extends JfrConverter {
 
     private final Proto otlpProto = new Proto(1024);
 
-    private final int resourceProfilesMark;
-    private final int scopeProfilesMark;
-
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
+    }
 
-        resourceProfilesMark = otlpProto.startField(PROFILES_DATA_resource_profiles);
-        scopeProfilesMark = otlpProto.startField(RESOURCE_PROFILES_scope_profiles);
+    @Override
+    public void convert() throws IOException {
+        int resourceProfilesMark = otlpProto.startField(PROFILES_DATA_resource_profiles);
+        int scopeProfilesMark = otlpProto.startField(RESOURCE_PROFILES_scope_profiles);
+        super.convert();
+        otlpProto.commitField(scopeProfilesMark);
+        otlpProto.commitField(resourceProfilesMark);
+
+        writeProfileDictionary();
     }
 
     @Override
@@ -96,11 +101,6 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     public void dump(OutputStream out) throws IOException {
-        otlpProto.commitField(scopeProfilesMark);
-        otlpProto.commitField(resourceProfilesMark);
-
-        writeProfileDictionary();
-
         out.write(otlpProto.buffer(), 0, otlpProto.size());
     }
 
