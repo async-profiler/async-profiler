@@ -134,12 +134,15 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
 endif
 
 # OTLP Protobuf
-OPENTELEMETRY_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
-OPENTELEMETRY_PROTO_JAR=opentelemetry-gen-classes.jar
-PROTOBUF_JAVA_VERSION=4.31.1
-PROTOBUF_JAVA_JAR_SHA256=d60dfe7c68a0d38a248cca96924f289dc7e1966a887ee7cae397701af08575ae
-PROTOBUF_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_JAVA_VERSION)/protobuf-java-$(PROTOBUF_JAVA_VERSION).jar
-PROTOBUF_JAVA_JAR=protobuf-java.jar
+OTEL_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
+OTEL_PROTO_JAR=opentelemetry-gen-classes.jar
+PB_JAVA_VERSION=4.31.1
+PB_JAVA_JAR_SHA256=d60dfe7c68a0d38a248cca96924f289dc7e1966a887ee7cae397701af08575ae
+PB_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PB_JAVA_VERSION)/protobuf-java-$(PB_JAVA_VERSION).jar
+PB_JAVA_JAR=protobuf-java.jar
+PB_BIN_PATH=$(TMP_DIR)/protobuf
+PB_BIN_VERSION=31.1
+PB_BIN_URL=https://github.com/protocolbuffers/protobuf/releases/download/v$(PB_BIN_VERSION)/protoc-$(PB_BIN_VERSION)-linux-$(ARCH).zip
 TEST_DEPS_DIR=test/deps
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
@@ -280,9 +283,9 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
-	if [ ! -f "$(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR)" ]; then \
-		echo "Missing $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR), build it with 'make update-otlp-classes-jar'"; \
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
+	if [ ! -f "$(TEST_DEPS_DIR)/$(OTEL_PROTO_JAR)" ]; then \
+		echo "Missing $(TEST_DEPS_DIR)/$(OTEL_PROTO_JAR), build it with 'make update-otlp-classes-jar'"; \
 		exit 1; \
 	fi
 	mkdir -p build/test
@@ -301,33 +304,25 @@ clean-coverage:
 clean:
 	$(RM) -r build
 
-$(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR): Makefile
+$(TEST_DEPS_DIR)/$(PB_JAVA_JAR): Makefile
 	mkdir -p $(TEST_DEPS_DIR)
-	curl -o $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) $(PROTOBUF_JAVA_JAR_URL)
-	echo "$(PROTOBUF_JAVA_JAR_SHA256)  $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)" | $(SHA256SUM) -c
+	curl -o $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) $(PB_JAVA_JAR_URL)
+	echo "$(PB_JAVA_JAR_SHA256)  $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)" | $(SHA256SUM) -c
 
-.ONESHELL:
-update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR)
-	$(RM) -rf $(OPENTELEMETRY_PROTO_PATH)
-	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OPENTELEMETRY_PROTO_PATH)
-	find $(OPENTELEMETRY_PROTO_PATH)/opentelemetry/proto/ \
+update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
+	$(RM) -rf $(OTEL_PROTO_PATH)
+	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OTEL_PROTO_PATH)
+	# Classes related to logs, metrics and traces are not needed
+	find $(OTEL_PROTO_PATH)/opentelemetry/proto/ \
 		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
 		-delete
-	# Install packages as root
-	CONTAINER_ID=$$(docker run --detach --rm -v $(OPENTELEMETRY_PROTO_PATH):/opentelemetry-proto alpine sh -c ' \
-		apk update && \
-		apk add protoc findutils && \
-		sleep infinity')
-	# Compile classes as the user of Makefile to prevent permission issues
-	docker exec -u $$(id -u):$$(id -g) $$CONTAINER_ID sh -c ' \
-		cd /opentelemetry-proto && \
-		mkdir -p gen/java && \
-		# Loop until protoc is found
-		while true; do
-			protoc --help > /dev/null 2>&1;
-			if [ $$? -eq 0 ]; then break; fi;
-			sleep 1
-		done
-		protoc --java_out=./gen/java $$(find . -name "*.proto")'; docker kill $$CONTAINER_ID
-	find $(OPENTELEMETRY_PROTO_PATH)/gen/java -name "*.java" | xargs $(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -cp $(TEST_DEPS_DIR)/$(PROTOBUF_JAVA_JAR) -d $(OPENTELEMETRY_PROTO_PATH)/build
-	$(JAR) cvf $(TEST_DEPS_DIR)/$(OPENTELEMETRY_PROTO_JAR) -C $(OPENTELEMETRY_PROTO_PATH)/build .
+
+	$(RM) -rf $(PB_BIN_PATH)*
+	curl -L -o $(PB_BIN_PATH).zip $(PB_BIN_URL)
+	unzip $(PB_BIN_PATH).zip -d $(PB_BIN_PATH)
+
+	mkdir -p $(OTEL_PROTO_PATH)/gen/java
+	cd $(OTEL_PROTO_PATH) && $(PB_BIN_PATH)/bin/protoc --java_out=./gen/java $$(find . -name "*.proto")
+	find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | \
+		xargs $(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) -d $(OTEL_PROTO_PATH)/build
+	$(JAR) cvf $(TEST_DEPS_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
