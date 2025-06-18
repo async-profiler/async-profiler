@@ -890,7 +890,7 @@ static NODISCARD demangle_status parser_ident(struct parser *parser, struct iden
     const char *ident = &parser->sym[start];
 
     if (is_punycode) {
-        const char *underscore = (const char *)demangle_memrchr(ident, '_', (size_t)len);
+        const char *underscore = (const char *)demangle_memrchr(ident, '_', len);
         if (underscore == NULL) {
             *out = (struct ident){
                 .ascii_start="",
@@ -916,7 +916,7 @@ static NODISCARD demangle_status parser_ident(struct parser *parser, struct iden
     } else {
         *out = (struct ident) {
             .ascii_start=ident,
-            .ascii_len=(size_t)len,
+            .ascii_len=len,
             .punycode_start="",
             .punycode_len=0,
         };
