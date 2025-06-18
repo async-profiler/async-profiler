@@ -28,7 +28,7 @@ class WallClock : public Engine {
     volatile bool _running;
     pthread_t _thread;
 
-    void timerLoop();
+    void timerLoop() const;
 
     static void* threadEntry(void* wall_clock) {
         ((WallClock*)wall_clock)->timerLoop();

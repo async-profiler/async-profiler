@@ -88,7 +88,7 @@ class MethodInfo {
     jvmtiLineNumberEntry* _line_number_table;
     FrameTypeId _type;
 
-    jint getLineNumber(jint bci) {
+    jint getLineNumber(jint bci) const {
         if (_line_number_table_size == 0) {
             return 0;
         }
@@ -661,7 +661,7 @@ class Recording {
         return _master_recording_file != NULL;
     }
 
-    void appendRecording(const char* target_file, size_t size) {
+    void appendRecording(const char* target_file, size_t size) const {
         int append_fd = open(target_file, O_WRONLY);
         if (append_fd >= 0) {
             lseek(append_fd, 0, SEEK_END);
@@ -755,7 +755,7 @@ class Recording {
         }
     }
 
-    void writeHeader(Buffer* buf) {
+    void writeHeader(Buffer* buf) const {
         buf->put("FLR\0", 4);            // magic
         buf->put16(2);                   // major
         buf->put16(0);                   // minor
@@ -771,7 +771,7 @@ class Recording {
         buf->put32(1);                   // features
     }
 
-    void writeMetadata(Buffer* buf) {
+    void writeMetadata(Buffer* buf) const {
         int metadata_start = buf->skip(5);  // size will be patched later
         buf->putVar32(T_METADATA);
         buf->putVar64(_start_ticks);
@@ -789,7 +789,7 @@ class Recording {
         buf->putVar32(metadata_start, buf->offset() - metadata_start);
     }
 
-    void writeElement(Buffer* buf, const Element* e) {
+    void writeElement(Buffer* buf, const Element* e) const {
         buf->putVar32(e->_name);
 
         buf->putVar32(e->_attributes.size());
@@ -804,7 +804,7 @@ class Recording {
         }
     }
 
-    void writeRecordingInfo(Buffer* buf) {
+    void writeRecordingInfo(Buffer* buf) const {
         int start = buf->skip(1);
         buf->put8(T_ACTIVE_RECORDING);
         buf->putVar64(_start_ticks);
@@ -892,7 +892,7 @@ class Recording {
         }
     }
 
-    void writeOsCpuInfo(Buffer* buf) {
+    void writeOsCpuInfo(Buffer* buf) const {
         struct utsname u;
         if (uname(&u) != 0) {
             return;

@@ -23,7 +23,7 @@ class J9WallClock : public Engine {
         return NULL;
     }
 
-    void timerLoop();
+    void timerLoop() const;
 
   public:
     const char* type() {

@@ -57,7 +57,7 @@ void* LinearAllocator::alloc(size_t size) {
     return NULL;
 }
 
-Chunk* LinearAllocator::allocateChunk(Chunk* current) {
+Chunk* LinearAllocator::allocateChunk(Chunk* current) const {
     Chunk* chunk = (Chunk*)OS::safeAlloc(_chunk_size);
     if (chunk != NULL) {
         chunk->prev = current;
@@ -66,7 +66,7 @@ Chunk* LinearAllocator::allocateChunk(Chunk* current) {
     return chunk;
 }
 
-void LinearAllocator::freeChunk(Chunk* current) {
+void LinearAllocator::freeChunk(Chunk* current) const {
     OS::safeFree(current, _chunk_size);
 }
 

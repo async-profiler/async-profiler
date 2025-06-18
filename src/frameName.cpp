@@ -141,7 +141,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     }
 }
 
-const char* FrameName::typeSuffix(FrameTypeId type) {
+const char* FrameName::typeSuffix(FrameTypeId type) const {
     if (_style & STYLE_ANNOTATE) {
         switch (type) {
             case FRAME_INTERPRETED:  return "_[0]";

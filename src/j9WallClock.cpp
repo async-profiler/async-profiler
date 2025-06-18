@@ -31,7 +31,7 @@ void J9WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-void J9WallClock::timerLoop() {
+void J9WallClock::timerLoop() const {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
     jvmtiEnv* jvmti = VM::jvmti();
 
