@@ -27,18 +27,7 @@ public class JfrToPprof extends JfrConverter {
     public JfrToPprof(JfrReader jfr, Arguments args) {
         super(jfr, args);
 
-        Proto sampleType;
-        if (args.nativemem) {
-            sampleType = valueType("malloc", args.total ? "bytes" : "count");
-        } else if (args.alloc || args.live) {
-            sampleType = valueType("allocations", args.total ? "bytes" : "count");
-        } else if (args.lock) {
-            sampleType = valueType("locks", args.total ? "nanoseconds" : "count");
-        } else {
-            sampleType = valueType("cpu", args.total ? "nanoseconds" : "count");
-        }
-
-        profile.field(1, sampleType)
+        profile.field(1, valueType(getValueType(), args.total ? getTotalUnits() : getSampleUnits()))
                 .field(13, strings.index("Produced by async-profiler"));
     }
 
@@ -80,7 +69,7 @@ public class JfrToPprof extends JfrConverter {
     }
 
     private Proto sample(Proto s, Event event, long value) {
-        int packedLocations = s.startField(1);
+        long packedLocations = s.startField(1, 3);
 
         long classId = event.classId();
         if (classId != 0) {
