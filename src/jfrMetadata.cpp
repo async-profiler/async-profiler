@@ -6,7 +6,7 @@
 #include "jfrMetadata.h"
 
 
-Index Element::_strings;
+Index<std::string> Element::_strings;
 
 JfrMetadata JfrMetadata::_root;
 
