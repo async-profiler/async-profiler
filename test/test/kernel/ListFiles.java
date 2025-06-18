@@ -11,7 +11,7 @@ public class ListFiles {
     private static volatile int value;
 
     private static void listFiles() {
-        for (String s : new File("/tmp").list()) {
+        for (String s : new File("/").list()) {
             value += s.hashCode();
         }
     }
