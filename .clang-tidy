@@ -1,7 +1,6 @@
 Checks: >
   -*,
   google-readability-braces-around-statements,
-  google-explicit-constructor,
   bugprone-assert-side-effect,
   bugprone-bool-pointer-implicit-conversion,
   bugprone-chained-comparison,
@@ -124,6 +123,7 @@ Checks: >
 # readability-redundant-member-init
 # readability-simplify-boolean-expr
 # misc-include-cleaner
+# google-explicit-constructor
 WarningsAsErrors: "*"
 CheckOptions:
   - key: readability-identifier-naming.LocalVariableCase
