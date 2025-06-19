@@ -43,11 +43,11 @@ class Constant {
     u8 _info[2];
 
   public:
-    u8 tag() const {
+    u8 tag() {
         return _tag;
     }
 
-    int slots() const {
+    int slots() {
         return _tag == CONSTANT_Long || _tag == CONSTANT_Double ? 2 : 1;
     }
 

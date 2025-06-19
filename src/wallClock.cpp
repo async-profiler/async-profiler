@@ -182,7 +182,7 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-void WallClock::timerLoop() const {
+void WallClock::timerLoop() {
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
     bool thread_filter_enabled = thread_filter->enabled();

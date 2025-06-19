@@ -22,7 +22,7 @@ class Trap {
     instruction_t _breakpoint_insn;
     instruction_t _saved_insn;
 
-    bool patch(instruction_t insn) const;
+    bool patch(instruction_t insn);
 
     static uintptr_t _page_start[TRAP_COUNT];
 

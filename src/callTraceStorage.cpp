@@ -45,19 +45,19 @@ class LongHashTable {
         return prev;
     }
 
-    size_t usedMemory() const {
+    size_t usedMemory() {
         return getSize(_capacity);
     }
 
-    LongHashTable* prev() const {
+    LongHashTable* prev() {
         return _prev;
     }
 
-    u32 capacity() const {
+    u32 capacity() {
         return _capacity;
     }
 
-    u32 size() const {
+    u32 size() {
         return _size;
     }
 

@@ -68,7 +68,7 @@ class FrameName {
 
     void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     const char* decodeNativeSymbol(const char* name);
-    const char* typeSuffix(FrameTypeId type) const;
+    const char* typeSuffix(FrameTypeId type);
     void javaMethodName(jmethodID method);
     void javaClassName(const char* symbol, size_t length, int style);
 

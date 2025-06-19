@@ -499,7 +499,7 @@ class RingBuffer {
     unsigned long _offset;
 
   public:
-    explicit RingBuffer(struct perf_event_mmap_page* page) {
+    RingBuffer(struct perf_event_mmap_page* page) {
         _start = (const char*)page + OS::page_size;
     }
 

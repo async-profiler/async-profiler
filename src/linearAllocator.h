@@ -22,8 +22,8 @@ class LinearAllocator {
     Chunk* _tail;
     Chunk* _reserve;
 
-    Chunk* allocateChunk(Chunk* current) const;
-    void freeChunk(Chunk* current) const;
+    Chunk* allocateChunk(Chunk* current);
+    void freeChunk(Chunk* current);
     void reserveChunk(Chunk* current);
     Chunk* getNextChunk(Chunk* current);
 
