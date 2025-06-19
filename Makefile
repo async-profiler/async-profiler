@@ -317,7 +317,7 @@ update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
 		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
 		-delete
 
-	$(RM) -rf $(PB_BIN_PATH)*
+	$(RM) -rf $(PB_BIN_PATH) $(PB_BIN_PATH).zip
 	curl -L -o $(PB_BIN_PATH).zip $(PB_BIN_URL)
 	unzip $(PB_BIN_PATH).zip -d $(PB_BIN_PATH)
 
