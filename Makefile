@@ -323,6 +323,9 @@ update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
 
 	mkdir -p $(OTEL_PROTO_PATH)/gen/java
 	cd $(OTEL_PROTO_PATH) && $(PB_BIN_PATH)/bin/protoc --java_out=./gen/java $$(find . -name "*.proto")
-	find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | \
-		xargs $(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) -d $(OTEL_PROTO_PATH)/build
+	$(JAVAC) -source $(JAVA_TARGET) \
+	    -target $(JAVA_TARGET) \
+	    -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) \
+	    -d $(OTEL_PROTO_PATH)/build \
+	    $$(find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | tr '\n' ' ')
 	$(JAR) cvf $(TEST_DEPS_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
