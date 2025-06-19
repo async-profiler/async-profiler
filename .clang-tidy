@@ -40,7 +40,6 @@ Checks: >
   cppcoreguidelines-misleading-capture-default-by-value,
   cppcoreguidelines-pro-type-const-cast,
   cppcoreguidelines-slicing,
-  cppcoreguidelines-virtual-class-destructor,
   cert-oop58-cpp,
   cert-flp30-c,
   misc-confusable-identifiers,
@@ -69,7 +68,6 @@ Checks: >
   performance-type-promotion-in-math-fn,
   performance-unnecessary-copy-initialization,
   performance-unnecessary-value-param,
-  readability-avoid-const-params-in-decls,
   readability-avoid-return-with-void-value,
   readability-avoid-unconditional-preprocessor-if,
   readability-const-return-type,
@@ -111,7 +109,7 @@ Checks: >
 # cppcoreguidelines-init-variables
 # cppcoreguidelines-explicit-virtual-functions
 # cppcoreguidelines-special-member-functions
-# llvm-include-order,
+# llvm-include-order
 # misc-const-correctness
 # modernize-*
 # performance-enum-size
@@ -124,6 +122,7 @@ Checks: >
 # readability-simplify-boolean-expr
 # misc-include-cleaner
 # google-explicit-constructor
+# cppcoreguidelines-virtual-class-destructor
 WarningsAsErrors: "*"
 CheckOptions:
   - key: readability-identifier-naming.LocalVariableCase
