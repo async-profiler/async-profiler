@@ -19,14 +19,14 @@ import io.opentelemetry.proto.profiles.v1development.*;
 public class OtlpTests {
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void testOtlpReadable(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfileData(p);
+        ProfilesData profilesData = waitAndGetProfilesData(p);
 
         assert getFirstProfile(profilesData) != null;
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
     public void testSampleType(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfileData(p);
+        ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
         assert profile.getSampleTypeList().size() == 2;
@@ -44,7 +44,7 @@ public class OtlpTests {
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
     public void testSamples(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfileData(p);
+        ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
         ProfilesDictionary dictionary = profilesData.getDictionary();
@@ -53,7 +53,7 @@ public class OtlpTests {
         assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
     }
 
-    private static ProfilesData waitAndGetProfileData(TestProcess p) throws Exception {
+    private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
