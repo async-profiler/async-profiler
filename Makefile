@@ -287,13 +287,22 @@ clean:
 	$(RM) -r build
 
 LINT_USE_DOCKER?=false
+LINT_DIFF_ONLY=true
 cpp-lint:
-	@if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
-		clang-tidy $(SOURCES) -- $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
+	@if [ "$(LINT_DIFF_ONLY)" == "true" ]; then \
+		LINT_SOURCES=$$(git diff --name-only | grep -v src/rustDemangle.cpp | grep ".cpp"); \
+	else \
+		LINT_SOURCES=$$(GLOBIGNORE=src/rustDemangle.cpp; ls src/*.cpp); \
+	fi; \
+	if [ -z "$$LINT_SOURCES" ]; then \
+		echo "Nothing to check"; exit 0; \
+	fi; \
+	if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
+		clang-tidy $$LINT_SOURCES -- $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \
 		# TODO: Replace with identifier to Docker image when it's available \
-		docker run -v $$(pwd):/async-profiler -it --rm \
+		set -x; docker run -v $$(pwd):/async-profiler -it --rm \
 			--workdir /async-profiler \
-			tidy \
-			$(SOURCES) -- $(CXXFLAGS) $(DEFS) $(LIBS); \
+			tidy -- \
+			$$LINT_SOURCES -- $(CXXFLAGS) $(DEFS) $(LIBS); \
 	fi
