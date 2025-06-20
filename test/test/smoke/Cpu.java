@@ -25,7 +25,7 @@ public class Cpu {
     private static void method3() throws Exception {
         long startTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - startTime < 10) {
-            for (String s : new File("/tmp").list()) {
+            for (String s : new File("/").list()) {
                 value += s.hashCode();
             }
         }
