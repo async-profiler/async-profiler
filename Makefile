@@ -286,7 +286,7 @@ clean-coverage:
 clean:
 	$(RM) -r build
 
-LINT_USE_DOCKER?=false
+LINT_USE_DOCKER=false
 LINT_DIFF_ONLY=true
 cpp-lint:
 	@if [ "$(LINT_DIFF_ONLY)" == "true" ]; then \
