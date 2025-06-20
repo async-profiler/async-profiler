@@ -291,7 +291,7 @@ cpp-lint:
 	@if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
 		clang-tidy $(SOURCES) -- $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \
-		# TODO: Replace with real qualifier to Docker image \
+		# TODO: Replace with identifier to Docker image when it's available \
 		docker run -v $$(pwd):/async-profiler -it --rm \
 			--workdir /async-profiler \
 			tidy \
