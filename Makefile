@@ -285,3 +285,15 @@ clean-coverage:
 
 clean:
 	$(RM) -r build
+
+LINT_USE_DOCKER?=false
+cpp-lint:
+	@if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
+		clang-tidy $(SOURCES) -- $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
+	else \
+		# TODO: Replace with real qualifier to Docker image \
+		docker run -v $$(pwd):/async-profiler -it --rm \
+			--workdir /async-profiler \
+			tidy \
+			$(SOURCES) -- $(CXXFLAGS) $(DEFS) $(LIBS); \
+	fi
