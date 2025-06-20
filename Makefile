@@ -301,7 +301,7 @@ cpp-lint:
 		clang-tidy $$LINT_SOURCES -- $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \
 		# TODO: Replace with identifier to Docker image when it's available \
-		set -x; docker run -v $$(pwd):/async-profiler -it --rm \
+		docker run -v $$(pwd):/async-profiler -it --rm \
 			--workdir /async-profiler \
 			tidy -- \
 			$$LINT_SOURCES -- $(CXXFLAGS) $(DEFS) $(LIBS); \
