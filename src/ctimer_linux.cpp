@@ -38,7 +38,7 @@ int CTimer::createForThread(int tid) {
     sev.sigev_value.sival_ptr = NULL;
     sev.sigev_signo = _signal;
     sev.sigev_notify = SIGEV_THREAD_ID;
-    ((int*)&sev.sigev_notify)[1] = tid;
+    ((&sev.sigev_notify))[1] = tid;
 
     // Use raw syscalls, since libc wrapper allows only predefined clocks
     clockid_t clock = thread_cpu_clock(tid);
