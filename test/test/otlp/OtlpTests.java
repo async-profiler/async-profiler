@@ -53,6 +53,34 @@ public class OtlpTests {
         assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
     }
 
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb,timeout=2,interval=1ms")
+    public void testSamplesValueSamples(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        ProfilesDictionary dictionary = profilesData.getDictionary();
+
+        long otlpSamplesCount = toCollapsed(profile, dictionary, 0).stream()
+                .map(s -> s.substring(s.lastIndexOf(' ') + 1))
+                .mapToLong(Long::parseLong).sum();
+
+        assert otlpSamplesCount > 0;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb,timeout=2,event=ctimer,interval=1ms")
+    public void testSamplesValueTotal(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        ProfilesDictionary dictionary = profilesData.getDictionary();
+
+        long otlpTotal = toCollapsed(profile, dictionary, 1).stream()
+                .map(s -> s.substring(s.lastIndexOf(' ') + 1))
+                .mapToLong(Long::parseLong).sum();
+
+        assert otlpTotal >= 1_000_000_000;
+    }
+
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -62,6 +90,10 @@ public class OtlpTests {
     }
 
     private static List<String> toCollapsed(Profile profile, ProfilesDictionary dictionary) {
+        return toCollapsed(profile, dictionary, 0);
+    }
+
+    private static List<String> toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
         Map<String, Long> stackTracesCount = new HashMap<>();
         for (Sample sample : profile.getSampleList()) {
             StringBuilder stackTrace = new StringBuilder();
@@ -72,7 +104,7 @@ public class OtlpTests {
             int locationIndex = profile.getLocationIndices(sample.getLocationsStartIndex());
             stackTrace.append(getFrameName(locationIndex, dictionary));
 
-            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(0) + (oldValue == null ? 0 : oldValue));
+            stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(valueIdx) + (oldValue == null ? 0 : oldValue));
         }
         return stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
     }
@@ -94,5 +126,10 @@ public class OtlpTests {
         assert scopeProfiles.getProfilesList().size() == 1;
 
         return scopeProfiles.getProfiles(0);
+    }
+
+    private static void assertCloseTo(long value, long target, String message) {
+        Assert.isGreaterOrEqual(value, target * 0.75, message);
+        Assert.isLessOrEqual(value, target * 1.25, message);
     }
 }
