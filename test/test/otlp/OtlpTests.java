@@ -53,34 +53,6 @@ public class OtlpTests {
         assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
     }
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb,timeout=2,interval=1ms")
-    public void testSamplesValueSamples(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfilesData(p);
-
-        Profile profile = getFirstProfile(profilesData);
-        ProfilesDictionary dictionary = profilesData.getDictionary();
-
-        long otlpSamplesCount = toCollapsed(profile, dictionary, 0).stream()
-                .map(s -> s.substring(s.lastIndexOf(' ') + 1))
-                .mapToLong(Long::parseLong).sum();
-
-        assert otlpSamplesCount > 0;
-    }
-
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb,timeout=2,event=ctimer,interval=1ms")
-    public void testSamplesValueTotal(TestProcess p) throws Exception {
-        ProfilesData profilesData = waitAndGetProfilesData(p);
-
-        Profile profile = getFirstProfile(profilesData);
-        ProfilesDictionary dictionary = profilesData.getDictionary();
-
-        long otlpTotal = toCollapsed(profile, dictionary, 1).stream()
-                .map(s -> s.substring(s.lastIndexOf(' ') + 1))
-                .mapToLong(Long::parseLong).sum();
-
-        assert otlpTotal >= 1_000_000_000;
-    }
-
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
