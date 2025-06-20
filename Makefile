@@ -144,6 +144,7 @@ PB_BIN_PATH=$(TMP_DIR)/protobuf
 PB_BIN_VERSION=31.1
 PB_BIN_URL=https://github.com/protocolbuffers/protobuf/releases/download/v$(PB_BIN_VERSION)/protoc-$(PB_BIN_VERSION)-linux-$(ARCH).zip
 TEST_DEPS_DIR=test/deps
+TEST_GEN_DIR=test/gen
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -272,7 +273,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -283,7 +284,9 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
+$(TEST_DEPS_DIR): $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
+
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	mkdir -p build/test
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
@@ -324,4 +327,4 @@ update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
 	    -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) \
 	    -d $(OTEL_PROTO_PATH)/build \
 	    $$(find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | tr '\n' ' ')
-	$(JAR) cvf $(TEST_DEPS_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
+	$(JAR) cvf $(TEST_GEN_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
