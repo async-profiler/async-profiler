@@ -288,7 +288,7 @@ $(TEST_DEPS_DIR): $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
 
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 check-md:
@@ -327,4 +327,6 @@ update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
 	    -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) \
 	    -d $(OTEL_PROTO_PATH)/build \
 	    $$(find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | tr '\n' ' ')
+
+	mkdir -p $(TEST_GEN_DIR)
 	$(JAR) cvf $(TEST_GEN_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
