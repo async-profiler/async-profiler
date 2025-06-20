@@ -6,7 +6,6 @@
 	body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
 	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
 	header {margin: -24px 0 5px 0; line-height: 24px}
-	button {font: 12px sans-serif; cursor: pointer}
 	p {position: fixed; bottom: 0; margin: 0; padding: 2px 3px 2px 3px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
 	a {color: #0366d6}
 	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
@@ -15,21 +14,160 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: /*height:*/300px}
+
+	#info-tooltip {
+		display: none;
+		position: absolute;
+		top: 10px;
+		left: 48px;
+		width: 404px;
+		border: 1px solid #666666;
+		background: #ffffe0;
+		border-radius: 8px;
+		padding: 4px
+	}
+	.top {
+		border-top: .1px solid #000
+	}
+	.left {
+		border-left: .1px solid #000
+	}
+	.bottom {
+		border-bottom: .1px solid #000
+	}
+	.right {
+		border-right: .1px solid #000
+	}
+	#graph-info {
+		cursor: help
+	}
+	#graph-info:hover ~ #info-tooltip {
+		display: block
+	}
+	.toolbarIcon {
+		width: 24px;
+		height: 24px;
+		margin-left: 4px;
+		margin-right: 4px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+	.toolbarSelected {
+		background-color: #cccccc;
+		outline: 1px solid #999999;
+		border-radius: 4px;
+	}
+	.toolbarIcon:hover {
+		background-color: #ffffe0;
+		outline: 1px solid #ffc000;
+		border-radius: 4px;
+	}
+	.bordered {
+		outline: 1px solid #999999;
+	}
+	.colortip {
+		width: 200px;
+		box-sizing: border-box;
+		padding: 4px;
+	}
+	.colortip-title {
+		font-weight: bold;
+		padding: 4px;
+	}
+	.canvas-context-menu {
+		position: fixed;
+		background-color: white;
+		border: 1px solid #ccc;
+		box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+		border-radius: 4px;
+		padding: 5px 0;
+		min-width: 150px;
+		z-index: 1000;
+		display: none;
+	}
+	.menu-item {
+		padding: 3px 5px;
+		cursor: pointer;
+	}
+	.menu-item:hover {
+		background-color: #ffc000;
+	}
+	.menu-separator {
+		height: 1px;
+		background-color: #ddd;
+		margin: 5px 0;
+	}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
 <h1>/*title:*/</h1>
-<header style='text-align: left'><button id='inverted' title='Invert'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
 <header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
-<canvas id='canvas'></canvas>
-<div id='hl'><span></span></div>
-<p id='status'></p>
-<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+<div class='bordered' style="display: flex; flex-direction: column;">
+    <div class="canvas-context-menu" id="ctxMenu">
+        <div id="ctxHighlightFrameType" class="menu-item">Highlight frame type</div>
+        <div id="ctxResetHighlight" class="menu-item">Reset frame type highlight</div>
+        <div class="menu-separator"></div>
+        <div id="ctxResetZoom" class="menu-item">Reset zoom</div>
+    </div>
+    <div class='bordered' style="user-select: none; background-color: #efefef; padding: 2px; margin-bottom: 1px; display: flex; flex-direction: row">
+        <div id="graph-info" class="toolbarIcon"><svg height="20px" width="20px" viewBox="0 0 392.598 392.598"><path style="fill:#FFFFFF;" d="M274.457,148.234c0.194,17.131-5.236,33.358-15.515,46.933c-23.984,32-36.784,68.331-36.784,104.921 v1.164h-51.911c-0.065-37.107-12.929-73.956-37.107-106.537c-12.735-15.386-17.455-32.065-15.321-49.842 c5.624-45.834,39.822-70.917,74.343-74.925C237.026,67.879,274.457,103.693,274.457,148.234z"></path><rect style="fill:#40b2ff;" x="170.311" y="323.038" width="51.846" height="47.774"></rect><path style="fill:#ff8d40;" d="M196.299,91.604c-0.905,0-1.939,0-2.844,0.065c-17.842,0.84-33.681,10.279-43.442,24.178h42.408 c6.012,0,10.925,4.848,10.925,10.925s-4.848,10.925-10.925,10.925h-51.588c-0.453,2.651-0.84,5.301-1.034,8.016 c-0.259,4.719,0.129,9.244,1.099,13.77h25.988c6.012,0,10.925,4.848,10.925,10.925c0,6.012-4.848,10.925-10.925,10.925h-16.356 c0.065,0.129,0.129,0.323,0.323,0.388c22.238,30.061,35.943,63.418,40.016,97.681h10.796c3.943-34.263,17.519-67.556,39.952-97.358 c7.37-9.826,11.313-21.463,11.313-33.875C252.865,117.075,227.523,91.604,196.299,91.604z"></path><path style="fill:#004d80;" d="M196.299,36.137c6.012,0,10.925-4.848,10.925-10.925V10.925C207.224,4.913,202.376,0,196.299,0 c-6.012,0-10.925,4.848-10.925,10.925v14.287C185.374,31.289,190.287,36.137,196.299,36.137z"></path> <path style="fill:#004d80;" d="M333.543,137.309h-14.287c-6.012,0-10.925,4.848-10.925,10.925c0,6.012,4.849,10.925,10.925,10.925 h14.287c6.012,0,10.925-4.848,10.925-10.925S339.556,137.309,333.543,137.309z"></path> <path style="fill:#004d80;" d="M73.277,137.309H59.055c-6.012,0-10.925,4.848-10.925,10.925c0,6.012,4.848,10.925,10.925,10.925 h14.287c6.012,0,10.925-4.848,10.925-10.925C84.202,142.158,79.289,137.309,73.277,137.309z"></path> <path style="fill:#004d80;" d="M285.64,43.507l-10.15,10.149c-4.267,4.267-4.267,11.119,0,15.45c4.267,4.267,11.119,4.267,15.451,0 l10.15-10.149c4.267-4.267,4.267-11.119,0-15.451C296.824,39.176,289.907,39.176,285.64,43.507z"></path> <path style="fill:#004d80;" d="M101.657,227.491l-10.085,10.02c-4.267,4.267-4.267,11.119,0,15.451 c4.267,4.331,11.119,4.267,15.451,0l10.02-10.02c4.267-4.267,4.267-11.119,0-15.451 C112.776,223.224,105.859,223.224,101.657,227.491z"></path> <path style="fill:#004d80;" d="M290.941,227.491c-4.267-4.267-11.119-4.267-15.451,0c-4.267,4.267-4.267,11.119,0,15.451 l10.15,10.149c4.267,4.267,11.119,4.267,15.451,0s4.267-11.119,0-15.451L290.941,227.491z"></path> <path style="fill:#004d80;" d="M101.657,68.978c4.267,4.267,11.119,4.267,15.451,0c4.267-4.267,4.267-11.119,0-15.451l-10.02-10.02 c-4.267-4.267-11.119-4.267-15.451,0c-4.267,4.267-4.267,11.119,0,15.451L101.657,68.978z"></path> <path style="fill:#004d80;" d="M191.257,48.097c-51.2,2.457-92.962,44.606-95.095,95.806c-1.034,23.208,5.818,45.188,19.523,63.741 c21.463,28.962,32.84,61.414,32.84,93.996v80.032c0,6.012,4.848,10.925,10.925,10.925h73.632c6.012,0,10.925-4.848,10.925-10.925 l0.065-81.584c0-31.935,11.184-63.677,32.388-91.798c13.123-17.455,20.04-38.141,20.04-60.057 C296.436,91.345,248.921,45.253,191.257,48.097z M222.093,370.812h-51.846v-47.774h51.846L222.093,370.812L222.093,370.812z M258.941,195.168c-23.984,32-36.784,68.331-36.784,104.921v1.164h-51.911c-0.065-37.107-12.929-73.956-37.107-106.537 c-12.735-15.386-17.455-32.065-15.321-49.842c5.624-45.834,39.822-70.917,74.343-74.925c44.865-2.069,82.295,33.745,82.295,78.287 C274.651,165.366,269.22,181.592,258.941,195.168z"></path></svg></div>
+        <div id="search" class="toolbarIcon" title="Search by Regex [Ctrl + F]"><svg height="20px" width="20px" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" fill="#000000" stroke="#000000" stroke-width="0.00392609"><path style="fill:#FFFFFF;" d="M273.713,147.774c0,69.495-56.501,125.931-125.931,125.931c-69.495,0-125.931-56.501-125.931-125.931 c0-69.495,56.501-125.931,125.931-125.931C217.212,21.843,273.713,78.344,273.713,147.774z"></path><path style="fill:#40b2ff;" d="M370.747,348.695c0,1.422-1.616,6.271-7.176,12.283c-6.206,6.659-12.477,9.762-14.739,9.762h-0.065 c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129c9.18-7.24,17.455-15.515,24.63-24.63 c0.065,0,0.065,0,0.129,0C327.564,286.699,369.131,329.301,370.747,348.695z"></path><path style="fill:#ff8d40;" d="M208.679,86.877l-14.481,14.481c-17.131,17.131-46.545,5.042-46.545-19.265V61.6 c-49.002,0-88.372,40.792-86.109,90.246c2.004,43.895,38.141,80.032,82.036,82.036c49.455,2.263,90.246-37.172,90.246-86.109 C233.956,124.049,224.323,102.522,208.679,86.877z"></path><path style="fill:#004d80;" d="M276.105,220.954c12.347-21.527,19.459-46.545,19.459-73.18c0-81.455-66.327-147.717-147.846-147.717 S0,66.32,0,147.904s66.327,147.717,147.717,147.717c26.57,0,51.523-7.111,73.18-19.459 c39.822,53.333,91.863,113.519,126.061,116.364c12.283,0.517,22.885-6.723,32.776-16.743c5.172-5.624,13.77-16.937,12.8-28.768 C389.624,312.881,329.438,260.776,276.105,220.954z M147.717,273.77c-69.495,0-125.931-56.501-125.931-125.931 S78.287,21.908,147.717,21.908s125.931,56.501,125.931,125.931S217.212,273.77,147.717,273.77z M363.572,360.978 c-6.206,6.659-12.412,9.762-14.739,9.762h-0.065c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129 c9.18-7.24,17.455-15.515,24.63-24.63c0.065,0,0.065,0,0.129,0c63.612,47.58,105.18,90.182,106.796,109.576 C370.747,350.118,369.131,354.966,363.572,360.978z"></path></svg></div>
+        <div id="reset-zoom" class="toolbarIcon" title="Reset Zoom [Ctrl + R]"><svg height="16px" width="16px" viewBox="0 0 392.598 392.598"><path style="fill:#004d80;" d="M382.488,286.384c-3.62-3.62-9.438-4.267-13.77-1.422c-30.19,20.105-65.552,30.707-102.077,30.707 c-45.64,0-88.76-16.485-122.634-46.61l23.725-23.725c7.37-8.21,1.487-18.166-7.758-18.618H40.96 c-6.012,0-10.925,4.848-10.925,10.925v118.95c0.517,10.279,12.024,14.222,18.618,7.758l24.76-24.76 c37.947,34.263,86.626,53.01,138.085,53.01c55.143,0,125.285-23.014,172.154-92.444 C386.69,295.822,386.108,290.069,382.488,286.384z M211.692,370.747c-49.325,0-95.741-19.265-130.586-54.109 c-4.073-4.073-11.378-4.073-15.451,0L51.95,330.343v-81.842h81.778l-13.059,13.059c-4.202,4.59-4.461,10.99,0,15.451 c39.046,39.047,90.893,60.509,146.036,60.509c21.85,0,43.378-3.426,63.806-10.02C297.219,355.426,255.651,370.747,211.692,370.747z "></path><path style="fill:#004d80;" d="M248.605,123.475L224.88,147.2c-7.37,8.21-1.487,18.166,7.758,18.618h119.014 c6.012,0,10.925-4.848,10.925-10.925V35.943c-0.517-10.279-12.024-14.222-18.618-7.758l-24.76,24.76 C281.122,18.683,232.508,0,180.985,0C125.841,0,55.829,23.014,8.831,92.444c-2.909,4.331-2.327,10.02,1.422,13.77 c3.62,3.62,9.438,4.267,13.77,1.422C54.213,87.531,89.575,76.929,126.1,76.929C171.611,76.865,214.795,93.349,248.605,123.475z M180.92,21.786c49.325,0,95.741,19.265,130.586,54.109c4.073,4.073,11.378,4.073,15.451,0l13.705-13.705v81.778h-81.778 l13.059-13.059c4.202-4.59,4.461-10.99,0-15.451c-39.046-39.046-90.893-60.509-146.036-60.509c-21.851,0-43.378,3.426-63.806,10.02 C95.393,37.107,136.96,21.786,180.92,21.786z"></path><path style="fill:#ff8d40;" d="M340.661,62.255L326.956,75.96c-4.073,4.073-11.378,4.073-15.451,0 c-34.844-34.844-81.261-54.109-130.586-54.109c-43.96,0-85.592,15.192-118.82,43.248c20.428-6.659,41.891-10.02,63.806-10.02 c55.143,0,107.055,21.463,146.036,60.509c4.461,4.396,4.202,10.796,0,15.451l-13.059,12.994h81.778L340.661,62.255L340.661,62.255z"></path><path style="fill:#40b2ff;" d="M81.041,316.638c34.844,34.844,81.261,54.109,130.586,54.109c43.96,0,85.592-15.192,118.82-43.249 c-20.428,6.659-41.891,10.02-63.806,10.02c-55.143,0-107.055-21.463-146.036-60.509c-4.461-4.396-4.202-10.796,0-15.451 l13.059-13.059H51.95v81.778l13.705-13.705C69.728,312.566,76.968,312.566,81.041,316.638z"></path></svg></div>
+
+        <div id="flame-mode-flame" class="toolbarIcon toolbarSelected" title="FlameGraph [Ctrl + 1]">
+            <svg height="20px" width="20px" viewBox="0 0 20 20"><rect x="0" y="0" style="fill:#ff8d40;" width="20" height="4"></rect><rect x="0" y="5" style="fill:#40b2ff;" width="10" height="4"></rect><rect x="11" y="5" style="fill:#ff8d40;" width="8" height="4"></rect><rect x="0" y="10" style="fill:#40b2ff;" width="8" height="4"></rect><rect x="11" y="10" style="fill:#ff8d40;" width="4" height="4"></rect><rect x="0" y="15" style="fill:#40b2ff;" width="4" height="4"></rect><rect x="5" y="15" style="fill:#ff8d40;" width="2" height="4"></rect></svg>
+        </div>
+        <div id="flame-mode-inverted" class="toolbarIcon" title="Inverted FlameGraph [Ctrl + 2]">
+            <svg height="20px" width="20px" viewBox="0 0 20 20"><rect x="0" y="0" style="fill:#ff8d40;" width="6" height="4"></rect><rect x="7" y="0" style="fill:#ff8d40;" width="5" height="4"></rect><rect x="13" y="0" style="fill:#ff8d40;" width="4" height="4"></rect><rect x="18" y="0" style="fill:#ff8d40;" width="2" height="4"></rect><rect x="0" y="5" style="fill:#ff8d40;" width="6" height="4"></rect><rect x="7" y="5" style="fill:#40b2ff;" width="5" height="4"></rect><rect x="13" y="5" style="fill:#ff8d40;" width="4" height="4"></rect><rect x="18" y="5" style="fill:#40b2ff;" width="2" height="4"></rect><rect x="0" y="10" style="fill:#ff8d40;" width="4" height="4"></rect><rect x="7" y="10" style="fill:#40b2ff;" width="2" height="4"></rect><rect x="13" y="10" style="fill:#40b2ff;" width="4" height="4"></rect><rect x="13" y="15" style="fill:#ff8d40;" width="2" height="4"></rect></svg>
+        </div>
+
+        <div id="info-tooltip">
+            <div style="float:left">
+                <div class="colortip-title">Frame types:</div>
+                <div class="colortip" style="background-color: #e17d00">Kernel</div>
+                <div class="colortip" style="background-color: #e15a5a">Native</div>
+                <div class="colortip" style="background-color: #c8c83c">C++ (VM)</div>
+                <div class="colortip" style="background-color: #50e150">Java compiled (C2/JVMCI)</div>
+                <div class="colortip" style="background-color: #cce880">Java C1 compiled</div>
+                <div class="colortip" style="background-color: #50cccc">Java inlined</div>
+                <div class="colortip" style="background-color: #b2e1b2">Interpreted</div>
+            </div>
+            <div style="float:left; margin-left: 4px">
+                <div class="colortip-title">Special colors:</div>
+                <div class="colortip" style="background-color: #ee00ee">Matches regexp</div>
+                <div class="colortip-title">Allocation mode:</div>
+                <div class="colortip" style="background-color: #e17d00">Allocation outside TLAB</div>
+                <div class="colortip" style="background-color: #50cccc">Allocated object</div>
+                <div class="colortip-title">Lock mode:</div>
+                <div class="colortip" style="background-color: #50cccc">Locked object</div>
+            </div>
+            <div style="float:left; margin-top: 4px; width: 100%; border: 1px solid #666666; border-radius: 2px; padding: 2px; box-sizing: border-box;">
+                Click frame - Zoom in frame<br>
+                Alt + click frame - Remove frame<br>
+                Ctrl + R - Reset zoom<br>
+                <br>
+                Ctrl + F - Search<br>
+                N - Focus on next match<br>
+                Shift + N - Focus on previous match<br>
+                Esc - Cancel search<br>
+                <br>
+                Ctrl + 1 FlameGraph<br>
+                Ctrl + 2 Inverted FlameGraph<br>
+                I - invert<br>
+            </div>
+        </div>
+    </div>
+    <canvas id='canvas'></canvas>
+    <div id='hl'><span></span></div>
+    <p id='status'></p>
+    <p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+</div>
 <script>
 	// Copyright The async-profiler authors
 	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
-	let root, px, pattern;
+	let origRoot, root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
 	let inverted = /*inverted:*/false;
@@ -51,6 +189,13 @@
 	if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
 	c.font = document.body.style.font;
 
+    for (let mode of ['flame-mode-flame', 'flame-mode-inverted']) {
+		document.getElementById(mode).onclick = () => {
+			selectMode(mode);
+		};
+	}
+
+    let focusOnType = null;
 	const palette = [
 		[0xb2e1b2, 20, 20, 20],
 		[0x50e150, 30, 30, 30],
@@ -61,14 +206,39 @@
 		[0xcce880, 20, 20, 20],
 	];
 
-	function getColor(p) {
-		const v = Math.random();
-		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
+    function getColor(f) {
+        if (focusOnType === null) {
+            return f.color;
+        }
+
+        if (focusOnType === f.type) {
+            // emphasis color
+            return '#ff2291';
+        }
+
+        const color = Number.parseInt(f.color.substring(1), 16);
+
+        // deemphasized color
+        const r = (color >> 16) & 0xFF;
+        const g = (color >> 8) & 0xFF;
+        const b = color & 0xFF;
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        const amount = 0.65;
+        return '#' + ((Math.round(r * (1 - amount) + gray * amount) << 16)
+            | (Math.round(g * (1 - amount) + gray * amount) << 8)
+            | (Math.round(b * (1 - amount) + gray * amount))).toString(16);
+    }
+
+	function getTypeColor(type) {
+        const v = Math.random();
+        const p = palette[type];
+        return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
 	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
-			color: getColor(palette[key & 7]), title: cpool[key >>> 3],
+			color: getTypeColor(key & 7), title: cpool[key >>> 3],
+            type: key & 7,
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
@@ -128,13 +298,22 @@
 		}
 	}
 
-	function search(r) {
+	function search(r, resetZoom) {
 		if (r === true && (r = prompt('Enter regexp to search:', '')) === null) {
 			return;
 		}
 
-		pattern = r ? RegExp(r) : undefined;
+        pattern = r ? RegExp(r) : undefined;
+
+        if (resetZoom) {
+            root = origRoot;
+        }
+
 		const matched = render(root, nav = []);
+        if (!origRoot) {
+            origRoot = root;
+        }
+
 		navIndex = -1;
 		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
 		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
@@ -173,7 +352,7 @@
 
 		function drawFrame(f, y) {
 			if (f.left < x1 && f.left + f.width > x0) {
-				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;
+				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : getColor(f);
 				c.fillRect((f.left - x0) * px, y, f.width * px, 15);
 
 				if (f.width * px >= 21) {
@@ -229,6 +408,24 @@
 					}
 					canvas.onmousemove();
 				};
+                canvas.addEventListener('contextmenu', function(e) {
+                    if (e.shiftKey) {
+                        return true;
+                    }
+                    e.preventDefault();
+
+                    ctxMenu.style.display = 'block';
+                    ctxMenu.style.left = `${e.pageX}px`;
+                    ctxMenu.style.top = `${e.pageY}px`;
+
+                    ctxHighlightFrameType.onclick = function() {
+                        focusOnType = f.type;
+                        render(root);
+                    }
+                    ctxResetZoom.onclick = function() {
+                        search(false, true);
+                    }
+				});
 				status.textContent = 'Function: ' + canvas.title;
 				status.style.display = 'inline-block';
 				return;
@@ -249,11 +446,6 @@
 		getSelection().selectAllChildren(hl);
 	}
 
-	document.getElementById('inverted').onclick = function() {
-		inverted = !inverted;
-		render();
-	}
-
 	document.getElementById('search').onclick = function() {
 		search(true);
 	}
@@ -262,20 +454,82 @@
 		search(false);
 	}
 
-	window.onkeydown = function(event) {
-		if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-			event.preventDefault();
-			search(true);
-		} else if (event.key === 'Escape') {
-			search(false);
-		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
-			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
-			render(nav[navIndex]);
-			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
-			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
-			canvas.onmousemove();
-		}
+    document.getElementById('reset-zoom').onclick = function() {
+        search(false, true);
 	}
+
+    document.onclick = function () {
+        ctxMenu.style.display = 'none';
+    }
+
+    ctxResetHighlight.onclick = function() {
+        focusOnType = null;
+        render(root);
+    }
+
+	window.onkeydown = function(event) {
+		if (event.key === 'Escape') {
+			search(false);
+		} else if(event.ctrlKey || event.metaKey) {
+            switch(event.key) {
+                case 'f':
+                    event.preventDefault();
+                    search(true);
+                    break;
+                case 'r':
+                    event.preventDefault();
+                    search(false, true);
+                    break;
+                case '1':
+                    event.preventDefault();
+                    selectMode('flame-mode-flame');
+                    break;
+                case '2':
+                    event.preventDefault();
+                    selectMode('flame-mode-inverted');
+                    break;
+            }
+        } else {
+            switch(event.key) {
+                case 'n':
+                    if (nav.length > 0) {
+                        navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
+                        render(nav[navIndex]);
+                        document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
+                        window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+                        canvas.onmousemove();
+                    }
+                    break;
+                case 'i':
+                    event.preventDefault();
+                    invertMode();
+                    break;
+            }
+        }
+	}
+
+    function getMode() {
+        for (let m of ['flame-mode-flame', 'flame-mode-inverted']) {
+			if (document.getElementById(m).classList.contains('toolbarSelected')) {
+                return m;
+            }
+		}
+    }
+
+    function selectMode(mode) {
+		for (let m of ['flame-mode-flame', 'flame-mode-inverted']) {
+			document.getElementById(m).classList.remove('toolbarSelected');
+		}
+		document.getElementById(mode).classList.add('toolbarSelected');
+
+        inverted = mode === 'flame-mode-inverted';
+
+        render();
+	}
+
+    function invertMode() {
+        selectMode(getMode() === 'flame-mode-flame' ? 'flame-mode-inverted' : 'flame-mode-flame');
+    }
 
 const cpool = [
 /*cpool:*/
