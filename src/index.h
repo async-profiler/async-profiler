@@ -15,14 +15,21 @@
 // Keeps track of values seen and their index of occurrence
 class Index {
   private:
-    std::unordered_map<std::string, u32> _idx_map;
+    std::unordered_map<std::string, size_t> _idx_map;
   
   public:
-    u32 indexOf(std::string value) {
+    Index() = default;
+
+    Index(const Index&) = delete;
+    Index(Index&&) = delete;
+    Index& operator=(const Index&) = delete;
+    Index& operator=(Index&&) = delete;
+
+    size_t indexOf(const std::string& value) {
         return _idx_map.insert({value, _idx_map.size()}).first->second;
     }
 
-    u32 size() const {
+    size_t size() const {
         return _idx_map.size();
     }
 
@@ -31,7 +38,7 @@ class Index {
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
         }
-        for (u32 idx = 0; idx < size(); ++idx) {
+        for (size_t idx = 0; idx < size(); ++idx) {
             consumer(*arr[idx]);
         }
     }
