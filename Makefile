@@ -288,7 +288,7 @@ cpp-lint:
 	if [ -z "$$LINT_SOURCES" ]; then \
 		echo "Nothing to check"; exit 0; \
 	fi; \
-	if [ "$(LINT_USE_DOCKER)" == "false" ]; then \
+	if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
 		clang-tidy $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \
 		# TODO: Replace with identifier to Docker image when it's available \
