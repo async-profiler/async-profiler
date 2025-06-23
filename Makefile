@@ -275,7 +275,7 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	$(JAR) cf $@ -C build/test .
 
 
-LINT_USE_DOCKER ?= false
+LINT_USE_DOCKER=false
 LINT_DIFF_ONLY=true
 
 cpp-lint:
