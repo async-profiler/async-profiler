@@ -280,11 +280,11 @@ LINT_DIFF_ONLY=true
 
 cpp-lint:
 	@if [ "$(LINT_DIFF_ONLY)" == "true" ]; then \
-		LINT_SOURCES=$$(git diff --name-only | grep -e ".cpp" -e ".h"); \
+		LINT_SOURCES=$$(git diff --name-only | grep -e "\.cpp" -e "\.h"); \
 	else \
-		LINT_SOURCES=$$(ls src/*.cpp); \
+		LINT_SOURCES=$$(ls src/*.cpp src/*/*.cpp); \
 	fi; \
-	LINT_SOURCES=$$(echo $$LINT_SOURCES | grep -v src/rustDemangle.cpp); \
+	LINT_SOURCES=$$(echo $$LINT_SOURCES | tr ' ' '\n' | grep -v src/rustDemangle.cpp); \
 	if [ -z "$$LINT_SOURCES" ]; then \
 		echo "Nothing to check"; exit 0; \
 	fi; \
