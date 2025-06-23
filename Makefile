@@ -276,28 +276,32 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 
 
 LINT_USE_DOCKER=false
-LINT_DIFF_ONLY=true
 
 cpp-lint:
-	@if [ "$(LINT_DIFF_ONLY)" == "true" ]; then \
-		LINT_SOURCES=$$(git diff --name-only | grep -e "\.cpp" -e "\.h"); \
-	else \
-		LINT_SOURCES=$$(ls src/*.cpp src/*/*.cpp); \
-	fi; \
-	LINT_SOURCES=$$(echo $$LINT_SOURCES | tr ' ' '\n' | grep -v src/rustDemangle.cpp); \
-	if [ -z "$$LINT_SOURCES" ]; then \
-		echo "Nothing to check"; exit 0; \
-	fi; \
+	LINT_SOURCES=$$(ls -1 src/*.cpp src/*/*.cpp | grep -v src/rustDemangle.cpp); \
 	if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
 		clang-tidy $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \
-		# TODO: Replace with identifier to Docker image when it's available \
 		docker run -v $$(pwd):/async-profiler -it --rm \
 			--workdir /async-profiler \
-			tidy -- \
+			--entrypoint "clang-tidy" \
+			tidy \
 			$$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(DEFS) $(LIBS); \
 	fi
 
+cpp-lint-diff:
+	@if command -v clang-tidy-diff >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
+		git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+			clang-tidy-diff $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
+	else \
+		git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+			docker run -v $$(pwd):/async-profiler -i --rm \
+				--workdir /async-profiler \
+				--entrypoint "clang-tidy-diff" \
+				tidy \
+				-p1 -- \
+				-x c++ $(CXXFLAGS) $(DEFS) $(LIBS); \
+	fi
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
