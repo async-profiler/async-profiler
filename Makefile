@@ -278,7 +278,7 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 LINT_USE_DOCKER=false
 
 cpp-lint:
-	LINT_SOURCES=$$(ls -1 src/*.cpp src/*/*.cpp | grep -v src/rustDemangle.cpp); \
+	@LINT_SOURCES=$$(ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp); \
 	if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
 		clang-tidy $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
 	else \

@@ -16,7 +16,6 @@ Checks: >
   bugprone-posix-return,
   bugprone-redundant-branch-condition,
   bugprone-return-const-ref-from-parameter,
-  bugprone-signal-handler,
   bugprone-sizeof-container,
   bugprone-standalone-empty,
   bugprone-string-literal-with-embedded-nul,
