@@ -44,6 +44,26 @@ GitHub provides additional document on [forking a repository](https://help.githu
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
 
+### Static code analysis
+We use tools like [clang-tidy](https://clang.llvm.org/extra/clang-tidy/) to inspect new code and find problems quickly. 
+Before opening a PR, you should run the analyzers on the diff you are going to propose and fix all the reported warnings:
+```bash
+# Run the analyzers on the whole codebase
+make cpp-lint
+# Run the analyzers on unstaged changes
+make cpp-lint-diff
+```
+You can use our `asprof-code-check` Docker image to simplify dependency management:
+```bash
+docker run --rm \
+    -v $(pwd):/ap \
+    --workdir /ap \
+    --entrypoint make \
+    public.ecr.aws/async-profiler/asprof-code-check:latest \
+    cpp-lint-diff
+```
+
+
 ## Finding contributions to work on
 Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any ['help wanted'](https://github.com/async-profiler/async-profiler/labels/help%20wanted) issues is a great place to start.
 
