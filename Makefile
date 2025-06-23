@@ -274,34 +274,14 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
-
-LINT_USE_DOCKER=false
-
+.ONESHELL:
 cpp-lint:
-	@LINT_SOURCES=$$(ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp); \
-	if command -v clang-tidy >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
-		clang-tidy $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
-	else \
-		docker run -v $$(pwd):/async-profiler -it --rm \
-			--workdir /async-profiler \
-			--entrypoint "clang-tidy" \
-			tidy \
-			$$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(DEFS) $(LIBS); \
-	fi
+	@LINT_SOURCES=$$(ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp)
+	clang-tidy $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 cpp-lint-diff:
-	@if command -v clang-tidy-diff >/dev/null 2>&1 && [ "$(LINT_USE_DOCKER)" == "false" ]; then \
-		git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
-			clang-tidy-diff $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS); \
-	else \
-		git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
-			docker run -v $$(pwd):/async-profiler -i --rm \
-				--workdir /async-profiler \
-				--entrypoint "clang-tidy-diff" \
-				tidy \
-				-p1 -- \
-				-x c++ $(CXXFLAGS) $(DEFS) $(LIBS); \
-	fi
+	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+		clang-tidy-diff $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
