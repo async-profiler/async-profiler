@@ -48,7 +48,7 @@ class LateInitializer {
 
         return strcmp(dlopen_info.dli_fname, current_info.dli_fname) == 0;
 #else
-        // On MacOs: Check if the profiler is a part of the DYLD_INSERT_LIBRARIES environment variable
+        // On macOS: Check if the profiler is a part of the DYLD_INSERT_LIBRARIES environment variable
         // dladdr for dlopen will always resolve to the current shared objects due to the declaration of the dlopen preload hook
         const char* preload = getenv("DYLD_INSERT_LIBRARIES");
         if (preload == NULL) {
