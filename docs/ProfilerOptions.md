@@ -114,5 +114,6 @@ By default, async-profiler merges stack traces starting from the outermost (e.g.
 - `flamegraph` - produce Flame Graph in HTML format.
 - `tree` - produce Call Tree in HTML format.
   - `--reverse` option will generate backtrace view.
+- `otlp` - dump events in OpenTelemetry format.
 
 It is possible to specify multiple dump options at the same time.

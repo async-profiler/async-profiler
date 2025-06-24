@@ -69,6 +69,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     jfrsync[=CONFIG] - start Java Flight Recording with the given config along with the profiler
 //     traces[=N]       - dump top N call traces
 //     flat[=N]         - dump top N methods (aka flat profile)
+//     otlp             - dump in OpenTelemetry format
 //     samples          - count the number of samples (default)
 //     total            - count the total value (time, bytes, etc.) instead of samples
 //     chunksize=N      - approximate size of JFR chunk in bytes (default: 100 MB)
@@ -199,6 +200,9 @@ Error Arguments::parse(const char* args) {
             CASE("flat")
                 _output = OUTPUT_TEXT;
                 _dump_flat = value == NULL ? INT_MAX : atoi(value);
+
+            CASE("otlp")
+                _output = OUTPUT_OTLP;
 
             CASE("samples")
                 _counter = COUNTER_SAMPLES;
