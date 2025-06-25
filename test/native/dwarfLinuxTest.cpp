@@ -2,6 +2,7 @@
  * Copyright The async-profiler authors
  * SPDX-License-Identifier: Apache-2.0
  */
+#ifdef __linux__
 
 #include "dwarf.h"
 #include "testRunner.hpp"
@@ -125,3 +126,5 @@ TEST_CASE(Dwarf_NullPointers) {
     
     ASSERT_EQ(parser.count(), 0);
 }
+
+#endif // __linux__

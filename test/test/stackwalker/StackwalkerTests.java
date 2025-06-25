@@ -86,7 +86,7 @@ public class StackwalkerTests {
     }
 
     @Test(mainClass = StackGenForUnwindViaDebugFrame.class, jvmArgs = "-Xss5m",
-            agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr")
+            agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr", os = Os.LINUX)
     public void walkStackUsingDebugFrameVM(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
@@ -103,7 +103,7 @@ public class StackwalkerTests {
     }
 
     @Test(mainClass = StackGenForUnwindViaDebugFrame.class, jvmArgs = "-Xss5m",
-            agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr")
+            agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr", os = Os.LINUX)
     public void walkStackUsingDebugFrameVMX(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
