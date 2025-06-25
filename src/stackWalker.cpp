@@ -408,6 +408,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             break;
         }
 
+        const void* prev_pc = pc; 
         if (f->fp_off & DW_PC_OFFSET) {
             pc = (const char*)pc + (f->fp_off >> 1);
         } else {
@@ -432,7 +433,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             }
         }
 
-        if (inDeadZone(pc)) {
+        if (inDeadZone(pc) || (pc == prev_pc && sp == prev_sp)) {
             break;
         }
     }

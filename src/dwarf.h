@@ -110,6 +110,10 @@ class DwarfParser {
         return *(u32*)add(4);
     }
 
+    u64 get64() {
+        return *(u64*)add(8);
+    }
+
     u32 getLeb() {
         u32 result = 0;
         for (u32 shift = 0; ; shift += 7) {
@@ -144,9 +148,12 @@ class DwarfParser {
         return ptr + *(int*)add(4);
     }
 
-    void parse(const char* eh_frame_hdr);
-    void parseCie();
-    void parseFde();
+    void parseEhFrameHdr(const char* eh_frame_hdr);
+    void parseEhFrameCie();
+    void parseEhFrameFde();
+    void parseDebugFrame(const char* debug_frame_start, const char* debug_frame_end);
+    void parseDebugFrameCie(const char* entry_start, u64 length);
+    void parseDebugFrameFde(const char* entry_start, u64 length);
     void parseInstructions(u32 loc, const char* end);
     int parseExpression();
 
@@ -155,7 +162,8 @@ class DwarfParser {
 
   public:
     DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr);
-
+    DwarfParser(const char* name, const char* image_base, const char* debug_frame_start, const char* debug_frame_end);
+ 
     FrameDesc* table() const {
         return _table;
     }
