@@ -117,7 +117,7 @@ void DwarfParser::parseDebugFrame(const char* debug_frame_start, const char* deb
         u64 length;
         u64 cie_id;
         const char* entry_start;
-        if (initial_length == 0) {
+        if (initial_length == 0 || _ptr + initial_length > debug_frame_end) {
             break;
         }
         if (initial_length == 0xffffffff) {
@@ -131,7 +131,6 @@ void DwarfParser::parseDebugFrame(const char* debug_frame_start, const char* deb
             entry_start = _ptr;
             cie_id = get32();
         }
-
         if (cie_id == 0xffffffff || cie_id == (u64)-1) {
             parseDebugFrameCie(entry_start, length);
         } else {
