@@ -234,7 +234,7 @@ build-test-libs:
 	$(CC) -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjnimalloc.$(SOEXT) test/native/libs/jnimalloc.c
 	$(CC) -shared -fPIC -o $(TEST_LIB_DIR)/libmalloc.$(SOEXT) test/native/libs/malloc.c
 	$(CC) -fno-optimize-sibling-calls -shared -fPIC $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libjninativestacks.$(SOEXT) test/native/libs/jninativestacks.c
-	$(CC) -g -shared -fPIC -fno-dwarf2-cfi-asm $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libdwarfdebugframe.$(SOEXT) test/native/libs/dwarfdebugframe.c 
+	$(CC) -g -shared -fPIC -fno-dwarf2-cfi-asm -fomit-frame-pointer $(INCLUDES) -Isrc -o $(TEST_LIB_DIR)/libdwarfdebugframe.$(SOEXT) test/native/libs/dwarfdebugframe.c 
 
 ifeq ($(OS_TAG),linux)
 	$(CC) -c -shared -fPIC -o $(TEST_LIB_DIR)/vaddrdif.o test/native/libs/vaddrdif.c
@@ -245,8 +245,6 @@ ifeq ($(OS_TAG),linux)
 
 	$(AS) -o $(TEST_LIB_DIR)/twiceatzero.o test/native/libs/twiceatzero.s
 	$(LD) -shared -o $(TEST_LIB_DIR)/libtwiceatzero.$(SOEXT) $(TEST_LIB_DIR)/twiceatzero.o --section-start=.seg1=0x4000 -z max-page-size=0x1000
-
-	$(OBJCOPY) --remove-section=.eh_frame_hdr --remove-section=.eh_frame $(TEST_LIB_DIR)/libdwarfdebugframe.$(SOEXT)
 endif
 
 build-test-bins:
