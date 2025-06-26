@@ -351,7 +351,7 @@ u64 OS::getTotalCpuTime(u64* utime, u64* stime) {
     }
 
     u64 real = (u64)-1;
-    char buf[512] = {0};
+    char buf[128] = {0};
     if (read(fd, buf, sizeof(buf)) >= 12) {
         u64 user, nice, system, idle;
         if (sscanf(buf + 4, "%llu %llu %llu  %llu", &user, &nice, &system, &idle) == 4) {
