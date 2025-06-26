@@ -5,6 +5,7 @@
 
 package test.stackwalker;
 
+import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
@@ -83,5 +84,48 @@ public class StackwalkerTests {
                 "test/stackwalker/StackGenerator.leafFrame_\\[0\\];" +
                 "Java_test_stackwalker_StackGenerator_leafFrame;" +
                 "doCpuTask");
+    }
+
+    @Test(mainClass = StackGenForUnwindViaDebugFrame.class, jvmArgs = "-Xss5m",
+            agentArgs = "start,event=cpu,cstack=vm,file=%f.jfr", os = Os.LINUX)
+    public void walkStackUsingDebugFrameVM(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+        Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
+        assert output.contains("^" +
+                "test/stackwalker/StackGenForUnwindViaDebugFrame.main_\\[0\\];" +
+                "test/stackwalker/StackGenForUnwindViaDebugFrame.startWork_\\[0\\];" +
+                "Java_test_stackwalker_StackGenForUnwindViaDebugFrame_startWork;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "useCpu");
+    }
+
+    @Test(mainClass = StackGenForUnwindViaDebugFrame.class, jvmArgs = "-Xss5m",
+            agentArgs = "start,event=cpu,cstack=vmx,file=%f.jfr", os = Os.LINUX)
+    public void walkStackUsingDebugFrameVMX(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+        Output output = Output.convertJfrToCollapsed(p.getFilePath("%f"));
+        assert output.contains("^" +
+                FRAME +          // Platform-dependent root frame
+                OPTIONAL_FRAME + // Platform-dependent
+                OPTIONAL_FRAME + // ThreadJavaMain frame could be missing in JDK 8
+                "JavaMain;" +
+                OPTIONAL_FRAME + // JDK 22 added "invokeStaticMainWithArgs" function
+                "jni_CallStaticVoidMethod;" +
+                "jni_invoke_static;" +
+                "JavaCalls::call_helper;" +
+                "call_stub;"+
+                "test/stackwalker/StackGenForUnwindViaDebugFrame.main_\\[0\\];" +
+                "test/stackwalker/StackGenForUnwindViaDebugFrame.startWork_\\[0\\];" +
+                "Java_test_stackwalker_StackGenForUnwindViaDebugFrame_startWork;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "doRecursiveWork[^;]*;" +
+                "useCpu");
     }
 }

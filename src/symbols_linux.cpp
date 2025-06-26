@@ -274,6 +274,7 @@ class ElfParser {
     void loadSymbolTable(const char* symbols, size_t total_size, size_t ent_size, const char* strings);
     void addRelocationSymbols(ElfSection* reltab, const char* plt);
     const char* getDebuginfodCache();
+    void loadSymbolsFromDebugFrame();
 
   public:
     static void parseProgramHeaders(CodeCache* cc, const char* base, const char* end, bool relocate_dyn);
@@ -453,7 +454,7 @@ void ElfParser::parseDynamicSection() {
 }
 
 void ElfParser::parseDwarfInfo() {
-    if (!DWARF_SUPPORTED) return;
+    if (!DWARF_SUPPORTED || _cc->dwarfTableLength() > 0) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
     if (eh_frame_hdr != NULL) {
@@ -465,6 +466,26 @@ void ElfParser::parseDwarfInfo() {
             *table = FrameDesc::empty_frame;
             _cc->setDwarfTable(table, 1);
         }
+    }
+}
+
+
+void ElfParser::loadSymbolsFromDebugFrame() {
+    if (_cc->dwarfTableLength() > 0) {
+        return;
+    }
+    ElfSection* debug_frame_section = findSection(SHT_PROGBITS, ".debug_frame");
+    if (debug_frame_section != NULL) {
+        if (debug_frame_section->sh_size > 0) {
+            const char* section_start = at(debug_frame_section);
+            DwarfParser dwarf(_cc->name(), _base, section_start, section_start + debug_frame_section->sh_size);
+            _cc->setDwarfTable(dwarf.table(), dwarf.count());
+        } else if (strcmp(_cc->name(), "[vdso]") == 0) {
+            FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
+            *table = FrameDesc::empty_frame;
+            _cc->setDwarfTable(table, 1);
+        }
+        return;
     }
 }
 
@@ -507,6 +528,8 @@ void ElfParser::loadSymbols(bool use_debug) {
             }
         }
     }
+
+    loadSymbolsFromDebugFrame();
 }
 
 const char* ElfParser::getDebuginfodCache() {
