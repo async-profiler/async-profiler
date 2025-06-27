@@ -146,7 +146,6 @@ void* dlopen(const char* filename, int flags) {
     return _orig_dlopen(filename, flags);
 }
 
-
 Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;
 bool Hooks::_initialized = false;
