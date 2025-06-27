@@ -93,7 +93,7 @@ class Attribute {
 
 class Element {
   protected:
-    static Index _strings;
+    static Index<std::string> _strings;
 
     static int getId(const char* s) {
         return _strings.indexOf(s);
@@ -229,7 +229,7 @@ class JfrMetadata : Element {
         return &_root;
     }
 
-    static const Index& strings() {
+    static const Index<std::string>& strings() {
         return _strings;
     }
 };
