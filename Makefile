@@ -281,7 +281,7 @@ cpp-lint:
 
 cpp-lint-diff:
 	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
-		clang-tidy-diff $$LINT_SOURCES -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+		clang-tidy-diff -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
