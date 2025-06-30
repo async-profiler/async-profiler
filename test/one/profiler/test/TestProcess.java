@@ -34,7 +34,6 @@ public class TestProcess implements Closeable {
     public static final String TESTBIN = "%testbin";
     public static final String TESTLIB = "%testlib";
     public static final String PRELOAD = "%preload";
-    public static final String LIBPATH = "%libpath";
     public static final String EXT = "%ext";
 
     private static final String JAVA_HOME = System.getProperty("java.home");
@@ -134,13 +133,6 @@ public class TestProcess implements Closeable {
         return "LD_PRELOAD";
     }
 
-    public String libPath() {
-        if (currentOs().equals(Os.MACOS)) {
-            return "DYLD_LIBRARY_PATH";
-        }
-        return "LD_LIBRARY_PATH";
-    }
-
     private List<String> buildCommandLine(Test test) {
         List<String> cmd = new ArrayList<>();
 
@@ -223,9 +215,6 @@ public class TestProcess implements Closeable {
         }
         if (fileId.equals(PRELOAD)) {
             return preload();
-        }
-        if (fileId.equals(LIBPATH)) {
-            return libPath();
         }
         if (fileId.equals(EXT)) {
             return currentOs().getLibExt();

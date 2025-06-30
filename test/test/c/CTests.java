@@ -10,7 +10,6 @@ import one.profiler.test.Test;
 import one.profiler.test.TestProcess;
 
 import java.io.File;
-import java.util.Scanner;
 
 public class CTests {
 

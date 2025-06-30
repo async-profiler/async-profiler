@@ -190,6 +190,7 @@ public class NativememTests {
     @Test(sh = "%preload=%lib %testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first+LD_PRELOAD")
     public void dlopenCustomLib(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
+        assert p.exitCode() == 0;
 
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
@@ -198,9 +199,10 @@ public class NativememTests {
             nameSuffix = "LD_PRELOAD+profiler_first")
     @Test(sh = "%preload=%testlib/libmalloc.%ext:%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/preload_malloc preload %f.jfr",
             nameSuffix = "LD_PRELOAD+profiler_second")
-    @Test( sh = "%preload=%testlib/libmalloc.%ext %testbin/preload_malloc api %f.jfr", nameSuffix = "api_test")
+    @Test(sh = "%preload=%testlib/libmalloc.%ext %testbin/preload_malloc api %f.jfr", nameSuffix = "api_test")
     public void preloadMalloc(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
+        assert p.exitCode() == 0;
 
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
