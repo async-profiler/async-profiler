@@ -164,6 +164,8 @@ jobs:
       options: --privileged
       volumes: ${{ fromJSON(matrix.volumes || '[]') }}
     name: "Integration test (${{ matrix.runson.display }}, ${{ matrix.java-distribution }} ${{ matrix.java-version }})"
+    env:
+      TEST_DEPS: test/deps
     steps:
       - name: Run container setup
         run: "[ ! -f /root/setup.sh ] || /root/setup.sh"
@@ -209,6 +211,12 @@ jobs:
           esac
           echo "jars_directory=jar_artifacts" >> $GITHUB_OUTPUT
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
+      - name: Download Protobuf Java runtime
+        run: |
+          mkdir -p "$TEST_DEPS"
+          curl -L -o "$TEST_DEPS/protobuf-java.jar" "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
+        env:
+          PB_JAVA_VERSION: "4.31.1"
       - name: Run integration tests
         run: |
           mkdir -p build/jar
@@ -216,7 +224,7 @@ jobs:
           make build/test.jar
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
-          make test-java -j
+          make test-java -j TEST_DEPS_EXTRA_DIR="$TEST_DEPS"
       - name: Upload integration test logs
         uses: actions/upload-artifact@v4
         # Always upload, especially after test failure

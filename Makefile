@@ -91,7 +91,6 @@ ifeq ($(OS),Darwin)
     PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)
     MERGE=false
   endif
-  SHA256SUM=shasum -a 256
 else
   CXXFLAGS += -U_FORTIFY_SOURCE -Wl,-z,defs -Wl,--exclude-libs,ALL -static-libstdc++ -static-libgcc -fdata-sections -ffunction-sections -Wl,--gc-sections -ggdb
   ifeq ($(MERGE),true)
@@ -102,7 +101,6 @@ else
   SOEXT=so
   PACKAGE_EXT=tar.gz
   OS_TAG=linux
-  SHA256SUM=sha256sum
 endif
 
 ifeq ($(ARCH_TAG),)
