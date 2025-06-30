@@ -54,6 +54,7 @@ JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
 TEST_DEPS_EXTRA_DIR=
+ALL_TEST_DEPS_EXTRA=$(if $(TEST_DEPS_EXTRA_DIR),$(TEST_DEPS_EXTRA_DIR)/*)
 TEST_GEN_DIR=test/gen
 LOG_DIR=build/test/logs
 LOG_LEVEL=
@@ -260,7 +261,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_EXTRA_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(ALL_TEST_DEPS_EXTRA):$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -273,7 +274,7 @@ test: test-cpp test-java
 
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_EXTRA_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(ALL_TEST_DEPS_EXTRA):$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 update-otlp-classes-jar:
