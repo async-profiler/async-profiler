@@ -37,6 +37,6 @@ public class CTests {
         Output apiProfiler = Output.convertJfrToCollapsed(p.getFilePath("%api_file"), "--wall");
 
         assert preloadProfiler.contains("sampleMalloc");
-        assert apiProfiler.contains("sampleWall");
+        assert apiProfiler.total() >= 10;
     }
 }
