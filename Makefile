@@ -53,6 +53,8 @@ JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
+TEST_DEPS_EXTRA_DIR=
+TEST_GEN_DIR=test/gen
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -132,19 +134,6 @@ endif
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
-
-# OTLP Protobuf
-OTEL_PROTO_PATH=$(TMP_DIR)/opentelemetry-proto
-OTEL_PROTO_JAR=opentelemetry-gen-classes.jar
-PB_JAVA_VERSION=4.31.1
-PB_JAVA_JAR_SHA256=d60dfe7c68a0d38a248cca96924f289dc7e1966a887ee7cae397701af08575ae
-PB_JAVA_JAR_URL=https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$(PB_JAVA_VERSION)/protobuf-java-$(PB_JAVA_VERSION).jar
-PB_JAVA_JAR=protobuf-java.jar
-PB_BIN_PATH=$(TMP_DIR)/protobuf
-PB_BIN_VERSION=31.1
-PB_BIN_URL=https://github.com/protocolbuffers/protobuf/releases/download/v$(PB_BIN_VERSION)/protoc-$(PB_BIN_VERSION)-linux-$(ARCH).zip
-TEST_DEPS_DIR=test/deps
-TEST_GEN_DIR=test/gen
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -273,7 +262,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_EXTRA_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -284,12 +273,26 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-$(TEST_DEPS_DIR): $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
-
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_EXTRA_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
+
+update-otlp-classes-jar:
+	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
+	mkdir -p $(TMP_DIR)/gen/java $(TMP_DIR)/build $(TEST_GEN_DIR)
+	cd $(OTEL_PROTO_PATH) && protoc --java_out=$(TMP_DIR)/gen/java $$(find . \
+		-type f \
+		-name '*.proto' \
+		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
+		| tr '\n' ' ')
+	$(JAVAC) -source $(JAVA_TARGET) \
+	    -target $(JAVA_TARGET) \
+	    -cp $(TEST_DEPS_EXTRA_DIR)/* \
+	    -d $(TMP_DIR)/build \
+		-Xlint:-options \
+	    $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
+	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
@@ -302,31 +305,3 @@ clean-coverage:
 
 clean:
 	$(RM) -r build
-
-$(TEST_DEPS_DIR)/$(PB_JAVA_JAR): Makefile
-	mkdir -p $(TEST_DEPS_DIR)
-	curl -o $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) $(PB_JAVA_JAR_URL)
-	echo "$(PB_JAVA_JAR_SHA256)  $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)" | $(SHA256SUM) -c
-
-update-otlp-classes-jar: $(TEST_DEPS_DIR)/$(PB_JAVA_JAR)
-	$(RM) -rf $(OTEL_PROTO_PATH)
-	git clone --depth 1 git@github.com:open-telemetry/opentelemetry-proto.git $(OTEL_PROTO_PATH)
-	# Classes related to logs, metrics and traces are not needed
-	find $(OTEL_PROTO_PATH)/opentelemetry/proto/ \
-		-type f \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
-		-delete
-
-	$(RM) -rf $(PB_BIN_PATH) $(PB_BIN_PATH).zip
-	curl -L -o $(PB_BIN_PATH).zip $(PB_BIN_URL)
-	unzip $(PB_BIN_PATH).zip -d $(PB_BIN_PATH)
-
-	mkdir -p $(OTEL_PROTO_PATH)/gen/java
-	cd $(OTEL_PROTO_PATH) && $(PB_BIN_PATH)/bin/protoc --java_out=./gen/java $$(find . -name "*.proto")
-	$(JAVAC) -source $(JAVA_TARGET) \
-	    -target $(JAVA_TARGET) \
-	    -cp $(TEST_DEPS_DIR)/$(PB_JAVA_JAR) \
-	    -d $(OTEL_PROTO_PATH)/build \
-	    $$(find $(OTEL_PROTO_PATH)/gen/java -name "*.java" | tr '\n' ' ')
-
-	mkdir -p $(TEST_GEN_DIR)
-	$(JAR) cvf $(TEST_GEN_DIR)/$(OTEL_PROTO_JAR) -C $(OTEL_PROTO_PATH)/build .
