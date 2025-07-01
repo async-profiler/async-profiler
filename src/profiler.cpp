@@ -965,24 +965,24 @@ void Profiler::updateNativeThreadNames() {
 }
 
 bool Profiler::excludeTrace(FrameName* fn, CallTrace* trace) {
-    bool checkInclude = fn->hasIncludeList();
-    bool checkExclude = fn->hasExcludeList();
-    if (!(checkInclude || checkExclude)) {
+    bool check_include = fn->hasIncludeList();
+    bool check_exclude = fn->hasExcludeList();
+    if (!(check_include || check_exclude)) {
         return false;
     }
 
     for (int i = 0; i < trace->num_frames; i++) {
         const char* frame_name = fn->name(trace->frames[i], true);
-        if (checkExclude && fn->exclude(frame_name)) {
+        if (check_exclude && fn->exclude(frame_name)) {
             return true;
         }
-        if (checkInclude && fn->include(frame_name)) {
-            checkInclude = false;
-            if (!checkExclude) break;
+        if (check_include && fn->include(frame_name)) {
+            check_include = false;
+            if (!check_exclude) break;
         }
     }
 
-    return checkInclude;
+    return check_include;
 }
 
 Engine* Profiler::selectEngine(const char* event_name) {
