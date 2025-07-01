@@ -25,21 +25,30 @@ class Index {
     Index& operator=(const Index&) = delete;
     Index& operator=(Index&&) = delete;
 
-    size_t indexOf(const std::string& value) {
-        return _idx_map.insert({value, _idx_map.size()}).first->second;
+    template<typename S>
+    size_t indexOf(S&& value) {
+        return _idx_map.insert({std::forward<S>(value), _idx_map.size()}).first->second;
+    }
+
+    size_t indexOf(const char* value) {
+        return indexOf(value, strlen(value));
+    }
+
+    size_t indexOf(const char* value, size_t len) {
+        return indexOf(std::string(value, len));
     }
 
     size_t size() const {
         return _idx_map.size();
     }
 
-    void forEachOrdered(std::function<void(const std::string&)> consumer) const {
+    void forEachOrdered(std::function<void(size_t idx, const std::string&)> consumer) const {
         std::vector<const std::string*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
             arr[it.second] = &it.first;
         }
         for (size_t idx = 0; idx < size(); ++idx) {
-            consumer(*arr[idx]);
+            consumer(idx, *arr[idx]);
         }
     }
 };
