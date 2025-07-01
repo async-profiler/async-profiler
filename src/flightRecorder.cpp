@@ -557,7 +557,7 @@ class Recording {
 
         const Index& strings = JfrMetadata::strings();
         buf->putVar32(strings.size());
-        strings.forEachOrdered([&] (const std::string& s) {
+        strings.forEachOrdered([&] (size_t idx, const std::string& s) {
             buf->putUtf8(s.c_str());
         });
 
@@ -937,43 +937,33 @@ class Recording {
     }
 
     void writeClasses(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> classes;
-        lookup->_classes->collect(classes);
-
-        writePoolHeader(buf, T_CLASS, classes.size());
-        for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
-            const char* name = it->second;
-            buf->putVar32(it->first);
+        writePoolHeader(buf, T_CLASS, lookup->_classes.size());
+        lookup->_classes.forEachOrdered([&] (size_t idx, const std::string& name) {
+            buf->putVar32(idx);
             buf->putVar32(0);  // classLoader
             buf->putVar64(lookup->getSymbol(name) | _base_id);
-            buf->putVar64(lookup->getPackage(name) | _base_id);
+            buf->putVar64(lookup->getPackage(name.c_str()) | _base_id);
             buf->putVar32(0);  // access flags
             flushIfNeeded(buf);
-        }
+        });
     }
 
     void writePackages(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> packages;
-        lookup->_packages.collect(packages);
-
-        writePoolHeader(buf, T_PACKAGE, packages.size());
-        for (std::map<u32, const char*>::const_iterator it = packages.begin(); it != packages.end(); ++it) {
-            buf->putVar64(it->first | _base_id);
-            buf->putVar64(lookup->getSymbol(it->second) | _base_id);
+        writePoolHeader(buf, T_PACKAGE, lookup->_packages.size());
+        lookup->_packages.forEachOrdered([&] (size_t idx, const std::string& s) {
+            buf->putVar64(idx | _base_id);
+            buf->putVar64(lookup->getSymbol(s) | _base_id);
             flushIfNeeded(buf);
-        }
+        });
     }
 
     void writeSymbols(Buffer* buf, Lookup* lookup) {
-        std::map<u32, const char*> symbols;
-        lookup->_symbols.collect(symbols);
-
-        writePoolHeader(buf, T_SYMBOL, symbols.size());
-        for (std::map<u32, const char*>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+        writePoolHeader(buf, T_SYMBOL, lookup->_symbols.size());
+        lookup->_symbols.forEachOrdered([&] (size_t idx, const std::string& s) {
             flushIfNeeded(buf, RECORDING_BUFFER_LIMIT - MAX_STRING_LENGTH);
-            buf->putVar64(it->first | _base_id);
-            buf->putUtf8(it->second);
-        }
+            buf->putVar64(idx | _base_id);
+            buf->putUtf8(s.c_str());
+        });
     }
 
     void writeLogLevels(Buffer* buf) {
