@@ -221,7 +221,7 @@ jobs:
         run: |
           mkdir -p build/jar
           cp ${{ steps.extract_artifact.outputs.jars_directory }}/* build/jar
-          make build/test.jar
+          make build/test.jar TEST_DEPS_EXTRA_DIR="$TEST_DEPS"
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/bin build
           cp -r ${{ steps.extract_artifact.outputs.release_directory }}/lib build
           make test-java -j TEST_DEPS_EXTRA_DIR="$TEST_DEPS"
