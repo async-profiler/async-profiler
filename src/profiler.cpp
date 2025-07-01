@@ -1709,7 +1709,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     otlp_buffer.commitMessage(mapping_mark);
 
     std::map<u32, const char*> classes;
-    method_lookup->_classes->collect(classes);
+    method_lookup._classes->collect(classes);
 
     // Write function_table
     for (auto it = method_map.begin(); it != method_map.end(); ++it) {
