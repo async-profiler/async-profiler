@@ -6,9 +6,10 @@ else ifneq ($(COMMIT_TAG),)
   PROFILER_VERSION := $(PROFILER_VERSION)-$(COMMIT_TAG)
 endif
 
+TMP_DIR=/tmp
 COMMA=,
 PACKAGE_NAME=async-profiler-$(PROFILER_VERSION)-$(OS_TAG)-$(ARCH_TAG)
-PACKAGE_DIR=/tmp/$(PACKAGE_NAME)
+PACKAGE_DIR=$(TMP_DIR)/$(PACKAGE_NAME)
 DEBUG_PACKAGE_NAME=$(PACKAGE_NAME)-debug
 DEBUG_PACKAGE_DIR=$(PACKAGE_DIR)-debug
 
@@ -52,6 +53,8 @@ JAVAC_OPTIONS=--release $(JAVA_TARGET) -Xlint:-options
 
 TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
+TEST_DEPS_DIR=test/deps
+TEST_GEN_DIR=test/gen
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -129,7 +132,6 @@ endif
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
-
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -258,7 +260,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/test.jar:build/jar/*:build/lib/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -269,10 +271,26 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
+
+update-otlp-classes-jar:
+	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
+	mkdir -p $(TMP_DIR)/gen/java $(TMP_DIR)/build $(TEST_GEN_DIR)
+	cd $(OTEL_PROTO_PATH) && protoc --java_out=$(TMP_DIR)/gen/java $$(find . \
+		-type f \
+		-name '*.proto' \
+		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
+		| tr '\n' ' ')
+	$(JAVAC) -source $(JAVA_TARGET) \
+	    -target $(JAVA_TARGET) \
+	    -cp $(TEST_DEPS_DIR)/* \
+	    -d $(TMP_DIR)/build \
+		-Xlint:-options \
+	    $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
+	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
