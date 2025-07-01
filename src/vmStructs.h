@@ -9,6 +9,7 @@
 #include <jvmti.h>
 #include <stdint.h>
 #include <string.h>
+#include <type_traits>
 #include "codeCache.h"
 
 
@@ -139,6 +140,7 @@ class VMStructs {
 
     template<typename T>
     static T align(const void* ptr) {
+        static_assert(std::is_pointer<T>::value, "T must be a pointer type");
         return (T)((uintptr_t)ptr & ~(sizeof(T) - 1));
     }
 
