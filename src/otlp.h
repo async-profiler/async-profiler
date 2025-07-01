@@ -59,6 +59,7 @@ namespace Location {
 
 namespace Function {
     const protobuf_index_t name_strindex = 1;
+    const protobuf_index_t system_name_strindex = 2;
     const protobuf_index_t filename_strindex = 3;
 }
 

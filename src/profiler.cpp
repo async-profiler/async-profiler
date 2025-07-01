@@ -1653,7 +1653,10 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
-    Lookup method_lookup;
+    // The first string recorded should be the empty string according to the OTLP spec
+    strings.indexOf("");
+    MethodMap method_map;
+    Lookup method_lookup(&method_map, Profiler::instance()->classMap(), &strings, &strings);
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1701,25 +1704,27 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    // Write mapping_table. Not currently used, but required by some parsers
+    // Write mapping_table
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
     // Write function_table
-    for (MethodMap::const_iterator it = method_lookup._method_map->begin(); it != method_lookup._method_map->end(); ++it) {
+    for (auto it = method_map.begin(); it != method_map.end(); ++it) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
         otlp_buffer.field(Function::name_strindex, it->second._name);
+        otlp_buffer.field(Function::system_name_strindex, it->second._system_name);
+        otlp_buffer.field(Function::filename_strindex, it->second._file);
         otlp_buffer.commitMessage(function_mark);
     }
 
     // Write location_table
     size_t idx = 0;
-    for (MethodMap::const_iterator it = method_lookup._method_map->begin(); it != method_lookup._method_map->end(); ++it) {
+    for (auto it = method_map.begin(); it != method_map.end(); ++it) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
         // TODO: set to the proper mapping when new mappings are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
-        otlp_buffer.field(Location::mapping_index, (u64)0);
+        otlp_buffer.field(Location::mapping_index, (u64) 0);
         protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
         otlp_buffer.field(Line::function_index, idx++);
         otlp_buffer.commitMessage(line_mark);
