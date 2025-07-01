@@ -647,8 +647,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
 
     if (_cstack == CSTACK_VMX) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT);
-    } else if (event_type <= WALL_CLOCK_SAMPLE) {
-        // Async events
+    } else if (event_type <= MALLOC_SAMPLE) {
         if (_cstack == CSTACK_VM) {
             num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
         } else {
@@ -665,12 +664,6 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         VMThread* vm_thread;
         if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
             num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
-        } else {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
-        }
-    } else if (event_type == MALLOC_SAMPLE) {
-        if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
         } else {
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
