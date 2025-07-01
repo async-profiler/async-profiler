@@ -18,7 +18,9 @@ class MethodInfo {
     bool _mark;
     u32 _key;
     u32 _class;
+    u32 _file;
     u32 _name;
+    u32 _system_name;
     u32 _sig;
     jint _modifiers;
     jint _line_number_table_size;
@@ -66,31 +68,35 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
 class Lookup {
   public:
     MethodMap* _method_map;
-    Index _classes;
-    Index _packages;
-    Index _symbols;
+    // Dictionary is thread-safe and can be safely shared, as opposed to Index
+    Dictionary* _classes;
+    Index* _packages;
+    Index* _symbols;
 
   private:
     JNIEnv* _jni;
+    bool _owns_packages;
+    bool _owns_symbols;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
-            mi->_class = _classes.indexOf("");
+            mi->_file = _classes->lookup("");
         } else if (lib_name[0] == '[' && lib_name[1] != 0) {
-            mi->_class = _classes.indexOf(lib_name + 1, strlen(lib_name) - 2);
+            mi->_file = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
         } else {
-            mi->_class = _classes.indexOf(lib_name);
+            mi->_file = _classes->lookup(lib_name);
         }
 
         mi->_modifiers = 0x100;
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
 
+        mi->_system_name = _symbols->indexOf(name);
         if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
-                mi->_name = _symbols.indexOf(demangled);
-                mi->_sig = _symbols.indexOf("()L;");
+                mi->_name = _symbols->indexOf(demangled);
+                mi->_sig = _symbols->indexOf("()L;");
                 mi->_type = FRAME_CPP;
                 free(demangled);
                 return;
@@ -99,12 +105,12 @@ class Lookup {
 
         size_t len = strlen(name);
         if (len >= 4 && strcmp(name + len - 4, "_[k]") == 0) {
-            mi->_name = _symbols.indexOf(name, len - 4);
-            mi->_sig = _symbols.indexOf("(Lk;)L;");
+            mi->_name = _symbols->indexOf(name, len - 4);
+            mi->_sig = _symbols->indexOf("(Lk;)L;");
             mi->_type = FRAME_KERNEL;
         } else {
-            mi->_name = _symbols.indexOf(name);
-            mi->_sig = _symbols.indexOf("()L;");
+            mi->_name = _symbols->indexOf(name);
+            mi->_sig = _symbols->indexOf("()L;");
             mi->_type = FRAME_NATIVE;
         }
     }
@@ -124,17 +130,21 @@ class Lookup {
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
+        char* source_name = NULL;
 
         if (jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0 &&
             jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
-            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0) {
-            mi->_class = _classes.indexOf(class_name + 1, strlen(class_name) - 2);
-            mi->_name = _symbols.indexOf(method_name);
-            mi->_sig = _symbols.indexOf(method_sig);
+            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0 &&
+            jvmti->GetSourceFileName(method_class, &source_name) == 0) {
+            mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
+            mi->_file = _symbols->indexOf(source_name);
+            mi->_name = _symbols->indexOf(method_name);
+            mi->_sig = _symbols->indexOf(method_sig);
         } else {
-            mi->_class = _classes.indexOf("");
-            mi->_name = _symbols.indexOf("jvmtiError");
-            mi->_sig = _symbols.indexOf("()L;");
+            mi->_class = _classes->lookup("");
+            mi->_file = _symbols->indexOf("");
+            mi->_name = _symbols->indexOf("jvmtiError");
+            mi->_sig = _symbols->indexOf("()L;");
         }
 
         if (method_class) {
@@ -159,8 +169,8 @@ class Lookup {
 
     void fillJavaClassInfo(MethodInfo* mi, u32 class_id) {
         mi->_class = class_id;
-        mi->_name = _symbols.indexOf("");
-        mi->_sig = _symbols.indexOf("()L;");
+        mi->_name = _symbols->indexOf("");
+        mi->_sig = _symbols->indexOf("()L;");
         mi->_modifiers = 0;
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
@@ -168,8 +178,28 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) :
-        _method_map(method_map), _classes(classes), _packages(), _symbols(), _jni(VM::jni()) {
+    Lookup(MethodMap* method_map, Dictionary* classes) : Lookup(method_map, classes, nullptr, nullptr) {}
+
+    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols) :
+        _method_map(method_map),
+        _classes(classes),
+        _packages(packages),
+        _symbols(symbols),
+        _jni(VM::jni()) {
+
+        if (_packages == nullptr) {
+            _owns_packages = true;
+            _packages = new Index();
+        }
+        if (_symbols == nullptr) {
+            _owns_symbols = true;
+            _symbols = new Index();
+        }
+    }
+
+    ~Lookup() {
+        if (_owns_packages) delete(_packages);
+        if (_owns_symbols) delete(_symbols);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -224,12 +254,12 @@ class Lookup {
         if (class_name[0] == '[') {
             class_name = strchr(class_name, 'L') + 1;
         }
-        return _packages.indexOf(class_name, package - class_name);
+        return _packages->indexOf(class_name, package - class_name);
     }
 
     template<typename S>
     u32 getSymbol(S&& name) {
-        return _symbols.indexOf(std::forward<S>(name));
+        return _symbols->indexOf(std::forward<S>(name));
     }
 };
 
