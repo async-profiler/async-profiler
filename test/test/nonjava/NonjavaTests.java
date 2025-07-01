@@ -12,47 +12,47 @@ import one.profiler.test.TestProcess;
 public class NonjavaTests {
 
     // jvm is loaded before the profiling session is started
-    @Test(sh = "%testbin/non_java_app 1 %s.jfr", output = true)
+    @Test(sh = "%testbin/non_java_app 1 %s.collapsed", output = true)
     public void jvmFirst(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        Output out = Output.convertJfrToCollapsed(p.getFilePath("%s"));
+        Output out = p.readFile("%s");
         assert out.contains("cpuHeavyTask");
     }
 
     // jvm is loaded after the profiling session is started
-    @Test(sh = "%testbin/non_java_app 2 %s.jfr", output = true)
+    @Test(sh = "%testbin/non_java_app 2 %s.collapsed", output = true)
     public void profilerFirst(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        Output out = Output.convertJfrToCollapsed(p.getFilePath("%s"));
+        Output out = p.readFile("%s");
         assert !out.contains("cpuHeavyTask");
     }
 
     // jvm is loaded between two profiling sessions
-    @Test(sh = "%testbin/non_java_app 3 %f.jfr %s.jfr", output = true)
+    @Test(sh = "%testbin/non_java_app 3 %f.collapsed %s.collapsed", output = true)
     public void jvmInBetween(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        Output out = Output.convertJfrToCollapsed(p.getFilePath("%f"));
+        Output out = p.readFile("%f");
         assert out.contains("nativeBurnCpu");
         assert !out.contains("cpuHeavyTask");
 
-        out = Output.convertJfrToCollapsed(p.getFilePath("%s"));
+        out = p.readFile("%s");
         assert out.contains("nativeBurnCpu");
         assert out.contains("cpuHeavyTask");
     }
 
     // jvm is loaded before the profiling session is started on a different thread
-    @Test(sh = "%testbin/non_java_app 4 %s.jfr", output = true)
+    @Test(sh = "%testbin/non_java_app 4 %s.collapsed", output = true)
     public void differentThread(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
-        Output out = Output.convertJfrToCollapsed(p.getFilePath("%s"));
+        Output out = p.readFile("%s");
         assert out.contains("cpuHeavyTask");
     }
 }

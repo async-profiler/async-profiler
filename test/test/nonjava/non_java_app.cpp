@@ -66,18 +66,18 @@ void loadProfiler() {
     _asprof_init();
 }
 
-void startProfiler(char* output_file) {
-    char cmd[4096];
-    snprintf(cmd, sizeof(cmd), "start,event=cpu,interval=1ms,cstack=vmx,file=%s", output_file);
-    asprof_error_t err = _asprof_execute(cmd, outputCallback);
+void startProfiler() {
+    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=vmx", outputCallback);
     if (err != NULL) {
         std::cerr << _asprof_error_str(err) << std::endl;
         exit(1);
     }
 }
 
-void stopProfiler() {
-    asprof_error_t err = _asprof_execute("stop", outputCallback);
+void stopProfiler(char* output_file) {
+    char cmd[4096];
+    snprintf(cmd, sizeof(cmd), "stop,file=%s", output_file);
+    asprof_error_t err = _asprof_execute(cmd, outputCallback);
     if (err != NULL) {
         std::cerr << _asprof_error_str(err) << std::endl;
         exit(1);
@@ -219,11 +219,11 @@ void testFlow1(int argc, char** argv) {
 
     startJvm();
 
-    startProfiler(argv[2]);
+    startProfiler();
 
     executeJvmTask();
 
-    stopProfiler();
+    stopProfiler(argv[2]);
 
     stopJvm();
 }
@@ -250,13 +250,13 @@ void testFlow2(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler(argv[2]);
+    startProfiler();
 
     startJvm();
 
     executeJvmTask();
 
-    stopProfiler();
+    stopProfiler(argv[2]);
 
     stopJvm();
 }
@@ -289,21 +289,21 @@ void testFlow3(int argc, char** argv) {
 
     loadJvmLib();
 
-    startProfiler(argv[2]);
+    startProfiler();
 
     startJvm();
 
     nativeBurnCpu();
     executeJvmTask();
 
-    stopProfiler();
+    stopProfiler(argv[2]);
 
-    startProfiler(argv[3]);
+    startProfiler();
 
     nativeBurnCpu();
     executeJvmTask();
 
-    stopProfiler();
+    stopProfiler(argv[3]);
 
     stopJvm();
 }
@@ -344,11 +344,11 @@ void testFlow4(int argc, char** argv) {
 
     nanosleep(&wait_time, NULL);
 
-    startProfiler(argv[2]);
+    startProfiler();
 
     nanosleep(&wait_time, NULL);
 
-    stopProfiler();
+    stopProfiler(argv[2]);
 }
 
 int main(int argc, char** argv) {
