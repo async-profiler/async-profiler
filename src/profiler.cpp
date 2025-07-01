@@ -1669,15 +1669,12 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _call_trace_storage.collectSamples(call_trace_samples);
 
     std::vector<size_t> location_indices;
-    location_indices.reserve(call_trace_samples.size());
-
-    size_t frames_seen = 0;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, frames_seen);
+        otlp_buffer.field(Sample::locations_start_index, location_indices.size());
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
@@ -1686,10 +1683,10 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_mark);
 
         for (int j = 0; j < trace->num_frames; j++) {
-            // To be written below in Profile.location_indices
-            location_indices.push_back(method_lookup.resolveMethod(trace->frames[j])->_key);
+            MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
+            // Key start from 1
+            location_indices.push_back(mi->_key - 1);
         }
-        frames_seen += trace->num_frames;
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
@@ -1714,8 +1711,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write function_table
     for (auto it = method_map.begin(); it != method_map.end(); ++it) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, strings.indexOf(classes[it->second._name]));
-        otlp_buffer.field(Function::system_name_strindex, strings.indexOf(classes[it->second._system_name]));
+        otlp_buffer.field(Function::name_strindex, it->second._name);
+        otlp_buffer.field(Function::system_name_strindex, it->second._system_name);
         otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[it->second._file]));
         otlp_buffer.commitMessage(function_mark);
     }
