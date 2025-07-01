@@ -1704,16 +1704,19 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    // Write mapping_table
+    // Write mapping_table, first entry must be empty according to the OTLP spec
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
+
+    std::map<u32, const char*> classes;
+    method_lookup->_classes->collect(classes);
 
     // Write function_table
     for (auto it = method_map.begin(); it != method_map.end(); ++it) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, it->second._name);
-        otlp_buffer.field(Function::system_name_strindex, it->second._system_name);
-        otlp_buffer.field(Function::filename_strindex, it->second._file);
+        otlp_buffer.field(Function::name_strindex, strings.indexOf(classes[it->second._name]));
+        otlp_buffer.field(Function::system_name_strindex, strings.indexOf(classes[it->second._system_name]));
+        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[it->second._file]));
         otlp_buffer.commitMessage(function_mark);
     }
 
