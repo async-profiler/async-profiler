@@ -1674,13 +1674,12 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _call_trace_storage.collectSamples(call_trace_samples);
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    std::vector<size_t> location_indices;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, location_indices.size());
+        otlp_buffer.field(Sample::locations_start_index, locations.size());
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
@@ -1690,14 +1689,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         for (int j = 0; j < trace->num_frames; j++) {
             MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
-            location_indices.push_back(locations.size());
             locations.push_back(LocationInfo{&trace->frames[j], mi});
         }
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (size_t i : location_indices) {
-        otlp_buffer.putVarInt(i);
+    for (size_t idx = 0; idx < locations.size(); ++idx) {
+        // TODO: For now every frame is a new location, we need deduplication
+        otlp_buffer.putVarInt(idx);
     }
     otlp_buffer.commitMessage(location_indices_mark);
 
