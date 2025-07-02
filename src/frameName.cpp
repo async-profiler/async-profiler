@@ -254,7 +254,7 @@ void FrameName::javaClassName(const char* symbol, size_t length, int style) {
     }
 }
 
-const char* FrameName::name(const ASGCT_CallFrame& frame, bool for_matching) {
+const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
     if (frame.method_id == NULL) {
         return "[unknown]";
     }
@@ -331,7 +331,7 @@ const char* FrameName::name(const ASGCT_CallFrame& frame, bool for_matching) {
     }
 }
 
-FrameTypeId FrameName::type(const ASGCT_CallFrame& frame) {
+FrameTypeId FrameName::type(ASGCT_CallFrame& frame) {
     if (frame.method_id == NULL) {
         return FRAME_NATIVE;
     }

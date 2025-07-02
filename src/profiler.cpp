@@ -1651,8 +1651,8 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const cha
 }
 
 struct LocationInfo {
-    const ASGCT_CallFrame* frame;
-    const MethodInfo* method_info;
+    ASGCT_CallFrame* frame;
+    MethodInfo* method_info;
 };
 
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
@@ -1720,8 +1720,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // Write function_table and location_table
     for (size_t idx = 0; idx < locations.size(); ++idx) {
-        const MethodInfo* mi = locations[idx].method_info;
-        const ASGCT_CallFrame* frame = locations[idx].frame;
+        MethodInfo* mi = locations[idx].method_info;
+        ASGCT_CallFrame* frame = locations[idx].frame;
 
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
         // TODO: FrameName::name produces a better looking result than Lookup
