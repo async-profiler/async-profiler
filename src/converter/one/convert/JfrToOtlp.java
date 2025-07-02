@@ -99,8 +99,7 @@ public class JfrToOtlp extends JfrConverter {
         // Write function table
         for (String name : functionPool.keys()) {
             long fMark = proto.startField(PROFILES_DICTIONARY_function_table, 1);
-            int nameStrindex = stringPool.index(name);
-            proto.field(FUNCTION_name_strindex, nameStrindex);
+            proto.field(FUNCTION_name_strindex, stringPool.index(name));
             proto.commitField(fMark);
         }
 
