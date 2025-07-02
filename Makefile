@@ -292,6 +292,14 @@ update-otlp-classes-jar:
 	    $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
 	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
+LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
+cpp-lint:
+	clang-tidy $(LINT_SOURCES) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+
+cpp-lint-diff:
+	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+		clang-tidy-diff.py -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+
 check-md:
 	prettier -c README.md "docs/**/*.md"
 
