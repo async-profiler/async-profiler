@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <vector>
 #include "index.h"
 #include "profiler.h"
 #include "perfEvents.h"
@@ -1709,28 +1710,24 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::map<u32, const char*> classes;
     method_lookup._classes->collect(classes);
 
-    // Write function_table
-    for (auto it = method_map.begin(); it != method_map.end(); ++it) {
+    // Write function_table and location_table
+    method_map.forEachOrdered([&] (size_t idx, const MethodInfo& mi) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, it->second._name);
-        otlp_buffer.field(Function::system_name_strindex, it->second._system_name);
-        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[it->second._file]));
+        otlp_buffer.field(Function::name_strindex, mi._name);
+        otlp_buffer.field(Function::system_name_strindex, mi._system_name);
+        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[mi._file]));
         otlp_buffer.commitMessage(function_mark);
-    }
 
-    // Write location_table
-    size_t idx = 0;
-    for (auto it = method_map.begin(); it != method_map.end(); ++it) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
         // TODO: set to the proper mapping when new mappings are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
         otlp_buffer.field(Location::mapping_index, (u64) 0);
         protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
-        otlp_buffer.field(Line::function_index, idx++);
+        otlp_buffer.field(Line::function_index, idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
-    }
+    });
 
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
