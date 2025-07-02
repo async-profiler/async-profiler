@@ -26,6 +26,7 @@ class MethodInfo {
     jint _line_number_table_size;
     jvmtiLineNumberEntry* _line_number_table;
     FrameTypeId _type;
+    const ASGCT_CallFrame* _frame;
 
     jint getLineNumber(jint bci) {
         if (_line_number_table_size == 0) {
@@ -213,33 +214,34 @@ class Lookup {
         if (_owns_symbols) delete(_symbols);
     }
 
-    MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
-        jmethodID method = frame.method_id;
+    MethodInfo* resolveMethod(const ASGCT_CallFrame* frame) {
+        jmethodID method = frame->method_id;
         MethodInfo* mi = &(*_method_map)[method];
 
         bool first_time = mi->_key == 0;
         if (first_time) {
             mi->_key = _method_map->size();
+            mi->_frame = frame;
         }
 
         if (!mi->_mark) {
             mi->_mark = true;
             if (method == NULL) {
                 fillNativeMethodInfo(mi, "unknown", NULL);
-            } else if (frame.bci > BCI_NATIVE_FRAME) {
+            } else if (frame->bci > BCI_NATIVE_FRAME) {
                 if (!fillJavaMethodInfo(mi, method, first_time)) {
                     fillNativeMethodInfo(mi, "stale_jmethodID", NULL);
                 }
-            } else if (frame.bci == BCI_NATIVE_FRAME) {
+            } else if (frame->bci == BCI_NATIVE_FRAME) {
                 const char* name = (const char*)method;
                 fillNativeMethodInfo(mi, name, Profiler::instance()->getLibraryName(name));
-            } else if (frame.bci == BCI_ADDRESS) {
+            } else if (frame->bci == BCI_ADDRESS) {
                 char buf[32];
                 snprintf(buf, sizeof(buf), "%p", method);
                 fillNativeMethodInfo(mi, buf, NULL);
-            } else if (frame.bci == BCI_ERROR) {
+            } else if (frame->bci == BCI_ERROR) {
                 fillNativeMethodInfo(mi, (const char*)method, NULL);
-            } else if (frame.bci == BCI_CPU) {
+            } else if (frame->bci == BCI_CPU) {
                 char buf[32];
                 snprintf(buf, sizeof(buf), "CPU-%d", ((int)(uintptr_t)method) & 0x7fff);
                 fillNativeMethodInfo(mi, buf, NULL);

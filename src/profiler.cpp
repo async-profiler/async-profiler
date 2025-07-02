@@ -1669,10 +1669,11 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
 
+    FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     std::vector<size_t> location_indices;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
-        if (trace == NULL || cts->samples == 0) continue;
+        if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, location_indices.size());
@@ -1684,7 +1685,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_mark);
 
         for (int j = 0; j < trace->num_frames; j++) {
-            MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
+            MethodInfo* mi = method_lookup.resolveMethod(&(trace->frames[j]));
             // Keys start from 1
             location_indices.push_back(mi->_key - 1);
         }
@@ -1713,7 +1714,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // Write function_table and location_table
     method_map.forEachOrdered([&] (size_t idx, const MethodInfo& mi) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, mi._name);
+        otlp_buffer.field(Function::name_strindex, strings.indexOf(fn.name(*mi._frame)));
         otlp_buffer.field(Function::system_name_strindex, mi._system_name);
         otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[mi._file]));
         otlp_buffer.commitMessage(function_mark);

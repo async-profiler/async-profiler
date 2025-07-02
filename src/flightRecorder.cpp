@@ -890,7 +890,7 @@ class Recording {
             buf->putVar32(0);  // truncated
             buf->putVar32(trace->num_frames);
             for (int i = 0; i < trace->num_frames; i++) {
-                MethodInfo* mi = lookup->resolveMethod(trace->frames[i]);
+                MethodInfo* mi = lookup->resolveMethod(&(trace->frames[i]));
                 buf->putVar32(mi->_key);
                 if (mi->_type == FRAME_INTERPRETED) {
                     jint bci = trace->frames[i].bci;
