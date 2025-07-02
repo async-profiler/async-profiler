@@ -31,6 +31,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      - name: Mark repo as safe for Git
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
       - name: Fetch base branch
         run: |
           git remote add upstream "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
