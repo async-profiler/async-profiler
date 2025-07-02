@@ -55,6 +55,16 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
         }
     }
 
+    void forEachOrdered(std::function<void(size_t idx, const MethodInfo&)> consumer) const {
+        std::vector<const MethodInfo*> arr(size());
+        for (const auto& it : *this) {
+            arr[it.second._key-1] = &it.second;
+        }
+        for (size_t idx = 0; idx < size(); ++idx) {
+            consumer(idx, *arr[idx]);
+        }
+    }
+
     size_t usedMemory() {
         size_t bytes = 0;
         for (const_iterator it = begin(); it != end(); ++it) {
