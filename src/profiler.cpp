@@ -1684,7 +1684,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         for (int j = 0; j < trace->num_frames; j++) {
             MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
-            // Key start from 1
+            // Keys start from 1
             location_indices.push_back(mi->_key - 1);
         }
     }
@@ -1701,7 +1701,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    // Write mapping_table, first entry must be empty according to the OTLP spec
+    // Write mapping_table
+    // First entry must be empty according to the OTLP spec
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
