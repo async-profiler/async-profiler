@@ -122,7 +122,7 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
             bytes += sizeof(jmethodID) + sizeof(MethodInfo);
             bytes += it->second._line_number_table_size * sizeof(jvmtiLineNumberEntry);
         }
-        return bytes;
+        return (size_t) ((size_t) bytes);
     }
 };
 
