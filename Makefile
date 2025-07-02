@@ -68,6 +68,7 @@ JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
+TEST_SOURCES_WITHOUT_OTEL := $(shell echo $(TEST_SOURCES) | tr ' ' '\n' | grep -v otlp)
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
@@ -271,9 +272,17 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR)
+PROTOBUF_RUNTIME_JAR := $(shell find $(TEST_DEPS_DIR) -name 'protobuf*.jar')
+ifeq ($(PROTOBUF_RUNTIME_JAR),)
+	EFFECTIVE_TEST_SOURCES := $(TEST_SOURCES_WITHOUT_OTEL)
+else
+	EFFECTIVE_TEST_SOURCES := $(TEST_SOURCES)
+endif
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
+	rm -rf build/test
 	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
+	@if [ -z "$PROTOBUF_RUNTIME_JAR" ]; then echo "OTEL tests have been skipped because the Protobuf Java runtime is missing from '$(TEST_DEPS_DIR)'"; fi
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(EFFECTIVE_TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
 update-otlp-classes-jar:
