@@ -58,3 +58,6 @@ async-profiler currently supports the following output formats:
   about the JVM as well as the Java application running on it. async-profiler can generate output in `jfr` format
   compatible with tools capable of viewing and analyzing `jfr` files. JDK Mission Control (JMC) and Intellij IDEA are
   some of many options to visualize `jfr` files. More details [here](JfrVisualization.md).
+
+- `otlp` - OpenTelemetry protocol format for [profiling data](https://opentelemetry.io/blog/2024/profiling).
+  Experimental feature: backward-incompatible changes may happen in future releases of async-profiler.

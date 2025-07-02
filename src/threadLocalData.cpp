@@ -30,7 +30,7 @@ asprof_thread_local_data* ThreadLocalData::initThreadLocalData(pthread_key_t pro
         return NULL;
     }
     val->sample_counter = 0;
-    if (pthread_setspecific(profiler_data_key, (void*)val) < 0) {
+    if (pthread_setspecific(profiler_data_key, (void*)val) != 0) {
         free((void*)val);
         return NULL;
     }

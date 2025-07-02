@@ -55,7 +55,7 @@ static const char USAGE_STRING[] =
     "  -g, --sig         print method signatures\n"
     "  -a, --ann         annotate Java methods\n"
     "  -l, --lib         prepend library names\n"
-    "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr\n"
+    "  -o fmt            output format: flat|traces|collapsed|flamegraph|tree|jfr|otlp\n"
     "  -I include        output only stack traces containing the specified pattern\n"
     "  -X exclude        exclude stack traces with the specified pattern\n"
     "  -L level          log level: debug|info|warn|error|none\n"
@@ -160,6 +160,8 @@ class String {
     }
 
     String& operator=(const String& other) {
+        if (this == &other) return *this;
+
         free(_str);
         _str = strdup(other._str);
         return *this;

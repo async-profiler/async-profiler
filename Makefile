@@ -274,6 +274,14 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:build/converter/*" -d build/test $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test .
 
+LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
+cpp-lint:
+	clang-tidy $(LINT_SOURCES) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+
+cpp-lint-diff:
+	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+		clang-tidy-diff.py -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+
 check-md:
 	prettier -c README.md "docs/**/*.md"
 

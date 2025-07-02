@@ -6,6 +6,7 @@
 #include <sys/param.h>
 #include <string.h>
 #include <stdlib.h>
+#include "assert.h"
 #include "protobuf.h"
 
 ProtoBuffer::ProtoBuffer(size_t initial_capacity) : _offset(0) {
@@ -35,25 +36,16 @@ void ProtoBuffer::ensureCapacity(size_t new_data_size) {
 }
 
 void ProtoBuffer::putVarInt(u64 n) {
-    _offset = putVarInt(_offset, n);
-}
-
-size_t ProtoBuffer::putVarInt(size_t offset, u64 n) {
     ensureCapacity(varIntSize(n));
     while ((n >> 7) != 0) {
-        _data[offset++] = (unsigned char) (0x80 | (n & 0x7f));
+        _data[_offset++] = (unsigned char) (0x80 | n);
         n >>= 7;
     }
-    _data[offset++] = (unsigned char) n;
-    return offset;
+    _data[_offset++] = (unsigned char) n;
 }
 
 void ProtoBuffer::tag(protobuf_index_t index, protobuf_t type) {
     putVarInt((u64) (index << 3 | type));
-}
-
-void ProtoBuffer::field(protobuf_index_t index, bool b) {
-    field(index, (u64) b);
 }
 
 void ProtoBuffer::field(protobuf_index_t index, u64 n) {
@@ -78,20 +70,26 @@ void ProtoBuffer::field(protobuf_index_t index, const unsigned char* s, size_t l
     _offset += len;
 }
 
-protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index) {
+protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t max_len_byte_count) {
     tag(index, LEN);
 
-    ensureCapacity(NESTED_FIELD_BYTE_COUNT);
-    _offset += NESTED_FIELD_BYTE_COUNT;
-    return _offset;
+    ensureCapacity(max_len_byte_count);
+
+    protobuf_mark_t mark = _offset << 3 | max_len_byte_count;
+    _offset += max_len_byte_count;
+    return mark;
 }
 
 void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
-    size_t message_length = _offset - mark;
-    for (size_t i = 0; i < NESTED_FIELD_BYTE_COUNT - 1; ++i) {
-        size_t idx = mark - NESTED_FIELD_BYTE_COUNT + i;
-        _data[idx] = (unsigned char) (0x80 | (message_length & 0x7f));
-        message_length >>= 7;
+    size_t max_len_byte_count = mark & 7;
+    size_t message_start = mark >> 3;
+
+    size_t actual_len = _offset - (message_start + max_len_byte_count);
+    assert(varIntSize(actual_len) <= max_len_byte_count);
+
+    for (size_t i = 0; i < max_len_byte_count - 1; i++) {
+        _data[message_start + i] = (unsigned char) (0x80 | actual_len);
+        actual_len >>= 7;
     }
-    _data[mark - 1] = (unsigned char) message_length;
+    _data[message_start + max_len_byte_count - 1] = (unsigned char) actual_len;
 }

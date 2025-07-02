@@ -95,6 +95,37 @@ Java_one_profiler_AsyncProfiler_execute0(JNIEnv* env, jobject unused, jstring co
     return NULL;
 }
 
+extern "C" DLLEXPORT jbyteArray JNICALL
+Java_one_profiler_AsyncProfiler_execute1(JNIEnv* env, jobject unused, jstring command) {
+    Arguments args;
+    const char* command_str = env->GetStringUTFChars(command, NULL);
+    Error error = args.parse(command_str);
+    env->ReleaseStringUTFChars(command, command_str);
+
+    if (error) {
+        throwNew(env, "java/lang/IllegalArgumentException", error.message());
+        return NULL;
+    }
+    if (args.hasOutputFile()) {
+        throwNew(env, "java/lang/IllegalArgumentException", "execute1 calls should not specify an output file argument");
+        return NULL;
+    }
+
+    Log::open(args);
+
+    BufferWriter out;
+    // TODO: This is doing one more copy than necessary, from ProtoWriter to BufferWriter
+    error = Profiler::instance()->runInternal(args, out);
+    if (error) {
+        throwNew(env, "java/lang/IllegalStateException", error.message());
+        return NULL;
+    }
+
+    jbyteArray output = env->NewByteArray(out.size());
+    env->SetByteArrayRegion(output, 0, out.size(), (const jbyte*) out.buf());
+    return output;
+}
+
 extern "C" DLLEXPORT jlong JNICALL
 Java_one_profiler_AsyncProfiler_getSamples(JNIEnv* env, jobject unused) {
     return (jlong)Profiler::instance()->total_samples();
@@ -124,6 +155,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(start0,        "(Ljava/lang/String;JZ)V"),
     F(stop0,         "()V"),
     F(execute0,      "(Ljava/lang/String;)Ljava/lang/String;"),
+    F(execute1,      "(Ljava/lang/String;)[B"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
 };

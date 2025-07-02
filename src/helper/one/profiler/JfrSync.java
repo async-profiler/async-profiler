@@ -80,6 +80,7 @@ class JfrSync implements FlightRecorderListener {
             recording.disable("jdk.ObjectAllocationInNewTLAB");
             recording.disable("jdk.ObjectAllocationOutsideTLAB");
             recording.disable("jdk.ObjectAllocationSample");
+            recording.disable("jdk.OldObjectSample");
         }
         if ((eventMask & 4) != 0) {
             recording.disable("jdk.JavaMonitorEnter");
