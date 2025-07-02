@@ -1689,7 +1689,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_mark);
 
         for (int j = 0; j < trace->num_frames; j++) {
-            MethodInfo* mi = method_lookup.resolveMethod(&(trace->frames[j]));
+            MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
             location_indices.push_back(locations.size());
             locations.push_back(LocationInfo{&trace->frames[j], mi});
         }
