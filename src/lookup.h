@@ -26,7 +26,6 @@ class MethodInfo {
     jint _line_number_table_size;
     jvmtiLineNumberEntry* _line_number_table;
     FrameTypeId _type;
-    const ASGCT_CallFrame* _frame;
 
     jint getLineNumber(jint bci) {
         if (_line_number_table_size == 0) {
@@ -53,16 +52,6 @@ class MethodMap : public std::map<jmethodID, MethodInfo> {
             if (line_number_table != NULL) {
                 jvmti->Deallocate((unsigned char*)line_number_table);
             }
-        }
-    }
-
-    void forEachOrdered(std::function<void(size_t idx, const MethodInfo&)> consumer) const {
-        std::vector<const MethodInfo*> arr(size());
-        for (const auto& it : *this) {
-            arr[it.second._key-1] = &it.second;
-        }
-        for (size_t idx = 0; idx < size(); ++idx) {
-            consumer(idx, *arr[idx]);
         }
     }
 
@@ -221,7 +210,6 @@ class Lookup {
         bool first_time = mi->_key == 0;
         if (first_time) {
             mi->_key = _method_map->size();
-            mi->_frame = frame;
         }
 
         if (!mi->_mark) {

@@ -1650,6 +1650,11 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const cha
     otlp_buffer.commitMessage(sample_type_mark);
 }
 
+struct LocationInfo {
+    const ASGCT_CallFrame* frame;
+    const MethodInfo* method_info;
+};
+
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
@@ -1657,6 +1662,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // The first string recorded should be the empty string according to the OTLP spec
     strings.indexOf("");
     MethodMap method_map;
+    // TODO: Deduplication
+    std::vector<LocationInfo> locations;
     Lookup method_lookup(&method_map, Profiler::instance()->classMap(), &strings, &strings);
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
@@ -1686,8 +1693,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
         for (int j = 0; j < trace->num_frames; j++) {
             MethodInfo* mi = method_lookup.resolveMethod(&(trace->frames[j]));
-            // Keys start from 1
-            location_indices.push_back(mi->_key - 1);
+            location_indices.push_back(locations.size());
+            locations.push_back(LocationInfo{&trace->frames[j], mi});
         }
     }
 
@@ -1712,11 +1719,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     method_lookup._classes->collect(classes);
 
     // Write function_table and location_table
-    method_map.forEachOrdered([&] (size_t idx, const MethodInfo& mi) {
+    for (size_t idx = 0; idx < locations.size(); ++idx) {
+        const MethodInfo* mi = locations[idx].method_info;
+        const ASGCT_CallFrame* frame = locations[idx].frame;
+
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        otlp_buffer.field(Function::name_strindex, strings.indexOf(fn.name(*mi._frame)));
-        otlp_buffer.field(Function::system_name_strindex, mi._system_name);
-        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[mi._file]));
+        // TODO: FrameName::name produces a better looking result than Lookup
+        otlp_buffer.field(Function::name_strindex, strings.indexOf(fn.name(*frame)));
+        otlp_buffer.field(Function::system_name_strindex, mi->_system_name);
+        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[mi->_file]));
         otlp_buffer.commitMessage(function_mark);
 
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
@@ -1728,7 +1739,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.field(Line::function_index, idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
-    });
+    }
 
     // Write string_table
     strings.forEachOrdered([&] (size_t idx, const std::string& s) {
