@@ -1661,43 +1661,36 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
 
-    struct SampleInfo {
-        u64 counter;
-        u64 samples;
-        size_t num_frames;
-    };
-    std::vector<SampleInfo> samples_info;
-    samples_info.reserve(call_trace_samples.size());
+    std::vector<size_t> location_indices;
+    location_indices.reserve(call_trace_samples.size());
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
-    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
+    size_t frames_seen = 0;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        samples_info.push_back(SampleInfo{cts->samples, cts->counter, (size_t)trace->num_frames});
-        for (int j = 0; j < trace->num_frames; j++) {
-            size_t function_idx = functions.indexOf(fn.name(trace->frames[j]));
-            otlp_buffer.putVarInt(function_idx);
-        }
-    }
-    otlp_buffer.commitMessage(location_indices_mark);
-
-    size_t frames_seen = 0;
-    for (const SampleInfo& si : samples_info) {
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
-        otlp_buffer.field(Sample::locations_length, si.num_frames);
-
+        otlp_buffer.field(Sample::locations_length, trace->num_frames);
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
-        otlp_buffer.putVarInt(si.samples);
-        otlp_buffer.putVarInt(si.counter);
+        otlp_buffer.putVarInt(cts->samples);
+        otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
-
         otlp_buffer.commitMessage(sample_mark);
 
-        frames_seen += si.num_frames;
+        for (int j = 0; j < trace->num_frames; j++) {
+            // To be written below in Profile.location_indices
+            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
+        }
+        frames_seen += trace->num_frames;
     }
+
+    protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
+    for (size_t i : location_indices) {
+        otlp_buffer.putVarInt(i);
+    }
+    otlp_buffer.commitMessage(location_indices_mark);
 
     otlp_buffer.commitMessage(profile_mark);
     otlp_buffer.commitMessage(scope_profiles_mark);
