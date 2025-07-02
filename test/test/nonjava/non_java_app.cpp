@@ -38,6 +38,20 @@ void outputCallback(const char* buffer, size_t size) {
     fwrite(buffer, sizeof(char), size, stderr);
 }
 
+#include <math.h>
+
+double nativeBurnCpu() {
+    int i = 0;
+    double result = 0;
+
+    while (i < 100000000) {
+        i++;
+        result += sqrt(i);
+        result += pow(i, sqrt(i));
+    }
+    return result;
+}
+
 void loadProfiler() {
     void* lib = dlopen(profiler_lib_path, RTLD_NOW | RTLD_GLOBAL);
     if (lib == NULL) {
@@ -53,7 +67,7 @@ void loadProfiler() {
 }
 
 void startProfiler() {
-    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=dwarf", outputCallback);
+    asprof_error_t err = _asprof_execute("start,event=cpu,interval=1ms,cstack=vmx", outputCallback);
     if (err != NULL) {
         std::cerr << _asprof_error_str(err) << std::endl;
         exit(1);
@@ -279,12 +293,14 @@ void testFlow3(int argc, char** argv) {
 
     startJvm();
 
+    nativeBurnCpu();
     executeJvmTask();
 
     stopProfiler(argv[2]);
 
     startProfiler();
 
+    nativeBurnCpu();
     executeJvmTask();
 
     stopProfiler(argv[3]);

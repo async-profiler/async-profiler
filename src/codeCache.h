@@ -194,7 +194,7 @@ class CodeCache {
 
     void addImport(void** entry, const char* name);
     void** findImport(ImportId id);
-    void patchImport(ImportId, void* hook_func);
+    void patchImport(ImportId id, void* hook_func);
 
     CodeBlob* findBlob(const char* name);
     CodeBlob* findBlobByAddress(const void* address);
