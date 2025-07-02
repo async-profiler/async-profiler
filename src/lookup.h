@@ -6,8 +6,12 @@
 #ifndef _LOOKUP_H
 #define _LOOKUP_H
 
+#include "demangle.h"
 #include "dictionary.h"
 #include "index.h"
+#include "profiler.h"
+#include "vmEntry.h"
+#include "vmStructs.h"
 #include <jvmti.h>
 
 class MethodInfo {

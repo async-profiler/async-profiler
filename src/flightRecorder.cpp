@@ -14,7 +14,6 @@
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
-#include "demangle.h"
 #include "flightRecorder.h"
 #include "incbin.h"
 #include "jfrMetadata.h"
