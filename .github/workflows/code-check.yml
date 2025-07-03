@@ -21,7 +21,7 @@ jobs:
       - name: Run clang-tidy
         run: |
           make cpp-lint-diff \
-            DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
+            DIFF_BASE="$(git merge-base HEAD "${{ github.event.pull_request.base.ref }}")" \
             CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
       - name: Run clang-tidy-pr-comments action
         uses: platisd/clang-tidy-pr-comments@v1
