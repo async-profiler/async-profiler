@@ -24,9 +24,11 @@ jobs:
           git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
       - name: Run clang-tidy
         run: |
+          set pipefail
           make cpp-lint-diff \
             DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
             CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
+        shell: bash
       - name: Run clang-tidy-pr-comments action
         uses: platisd/clang-tidy-pr-comments@v1
         with:
