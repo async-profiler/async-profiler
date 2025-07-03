@@ -389,7 +389,7 @@ class VMMethod : VMStructs {
     jmethodID id();
 
     bool validate(jmethodID id) {
-        return !_can_dereference_jmethod_id || *(VMMethod**)id  == this;
+        return !_can_dereference_jmethod_id || *(VMMethod**)id == this;
     }
 
     // Workaround for JDK-8313816
