@@ -173,7 +173,7 @@ class Lookup {
     }
 
     bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
-        if (VMMethod::isStaleMethodID(method)) {
+        if (VMMethod::isStaleMethodId(method)) {
             return false;
         }
 

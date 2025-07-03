@@ -155,7 +155,7 @@ const char* FrameName::typeSuffix(FrameTypeId type) {
 }
 
 void FrameName::javaMethodName(jmethodID method) {
-    if (VMMethod::isStaleMethodID(method)) {
+    if (VMMethod::isStaleMethodId(method)) {
         _str.assign("[stale_jmethodID]");
         return;
     }

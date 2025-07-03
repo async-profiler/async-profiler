@@ -669,6 +669,16 @@ jmethodID VMMethod::id() {
     return NULL;
 }
 
+jmethodID VMMethod::validatedId() {
+    jmethodID method_id = id();
+    if (goodPtr(method_id)) {
+        if (!_can_dereference_jmethod_id || *(VMMethod**)method_id == this) {
+            return method_id;
+        }
+    }
+    return NULL;
+}
+
 NMethod* CodeHeap::findNMethod(char* heap, const void* pc) {
     unsigned char* heap_start = *(unsigned char**)(heap + _code_heap_memory_offset + _vs_low_offset);
     unsigned char* segmap = *(unsigned char**)(heap + _code_heap_segmap_offset + _vs_low_offset);

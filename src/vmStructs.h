@@ -388,12 +388,11 @@ class VMMethod : VMStructs {
   public:
     jmethodID id();
 
-    bool validate(jmethodID id) {
-        return !_can_dereference_jmethod_id || *(VMMethod**)id == this;
-    }
+    // Performs extra validation when VMMethod comes from incomplete frame
+    jmethodID validatedId();
 
     // Workaround for JDK-8313816
-    static bool isStaleMethodID(jmethodID id) {
+    static bool isStaleMethodId(jmethodID id) {
         if (!_can_dereference_jmethod_id) return false;
         VMMethod* vm_method = *(VMMethod**)id;
         return vm_method == NULL || vm_method->id() == NULL;
