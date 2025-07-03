@@ -132,7 +132,7 @@ void startJvm() {
     JavaVMInitArgs vm_args;
     JavaVMOption options[1];
 
-    options[0].optionString = const_cast<char*>("-Djava.class.path=build/test.jar");
+    options[0].optionString = const_cast<char*>("-Djava.class.path=build/test/classes");
     //options[1].optionString = const_cast<char*>("-Xcheck:jni");
 
     // Configure JVM
