@@ -18,10 +18,6 @@ jobs:
           fetch-depth: 0
       - name: Mark repo as safe for Git
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
-      - name: Fetch base branch
-        run: |
-          git remote add upstream "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
-          git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
       - name: Run clang-tidy
         run: |
           make cpp-lint-diff \
@@ -34,3 +30,4 @@ jobs:
           clang_tidy_fixes: clang-tidy-fixes.yml
           python_path: python
           auto_resolve_conversations: true
+          suggestions_per_comment: 100
