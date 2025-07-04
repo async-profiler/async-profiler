@@ -276,12 +276,14 @@ build/$(TEST_JAR): $(TEST_SOURCES) build/$(CONVERTER_JAR)
 	$(JAR) cf $@ -C build/test/classes .
 
 LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
+CLANG_TIDY_ARGS_EXTRA=
 cpp-lint:
-	clang-tidy $(LINT_SOURCES) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+	clang-tidy $(LINT_SOURCES) $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
+DIFF_BASE=
 cpp-lint-diff:
-	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
-		clang-tidy-diff.py -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+	git diff -U0 $(DIFF_BASE) -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+		clang-tidy-diff.py -p1 $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
 	prettier -c README.md "docs/**/*.md"
