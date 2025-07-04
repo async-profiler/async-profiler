@@ -55,9 +55,9 @@ public class JfrToOtlp extends JfrConverter {
         List<Integer> locationIndices = new ArrayList<>();
         collector.forEach(new OtlpEventToSampleVisitor(locationIndices));
 
-        long locationIndicesMark = proto.startField(PROFILE_location_indices, MSG_LARGE);
+        long liMark = proto.startField(PROFILE_location_indices, MSG_LARGE);
         locationIndices.forEach(proto::writeInt);
-        proto.commitField(locationIndicesMark);
+        proto.commitField(liMark);
 
         proto.commitField(pMark);
     }
@@ -89,8 +89,8 @@ public class JfrToOtlp extends JfrConverter {
         long profilesDictionaryMark = proto.startField(PROFILES_DATA_dictionary, MSG_LARGE);
 
         // Mapping[0] must be a default mapping according to the spec
-        long mappingMark = proto.startField(PROFILES_DICTIONARY_mapping_table, MSG_SMALL);
-        proto.commitField(mappingMark);
+        long mMark = proto.startField(PROFILES_DICTIONARY_mapping_table, MSG_SMALL);
+        proto.commitField(mMark);
 
         // Write function table
         for (String name : functionPool.keys()) {
@@ -168,9 +168,8 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(SAMPLE_locations_length, range.length);
             proto.field(SAMPLE_timestamps_unix_nano, timeNanos);
 
-            proto.field(
-                    SAMPLE_attribute_indices,
-                    attributesPool.index(new KeyValue("thread.name", getThreadName(event.tid))));
+            KeyValue tName = new KeyValue("thread.name", getThreadName(event.tid));
+            proto.field(SAMPLE_attribute_indices, attributesPool.index(tName));
 
             long svMark = proto.startField(SAMPLE_value, MSG_SMALL);
             proto.writeLong(samples);
