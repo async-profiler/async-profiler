@@ -158,8 +158,8 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public void visit(Event event, long samples, long value) {
-            long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
-            long timeNanos = jfr.chunkStartNanos + msFromStart * 1_000_000;
+            long nanosFromStart = (event.time - jfr.chunkStartTicks) * 1_000_000_000 / jfr.ticksPerSec;
+            long timeNanos = jfr.chunkStartNanos + nanosFromStart;
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
 
