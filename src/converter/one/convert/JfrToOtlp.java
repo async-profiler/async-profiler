@@ -147,17 +147,16 @@ public class JfrToOtlp extends JfrConverter {
     private final class OtlpEventToSampleVisitor implements EventCollector.Visitor {
         private final List<Integer> locationIndices;
         private final double factor = counterFactor();
+        private final double ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
 
         // JFR constant pool stacktrace ID to Range
         private final Map<Integer, Range> idToRange = new HashMap<>();
-        private final double ticksPerNanosecond;
 
         // Next index to be used for a location into Profile.location_indices
         private int nextLocationIdx = 0;
 
         public OtlpEventToSampleVisitor(List<Integer> locationIndices) {
             this.locationIndices = locationIndices;
-            ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
         }
 
         @Override
@@ -172,8 +171,8 @@ public class JfrToOtlp extends JfrConverter {
             proto.field(SAMPLE_locations_length, range.length);
             proto.field(SAMPLE_timestamps_unix_nano, timeNanos);
 
-            KeyValue tName = new KeyValue("thread.name", getThreadName(event.tid));
-            proto.field(SAMPLE_attribute_indices, attributesPool.index(tName));
+            KeyValue threadName = new KeyValue("thread.name", getThreadName(event.tid));
+            proto.field(SAMPLE_attribute_indices, attributesPool.index(threadName));
 
             long svMark = proto.startField(SAMPLE_value, MSG_SMALL);
             proto.writeLong(samples);
