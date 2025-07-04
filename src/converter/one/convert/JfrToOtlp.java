@@ -30,11 +30,13 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
 
     private final Proto proto = new Proto(1024);
-    private final double ticksPerNanosecond;
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
-        ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
+    }
+
+    public void dump(OutputStream out) throws IOException {
+        out.write(proto.buffer(), 0, proto.size());
     }
 
     @Override
@@ -84,10 +86,6 @@ public class JfrToOtlp extends JfrConverter {
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
     }
 
-    public void dump(OutputStream out) throws IOException {
-        out.write(proto.buffer(), 0, proto.size());
-    }
-
     private void writeProfileDictionary() {
         long profilesDictionaryMark = proto.startField(PROFILES_DATA_dictionary, MSG_LARGE);
 
@@ -103,13 +101,13 @@ public class JfrToOtlp extends JfrConverter {
         }
 
         // Write location table
-        for (Line l : linePool.keys()) {
+        for (Line line : linePool.keys()) {
             long locMark = proto.startField(PROFILES_DICTIONARY_location_table, MSG_SMALL);
             proto.field(LOCATION_mapping_index, 0);
 
             long lineMark = proto.startField(LOCATION_line, MSG_SMALL);
-            proto.field(LINE_function_index, l.functionIdx);
-            proto.field(LINE_line, l.lineNumber);
+            proto.field(LINE_function_index, line.functionIdx);
+            proto.field(LINE_line, line.lineNumber);
             proto.commitField(lineMark);
 
             proto.commitField(locMark);
@@ -152,11 +150,14 @@ public class JfrToOtlp extends JfrConverter {
 
         // JFR constant pool stacktrace ID to Range
         private final Map<Integer, Range> idToRange = new HashMap<>();
+        private final double ticksPerNanosecond;
+
         // Next index to be used for a location into Profile.location_indices
         private int nextLocationIdx = 0;
 
         public OtlpEventToSampleVisitor(List<Integer> locationIndices) {
             this.locationIndices = locationIndices;
+            ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
         }
 
         @Override
