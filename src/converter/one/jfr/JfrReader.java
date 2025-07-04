@@ -118,10 +118,6 @@ public class JfrReader implements Closeable {
         return endNanos - startNanos;
     }
 
-    public long getChunkStartNanos() {
-        return chunkStartNanos;
-    }
-
     public long chunkDurationNanos() {
         return chunkEndNanos - chunkStartNanos;
     }

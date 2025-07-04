@@ -78,7 +78,7 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeTimingInformation() {
-        proto.field(PROFILE_time_nanos, jfr.getChunkStartNanos());
+        proto.field(PROFILE_time_nanos, jfr.chunkStartNanos);
         proto.field(PROFILE_duration_nanos, jfr.chunkDurationNanos());
     }
 
