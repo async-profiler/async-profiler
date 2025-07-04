@@ -60,8 +60,8 @@ public class TestDeclaration {
 
     private List<RunnableTest> getRunnableTests(String dir) {
         String className = "test." + dir + "." + Character.toUpperCase(dir.charAt(0)) + dir.substring(1) + "Tests";
-        List<RunnableTest> rts = new ArrayList<>();
         try {
+            List<RunnableTest> rts = new ArrayList<>();
             for (Method m : Class.forName(className).getMethods()) {
                 if (includes(m)) {
                     for (Test t : m.getAnnotationsByType(Test.class)) {
@@ -69,10 +69,10 @@ public class TestDeclaration {
                     }
                 }
             }
+            return rts;
         } catch (ClassNotFoundException e) {
-            System.err.printf("Tests in directory '%s' have been skipped because they were not included in the test runner JAR\n", dir);
+            throw new RuntimeException(e);
         }
-        return rts;
     }
 
     public List<RunnableTest> getRunnableTests() {
