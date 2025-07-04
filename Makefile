@@ -280,10 +280,10 @@ else
 endif
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	rm -rf build/test
-	mkdir -p build/test
+	mkdir -p build/test/classes
 	@if [ -z "$PROTOBUF_RUNTIME_JAR" ]; then echo "OTEL tests have been skipped because the Protobuf Java runtime is missing from '$(TEST_DEPS_DIR)'"; fi
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(EFFECTIVE_TEST_SOURCES)
-	$(JAR) cf $@ -C build/test .
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test/classes $(EFFECTIVE_TEST_SOURCES)
+	$(JAR) cf $@ -C build/test/classes .
 
 update-otlp-classes-jar:
 	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
