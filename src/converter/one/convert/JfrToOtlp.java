@@ -20,6 +20,7 @@ import java.util.*;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
+    // Size in bits to be allocated in the buffer to hold the varint containing the length of the message
     private static final int MSG_LARGE = 5;
     private static final int MSG_SMALL = 1;
 
