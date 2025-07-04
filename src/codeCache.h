@@ -152,6 +152,10 @@ class CodeCache {
         return _image_base;
     }
 
+    const int dwarfTableLength() const {
+        return _dwarf_table_length;
+    }
+
     bool contains(const void* address) const {
         return address >= _min_address && address < _max_address;
     }
