@@ -8,12 +8,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #define LIB_EXT ".dylib"
 #else
 #define LIB_EXT ".so"
 #endif
+
+typedef void* (*malloc_t)(size_t);
 
 asprof_error_str_t _asprof_error_str;
 asprof_execute_t _asprof_execute;
@@ -37,13 +41,8 @@ void* getSymbol(void* lib, char* name) {
     return ptr;
 }
 
-
-void outputCallback(const char* buffer, size_t size) {
-    fwrite(buffer, sizeof(char), size, stdout);
-}
-
 void executeAsyncProfilerCommand(char* cmd) {
-    asprof_error_t asprof_err = _asprof_execute(cmd, outputCallback);
+    asprof_error_t asprof_err = _asprof_execute(cmd, NULL);
     if (asprof_err != NULL) {
         fprintf(stderr, "%s\n", _asprof_error_str(asprof_err));
         exit(1);
@@ -51,7 +50,7 @@ void executeAsyncProfilerCommand(char* cmd) {
 }
 
 void initAsyncProfiler() {
-    void* libprof = openLib("build/lib/libasyncProfiler" LIB_EXT);
+    void* libprof = openLib("build/test/lib/libasyncProfiler" LIB_EXT);
 
     _asprof_init = (asprof_init_t)getSymbol(libprof, "asprof_init");
     _asprof_init();
@@ -60,43 +59,32 @@ void initAsyncProfiler() {
     _asprof_error_str = (asprof_error_str_t)getSymbol(libprof, "asprof_error_str");
 }
 
-void preloadOrderTest() {
-    unsigned char* ptr = (unsigned char*)malloc(1999993);
+void sampleMalloc() {
+    void* lib = openLib("build/test/lib/libcallsmalloc" LIB_EXT);
 
-    int i;
-    for (i = 0; i < 1999993; i++) {
-        if (ptr[i] != 0xff) {
-            fprintf(stderr, "malloc error, expected 0xff but found 0x%x\n", ptr[i]);
-            exit(1);
-        }
-    }
-    free(ptr);
+    malloc_t call_malloc = (malloc_t)getSymbol(lib, "call_malloc");
+    free(call_malloc(1999993));
 }
 
-void apiTest(char* filename) {
-    initAsyncProfiler();
-    
-    char start_cmd[2048] = {0};
-    snprintf(start_cmd, sizeof(start_cmd), "start,nativemem,file=%s", filename);
-    executeAsyncProfilerCommand(start_cmd);
-
-    preloadOrderTest();
-
-    executeAsyncProfilerCommand("stop");
+void sampleWall(unsigned long ms) {
+    struct timespec ts = {ms / 1000, (ms % 1000) * 1000000};
+    while (nanosleep(&ts, &ts) < 0 && errno == EINTR) ;
 }
 
 int main(int argc, char** args) {
-    if (argc != 3) {
-        fprintf(stderr, "Usage: %s <preload|api> <output>\n", args[0]);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <output_file>\n", args[0]);
         exit(1);
     }
 
-    int preload = strcmp(args[1], "preload") == 0 ? 1 : 0;
+    initAsyncProfiler();
 
-    if (preload) {
-        preloadOrderTest();
-    } else {
-        apiTest(args[2]);
-    }
+    char start_cmd[2048] = {0};
+    snprintf(start_cmd, sizeof(start_cmd), "start,wall=10ms,cstack=dwarf,file=%s", args[1]);
+    executeAsyncProfilerCommand(start_cmd);
 
+    sampleMalloc();
+    sampleWall(100);
+
+    executeAsyncProfilerCommand("stop");
 }
