@@ -286,13 +286,16 @@ build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TES
 	$(JAR) cf $@ -C build/test/classes .
 
 update-otlp-classes-jar:
+	@if [ -z "$(OTEL_PROTO_PATH)" ]; then \
+		echo "'OTEL_PROTO_PATH' is empty"; \
+		exit 1; \
+	fi
 	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
 	mkdir -p $(TMP_DIR)/gen/java $(TMP_DIR)/build $(TEST_GEN_DIR)
 	cd $(OTEL_PROTO_PATH) && protoc --java_out=$(TMP_DIR)/gen/java $$(find . \
 		-type f \
 		-name '*.proto' \
-		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
-		| tr '\n' ' ')
+		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \))
 	$(JAVAC) -source $(JAVA_TARGET) \
 	    -target $(JAVA_TARGET) \
 	    -cp $(TEST_DEPS_DIR)/* \
