@@ -30,9 +30,11 @@ public class JfrToOtlp extends JfrConverter {
     private final Index<KeyValue> attributesPool = new Index<>(KeyValue.class, KeyValue.EMPTY);
 
     private final Proto proto = new Proto(1024);
+    private final double ticksPerNanosecond;
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
+        ticksPerNanosecond = jfr.ticksPerSec / 1_000_000_000.0;
     }
 
     @Override
@@ -159,7 +161,7 @@ public class JfrToOtlp extends JfrConverter {
 
         @Override
         public void visit(Event event, long samples, long value) {
-            long nanosFromStart = (event.time - jfr.chunkStartTicks) * 1_000_000_000 / jfr.ticksPerSec;
+            long nanosFromStart = Double.valueOf((event.time - jfr.chunkStartTicks) / ticksPerNanosecond).longValue();
             long timeNanos = jfr.chunkStartNanos + nanosFromStart;
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
