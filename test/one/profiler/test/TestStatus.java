@@ -10,4 +10,5 @@ public enum TestStatus {
     FAIL,
     SKIP_DISABLED,
     SKIP_CONFIG_MISMATCH,
+    SKIP_MISSING_JAR,
 }

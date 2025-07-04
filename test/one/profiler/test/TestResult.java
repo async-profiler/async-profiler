@@ -34,6 +34,10 @@ public class TestResult {
         return new TestResult(TestStatus.SKIP_DISABLED, null);
     }
 
+    public static TestResult skipMissingJar() {
+        return new TestResult(TestStatus.SKIP_MISSING_JAR, null);
+    }
+
     public static TestResult pass() {
         return new TestResult(TestStatus.PASS, null);
     }

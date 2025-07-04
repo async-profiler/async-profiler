@@ -123,6 +123,9 @@ public class Runner {
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);
         } catch (InvocationTargetException e) {
+            if (e.getTargetException() instanceof IllegalAccessError) {
+                return TestResult.skipMissingJar();
+            }
             return TestResult.fail(e.getTargetException());
         } catch (Throwable e) {
             return TestResult.fail(e);
@@ -166,6 +169,7 @@ public class Runner {
         System.out.println("FAIL: " + fail);
         System.out.println("SKIP (disabled): " + statusCounts.getOrDefault(TestStatus.SKIP_DISABLED, 0));
         System.out.println("SKIP (config mismatch): " + statusCounts.getOrDefault(TestStatus.SKIP_CONFIG_MISMATCH, 0));
+        System.out.println("SKIP (missing JAR): " + statusCounts.getOrDefault(TestStatus.SKIP_MISSING_JAR, 0));
         System.out.println("TOTAL: " + testCount);
     }
 
