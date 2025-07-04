@@ -173,31 +173,24 @@ class Lookup {
     }
 
     bool fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_time) {
-        if (VMStructs::hasMethodStructs()) {
-            // Workaround for JDK-8313816
-            VMMethod* vm_method = VMMethod::fromMethodID(method);
-            if (vm_method == NULL || vm_method->id() == NULL) {
-                return false;
-            }
+        if (VMMethod::isStaleMethodId(method)) {
+            return false;
         }
-
-        jvmtiEnv* jvmti = VM::jvmti();
 
         jclass method_class = NULL;
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
 
-        if (jvmti->GetMethodName(method, &method_name, &method_sig, NULL) == 0 &&
-            jvmti->GetMethodDeclaringClass(method, &method_class) == 0 &&
-            jvmti->GetClassSignature(method_class, &class_name, NULL) == 0) {
+        jvmtiEnv* jvmti = VM::jvmti();
+        jvmtiError err;
+
+        if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
+            (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
+            (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             mi->_name = _symbols.lookup(method_name);
             mi->_sig = _symbols.lookup(method_sig);
-        } else {
-            mi->_class = _classes->lookup("");
-            mi->_name = _symbols.lookup("jvmtiError");
-            mi->_sig = _symbols.lookup("()L;");
         }
 
         if (method_class) {
@@ -206,6 +199,10 @@ class Lookup {
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
+
+        if (err != 0) {
+            return false;
+        }
 
         if (first_time && jvmti->GetMethodModifiers(method, &mi->_modifiers) != 0) {
             mi->_modifiers = 0;
