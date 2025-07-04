@@ -279,6 +279,16 @@ build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TES
 	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:$(TEST_STUBS_DIR)/*" -d build/test/classes $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test/classes .
 
+update-protobuf-stubs:
+	rm -rf $(TMP_DIR)/build
+	mkdir -p $(TMP_DIR)/build $(TEST_STUB_JARS_DIR)
+	$(JAVAC) -source $(JAVA_TARGET) \
+	    -target $(JAVA_TARGET) \
+	    -d $(TMP_DIR)/build \
+		-Xlint:-options \
+	    test/stubs/protobuf-java.java
+	$(JAR) cvf $(TEST_STUB_JARS_DIR)/protobuf-java.jar -C $(TMP_DIR)/build .
+
 update-otlp-classes-jar:
 	@if [ -z "$(OTEL_PROTO_PATH)" ]; then \
 		echo "'OTEL_PROTO_PATH' is empty"; \
