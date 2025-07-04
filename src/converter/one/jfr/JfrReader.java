@@ -118,6 +118,10 @@ public class JfrReader implements Closeable {
         return endNanos - startNanos;
     }
 
+    public long chunkDurationNanos() {
+        return chunkEndNanos - chunkStartNanos;
+    }
+
     public <E extends Event> void registerEvent(String name, Class<E> eventClass) {
         JfrClass type = typesByName.get(name);
         if (type != null) {
