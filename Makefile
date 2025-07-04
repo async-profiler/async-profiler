@@ -55,6 +55,8 @@ TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
 TEST_DEPS_DIR=test/deps
 TEST_GEN_DIR=test/gen
+TEST_STUBS_DIR=test/stubs
+TEST_STUB_JARS_DIR=test/stub-jars
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -68,7 +70,6 @@ JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
 TEST_SOURCES := $(shell find test -name '*.java')
-TEST_SOURCES_WITHOUT_OTEL := $(shell echo $(TEST_SOURCES) | tr ' ' '\n' | grep -v otlp)
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
@@ -133,6 +134,7 @@ endif
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
+
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -261,7 +263,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:$(TEST_STUB_JARS_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -272,18 +274,21 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-PROTOBUF_RUNTIME_JAR := $(shell find $(TEST_DEPS_DIR) -name 'protobuf*.jar')
-ifeq ($(PROTOBUF_RUNTIME_JAR),)
-	EFFECTIVE_TEST_SOURCES := $(TEST_SOURCES_WITHOUT_OTEL)
-else
-	EFFECTIVE_TEST_SOURCES := $(TEST_SOURCES)
-endif
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR) $(TEST_STUB_JARS_DIR)
 	rm -rf build/test
 	mkdir -p build/test/classes
-	@if [ -z "$PROTOBUF_RUNTIME_JAR" ]; then echo "OTEL tests have been skipped because the Protobuf Java runtime is missing from '$(TEST_DEPS_DIR)'"; fi
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test/classes $(EFFECTIVE_TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:$(TEST_STUB_JARS_DIR)/*" -d build/test/classes $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test/classes .
+
+update-protobuf-stubs:
+	rm -rf $(TMP_DIR)/build
+	mkdir -p $(TMP_DIR)/build $(TEST_STUB_JARS_DIR)
+	$(JAVAC) -source $(JAVA_TARGET) \
+	    -target $(JAVA_TARGET) \
+	    -d $(TMP_DIR)/build \
+		-Xlint:-options \
+	    test/stubs/protobuf-java.java
+	$(JAR) cvf $(TEST_STUB_JARS_DIR)/protobuf-java.jar -C $(TMP_DIR)/build .
 
 update-otlp-classes-jar:
 	@if [ -z "$(OTEL_PROTO_PATH)" ]; then \
