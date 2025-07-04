@@ -20,7 +20,8 @@ import java.util.*;
 
 /** Converts .jfr output to OpenTelemetry protocol. */
 public class JfrToOtlp extends JfrConverter {
-    private static final int BIG_MESSAGE_BYTE_COUNT = 5;
+    private static final int MSG_LARGE = 5;
+    private static final int MSG_SMALL = 1;
 
     private final Index<String> stringPool = new Index<>(String.class, "");
     private final Index<String> functionPool = new Index<>(String.class, "");
@@ -35,8 +36,8 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     public void convert() throws IOException {
-        long rpMark = proto.startField(PROFILES_DATA_resource_profiles, BIG_MESSAGE_BYTE_COUNT);
-        long spMark = proto.startField(RESOURCE_PROFILES_scope_profiles, BIG_MESSAGE_BYTE_COUNT);
+        long rpMark = proto.startField(PROFILES_DATA_resource_profiles, MSG_LARGE);
+        long spMark = proto.startField(RESOURCE_PROFILES_scope_profiles, MSG_LARGE);
         super.convert();
         proto.commitField(spMark);
         proto.commitField(rpMark);
@@ -46,7 +47,7 @@ public class JfrToOtlp extends JfrConverter {
 
     @Override
     protected void convertChunk() {
-        long pMark = proto.startField(SCOPE_PROFILES_profiles, BIG_MESSAGE_BYTE_COUNT);
+        long pMark = proto.startField(SCOPE_PROFILES_profiles, MSG_LARGE);
 
         writeSampleTypes();
         writeTimingInformation();
@@ -54,8 +55,7 @@ public class JfrToOtlp extends JfrConverter {
         List<Integer> locationIndices = new ArrayList<>();
         collector.forEach(new OtlpEventToSampleVisitor(locationIndices));
 
-        long locationIndicesMark =
-                proto.startField(PROFILE_location_indices, BIG_MESSAGE_BYTE_COUNT);
+        long locationIndicesMark = proto.startField(PROFILE_location_indices, MSG_LARGE);
         locationIndices.forEach(proto::writeInt);
         proto.commitField(locationIndicesMark);
 
@@ -63,13 +63,13 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeSampleTypes() {
-        long stsMark = proto.startField(PROFILE_sample_type, 1);
+        long stsMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
         proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
         proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getSampleUnits()));
         proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
         proto.commitField(stsMark);
 
-        long sttMark = proto.startField(PROFILE_sample_type, 1);
+        long sttMark = proto.startField(PROFILE_sample_type, MSG_SMALL);
         proto.field(VALUE_TYPE_type_strindex, stringPool.index(getValueType()));
         proto.field(VALUE_TYPE_unit_strindex, stringPool.index(getTotalUnits()));
         proto.field(VALUE_TYPE_aggregation_temporality, AGGREGATION_TEMPORARALITY_cumulative);
@@ -86,26 +86,25 @@ public class JfrToOtlp extends JfrConverter {
     }
 
     private void writeProfileDictionary() {
-        long profilesDictionaryMark =
-                proto.startField(PROFILES_DATA_dictionary, BIG_MESSAGE_BYTE_COUNT);
+        long profilesDictionaryMark = proto.startField(PROFILES_DATA_dictionary, MSG_LARGE);
 
         // Mapping[0] must be a default mapping according to the spec
-        long mappingMark = proto.startField(PROFILES_DICTIONARY_mapping_table, 1);
+        long mappingMark = proto.startField(PROFILES_DICTIONARY_mapping_table, MSG_SMALL);
         proto.commitField(mappingMark);
 
         // Write function table
         for (String name : functionPool.keys()) {
-            long fMark = proto.startField(PROFILES_DICTIONARY_function_table, 1);
+            long fMark = proto.startField(PROFILES_DICTIONARY_function_table, MSG_SMALL);
             proto.field(FUNCTION_name_strindex, stringPool.index(name));
             proto.commitField(fMark);
         }
 
         // Write location table
         for (Line l : linePool.keys()) {
-            long locMark = proto.startField(PROFILES_DICTIONARY_location_table, 1);
+            long locMark = proto.startField(PROFILES_DICTIONARY_location_table, MSG_SMALL);
             proto.field(LOCATION_mapping_index, 0);
 
-            long lineMark = proto.startField(LOCATION_line, 1);
+            long lineMark = proto.startField(LOCATION_line, MSG_SMALL);
             proto.field(LINE_function_index, l.functionIdx);
             proto.field(LINE_line, l.lineNumber);
             proto.commitField(lineMark);
@@ -120,11 +119,10 @@ public class JfrToOtlp extends JfrConverter {
 
         // Write attributes table
         for (KeyValue kv : attributesPool.keys()) {
-            long aMark =
-                    proto.startField(PROFILES_DICTIONARY_attribute_table, BIG_MESSAGE_BYTE_COUNT);
+            long aMark = proto.startField(PROFILES_DICTIONARY_attribute_table, MSG_LARGE);
             proto.field(KEY_VALUE_key, kv.key);
 
-            long vMark = proto.startField(KEY_VALUE_value, BIG_MESSAGE_BYTE_COUNT);
+            long vMark = proto.startField(KEY_VALUE_value, MSG_LARGE);
             proto.field(ANY_VALUE_string_value, kv.value);
             proto.commitField(vMark);
 
@@ -165,7 +163,7 @@ public class JfrToOtlp extends JfrConverter {
 
             Range range = idToRange.computeIfAbsent(event.stackTraceId, this::computeLocationRange);
 
-            long sMark = proto.startField(PROFILE_sample, 1);
+            long sMark = proto.startField(PROFILE_sample, MSG_SMALL);
             proto.field(SAMPLE_locations_start_index, range.start);
             proto.field(SAMPLE_locations_length, range.length);
             proto.field(SAMPLE_timestamps_unix_nano, timeNanos);
@@ -174,7 +172,7 @@ public class JfrToOtlp extends JfrConverter {
                     SAMPLE_attribute_indices,
                     attributesPool.index(new KeyValue("thread.name", getThreadName(event.tid))));
 
-            long svMark = proto.startField(SAMPLE_value, 1);
+            long svMark = proto.startField(SAMPLE_value, MSG_SMALL);
             proto.writeLong(samples);
             proto.writeLong(factor == 1.0 ? value : (long) (value * factor));
             proto.commitField(svMark);
