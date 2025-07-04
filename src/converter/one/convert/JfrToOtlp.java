@@ -31,9 +31,6 @@ public class JfrToOtlp extends JfrConverter {
 
     public JfrToOtlp(JfrReader jfr, Arguments args) {
         super(jfr, args);
-
-        // string_table[0] must always be the empty string
-        stringPool.index("");
     }
 
     @Override
