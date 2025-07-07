@@ -275,7 +275,11 @@ test: test-cpp test-java
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	rm -rf build/test/classes
 	mkdir -p build/test/classes
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -implicit:none -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:test/stubs" -d build/test/classes $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -XDignore.symbol.file \
+		 -implicit:none \
+		 -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:test/stubs" \
+		 -d build/test/classes \
+		 $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test/classes .
 
 update-otlp-classes-jar:
