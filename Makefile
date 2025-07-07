@@ -200,9 +200,9 @@ build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
 ifeq ($(OS_TAG),macos)
 	$(CXX) $(CPPFLAGS) $(filter-out $(FAT_BINARY_FLAGS),$(CXXFLAGS)) $(DEFS) $(INCLUDES) -Wl,-rpath,$(JAVA_HOME)/lib -Wl,-rpath,$(JAVA_HOME)/lib/server -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
 else ifneq (,$(STATIC_BINARY))
-	$(CXX) $(CPPFLAGS) $(filter-out -static,$(CXXFLAGS)) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm -ldl
+	$(CXX) $(CPPFLAGS) $(filter-out -static,$(CXXFLAGS)) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm -ldl
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
 endif
 	$(STRIP) $@
 

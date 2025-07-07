@@ -38,7 +38,7 @@ extern "C" {
 }
 
 static JavaVM* create_jvm() {
-    JavaVMInitArgs vmArgs;
+    JavaVMInitArgs vm_args;
     JavaVMOption options[2];
     
     static char option1[] = "-Xss2M";
@@ -46,15 +46,15 @@ static JavaVM* create_jvm() {
     options[0].optionString = option1;
     options[1].optionString = option2;
     
-    vmArgs.version = JNI_VERSION_1_8;
-    vmArgs.nOptions = 2;
-    vmArgs.options = options;
-    vmArgs.ignoreUnrecognized = JNI_FALSE;
+    vm_args.version = JNI_VERSION_1_8;
+    vm_args.nOptions = 2;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = JNI_FALSE;
     
     JavaVM* jvm;
     JNIEnv* env;
     
-    if (JNI_CreateJavaVM(&jvm, reinterpret_cast<void**>(&env), &vmArgs) != JNI_OK) {
+    if (JNI_CreateJavaVM(&jvm, reinterpret_cast<void**>(&env), &vm_args) != JNI_OK) {
         return nullptr;
     }
     
@@ -68,47 +68,47 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     }
     
     // Create ConverterClassLoader with embedded JAR data
-    jclass loaderClass = env->FindClass("ConverterClassLoader");
-    if (loaderClass == nullptr) {
+    jclass loader_class = env->FindClass("ConverterClassLoader");
+    if (loader_class == nullptr) {
         fprintf(stderr, "Could not find ConverterClassLoader class\n");
         return 1;
     }
     
-    jmethodID loaderConstructor = env->GetMethodID(loaderClass, "<init>", "([B)V");
-    if (loaderConstructor == nullptr) {
+    jmethodID loader_constructor = env->GetMethodID(loader_class, "<init>", "([B)V");
+    if (loader_constructor == nullptr) {
         fprintf(stderr, "Could not find ConverterClassLoader constructor\n");
         return 1;
     }
     
     // Create byte array from embedded JAR data
-    size_t jarSize = jar_data_end - jar_data_start;
-    jbyteArray jarBytes = env->NewByteArray(static_cast<jsize>(jarSize));
-    env->SetByteArrayRegion(jarBytes, 0, static_cast<jsize>(jarSize), reinterpret_cast<const jbyte*>(jar_data_start));
+    size_t jar_size = jar_data_end - jar_data_start;
+    jbyteArray jar_bytes = env->NewByteArray(static_cast<jsize>(jar_size));
+    env->SetByteArrayRegion(jar_bytes, 0, static_cast<jsize>(jar_size), reinterpret_cast<const jbyte*>(jar_data_start));
     
     // Create ConverterClassLoader instance
-    jobject classLoader = env->NewObject(loaderClass, loaderConstructor, jarBytes);
-    if (classLoader == nullptr) {
+    jobject class_loader = env->NewObject(loader_class, loader_constructor, jar_bytes);
+    if (class_loader == nullptr) {
         fprintf(stderr, "Could not create ConverterClassLoader instance\n");
         return 1;
     }
     
     // Load Main class using custom class loader
-    jmethodID loadClassMethod = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-    if (loadClassMethod == nullptr) {
+    jmethodID load_class_method = env->GetMethodID(loader_class, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+    if (load_class_method == nullptr) {
         fprintf(stderr, "Could not find loadClass method\n");
         return 1;
     }
     
-    jstring mainClassName = env->NewStringUTF("Main");
-    auto mainClass = static_cast<jclass>(env->CallObjectMethod(classLoader, loadClassMethod, mainClassName));
-    if (mainClass == nullptr) {
+    jstring main_class_name = env->NewStringUTF("Main");
+    auto* main_class = static_cast<jclass>(env->CallObjectMethod(class_loader, load_class_method, main_class_name));
+    if (main_class == nullptr) {
         fprintf(stderr, "Could not load Main class\n");
         return 1;
     }
     
     // Get main method
-    jmethodID mainMethod = env->GetStaticMethodID(mainClass, "main", "([Ljava/lang/String;)V");
-    if (mainMethod == nullptr) {
+    jmethodID main_method = env->GetStaticMethodID(main_class, "main", "([Ljava/lang/String;)V");
+    if (main_method == nullptr) {
         fprintf(stderr, "Could not find main method\n");
         return 1;
     }
@@ -121,7 +121,7 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     }
     
     // Call main method
-    env->CallStaticVoidMethod(mainClass, mainMethod, args);
+    env->CallStaticVoidMethod(main_class, main_method, args);
     
     if (env->ExceptionCheck()) {
         env->ExceptionDescribe();
