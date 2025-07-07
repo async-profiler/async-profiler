@@ -34,6 +34,7 @@ jobs:
             CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
         shell: bash
       - name: Run clang-tidy-pr-comments action
+        if: github.event.pull_request.draft == false
         uses: platisd/clang-tidy-pr-comments@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
