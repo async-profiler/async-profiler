@@ -4,6 +4,10 @@ on:  # We are very liberal in terms of triggering builds. This should be revisit
   - push
   - pull_request
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   java_default_distribution: corretto
   java_default_version: 11
