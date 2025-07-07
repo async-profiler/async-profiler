@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
 #include <time.h>
 
 #ifdef __APPLE__
@@ -22,6 +23,9 @@ typedef void* (*malloc_t)(size_t);
 asprof_error_str_t _asprof_error_str;
 asprof_execute_t _asprof_execute;
 asprof_init_t _asprof_init;
+
+void (*pthread_exit_ref)(void*) = pthread_exit;
+int (*pthread_create_ref)(pthread_t*, pthread_attr_t*,void*(*)(void*),void *) = pthread_create;
 
 void* openLib(char* name) {
     void* ptr = dlopen(name, RTLD_NOW);
@@ -71,6 +75,19 @@ void sampleWall(unsigned long ms) {
     while (nanosleep(&ts, &ts) < 0 && errno == EINTR) ;
 }
 
+void* threadEntry1(void* args) {
+    sampleMalloc();
+    sampleWall(100);
+    pthread_exit(NULL);
+}
+
+void* threadEntry2(void* args) {
+    sampleMalloc();
+    sampleWall(100);
+    pthread_exit_ref(NULL);
+    return NULL;
+}
+
 int main(int argc, char** args) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <output_file>\n", args[0]);
@@ -83,8 +100,13 @@ int main(int argc, char** args) {
     snprintf(start_cmd, sizeof(start_cmd), "start,wall=10ms,cstack=dwarf,file=%s", args[1]);
     executeAsyncProfilerCommand(start_cmd);
 
-    sampleMalloc();
-    sampleWall(100);
+    pthread_t thread1, thread2;
+
+    pthread_create(&thread1, NULL, threadEntry1, NULL);
+    pthread_create_ref(&thread2, NULL, threadEntry2, NULL);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
 
     executeAsyncProfilerCommand("stop");
 }

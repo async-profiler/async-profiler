@@ -5,6 +5,7 @@
 
 #ifdef __APPLE__
 
+#include <dlfcn.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -12,7 +13,9 @@
 #include <mach/mach_time.h>
 #include <mach/processor_info.h>
 #include <mach/vm_map.h>
+#include <mach-o/dyld.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -365,6 +368,36 @@ void OS::freePageCache(int fd, off_t start_offset) {
 int OS::mprotect(void* addr, size_t size, int prot) {
     if (prot & PROT_WRITE) prot |= VM_PROT_COPY;
     return vm_protect(mach_task_self(), (vm_address_t)addr, size, 0, prot);
+}
+
+bool OS::checkPreloaded() {
+    if (getenv("DYLD_INSERT_LIBRARIES") == NULL) {
+        return false;
+    }
+
+    Dl_info current_info;
+    if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fname == NULL) {
+        return false;
+    }
+
+    Dl_info sigaction_info;
+    if (dladdr((const void*)sigaction, &sigaction_info) == 0 || sigaction_info.dli_fname == NULL) {
+        return false;
+    }
+
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images; i++) {
+        const char* image_name = _dyld_get_image_name(i);
+        if (image_name == NULL) {
+            continue;
+        } else if (strcmp(image_name, current_info.dli_fname) == 0) {
+            return true;
+        }else if(strcmp(image_name, sigaction_info.dli_fname) == 0) {
+            return false;
+        }
+    }
+
+    return false;
 }
 
 #endif // __APPLE__

@@ -20,7 +20,7 @@ class J9WallClock : public Engine {
 
     static void* threadEntry(void* wall_clock) {
         ((J9WallClock*)wall_clock)->timerLoop();
-        return NULL;
+        pthread_exit(NULL);
     }
 
     void timerLoop();

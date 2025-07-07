@@ -104,27 +104,6 @@ Mutex Hooks::_patch_lock;
 int Hooks::_patched_libs = 0;
 bool Hooks::_initialized = false;
 
-static void* callThreadSymbols(void* arg) {
-    static volatile void* ret_val = malloc(sizeof(void*));
-    pthread_exit((void*)ret_val);
-}
-
-// Call each intercepted function at least once to ensure
-// its GOT entry is updated with a correct target address
-static void resolveThreadSymbols() {
-    static volatile intptr_t sink;
-
-    pthread_t thread;
-    pthread_create(&thread, NULL, callThreadSymbols, NULL);
-
-    void* ret_val;
-    pthread_join(thread, &ret_val);
-
-    sink = (intptr_t)ret_val;
-    free(ret_val);
-}
-
-
 bool Hooks::init() {
     if (!__sync_bool_compare_and_swap(&_initialized, false, true)) {
         return false;
@@ -132,7 +111,6 @@ bool Hooks::init() {
 
     Profiler::setupSignalHandlers();
 
-    resolveThreadSymbols();
     Profiler::instance()->updateSymbols(false);
 
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)Hooks::init);
