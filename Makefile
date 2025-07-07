@@ -199,6 +199,8 @@ endif
 build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
 ifeq ($(OS_TAG),macos)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -Wl,-rpath,$(JAVA_HOME)/lib -Wl,-rpath,$(JAVA_HOME)/lib/server -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
+else ifneq (,$(STATIC_BINARY))
+	$(CXX) $(CPPFLAGS) $(filter-out -static,$(CXXFLAGS)) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm -ldl
 else
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm
 endif
