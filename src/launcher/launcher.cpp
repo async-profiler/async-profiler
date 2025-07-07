@@ -33,15 +33,8 @@ static char exe_path[PATH_MAX];
 static char java_path[PATH_MAX];
 
 extern "C" {
-#ifdef __APPLE__
-    extern char _jar_data_start[];
-    extern char _jar_data_end[];
-    #define jar_data_start _jar_data_start
-    #define jar_data_end _jar_data_end
-#else
     extern char jar_data_start[];
     extern char jar_data_end[];
-#endif
 }
 
 static bool extract_embedded_jar() {
