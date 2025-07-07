@@ -177,9 +177,9 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
 
-build/$(JFRCONV): src/launcher/* build/$(CONVERTER_JAR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp
-	$(STRIP) $@
+build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
+	sed 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' src/launcher/launcher.sh > $@
+	chmod +x $@
 	cat build/$(CONVERTER_JAR) >> $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
