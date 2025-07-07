@@ -38,22 +38,24 @@ extern "C" {
 }
 
 static JavaVM* create_jvm() {
-    JavaVMInitArgs vm_args;
+    JavaVMInitArgs vmArgs;
     JavaVMOption options[2];
     
-    options[0].optionString = const_cast<char*>("-Xss2M");
-    options[1].optionString = const_cast<char*>("-Dsun.misc.URLClassPath.disableJarChecking=true");
+    static char option1[] = "-Xss2M";
+    static char option2[] = "-Dsun.misc.URLClassPath.disableJarChecking=true";
+    options[0].optionString = option1;
+    options[1].optionString = option2;
     
-    vm_args.version = JNI_VERSION_1_8;
-    vm_args.nOptions = 2;
-    vm_args.options = options;
-    vm_args.ignoreUnrecognized = JNI_FALSE;
+    vmArgs.version = JNI_VERSION_1_8;
+    vmArgs.nOptions = 2;
+    vmArgs.options = options;
+    vmArgs.ignoreUnrecognized = JNI_FALSE;
     
     JavaVM* jvm;
     JNIEnv* env;
     
-    if (JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args) != JNI_OK) {
-        return NULL;
+    if (JNI_CreateJavaVM(&jvm, reinterpret_cast<void**>(&env), &vmArgs) != JNI_OK) {
+        return nullptr;
     }
     
     return jvm;
@@ -61,58 +63,58 @@ static JavaVM* create_jvm() {
 
 static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     JNIEnv* env;
-    if (jvm->GetEnv((void**)&env, JNI_VERSION_1_8) != JNI_OK) {
+    if (jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
         return 1;
     }
     
     // Create ConverterClassLoader with embedded JAR data
     jclass loaderClass = env->FindClass("ConverterClassLoader");
-    if (!loaderClass) {
+    if (loaderClass == nullptr) {
         fprintf(stderr, "Could not find ConverterClassLoader class\n");
         return 1;
     }
     
     jmethodID loaderConstructor = env->GetMethodID(loaderClass, "<init>", "([B)V");
-    if (!loaderConstructor) {
+    if (loaderConstructor == nullptr) {
         fprintf(stderr, "Could not find ConverterClassLoader constructor\n");
         return 1;
     }
     
     // Create byte array from embedded JAR data
-    size_t jar_size = jar_data_end - jar_data_start;
-    jbyteArray jarBytes = env->NewByteArray(static_cast<jsize>(jar_size));
-    env->SetByteArrayRegion(jarBytes, 0, static_cast<jsize>(jar_size), reinterpret_cast<const jbyte*>(jar_data_start));
+    size_t jarSize = jar_data_end - jar_data_start;
+    jbyteArray jarBytes = env->NewByteArray(static_cast<jsize>(jarSize));
+    env->SetByteArrayRegion(jarBytes, 0, static_cast<jsize>(jarSize), reinterpret_cast<const jbyte*>(jar_data_start));
     
     // Create ConverterClassLoader instance
     jobject classLoader = env->NewObject(loaderClass, loaderConstructor, jarBytes);
-    if (!classLoader) {
+    if (classLoader == nullptr) {
         fprintf(stderr, "Could not create ConverterClassLoader instance\n");
         return 1;
     }
     
     // Load Main class using custom class loader
     jmethodID loadClassMethod = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-    if (!loadClassMethod) {
+    if (loadClassMethod == nullptr) {
         fprintf(stderr, "Could not find loadClass method\n");
         return 1;
     }
     
     jstring mainClassName = env->NewStringUTF("Main");
-    jclass mainClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, mainClassName);
-    if (!mainClass) {
+    auto mainClass = static_cast<jclass>(env->CallObjectMethod(classLoader, loadClassMethod, mainClassName));
+    if (mainClass == nullptr) {
         fprintf(stderr, "Could not load Main class\n");
         return 1;
     }
     
     // Get main method
     jmethodID mainMethod = env->GetStaticMethodID(mainClass, "main", "([Ljava/lang/String;)V");
-    if (!mainMethod) {
+    if (mainMethod == nullptr) {
         fprintf(stderr, "Could not find main method\n");
         return 1;
     }
     
     // Create String array for arguments
-    jobjectArray args = env->NewObjectArray(argc, env->FindClass("java/lang/String"), NULL);
+    jobjectArray args = env->NewObjectArray(argc, env->FindClass("java/lang/String"), nullptr);
     for (int i = 0; i < argc; i++) {
         jstring arg = env->NewStringUTF(argv[i]);
         env->SetObjectArrayElement(args, i, arg);
@@ -140,7 +142,7 @@ int main(int argc, char** argv) {
     }
 
     JavaVM* jvm = create_jvm();
-    if (!jvm) {
+    if (jvm == nullptr) {
         fprintf(stderr, "Failed to create JVM\n");
         return 1;
     }
