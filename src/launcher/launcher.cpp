@@ -34,10 +34,10 @@ static char java_path[PATH_MAX];
 
 extern "C" {
 #ifdef __APPLE__
-    extern char __jar_data_start[];
-    extern char __jar_data_end[];
-    #define jar_data_start __jar_data_start
-    #define jar_data_end __jar_data_end
+    extern char _jar_data_start[];
+    extern char _jar_data_end[];
+    #define jar_data_start _jar_data_start
+    #define jar_data_end _jar_data_end
 #else
     extern char jar_data_start[];
     extern char jar_data_end[];

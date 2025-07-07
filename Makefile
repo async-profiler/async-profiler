@@ -180,13 +180,13 @@ build/converter_jar.o: build/$(CONVERTER_JAR)
 ifeq ($(OS_TAG),macos)
 	printf '%s\n' \
 		'.section __DATA,__const' \
-		'.globl __jar_data_start' \
-		'.globl __jar_data_end' \
-		'__jar_data_start:' \
+		'.globl _jar_data_start' \
+		'.globl _jar_data_end' \
+		'_jar_data_start:' \
 		'.incbin "$<"' \
-		'__jar_data_end:' \
+		'_jar_data_end:' \
 		> build/converter_jar.s
-	$(CC) -c build/converter_jar.s -o $@
+	$(CC) $(CFLAGS) -c build/converter_jar.s -o $@
 	rm build/converter_jar.s
 else
 	ld -r -b binary -o $@ $<
