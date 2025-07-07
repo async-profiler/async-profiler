@@ -30,8 +30,7 @@ static const char VERSION_STRING[] =
     "JFR converter " PROFILER_VERSION " built on " __DATE__ "\n";
 
 
-static char exe_path[PATH_MAX];
-static char java_path[PATH_MAX];
+
 
 extern "C" {
     extern char jar_data_start[];
@@ -81,8 +80,8 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     
     // Create byte array from embedded JAR data
     size_t jar_size = jar_data_end - jar_data_start;
-    jbyteArray jarBytes = env->NewByteArray(jar_size);
-    env->SetByteArrayRegion(jarBytes, 0, jar_size, (jbyte*)jar_data_start);
+    jbyteArray jarBytes = env->NewByteArray(static_cast<jsize>(jar_size));
+    env->SetByteArrayRegion(jarBytes, 0, static_cast<jsize>(jar_size), reinterpret_cast<const jbyte*>(jar_data_start));
     
     // Create ConverterClassLoader instance
     jobject classLoader = env->NewObject(loaderClass, loaderConstructor, jarBytes);
