@@ -202,7 +202,7 @@ ifeq ($(OS_TAG),macos)
 else ifneq (,$(STATIC_BINARY))
 	$(CXX) $(CPPFLAGS) $(filter-out -static,$(CXXFLAGS)) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm -ldl
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/jre/lib/$(if $(findstring x86_64,$(ARCH)),amd64,$(if $(findstring aarch64,$(ARCH)),arm64,$(ARCH)))/server -ljvm
 endif
 	$(STRIP) $@
 
