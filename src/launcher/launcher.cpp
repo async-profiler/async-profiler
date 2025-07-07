@@ -34,10 +34,10 @@ static char java_path[PATH_MAX];
 
 extern "C" {
 #ifdef __APPLE__
-    extern char _jar_data_start[];
-    extern char _jar_data_end[];
-    #define jar_data_start _jar_data_start
-    #define jar_data_end _jar_data_end
+    extern char __jar_data_start[];
+    extern char __jar_data_end[];
+    #define jar_data_start __jar_data_start
+    #define jar_data_end __jar_data_end
 #else
     extern char jar_data_start[];
     extern char jar_data_end[];
@@ -45,14 +45,12 @@ extern "C" {
 }
 
 static bool extract_embedded_jar() {
-    // Create temporary JAR file
     char temp_jar[] = "/tmp/jfr-converter-XXXXXX.jar";
     int fd = mkstemps(temp_jar, 4);
     if (fd == -1) {
         return false;
     }
     
-    // Write embedded JAR data to temp file
     size_t jar_size = jar_data_end - jar_data_start;
     if (write(fd, jar_data_start, jar_size) != (ssize_t)jar_size) {
         close(fd);
@@ -61,7 +59,6 @@ static bool extract_embedded_jar() {
     }
     close(fd);
     
-    // Store temp path for later use
     strcpy(exe_path, temp_jar);
     return true;
 }

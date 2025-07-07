@@ -176,7 +176,7 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
 
-build/$(CONVERTER_OBJ): build/$(CONVERTER_JAR)
+build/converter_jar.o: build/$(CONVERTER_JAR)
 ifeq ($(OS_TAG),macos)
 	printf '%s\n' \
 		'.section __DATA,__const' \
@@ -189,15 +189,15 @@ ifeq ($(OS_TAG),macos)
 	$(CC) -c build/converter_jar.s -o $@
 	rm build/converter_jar.s
 else
-	$(OBJCOPY) -I binary \
-		--rename-section .data=.rodata \
+	ld -r -b binary -o $@ $<
+	objcopy --rename-section .data=.rodata,alloc,load,readonly,data,contents \
 		--redefine-sym _binary_build_jar_jfr_converter_jar_start=jar_data_start \
 		--redefine-sym _binary_build_jar_jfr_converter_jar_end=jar_data_end \
-		$< $@
+		$@
 endif
 
-build/$(JFRCONV): src/launcher/*.cpp build/$(CONVERTER_OBJ)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp build/$(CONVERTER_OBJ)
+build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp build/converter_jar.o
 	$(STRIP) $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
