@@ -198,18 +198,18 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
     return depth;
 }
 
-int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail) {
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail, EventType event_type) {
     if (ucontext == NULL) {
         return walkVM(ucontext, frames, max_depth, detail,
-                      callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP());
+                      callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP(), event_type);
     } else {
         StackFrame frame(ucontext);
         return walkVM(ucontext, frames, max_depth, detail,
-                      (const void*)frame.pc(), frame.sp(), frame.fp());
+                      (const void*)frame.pc(), frame.sp(), frame.fp(), event_type);
     }
 }
 
-int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor) {
+int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, JavaFrameAnchor* anchor, EventType event_type) {
     uintptr_t sp = anchor->lastJavaSP();
     if (sp == 0) {
         return 0;
@@ -225,11 +225,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, 
         pc = ((const void**)sp)[-1];
     }
 
-    return walkVM(ucontext, frames, max_depth, VM_BASIC, pc, sp, fp);
+    return walkVM(ucontext, frames, max_depth, VM_BASIC, pc, sp, fp, event_type);
 }
 
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
-                        StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp) {
+                        StackDetail detail, const void* pc, uintptr_t sp, uintptr_t fp, EventType event_type) {
     StackFrame frame(ucontext);
     uintptr_t bottom = (uintptr_t)&frame + MAX_WALK_SIZE;
 
@@ -242,6 +242,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
+    bool java_pc_observed = false;
 
     if (vm_thread != NULL) {
         vm_thread->exception() = &crash_protection_ctx;
@@ -257,6 +258,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
+            java_pc_observed = true;
+
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
                 fillFrame(frames[depth++], BCI_ERROR, "unknown_nmethod");
@@ -379,7 +382,29 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 }
             }
         } else {
-            fillFrame(frames[depth++], BCI_NATIVE_FRAME, profiler->findNativeMethod(pc));
+            const char* method_name = profiler->findNativeMethod(pc);
+            char mark = method_name != NULL ? NativeFunc::mark(method_name) : 0;
+
+            if (!java_pc_observed && mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+                // Skip any frames above profiler hook methods
+                depth = 0;
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (!java_pc_observed && mark == MARK_COMPILER_ENTRY && Profiler::instance()->features()->comp_task) {
+                // Insert current compile task as a pseudo Java frame
+                jmethodID compile_task = Profiler::instance()->getCurrentCompileTask();
+                if (compile_task != NULL) {
+                    fillFrame(frames[depth++], FRAME_INTERPRETED, 0, compile_task);
+                }
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (!java_pc_observed && mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+                // Skip internal frames for allocation profiling
+                depth = 0;
+            } else if (!java_pc_observed && mark == MARK_INTERPRETER) {
+                // Skip interpreter frames
+            } else {
+                // Normal native frame
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            }
         }
 
         uintptr_t prev_sp = sp;

@@ -114,7 +114,6 @@ class Profiler {
 
     const char* asgctError(int code);
     u32 getLockIndex(int tid);
-    jmethodID getCurrentCompileTask();
     int getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx);
     int getJavaTraceAsync(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackContext* java_ctx);
     int getJavaTraceJvmti(jvmtiFrameInfo* jvmti_frames, ASGCT_CallFrame* frames, int start_depth, int max_depth);
@@ -214,6 +213,7 @@ class Profiler {
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
+    jmethodID getCurrentCompileTask();
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);
@@ -252,6 +252,10 @@ class Profiler {
 
     static void JNICALL GarbageCollectionFinish(jvmtiEnv* jvmti) {
         instance()->onGarbageCollectionFinish();
+    }
+
+    const StackWalkFeatures* features() const {
+        return &_features;
     }
 
     friend class Recording;

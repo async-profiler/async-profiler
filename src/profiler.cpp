@@ -646,27 +646,18 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_cstack == CSTACK_VMX) {
-        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT);
-    } else if (event_type <= MALLOC_SAMPLE) {
-        if (_cstack == CSTACK_VM) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL);
-        } else {
-            int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
-            if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
-                NMethod* nmethod = CodeHeap::findNMethod(java_ctx.pc);
-                if (nmethod != NULL) {
-                    fillFrameTypes(frames + num_frames, java_frames, nmethod);
-                }
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT, event_type);
+    } else if (_cstack == CSTACK_VM) {
+        num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL, event_type);
+    } else if (event_type <= MALLOC_SAMPLE || (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer)) {
+        int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
+        if (java_frames > 0 && java_ctx.pc != NULL && VMStructs::hasMethodStructs()) {
+            NMethod* nmethod = CodeHeap::findNMethod(java_ctx.pc);
+            if (nmethod != NULL) {
+                fillFrameTypes(frames + num_frames, java_frames, nmethod);
             }
-            num_frames += java_frames;
         }
-    } else if (event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB && _alloc_engine == &alloc_tracer) {
-        VMThread* vm_thread;
-        if (VMStructs::hasStackStructs() && (vm_thread = VMThread::current()) != NULL) {
-            num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, vm_thread->anchor());
-        } else {
-            num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
-        }
+        num_frames += java_frames;
     } else {
         // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method

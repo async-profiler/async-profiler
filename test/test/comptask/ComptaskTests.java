@@ -14,6 +14,20 @@ public class ComptaskTests {
         jvmArgs = "-Xcomp",
         jvm = Jvm.HOTSPOT
     )
+    @Test(
+        mainClass = Main.class,
+        agentArgs = "start,features=comptask,collapsed,cstack=vm,interval=1ms,file=%f",
+        jvmArgs = "-Xcomp",
+        jvm = Jvm.HOTSPOT,
+        nameSuffix = "VM"
+    )
+    @Test(
+        mainClass = Main.class,
+        agentArgs = "start,features=comptask,collapsed,cstack=vmx,interval=1ms,file=%f",
+        jvmArgs = "-Xcomp",
+        jvm = Jvm.HOTSPOT,
+        nameSuffix = "VMX"
+    )
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
