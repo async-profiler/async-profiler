@@ -197,7 +197,11 @@ else
 endif
 
 build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp build/converter_jar.o
+ifeq ($(OS_TAG),macos)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
+else
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm
+endif
 	$(STRIP) $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)

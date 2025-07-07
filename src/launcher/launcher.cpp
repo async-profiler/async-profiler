@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <jni.h>
 
 
 #ifdef __APPLE__
@@ -37,7 +38,68 @@ extern "C" {
     extern char jar_data_end[];
 }
 
-static bool extract_embedded_jar() {
+static JavaVM* create_jvm() {
+    JavaVMInitArgs vm_args;
+    JavaVMOption options[3];
+    
+    options[0].optionString = const_cast<char*>("-Xss2M");
+    options[1].optionString = const_cast<char*>("-Dsun.misc.URLClassPath.disableJarChecking=true");
+    options[2].optionString = const_cast<char*>("-Djava.class.path=/tmp");
+    
+    vm_args.version = JNI_VERSION_1_8;
+    vm_args.nOptions = 3;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = JNI_FALSE;
+    
+    JavaVM* jvm;
+    JNIEnv* env;
+    
+    if (JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args) != JNI_OK) {
+        return NULL;
+    }
+    
+    return jvm;
+}
+
+static int run_main_class(JavaVM* jvm, int argc, char** argv) {
+    JNIEnv* env;
+    if (jvm->GetEnv((void**)&env, JNI_VERSION_1_8) != JNI_OK) {
+        return 1;
+    }
+    
+    // Find Main class
+    jclass mainClass = env->FindClass("Main");
+    if (!mainClass) {
+        fprintf(stderr, "Could not find Main class\n");
+        return 1;
+    }
+    
+    // Get main method
+    jmethodID mainMethod = env->GetStaticMethodID(mainClass, "main", "([Ljava/lang/String;)V");
+    if (!mainMethod) {
+        fprintf(stderr, "Could not find main method\n");
+        return 1;
+    }
+    
+    // Create String array for arguments
+    jobjectArray args = env->NewObjectArray(argc, env->FindClass("java/lang/String"), NULL);
+    for (int i = 0; i < argc; i++) {
+        jstring arg = env->NewStringUTF(argv[i]);
+        env->SetObjectArrayElement(args, i, arg);
+    }
+    
+    // Call main method
+    env->CallStaticVoidMethod(mainClass, mainMethod, args);
+    
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        return 1;
+    }
+    
+    return 0;
+}
+
+static bool extract_jar_to_temp() {
     char temp_jar[] = "/tmp/jfr-converter-XXXXXX.jar";
     int fd = mkstemps(temp_jar, 4);
     if (fd == -1) {
@@ -56,74 +118,7 @@ static bool extract_embedded_jar() {
     return true;
 }
 
-static const char* const* build_cmdline(int argc, char** argv) {
-    const char** cmd = (const char**)malloc((argc + 6) * sizeof(char*));
-    int count = 0;
 
-    cmd[count++] = JAVA_EXE;
-    cmd[count++] = "-Xss2M";
-    cmd[count++] = "-Dsun.misc.URLClassPath.disableJarChecking";
-
-    for (; argc > 0; argc--, argv++) {
-        if (((strncmp(*argv, "-D", 2) == 0 || strncmp(*argv, "-X", 2) == 0) && (*argv)[2]) ||
-                strncmp(*argv, "-agent", 6) == 0) {
-            cmd[count++] = *argv;
-        } else if (strncmp(*argv, "-J", 2) == 0) {
-            cmd[count++] = *argv + 2;
-        } else {
-            break;
-        }
-    }
-
-    cmd[count++] = "-jar";
-    cmd[count++] = exe_path;
-
-    for (; argc > 0; argc--, argv++) {
-        cmd[count++] = *argv;
-    }
-
-    cmd[count] = NULL;
-    return cmd;
-}
-
-static bool find_java_at(const char* path, const char* path1 = "", const char* path2 = "") {
-    if (snprintf(java_path, sizeof(java_path), "%s%s%s/" JAVA_EXE, path, path1, path2) >= sizeof(java_path)) {
-        return false;
-    }
-
-    struct stat st;
-    return stat(java_path, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR) != 0;
-}
-
-static void run_java(char* const* cmd) {
-    // 1. Get java executable from JAVA_HOME
-    char* java_home = getenv("JAVA_HOME");
-    if (java_home != NULL && find_java_at(java_home, "/bin")) {
-        execv(java_path, cmd);
-    }
-
-    // 2. Try to find java in PATH
-    execvp(JAVA_EXE, cmd);
-
-    // 3. Try /etc/alternatives/java
-    if (find_java_at("/etc/alternatives")) {
-        execv(java_path, cmd);
-    }
-
-    // 4. Look for java in the common directory
-    DIR* dir = opendir(COMMON_JVM_DIR);
-    if (dir != NULL) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.' && entry->d_type == DT_DIR) {
-                if (find_java_at(COMMON_JVM_DIR, entry->d_name, CONTENTS_HOME "/bin")) {
-                    execv(java_path, cmd);
-                }
-            }
-        }
-        closedir(dir);
-    }
-}
 
 int main(int argc, char** argv) {
     if (argc > 1 && (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
@@ -131,15 +126,21 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (!extract_embedded_jar()) {
-        fprintf(stderr, "Failed to extract embedded JAR\n");
+    if (!extract_jar_to_temp()) {
+        fprintf(stderr, "Failed to extract JAR\n");
         return 1;
     }
 
-    const char* const* cmd = build_cmdline(argc - 1, argv + 1);
-    run_java((char* const*)cmd);
+    JavaVM* jvm = create_jvm();
+    if (!jvm) {
+        fprintf(stderr, "Failed to create JVM\n");
+        return 1;
+    }
 
-    // May reach here only if run_java() fails
-    fprintf(stderr, "No JDK found. Set JAVA_HOME or ensure java executable is on the PATH\n");
-    return 1;
+    int result = run_main_class(jvm, argc - 1, argv + 1);
+    
+    jvm->DestroyJavaVM();
+    unlink(exe_path); // Clean up temp JAR
+    
+    return result;
 }
