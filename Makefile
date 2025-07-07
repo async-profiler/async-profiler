@@ -190,6 +190,7 @@ ifeq ($(OS_TAG),macos)
 	rm build/converter_jar.s
 else
 	$(OBJCOPY) -I binary \
+		--rename-section .data=.rodata \
 		--redefine-sym _binary_build_jar_jfr_converter_jar_start=jar_data_start \
 		--redefine-sym _binary_build_jar_jfr_converter_jar_end=jar_data_end \
 		$< $@
