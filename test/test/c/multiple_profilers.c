@@ -24,8 +24,12 @@ asprof_error_str_t _asprof_error_str;
 asprof_execute_t _asprof_execute;
 asprof_init_t _asprof_init;
 
-void (*pthread_exit_ref)(void*) = pthread_exit;
-int (*pthread_create_ref)(pthread_t*, pthread_attr_t*,void*(*)(void*),void *) = pthread_create;
+typedef void (*pthread_exit_t)(void*);
+typedef void* (*pthread_entry_t)(void*);
+typedef int (*pthread_create_t)(pthread_t*, pthread_attr_t*, pthread_entry_t, void*);
+
+pthread_exit_t pthread_exit_ref = (pthread_exit_t)pthread_exit;
+pthread_create_t pthread_create_ref = (pthread_create_t)pthread_create;
 
 void* openLib(char* name) {
     void* ptr = dlopen(name, RTLD_NOW);
