@@ -123,7 +123,7 @@ public class Runner {
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);
         } catch (InvocationTargetException e) {
-            if (e.getTargetException() instanceof IllegalAccessError) {
+            if (e.getTargetException() instanceof NoClassDefFoundError) {
                 return TestResult.skipMissingJar();
             }
             return TestResult.fail(e.getTargetException());

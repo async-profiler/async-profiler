@@ -55,7 +55,6 @@ TEST_LIB_DIR=build/test/lib
 TEST_BIN_DIR=build/test/bin
 TEST_DEPS_DIR=test/deps
 TEST_GEN_DIR=test/gen
-TEST_STUBS_DIR=test/stub-jars
 LOG_DIR=build/test/logs
 LOG_LEVEL=
 SKIP=
@@ -68,7 +67,7 @@ RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
-TEST_SOURCES := $(shell find test -name '*.java')
+TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
@@ -262,7 +261,7 @@ test-cpp: build-test-cpp
 
 test-java: build-test-java
 	echo "Running tests against $(LIB_PROFILER)"
-	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:$(TEST_STUBS_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
+	$(JAVA) "-Djava.library.path=$(TEST_LIB_DIR)" $(TEST_FLAGS) -ea -cp "build/$(TEST_JAR):build/jar/*:build/lib/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" one.profiler.test.Runner $(subst $(COMMA), ,$(TESTS))
 
 coverage: override FAT_BINARY=false
 coverage: clean-coverage
@@ -273,10 +272,10 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR) $(TEST_STUBS_DIR)
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	rm -rf build/test/classes
 	mkdir -p build/test/classes
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:$(TEST_STUBS_DIR)/*" -d build/test/classes $(TEST_SOURCES)
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -implicit:none -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:test/stubs" -d build/test/classes $(TEST_SOURCES)
 	$(JAR) cf $@ -C build/test/classes .
 
 update-otlp-classes-jar:
