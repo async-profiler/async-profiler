@@ -198,7 +198,7 @@ endif
 
 build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
 ifeq ($(OS_TAG),macos)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -Wl,-rpath,$(JAVA_HOME)/lib -Wl,-rpath,$(JAVA_HOME)/lib/server -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
 else
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/server -ljvm
 endif
@@ -222,9 +222,9 @@ build/$(API_JAR): $(API_SOURCES)
 	$(JAR) cf $@ -C build/api .
 	$(RM) -r build/api
 
-build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES)
+build/$(CONVERTER_JAR): $(CONVERTER_SOURCES) $(RESOURCES) src/launcher/ConverterClassLoader.java
 	mkdir -p build/converter
-	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES)
+	$(JAVAC) $(JAVAC_OPTIONS) -d build/converter $(CONVERTER_SOURCES) src/launcher/ConverterClassLoader.java
 	$(JAR) cfe $@ Main -C build/converter . -C src/res .
 	$(RM) -r build/converter
 

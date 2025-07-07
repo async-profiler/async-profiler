@@ -40,14 +40,13 @@ extern "C" {
 
 static JavaVM* create_jvm() {
     JavaVMInitArgs vm_args;
-    JavaVMOption options[3];
+    JavaVMOption options[2];
     
     options[0].optionString = const_cast<char*>("-Xss2M");
     options[1].optionString = const_cast<char*>("-Dsun.misc.URLClassPath.disableJarChecking=true");
-    options[2].optionString = const_cast<char*>("-Djava.class.path=/tmp");
     
     vm_args.version = JNI_VERSION_1_8;
-    vm_args.nOptions = 3;
+    vm_args.nOptions = 2;
     vm_args.options = options;
     vm_args.ignoreUnrecognized = JNI_FALSE;
     
@@ -67,10 +66,42 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
         return 1;
     }
     
-    // Find Main class
-    jclass mainClass = env->FindClass("Main");
+    // Create ConverterClassLoader with embedded JAR data
+    jclass loaderClass = env->FindClass("ConverterClassLoader");
+    if (!loaderClass) {
+        fprintf(stderr, "Could not find ConverterClassLoader class\n");
+        return 1;
+    }
+    
+    jmethodID loaderConstructor = env->GetMethodID(loaderClass, "<init>", "([B)V");
+    if (!loaderConstructor) {
+        fprintf(stderr, "Could not find ConverterClassLoader constructor\n");
+        return 1;
+    }
+    
+    // Create byte array from embedded JAR data
+    size_t jar_size = jar_data_end - jar_data_start;
+    jbyteArray jarBytes = env->NewByteArray(jar_size);
+    env->SetByteArrayRegion(jarBytes, 0, jar_size, (jbyte*)jar_data_start);
+    
+    // Create ConverterClassLoader instance
+    jobject classLoader = env->NewObject(loaderClass, loaderConstructor, jarBytes);
+    if (!classLoader) {
+        fprintf(stderr, "Could not create ConverterClassLoader instance\n");
+        return 1;
+    }
+    
+    // Load Main class using custom class loader
+    jmethodID loadClassMethod = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+    if (!loadClassMethod) {
+        fprintf(stderr, "Could not find loadClass method\n");
+        return 1;
+    }
+    
+    jstring mainClassName = env->NewStringUTF("Main");
+    jclass mainClass = (jclass)env->CallObjectMethod(classLoader, loadClassMethod, mainClassName);
     if (!mainClass) {
-        fprintf(stderr, "Could not find Main class\n");
+        fprintf(stderr, "Could not load Main class\n");
         return 1;
     }
     
@@ -99,24 +130,7 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     return 0;
 }
 
-static bool extract_jar_to_temp() {
-    char temp_jar[] = "/tmp/jfr-converter-XXXXXX.jar";
-    int fd = mkstemps(temp_jar, 4);
-    if (fd == -1) {
-        return false;
-    }
-    
-    size_t jar_size = jar_data_end - jar_data_start;
-    if (write(fd, jar_data_start, jar_size) != (ssize_t)jar_size) {
-        close(fd);
-        unlink(temp_jar);
-        return false;
-    }
-    close(fd);
-    
-    strcpy(exe_path, temp_jar);
-    return true;
-}
+
 
 
 
@@ -124,11 +138,6 @@ int main(int argc, char** argv) {
     if (argc > 1 && (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
         printf(VERSION_STRING);
         return 0;
-    }
-
-    if (!extract_jar_to_temp()) {
-        fprintf(stderr, "Failed to extract JAR\n");
-        return 1;
     }
 
     JavaVM* jvm = create_jvm();
@@ -140,7 +149,6 @@ int main(int argc, char** argv) {
     int result = run_main_class(jvm, argc - 1, argv + 1);
     
     jvm->DestroyJavaVM();
-    unlink(exe_path); // Clean up temp JAR
     
     return result;
 }
