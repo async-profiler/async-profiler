@@ -19,6 +19,7 @@ LIB_PROFILER_DEBUG=libasyncProfiler.$(SOEXT).debug
 ASPROF_HEADER=include/asprof.h
 API_JAR=jar/async-profiler.jar
 CONVERTER_JAR=jar/jfr-converter.jar
+CONVERTER_OBJ=converter_jar.o
 TEST_JAR=test.jar
 
 CC ?= gcc
@@ -148,11 +149,9 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	rm -r $(DEBUG_PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
-	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
 ifneq ($(GITHUB_ACTIONS), true)
 	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
 endif
-	cat build/$(CONVERTER_JAR) >> $(PACKAGE_DIR)/$(JFRCONV)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
@@ -177,10 +176,28 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/main/*.cpp src/jattach/*.c
 	$(STRIP) $@
 
-build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
-	sed 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' src/launcher/launcher.sh > $@
-	chmod +x $@
-	cat build/$(CONVERTER_JAR) >> $@
+build/$(CONVERTER_OBJ): build/$(CONVERTER_JAR)
+ifeq ($(OS_TAG),macos)
+	printf '%s\n' \
+		'.section __DATA,__const' \
+		'.globl __jar_data_start' \
+		'.globl __jar_data_end' \
+		'__jar_data_start:' \
+		'.incbin "$<"' \
+		'__jar_data_end:' \
+		> build/converter_jar.s
+	$(CC) -c build/converter_jar.s -o $@
+	rm build/converter_jar.s
+else
+	$(OBJCOPY) -I binary \
+		--redefine-sym _binary_build_jar_jfr_converter_jar_start=jar_data_start \
+		--redefine-sym _binary_build_jar_jfr_converter_jar_end=jar_data_end \
+		$< $@
+endif
+
+build/$(JFRCONV): src/launcher/*.cpp build/$(CONVERTER_OBJ)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(DEFS) -o $@ src/launcher/*.cpp build/$(CONVERTER_OBJ)
+	$(STRIP) $@
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)

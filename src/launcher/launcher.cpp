@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 
 #ifdef __APPLE__
@@ -31,22 +32,38 @@ static const char VERSION_STRING[] =
 static char exe_path[PATH_MAX];
 static char java_path[PATH_MAX];
 
-static bool get_exe_path() {
+extern "C" {
 #ifdef __APPLE__
-    char buf[PATH_MAX];
-    uint32_t size = sizeof(buf);
-    return _NSGetExecutablePath(buf, &size) == 0 && realpath(buf, exe_path) != NULL;
+    extern char _jar_data_start[];
+    extern char _jar_data_end[];
+    #define jar_data_start _jar_data_start
+    #define jar_data_end _jar_data_end
 #else
-    if (realpath("/proc/self/exe", exe_path) == NULL) {
-        // realpath() may fail for a path like /proc/[pid]/root/bin/exe
-        ssize_t size = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
-        if (size < 0) {
-            return false;
-        }
-        exe_path[size] = 0;
-    }
-    return true;
+    extern char jar_data_start[];
+    extern char jar_data_end[];
 #endif
+}
+
+static bool extract_embedded_jar() {
+    // Create temporary JAR file
+    char temp_jar[] = "/tmp/jfr-converter-XXXXXX.jar";
+    int fd = mkstemps(temp_jar, 4);
+    if (fd == -1) {
+        return false;
+    }
+    
+    // Write embedded JAR data to temp file
+    size_t jar_size = jar_data_end - jar_data_start;
+    if (write(fd, jar_data_start, jar_size) != (ssize_t)jar_size) {
+        close(fd);
+        unlink(temp_jar);
+        return false;
+    }
+    close(fd);
+    
+    // Store temp path for later use
+    strcpy(exe_path, temp_jar);
+    return true;
 }
 
 static const char* const* build_cmdline(int argc, char** argv) {
@@ -124,8 +141,8 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (!get_exe_path()) {
-        fprintf(stderr, "Failed to get executable path\n");
+    if (!extract_embedded_jar()) {
+        fprintf(stderr, "Failed to extract embedded JAR\n");
         return 1;
     }
 
