@@ -137,6 +137,15 @@ Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
         return Error("setEntry method not found");
     }
 
+    CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)LockTracer::initialize);
+    lib->mark(
+        [](const char* s, const void* start, const void* end) -> bool {
+            return (start <= LockTracer::UnsafeParkHook && LockTracer::UnsafeParkHook <= end)
+                || (start <= LockTracer::recordContendedLock && LockTracer::recordContendedLock <= end)
+                || (start <= LockTracer::MonitorContendedEntered && LockTracer::MonitorContendedEntered <= end);
+        },
+        MARK_ASYNC_PROFILER);
+
     return Error::OK;
 }
 

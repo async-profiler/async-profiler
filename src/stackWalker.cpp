@@ -389,7 +389,10 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                 // Skip any frames above profiler hook methods
                 depth = 0;
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (!java_pc_observed && mark == MARK_COMPILER_ENTRY && Profiler::instance()->features()->comp_task) {
+            } else if (!java_pc_observed && mark == MARK_ASYNC_PROFILER && (event_type == LOCK_SAMPLE || event_type == PARK_SAMPLE)){
+                // Skip internal frames for LOCK profiling
+                depth = 0;
+            }else if (!java_pc_observed && mark == MARK_COMPILER_ENTRY && Profiler::instance()->features()->comp_task) {
                 // Insert current compile task as a pseudo Java frame
                 jmethodID compile_task = Profiler::instance()->getCurrentCompileTask();
                 if (compile_task != NULL) {

@@ -136,7 +136,7 @@ void MallocTracer::initialize() {
     SAVE_IMPORT(aligned_alloc);
 
     lib->mark(
-        [](const char* s) -> bool {
+        [](const char* s, const void* start, const void* end) -> bool {
             return strcmp(s, "malloc_hook") == 0
                 || strcmp(s, "calloc_hook") == 0
                 || strcmp(s, "realloc_hook") == 0

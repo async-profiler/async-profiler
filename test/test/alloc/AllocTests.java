@@ -42,8 +42,8 @@ public class AllocTests {
     }
 
     @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=fp,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB")
-    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vm,flamegraph,file=%f.jfr", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VM")
-    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vmx,flamegraph,file=%f.jfr", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VMX")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vm,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VM")
+    @Test(mainClass = Hello.class, agentArgs = "start,event=alloc,alloc=1,cstack=vmx,flamegraph,file=%f", jvmArgs = "-XX:+UseG1GC -XX:-UseTLAB", nameSuffix = "VMX")
     public void startup(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         out = out.convertFlameToCollapsed();

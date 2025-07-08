@@ -19,4 +19,29 @@ public class LockTests {
         out = p.profile("-e lock -d 3 -o collapsed");
         assert out.contains("sun/nio/ch/DatagramChannelImpl.send");
     }
+
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=dwarf,collapsed,file=%f", args = "sync", nameSuffix = "dwarf")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=fp,collapsed,file=%f", args = "sync", nameSuffix = "fp")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=vm,collapsed,file=%f", args = "sync", nameSuffix = "vm")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=vmx,collapsed,file=%f", args = "sync", nameSuffix = "vmx")
+    public void syncLock(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        assert out.contains("test/lock/SimpleLockTest.syncLock;" +
+                "java.lang.Class_\\[i\\]");
+    }
+
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=dwarf,collapsed,file=%f", args = "sem", nameSuffix = "dwarf")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=fp,collapsed,file=%f", args = "sem", nameSuffix = "fp")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=vm,collapsed,file=%f", args = "sem", nameSuffix = "vm")
+    @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=vmx,collapsed,file=%f", args = "sem", nameSuffix = "vmx")
+    public void semLock(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        assert out.contains("java/util/concurrent/locks/LockSupport.park;" +
+                "jdk/internal/misc/Unsafe.park;" +
+                "java.util.concurrent.Semaphore\\$NonfairSync_\\[i\\]");
+    }
 }
