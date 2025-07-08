@@ -149,8 +149,8 @@ public class NativememTests {
 
     @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,file=%f.jfr", nameSuffix = "default")
     @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr", nameSuffix = "total")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr", nameSuffix = "oneByte/total")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr", nameSuffix = "tenMega/total")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr", nameSuffix = "oneByte+total")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr", nameSuffix = "tenMega+total")
     @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr", nameSuffix = "multi")
     public void jfrNoLeaks(TestProcess p) throws Exception {
         assertNoLeaks(p);
