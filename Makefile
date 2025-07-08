@@ -290,15 +290,15 @@ update-otlp-classes-jar:
 	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
 	mkdir -p $(TMP_DIR)/gen/java $(TMP_DIR)/build $(TEST_GEN_DIR)
 	cd $(OTEL_PROTO_PATH) && protoc --java_out=$(TMP_DIR)/gen/java $$(find . \
-		-type f \
-		-name '*.proto' \
-		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \))
+		 -type f \
+		 -name '*.proto' \
+		 -not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \))
 	$(JAVAC) -source $(JAVA_TARGET) \
-	    -target $(JAVA_TARGET) \
-	    -cp $(TEST_DEPS_DIR)/* \
-	    -d $(TMP_DIR)/build \
-		-Xlint:-options \
-	    $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
+		 -target $(JAVA_TARGET) \
+		 -cp $(TEST_DEPS_DIR)/* \
+		 -d $(TMP_DIR)/build \
+		 -Xlint:-options \
+		 $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
 	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
 LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
