@@ -41,7 +41,7 @@ public class LockTests {
         assert p.exitCode() == 0;
 
         assert out.contains("java/util/concurrent/locks/LockSupport.park;" +
-                "jdk/internal/misc/Unsafe.park;" +
+                "(sun/misc/Unsafe.park;|jdk/internal/misc/Unsafe.park;)" +
                 "java.util.concurrent.Semaphore\\$NonfairSync_\\[i\\]");
     }
 }
