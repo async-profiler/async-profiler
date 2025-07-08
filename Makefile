@@ -200,8 +200,10 @@ build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
 ifeq ($(OS_TAG),macos)
 	$(CXX) $(CPPFLAGS) $(filter-out $(FAT_BINARY_FLAGS),$(CXXFLAGS)) $(DEFS) $(INCLUDES) \
 		-Wl,-rpath,$(JAVA_HOME)/lib \
+		-Wl,-rpath,$(JAVA_HOME)/lib/server \
 		-o $@ src/launcher/*.cpp build/converter_jar.o \
 		-L$(JAVA_HOME)/lib \
+		-L$(JAVA_HOME)/lib/server \
 		-ljvm
 else
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ \
