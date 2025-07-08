@@ -298,7 +298,7 @@ update-otlp-classes-jar:
 		 -cp $(TEST_DEPS_DIR)/* \
 		 -d $(TMP_DIR)/build \
 		 -Xlint:-options \
-		 $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
+		 $$(find $(TMP_DIR)/gen/java -name "*.java")
 	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
 LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
