@@ -198,11 +198,18 @@ endif
 
 build/$(JFRCONV): src/launcher/*.cpp build/converter_jar.o
 ifeq ($(OS_TAG),macos)
-	$(CXX) $(CPPFLAGS) $(filter-out $(FAT_BINARY_FLAGS),$(CXXFLAGS)) $(DEFS) $(INCLUDES) -Wl,-rpath,$(JAVA_HOME)/lib -Wl,-rpath,$(JAVA_HOME)/lib/server -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib -L$(JAVA_HOME)/lib/server -ljvm
-else ifneq (,$(STATIC_BINARY))
-	$(CXX) $(CPPFLAGS) $(filter-out -static,$(CXXFLAGS)) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/$(if $(findstring x86_64,$(ARCH)),amd64,$(if $(findstring aarch64,$(ARCH)),arm64,$(ARCH)))/server -ljvm -ldl
+	$(CXX) $(CPPFLAGS) $(filter-out $(FAT_BINARY_FLAGS),$(CXXFLAGS)) $(DEFS) $(INCLUDES) \
+		-Wl,-rpath,$(JAVA_HOME)/lib \
+		-o $@ src/launcher/*.cpp build/converter_jar.o \
+		-L$(JAVA_HOME)/lib \
+		-ljvm
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ src/launcher/*.cpp build/converter_jar.o -L$(JAVA_HOME)/lib/$(if $(findstring x86_64,$(ARCH)),amd64,$(if $(findstring aarch64,$(ARCH)),arm64,$(ARCH)))/server -ljvm
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEFS) $(INCLUDES) -o $@ \
+		src/launcher/*.cpp build/converter_jar.o \
+		$(shell test -f $(JAVA_HOME)/lib/server/libjvm.so && echo -L$(JAVA_HOME)/lib/server || :) \
+		$(shell test -f $(JAVA_HOME)/jre/lib/amd64/server/libjvm.so && echo -L$(JAVA_HOME)/jre/lib/amd64/server || :) \
+		$(shell test -f $(JAVA_HOME)/jre/lib/arm64/server/libjvm.so && echo -L$(JAVA_HOME)/jre/lib/arm64/server || :) \
+		-ljvm -ldl
 endif
 	$(STRIP) $@
 
