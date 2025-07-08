@@ -78,8 +78,6 @@ heap utilization and wall-clock profiling to view latency.
 
 ## Understanding FlameGraph colors
 
-Color is another flame graph dimension that may be used to encode additional information
-about each frame. Colors may have different meaning in various flame graph implementations.
-async-profiler uses the following palette to differentiate frame types:
+A legend for frame types is available from the information tooltip in the generated html, which is repeated here:
 
-![](/.assets/images/flamegraph_colors.png)
+![](/.assets/images/flamegraph_legend.png)
