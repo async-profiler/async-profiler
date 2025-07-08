@@ -5,4 +5,4 @@
 
 package com.google.protobuf;
 
-abstract class ByteString {}
+public abstract class ByteString {}

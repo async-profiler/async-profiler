@@ -5,4 +5,4 @@
 
 package com.google.protobuf;
 
-abstract class GeneratedMessageV3 {}
+public abstract class GeneratedMessageV3 {}

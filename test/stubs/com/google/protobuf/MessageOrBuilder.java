@@ -5,4 +5,4 @@
 
 package com.google.protobuf;
 
-interface MessageOrBuilder {}
+public interface MessageOrBuilder {}
