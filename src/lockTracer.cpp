@@ -140,9 +140,9 @@ Error LockTracer::initialize(jvmtiEnv* jvmti, JNIEnv* env) {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)LockTracer::initialize);
     lib->mark(
         [](const char* s, const void* start, const void* end) -> bool {
-            return (start <= LockTracer::UnsafeParkHook && LockTracer::UnsafeParkHook <= end)
-                || (start <= LockTracer::recordContendedLock && LockTracer::recordContendedLock <= end)
-                || (start <= LockTracer::MonitorContendedEntered && LockTracer::MonitorContendedEntered <= end);
+            return (start <= (const void*)LockTracer::UnsafeParkHook && (const void*)LockTracer::UnsafeParkHook <= end)
+                || (start <= (const void*)LockTracer::recordContendedLock && (const void*)LockTracer::recordContendedLock <= end)
+                || (start <= (const void*)LockTracer::MonitorContendedEntered && (const void*)LockTracer::MonitorContendedEntered <= end);
         },
         MARK_ASYNC_PROFILER);
 
