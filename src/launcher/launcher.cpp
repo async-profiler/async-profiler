@@ -30,8 +30,6 @@ static const char VERSION_STRING[] =
     "JFR converter " PROFILER_VERSION " built on " __DATE__ "\n";
 
 
-
-
 extern "C" {
     extern char jar_data_start[];
     extern char jar_data_end[];
@@ -130,10 +128,6 @@ static int run_main_class(JavaVM* jvm, int argc, char** argv) {
     
     return 0;
 }
-
-
-
-
 
 int main(int argc, char** argv) {
     if (argc > 1 && (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
