@@ -211,8 +211,9 @@ jobs:
           echo "release_directory=$(basename $(find . -type d -iname "async-profiler-*" ))" >> $GITHUB_OUTPUT
       - name: Download Protobuf Java runtime
         run: |
-          mkdir -p "test/deps"
-          curl -L -o "test/deps/protobuf-java.jar" "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
+          mkdir -p test/deps
+          cd test/deps
+          curl -L -O "https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/$PB_JAVA_VERSION/protobuf-java-$PB_JAVA_VERSION.jar"
         env:
           PB_JAVA_VERSION: "4.31.1"
       - name: Run integration tests
