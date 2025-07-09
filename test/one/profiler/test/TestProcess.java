@@ -246,7 +246,7 @@ public class TestProcess implements Closeable {
 
             for (String key : tmpFiles.keySet()) {
                 if (!key.equals(STDERR) && !key.equals(STDOUT)) {
-                    moveLog(tmpFiles.get(key), key.replaceAll("%", ""), true);
+                    moveLog(tmpFiles.get(key), key.substring(1), true);
                 }
             }
         } catch (IOException e) {
