@@ -254,8 +254,8 @@ class Profiler {
         instance()->onGarbageCollectionFinish();
     }
 
-    const StackWalkFeatures* features() const {
-        return &_features;
+    StackWalkFeatures features() const {
+        return _features;
     }
 
     friend class Recording;

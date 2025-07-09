@@ -243,6 +243,8 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
     bool java_pc_observed = false;
+    bool skip_top_native_frames = !Event::hasNativeStack(event_type);
+    bool skip_instrument_frame = event_type == INSTRUMENTED_METHOD;
 
     if (vm_thread != NULL) {
         vm_thread->exception() = &crash_protection_ctx;
@@ -259,6 +261,12 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
             java_pc_observed = true;
+
+            // Skip Instrument.recordSample() method
+            if (skip_instrument_frame && depth == 1) {
+                depth = 0;
+                skip_instrument_frame = false;
+            }
 
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
@@ -385,25 +393,24 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
             const char* method_name = profiler->findNativeMethod(pc);
             char mark = method_name != NULL ? NativeFunc::mark(method_name) : 0;
 
-            if (!java_pc_observed && mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+            if (java_pc_observed) {
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
                 // Skip any frames above profiler hook methods
                 depth = 0;
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (!java_pc_observed && mark == MARK_ASYNC_PROFILER && (event_type == LOCK_SAMPLE || event_type == PARK_SAMPLE)){
-                // Skip internal frames for LOCK profiling
-                depth = 0;
-            }else if (!java_pc_observed && mark == MARK_COMPILER_ENTRY && Profiler::instance()->features()->comp_task) {
+            } else if (mark == MARK_COMPILER_ENTRY && Profiler::instance()->features().comp_task) {
                 // Insert current compile task as a pseudo Java frame
-                jmethodID compile_task = Profiler::instance()->getCurrentCompileTask();
+                jmethodID compile_task = VMStructs::getCurrentCompileTask();
                 if (compile_task != NULL) {
                     fillFrame(frames[depth++], FRAME_INTERPRETED, 0, compile_task);
                 }
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (!java_pc_observed && mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+            } else if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
                 // Skip internal frames for allocation profiling
                 depth = 0;
-            } else if (!java_pc_observed && mark == MARK_INTERPRETER) {
-                // Skip interpreter frames
+            } else if (mark == MARK_INTERPRETER || skip_top_native_frames){
+                // Skip interpreter frames & internal frames for LOCK & INSTRUMENT profiling
             } else {
                 // Normal native frame
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);

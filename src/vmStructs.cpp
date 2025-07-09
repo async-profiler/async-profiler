@@ -627,6 +627,17 @@ void VMStructs::initThreadBridge() {
     }
 }
 
+jmethodID VMStructs::getCurrentCompileTask() {
+    VMThread* vm_thread = VMThread::current();
+    if (vm_thread != NULL) {
+        VMMethod* method = vm_thread->compiledMethod();
+        if (method != NULL) {
+            return method->id();
+        }
+    }
+    return NULL;
+}
+
 VMThread* VMThread::current() {
     return _tls_index >= 0 ? (VMThread*)pthread_getspecific((pthread_key_t)_tls_index) : NULL;
 }

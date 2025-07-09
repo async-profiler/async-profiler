@@ -88,18 +88,6 @@ static bool sortByCounter(const NamedMethodSample& a, const NamedMethodSample& b
     return a.second.counter > b.second.counter;
 }
 
-
-static inline int hasNativeStack(EventType event_type) {
-    const int events_with_native_stack =
-        (1 << PERF_SAMPLE)       |
-        (1 << EXECUTION_SAMPLE)  |
-        (1 << WALL_CLOCK_SAMPLE) |
-        (1 << MALLOC_SAMPLE)     |
-        (1 << ALLOC_SAMPLE)      |
-        (1 << ALLOC_OUTSIDE_TLAB);
-    return (1 << event_type) & events_with_native_stack;
-}
-
 static inline bool isVTableStub(const char* name) {
     return name[0] && strcmp(name + 1, "table stub") == 0;
 }
@@ -304,17 +292,6 @@ bool Profiler::isAddressInCode(const void* pc) {
     }
 }
 
-jmethodID Profiler::getCurrentCompileTask() {
-    VMThread* vm_thread = VMThread::current();
-    if (vm_thread != NULL) {
-        VMMethod* method = vm_thread->compiledMethod();
-        if (method != NULL) {
-            return method->id();
-        }
-    }
-    return NULL;
-}
-
 int Profiler::getNativeTrace(void* ucontext, ASGCT_CallFrame* frames, EventType event_type, int tid, StackContext* java_ctx) {
     const void* callchain[MAX_NATIVE_FRAMES];
     int native_frames;
@@ -354,7 +331,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 return depth;
             } else if (mark == MARK_COMPILER_ENTRY && _features.comp_task) {
                 // Insert current compile task as a pseudo Java frame
-                jmethodID compile_task = getCurrentCompileTask();
+                jmethodID compile_task = VMStructs::getCurrentCompileTask();
                 if (compile_task != NULL) {
                     frames[depth].bci = 0;
                     frames[depth].method_id = compile_task;
@@ -636,7 +613,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     StackContext java_ctx = {0};
-    if (hasNativeStack(event_type)) {
+    if (Event::hasNativeStack(event_type)) {
         if (_features.pc_addr && event_type <= WALL_CLOCK_SAMPLE) {
             num_frames += makeFrame(frames + num_frames, BCI_ADDRESS, StackFrame(ucontext).pc());
         }
@@ -645,9 +622,12 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
+    // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
+    bool use_jvmti_tracer = event_type == PARK_SAMPLE || event_type == LOCK_SAMPLE || event_type == INSTRUMENTED_METHOD;
+
     if (_cstack == CSTACK_VMX) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT, event_type);
-    } else if (_cstack == CSTACK_VM) {
+    } else if (_cstack == CSTACK_VM && !use_jvmti_tracer) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
@@ -666,7 +646,6 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
     } else {
-        // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
         int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);

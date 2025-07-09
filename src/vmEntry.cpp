@@ -41,7 +41,7 @@ AsyncGetCallTrace VM::_asyncGetCallTrace;
 JVM_MemoryFunc VM::_totalMemory;
 JVM_MemoryFunc VM::_freeMemory;
 
-static bool isVmRuntimeEntry(const char* blob_name, const void* start, const void* end) {
+static bool isVmRuntimeEntry(const char* blob_name) {
     return strcmp(blob_name, "_ZNK12MemAllocator8allocateEv") == 0
         || strncmp(blob_name, "_Z22post_allocation_notify", 26) == 0
         || strncmp(blob_name, "_ZN11OptoRuntime", 16) == 0
@@ -50,24 +50,24 @@ static bool isVmRuntimeEntry(const char* blob_name, const void* start, const voi
         || strncmp(blob_name, "_ZN18InterpreterRuntime", 23) == 0;
 }
 
-static bool isZingRuntimeEntry(const char* blob_name, const void* start, const void* end) {
+static bool isZingRuntimeEntry(const char* blob_name) {
     return strncmp(blob_name, "_ZN14DolphinRuntime", 19) == 0
         || strncmp(blob_name, "_ZN37JvmtiSampledObjectAllocEventCollector", 42) == 0;
 }
 
-static bool isZeroInterpreterMethod(const char* blob_name, const void* start, const void* end) {
+static bool isZeroInterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN15ZeroInterpreter", 20) == 0
         || strncmp(blob_name, "_ZN19BytecodeInterpreter3run", 28) == 0;
 }
 
-static bool isOpenJ9InterpreterMethod(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9InterpreterMethod(const char* blob_name) {
     return strncmp(blob_name, "_ZN32VM_BytecodeInterpreter", 27) == 0
         || strncmp(blob_name, "_ZN26VM_BytecodeInterpreter", 27) == 0
         || strncmp(blob_name, "bytecodeLoop", 12) == 0
         || strcmp(blob_name, "cInterpreter") == 0;
 }
 
-static bool isOpenJ9JitStub(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9JitStub(const char* blob_name) {
     if (strncmp(blob_name, "jit", 3) == 0) {
         blob_name += 3;
         return strcmp(blob_name, "NewObject") == 0
@@ -78,24 +78,24 @@ static bool isOpenJ9JitStub(const char* blob_name, const void* start, const void
     return false;
 }
 
-static bool isOpenJ9Resolve(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9Resolve(const char* blob_name) {
     return strncmp(blob_name, "resolve", 7) == 0;
 }
 
-static bool isOpenJ9JitAlloc(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9JitAlloc(const char* blob_name) {
     return strncmp(blob_name, "old_", 4) == 0;
 }
 
-static bool isOpenJ9GcAlloc(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9GcAlloc(const char* blob_name) {
     return strncmp(blob_name, "J9Allocate", 10) == 0;
 }
 
-static bool isOpenJ9JvmtiAlloc(const char* blob_name, const void* start, const void* end) {
+static bool isOpenJ9JvmtiAlloc(const char* blob_name) {
     return strcmp(blob_name, "jvmtiHookSampledObjectAlloc") == 0 ||
            strcmp(blob_name, "jvmtiHookObjectAllocate") == 0;
 }
 
-static bool isCompilerEntry(const char* blob_name, const void* start, const void* end) {
+static bool isCompilerEntry(const char* blob_name) {
     return strncmp(blob_name, "_ZN8Compiler14compile_method", 28) == 0 ||
            strncmp(blob_name, "_ZN10C2Compiler14compile_method", 31) == 0;
 }

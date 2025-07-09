@@ -181,7 +181,7 @@ class CodeCache {
     inline void mark(NamePredicate predicate, char value) {
         for (int i = 0; i < _count; i++) {
             const char* blob_name = _blobs[i]._name;
-            if (blob_name != NULL && predicate(blob_name, _blobs[i]._start, _blobs[i]._end)) {
+            if (blob_name != NULL && predicate(blob_name)) {
                 NativeFunc::mark(blob_name, value);
             }
         }

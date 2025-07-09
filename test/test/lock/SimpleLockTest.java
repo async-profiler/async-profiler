@@ -40,13 +40,14 @@ public class SimpleLockTest {
             }
         };
 
-        Thread thread1 = new Thread(runnableSupplier.get());
-        Thread thread2 = new Thread(runnableSupplier.get());
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(runnableSupplier.get());
+            threads[i].start();
+        }
 
-        thread1.start();
-        thread2.start();
-
-        thread1.join();
-        thread2.join();
+        for (Thread thread : threads) {
+            thread.join();
+        }
     }
 }
