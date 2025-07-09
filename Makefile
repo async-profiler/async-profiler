@@ -133,6 +133,9 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+# TEST_DEPS_DIR is a dependency for build/$(TEST_JAR), thus it must exist before the
+# recipe dependencies are evaluated.
+$(shell mkdir -p $(TEST_DEPS_DIR))
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -272,6 +275,7 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
+# We should rebuild the JAR when a new file is added to $(TEST_DEPS_DIR)
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	rm -rf build/test/classes
 	mkdir -p build/test/classes
