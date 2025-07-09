@@ -561,10 +561,16 @@
 
 	btnInvert.onclick = function(e) {
 		invertMode();
+		e.preventDefault();
 	}
 
 	btnInvert.dblclick = function(e) {
 		e.preventDefault();
+	}
+
+	btnInvert.onmousedown = function(e) {
+		e.preventDefault();
+		e.stopPropagation();
 	}
 
 	document.onclick = function () {
