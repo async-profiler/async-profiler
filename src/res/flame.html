@@ -563,6 +563,10 @@
 		invertMode();
 	}
 
+	btnInvert.dblclick = function(e) {
+		e.preventDefault();
+	}
+
 	document.onclick = function () {
 		ctxMenu.style.display = 'none';
 	}
