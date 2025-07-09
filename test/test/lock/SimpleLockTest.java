@@ -5,21 +5,32 @@
 
 package test.lock;
 
-import java.util.concurrent.Semaphore;
-import java.util.function.Supplier;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class SimpleLockTest {
 
-    private static final Semaphore semaphore = new Semaphore(1);
+    private static final ReentrantLock lock = new ReentrantLock();
+    private static final CyclicBarrier barrier = new CyclicBarrier(10);
 
     private static synchronized void syncLock() throws InterruptedException {
         Thread.sleep(100);
     }
 
     private static void semLock() throws InterruptedException {
-        semaphore.acquire();
+        lock.lock();
         Thread.sleep(100);
-        semaphore.release();
+        lock.unlock();
+    }
+
+    private static void entryMethod(String test) throws InterruptedException, BrokenBarrierException {
+        barrier.await();
+        if (test.equals("sync")) {
+            syncLock();
+        } else if (test.equals("sem")) {
+            semLock();
+        }
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -28,21 +39,17 @@ public class SimpleLockTest {
             System.exit(1);
         }
 
-        Supplier<Runnable> runnableSupplier = () -> () -> {
+        Runnable runnable = () -> {
             try {
-                if (args[0].equals("sync")) {
-                    syncLock();
-                } else if (args[0].equals("sem")) {
-                    semLock();
-                }
-            } catch (InterruptedException e) {
+                entryMethod(args[0]);
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         };
 
         Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
-            threads[i] = new Thread(runnableSupplier.get());
+            threads[i] = new Thread(runnable);
             threads[i].start();
         }
 

@@ -622,12 +622,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         }
     }
 
-    // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
-    bool use_jvmti_tracer = event_type == PARK_SAMPLE || event_type == LOCK_SAMPLE || event_type == INSTRUMENTED_METHOD;
-
     if (_cstack == CSTACK_VMX) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_EXPERT, event_type);
-    } else if (_cstack == CSTACK_VM && !use_jvmti_tracer) {
+    } else if (_cstack == CSTACK_VM && Event::hasNativeStack(event_type)) {
         num_frames += StackWalker::walkVM(ucontext, frames + num_frames, _max_stack_depth, VM_NORMAL, event_type);
     } else if (event_type <= MALLOC_SAMPLE) {
         int java_frames = getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
@@ -646,6 +643,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             num_frames += getJavaTraceAsync(ucontext, frames + num_frames, _max_stack_depth, &java_ctx);
         }
     } else {
+        // Lock events and instrumentation events can safely call synchronous JVM TI stack walker.
         // Skip Instrument.recordSample() method
         int start_depth = event_type == INSTRUMENTED_METHOD ? 1 : 0;
         num_frames += getJavaTraceJvmti(jvmti_frames + num_frames, frames + num_frames, start_depth, _max_stack_depth);

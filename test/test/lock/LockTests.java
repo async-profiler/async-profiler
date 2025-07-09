@@ -29,7 +29,7 @@ public class LockTests {
         assert p.exitCode() == 0;
 
         assert out.contains("test/lock/SimpleLockTest.syncLock;" +
-                "java.lang.Class_\\[i\\]");
+                "java.lang.Class_\\[i\\] [0-9]+");
     }
 
     @Test(mainClass = SimpleLockTest.class, agentArgs = "start,event=lock,cstack=dwarf,collapsed,file=%f", args = "sem", nameSuffix = "dwarf")
@@ -42,6 +42,6 @@ public class LockTests {
 
         assert out.contains("java/util/concurrent/locks/LockSupport.park;" +
                 "(sun/misc/Unsafe.park;|jdk/internal/misc/Unsafe.park;)" +
-                "java.util.concurrent.Semaphore\\$NonfairSync_\\[i\\]");
+                "java.util.concurrent.locks.ReentrantLock\\$NonfairSync_\\[i\\] [0-9]+");
     }
 }

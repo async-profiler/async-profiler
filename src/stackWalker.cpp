@@ -406,7 +406,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     fillFrame(frames[depth++], FRAME_INTERPRETED, 0, compile_task);
                 }
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE) {
+            } else if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB) {
                 // Skip internal frames for allocation profiling
                 depth = 0;
             } else if (mark == MARK_INTERPRETER || skip_top_native_frames){
