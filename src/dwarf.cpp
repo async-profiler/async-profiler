@@ -60,7 +60,7 @@ FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAM
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT};
 
 
-DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
+DwarfParser::DwarfParser(const char* name, const char* image_base) {
     _name = name;
     _image_base = image_base;
 
@@ -71,23 +71,6 @@ DwarfParser::DwarfParser(const char* name, const char* image_base, const char* e
 
     _code_align = sizeof(instruction_t);
     _data_align = -(int)sizeof(void*);
-
-    parseEhFrameHdr(eh_frame_hdr);
-}
-
-DwarfParser::DwarfParser(const char* name, const char* image_base, const char* debug_frame_start, const char* debug_frame_end) {
-    _name = name;
-    _image_base = image_base;
-
-    _capacity = 128;
-    _count = 0;
-    _table = (FrameDesc*)malloc(_capacity * sizeof(FrameDesc));
-    _prev = NULL;
-
-    _code_align = sizeof(instruction_t);
-    _data_align = -(int)sizeof(void*);
-
-    parseDebugFrame(debug_frame_start, debug_frame_end);
 }
 
 void DwarfParser::parseEhFrameHdr(const char* eh_frame_hdr) {
