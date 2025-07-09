@@ -34,9 +34,11 @@ public class TestProcess implements Closeable {
     public static final String TESTBIN = "%testbin";
     public static final String TESTLIB = "%testlib";
 
+    public int currentProfiler = 0;
+
     private static final String JAVA_HOME = System.getProperty("java.home");
 
-    private static final Pattern filePattern = Pattern.compile("(%[a-z]+)(\\.[a-z]+)?");
+    private static final Pattern filePattern = Pattern.compile("(%[a-z][a-z0-9_]*)(\\.[a-z]+)?");
 
     private static final MethodHandle pid = getPidHandle();
 
@@ -241,14 +243,16 @@ public class TestProcess implements Closeable {
         try {
             Files.createDirectories(Paths.get(logDir));
 
-            File stdout = tmpFiles.getOrDefault(PROFOUT, tmpFiles.get(STDOUT));
-            moveLog(stdout, "stdout", true);
+            moveLog(tmpFiles.get(STDOUT), "stdout", true);
+            moveLog(tmpFiles.get(STDERR), "stderr", false);
 
-            File stderr = tmpFiles.getOrDefault(PROFERR, tmpFiles.get(STDERR));
-            moveLog(stderr, "stderr", false);
+            for (String key : tmpFiles.keySet()) {
+                if (key.equals(STDERR) || key.equals(STDOUT)) {
+                    continue;
+                }
 
-            File profile = tmpFiles.get("%f");
-            moveLog(profile, "profile", true);
+                moveLog(tmpFiles.get(key), "profile" + key.replace('%', '-'), true);
+            }
         } catch (IOException e) {
             log.log(Level.WARNING, "Failed to move logs", e);
         }
@@ -311,6 +315,8 @@ public class TestProcess implements Closeable {
     }
 
     public Output profile(String args, boolean sudo) throws IOException, TimeoutException, InterruptedException {
+        int profilerId = currentProfiler++;
+
         List<String> cmd = new ArrayList<>();
         if (sudo && (new File("/usr/bin/sudo").exists() || !isRoot())) {
             cmd.add("/usr/bin/sudo");
@@ -321,7 +327,7 @@ public class TestProcess implements Closeable {
         log.log(Level.FINE, "Profiling " + cmd);
 
         Process p = new ProcessBuilder(cmd)
-                .redirectOutput(createTempFile(PROFOUT))
+                .redirectOutput(createTempFile(PROFOUT + profilerId))
                 .redirectError(createTempFile(PROFERR))
                 .start();
 
@@ -331,7 +337,7 @@ public class TestProcess implements Closeable {
             throw new IOException("Profiling call failed: " + readFile(PROFERR));
         }
 
-        return readFile(PROFOUT);
+        return readFile(PROFOUT + profilerId);
     }
 
     public File getFile(String fileId) {
