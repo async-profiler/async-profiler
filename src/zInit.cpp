@@ -23,7 +23,7 @@ class LateInitializer {
             dlopen(dl_info.dli_fname, RTLD_LAZY | RTLD_NODELETE);
         }
 
-        if (!checkJvmLoaded()) {
+        if (!checkJvmLoaded() && OS::checkPreloaded()) {
             const char* command = getenv("ASPROF_COMMAND");
             if (command != NULL && Hooks::init(false)) {
                 startProfiler(command);

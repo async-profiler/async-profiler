@@ -8,8 +8,10 @@
 #include <arpa/inet.h>
 #include <byteswap.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <link.h>
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -387,5 +389,43 @@ void OS::freePageCache(int fd, off_t start_offset) {
 int OS::mprotect(void* addr, size_t size, int prot) {
     return ::mprotect(addr, size, prot);
 }
+
+static int checkPreloadedCallback(dl_phdr_info* info, size_t size, void* data) {
+    Dl_info* dl_info = (Dl_info*)data;
+
+    Dl_info current_info = dl_info[0];
+    Dl_info sigaction_info = dl_info[1];
+
+    if (info->dlpi_name == NULL) {
+        return 0;
+    } else if (strcmp(info->dlpi_name, current_info.dli_fname) == 0) {
+        return 1;
+    } else if (strcmp(info->dlpi_name, sigaction_info.dli_fname) == 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+bool OS::checkPreloaded() {
+    if (getenv("LD_PRELOAD") == NULL) {
+        return false;
+    }
+
+    Dl_info current_info;
+    if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fname == NULL) {
+        return false;
+    }
+
+    Dl_info sigaction_info;
+    if (dladdr((const void*)sigaction, &sigaction_info) == 0 || sigaction_info.dli_fname == NULL) {
+        return false;
+    }
+
+    Dl_info info[2] = {current_info, sigaction_info};
+
+    return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
+}
+
 
 #endif // __linux__
