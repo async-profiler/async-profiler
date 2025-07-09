@@ -273,7 +273,7 @@ coverage: clean-coverage
 test: test-cpp test-java
 
 $(TEST_DEPS_DIR):
-	mkdir -p test/deps
+	mkdir -p $@
 
 build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
 	rm -rf build/test/classes
