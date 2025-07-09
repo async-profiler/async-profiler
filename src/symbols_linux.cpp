@@ -455,7 +455,7 @@ void ElfParser::parseDynamicSection() {
 }
 
 void ElfParser::parseDwarfInfo() {
-    if (!DWARF_SUPPORTED || _cc->dwarfTableLength() > 0) return;
+    if (!DWARF_SUPPORTED || _cc->hasDwarfTable()) return;
 
     ElfProgramHeader* eh_frame_hdr = findProgramHeader(PT_GNU_EH_FRAME);
     if (eh_frame_hdr != NULL) {
@@ -473,7 +473,7 @@ void ElfParser::parseDwarfInfo() {
 
 
 void ElfParser::parseDebugFrameSection() {
-    if (_cc->dwarfTableLength() > 0) {
+    if (_cc->hasDwarfTable()) {
         return;
     }
     ElfSection* debug_frame_section = findSection(SHT_PROGBITS, ".debug_frame");
