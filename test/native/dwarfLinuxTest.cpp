@@ -78,7 +78,8 @@ TEST_CASE(Dwarf_SuccessfulParse, fileReadable("build/test/lib/libdwarfdebugframe
     const char* debug_end;
     ASSERT_EQ(elf.findDebugFrame(debug_start, debug_end), true);
     
-    DwarfParser parser("libdwarfdebugframe.so", elf.base(), debug_start, debug_end);
+    DwarfParser parser("libdwarfdebugframe.so", elf.base());
+    parser.parseDebugFrame(debug_start, debug_end);
     
     ASSERT_GT(parser.count(), 0);
     ASSERT_NE(parser.table(), nullptr);
@@ -87,7 +88,8 @@ TEST_CASE(Dwarf_SuccessfulParse, fileReadable("build/test/lib/libdwarfdebugframe
 TEST_CASE(Dwarf_EmptyDebugFrame) {
     const char empty_debug_frame[] = {0}; 
     
-    DwarfParser parser("test", nullptr, empty_debug_frame, empty_debug_frame + sizeof(empty_debug_frame));
+    DwarfParser parser("test", nullptr);
+    parser.parseDebugFrame(empty_debug_frame, empty_debug_frame + sizeof(empty_debug_frame));
     
     ASSERT_EQ(parser.count(), 0);
 }
@@ -100,7 +102,8 @@ TEST_CASE(Dwarf_FrameDescriptorValidation, fileReadable("build/test/lib/libdwarf
     const char* debug_end;
     ASSERT_EQ(elf.findDebugFrame(debug_start, debug_end), true);
     
-    DwarfParser parser("libdwarfdebugframe.so", elf.base(), debug_start, debug_end);
+    DwarfParser parser("libdwarfdebugframe.so", elf.base());
+    parser.parseDebugFrame(debug_start, debug_end);
     
     bool has_different_locs = false;
     if (parser.count() > 1) {
@@ -122,7 +125,8 @@ TEST_CASE(Dwarf_FrameDescriptorValidation, fileReadable("build/test/lib/libdwarf
 
 TEST_CASE(Dwarf_NullPointers) {
     // Test constructor with null pointers
-    DwarfParser parser("test", nullptr, nullptr, nullptr);
+    DwarfParser parser("test", nullptr);
+    parser.parseDebugFrame(nullptr, nullptr);
     
     ASSERT_EQ(parser.count(), 0);
 }
