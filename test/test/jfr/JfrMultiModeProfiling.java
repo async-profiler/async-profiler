@@ -48,10 +48,10 @@ public class JfrMultiModeProfiling {
         while (System.currentTimeMillis() - start <= 1000) {
             if (random.nextBoolean()) {
                 sink = new byte[65536];
-                rooter.add((byte[]) sink);
             } else {
                 sink = String.format("some string: %s, some number: %d", new Date(), random.nextInt());
             }
+            rooter.add(new byte[1]);
         }
     }
 }
