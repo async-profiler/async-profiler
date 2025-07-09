@@ -133,6 +133,7 @@ ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
 
+
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
 all: build/bin build/lib build/$(LIB_PROFILER) build/$(ASPROF) jar build/$(JFRCONV) build/$(ASPROF_HEADER)
