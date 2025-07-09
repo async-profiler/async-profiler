@@ -148,17 +148,17 @@ public class NativememTests {
         return sizeCounts;
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,file=%f.jfr", nameSuffix = "default")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem,total,file=%f.jfr", nameSuffix = "total")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=1,total,file=%f.jfr", nameSuffix = "total+1B")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,nativemem=10M,total,file=%f.jfr", nameSuffix = "total+10MB")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", agentArgs = "start,cpu,alloc,nativemem,total,file=%f.jfr", nameSuffix = "multi")
     public void jfrNoLeaks(TestProcess p) throws Exception {
         assertNoLeaks(p);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,nativemem,nofree,file=%f.jfr")
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,nativemem,nofree,file=%f.jfr", nameSuffix = "nativemem")
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", inputs = "nofree", agentArgs = "start,cpu,alloc,nativemem,nofree,total,file=%f.jfr", nameSuffix = "multi")
     public void jfrNoFree(TestProcess p) throws Exception {
         assertNoLeaks(p);
     }

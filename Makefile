@@ -282,7 +282,7 @@ cpp-lint:
 
 DIFF_BASE=
 cpp-lint-diff:
-	git diff -U0 $(DIFF_BASE) -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
+	git diff -U0 $(DIFF_BASE) -- 'src/*.cpp' 'src/**/*.cpp' 'src/*.h' 'src/**/*.h' ':!**/rustDemangle.cpp' | \
 		clang-tidy-diff.py -p1 $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
