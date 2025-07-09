@@ -483,10 +483,6 @@ void ElfParser::parseDebugFrameSection() {
             DwarfParser dwarf(_cc->name(), _base);
             dwarf.parseDebugFrame(section_start, section_start + debug_frame_section->sh_size);
             _cc->setDwarfTable(dwarf.table(), dwarf.count());
-        } else if (strcmp(_cc->name(), "[vdso]") == 0) {
-            FrameDesc* table = (FrameDesc*)malloc(sizeof(FrameDesc));
-            *table = FrameDesc::empty_frame;
-            _cc->setDwarfTable(table, 1);
         }
         return;
     }
