@@ -515,12 +515,12 @@ void ElfParser::loadSymbols(bool use_debug) {
         ElfSection* strtab = section(symtab->sh_link);
         loadSymbolTable(at(symtab), symtab->sh_size, symtab->sh_entsize, at(strtab));
         _cc->setDebugSymbols(true);
-    } else if (use_debug) {
-        // Try to load symbols from an external debuginfo library
-        loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink();
     }
 
     if (use_debug) {
+        // Try to load symbols from an external debuginfo library
+        loadSymbolsUsingBuildId() || loadSymbolsUsingDebugLink();
+
         // Synthesize names for PLT stubs
         ElfSection* plt = findSection(SHT_PROGBITS, ".plt");
         if (plt != NULL) {
