@@ -38,10 +38,10 @@
 		align-items: center;
 		width: 150px;
 	}
-	p {position: fixed; bottom: 0; margin: 0; padding: 1px 2px 1px 2px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
+	p {position: fixed; bottom: 0; margin: 0; padding: 2px 3px 2px 3px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
 	a {color: #0366d6}
 	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
-	#hl span {padding: 0 2px 0 2px}
+	#hl span {padding: 0 3px 0 3px}
 	#status {left: 0}
 	#match {right: 0}
 	#reset {cursor: pointer}
@@ -136,7 +136,7 @@
 
 		<div id="search" class="toolbarIcon" title="Search by Regex [Ctrl + F]"><svg height="20px" width="20px" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" fill="#000000" stroke="#000000" stroke-width="0.00392609"><path style="fill:#FFFFFF;" d="M273.713,147.774c0,69.495-56.501,125.931-125.931,125.931c-69.495,0-125.931-56.501-125.931-125.931 c0-69.495,56.501-125.931,125.931-125.931C217.212,21.843,273.713,78.344,273.713,147.774z"></path><path style="fill:#40b2ff;" d="M370.747,348.695c0,1.422-1.616,6.271-7.176,12.283c-6.206,6.659-12.477,9.762-14.739,9.762h-0.065 c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129c9.18-7.24,17.455-15.515,24.63-24.63 c0.065,0,0.065,0,0.129,0C327.564,286.699,369.131,329.301,370.747,348.695z"></path><path style="fill:#ff8d40;" d="M208.679,86.877l-14.481,14.481c-17.131,17.131-46.545,5.042-46.545-19.265V61.6 c-49.002,0-88.372,40.792-86.109,90.246c2.004,43.895,38.141,80.032,82.036,82.036c49.455,2.263,90.246-37.172,90.246-86.109 C233.956,124.049,224.323,102.522,208.679,86.877z"></path><path style="fill:#004d80;" d="M276.105,220.954c12.347-21.527,19.459-46.545,19.459-73.18c0-81.455-66.327-147.717-147.846-147.717 S0,66.32,0,147.904s66.327,147.717,147.717,147.717c26.57,0,51.523-7.111,73.18-19.459 c39.822,53.333,91.863,113.519,126.061,116.364c12.283,0.517,22.885-6.723,32.776-16.743c5.172-5.624,13.77-16.937,12.8-28.768 C389.624,312.881,329.438,260.776,276.105,220.954z M147.717,273.77c-69.495,0-125.931-56.501-125.931-125.931 S78.287,21.908,147.717,21.908s125.931,56.501,125.931,125.931S217.212,273.77,147.717,273.77z M363.572,360.978 c-6.206,6.659-12.412,9.762-14.739,9.762h-0.065c-19.459-1.616-61.996-43.184-109.576-106.796c0-0.065,0-0.065,0-0.129 c9.18-7.24,17.455-15.515,24.63-24.63c0.065,0,0.065,0,0.129,0c63.612,47.58,105.18,90.182,106.796,109.576 C370.747,350.118,369.131,354.966,363.572,360.978z"></path></svg></div>
 
-		<div id="invert" class="toolbarIcon" title="Invert Graph [I]"><svg height="20px" width="20px" viewBox="0 0 20 20"><rect x="0" y="0" style="fill:#ff8d40;" width="20" height="4"></rect><rect x="0" y="5" style="fill:#40b2ff;" width="10" height="4"></rect><rect x="11" y="5" style="fill:#ff8d40;" width="8" height="4"></rect><rect x="0" y="10" style="fill:#40b2ff;" width="8" height="4"></rect><rect x="11" y="10" style="fill:#ff8d40;" width="4" height="4"></rect><rect x="0" y="15" style="fill:#40b2ff;" width="4" height="4"></rect><rect x="5" y="15" style="fill:#ff8d40;" width="2" height="4"></rect></svg></div>
+		<div id="invert" class="toolbarIcon" title="Invert Graph [I]"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 16 L6 12 L14 12 Z" fill="#ff8d40"/><line x1="4" y1="10" x2="16" y2="10" stroke="#004d80" stroke-width="2"/><path d="M10 4 L6 8 L14 8 Z" fill="#004d80" opacity="0.7"/><path d="M2 8 L2 12" stroke="#004d80" stroke-width="1.5" stroke-linecap="round"/><path d="M18 12 L18 8" stroke="#004d80" stroke-width="1.5" stroke-linecap="round"/></svg></div>
 
 		<div id="info-tooltip">
 			<div style="float:left">
@@ -200,7 +200,7 @@
 	// Copyright The async-profiler authors
 	// SPDX-License-Identifier: Apache-2.0
 	'use strict';
-	let origRoot, root, px, pattern;
+	let root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
 	let inverted = /*inverted:*/false;
@@ -366,22 +366,14 @@
 		}
 	}
 
-	function search(r, resetZoom) {
+	function search(r) {
 		if (r === true && (r = prompt('Enter regexp to search:', '')) === null) {
 			return;
 		}
 
 		pattern = r ? RegExp(r) : undefined;
 
-		if (resetZoom) {
-			root = origRoot;
-		}
-
 		const matched = render(root, nav = []);
-		if (!origRoot) {
-			origRoot = root;
-		}
-
 		navIndex = -1;
 		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
 		document.getElementById('match').style.display = r ? 'inline-block' : 'none';
@@ -479,6 +471,11 @@
 		ctxMenu.style.top = top + 'px';
 	}
 
+	function resetZoom() {
+		root = levels[0][0];
+		search(false);
+	}
+
 	canvas.onmousemove = function() {
 		const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
 		if (h >= 0 && h < levels.length) {
@@ -493,7 +490,7 @@
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (event.altKey && h > root.level) {
+					if (event.altKey && h >= root.level && h > 0) {
 						removeStack(f.left, f.width);
 						root.width > f.width ? render(root) : render();
 					} else if (f !== root) {
@@ -527,7 +524,7 @@
 					}
 					ctxResetZoom.onclick = function(e) {
 						e.stopPropagation();
-						search(false, true);
+						resetZoom();
 						ctxMenu.style.display = 'none';
 					}
 				});
@@ -611,7 +608,7 @@
 					break;
 				case '0':
 					event.preventDefault();
-					search(false, true);
+					resetZoom();
 					break;
 			}
 		}
@@ -619,8 +616,6 @@
 
 	function invertMode() {
 		inverted = !inverted;
-		btnInvert.style.rotate = inverted ? '180deg' : '0deg';
-
 		render();
 	}
 
