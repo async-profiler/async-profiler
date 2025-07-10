@@ -1,10 +1,10 @@
 name: code-check
 
 on:
-  - pull_request
-
-permissions:
-  pull-requests: write
+- pull_request_target:
+    types:
+    - opened
+    - synchronize
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,7 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
       - name: Mark repo as safe for Git
         run: git config --global --add safe.directory $GITHUB_WORKSPACE
