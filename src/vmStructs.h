@@ -26,6 +26,7 @@ class VMStructs {
     static bool _has_class_loader_data;
     static bool _has_native_thread_id;
     static bool _has_perm_gen;
+    static bool _can_dereference_jmethod_id;
     static bool _compact_object_headers;
 
     static int _klass_name_offset;
@@ -385,11 +386,17 @@ class VMThread : VMStructs {
 
 class VMMethod : VMStructs {
   public:
-    static VMMethod* fromMethodID(jmethodID id) {
-        return *(VMMethod**)id;
-    }
-
     jmethodID id();
+
+    // Performs extra validation when VMMethod comes from incomplete frame
+    jmethodID validatedId();
+
+    // Workaround for JDK-8313816
+    static bool isStaleMethodId(jmethodID id) {
+        if (!_can_dereference_jmethod_id) return false;
+        VMMethod* vm_method = *(VMMethod**)id;
+        return vm_method == NULL || vm_method->id() == NULL;
+    }
 
     const char* bytecode() {
         return *(const char**) at(_method_constmethod_offset) + _constmethod_size;

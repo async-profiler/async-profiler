@@ -67,7 +67,7 @@ RESOURCES := $(wildcard src/res/*)
 JAVA_HELPER_CLASSES := $(wildcard src/helper/one/profiler/*.class)
 API_SOURCES := $(wildcard src/api/one/profiler/*.java)
 CONVERTER_SOURCES := $(shell find src/converter -name '*.java')
-TEST_SOURCES := $(shell find test -name '*.java')
+TEST_SOURCES := $(shell find test -name '*.java' ! -path 'test/stubs/*')
 TESTS ?=
 CPP_TEST_SOURCES := test/native/testRunner.cpp $(shell find test/native -name '*Test.cpp')
 CPP_TEST_HEADER := test/native/testRunner.hpp
@@ -132,6 +132,7 @@ endif
 ifneq (,$(findstring $(ARCH_TAG),x86 x64 arm64))
   CXXFLAGS += -momit-leaf-frame-pointer
 endif
+
 
 .PHONY: all jar release build-test test clean coverage clean-coverage build-test-java build-test-cpp build-test-libs build-test-bins test-cpp test-java check-md format-md
 
@@ -271,34 +272,47 @@ coverage: clean-coverage
 
 test: test-cpp test-java
 
-build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR)
-	mkdir -p build/test
-	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*" -d build/test $(TEST_SOURCES)
-	$(JAR) cf $@ -C build/test .
+$(TEST_DEPS_DIR):
+	mkdir -p $@
+
+build/$(TEST_JAR): build/$(API_JAR) $(TEST_SOURCES) build/$(CONVERTER_JAR) $(TEST_DEPS_DIR)
+	rm -rf build/test/classes
+	mkdir -p build/test/classes
+	$(JAVAC) -source $(JAVA_TARGET) -target $(JAVA_TARGET) -Xlint:-options -XDignore.symbol.file \
+		 -implicit:none \
+		 -cp "build/jar/*:$(TEST_DEPS_DIR)/*:$(TEST_GEN_DIR)/*:test/stubs" \
+		 -d build/test/classes \
+		 $(TEST_SOURCES)
+	$(JAR) cf $@ -C build/test/classes .
 
 update-otlp-classes-jar:
+	@if [ -z "$(OTEL_PROTO_PATH)" ]; then \
+		echo "'OTEL_PROTO_PATH' is empty"; \
+		exit 1; \
+	fi
 	rm -rf $(TMP_DIR)/gen/java $(TMP_DIR)/build
 	mkdir -p $(TMP_DIR)/gen/java $(TMP_DIR)/build $(TEST_GEN_DIR)
 	cd $(OTEL_PROTO_PATH) && protoc --java_out=$(TMP_DIR)/gen/java $$(find . \
-		-type f \
-		-name '*.proto' \
-		-not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \) \
-		| tr '\n' ' ')
+		 -type f \
+		 -name '*.proto' \
+		 -not \( -name 'logs*.proto' -o -name 'metrics*.proto' -o -name 'trace*.proto' -o -name '*service.proto' \))
 	$(JAVAC) -source $(JAVA_TARGET) \
-	    -target $(JAVA_TARGET) \
-	    -cp $(TEST_DEPS_DIR)/* \
-	    -d $(TMP_DIR)/build \
-		-Xlint:-options \
-	    $$(find $(TMP_DIR)/gen/java -name "*.java" | tr '\n' ' ')
+		 -target $(JAVA_TARGET) \
+		 -cp $(TEST_DEPS_DIR)/* \
+		 -d $(TMP_DIR)/build \
+		 -Xlint:-options \
+		 $$(find $(TMP_DIR)/gen/java -name "*.java")
 	$(JAR) cvf $(TEST_GEN_DIR)/opentelemetry-gen-classes.jar -C $(TMP_DIR)/build .
 
 LINT_SOURCES=`ls -1 src/*.cpp src/*/*.cpp | grep -v rustDemangle.cpp`
+CLANG_TIDY_ARGS_EXTRA=
 cpp-lint:
-	clang-tidy $(LINT_SOURCES) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+	clang-tidy $(LINT_SOURCES) $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
+DIFF_BASE=
 cpp-lint-diff:
-	git diff -U0 -- '**/*.cpp' '**/*.h' ':!**/rustDemangle.cpp' | \
-		clang-tidy-diff.py -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
+	git diff -U0 $(DIFF_BASE) -- 'src/*.cpp' 'src/**/*.cpp' 'src/*.h' 'src/**/*.h' ':!**/rustDemangle.cpp' | \
+		clang-tidy-diff.py -p1 $(CLANG_TIDY_ARGS_EXTRA) -- -x c++ $(CXXFLAGS) $(INCLUDES) $(DEFS) $(LIBS)
 
 check-md:
 	prettier -c README.md "docs/**/*.md"

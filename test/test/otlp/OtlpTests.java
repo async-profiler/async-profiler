@@ -49,8 +49,8 @@ public class OtlpTests {
         Profile profile = getFirstProfile(profilesData);
         ProfilesDictionary dictionary = profilesData.getDictionary();
 
-        List<String> collapsed = toCollapsed(profile, dictionary);
-        assert collapsed.stream().anyMatch(s -> s.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
+        Output collapsed = toCollapsed(profile, dictionary);
+        assert collapsed.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn");
     }
 
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
@@ -61,11 +61,11 @@ public class OtlpTests {
         return ProfilesData.parseFrom(profileBytes);
     }
 
-    private static List<String> toCollapsed(Profile profile, ProfilesDictionary dictionary) {
+    private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary) {
         return toCollapsed(profile, dictionary, 0);
     }
 
-    private static List<String> toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
+    private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
         Map<String, Long> stackTracesCount = new HashMap<>();
         for (Sample sample : profile.getSampleList()) {
             StringBuilder stackTrace = new StringBuilder();
@@ -78,7 +78,8 @@ public class OtlpTests {
 
             stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(valueIdx) + (oldValue == null ? 0 : oldValue));
         }
-        return stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
+        List<String> lines = stackTracesCount.entrySet().stream().map(entry -> String.format("%s %d", entry.getKey(), entry.getValue())).collect(Collectors.toList());
+        return new Output(lines.toArray(new String[0]));
     }
 
     private static String getFrameName(int locationIndex, ProfilesDictionary dictionary) {

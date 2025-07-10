@@ -1,0 +1,44 @@
+name: code-check
+
+on:
+  - pull_request
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpp-lint:
+    runs-on: ubuntu-latest
+    container:
+      image: "public.ecr.aws/async-profiler/asprof-code-check:latest"
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Mark repo as safe for Git
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+      - name: Fetch base branch
+        run: |
+          git remote add upstream "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
+          git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
+      - name: Run clang-tidy
+        run: |
+          set pipefail
+          make cpp-lint-diff \
+            DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
+            CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
+        shell: bash
+      - name: Run clang-tidy-pr-comments action
+        if: github.event.pull_request.draft == false
+        uses: platisd/clang-tidy-pr-comments@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          clang_tidy_fixes: clang-tidy-fixes.yml
+          python_path: python
+          auto_resolve_conversations: true
+          suggestions_per_comment: 100

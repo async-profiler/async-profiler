@@ -75,10 +75,10 @@ public class AllocTests {
 
     // Without liveness tracking, results won't change except for the sampling
     // error.
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed", nameSuffix = "1.0")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live", nameSuffix = "0.0+live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live", nameSuffix = "0.1+live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f,collapsed,live", nameSuffix = "1.0+live")
     public void liveness(TestProcess p) throws Exception {
         final long TOTAL_BYTES = 50000000;
         final double tolerance = 0.10;
@@ -96,10 +96,10 @@ public class AllocTests {
         Assert.isGreaterOrEqual(upperLimit, totalBytes);
     }
 
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
-    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr", nameSuffix = "1.0")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live", nameSuffix = "0.0+live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "0.1", agentArgs = "start,alloc=1k,total,file=%f.jfr,live", nameSuffix = "0.1+live")
+    @Test(mainClass = RandomBlockRetainer.class, jvmVer = {11, Integer.MAX_VALUE}, args = "1.0", agentArgs = "start,alloc=1k,total,file=%f.jfr,live", nameSuffix = "1.0+live")
     public void livenessJfrHasStacks(TestProcess p) throws Exception {
         p.waitForExit();
         String filename = p.getFilePath("%f");

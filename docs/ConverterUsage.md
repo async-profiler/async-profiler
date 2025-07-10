@@ -6,11 +6,11 @@ as a standalone Java application: [`jfr-converter.jar`](https://github.com/async
 
 ## Supported conversions
 
-| Source    | html | collapsed | pprof | pb.gz | heatmap |
-| --------- | ---- | --------- | ----- | ----- | ------- |
-| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      |
-| html      | ✅   | ✅        | ❌    | ❌    | ❌      |
-| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      |
+| Source    | html | collapsed | pprof | pb.gz | heatmap | otlp |
+| --------- | ---- | --------- | ----- | ----- | ------- | ---- |
+| jfr       | ✅   | ✅        | ✅    | ✅    | ✅      | ✅   |
+| html      | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
+| collapsed | ✅   | ✅        | ❌    | ❌    | ❌      | ❌   |
 
 ## Usage
 
@@ -34,12 +34,14 @@ Conversion options:
           usage like CPU and memory for the application.
 
   # pprof: pprof is a profiling visualization and analysis tool from Google. More details on
-           pprof  on the official github page https://github.com/google/pprof.
+           pprof on the official github page https://github.com/google/pprof.
 
   # pb.gz: This is a compressed version of pprof output.
 
   # heatmap: A single page interactive heatmap that allows to explore profiling events
              on a timeline.
+
+  # otlp: OpenTelemetry profile format.
 
 
 JFR options:
