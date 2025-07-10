@@ -1,3 +1,5 @@
+name: clang-tidy-review
+
 on:
   workflow_run:
     workflows:
