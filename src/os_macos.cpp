@@ -377,15 +377,15 @@ bool OS::checkPreloaded() {
         return false;
     }
 
-    // Find async-profiler shared objects
-    Dl_info current_info;
-    if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fbase == NULL) {
+    // Find async-profiler shared object
+    Dl_info libprofiler;
+    if (dladdr((const void*)OS::checkPreloaded, &libprofiler) == 0) {
         return false;
     }
 
-    // Find libc shared objects
-    Dl_info exit_info;
-    if (dladdr((const void*)exit, &exit_info) == 0 || exit_info.dli_fbase == NULL) {
+    // Find libc shared object
+    Dl_info libc;
+    if (dladdr((const void*)exit, &libc) == 0) {
         return false;
     }
 
@@ -393,10 +393,10 @@ bool OS::checkPreloaded() {
     for (uint32_t i = 0; i < images; i++) {
         void* image = (void*)_dyld_get_image_header(i);
 
-        if (image == current_info.dli_fbase) {
+        if (image == libprofiler.dli_fbase) {
             // async-profiler found first
             return true;
-        } else if (image == exit_info.dli_fbase) {
+        } else if (image == libc.dli_fbase) {
             // libc found first
             return false;
         }
