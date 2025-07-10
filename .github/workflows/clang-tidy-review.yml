@@ -51,4 +51,3 @@ jobs:
           python_path: python
           auto_resolve_conversations: true
           suggestions_per_comment: 100
-          repo_path_prefix: /__w/async-profiler
