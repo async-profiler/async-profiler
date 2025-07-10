@@ -43,6 +43,7 @@ jobs:
     - name: Read PR information
       id: pr_info
       run: |
+        cd /tmp/code-check-artifacts
         echo "pr_id=$(cat pr-id.txt)" >> "$GITHUB_OUTPUT"
         echo "pr_head_repo=$(cat pr-head.txt)" >> "$GITHUB_OUTPUT"
         echo "pr_head_sha=$(cat pr-head-sha.txt)" >> "$GITHUB_OUTPUT"
