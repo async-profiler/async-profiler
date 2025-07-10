@@ -16,6 +16,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+      actions: read
     steps:
     - name: Download code-check artifacts
       uses: actions/download-artifact@v4
