@@ -152,7 +152,7 @@ class CodeCache {
         return _image_base;
     }
 
-    const bool hasDwarfTable() const {
+    bool hasDwarfTable() const {
         return _dwarf_table != NULL && _dwarf_table_length > 0;
     }
 

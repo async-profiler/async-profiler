@@ -12,38 +12,44 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define CREATE_ELF_READER(file_name)                                       \
+        int fd = open(file_name, O_RDONLY);                                \
+        ASSERT_NE(fd, -1);                                                 \
+                                                                           \
+        struct stat st;                                                    \
+        ASSERT_NE(fstat(fd, &st), -1);                                     \
+        int size = st.st_size;                                             \
+                                                                           \
+        void* mapped = mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0); \
+        ASSERT_NE(mapped, MAP_FAILED);                                     \
+        const char* base = (const char*)mapped;                            \
+        ElfReader elfReader(fd, mapped, size, base);                        
+
+#define SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH "build/test/lib/libdwarfdebugframe.so"
+
 class ElfReader {
 private:
     int _fd;
-    void* _mapped;
+    void* _map;
     size_t _size;
     const char* _base;
 
 public:
-    ElfReader(const char* filename) : _fd(-1), _mapped(nullptr), _size(0), _base(nullptr) {
-        _fd = open(filename, O_RDONLY);
-        if (_fd == -1) return;
-        
-        struct stat st;
-        if (fstat(_fd, &st) == -1) return;
-        _size = st.st_size;
-        
-        _mapped = mmap(nullptr, _size, PROT_READ, MAP_PRIVATE, _fd, 0);
-        if (_mapped == MAP_FAILED) {
-            _mapped = nullptr;
-            return;
-        }
-        _base = (const char*)_mapped;
+    ElfReader(int fd, void* map, size_t size, const char* base) {
+        _fd = fd;
+        _map = map;
+        _size = size;
+        _base = base;
     }
     
     ~ElfReader() {
-        if (_mapped) munmap(_mapped, _size);
-        if (_fd != -1) close(_fd);
+        munmap(_map, _size);
+        close(_fd);
     }
     
     bool isValid() const { 
         const Elf64_Ehdr* ehdr = (const Elf64_Ehdr*)_base;
-        return _mapped != nullptr
+        return _map != nullptr
             && ehdr->e_ident[EI_MAG0] == ELFMAG0
             && ehdr->e_ident[EI_MAG1] == ELFMAG1
             && ehdr->e_ident[EI_MAG2] == ELFMAG2
@@ -68,17 +74,17 @@ public:
         }
         return false;
     }
-};
+};        
 
-TEST_CASE(Dwarf_SuccessfulParse, fileReadable("build/test/lib/libdwarfdebugframe.so")) {
-    ElfReader elf("build/test/lib/libdwarfdebugframe.so");
-    ASSERT_EQ(elf.isValid(), true);
+TEST_CASE(Dwarf_SuccessfulParse, fileReadable(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH)) {
+    CREATE_ELF_READER(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH);
+    ASSERT_EQ(elfReader.isValid(), true);
     
     const char* debug_start;
     const char* debug_end;
-    ASSERT_EQ(elf.findDebugFrame(debug_start, debug_end), true);
+    ASSERT_EQ(elfReader.findDebugFrame(debug_start, debug_end), true);
     
-    DwarfParser parser("libdwarfdebugframe.so", elf.base());
+    DwarfParser parser(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH, elfReader.base());
     parser.parseDebugFrame(debug_start, debug_end);
     
     ASSERT_GT(parser.count(), 0);
@@ -94,15 +100,15 @@ TEST_CASE(Dwarf_EmptyDebugFrame) {
     ASSERT_EQ(parser.count(), 0);
 }
 
-TEST_CASE(Dwarf_FrameDescriptorValidation, fileReadable("build/test/lib/libdwarfdebugframe.so")) {
-    ElfReader elf("build/test/lib/libdwarfdebugframe.so");
-    ASSERT_EQ(elf.isValid(), true);
+TEST_CASE(Dwarf_FrameDescriptorValidation, fileReadable(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH)) {
+    CREATE_ELF_READER(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH);
+    ASSERT_EQ(elfReader.isValid(), true);
     
     const char* debug_start;
     const char* debug_end;
-    ASSERT_EQ(elf.findDebugFrame(debug_start, debug_end), true);
+    ASSERT_EQ(elfReader.findDebugFrame(debug_start, debug_end), true);
     
-    DwarfParser parser("libdwarfdebugframe.so", elf.base());
+    DwarfParser parser(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH, elfReader.base());
     parser.parseDebugFrame(debug_start, debug_end);
     
     bool has_different_locs = false;
