@@ -66,3 +66,6 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         clang_tidy_fixes: /tmp/code-check-artifacts/clang-tidy-fixes.yml
         pull_request_id: ${{ env.PR_ID }}
+        python_path: python
+        auto_resolve_conversations: true
+        suggestions_per_comment: 100
