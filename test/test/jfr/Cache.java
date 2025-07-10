@@ -8,17 +8,13 @@ package test.jfr;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class Cache {
     private final Map<Long, ValueWithTime> map = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private volatile ValueWithTime[] top;
 
     public Cache() {
-        executor.scheduleAtFixedRate(this::calculateTop, 4, 4, TimeUnit.SECONDS);
+        new Thread(this::calculateTop).start();
     }
 
     public void put(Long key, String value) {
@@ -36,16 +32,23 @@ public class Cache {
     }
 
     private void calculateTop() {
-        long deadline = System.currentTimeMillis() - 1000;
+        while (true) {
+            try {
+                Thread.sleep(4000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            long deadline = System.currentTimeMillis() - 1000;
 
-        ValueWithTime[] top = map.values()
-                .parallelStream()
-                .filter(vt -> vt.time > deadline)
-                .sorted(Comparator.comparing(vt -> Long.parseLong(vt.value)))
-                .limit(10000)
-                .toArray(ValueWithTime[]::new);
+            ValueWithTime[] top = map.values()
+                    .parallelStream()
+                    .filter(vt -> vt.time > deadline)
+                    .sorted(Comparator.comparing(vt -> Long.parseLong(vt.value)))
+                    .limit(10000)
+                    .toArray(ValueWithTime[]::new);
 
-        this.top = top;
+            this.top = top;
+        }
     }
 
     public ValueWithTime[] getTop() {

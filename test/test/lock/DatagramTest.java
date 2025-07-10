@@ -50,7 +50,7 @@ public class DatagramTest {
         ch.bind(new InetSocketAddress(0));
         ch.configureBlocking(false);
 
-        Executor pool = Executors.newCachedThreadPool();
+        Executor pool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
         for (int i = 0; i < 10; i++) {
             pool.execute(DatagramTest::sendLoop);
         }
