@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <jni.h>
 
 
 #ifdef __APPLE__
@@ -28,94 +30,103 @@ static const char VERSION_STRING[] =
     "JFR converter " PROFILER_VERSION " built on " __DATE__ "\n";
 
 
-static char exe_path[PATH_MAX];
-static char java_path[PATH_MAX];
-
-static bool get_exe_path() {
-#ifdef __APPLE__
-    char buf[PATH_MAX];
-    uint32_t size = sizeof(buf);
-    return _NSGetExecutablePath(buf, &size) == 0 && realpath(buf, exe_path) != NULL;
-#else
-    if (realpath("/proc/self/exe", exe_path) == NULL) {
-        // realpath() may fail for a path like /proc/[pid]/root/bin/exe
-        ssize_t size = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
-        if (size < 0) {
-            return false;
-        }
-        exe_path[size] = 0;
-    }
-    return true;
-#endif
+extern "C" {
+    extern char jar_data_start[];
+    extern char jar_data_end[];
 }
 
-static const char* const* build_cmdline(int argc, char** argv) {
-    const char** cmd = (const char**)malloc((argc + 6) * sizeof(char*));
-    int count = 0;
-
-    cmd[count++] = JAVA_EXE;
-    cmd[count++] = "-Xss2M";
-    cmd[count++] = "-Dsun.misc.URLClassPath.disableJarChecking";
-
-    for (; argc > 0; argc--, argv++) {
-        if (((strncmp(*argv, "-D", 2) == 0 || strncmp(*argv, "-X", 2) == 0) && (*argv)[2]) ||
-                strncmp(*argv, "-agent", 6) == 0) {
-            cmd[count++] = *argv;
-        } else if (strncmp(*argv, "-J", 2) == 0) {
-            cmd[count++] = *argv + 2;
-        } else {
-            break;
-        }
+static JavaVM* create_jvm() {
+    JavaVMInitArgs vm_args;
+    JavaVMOption options[2];
+    
+    static char option1[] = "-Xss2M";
+    static char option2[] = "-Dsun.misc.URLClassPath.disableJarChecking=true";
+    options[0].optionString = option1;
+    options[1].optionString = option2;
+    
+    vm_args.version = JNI_VERSION_1_8;
+    vm_args.nOptions = 2;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = JNI_FALSE;
+    
+    JavaVM* jvm;
+    JNIEnv* env;
+    
+    if (JNI_CreateJavaVM(&jvm, reinterpret_cast<void**>(&env), &vm_args) != JNI_OK) {
+        return nullptr;
     }
-
-    cmd[count++] = "-jar";
-    cmd[count++] = exe_path;
-
-    for (; argc > 0; argc--, argv++) {
-        cmd[count++] = *argv;
-    }
-
-    cmd[count] = NULL;
-    return cmd;
+    
+    return jvm;
 }
 
-static bool find_java_at(const char* path, const char* path1 = "", const char* path2 = "") {
-    if (snprintf(java_path, sizeof(java_path), "%s%s%s/" JAVA_EXE, path, path1, path2) >= sizeof(java_path)) {
-        return false;
+static int run_main_class(JavaVM* jvm, int argc, char** argv) {
+    JNIEnv* env;
+    if (jvm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) != JNI_OK) {
+        return 1;
     }
-
-    struct stat st;
-    return stat(java_path, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR) != 0;
-}
-
-static void run_java(char* const* cmd) {
-    // 1. Get java executable from JAVA_HOME
-    char* java_home = getenv("JAVA_HOME");
-    if (java_home != NULL && find_java_at(java_home, "/bin")) {
-        execv(java_path, cmd);
+    
+    // Create ConverterClassLoader with embedded JAR data
+    jclass loader_class = env->FindClass("ConverterClassLoader");
+    if (loader_class == nullptr) {
+        fprintf(stderr, "Could not find ConverterClassLoader class\n");
+        return 1;
     }
-
-    // 2. Try to find java in PATH
-    execvp(JAVA_EXE, cmd);
-
-    // 3. Try /etc/alternatives/java
-    if (find_java_at("/etc/alternatives")) {
-        execv(java_path, cmd);
+    
+    jmethodID loader_constructor = env->GetMethodID(loader_class, "<init>", "([B)V");
+    if (loader_constructor == nullptr) {
+        fprintf(stderr, "Could not find ConverterClassLoader constructor\n");
+        return 1;
     }
-
-    // 4. Look for java in the common directory
-    DIR* dir = opendir(COMMON_JVM_DIR);
-    if (dir != NULL) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != NULL) {
-            if (entry->d_name[0] != '.' && entry->d_type == DT_DIR) {
-                if (find_java_at(COMMON_JVM_DIR, entry->d_name, CONTENTS_HOME "/bin")) {
-                    execv(java_path, cmd);
-                }
-            }
-        }
-        closedir(dir);
+    
+    // Create byte array from embedded JAR data
+    size_t jar_size = jar_data_end - jar_data_start;
+    jbyteArray jar_bytes = env->NewByteArray(static_cast<jsize>(jar_size));
+    env->SetByteArrayRegion(jar_bytes, 0, static_cast<jsize>(jar_size), reinterpret_cast<const jbyte*>(jar_data_start));
+    
+    // Create ConverterClassLoader instance
+    jobject class_loader = env->NewObject(loader_class, loader_constructor, jar_bytes);
+    if (class_loader == nullptr) {
+        fprintf(stderr, "Could not create ConverterClassLoader instance\n");
+        return 1;
     }
+    
+    // Load Main class using custom class loader
+    jmethodID load_class_method = env->GetMethodID(loader_class, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+    if (load_class_method == nullptr) {
+        fprintf(stderr, "Could not find loadClass method\n");
+        return 1;
+    }
+    
+    jstring main_class_name = env->NewStringUTF("Main");
+    auto* main_class = static_cast<jclass>(env->CallObjectMethod(class_loader, load_class_method, main_class_name));
+    if (main_class == nullptr) {
+        fprintf(stderr, "Could not load Main class\n");
+        return 1;
+    }
+    
+    // Get main method
+    jmethodID main_method = env->GetStaticMethodID(main_class, "main", "([Ljava/lang/String;)V");
+    if (main_method == nullptr) {
+        fprintf(stderr, "Could not find main method\n");
+        return 1;
+    }
+    
+    // Create String array for arguments
+    jobjectArray args = env->NewObjectArray(argc, env->FindClass("java/lang/String"), nullptr);
+    for (int i = 0; i < argc; i++) {
+        jstring arg = env->NewStringUTF(argv[i]);
+        env->SetObjectArrayElement(args, i, arg);
+    }
+    
+    // Call main method
+    env->CallStaticVoidMethod(main_class, main_method, args);
+    
+    if (env->ExceptionCheck()) {
+        env->ExceptionDescribe();
+        return 1;
+    }
+    
+    return 0;
 }
 
 int main(int argc, char** argv) {
@@ -124,15 +135,15 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    if (!get_exe_path()) {
-        fprintf(stderr, "Failed to get executable path\n");
+    JavaVM* jvm = create_jvm();
+    if (jvm == nullptr) {
+        fprintf(stderr, "Failed to create JVM\n");
         return 1;
     }
 
-    const char* const* cmd = build_cmdline(argc - 1, argv + 1);
-    run_java((char* const*)cmd);
-
-    // May reach here only if run_java() fails
-    fprintf(stderr, "No JDK found. Set JAVA_HOME or ensure java executable is on the PATH\n");
-    return 1;
+    int result = run_main_class(jvm, argc - 1, argv + 1);
+    
+    jvm->DestroyJavaVM();
+    
+    return result;
 }
