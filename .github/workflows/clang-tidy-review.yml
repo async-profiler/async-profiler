@@ -24,7 +24,7 @@ jobs:
         run-id: ${{ github.event.workflow_run.id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         name: code-check-artifacts
-        path: /tmp/
+        path: /tmp/code-check-artifacts/
     - name: Read PR information
       id: pr_info
       run: |
