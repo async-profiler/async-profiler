@@ -14,6 +14,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Download artifact
         uses: actions/github-script@v7
         with:
