@@ -7,6 +7,12 @@ on:
     permissions:
       pull-requests: write
       contents: write
+
+jobs:
+  publish-clang-tidy-review:
+    permissions:
+      pull-requests: write
+      contents: write
     steps:
       - name: Download artifact
         uses: actions/github-script@v7
