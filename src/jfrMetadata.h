@@ -96,7 +96,7 @@ class Element {
     static Index _strings;
 
     static int getId(const char* s) {
-        return (int) (int) _strings.indexOf(s);
+        return _strings.indexOf(s);
     }
 
   public:
