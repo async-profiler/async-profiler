@@ -26,13 +26,13 @@ jobs:
       - name: Create artifacts directory
         run: |
           mkdir code-check-artifacts/
-          echo "${{ github.event.number }}" > pull-request-id.txt
+          echo "${{ github.event.number }}" > code-check-artifacts/pull-request-id.txt
       - name: Run clang-tidy
         run: |
           set pipefail
           make cpp-lint-diff \
             DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
-            CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
+            CLANG_TIDY_ARGS_EXTRA="-export-fixes code-check-artifacts/clang-tidy-fixes.yml"
         shell: bash
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
