@@ -153,7 +153,7 @@ class CodeCache {
     }
 
     const bool hasDwarfTable() const {
-        return _dwarf_table_length > 0;
+        return _dwarf_table != NULL && _dwarf_table_length > 0;
     }
 
     bool contains(const void* address) const {
