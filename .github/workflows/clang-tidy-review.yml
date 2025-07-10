@@ -52,12 +52,16 @@ jobs:
           exportVar("PR_ID", "pr-id.txt");
           exportVar("PR_HEAD_REPO", "pr-head-repo.txt");
           exportVar("PR_HEAD_SHA", "pr-head-sha.txt");
+    - name: hello
+      run: ls code-check-artifacts
     - uses: actions/checkout@v4
       with:
         repository: ${{ env.PR_HEAD_REPO }}
         ref: ${{ env.PR_HEAD_SHA }}
         persist-credentials: false
         clean: false
+    - name: hello
+      run: ls code-check-artifacts
     - name: Run clang-tidy-pr-comments action
       uses: platisd/clang-tidy-pr-comments@v1
       with:
