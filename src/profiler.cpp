@@ -331,7 +331,7 @@ int Profiler::convertNativeTrace(int native_frames, const void** callchain, ASGC
                 return depth;
             } else if (mark == MARK_COMPILER_ENTRY && _features.comp_task) {
                 // Insert current compile task as a pseudo Java frame
-                jmethodID compile_task = VMStructs::getCurrentCompileTask();
+                jmethodID compile_task = VMThread::getCurrentCompileTask();
                 if (compile_task != NULL) {
                     frames[depth].bci = 0;
                     frames[depth].method_id = compile_task;

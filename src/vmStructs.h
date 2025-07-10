@@ -149,8 +149,6 @@ class VMStructs {
     static void init(CodeCache* libjvm);
     static void ready();
 
-    static jmethodID getCurrentCompileTask();;
-
     static CodeCache* libjvm() {
         return _libjvm;
     }
@@ -384,6 +382,8 @@ class VMThread : VMStructs {
         }
         return NULL;
     }
+
+    static jmethodID getCurrentCompileTask();;
 };
 
 class VMMethod : VMStructs {

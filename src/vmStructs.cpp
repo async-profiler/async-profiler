@@ -627,7 +627,7 @@ void VMStructs::initThreadBridge() {
     }
 }
 
-jmethodID VMStructs::getCurrentCompileTask() {
+jmethodID VMThread::getCurrentCompileTask() {
     VMThread* vm_thread = VMThread::current();
     if (vm_thread != NULL) {
         VMMethod* method = vm_thread->compiledMethod();
