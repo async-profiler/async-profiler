@@ -37,14 +37,14 @@ jobs:
           fs.writeFileSync("${{ github.workspace }}/code-check-artifacts.zip", Buffer.from(download.data));
     - name: Extract analysis results
       run: |
-        unzip code-check-artifacts.zip -d code-check-artifacts
+        unzip code-check-artifacts.zip -d /tmp/code-check-artifacts
     - name: Set environment variables
       uses: actions/github-script@v7
       with:
         script: |
           const fs = require("fs");
           function exportVar(varName, fileName) {
-              const val = fs.readFileSync("${{ github.workspace }}/code-check-artifacts/" + fileName, {
+              const val = fs.readFileSync("/tmp/code-check-artifacts/" + fileName, {
                   encoding: "ascii"
               }).trimEnd();
               core.exportVariable(varName, val);
@@ -52,19 +52,15 @@ jobs:
           exportVar("PR_ID", "pr-id.txt");
           exportVar("PR_HEAD_REPO", "pr-head-repo.txt");
           exportVar("PR_HEAD_SHA", "pr-head-sha.txt");
-    - name: hello
-      run: ls code-check-artifacts
     - uses: actions/checkout@v4
       with:
         repository: ${{ env.PR_HEAD_REPO }}
         ref: ${{ env.PR_HEAD_SHA }}
         persist-credentials: false
         clean: false
-    - name: hello
-      run: ls code-check-artifacts
     - name: Run clang-tidy-pr-comments action
       uses: platisd/clang-tidy-pr-comments@v1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        clang_tidy_fixes: code-check-artifacts/clang-tidy-fixes.yml
+        clang_tidy_fixes: /tmp/code-check-artifacts/clang-tidy-fixes.yml
         pull_request_id: ${{ env.PR_ID }}
