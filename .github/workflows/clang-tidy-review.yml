@@ -4,9 +4,6 @@ on:
       - code-check
     types:
       - completed
-    permissions:
-      pull-requests: write
-      contents: write
 
 jobs:
   publish-clang-tidy-review:
