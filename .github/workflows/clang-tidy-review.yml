@@ -24,9 +24,7 @@ jobs:
         run-id: ${{ github.event.workflow_run.id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         name: code-check-artifacts
-    - name: Extract analysis results
-      run: |
-        unzip code-check-artifacts.zip -d /tmp/code-check-artifacts
+        path: /tmp/
     - name: Read PR information
       id: pr_info
       run: |
