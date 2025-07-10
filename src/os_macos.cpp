@@ -370,16 +370,20 @@ int OS::mprotect(void* addr, size_t size, int prot) {
     return vm_protect(mach_task_self(), (vm_address_t)addr, size, 0, prot);
 }
 
+// Checks if the async is included in the preload list defined in the DYLD_INSERT_LIBRARIES env variable
+// This check is done by checking if the async-profiler is loaded before libc shared objects
 bool OS::checkPreloaded() {
     if (getenv("DYLD_INSERT_LIBRARIES") == NULL) {
         return false;
     }
 
+    // Find async-profiler shared objects
     Dl_info current_info;
     if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fname == NULL) {
         return false;
     }
 
+    // Find libc shared objects
     Dl_info sigaction_info;
     if (dladdr((const void*)sigaction, &sigaction_info) == 0 || sigaction_info.dli_fname == NULL) {
         return false;
@@ -391,8 +395,10 @@ bool OS::checkPreloaded() {
         if (image_name == NULL) {
             continue;
         } else if (strcmp(image_name, current_info.dli_fname) == 0) {
+            // async-profiler found first
             return true;
-        }else if(strcmp(image_name, sigaction_info.dli_fname) == 0) {
+        } else if (strcmp(image_name, sigaction_info.dli_fname) == 0) {
+            // libc found first
             return false;
         }
     }

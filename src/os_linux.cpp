@@ -398,25 +398,31 @@ static int checkPreloadedCallback(dl_phdr_info* info, size_t size, void* data) {
 
     if (info->dlpi_name == NULL) {
         return 0;
-    } else if (strcmp(info->dlpi_name, current_info.dli_fname) == 0) {
+    } else if ((void*)info->dlpi_addr == current_info.dli_fbase) {
+        // async-profiler found first
         return 1;
-    } else if (strcmp(info->dlpi_name, sigaction_info.dli_fname) == 0) {
+    } else if ((void*)info->dlpi_addr == sigaction_info.dli_fbase) {
+        // libc found first
         return -1;
     }
 
     return 0;
 }
 
+// Checks if the async is included in the preload list defined in the LD_PRELOAD env variable
+// This check is done by checking if the async-profiler is loaded before libc shared objects
 bool OS::checkPreloaded() {
     if (getenv("LD_PRELOAD") == NULL) {
         return false;
     }
 
+    // Find async-profiler shared objects
     Dl_info current_info;
     if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fname == NULL) {
         return false;
     }
 
+    // Find libc shared objects
     Dl_info sigaction_info;
     if (dladdr((const void*)sigaction, &sigaction_info) == 0 || sigaction_info.dli_fname == NULL) {
         return false;
