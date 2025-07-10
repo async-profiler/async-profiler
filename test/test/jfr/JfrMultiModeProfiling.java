@@ -51,7 +51,9 @@ public class JfrMultiModeProfiling {
             } else {
                 sink = String.format("some string: %s, some number: %d", new Date(), random.nextInt());
             }
-            rooter.add(new byte[1]);
+            if (rooter.size() < 100_000) {
+                rooter.add(new byte[1]);
+            }
         }
     }
 }
