@@ -11,6 +11,8 @@ jobs:
   clang-tidy-results:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    container:
+      image: "public.ecr.aws/async-profiler/asprof-code-check:latest"
     permissions:
       pull-requests: write
       contents: write
