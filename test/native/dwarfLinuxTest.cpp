@@ -55,9 +55,10 @@ public:
             && ehdr->e_ident[EI_MAG2] == ELFMAG2
             && ehdr->e_ident[EI_MAG3] == ELFMAG3;
     }
+    
     const char* base() const { return _base; }
     
-    bool findDebugFrame(const char*& start, const char*& end) {
+    bool findDebugFrame(char** start, char** end) {
         if (!isValid()) return false;
         
         const Elf64_Ehdr* ehdr = (const Elf64_Ehdr*)_base;
@@ -67,8 +68,8 @@ public:
         for (int i = 0; i < ehdr->e_shnum; i++) {
             const char* name = shstrtab + shdr[i].sh_name;
             if (strcmp(name, ".debug_frame") == 0) {
-                start = _base + shdr[i].sh_offset;
-                end = start + shdr[i].sh_size;
+                *start = (char*)(_base + shdr[i].sh_offset);
+                *end = *start + shdr[i].sh_size;
                 return true;
             }
         }
@@ -80,9 +81,9 @@ TEST_CASE(Dwarf_SuccessfulParse, fileReadable(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PA
     CREATE_ELF_READER(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH);
     ASSERT_EQ(elfReader.isValid(), true);
     
-    const char* debug_start;
-    const char* debug_end;
-    ASSERT_EQ(elfReader.findDebugFrame(debug_start, debug_end), true);
+    char* debug_start;
+    char* debug_end;
+    ASSERT_EQ(elfReader.findDebugFrame(&debug_start, &debug_end), true);
     
     DwarfParser parser(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH, elfReader.base());
     parser.parseDebugFrame(debug_start, debug_end);
@@ -104,9 +105,9 @@ TEST_CASE(Dwarf_FrameDescriptorValidation, fileReadable(SO_WITH_DEBUG_FRAME_32BI
     CREATE_ELF_READER(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH);
     ASSERT_EQ(elfReader.isValid(), true);
     
-    const char* debug_start;
-    const char* debug_end;
-    ASSERT_EQ(elfReader.findDebugFrame(debug_start, debug_end), true);
+    char* debug_start;
+    char* debug_end;
+    ASSERT_EQ(elfReader.findDebugFrame(&debug_start, &debug_end), true);
     
     DwarfParser parser(SO_WITH_DEBUG_FRAME_32BIT_DWARF_PATH, elfReader.base());
     parser.parseDebugFrame(debug_start, debug_end);
