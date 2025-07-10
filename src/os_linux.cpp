@@ -407,8 +407,8 @@ static int checkPreloadedCallback(dl_phdr_info* info, size_t size, void* data) {
     return 0;
 }
 
-// Checks if the async is included in the preload list defined in the LD_PRELOAD env variable
-// This check is done by checking if the async-profiler is loaded before libc shared objects
+// Checks if async-profiler is preloaded through the LD_PRELOAD mechanism.
+// This is done by analyzing the order of loaded dynamic libraries.
 bool OS::checkPreloaded() {
     if (getenv("LD_PRELOAD") == NULL) {
         return false;
@@ -427,7 +427,6 @@ bool OS::checkPreloaded() {
     }
 
     Dl_info info[2] = {libprofiler, libc};
-
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
