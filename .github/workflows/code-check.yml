@@ -34,6 +34,11 @@ jobs:
             DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
             CLANG_TIDY_ARGS_EXTRA="-export-fixes code-check-artifacts/clang-tidy-fixes.yml"
         shell: bash
+      - name: Save PR information
+        run: |
+          echo "${{ github.event.number }}" > code-check-artifacts/pr-id.txt
+          echo "${{ github.event.pull_request.head.repo.full_name }}" > code-check-artifacts/pr-head-repo.txt
+          echo "${{ github.event.pull_request.head.sha }}" > code-check-artifacts/pr-head-sha.txt
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
