@@ -241,14 +241,14 @@ public class TestProcess implements Closeable {
         try {
             Files.createDirectories(Paths.get(logDir));
 
-            File stdout = tmpFiles.getOrDefault(PROFOUT, tmpFiles.get(STDOUT));
-            moveLog(stdout, "stdout", true);
+            moveLog(tmpFiles.get(STDOUT), "stdout", true);
+            moveLog(tmpFiles.get(STDERR), "stderr", false);
 
-            File stderr = tmpFiles.getOrDefault(PROFERR, tmpFiles.get(STDERR));
-            moveLog(stderr, "stderr", false);
-
-            File profile = tmpFiles.get("%f");
-            moveLog(profile, "profile", true);
+            for (String key : tmpFiles.keySet()) {
+                if (!key.equals(STDERR) && !key.equals(STDOUT)) {
+                    moveLog(tmpFiles.get(key), key.substring(1), true);
+                }
+            }
         } catch (IOException e) {
             log.log(Level.WARNING, "Failed to move logs", e);
         }
