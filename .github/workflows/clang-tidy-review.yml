@@ -36,7 +36,7 @@ jobs:
               archive_format: "zip",
           });
           const fs = require("fs");
-          fs.writeFileSync("${{ github.workspace }}/code-check-artifacts.zip", Buffer.from(download.data));
+          fs.writeFileSync("code-check-artifacts.zip", Buffer.from(download.data));
     - name: Extract analysis results
       run: |
         unzip code-check-artifacts.zip -d /tmp/code-check-artifacts
