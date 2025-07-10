@@ -43,7 +43,7 @@ jobs:
           echo "pr_id=$(cat pull-request-id.txt)" >> $GITHUB_OUTPUT
       - name: Run clang-tidy-pr-comments action
         if: github.event.pull_request.draft == false
-        uses: platisd/clang-tidy-pr-comments@v1
+        uses: fandreuz/clang-tidy-pr-comments@debug
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           pull_request_id: ${{ steps.read_pr_id.outputs.pr_id }}
