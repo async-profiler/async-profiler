@@ -125,7 +125,7 @@ jobs:
           - runson:
               display: macos-x64
               name: macos-13
-            java-version: 11
+            java-version: 17
             java-distribution: corretto
             architecture: x64
             image: ""
