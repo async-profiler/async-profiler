@@ -394,14 +394,12 @@ static int checkPreloadedCallback(dl_phdr_info* info, size_t size, void* data) {
     Dl_info* dl_info = (Dl_info*)data;
 
     Dl_info current_info = dl_info[0];
-    Dl_info sigaction_info = dl_info[1];
+    Dl_info exit_info = dl_info[1];
 
-    if (info->dlpi_name == NULL) {
-        return 0;
-    } else if ((void*)info->dlpi_addr == current_info.dli_fbase) {
+    if ((void*)info->dlpi_addr == current_info.dli_fbase) {
         // async-profiler found first
         return 1;
-    } else if ((void*)info->dlpi_addr == sigaction_info.dli_fbase) {
+    } else if ((void*)info->dlpi_addr == exit_info.dli_fbase) {
         // libc found first
         return -1;
     }
@@ -418,17 +416,17 @@ bool OS::checkPreloaded() {
 
     // Find async-profiler shared objects
     Dl_info current_info;
-    if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fname == NULL) {
+    if (dladdr((const void*)OS::checkPreloaded, &current_info) == 0 || current_info.dli_fbase == NULL) {
         return false;
     }
 
     // Find libc shared objects
-    Dl_info sigaction_info;
-    if (dladdr((const void*)sigaction, &sigaction_info) == 0 || sigaction_info.dli_fname == NULL) {
+    Dl_info exit_info;
+    if (dladdr((const void*)exit, &exit_info) == 0 || exit_info.dli_fbase == NULL) {
         return false;
     }
 
-    Dl_info info[2] = {current_info, sigaction_info};
+    Dl_info info[2] = {current_info, exit_info};
 
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
