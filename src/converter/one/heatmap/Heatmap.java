@@ -434,9 +434,8 @@ public class Heatmap {
         }
 
         public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
-            int[] stackTrace = cachedStackTrace;
-            if (stackTrace.length < size) {
-                cachedStackTrace = stackTrace = new int[size * 2];
+            if (cachedStackTrace.length < size) {
+                cachedStackTrace = new int[size * 2];
             }
 
             for (int i = size - 1; i >= 0; i--) {
@@ -447,10 +446,10 @@ public class Heatmap {
                 int index = size - 1 - i;
                 boolean firstMethodInTrace = index == 0;
 
-                stackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
+                cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(stackTrace, size));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
     }
