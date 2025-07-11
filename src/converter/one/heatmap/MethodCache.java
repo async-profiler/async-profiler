@@ -39,7 +39,8 @@ public class MethodCache {
             if (frameDesc == null) {
                 frameDesc = createMethod(methodId, location, type, firstInStack);
                 nearCache[mid] = frameDesc;
-                return frameDesc.index = methodIndex.index(frameDesc);
+                frameDesc.index = methodIndex.index(frameDesc)
+                return frameDesc.index;
             }
         } else {
             // this should be extremely rare case
