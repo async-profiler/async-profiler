@@ -52,8 +52,10 @@ public final class StackStorage {
         int[] stack = new int[stackSize + (prefix == 0 ? 0 : 1) + (suffix == 0 ? 0 : 1)];
         if (prefix != 0) {
             stack[0] = prefix;
+            System.arraycopy(prototype, 0, stack, 1, stackSize);
+        } else {
+            System.arraycopy(prototype, 0, stack, 0, stackSize);
         }
-        System.arraycopy(prototype, 0, stack, prefix == 0 ? 0 : 1, stackSize);
         if (suffix != 0) {
             stack[prototype.length] = suffix;
         }
