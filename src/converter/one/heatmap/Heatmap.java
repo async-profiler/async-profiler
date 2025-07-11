@@ -221,20 +221,18 @@ public class Heatmap {
     }
 
     private void renameMethodsByFrequency(EvaluationContext context) {
-        Arrays.sort(context.orderedFrameDescs, new Comparator<FrameDesc>() {
+        FrameDesc[] descsByFrequency = context.orderedFrameDescs.clone();
+        Arrays.sort(descsByFrequency, new Comparator<FrameDesc>() {
             @Override
             public int compare(FrameDesc o1, FrameDesc o2) {
                 return Integer.compare(o2.frequency, o1.frequency);
             }
         });
 
-        for (int i = 0; i < context.orderedFrameDescs.length; i++) {
-            FrameDesc frameDesc = context.orderedFrameDescs[i];
+        for (int i = 0; i < descsByFrequency.length; i++) {
+            FrameDesc frameDesc = descsByFrequency[i];
             frameDesc.frequencyBasedId = i + 1; // zero is reserved for no method
         }
-
-        // restores order
-        context.methods.keys(context.orderedFrameDescs);
     }
 
     private int[] buildLz78TreeAndPrepareData(EvaluationContext context) {
@@ -372,7 +370,6 @@ public class Heatmap {
     }
 
     private static class EvaluationContext {
-        final Index<FrameDesc> methods;
         final FrameDesc[] orderedFrameDescs;
         final int[][] stackTraces;
         final String[] symbols;
@@ -383,10 +380,8 @@ public class Heatmap {
 
         EvaluationContext(SampleList.Result sampleList, Index<FrameDesc> methods, int[][] stackTraces, String[] symbols) {
             this.sampleList = sampleList;
-            this.methods = methods;
             this.stackTraces = stackTraces;
             this.symbols = symbols;
-
             orderedFrameDescs = methods.keys();
         }
     }
