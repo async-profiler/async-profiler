@@ -194,7 +194,7 @@ public class Heatmap {
             int methodId = context.nodeTree.extractMethodId(d);
 
             out.writeVar(synonymTable.nodeIdOrSynonym(parentId));
-            out.writeVar(context.orderedFrameDescs[methodId].frequencyOrNewMethodId);
+            out.writeVar(context.orderedFrameDescs[methodId].newMethodId);
         }
     }
 
@@ -215,7 +215,7 @@ public class Heatmap {
         out.writeVar(startsCount);
         for (FrameDesc frameDesc : context.orderedFrameDescs) {
             if (frameDesc.start) {
-                out.writeVar(frameDesc.frequencyOrNewMethodId);
+                out.writeVar(frameDesc.newMethodId);
             }
         }
     }
@@ -224,13 +224,13 @@ public class Heatmap {
         Arrays.sort(context.orderedFrameDescs, new Comparator<FrameDesc>() {
             @Override
             public int compare(FrameDesc o1, FrameDesc o2) {
-                return Integer.compare(o2.frequencyOrNewMethodId, o1.frequencyOrNewMethodId);
+                return Integer.compare(o2.frequency, o1.frequency);
             }
         });
 
         for (int i = 0; i < context.orderedFrameDescs.length; i++) {
             FrameDesc frameDesc = context.orderedFrameDescs[i];
-            frameDesc.frequencyOrNewMethodId = i + 1; // zero is reserved for no method
+            frameDesc.newMethodId = i + 1; // zero is reserved for no method
         }
 
         // restores order
@@ -263,7 +263,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedFrameDescs[methodId].frequencyOrNewMethodId++;
+                        context.orderedFrameDescs[methodId].frequency++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
                         }
@@ -288,7 +288,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedFrameDescs[methodId].frequencyOrNewMethodId++;
+                        context.orderedFrameDescs[methodId].frequency++;
                     }
                 }
             }
@@ -351,7 +351,7 @@ public class Heatmap {
         Arrays.sort(evaluationContext.orderedFrameDescs, new Comparator<FrameDesc>() {
             @Override
             public int compare(FrameDesc o1, FrameDesc o2) {
-                return Integer.compare(o1.frequencyOrNewMethodId, o2.frequencyOrNewMethodId);
+                return Integer.compare(o1.newMethodId, o2.newMethodId);
             }
         });
         out.nextByte('A');
