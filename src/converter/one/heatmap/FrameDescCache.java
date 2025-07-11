@@ -11,7 +11,7 @@ import one.convert.Index;
 import one.convert.JfrConverter;
 import one.jfr.Dictionary;
 
-public class MethodCache {
+public class FrameDescCache {
     private final JfrConverter converter;
     private final Index<String> symbolTable = new Index<>(String.class, "", 32768);
     private final Index<FrameDesc> methodIndex = new Index<>(FrameDesc.class, new FrameDesc(symbolTable.index("all"), 0), 32768);
@@ -21,7 +21,7 @@ public class MethodCache {
     // but in most cases all methods should fit nearCache, so less code is better
     private final Dictionary<FrameDesc> farMethods = new Dictionary<>(1024);
 
-    public MethodCache(JfrConverter converter) {
+    public FrameDescCache(JfrConverter converter) {
         this.converter = converter;
     }
 

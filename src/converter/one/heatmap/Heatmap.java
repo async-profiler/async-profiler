@@ -399,14 +399,14 @@ public class Heatmap {
         final StackStorage stackTracesRemap = new StackStorage();
 
         final DictionaryInt stackTracesCache = new DictionaryInt();
-        final MethodCache methodsCache;
+        final FrameDescCache methodsCache;
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
         State(JfrConverter converter, long blockDurationMs) {
             sampleList = new SampleList(blockDurationMs);
-            methodsCache = new MethodCache(converter);
+            methodsCache = new FrameDescCache(converter);
         }
 
         public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
