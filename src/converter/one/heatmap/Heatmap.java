@@ -31,8 +31,8 @@ public class Heatmap {
         this.state = new State(converter, BLOCK_DURATION_MS);
     }
 
-    public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
-        state.addEvent(stackTraceId, extra, type, timeMs);
+    public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
+        state.addEvent(stackTraceId, threadName, extra, type, timeMs);
     }
 
     public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
@@ -405,7 +405,7 @@ public class Heatmap {
             methodsCache = new MethodCache(converter);
         }
 
-        public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
+        public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
@@ -413,8 +413,10 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
+            int prefix = threadName != null ? methodsCache.indexForThread(threadName) : 0;
             int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
-            int id = stackTracesRemap.index(prototype, prototype.length, 0, suffix);
+
+            int id = stackTracesRemap.index(prototype, prototype.length, prefix, suffix);
             sampleList.add(id, timeMs);
         }
 

@@ -8,6 +8,7 @@ package one.heatmap;
 import java.util.Arrays;
 import java.util.LinkedList;
 
+import one.convert.Frame;
 import one.convert.Index;
 import one.convert.JfrConverter;
 import one.jfr.Dictionary;
@@ -39,7 +40,7 @@ public class MethodCache {
             if (frameDesc == null) {
                 frameDesc = createMethod(methodId, location, type, firstInStack);
                 nearCache[mid] = frameDesc;
-                frameDesc.index = methodIndex.index(frameDesc)
+                frameDesc.index = methodIndex.index(frameDesc);
                 return frameDesc.index;
             }
         } else {
@@ -89,6 +90,23 @@ public class MethodCache {
         String javaClassName = converter.getClassName(extra);
         FrameDesc frameDesc = new FrameDesc(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
         frameDesc.index = methodIndex.index(frameDesc);
+        list.add(frameDesc);
+        return frameDesc.index;
+    }
+
+    public int indexForThread(String threadName) {
+        long id = (long) threadName.hashCode() << 32 | 1L << 63;
+        LinkedList<FrameDesc> list = getFarMethodList(id);
+        for (FrameDesc frameDesc : list) {
+            if (frameDesc.originalMethodId == id && frameDesc.location == -1 && frameDesc.type == Frame.TYPE_THREAD) {
+                frameDesc.frequency++;
+                return frameDesc.index;
+            }
+        }
+
+        FrameDesc frameDesc = new FrameDesc(id, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, true);
+        frameDesc.index = methodIndex.index(frameDesc);
+        frameDesc.frequency = 1;
         list.add(frameDesc);
         return frameDesc.index;
     }
