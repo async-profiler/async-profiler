@@ -6,6 +6,7 @@
 package one.heatmap;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 
 import one.convert.Index;
 import one.convert.JfrConverter;
@@ -19,7 +20,7 @@ public class FrameDescCache {
     private final FrameDesc[] nearCache = new FrameDesc[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
     // but in most cases all methods should fit nearCache, so less code is better
-    private final Dictionary<FrameDesc> farMethods = new Dictionary<>(1024);
+    private final Dictionary<LinkedList<FrameDesc>> farMethods = new Dictionary<>(1024);
 
     public FrameDescCache(JfrConverter converter) {
         this.converter = converter;
@@ -31,10 +32,9 @@ public class FrameDescCache {
     }
 
     public int index(long methodId, int location, byte type, boolean firstInStack) {
-        FrameDesc frameDesc;
         if (methodId < nearCache.length) {
             int mid = (int) methodId;
-            frameDesc = nearCache[mid];
+            FrameDesc frameDesc = nearCache[mid];
             if (frameDesc == null) {
                 frameDesc = createMethod(methodId, location, type, firstInStack);
                 nearCache[mid] = frameDesc;
@@ -42,59 +42,54 @@ public class FrameDescCache {
             }
         } else {
             // this should be extremely rare case
-            frameDesc = farMethods.get(methodId);
-            if (frameDesc == null) {
-                frameDesc = createMethod(methodId, location, type, firstInStack);
-                farMethods.put(methodId, frameDesc);
-                return frameDesc.index = methodIndex.index(frameDesc);
+            LinkedList<FrameDesc> list = getFarMethodList(methodId);
+            if (list.isEmpty()) {
+                FrameDesc frameDesc = createMethod(methodId, location, type, firstInStack);
+                list.add(frameDesc);
+                frameDesc.index = methodIndex.index(frameDesc);
+                return frameDesc.index;
             }
         }
 
-        FrameDesc last = null;
         FrameDesc prototype = null;
-        while (frameDesc != null) {
+        LinkedList<FrameDesc> list = getFarMethodList(methodId);
+        for (FrameDesc frameDesc : list) {
             if (frameDesc.originalMethodId == methodId) {
                 if (frameDesc.location == location && frameDesc.type == type && frameDesc.start == firstInStack) {
                     return frameDesc.index;
                 }
                 prototype = frameDesc;
+                break;
             }
-            last = frameDesc;
-            frameDesc = frameDesc.next;
         }
 
-        if (prototype != null) {
-            last.next = frameDesc = new FrameDesc(methodId, prototype.className, prototype.name, location, type, firstInStack);
-            return frameDesc.index = methodIndex.index(frameDesc);
+        FrameDesc frameDesc;
+        if (prototype == null) {
+            frameDesc = createMethod(methodId, location, type, firstInStack);
+        } else {
+            frameDesc = new FrameDesc(methodId, prototype.className, prototype.name, location, type, firstInStack);
         }
-
-        last.next = frameDesc = createMethod(methodId, location, type, firstInStack);
-
-        return frameDesc.index = methodIndex.index(frameDesc);
+        frameDesc.index = methodIndex.index(frameDesc);
+        list.add(frameDesc);
+        return frameDesc.index;
     }
 
     public int indexForClass(int extra, byte type) {
         long methodId = (long) extra << 32 | 1L << 63;
-        FrameDesc frameDesc = farMethods.get(methodId);
-        FrameDesc last = null;
-        while (frameDesc != null) {
+        LinkedList<FrameDesc> list = getFarMethodList(methodId);
+        for (FrameDesc frameDesc : list) {
             if (frameDesc.originalMethodId == methodId) {
                 if (frameDesc.location == -1 && frameDesc.type == type && !frameDesc.start) {
                     return frameDesc.index;
                 }
             }
-            last = frameDesc;
-            frameDesc = frameDesc.next;
         }
 
         String javaClassName = converter.getClassName(extra);
-        frameDesc = new FrameDesc(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
-        if (last == null) {
-            farMethods.put(methodId, frameDesc);
-        } else {
-            last.next = frameDesc;
-        }
-        return frameDesc.index = methodIndex.index(frameDesc);
+        FrameDesc frameDesc = new FrameDesc(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
+        frameDesc.index = methodIndex.index(frameDesc);
+        list.add(frameDesc);
+        return frameDesc.index;
     }
 
     private FrameDesc createMethod(long methodId, int location, byte type, boolean firstInStack) {
@@ -110,5 +105,14 @@ public class FrameDescCache {
 
     public Index<FrameDesc> methodsIndex() {
         return methodIndex;
+    }
+
+    private LinkedList<FrameDesc> getFarMethodList(long methodId) {
+        LinkedList<FrameDesc> list = farMethods.get(methodId);
+        if (list == null) {
+            list = new LinkedList<>();
+            farMethods.put(methodId, list);
+        }
+        return list;
     }
 }
