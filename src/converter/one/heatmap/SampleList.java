@@ -67,7 +67,7 @@ public class SampleList {
             }
 
             currentBlockSize++;
-            stackIds[stackIdsPos++] = (int) (currentData & 0xFFFFFFFFL) - 1;
+            stackIds[stackIdsPos++] = (int) currentData - 1;
         }
 
         if (currentBlockId <= lastBlockId) {

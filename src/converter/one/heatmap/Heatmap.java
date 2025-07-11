@@ -60,14 +60,14 @@ public class Heatmap {
         );
     }
 
-    private void compressMethods(HtmlOut out, Method[] methods) {
-        out.writeVar(methods.length);
-        for (Method method : methods) {
-            out.writeVar(method.className);
-            out.writeVar(method.methodName);
-            out.write18(method.location & 0xffff);
-            out.write18(method.location >>> 16);
-            out.write6(method.type);
+    private void compressMethods(HtmlOut out, FrameDesc[] frameDescs) {
+        out.writeVar(frameDescs.length);
+        for (FrameDesc frameDesc : frameDescs) {
+            out.writeVar(frameDesc.className);
+            out.writeVar(frameDesc.name);
+            out.write18(frameDesc.location & 0xffff);
+            out.write18(frameDesc.location >>> 16);
+            out.write6(frameDesc.type);
         }
     }
 
@@ -194,7 +194,7 @@ public class Heatmap {
             int methodId = context.nodeTree.extractMethodId(d);
 
             out.writeVar(synonymTable.nodeIdOrSynonym(parentId));
-            out.writeVar(context.orderedMethods[methodId].frequencyOrNewMethodId);
+            out.writeVar(context.orderedFrameDescs[methodId].frequencyBasedId);
         }
     }
 
@@ -207,34 +207,32 @@ public class Heatmap {
 
     private void writeStartMethods(HtmlOut out, EvaluationContext context) {
         int startsCount = 0;
-        for (Method method : context.orderedMethods) {
-            if (method.start) {
+        for (FrameDesc frameDesc : context.orderedFrameDescs) {
+            if (frameDesc.start) {
                 startsCount++;
             }
         }
         out.writeVar(startsCount);
-        for (Method method : context.orderedMethods) {
-            if (method.start) {
-                out.writeVar(method.frequencyOrNewMethodId);
+        for (FrameDesc frameDesc : context.orderedFrameDescs) {
+            if (frameDesc.start) {
+                out.writeVar(frameDesc.frequencyBasedId);
             }
         }
     }
 
     private void renameMethodsByFrequency(EvaluationContext context) {
-        Arrays.sort(context.orderedMethods, new Comparator<Method>() {
+        FrameDesc[] descsByFrequency = context.orderedFrameDescs.clone();
+        Arrays.sort(descsByFrequency, new Comparator<FrameDesc>() {
             @Override
-            public int compare(Method o1, Method o2) {
-                return Integer.compare(o2.frequencyOrNewMethodId, o1.frequencyOrNewMethodId);
+            public int compare(FrameDesc o1, FrameDesc o2) {
+                return Integer.compare(o2.frequency, o1.frequency);
             }
         });
 
-        for (int i = 0; i < context.orderedMethods.length; i++) {
-            Method method = context.orderedMethods[i];
-            method.frequencyOrNewMethodId = i + 1; // zero is reserved for no method
+        for (int i = 0; i < descsByFrequency.length; i++) {
+            FrameDesc frameDesc = descsByFrequency[i];
+            frameDesc.frequencyBasedId = i + 1; // zero is reserved for no method
         }
-
-        // restores order
-        context.methods.keys(context.orderedMethods);
     }
 
     private int[] buildLz78TreeAndPrepareData(EvaluationContext context) {
@@ -263,7 +261,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
+                        context.orderedFrameDescs[methodId].frequency++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
                         }
@@ -288,7 +286,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
+                        context.orderedFrameDescs[methodId].frequency++;
                     }
                 }
             }
@@ -347,15 +345,15 @@ public class Heatmap {
     }
 
     private void printMethods(HtmlOut out, EvaluationContext evaluationContext) throws IOException {
-        debug("methods count " + evaluationContext.orderedMethods.length);
-        Arrays.sort(evaluationContext.orderedMethods, new Comparator<Method>() {
+        debug("methods count " + evaluationContext.orderedFrameDescs.length);
+        Arrays.sort(evaluationContext.orderedFrameDescs, new Comparator<FrameDesc>() {
             @Override
-            public int compare(Method o1, Method o2) {
-                return Integer.compare(o1.frequencyOrNewMethodId, o2.frequencyOrNewMethodId);
+            public int compare(FrameDesc o1, FrameDesc o2) {
+                return Integer.compare(o1.frequencyBasedId, o2.frequencyBasedId);
             }
         });
         out.nextByte('A');
-        compressMethods(out, evaluationContext.orderedMethods);
+        compressMethods(out, evaluationContext.orderedFrameDescs);
         out.nextByte('A');
     }
 
@@ -372,8 +370,7 @@ public class Heatmap {
     }
 
     private static class EvaluationContext {
-        final Index<Method> methods;
-        final Method[] orderedMethods;
+        final FrameDesc[] orderedFrameDescs;
         final int[][] stackTraces;
         final String[] symbols;
 
@@ -381,13 +378,11 @@ public class Heatmap {
 
         final LzNodeTree nodeTree = new LzNodeTree();
 
-        EvaluationContext(SampleList.Result sampleList, Index<Method> methods, int[][] stackTraces, String[] symbols) {
+        EvaluationContext(SampleList.Result sampleList, Index<FrameDesc> methods, int[][] stackTraces, String[] symbols) {
             this.sampleList = sampleList;
-            this.methods = methods;
             this.stackTraces = stackTraces;
             this.symbols = symbols;
-
-            orderedMethods = methods.keys();
+            orderedFrameDescs = methods.keys();
         }
     }
 
@@ -398,6 +393,7 @@ public class Heatmap {
         final SampleList sampleList;
         final StackStorage stackTracesRemap = new StackStorage();
 
+        // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
 
@@ -413,30 +409,18 @@ public class Heatmap {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
-            if (extra == 0) {
-                sampleList.add(stackTracesCache.get(stackTraceId), timeMs);
-                return;
-            }
-
-            int id = stackTracesCache.get((long) extra << 32 | stackTraceId, -1);
-            if (id != -1) {
-                sampleList.add(id, timeMs);
-                return;
-            }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            id = stackTracesRemap.indexWithPrototype(prototype, methodsCache.indexForClass(extra, type));
-            stackTracesCache.put((long) extra << 32 | stackTraceId, id);
-
+            int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
+            int id = stackTracesRemap.index(prototype, prototype.length, 0, suffix);
             sampleList.add(id, timeMs);
         }
 
         public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
-            int[] stackTrace = cachedStackTrace;
-            if (stackTrace.length < size) {
-                cachedStackTrace = stackTrace = new int[size * 2];
+            if (cachedStackTrace.length < size) {
+                cachedStackTrace = new int[size * 2];
             }
 
             for (int i = size - 1; i >= 0; i--) {
@@ -447,10 +431,10 @@ public class Heatmap {
                 int index = size - 1 - i;
                 boolean firstMethodInTrace = index == 0;
 
-                stackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
+                cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(stackTrace, size));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size, 0, 0));
         }
 
     }
