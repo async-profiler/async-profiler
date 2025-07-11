@@ -393,6 +393,7 @@ public class Heatmap {
         final SampleList sampleList;
         final StackStorage stackTracesRemap = new StackStorage();
 
+        // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
 
@@ -413,16 +414,10 @@ public class Heatmap {
                 return;
             }
 
-            int id = stackTracesCache.get((long) extra << 32 | stackTraceId, -1);
-            if (id != -1) {
-                sampleList.add(id, timeMs);
-                return;
-            }
-
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            id = stackTracesRemap.index(prototype, prototype.length, 0, methodsCache.indexForClass(extra, type));
+            int id = stackTracesRemap.index(prototype, prototype.length, 0, methodsCache.indexForClass(extra, type));
             stackTracesCache.put((long) extra << 32 | stackTraceId, id);
 
             sampleList.add(id, timeMs);
