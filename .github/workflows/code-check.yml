@@ -12,9 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: "public.ecr.aws/async-profiler/asprof-code-check:latest"
-    permissions:
-      pull-requests: write
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,10 +23,24 @@ jobs:
         run: |
           git remote add upstream "https://github.com/${{ github.event.pull_request.base.repo.full_name }}"
           git fetch --no-tags --no-recurse-submodules upstream "${{ github.event.pull_request.base.ref }}"
+      - name: Create artifacts directory
+        run: |
+          mkdir code-check-artifacts/
+          echo "${{ github.event.number }}" > code-check-artifacts/pull-request-id.txt
       - name: Run clang-tidy
         run: |
           set pipefail
           make cpp-lint-diff \
             DIFF_BASE="$(git merge-base HEAD "upstream/${{ github.event.pull_request.base.ref }}")" \
-            CLANG_TIDY_ARGS_EXTRA="-export-fixes clang-tidy-fixes.yml"
+            CLANG_TIDY_ARGS_EXTRA="-export-fixes code-check-artifacts/clang-tidy-fixes.yml"
         shell: bash
+      - name: Save PR information
+        run: |
+          echo "${{ github.event.number }}" > code-check-artifacts/pr-id.txt
+          echo "${{ github.event.pull_request.head.repo.full_name }}" > code-check-artifacts/pr-head-repo.txt
+          echo "${{ github.event.pull_request.head.sha }}" > code-check-artifacts/pr-head-sha.txt
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-check-artifacts
+          path: code-check-artifacts/
