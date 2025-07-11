@@ -79,10 +79,9 @@ public class MethodCache {
         long methodId = (long) extra << 32 | 1L << 63;
         LinkedList<FrameDesc> list = getFarMethodList(methodId);
         for (FrameDesc frameDesc : list) {
-            if (frameDesc.originalMethodId == methodId) {
-                if (frameDesc.location == -1 && frameDesc.type == type && !frameDesc.start) {
-                    return frameDesc.index;
-                }
+            if (frameDesc.originalMethodId == methodId && frameDesc.location == -1 && frameDesc.type == type
+                    && !frameDesc.start) {
+                return frameDesc.index;
             }
         }
 
