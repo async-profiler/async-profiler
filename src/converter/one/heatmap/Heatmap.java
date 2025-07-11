@@ -427,7 +427,7 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            id = stackTracesRemap.indexWithPrototype(prototype, methodsCache.indexForClass(extra, type));
+            id = stackTracesRemap.index(prototype, prototype.length, 0, methodsCache.indexForClass(extra, type));
             stackTracesCache.put((long) extra << 32 | stackTraceId, id);
 
             sampleList.add(id, timeMs);
@@ -449,7 +449,7 @@ public class Heatmap {
                 cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size, 0, 0));
         }
 
     }
