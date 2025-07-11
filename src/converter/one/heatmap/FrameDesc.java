@@ -7,7 +7,7 @@ package one.heatmap;
 
 import one.convert.Frame;
 
-public class Method {
+public class FrameDesc {
 
     public final int className;
     public final int methodName;
@@ -17,16 +17,16 @@ public class Method {
 
     final long originalMethodId;
 
-    Method next;
+    FrameDesc next;
 
     public int frequencyOrNewMethodId;
     public int index;
 
-    Method(int className, int methodName) {
+    FrameDesc(int className, int methodName) {
         this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
     }
 
-    Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
+    FrameDesc(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
         this.originalMethodId = originalMethodId;
         this.className = className;
         this.methodName = methodName;
@@ -40,13 +40,13 @@ public class Method {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        Method method = (Method) o;
+        FrameDesc frameDesc = (FrameDesc) o;
 
-        if (className != method.className) return false;
-        if (methodName != method.methodName) return false;
-        if (location != method.location) return false;
-        if (type != method.type) return false;
-        return start == method.start;
+        if (className != frameDesc.className) return false;
+        if (methodName != frameDesc.methodName) return false;
+        if (location != frameDesc.location) return false;
+        if (type != frameDesc.type) return false;
+        return start == frameDesc.start;
     }
 
     @Override
