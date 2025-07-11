@@ -409,17 +409,12 @@ public class Heatmap {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
-            if (extra == 0) {
-                sampleList.add(stackTracesCache.get(stackTraceId), timeMs);
-                return;
-            }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            int id = stackTracesRemap.index(prototype, prototype.length, 0, methodsCache.indexForClass(extra, type));
-            stackTracesCache.put((long) extra << 32 | stackTraceId, id);
-
+            int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
+            int id = stackTracesRemap.index(prototype, prototype.length, 0, suffix);
             sampleList.add(id, timeMs);
         }
 
