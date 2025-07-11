@@ -64,7 +64,7 @@ public class Heatmap {
         out.writeVar(frameDescs.length);
         for (FrameDesc frameDesc : frameDescs) {
             out.writeVar(frameDesc.className);
-            out.writeVar(frameDesc.methodName);
+            out.writeVar(frameDesc.name);
             out.write18(frameDesc.location & 0xffff);
             out.write18(frameDesc.location >>> 16);
             out.write6(frameDesc.type);

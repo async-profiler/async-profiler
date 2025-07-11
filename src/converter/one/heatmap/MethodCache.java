@@ -64,7 +64,7 @@ public class MethodCache {
         }
 
         if (prototype != null) {
-            last.next = frameDesc = new FrameDesc(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
+            last.next = frameDesc = new FrameDesc(methodId, prototype.className, prototype.name, location, type, firstInStack);
             return frameDesc.index = methodIndex.index(frameDesc);
         }
 

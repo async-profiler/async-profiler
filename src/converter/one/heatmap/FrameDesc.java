@@ -10,7 +10,7 @@ import one.convert.Frame;
 public class FrameDesc {
 
     public final int className;
-    public final int methodName;
+    public final int name;
     public final int location;
     public final byte type;
     public final boolean start;
@@ -22,14 +22,14 @@ public class FrameDesc {
     public int frequencyOrNewMethodId;
     public int index;
 
-    FrameDesc(int className, int methodName) {
-        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
+    FrameDesc(int className, int name) {
+        this(0, className, name, 0, Frame.TYPE_NATIVE, true);
     }
 
-    FrameDesc(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
+    FrameDesc(long originalMethodId, int className, int name, int location, byte type, boolean start) {
         this.originalMethodId = originalMethodId;
         this.className = className;
-        this.methodName = methodName;
+        this.name = name;
         this.location = location;
         this.type = type;
         this.start = start;
@@ -43,7 +43,7 @@ public class FrameDesc {
         FrameDesc frameDesc = (FrameDesc) o;
 
         if (className != frameDesc.className) return false;
-        if (methodName != frameDesc.methodName) return false;
+        if (name != frameDesc.name) return false;
         if (location != frameDesc.location) return false;
         if (type != frameDesc.type) return false;
         return start == frameDesc.start;
@@ -52,7 +52,7 @@ public class FrameDesc {
     @Override
     public int hashCode() {
         int result = className;
-        result = 31 * result + methodName;
+        result = 31 * result + name;
         result = 31 * result + location;
         result = 31 * result + (int) type;
         result = 31 * result + (start ? 1 : 0);
