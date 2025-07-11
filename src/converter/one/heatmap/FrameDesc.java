@@ -21,7 +21,7 @@ public class FrameDesc {
 
     public int frequency;
     // An identifier based on frequency ordering, more frequent methods will get a lower ID
-    public int newMethodId;
+    public int frequencyBasedId;
     public int index;
 
     FrameDesc(int className, int name) {

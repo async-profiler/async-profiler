@@ -194,7 +194,7 @@ public class Heatmap {
             int methodId = context.nodeTree.extractMethodId(d);
 
             out.writeVar(synonymTable.nodeIdOrSynonym(parentId));
-            out.writeVar(context.orderedFrameDescs[methodId].newMethodId);
+            out.writeVar(context.orderedFrameDescs[methodId].frequencyBasedId);
         }
     }
 
@@ -215,7 +215,7 @@ public class Heatmap {
         out.writeVar(startsCount);
         for (FrameDesc frameDesc : context.orderedFrameDescs) {
             if (frameDesc.start) {
-                out.writeVar(frameDesc.newMethodId);
+                out.writeVar(frameDesc.frequencyBasedId);
             }
         }
     }
@@ -230,7 +230,7 @@ public class Heatmap {
 
         for (int i = 0; i < context.orderedFrameDescs.length; i++) {
             FrameDesc frameDesc = context.orderedFrameDescs[i];
-            frameDesc.newMethodId = i + 1; // zero is reserved for no method
+            frameDesc.frequencyBasedId = i + 1; // zero is reserved for no method
         }
 
         // restores order
@@ -351,7 +351,7 @@ public class Heatmap {
         Arrays.sort(evaluationContext.orderedFrameDescs, new Comparator<FrameDesc>() {
             @Override
             public int compare(FrameDesc o1, FrameDesc o2) {
-                return Integer.compare(o1.newMethodId, o2.newMethodId);
+                return Integer.compare(o1.frequencyBasedId, o2.frequencyBasedId);
             }
         });
         out.nextByte('A');
