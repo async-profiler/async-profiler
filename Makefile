@@ -148,11 +148,9 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 	rm -r $(DEBUG_PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
-	truncate -cs -`stat -f "%z" build/$(CONVERTER_JAR)` $(PACKAGE_DIR)/$(JFRCONV)
 ifneq ($(GITHUB_ACTIONS), true)
-	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
+	codesign -s "Developer ID" -o runtime -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
 endif
-	cat build/$(CONVERTER_JAR) >> $(PACKAGE_DIR)/$(JFRCONV)
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
 
