@@ -356,7 +356,7 @@ void BytecodeRewriter::rewriteStackMapTable() {
         } else if (frame_type <= 254) {
             // append_frame
             put16(get16());
-            for (int j = 0; j < frame_type - 251; j++) {
+            for (u8 j = 0; j < frame_type - (u8)251; j++) {
                 rewriteVerificationTypeInfo();
             }
         } else {
