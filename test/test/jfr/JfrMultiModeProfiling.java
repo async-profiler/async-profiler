@@ -30,8 +30,6 @@ public class JfrMultiModeProfiling {
         }
         executor.shutdown();
         allocate();
-
-        System.gc();
     }
 
     private static void cpuIntensiveIncrement() {
