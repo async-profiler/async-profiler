@@ -356,7 +356,9 @@ void BytecodeRewriter::rewriteStackMapTable() {
         } else if (frame_type <= 254) {
             // append_frame
             put16(get16());
-            for (u8 j = 0; j < frame_type - (u8)251; j++) {
+            // Explicit casting is done here to avoid bad implicit casting by compiler (frame_type is u8)
+            u8 count = frame_type - (u8)251;
+            for (u8 j = 0; j < count; j++) {
                 rewriteVerificationTypeInfo();
             }
         } else {
