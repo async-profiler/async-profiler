@@ -80,4 +80,4 @@ heap utilization and wall-clock profiling to view latency.
 
 A legend for frame types is available from the information tooltip in the generated html, which is repeated here:
 
-![](/.assets/images/flamegraph_legend.png)
+![](/.assets/images/flamegraph_colors.png)
