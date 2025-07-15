@@ -21,7 +21,7 @@ public class JfrMultiModeProfiling {
 
     private static volatile Object sink;
     private static int count = 0;
-    private static final List<byte[]> rooter = new ArrayList<>();
+    private static final List<byte[]> holder = new ArrayList<>();
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -49,8 +49,8 @@ public class JfrMultiModeProfiling {
             } else {
                 sink = String.format("some string: %s, some number: %d", new Date(), random.nextInt());
             }
-            if (rooter.size() < 100_000) {
-                rooter.add(new byte[1]);
+            if (holder.size() < 100_000) {
+                holder.add(new byte[1]);
             }
         }
     }
