@@ -17,6 +17,8 @@ public class Method {
 
     final long originalMethodId;
 
+    Method next;
+
     public int frequency;
     // An identifier based on frequency ordering, more frequent methods will get a lower ID
     public int frequencyBasedId;

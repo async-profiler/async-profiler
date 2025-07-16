@@ -5,9 +5,7 @@
 
 package one.heatmap;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import one.convert.Index;
 import one.convert.JfrConverter;
@@ -21,7 +19,7 @@ public class MethodCache {
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
     // but in most cases all methods should fit nearCache, so less code is better
-    private final Dictionary<List<Method>> farMethods = new Dictionary<>(1024);
+    private final Dictionary<Method> farMethods = new Dictionary<>(1024);
 
     public MethodCache(JfrConverter converter) {
         this.converter = converter;
@@ -33,64 +31,70 @@ public class MethodCache {
     }
 
     public int index(long methodId, int location, byte type, boolean firstInStack) {
+        Method method;
         if (methodId < nearCache.length) {
             int mid = (int) methodId;
-            Method method = nearCache[mid];
+            method = nearCache[mid];
             if (method == null) {
                 method = createMethod(methodId, location, type, firstInStack);
                 nearCache[mid] = method;
-                method.index = methodIndex.index(method);
-                return method.index;
+                return method.index = methodIndex.index(method);
             }
         } else {
             // this should be extremely rare case
-            List<Method> list = getFarMethodList(methodId);
-            if (list.isEmpty()) {
-                Method method = createMethod(methodId, location, type, firstInStack);
-                list.add(method);
-                method.index = methodIndex.index(method);
-                return method.index;
+            method = farMethods.get(methodId);
+            if (method == null) {
+                method = createMethod(methodId, location, type, firstInStack);
+                farMethods.put(methodId, method);
+                return method.index = methodIndex.index(method);
             }
         }
 
+        Method last = null;
         Method prototype = null;
-        List<Method> list = getFarMethodList(methodId);
-        for (Method method : list) {
+        while (method != null) {
             if (method.originalMethodId == methodId) {
                 if (method.location == location && method.type == type && method.start == firstInStack) {
                     return method.index;
                 }
                 prototype = method;
-                break;
             }
+            last = method;
+            method = method.next;
         }
 
-        Method method;
-        if (prototype == null) {
-            method = createMethod(methodId, location, type, firstInStack);
-        } else {
-            method = new Method(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
+        if (prototype != null) {
+            last.next = method = new Method(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
+            return method.index = methodIndex.index(method);
         }
-        method.index = methodIndex.index(method);
-        list.add(method);
-        return method.index;
+
+        last.next = method = createMethod(methodId, location, type, firstInStack);
+
+        return method.index = methodIndex.index(method);
     }
 
     public int indexForClass(int extra, byte type) {
         long methodId = (long) extra << 32 | 1L << 63;
-        List<Method> list = getFarMethodList(methodId);
-        for (Method method : list) {
-            if (method.originalMethodId == methodId && method.location == -1 && method.type == type
-                    && !method.start) {
-                return method.index;
+        Method method = farMethods.get(methodId);
+        Method last = null;
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == -1 && method.type == type && !method.start) {
+                    return method.index;
+                }
             }
+            last = method;
+            method = method.next;
         }
 
         String javaClassName = converter.getClassName(extra);
-        Method method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
-        method.index = methodIndex.index(method);
-        list.add(method);
-        return method.index;
+        method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
+        if (last == null) {
+            farMethods.put(methodId, method);
+        } else {
+            last.next = method;
+        }
+        return method.index = methodIndex.index(method);
     }
 
     private Method createMethod(long methodId, int location, byte type, boolean firstInStack) {
@@ -106,14 +110,5 @@ public class MethodCache {
 
     public Index<Method> methodsIndex() {
         return methodIndex;
-    }
-
-    private List<Method> getFarMethodList(long methodId) {
-        List<Method> list = farMethods.get(methodId);
-        if (list == null) {
-            list = new ArrayList<>();
-            farMethods.put(methodId, list);
-        }
-        return list;
     }
 }
