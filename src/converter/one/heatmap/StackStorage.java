@@ -39,9 +39,9 @@ public final class StackStorage {
         for (long currentMeta = meta[i]; currentMeta != 0; currentMeta = meta[i]) {
             if ((int) currentMeta == targetHash) {
                 int index = (int) (currentMeta >>> 32);
-                int[] value = values[index - 1];
+                int[] value = values[index];
                 if (equals(value, prototype, stackSize, prefix, suffix)) {
-                    return index;
+                    return index + 1;
                 }
             }
             i = (i + 1) & mask;
