@@ -414,7 +414,7 @@ public class Heatmap {
             int[] prototype = stackTracesRemap.get(prototypeId);
 
             int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
-            int id = stackTracesRemap.index(prototype, prototype.length, 0, suffix);
+            int id = stackTracesRemap.index(prototype, prototype.length, null, new int[] {suffix});
             sampleList.add(id, timeMs);
         }
 
@@ -434,7 +434,7 @@ public class Heatmap {
                 cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size, 0, 0));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size, null, null));
         }
 
     }
