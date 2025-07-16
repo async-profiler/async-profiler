@@ -413,8 +413,8 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
-            int id = stackTracesRemap.index(prototype, prototype.length, null, new int[] {suffix});
+            int[] suffix = extra != 0 ? new int[] {methodsCache.indexForClass(extra, type)} : new int[0];
+            int id = stackTracesRemap.index(prototype, prototype.length, null, suffix);
             sampleList.add(id, timeMs);
         }
 
