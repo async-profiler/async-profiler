@@ -11,6 +11,7 @@
 #include "stackFrame.h"
 #include "safeAccess.h"
 #include "vmStructs.h"
+#include "vmEntry.h"
 
 
 #ifdef __APPLE__
@@ -65,7 +66,16 @@ uintptr_t StackFrame::method() {
 }
 
 uintptr_t StackFrame::senderSP() {
-    return (uintptr_t)REG(regs[19], x[19]);
+    // On JDK 8/11/17, sender sp is stored in x13, and on JDK 20 and above, sender sp is stored in x19
+    // https://bugs.openjdk.org/browse/JDK-8288971
+    // https://github.com/openjdk/jdk8u-dev/blob/55273f7267b95cf38743bb32ea61a513fbafb06e/hotspot/src/cpu/aarch64/vm/templateInterpreter_aarch64.cpp#L633
+    // https://github.com/openjdk/jdk17u-dev/blob/85d0ab55d6bae2aea4368e6668e361db8a9cbd1c/src/hotspot/cpu/aarch64/templateInterpreterGenerator_aarch64.cpp#L841
+    // https://github.com/openjdk/jdk21u-dev/blob/4daaffcd9dae87b5b51f9277e7f407a7d31a1eb9/src/hotspot/cpu/aarch64/templateInterpreterGenerator_aarch64.cpp#L870
+    if (VM::hotspot_version() >= 20) {
+        return (uintptr_t)REG(regs[19], x[19]);
+    } else {
+        return (uintptr_t)REG(regs[13], x[13]);
+    }
 }
 
 void StackFrame::ret() {
@@ -230,9 +240,13 @@ bool StackFrame::checkInterruptedSyscall() {
 #endif
 }
 
+void StackFrame::unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    pc = (uintptr_t)stripPointer(*(void**)sp);
+    sp = senderSP();
+}
+
 bool StackFrame::isSyscall(instruction_t* pc) {
     // svc #0 or svc #80
     return (*pc & 0xffffefff) == 0xd4000001;
 }
-
 #endif // __aarch64__

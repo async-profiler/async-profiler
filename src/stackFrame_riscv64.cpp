@@ -99,10 +99,14 @@ bool StackFrame::checkInterruptedSyscall() {
     return retval() == (uintptr_t)-EINTR;
 }
 
+void StackFrame::unwindIncompleteIntFrame(uintptr_t& pc, uintptr_t& sp, uintptr_t& fp) {
+    pc = (uintptr_t)stripPointer(*(void**)sp);
+    sp = senderSP();
+}
+
 bool StackFrame::isSyscall(instruction_t* pc) {
     // RISC-V ISA uses ECALL for doing both syscalls and debugger
     // calls, so this might technically mismatch.
     return (*pc) == 0x00000073;
 }
-
 #endif // riscv

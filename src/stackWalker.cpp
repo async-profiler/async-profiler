@@ -18,7 +18,6 @@ const intptr_t MAX_FRAME_SIZE = 0x40000;
 const intptr_t MAX_INTERPRETER_FRAME_SIZE = 0x1000;
 const intptr_t DEAD_ZONE = 0x1000;
 
-
 static inline bool aligned(uintptr_t ptr) {
     return (ptr & (sizeof(uintptr_t) - 1)) == 0;
 }
@@ -312,7 +311,11 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                         const char* bcp = ((const char**)fp)[bcp_offset];
                         int bci = bytecode_start == NULL || bcp < bytecode_start ? 0 : bcp - bytecode_start;
                         fillFrame(frames[depth++], FRAME_INTERPRETED, bci, method_id);
-
+                        // On aarch64, before sender sp is saved onto stack, using sender_sp_offset we get random value,
+                        // this leads to incomplete stacks (shown as: break_interpreted). Inorder to get correct
+                        // sender sp in this situation, we may need to parse the instruction stream, but this is
+                        // dangerous and not maintainable. The proportion of incomplete stacks is less than 1% on JDK 21,
+                        // on JDK 17 and bellow the incomplete stacks are rare and can be ignored.
                         sp = ((uintptr_t*)fp)[InterpreterFrame::sender_sp_offset];
                         pc = stripPointer(((void**)fp)[FRAME_PC_SLOT]);
                         fp = *(uintptr_t*)fp;
@@ -331,8 +334,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                             sp = frame.senderSP();
                             fp = *(uintptr_t*)fp;
                         } else {
-                            pc = stripPointer(*(void**)sp);
-                            sp = frame.senderSP();
+                            frame.unwindIncompleteIntFrame((uintptr_t&)pc, sp, fp);
                         }
                         continue;
                     }
