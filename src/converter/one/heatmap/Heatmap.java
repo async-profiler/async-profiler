@@ -64,7 +64,7 @@ public class Heatmap {
         out.writeVar(methods.length);
         for (Method method : methods) {
             out.writeVar(method.className);
-            out.writeVar(method.name);
+            out.writeVar(method.methodName);
             out.write18(method.location & 0xffff);
             out.write18(method.location >>> 16);
             out.write6(method.type);

@@ -68,7 +68,7 @@ public class MethodCache {
         if (prototype == null) {
             method = createMethod(methodId, location, type, firstInStack);
         } else {
-            method = new Method(methodId, prototype.className, prototype.name, location, type, firstInStack);
+            method = new Method(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
         }
         method.index = methodIndex.index(method);
         list.add(method);

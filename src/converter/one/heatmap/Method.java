@@ -10,7 +10,7 @@ import one.convert.Frame;
 public class Method {
 
     public final int className;
-    public final int name;
+    public final int methodName;
     public final int location;
     public final byte type;
     public final boolean start;
@@ -22,14 +22,14 @@ public class Method {
     public int frequencyBasedId;
     public int index;
 
-    Method(int className, int name) {
-        this(0, className, name, 0, Frame.TYPE_NATIVE, true);
+    Method(int className, int methodName) {
+        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
     }
 
-    Method(long originalMethodId, int className, int name, int location, byte type, boolean start) {
+    Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
         this.originalMethodId = originalMethodId;
         this.className = className;
-        this.name = name;
+        this.methodName = methodName;
         this.location = location;
         this.type = type;
         this.start = start;
@@ -43,7 +43,7 @@ public class Method {
         Method method = (Method) o;
 
         if (className != method.className) return false;
-        if (name != method.name) return false;
+        if (methodName != method.methodName) return false;
         if (location != method.location) return false;
         if (type != method.type) return false;
         return start == method.start;
@@ -52,7 +52,7 @@ public class Method {
     @Override
     public int hashCode() {
         int result = className;
-        result = 31 * result + name;
+        result = 31 * result + methodName;
         result = 31 * result + location;
         result = 31 * result + (int) type;
         result = 31 * result + (start ? 1 : 0);
