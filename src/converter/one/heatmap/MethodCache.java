@@ -5,8 +5,9 @@
 
 package one.heatmap;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.List;
 
 import one.convert.Index;
 import one.convert.JfrConverter;
@@ -20,7 +21,7 @@ public class MethodCache {
     private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
     // but in most cases all methods should fit nearCache, so less code is better
-    private final Dictionary<LinkedList<Method>> farMethods = new Dictionary<>(1024);
+    private final Dictionary<List<Method>> farMethods = new Dictionary<>(1024);
 
     public MethodCache(JfrConverter converter) {
         this.converter = converter;
@@ -43,7 +44,7 @@ public class MethodCache {
             }
         } else {
             // this should be extremely rare case
-            LinkedList<Method> list = getFarMethodList(methodId);
+            List<Method> list = getFarMethodList(methodId);
             if (list.isEmpty()) {
                 Method method = createMethod(methodId, location, type, firstInStack);
                 list.add(method);
@@ -53,7 +54,7 @@ public class MethodCache {
         }
 
         Method prototype = null;
-        LinkedList<Method> list = getFarMethodList(methodId);
+        List<Method> list = getFarMethodList(methodId);
         for (Method method : list) {
             if (method.originalMethodId == methodId) {
                 if (method.location == location && method.type == type && method.start == firstInStack) {
@@ -77,7 +78,7 @@ public class MethodCache {
 
     public int indexForClass(int extra, byte type) {
         long methodId = (long) extra << 32 | 1L << 63;
-        LinkedList<Method> list = getFarMethodList(methodId);
+        List<Method> list = getFarMethodList(methodId);
         for (Method method : list) {
             if (method.originalMethodId == methodId && method.location == -1 && method.type == type
                     && !method.start) {
@@ -107,10 +108,10 @@ public class MethodCache {
         return methodIndex;
     }
 
-    private LinkedList<Method> getFarMethodList(long methodId) {
-        LinkedList<Method> list = farMethods.get(methodId);
+    private List<Method> getFarMethodList(long methodId) {
+        List<Method> list = farMethods.get(methodId);
         if (list == null) {
-            list = new LinkedList<>();
+            list = new ArrayList<>();
             farMethods.put(methodId, list);
         }
         return list;
