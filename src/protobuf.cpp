@@ -77,7 +77,7 @@ protobuf_mark_t ProtoBuffer::startMessage(protobuf_index_t index, size_t max_len
 
     protobuf_mark_t mark = _offset << 3 | max_len_byte_count;
     _offset += max_len_byte_count;
-    return mark;
+    return (protobuf_mark_t) mark;
 }
 
 void ProtoBuffer::commitMessage(protobuf_mark_t mark) {
