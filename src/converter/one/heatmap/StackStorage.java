@@ -36,8 +36,7 @@ public final class StackStorage {
         int mask = meta.length - 1;
         int targetHash = murmur(prototype, stackSize, prefix, suffix);
         int i = targetHash & mask;
-        long currentMeta;
-        while ((currentMeta = meta[i]) != 0) {
+        for (long currentMeta = meta[i]; currentMeta != 0; currentMeta = meta[i]) {
             if ((int) currentMeta == targetHash) {
                 int index = (int) (currentMeta >>> 32);
                 int[] value = values[index - 1];
@@ -45,7 +44,6 @@ public final class StackStorage {
                     return index;
                 }
             }
-
             i = (i + 1) & mask;
         }
 
