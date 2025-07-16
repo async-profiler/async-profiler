@@ -12,7 +12,6 @@ import one.convert.Index;
 import one.convert.JfrConverter;
 import one.jfr.Dictionary;
 
-// TODO Rename to FrameDescCache
 public class MethodCache {
     private final JfrConverter converter;
     private final Index<String> symbolTable = new Index<>(String.class, "", 32768);
