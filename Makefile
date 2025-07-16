@@ -149,7 +149,7 @@ $(PACKAGE_NAME).tar.gz: $(PACKAGE_DIR)
 
 $(PACKAGE_NAME).zip: $(PACKAGE_DIR)
 ifneq ($(GITHUB_ACTIONS), true)
-	codesign -s "Developer ID" -o runtime -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
+	codesign -s "Developer ID" -o runtime --timestamp -v $(PACKAGE_DIR)/$(ASPROF) $(PACKAGE_DIR)/$(JFRCONV) $(PACKAGE_DIR)/$(LIB_PROFILER)
 endif
 	ditto -c -k --keepParent $(PACKAGE_DIR) $@
 	rm -r $(PACKAGE_DIR)
@@ -176,9 +176,10 @@ build/$(ASPROF): src/main/* src/jattach/* src/fdtransfer.h
 	$(STRIP) $@
 
 build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
-	sed 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' src/launcher/launcher.sh > $@
+	sed -e 's/PROFILER_VERSION/$(PROFILER_VERSION)/g' -e 's/BUILD_DATE/$(shell date "+%b %d %Y")/g' src/launcher/launcher.sh > $@
 	chmod +x $@
 	cat build/$(CONVERTER_JAR) >> $@
+
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)

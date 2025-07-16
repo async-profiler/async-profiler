@@ -1,24 +1,20 @@
 # Copyright The async-profiler authors
 # SPDX-License-Identifier: Apache-2.0
 
-#!/bin/bash
+#!/bin/sh
 
 set -euo pipefail
 
-VERSION_STRING="JFR converter PROFILER_VERSION built on $(date '+%b %d %Y')"
+VERSION_STRING="JFR converter PROFILER_VERSION built on BUILD_DATE"
 
 if [[ "$1" == "-v" || "$1" == "--version" ]]; then
     echo "$VERSION_STRING"
     exit 0
 fi
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-else
-    SCRIPT_PATH="$(readlink -f "$0")"
-fi
+SCRIPT_PATH="$0"
 
-JAVA_CMD=("java" "-Xss2M" "-Dsun.misc.URLClassPath.disableJarChecking")
+JAVA_CMD=("-Xss2M" "-Dsun.misc.URLClassPath.disableJarChecking")
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -39,25 +35,20 @@ done
 
 JAVA_CMD+=("-jar" "$SCRIPT_PATH" "$@")
 
-find_java() {
-    local java_path="$1"
-    [[ -x "$java_path" ]]
-}
-
 run_java() {
     # 1. Try JAVA_HOME
-    if [[ -n "$JAVA_HOME" ]] && find_java "$JAVA_HOME/bin/java"; then
-        exec "$JAVA_HOME/bin/java" "${JAVA_CMD[@]:1}"
+    if [[ -n "$JAVA_HOME" ]] && [[ -x "$JAVA_HOME/bin/java" ]]; then
+        "$JAVA_HOME/bin/java" "${JAVA_CMD[@]}" && exit 0
     fi
     
     # 2. Try PATH
     if command -v java >/dev/null 2>&1; then
-        exec java "${JAVA_CMD[@]:1}"
+        java "${JAVA_CMD[@]}" && exit 0
     fi
     
     # 3. Try /etc/alternatives/java
-    if find_java "/etc/alternatives/java"; then
-        exec "/etc/alternatives/java" "${JAVA_CMD[@]:1}"
+    if [[ -x "/etc/alternatives/java" ]]; then
+        "/etc/alternatives/java" "${JAVA_CMD[@]}" && exit 0
     fi
     
     # 4. Try common JVM directories
@@ -73,8 +64,8 @@ run_java() {
         for jvm in "$JVM_DIR"/*; do
             if [[ -d "$jvm" ]]; then
                 java_exe="$jvm$CONTENTS_HOME/bin/java"
-                if find_java "$java_exe"; then
-                    exec "$java_exe" "${JAVA_CMD[@]:1}"
+                if [[ -x "$java_exe" ]]; then
+                    "$java_exe" "${JAVA_CMD[@]}" && exit 0
                 fi
             fi
         done
