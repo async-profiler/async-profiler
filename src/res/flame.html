@@ -411,19 +411,8 @@
 		}
 	}
 
-	function positionContextMenu(e) {
-		const menuWidth = 150;
-		const menuHeight = ctxMenu.offsetHeight || 100;
-		const margin = 5;
-
-		let left = e.clientX + margin + menuWidth > window.innerWidth ? e.clientX - menuWidth - margin : e.clientX + margin;
-		let top = e.clientY + margin + menuHeight > window.innerHeight ? e.clientY - menuHeight - margin : e.clientY + margin;
-
-		ctxMenu.style.left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin)) + 'px';
-		ctxMenu.style.top = Math.max(margin, Math.min(top, window.innerHeight - menuHeight - margin)) + 'px';
-	}
-
 	function resetZoom() {
+		canvas.onmouseout();
 		root = levels[0][0];
 		search(false);
 	}
@@ -450,14 +439,29 @@
 					}
 					canvas.onmousemove();
 				};
-				canvas.addEventListener('contextmenu', function(e) {
-					if (e.shiftKey) {
+				canvas.oncontextmenu = function(event) {
+					if (event.shiftKey) {
 						return true;
 					}
-					e.preventDefault();
+
+					const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+					const onFrame = findFrame(levels[h], event.offsetX / px + root.left);
+
+					if (!onFrame) {
+						return true;
+					}
+					event.preventDefault();
 
 					ctxMenu.style.display = 'block';
-					positionContextMenu(e);
+					const menuWidth = 150;
+					const menuHeight = ctxMenu.offsetHeight || 100;
+					const margin = 5;
+
+					let left = event.clientX + margin + menuWidth > window.innerWidth ? event.clientX - menuWidth - margin : event.clientX + margin;
+					let top = event.clientY + margin + menuHeight > window.innerHeight ? event.clientY - menuHeight - margin : event.clientY + margin;
+
+					ctxMenu.style.left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin)) + 'px';
+					ctxMenu.style.top = Math.max(margin, Math.min(top, window.innerHeight - menuHeight - margin)) + 'px';
 
 					ctxHighlightFrameType.onclick = function(e) {
 						focusOnType = f.type;
@@ -475,7 +479,7 @@
 						resetZoom();
 						ctxMenu.style.display = 'none';
 					}
-				});
+				};
 				status.textContent = 'Function: ' + canvas.title;
 				status.style.display = 'inline-block';
 				return;
