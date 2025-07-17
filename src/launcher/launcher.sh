@@ -18,9 +18,7 @@ while [ $# -gt 0 ]; do
             fi
             ;;
         -agent*)
-            if [ "$(echo "$1" | cut -c1-6)" = "-agent" ]; then
-                JAVA_OPTS="$JAVA_OPTS $1"
-            fi
+            JAVA_OPTS="$JAVA_OPTS $1"
             ;;
         -J*)
             opt=$(echo "$1" | cut -c3-)
