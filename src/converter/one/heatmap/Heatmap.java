@@ -413,8 +413,18 @@ public class Heatmap {
             int prototypeId = stackTracesCache.get(stackTraceId);
             int[] prototype = stackTracesRemap.get(prototypeId);
 
-            int[] suffix = extra != 0 ? new int[] {methodsCache.indexForClass(extra, type)} : new int[0];
-            int id = stackTracesRemap.index(prototype, prototype.length, null, suffix);
+            int stackSize = prototype.length;
+            if (extra != 0) stackSize++;
+            if (cachedStackTrace.length < stackSize) {
+                cachedStackTrace = new int[stackSize * 2];
+            }
+
+            System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
+            if (extra != 0) {
+                cachedStackTrace[prototype.length] = methodsCache.indexForClass(extra, type);
+            }
+
+            int id = stackTracesRemap.index(cachedStackTrace, stackSize);
             sampleList.add(id, timeMs);
         }
 
@@ -434,7 +444,7 @@ public class Heatmap {
                 cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size, null, null));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
     }
