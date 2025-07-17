@@ -45,7 +45,7 @@ if [[ -x "/etc/alternatives/java" ]]; then
 fi
 
 # 4. Try common JVM directories
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [[ "$(uname -s)" == "darwin"* ]]; then
     JVM_DIR="/Library/Java/JavaVirtualMachines"
     CONTENTS_HOME="/Contents/Home"
 else
