@@ -180,7 +180,6 @@ build/$(JFRCONV): src/launcher/launcher.sh build/$(CONVERTER_JAR)
 	chmod +x $@
 	cat build/$(CONVERTER_JAR) >> $@
 
-
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
