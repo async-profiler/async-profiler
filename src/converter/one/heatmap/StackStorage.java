@@ -9,7 +9,6 @@ import java.util.Arrays;
 
 public final class StackStorage {
 
-    private static final int M = 0x5bd1e995;
     private static final int INITIAL_CAPACITY = 16 * 1024;
 
     private int size;
@@ -37,12 +36,8 @@ public final class StackStorage {
         if (prefix == null) prefix = new int[0];
         if (suffix == null) suffix = new int[0];
 
-        int targetHash = initHash(stackSize + prefix.length + suffix.length);
-        for (int p : prefix) targetHash = updateHash(targetHash, p);
-        for (int i = 0; i < stackSize; ++i) targetHash = updateHash(targetHash, prototype[i]);
-        for (int s : suffix) targetHash = updateHash(targetHash, s);
-
         int mask = meta.length - 1;
+        int targetHash = murmur(prototype, stackSize, prefix, suffix);
         int i = targetHash & mask;
         for (long currentMeta = meta[i]; currentMeta != 0; currentMeta = meta[i]) {
             if ((int) currentMeta == targetHash) {
@@ -117,17 +112,39 @@ public final class StackStorage {
         return true;
     }
 
-    private static int initHash(int length) {
-        return 0x9747b28c ^ length;
-    }
+    private static int murmur(int[] data, int size, int[] prefix, int[] suffix) {
+        int m = 0x5bd1e995;
+        int h = 0x9747b28c ^ (data.length + 1);
 
-    private static int updateHash(int hash, int value) {
-        int k = value * M;
-        k ^= k >>> 24;
-        k *= M;
-        hash *= M;
-        hash ^= k;
-        return hash;
-    }
+        for (int p : prefix) {
+            int k = p * m;
+            k ^= k >>> 24;
+            k *= m;
+            h *= m;
+            h ^= k;
+        }
 
+        for (int i = 0; i < size; i++) {
+            int k = data[i];
+            k *= m;
+            k ^= k >>> 24;
+            k *= m;
+            h *= m;
+            h ^= k;
+        }
+
+        for (int s : suffix) {
+            int k = s * m;
+            k ^= k >>> 24;
+            k *= m;
+            h *= m;
+            h ^= k;
+        }
+
+        h ^= h >>> 13;
+        h *= m;
+        h ^= h >>> 15;
+
+        return h;
+    }
 }
