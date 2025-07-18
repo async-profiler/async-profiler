@@ -103,29 +103,6 @@
 		font-weight: bold;
 		padding: 2px;
 	}
-	.canvas-context-menu {
-		position: fixed;
-		background-color: white;
-		border: 1px solid #ccc;
-		box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-		border-radius: 4px;
-		padding: 2px 0;
-		min-width: 150px;
-		z-index: 1000;
-		display: none;
-	}
-	.menu-item {
-		padding: 2px 4px;
-		cursor: pointer;
-	}
-	.menu-item:hover {
-		background-color: #ffc000;
-	}
-	.menu-separator {
-		height: 1px;
-		background-color: #ddd;
-		margin: 2px 0;
-	}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
@@ -181,14 +158,6 @@
 </div>
 
 <div class='bordered' style="display: flex; flex-direction: column;">
-	<div class="canvas-context-menu" id="ctxMenu">
-		<div id="ctxHighlightFrameType" class="menu-item">Highlight frame type</div>
-		<div id="ctxResetHighlight" class="menu-item">Reset frame type highlight</div>
-		<div class="menu-separator"></div>
-		<div id="ctxHideFrame" class="menu-item">Hide frame</div>
-		<div class="menu-separator"></div>
-		<div id="ctxResetZoom" class="menu-item">Reset zoom</div>
-	</div>
 	<canvas id='canvas'></canvas>
 	<div id='hl'><span></span></div>
 	<p id='status'></p>
@@ -211,11 +180,6 @@
 	const c = canvas.getContext('2d');
 	const hl = document.getElementById('hl');
 	const status = document.getElementById('status');
-	const ctxMenu = document.getElementById('ctxMenu');
-	const ctxHighlightFrameType = document.getElementById('ctxHighlightFrameType');
-	const ctxResetHighlight = document.getElementById('ctxResetHighlight');
-	const ctxHideFrame = document.getElementById('ctxHideFrame');
-	const ctxResetZoom = document.getElementById('ctxResetZoom');
 	const infoTooltip = document.getElementById('info-tooltip');
 	const btnInfo = document.getElementById('graph-info');
 	const btnInvert = document.getElementById('invert');
@@ -228,7 +192,6 @@
 	if (devicePixelRatio) c.scale(devicePixelRatio, devicePixelRatio);
 	c.font = document.body.style.font;
 
-	let focusOnType = null;
 	const palette = [
 		[0xb2e1b2, 20, 20, 20],
 		[0x50e150, 30, 30, 30],
@@ -238,29 +201,6 @@
 		[0xe17d00, 30, 30, 0],
 		[0xcce880, 20, 20, 20],
 	];
-
-	function getColor(f) {
-		if (focusOnType === null) {
-			return f.color;
-		}
-
-		if (focusOnType === f.type) {
-			// emphasis color
-			return '#ff2291';
-		}
-
-		const color = Number.parseInt(f.color.substring(1), 16);
-
-		// deemphasized color
-		const r = (color >> 16) & 0xFF;
-		const g = (color >> 8) & 0xFF;
-		const b = color & 0xFF;
-		const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-		const amount = 0.65;
-		return '#' + ((Math.round(r * (1 - amount) + gray * amount) << 16)
-			| (Math.round(g * (1 - amount) + gray * amount) << 8)
-			| (Math.round(b * (1 - amount) + gray * amount))).toString(16);
-	}
 
 	function getTypeColor(type) {
 		const v = Math.random();
@@ -377,7 +317,7 @@
 
 		function drawFrame(f, y) {
 			if (f.left < x1 && f.left + f.width > x0) {
-				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : getColor(f);
+				c.fillStyle = pattern && f.title.match(pattern) && mark(f) ? '#ee00ee' : f.color;
 				c.fillRect((f.left - x0) * px, y, f.width * px, 15);
 
 				if (f.width * px >= 21) {
@@ -439,47 +379,6 @@
 					}
 					canvas.onmousemove();
 				};
-				canvas.oncontextmenu = function(event) {
-					if (event.shiftKey) {
-						return true;
-					}
-
-					const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
-					const onFrame = findFrame(levels[h], event.offsetX / px + root.left);
-
-					if (!onFrame) {
-						return true;
-					}
-					event.preventDefault();
-
-					ctxMenu.style.display = 'block';
-					const menuWidth = 150;
-					const menuHeight = ctxMenu.offsetHeight || 100;
-					const margin = 5;
-
-					let left = event.clientX + margin + menuWidth > window.innerWidth ? event.clientX - menuWidth - margin : event.clientX + margin;
-					let top = event.clientY + margin + menuHeight > window.innerHeight ? event.clientY - menuHeight - margin : event.clientY + margin;
-
-					ctxMenu.style.left = Math.max(margin, Math.min(left, window.innerWidth - menuWidth - margin)) + 'px';
-					ctxMenu.style.top = Math.max(margin, Math.min(top, window.innerHeight - menuHeight - margin)) + 'px';
-
-					ctxHighlightFrameType.onclick = function(e) {
-						focusOnType = f.type;
-						render(root);
-						ctxMenu.style.display = 'none';
-					}
-					ctxHideFrame.onclick = function(e) {
-						if (h >= root.level) {
-							removeStack(f.left, f.width);
-							root.width > f.width ? render(root) : render();
-						}
-						ctxMenu.style.display = 'none';
-					}
-					ctxResetZoom.onclick = function(e) {
-						resetZoom();
-						ctxMenu.style.display = 'none';
-					}
-				};
 				status.textContent = 'Function: ' + canvas.title;
 				status.style.display = 'inline-block';
 				return;
@@ -532,16 +431,6 @@
 
 	btnInfo.ondblclick = function(e) {
 		return false;
-	}
-
-	document.onclick = function () {
-		ctxMenu.style.display = 'none';
-	}
-
-	ctxResetHighlight.onclick = function(e) {
-		focusOnType = null;
-		render(root);
-		ctxMenu.style.display = 'none';
 	}
 
 	window.onkeydown = function(event) {
