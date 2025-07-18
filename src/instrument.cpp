@@ -356,7 +356,8 @@ void BytecodeRewriter::rewriteStackMapTable() {
         } else if (frame_type <= 254) {
             // append_frame
             put16(get16());
-            for (int j = 0; j < frame_type - 251; j++) {
+            u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
+            for (u8 j = 0; j < count; j++) {
                 rewriteVerificationTypeInfo();
             }
         } else {

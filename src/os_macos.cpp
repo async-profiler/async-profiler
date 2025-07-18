@@ -5,6 +5,7 @@
 
 #ifdef __APPLE__
 
+#include <dlfcn.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -12,7 +13,9 @@
 #include <mach/mach_time.h>
 #include <mach/processor_info.h>
 #include <mach/vm_map.h>
+#include <mach-o/dyld.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
@@ -365,6 +368,41 @@ void OS::freePageCache(int fd, off_t start_offset) {
 int OS::mprotect(void* addr, size_t size, int prot) {
     if (prot & PROT_WRITE) prot |= VM_PROT_COPY;
     return vm_protect(mach_task_self(), (vm_address_t)addr, size, 0, prot);
+}
+
+// Checks if async-profiler is preloaded through the DYLD_INSERT_LIBRARIES mechanism.
+// This is done by analyzing the order of loaded dynamic libraries.
+bool OS::checkPreloaded() {
+    if (getenv("DYLD_INSERT_LIBRARIES") == NULL) {
+        return false;
+    }
+
+    // Find async-profiler shared object
+    Dl_info libprofiler;
+    if (dladdr((const void*)OS::checkPreloaded, &libprofiler) == 0) {
+        return false;
+    }
+
+    // Find libc shared object
+    Dl_info libc;
+    if (dladdr((const void*)exit, &libc) == 0) {
+        return false;
+    }
+
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images; i++) {
+        void* image_base = (void*)_dyld_get_image_header(i);
+
+        if (image_base == libprofiler.dli_fbase) {
+            // async-profiler found first
+            return true;
+        } else if (image_base == libc.dli_fbase) {
+            // libc found first
+            return false;
+        }
+    }
+
+    return false;
 }
 
 #endif // __APPLE__
