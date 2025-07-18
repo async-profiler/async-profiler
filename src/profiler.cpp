@@ -46,6 +46,9 @@ Profiler* const Profiler::_instance = new Profiler();
 static SigAction orig_trapHandler = NULL;
 static SigAction orig_segvHandler = NULL;
 
+static uintptr_t profiler_lib_start = 0;
+static uintptr_t profiler_lib_end = 0;
+
 static Engine noop_engine;
 static PerfEvents perf_events;
 static AllocTracer alloc_tracer;
@@ -869,14 +872,16 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    StackWalker::checkFault();
+    if (pc >= profiler_lib_start && pc < profiler_lib_end) {
+        StackWalker::checkFault();
+
+        if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
+            return;
+        }
+    }
 
     // Workaround for JDK-8313796. Setting cstack=dwarf also helps
     if (VMStructs::isInterpretedFrameValidFunc((const void*)pc) && frame.skipFaultInstruction()) {
-        return;
-    }
-
-    if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
         return;
     }
 
@@ -896,8 +901,15 @@ void Profiler::setupSignalHandlers() {
         orig_trapHandler = prev_handler;
     }
 
+    // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs don't
     if (!VM::isOpenJ9() && !VM::isZing()) {
-        // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs probably not
+        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)setupSignalHandlers);
+        if (profiler_lib != NULL) {
+            // Record boundaries of our own library for the signal handler to check
+            // if a crash has happened in the profiler code
+            profiler_lib_start = (uintptr_t)profiler_lib->minAddress();
+            profiler_lib_end = (uintptr_t)profiler_lib->maxAddress();
+        }
         orig_segvHandler = OS::replaceCrashHandler(segvHandler);
     }
 
