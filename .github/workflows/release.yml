@@ -32,9 +32,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Maven jfr-converter release
         run: |
-          mvn clean
+          mvn -f pom-converter.xml clean
           mvn -f pom-converter.xml versions:set -DnewVersion=${GITHUB_REF_NAME#v}
-          mvn deploy
+          mvn -f pom-converter.xml deploy
         env:
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
