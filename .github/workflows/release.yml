@@ -31,5 +31,14 @@ jobs:
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Maven jfr-converter release
+        run: |
+          mvn clean
+          mvn -f pom-converter.xml versions:set -DnewVersion=${GITHUB_REF_NAME#v}
+          mvn deploy
+        env:
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: GitHub release
         uses: softprops/action-gh-release@v2
