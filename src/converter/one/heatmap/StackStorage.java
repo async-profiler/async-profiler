@@ -91,7 +91,7 @@ public final class StackStorage {
 
     private static int murmur(int[] data, int size) {
         int m = 0x5bd1e995;
-        int h = 0x9747b28c ^ (data.length + 1);
+        int h = 0x9747b28c ^ size;
 
         for (int i = 0; i < size; i++) {
             int k = data[i];
