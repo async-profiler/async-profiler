@@ -18,7 +18,7 @@ const intptr_t MAX_FRAME_SIZE = 0x40000;
 const intptr_t MAX_INTERPRETER_FRAME_SIZE = 0x1000;
 const intptr_t DEAD_ZONE = 0x1000;
 
-static ucontext_t empty_context{};
+static ucontext_t empty_ucontext{};
 
 
 static inline bool aligned(uintptr_t ptr) {
@@ -203,7 +203,7 @@ int StackWalker::walkDwarf(void* ucontext, const void** callchain, int max_depth
 
 int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth, StackDetail detail) {
     if (ucontext == NULL) {
-        return walkVM(&empty_context, frames, max_depth, detail,
+        return walkVM(&empty_ucontext, frames, max_depth, detail,
                       callerPC(), (uintptr_t)callerSP(), (uintptr_t)callerFP());
     } else {
         StackFrame frame(ucontext);
