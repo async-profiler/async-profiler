@@ -55,10 +55,8 @@ public class CodingIntrinsics {
         return n;
     }
 
-
     interface Codec {
         byte[] encode(byte[] input);
-
     }
 
     static final Codec[] CODECS = new Codec[]{
