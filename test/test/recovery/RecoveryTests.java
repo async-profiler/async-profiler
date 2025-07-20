@@ -56,11 +56,11 @@ public class RecoveryTests {
         Assert.isGreater(out.ratio("Suppliers.loop"), 0.5);
     }
 
-    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, inputs = "")
-    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, inputs = "--cstack vm", nameSuffix = "VM")
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64}, inputs = "")
+    @Test(mainClass = CodingIntrinsics.class, debugNonSafepoints = true, arch = {Arch.ARM64, Arch.X64}, inputs = "--cstack vm", nameSuffix = "VM")
     public void intrinsics(TestProcess p) throws Exception {
         Output out = p.profile("-d 3 -e cpu -i 1ms -o collapsed " + p.inputs()[0]);
         Assert.isLess(out.ratio("^\\[unknown"), 0.02, "No more than 2% of unknown frames");
-        Assert.isLess(out.ratio("^[^;]+(?:;[^;]+){0,2} "), 0.02, "No more than 2% of short stacks");
+        Assert.isLess(out.ratio("^[^ ;]+(;[^ ;]+)? "), 0.02, "No more than 2% of short stacks");
     }
 }

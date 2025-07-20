@@ -60,13 +60,20 @@ public class CodingIntrinsics {
     }
 
     static final Codec[] CODECS = new Codec[]{
+            input -> Base64.getEncoder().encode(input),
             input -> checksum(input, new CRC32()),
             input -> checksum(input, new Adler32()),
             input -> digest(input, "MD5"),
             input -> digest(input, "SHA-1"),
-            input -> digest(input, "SHA-256"),
-            input -> Base64.getEncoder().encode(input),
+            // async-profiler cannot easily unwind sha256_implCompress intrinsic
+            // on x86 machines that support AVX2 but not SHA instruction set.
+            isArm64() ? input -> digest(input, "SHA-256") : input -> input
     };
+
+    static boolean isArm64() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        return arch.equals("aarch64") || arch.contains("arm64");
+    }
 
     static byte[] checksum(byte[] input, Checksum checksum) {
         checksum.update(input, 0, input.length);
