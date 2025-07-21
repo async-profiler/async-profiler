@@ -246,7 +246,7 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
-  publish-nightly-github-release:
+  publish-nightly-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
     runs-on: ubuntu-latest
