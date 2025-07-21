@@ -14,6 +14,10 @@
 #include "vmStructs.h"
 #include <jvmti.h>
 
+enum class ExportType {
+    JFR, OTLP
+};
+
 class MethodInfo {
   public:
     MethodInfo() : _mark(false), _key(0) {
@@ -81,6 +85,7 @@ class Lookup {
     JNIEnv* _jni;
     bool _owns_packages = false;
     bool _owns_symbols = false;
+    ExportType _export_type;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
@@ -95,7 +100,9 @@ class Lookup {
         mi->_line_number_table_size = 0;
         mi->_line_number_table = NULL;
 
-        mi->_system_name = _symbols->indexOf(name);
+        if (_export_type == ExportType::OTLP) {
+            mi->_system_name = _symbols->indexOf(name);
+        }
         if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
@@ -179,14 +186,15 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) : Lookup(method_map, classes, nullptr, nullptr) {}
+    Lookup(MethodMap* method_map, Dictionary* classes) : Lookup(method_map, classes, nullptr, nullptr, ExportType::JFR) {}
 
-    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols) :
+    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, ExportType export_type) :
         _method_map(method_map),
         _classes(classes),
         _packages(packages),
         _symbols(symbols),
-        _jni(VM::jni()) {
+        _jni(VM::jni()),
+        _export_type(export_type) {
 
         if (_packages == nullptr) {
             _owns_packages = true;
