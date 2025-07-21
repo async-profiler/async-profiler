@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <assert.h>
 #include <map>
 #include <string>
 #include <arpa/inet.h>
@@ -57,7 +58,7 @@ static jmethodID _start_method;
 static jmethodID _stop_method;
 static jmethodID _box_method;
 
-static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm"};
+static const char* const SETTING_CSTACK[] = {NULL, "no", "fp", "dwarf", "lbr", "vm", "vmx"};
 
 
 struct CpuTime {
@@ -595,6 +596,7 @@ class Recording {
     }
 
     void writeSettings(Buffer* buf, Arguments& args) {
+        assert(args._cstack < sizeof(SETTING_CSTACK) / sizeof(char*));
         writeStringSetting(buf, T_ACTIVE_RECORDING, "version", PROFILER_VERSION);
         writeStringSetting(buf, T_ACTIVE_RECORDING, "engine", Profiler::instance()->_engine->type());
         writeStringSetting(buf, T_ACTIVE_RECORDING, "cstack", SETTING_CSTACK[args._cstack]);
