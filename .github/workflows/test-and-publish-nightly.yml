@@ -324,8 +324,6 @@ jobs:
             arch=$(python3 -c 'import sys; print("-".join(sys.argv[1].split("/")[0].split("-")[4:]))' "$file")
             ln -s $(dirname "$file") $arch
           done
-          ls
-          ls linux-x64
         shell: bash
       - uses: actions/setup-java@v4
         with:
@@ -334,8 +332,7 @@ jobs:
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       - name: Maven MacOS release
-        run: |
-          mvn clean -Dnative.platform=macos deploy
+        run: mvn clean -Dnative.platform=macos deploy
         env:
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -350,8 +347,7 @@ jobs:
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Maven jfr-converter release
-        run: |
-          mvn -f pom-converter.xml clean deploy
+        run: mvn -f pom-converter.xml clean deploy
         env:
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
