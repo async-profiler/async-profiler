@@ -315,7 +315,7 @@ jobs:
       - name: Set snapshot version
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          mvn versions:set -DnewVersion=${VERSION}-SNAPSHOT
+          mvn versions:set -DnewVersion="${VERSION}-SNAPSHOT"
       - name: Create directory structure for Maven release
         run: |
           find . -type f -name "async-profiler-*.tar.gz" -not -name "*debug*" -exec tar -xf {} \;
