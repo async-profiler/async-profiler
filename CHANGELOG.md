@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.1]
+## [4.1] - 2025-07-21
 
 ### Features
  - Experimental support for the OpenTelemetry profiling signal
