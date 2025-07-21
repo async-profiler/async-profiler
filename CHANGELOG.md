@@ -1,5 +1,52 @@
 # Changelog
 
+## [4.1]
+
+### Features
+ - Experimental support for the OpenTelemetry profiling signal
+   * #1188: OTLP output format and `dumpOtlp` Java API
+   * #1336: JFR to OTLP converter
+ - JDK 25 support
+   * #1222: Update VMStructs for JDK 25
+ - Productize native memory profiling
+   * #1193: Full `nativemem` support on macOS
+   * #1254: Fixed Nativemem tests on Alpine
+   * #1269: Native memory profiling now works with `jemalloc`
+   * #1323: `nativemem` shows allocations inside async-profiler itself
+
+### Improvements
+ - #1174: Detect JVM in non-Java application and attach to it
+ - #1223: Native API to add custom events in JFR recording
+ - #1259: `--all` option to collect all possible events simultaneously
+ - #1286: Record which CPU a sample was taken on
+ - #1299: Skip last 10% allocations for leak detection
+ - #1300: Allow profiling kprobes/uprobes with `--fdtransfer`
+ - #1366: Rewrite `jfrconv` executable to shell
+ - #1400: Unwind checksum and digest intrinsics on ARM64
+ - #1357, #1389: VMStructs-based stack unwinding for `alloc` and `nativemem` profiling
+
+### Bug fixes
+ - #1251: `--ttsp` option does not work on Alpine
+ - #1264: Guard hook installation with dlopen/dlclose
+ - #1319: SIGSEGV in PerfEvents::walk
+ - #1350: Disable JFR OldObjectSample event in jfrsync mode
+ - #1358: Do not dereference jmethodIDs on JDK 26
+ - #1374: Correctly check if profiler is preloaded
+ - #1380: Workaround clang type promotion bug
+ - #1387: JFR writer crashes when using cstack=vmx
+ - #1393: Improve stack walking termination logic: no endless `unknown` frames
+ - Stack unwinding fixes for ARM64
+
+### Project Infrastructure
+ - #1129: Command-line option to filter tests
+ - #1262: Include `asprof.h` in async-profiler release package
+ - #1271: Release additional binaries with debug symbols
+ - #1274: Add Corretto 8 to the test matrix
+ - #1246, #1226: Run tests on Amazon Linux and Alpine Linux
+ - #1360: Auto-generated clang-tidy review comments
+ - #1373: Save all generated test logs for debug purposes
+ - Fixed flaky tests (#1282, #1307, #1376)
+
 ## [4.0] - 2025-04-08
 
 ### Features
