@@ -185,9 +185,7 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes) : Lookup(method_map, classes, nullptr, nullptr, ExportType::JFR) {}
-
-    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, ExportType export_type) :
+    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, ExportType export_type = ExportType::JFR) :
         _method_map(method_map),
         _classes(classes),
         _packages(packages),

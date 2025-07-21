@@ -784,7 +784,9 @@ class Recording {
 
         buf->putVar32(11);
 
-        Lookup lookup(&_method_map, Profiler::instance()->classMap());
+        Index packages;
+        Index symbols;
+        Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols);
         writeFrameTypes(buf);
         writeThreadStates(buf);
         writeGCWhen(buf);
