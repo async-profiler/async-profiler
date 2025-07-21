@@ -929,7 +929,7 @@ class Recording {
             if (mi._mark) {
                 mi._mark = false;
                 buf->putVar32(mi._key);
-                buf->putVar32(std::max(mi._class, mi._file));
+                buf->putVar32(mi._class);
                 buf->putVar64(mi._name | _base_id);
                 buf->putVar64(mi._sig | _base_id);
                 buf->putVar32(mi._modifiers);

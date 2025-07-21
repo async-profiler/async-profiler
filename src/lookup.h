@@ -140,14 +140,18 @@ class Lookup {
         jvmtiError err;
 
         if ((err = jvmti->GetMethodName(method, &method_name, &method_sig, NULL)) == 0 &&
-            (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0 &&
-            (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0 &&
-            (err = jvmti->GetSourceFileName(method_class, &source_name)) == 0) {
+            (err = jvmti->GetMethodDeclaringClass(method, &method_class)) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
-            mi->_file = _classes->lookup(source_name);
             mi->_name = _symbols->indexOf(method_name);
-            mi->_sig = _symbols->indexOf(method_sig);
+
+            if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
+                mi->_sig = _symbols->indexOf(method_sig);
+            }
+            if (_export_type == ExportType::OTLP && (err = jvmti->GetSourceFileName(method_class, &source_name)) == 0) {
+                mi->_file = _symbols->lookup(source_name);
+            }
         }
+
 
         if (method_class) {
             _jni->DeleteLocalRef(method_class);
