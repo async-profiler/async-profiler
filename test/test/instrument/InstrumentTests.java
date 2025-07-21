@@ -28,7 +28,7 @@ public class InstrumentTests {
         output.stream().forEach(line -> {
             assert line.matches(".*java/util/Properties.getProperty;" +
                     "one/profiler/Instrument.recordSample;" +
-                    "Instrument::recordSample [0-9]+") : line;
+                    "Instrument::recordSample(;Profiler::recordSample)? [0-9]+") : line;
         });
     }
 }
