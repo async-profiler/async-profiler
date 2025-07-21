@@ -849,14 +849,14 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
     if (pc >= profiler_lib_start && pc < profiler_lib_end) {
         StackWalker::checkFault();
-
-        if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
-            return;
-        }
     }
 
     // Workaround for JDK-8313796. Setting cstack=dwarf also helps
     if (VMStructs::isInterpretedFrameValidFunc((const void*)pc) && frame.skipFaultInstruction()) {
+        return;
+    }
+
+    if (WX_MEMORY && Trap::isFaultInstruction(pc)) {
         return;
     }
 

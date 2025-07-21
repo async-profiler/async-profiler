@@ -15,7 +15,7 @@ public class CTests {
 
     @Test(sh = "%testbin/native_api %api_file.jfr", output = true)
     @Test(sh = "%testbin/native_api %api_file.jfr", env = {"ASPROF_COMMAND=start,cpu,file=%preload_file.jfr"},
-            output = true, nameSuffix="fake-preload")
+            output = true, nameSuffix = "fake-preload")
     public void nativeApi(TestProcess p) throws Exception {
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
