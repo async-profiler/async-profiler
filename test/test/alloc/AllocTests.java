@@ -55,9 +55,9 @@ public class AllocTests {
         assert out.contains("int\\[]");
 
         if (p.test().nameSuffix().equals("VMX")) { // VMX doesn't do any frame skipping
-            assert out.contains("::recordAllocation");
+            assert out.contains("InterpreterRuntime::");
         } else {
-            assert !out.contains("::recordAllocation");
+            assert !out.contains("InterpreterRuntime::");
         }
     }
 
