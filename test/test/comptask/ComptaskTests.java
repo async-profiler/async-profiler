@@ -10,26 +10,26 @@ import one.profiler.test.*;
 public class ComptaskTests {
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%f",
+        agentArgs = "start,features=comptask,collapsed,interval=1ms,file=%profile",
         jvmArgs = "-Xcomp",
         jvm = Jvm.HOTSPOT
     )
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,collapsed,cstack=vm,interval=1ms,file=%f",
+        agentArgs = "start,features=comptask,collapsed,cstack=vm,interval=1ms,file=%profile",
         jvmArgs = "-Xcomp",
         jvm = Jvm.HOTSPOT,
         nameSuffix = "VM"
     )
     @Test(
         mainClass = Main.class,
-        agentArgs = "start,features=comptask,collapsed,cstack=vmx,interval=1ms,file=%f",
+        agentArgs = "start,features=comptask,collapsed,cstack=vmx,interval=1ms,file=%profile",
         jvmArgs = "-Xcomp",
         jvm = Jvm.HOTSPOT,
         nameSuffix = "VMX"
     )
     public void testCompTask(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+        Output out = p.waitForExit("%profile");
         assert p.exitCode() == 0;
         assert out.contains(";Compiler::compile_method;java/lang/\\w+\\.");
         assert out.contains(";C2Compiler::compile_method;java/lang/\\w+\\.");

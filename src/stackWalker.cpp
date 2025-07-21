@@ -246,8 +246,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
     bool java_pc_observed = false;
-    bool skip_top_native_frames = !Event::hasNativeStack(event_type);
-    bool skip_instrument_frame = event_type == INSTRUMENTED_METHOD;
 
     if (vm_thread != NULL) {
         vm_thread->exception() = &crash_protection_ctx;
@@ -264,12 +262,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
             java_pc_observed = true;
-
-            // Skip Instrument.recordSample() method
-            if (skip_instrument_frame && depth == 1) {
-                depth = 0;
-                skip_instrument_frame = false;
-            }
 
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
@@ -398,12 +390,6 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
             if (java_pc_observed) {
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (skip_top_native_frames) {
-                // Skip internal frames for LOCK & INSTRUMENT profiling
-            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
-                // Skip any frames above profiler hook methods
-                depth = 0;
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
             } else if (mark == MARK_COMPILER_ENTRY && Profiler::instance()->features().comp_task) {
                 // Insert current compile task as a pseudo Java frame
                 jmethodID compile_task = VMThread::getCurrentCompileTask();
@@ -411,12 +397,15 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
                     fillFrame(frames[depth++], FRAME_INTERPRETED, 0, compile_task);
                 }
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (detail == VM_EXPERT) { // don't skip anything for VMX
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
+                // Skip any frames above profiler hook methods
+                depth = 0;
+                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
             } else if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB) {
                 // Skip internal frames for allocation profiling
                 depth = 0;
-            } else if (mark == MARK_INTERPRETER){
-                // Skip interpreter frames
-                skip_top_native_frames = true; // stop recoding native frames until first Java frame is seen
             } else {
                 // Normal native frame
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);

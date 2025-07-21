@@ -383,7 +383,7 @@ class VMThread : VMStructs {
         return NULL;
     }
 
-    static jmethodID getCurrentCompileTask();;
+    static jmethodID getCurrentCompileTask();
 };
 
 class VMMethod : VMStructs {

@@ -11,14 +11,24 @@ import one.profiler.test.TestProcess;
 
 public class InstrumentTests {
 
-    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,file=%f", nameSuffix = "default")
-    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vm,file=%f", nameSuffix = "VM")
-    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vmx,file=%f", nameSuffix = "VMX")
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,file=%profile", nameSuffix = "default")
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vm,file=%profile", nameSuffix = "VM")
     public void instrument(TestProcess p) throws Exception {
-        Output output = p.waitForExit("%f");
+        Output output = p.waitForExit("%profile");
 
         output.stream().forEach(line -> {
             assert line.matches(".*java/util/Properties.getProperty [0-9]+") : line;
+        });
+    }
+
+    @Test(mainClass = JavaProperties.class, agentArgs = "start,event=java.util.Properties.getProperty,collapsed,cstack=vmx,file=%profile")
+    public void instrumentVMX(TestProcess p) throws Exception {
+        Output output = p.waitForExit("%profile");
+
+        output.stream().forEach(line -> {
+            assert line.matches(".*java/util/Properties.getProperty;" +
+                    "one/profiler/Instrument.recordSample;" +
+                    "Instrument::recordSample [0-9]+") : line;
         });
     }
 }
