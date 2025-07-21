@@ -6,6 +6,7 @@
 #ifndef _LOOKUP_H
 #define _LOOKUP_H
 
+#include <assert.h>
 #include "demangle.h"
 #include "dictionary.h"
 #include "index.h"
@@ -83,8 +84,6 @@ class Lookup {
 
   private:
     JNIEnv* _jni;
-    bool _owns_packages = false;
-    bool _owns_symbols = false;
     ExportType _export_type;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
@@ -195,20 +194,6 @@ class Lookup {
         _symbols(symbols),
         _jni(VM::jni()),
         _export_type(export_type) {
-
-        if (_packages == nullptr) {
-            _owns_packages = true;
-            _packages = new Index();
-        }
-        if (_symbols == nullptr) {
-            _owns_symbols = true;
-            _symbols = new Index();
-        }
-    }
-
-    ~Lookup() {
-        if (_owns_packages) delete(_packages);
-        if (_owns_symbols) delete(_symbols);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
@@ -250,6 +235,7 @@ class Lookup {
     }
 
     u32 getPackage(const char* class_name) {
+        assert(_packages != nullptr);
         const char* package = strrchr(class_name, '/');
         if (package == NULL) {
             return 0;

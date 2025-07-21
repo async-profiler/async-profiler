@@ -1673,7 +1673,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     MethodMap method_map;
     // TODO: Deduplication
     std::vector<LocationInfo> locations;
-    Lookup method_lookup(&method_map, Profiler::instance()->classMap(), &strings, &strings, ExportType::OTLP);
+    Lookup method_lookup(&method_map, Profiler::instance()->classMap(), &strings, nullptr, ExportType::OTLP);
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
