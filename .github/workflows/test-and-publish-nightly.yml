@@ -246,12 +246,14 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
-  publish-only-on-push:
+  publish-nightly-github-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
     runs-on: ubuntu-latest
     needs: [build-jars, integration-tests]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4
         with:
@@ -310,3 +312,51 @@ jobs:
               release_id: newReleaseId,
               draft: false,
             });
+      - name: Create directory structure for Maven release
+        run:
+          find . -type f -depth 1 -name "async-profiler-*.tar.gz" -not -name "*debug*" -exec tar -xf {} \;
+          find . -type f -depth 1 -name "async-profiler-*.zip" -not -name "*debug*" -exec unzip {} \;
+          for file in async-profiler-*/lib/*.{so,dylib};
+            arch=$(python3 -c 'import sys; print("-".join(sys.argv[1].split("/")[0].split("-")[4:]))' "$file")
+            ln -s $arch "$file/.."
+          done
+        shell: bash
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 21
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Setup Maven Settings
+        uses: s4u/maven-settings-action@v3
+        with:
+          servers: '[{"id": "central", "username": "${{secrets.MAVEN_USER}}", "password": "${{secrets.MAVEN_TOKEN}}"}]'
+      - name: Maven MacOS release
+        run: |
+          mvn versions:set -DnewVersion=${GITHUB_REF_NAME#v} -Dnative.platform=macos
+          mvn deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Maven linux-x64 release
+        run: |
+          mvn versions:set -DnewVersion=${GITHUB_REF_NAME#v} -Dnative.platform=linux-x64
+          mvn deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Maven linux-arm64 release
+        run: |
+          mvn versions:set -DnewVersion=${GITHUB_REF_NAME#v} -Dnative.platform=linux-arm64
+          mvn deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Maven jfr-converter release
+        run: |
+          mvn -f pom-converter.xml clean
+          mvn -f pom-converter.xml versions:set -DnewVersion=${GITHUB_REF_NAME#v}
+          mvn -f pom-converter.xml deploy
+        env:
+          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
