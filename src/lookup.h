@@ -145,7 +145,7 @@ class Lookup {
                 mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             }
             if (_export_type == ExportType::OTLP && (err = jvmti->GetSourceFileName(method_class, &source_name)) == 0) {
-                mi->_file = _symbols->indexOf(source_name);
+                mi->_file = _classes->lookup(source_name);
             }
         }
 
