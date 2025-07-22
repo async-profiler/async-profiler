@@ -331,18 +331,8 @@ jobs:
           java-version: 21
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
-      - name: Maven MacOS release
-        run: mvn clean -Dnative.platform=macos deploy
-        env:
-          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Maven linux-x64 release
-        run: mvn clean -Dnative.platform=linux-x64 deploy
-        env:
-          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Maven linux-arm64 release
-        run: mvn clean -Dnative.platform=linux-arm64 deploy
+      - name: Maven release
+        run: mvn clean deploy
         env:
           GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
