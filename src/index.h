@@ -25,17 +25,20 @@ class Index {
     Index& operator=(const Index&) = delete;
     Index& operator=(Index&&) = delete;
 
-    template<typename S>
-    size_t indexOf(S&& value) {
-        return _idx_map.insert({std::forward<S>(value), _idx_map.size()}).first->second;
-    }
-
     size_t indexOf(const char* value) {
-        return indexOf(value, strlen(value));
+        return indexOf(std::string(value));
     }
 
     size_t indexOf(const char* value, size_t len) {
         return indexOf(std::string(value, len));
+    }
+
+    size_t indexOf(const std::string& value) {
+        return _idx_map.insert({value, _idx_map.size()}).first->second;
+    }
+
+    size_t indexOf(std::string&& value) {
+        return _idx_map.insert({std::move(value), _idx_map.size()}).first->second;
     }
 
     size_t size() const {
