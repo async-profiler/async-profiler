@@ -18,7 +18,10 @@ class Index {
     std::unordered_map<std::string, size_t> _idx_map;
   
   public:
-    Index() = default;
+    Index() {
+        // Index 0 should contain the empty string
+        indexOf("");
+    }
 
     Index(const Index&) = delete;
     Index(Index&&) = delete;

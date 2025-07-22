@@ -1668,8 +1668,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
-    // The first string recorded should be the empty string according to the OTLP spec
-    strings.indexOf("");
     MethodMap method_map;
     // TODO: Deduplication
     std::vector<LocationInfo> locations;
