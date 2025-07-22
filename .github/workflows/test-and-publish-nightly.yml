@@ -318,13 +318,9 @@ jobs:
           mvn versions:set -DnewVersion="${VERSION}-SNAPSHOT"
       - name: Create directory structure for Maven release
         run: |
-          find . -type f -name "async-profiler-*.tar.gz" -not -name "*debug*" -exec tar -xf {} \;
-          find . -type f -name "async-profiler-*.zip" -not -name "*debug*" -exec unzip {} \;
-          for file in async-profiler-*/lib/*.{so,dylib}; do
-            arch=$(python3 -c 'import sys; print("-".join(sys.argv[1].split("/")[0].split("-")[4:]))' "$file")
-            ln -s $(dirname "$file") $arch
-          done
-        shell: bash
+          tar xfO async-profiler-*-linux-x64.tar.gz --wildcards "*/lib/*" > native/linux-x64/libasyncProfiler.so
+          tar xfO async-profiler-*-linux-arm64.tar.gz --wildcards "*/lib/*" > native/linux-arm64/libasyncProfiler.so
+          unzip -p async-profiler-*-macos.zip "*/lib/*" > native/macos/libasyncProfiler.so
       - uses: actions/setup-java@v4
         with:
           distribution: corretto
