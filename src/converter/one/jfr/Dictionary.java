@@ -37,10 +37,6 @@ public class Dictionary<T> {
     }
 
     public void put(long key, T value) {
-        if (key == 0) {
-            throw new IllegalArgumentException("Zero key not allowed");
-        }
-
         int mask = keys.length - 1;
         int i = hashCode(key) & mask;
         while (keys[i] != 0) {
