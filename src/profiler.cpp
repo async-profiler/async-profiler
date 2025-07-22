@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
-#include <vector>
 #include "index.h"
 #include "profiler.h"
 #include "perfEvents.h"
@@ -30,7 +29,6 @@
 #include "flightRecorder.h"
 #include "fdtransferClient.h"
 #include "frameName.h"
-#include "lookup.h"
 #include "os.h"
 #include "otlp.h"
 #include "safeAccess.h"
@@ -1659,19 +1657,11 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const cha
     otlp_buffer.commitMessage(sample_type_mark);
 }
 
-struct LocationInfo {
-    ASGCT_CallFrame* frame;
-    MethodInfo* method_info;
-};
-
 void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     using namespace Otlp;
     ProtoBuffer otlp_buffer(OTLP_BUFFER_INITIAL_SIZE);
     Index strings;
-    MethodMap method_map;
-    // TODO: Deduplication
-    std::vector<LocationInfo> locations;
-    Lookup method_lookup(&method_map, Profiler::instance()->classMap(), nullptr, &strings, ExportType::OTLP);
+    Index functions;
 
     protobuf_mark_t resource_profiles_mark = otlp_buffer.startMessage(ProfilesData::resource_profiles);
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
@@ -1683,13 +1673,17 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
 
+    std::vector<size_t> location_indices;
+    location_indices.reserve(call_trace_samples.size());
+
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+    size_t frames_seen = 0;
     for (const auto& cts : call_trace_samples) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
-        otlp_buffer.field(Sample::locations_start_index, locations.size());
+        otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
@@ -1698,15 +1692,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_mark);
 
         for (int j = 0; j < trace->num_frames; j++) {
-            MethodInfo* mi = method_lookup.resolveMethod(trace->frames[j]);
-            locations.push_back(LocationInfo{&trace->frames[j], mi});
+            // To be written below in Profile.location_indices
+            location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
         }
+        frames_seen += trace->num_frames;
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
-    for (size_t idx = 0; idx < locations.size(); ++idx) {
-        // TODO: For now every frame is a new location, we need deduplication
-        otlp_buffer.putVarInt(idx);
+    for (size_t i : location_indices) {
+        otlp_buffer.putVarInt(i);
     }
     otlp_buffer.commitMessage(location_indices_mark);
 
@@ -1716,39 +1710,32 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     protobuf_mark_t dictionary_mark = otlp_buffer.startMessage(ProfilesData::dictionary);
 
-    // Write mapping_table
-    // First entry must be empty according to the OTLP spec
+    // Write mapping_table. Not currently used, but required by some parsers
     protobuf_mark_t mapping_mark = otlp_buffer.startMessage(ProfilesDictionary::mapping_table, 1);
     otlp_buffer.commitMessage(mapping_mark);
 
-    std::map<u32, const char*> classes;
-    method_lookup._classes->collect(classes);
-
-    // Write function_table and location_table
-    for (size_t idx = 0; idx < locations.size(); ++idx) {
-        MethodInfo* mi = locations[idx].method_info;
-        ASGCT_CallFrame* frame = locations[idx].frame;
-
+    // Write function_table
+    functions.forEachOrdered([&] (const std::string& function_name) {
         protobuf_mark_t function_mark = otlp_buffer.startMessage(ProfilesDictionary::function_table, 1);
-        // TODO: FrameName::name produces a better looking result than Lookup
-        otlp_buffer.field(Function::name_strindex, strings.indexOf(fn.name(*frame)));
-        otlp_buffer.field(Function::system_name_strindex, mi->_system_name);
-        otlp_buffer.field(Function::filename_strindex, strings.indexOf(classes[mi->_file]));
+        otlp_buffer.field(Function::name_strindex, strings.indexOf(function_name));
         otlp_buffer.commitMessage(function_mark);
+    });
 
+    // Write location_table
+    for (size_t function_idx = 0; function_idx < functions.size(); ++function_idx) {
         protobuf_mark_t location_mark = otlp_buffer.startMessage(ProfilesDictionary::location_table, 1);
         // TODO: set to the proper mapping when new mappings are added.
         // For now we keep a dummy default mapping_index for all locations because some parsers
         // would fail otherwise
-        otlp_buffer.field(Location::mapping_index, (u64) 0);
+        otlp_buffer.field(Location::mapping_index, (u64)0);
         protobuf_mark_t line_mark = otlp_buffer.startMessage(Location::line, 1);
-        otlp_buffer.field(Line::function_index, idx);
+        otlp_buffer.field(Line::function_index, function_idx);
         otlp_buffer.commitMessage(line_mark);
         otlp_buffer.commitMessage(location_mark);
     }
 
     // Write string_table
-    strings.forEachOrdered([&] (size_t idx, const std::string& s) {
+    strings.forEachOrdered([&] (const std::string& s) {
         otlp_buffer.field(ProfilesDictionary::string_table, s.data(), s.length());
     });
 
