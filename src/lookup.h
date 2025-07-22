@@ -21,16 +21,13 @@ enum class ExportType {
 
 class MethodInfo {
   public:
-    MethodInfo() : _mark(false), _key(0) {
-    }
-
-    bool _mark;
-    u32 _key;
-    u32 _class;
-    u32 _file;
-    u32 _name;
-    u32 _system_name;
-    u32 _sig;
+    bool _mark = false;
+    u32 _key = 0;
+    u32 _class = 0;
+    u32 _file = 0;
+    u32 _name = 0;
+    u32 _system_name = 0;
+    u32 _sig = 0;
     jint _modifiers;
     jint _line_number_table_size;
     jvmtiLineNumberEntry* _line_number_table;
