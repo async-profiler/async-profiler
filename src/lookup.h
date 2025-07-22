@@ -193,6 +193,7 @@ class Lookup {
         _symbols(symbols),
         _jni(VM::jni()),
         _export_type(export_type) {
+        assert(_packages != nullptr || export_type != ExportType::JFR);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
