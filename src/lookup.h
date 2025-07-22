@@ -251,9 +251,12 @@ class Lookup {
         return _packages->indexOf(class_name, package - class_name);
     }
 
-    template<typename S>
-    u32 getSymbol(S&& name) {
-        return _symbols->indexOf(std::forward<S>(name));
+    u32 getSymbol(const char* name) {
+        return _symbols->indexOf(name);
+    }
+
+    u32 getSymbol(const std::string& name) {
+        return _symbols->indexOf(name);
     }
 };
 
