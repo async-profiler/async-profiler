@@ -13,8 +13,8 @@ import java.util.stream.LongStream;
  * This example makes use of JFR compatible output.
  * Run with `file=profile.jfr`
  * <p>
- * The program generates a continuous load with peaks of CPU usage happens after 4 seconds.
- * The analysis of JFR output in JDK Mission Control shows the cause of the peaks.
+ * The program generates a continuous load with a peak of CPU usage that happens after 4 seconds.
+ * The analysis of JFR output in JDK Mission Control shows the cause of the peak.
  */
 public class RegularPeak {
     private static final int SIZE = 100_000;
