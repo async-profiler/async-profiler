@@ -14,11 +14,9 @@ import java.util.concurrent.TimeUnit;
 
 public class Cache {
     private final Map<Long, ValueWithTime> map = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private volatile ValueWithTime[] top;
 
     public Cache() {
-        executor.scheduleAtFixedRate(this::calculateTop, 4, 4, TimeUnit.SECONDS);
     }
 
     public void put(Long key, String value) {
@@ -35,7 +33,7 @@ public class Cache {
         return vt.value;
     }
 
-    private void calculateTop() {
+    protected void calculateTop() {
         long deadline = System.currentTimeMillis() - 1000;
 
         ValueWithTime[] top = map.values()
@@ -46,10 +44,6 @@ public class Cache {
                 .toArray(ValueWithTime[]::new);
 
         this.top = top;
-    }
-
-    public ValueWithTime[] getTop() {
-        return top;
     }
 
     private static class ValueWithTime {

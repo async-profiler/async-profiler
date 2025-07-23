@@ -19,13 +19,15 @@ import java.util.*;
 
 public class JfrTests {
 
-    @Test(mainClass = RegularPeak.class)
+    @Test(mainClass = RegularPeak.class, agentArgs = "start,event=cpu,file=%profile.jfr")
     public void regularPeak(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 6 -f %f.jfr");
-        String jfrOutPath = p.getFilePath("%f");
+        p.waitForExit();
+        assert p.exitCode() == 0;
+
+        String jfrOutPath = p.getFilePath("%profile");
         String peakPattern = "test/jfr/Cache.*calculateTop.*";
 
-        out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
+        Output out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
         assert !out.contains(peakPattern);
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "2500", "--to", "5000");
         assert out.samples(peakPattern) >= 1;
