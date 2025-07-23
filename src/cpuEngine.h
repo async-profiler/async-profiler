@@ -45,6 +45,10 @@ class CpuEngine : public Engine {
         return "ns";
     }
 
+    virtual const char* otel_type() {
+        return "cpu";
+    }
+
     static void onThreadStart();
     static void onThreadEnd();
 };

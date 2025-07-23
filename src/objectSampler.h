@@ -29,6 +29,10 @@ class ObjectSampler : public Engine {
         return "object_sampler";
     }
 
+    const char* otel_type() {
+        return "alloc";
+    }
+
     const char* title() {
         return "Allocation profile";
     }

@@ -739,6 +739,10 @@ const char* PerfEvents::title() {
     }
 }
 
+const char* PerfEvents::otel_type() {
+    return _event_type == NULL || strcmp(_event_type->name, "cpu-clock") == 0 ? "cpu" : _event_type->name;
+}
+
 const char* PerfEvents::units() {
     return _event_type == NULL || strcmp(_event_type->name, "cpu-clock") == 0 ? "ns" : "total";
 }

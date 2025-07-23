@@ -30,6 +30,10 @@ class J9WallClock : public Engine {
         return "j9_wall";
     }
 
+    const char* otel_type() {
+        return "wall";
+    }
+
     const char* title() {
         return "Wall clock profile";
     }

@@ -51,6 +51,10 @@ class LockTracer : public Engine {
         return "lock_tracer";
     }
 
+    const char* otel_type() {
+        return "lock";
+    }
+
     const char* title() {
         return "Lock profile";
     }

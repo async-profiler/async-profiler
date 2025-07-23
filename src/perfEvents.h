@@ -41,6 +41,7 @@ class PerfEvents : public CpuEngine {
         return "perf_events";
     }
 
+    const char* otel_type();
     const char* title();
     const char* units();
 

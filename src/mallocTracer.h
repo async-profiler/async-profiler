@@ -31,6 +31,10 @@ class MallocTracer : public Engine {
         return "malloc_tracer";
     }
 
+    const char* otel_type() {
+        return "malloc";
+    }
+
     const char* title() {
         return "Malloc/free profile";
     }

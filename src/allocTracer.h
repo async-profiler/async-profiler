@@ -30,6 +30,10 @@ class AllocTracer : public Engine {
         return "alloc_tracer";
     }
 
+    const char* otel_type() {
+        return "alloc";
+    }
+
     const char* title() {
         return "Allocation profile";
     }
