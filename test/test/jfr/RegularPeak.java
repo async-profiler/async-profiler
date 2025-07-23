@@ -29,8 +29,9 @@ public class RegularPeak {
 
     private static void consistentCpuLoad() {
         long count = 0;
+        long startTime = System.currentTimeMillis();
 
-        for (int i = 0; i < 300; i++) {
+        while (System.currentTimeMillis() - startTime < 6000) {
             count += LongStream.range(0, SIZE)
                     .mapToObj(cache::get)
                     .filter(Objects::nonNull)
