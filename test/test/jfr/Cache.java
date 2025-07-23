@@ -33,7 +33,7 @@ public class Cache {
         return vt.value;
     }
 
-    protected void calculateTop() {
+    void calculateTop() {
         long deadline = System.currentTimeMillis() - 1000;
 
         ValueWithTime[] top = map.values()
