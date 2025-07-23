@@ -100,6 +100,7 @@ static SigAction installed_sigaction[32];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -402,6 +403,17 @@ bool OS::checkPreloaded() {
         }
     }
 
+    return false;
+}
+
+void OS::getProcessIds(int* pids, int* count, int max_pids) {
+    // Stub implementation for macOS - not implemented
+    *count = 0;
+}
+
+bool OS::getProcessInfo(int pid, ProcessInfo* info) {
+    // Stub implementation for macOS - not implemented
+    *info = ProcessInfo();
     return false;
 }
 

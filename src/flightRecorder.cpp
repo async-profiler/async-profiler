@@ -4,8 +4,11 @@
  */
 
 #include <assert.h>
+#include <cstdio>
 #include <map>
+#include <set>
 #include <string>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -41,6 +44,10 @@ static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
 const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
+const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 0.0f;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const u64 MIN_MEMORY_THRESHOLD = 0; // Minimum resident memory in pages (0 = no filtering)
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
@@ -73,6 +80,16 @@ struct CpuTimes {
     CpuTime total;
 };
 
+struct ProcessHistory {
+    unsigned long prevCpuTotal;
+    unsigned long prevTimestamp;
+    bool hasHistory;
+
+    ProcessHistory() : prevCpuTotal(0), prevTimestamp(0), hasHistory(false) {}
+};
+
+static std::map<int, ProcessHistory> _process_history;
+static u64 _last_proc_sample_time = 0;
 
 class MethodInfo {
   public:
@@ -456,6 +473,7 @@ class Recording {
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
+    long _process_monitor_interval;
 
     int _available_processors;
     int _recorded_lib_count;
@@ -463,6 +481,7 @@ class Recording {
     bool _in_memory;
     bool _cpu_monitor_enabled;
     bool _heap_monitor_enabled;
+
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
@@ -481,6 +500,7 @@ class Recording {
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
+        _process_monitor_interval = -1;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -518,6 +538,10 @@ class Recording {
 
         _heap_monitor_enabled = !args.hasOption(NO_HEAP_SUMMARY) && VM::_totalMemory != NULL && VM::_freeMemory != NULL;
         _last_gc_id = 0;
+
+        if (args._proc > 0) {
+            _process_monitor_interval = args._proc * 1000000; // convert seconds to microseconds
+        }
     }
 
     ~Recording() {
@@ -653,6 +677,101 @@ class Recording {
         flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_gc_id = gc_id;
+    }
+
+    // Helper function to determine if a process should be included based on thresholds
+    bool shouldIncludeProcess(const ProcessInfo* info) {
+        if (info->_cpu_percent < MIN_CPU_THRESHOLD) {
+            return false;
+        }
+
+        if (info->_mem_resident < MIN_MEMORY_THRESHOLD) {
+            return false;
+        }
+
+        return true;
+    }
+
+    void populateCpuPercent(ProcessInfo* info) {
+        int pid = info->_pid;
+        u64 currentCpuTotal = info->_cpu_user + info->_cpu_system;
+        u64 currentTime = info->_last_update;
+
+        ProcessHistory& history = _process_history[pid];
+        if (!history.hasHistory) {
+            history.prevCpuTotal = currentCpuTotal;
+            history.prevTimestamp = currentTime;
+            history.hasHistory = true;
+            return;
+        }
+
+        u64 deltaCpu = currentCpuTotal - history.prevCpuTotal;
+        u64 deltaTime = currentTime - history.prevTimestamp;
+
+        float cpuPercent = 0.0f;
+
+        if (deltaTime > 0) {
+            float cpuSecs     = static_cast<float>(deltaCpu) / OS::clock_ticks_per_sec;
+            float elapsedSecs = static_cast<float>(deltaTime) / 1e9;
+            cpuPercent         = (cpuSecs / elapsedSecs) * 100.0;
+        }
+
+        info->_cpu_percent = cpuPercent;
+        info->_normalize_cpu_percent = cpuPercent / _available_processors;
+        history.prevCpuTotal = currentCpuTotal;
+        history.prevTimestamp = currentTime;
+    }
+
+    void cleanupProcessHistory(const int* activePids, int pidCount) {
+        // Create set of active PIDs for quick lookup
+        std::set<int> activePidSet;
+        for (int i = 0; i < pidCount; i++) {
+            activePidSet.insert(activePids[i]);
+        }
+
+        auto it = _process_history.begin();
+        while (it != _process_history.end()) {
+            if (activePidSet.find(it->first) == activePidSet.end()) {
+                it = _process_history.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void processMonitorCycle(u64 wall_time) {
+        if (_process_monitor_interval < 0) return;
+
+        if ((wall_time - _last_proc_sample_time) < (u64)_process_monitor_interval) {
+            return;
+        }
+
+        u64 start_time = OS::nanotime();
+        int pids[MAX_PROCESSES];
+        int pid_count = 0;
+
+        OS::getProcessIds(pids, &pid_count, MAX_PROCESSES);
+
+        cleanupProcessHistory(pids, pid_count);
+
+        for (int i = 0; i < pid_count; i++) {
+            if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
+                break;
+            }
+
+            ProcessInfo info;
+            if (OS::getProcessInfo(pids[i], &info)) {
+                // TODO: exclude first instance
+                info._last_update = OS::nanotime();
+                populateCpuPercent(&info);
+                if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
+                    recordProcessSample(&_monitor_buf, &info);
+                }
+            }
+        }
+
+        flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
+        _last_proc_sample_time = wall_time;
     }
 
     bool hasMasterRecording() const {
@@ -857,6 +976,11 @@ class Recording {
         writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
         if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
+        }
+
+        writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
+        if (args._proc > 0) {
+            writeIntSetting(buf, T_PROCESS_SAMPLE, "proc", args._proc);
         }
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
@@ -1294,6 +1418,41 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
+        int start = buf->skip(5);
+        buf->put8(T_PROCESS_SAMPLE);
+        buf->putVar64(info->_last_update);
+        buf->putVar32(0);
+
+        buf->putVar32(info->_pid);
+        buf->putVar32(info->_ppid);
+        buf->putByteString(info->_name, strlen(info->_name));
+        buf->putByteString(info->_cmdline, strlen(info->_cmdline));
+        buf->putVar32(info->_uid);
+        buf->put8(info->_state);
+        buf->putVar64(info->_start_time);
+
+        buf->putVar64(info->_cpu_user);
+        buf->putVar64(info->_cpu_system);
+        buf->putFloat(info->_cpu_percent);
+        buf->putFloat(info->_normalize_cpu_percent);
+        buf->putVar32(info->_threads);
+
+        buf->putVar64(info->_mem_size);
+        buf->putVar64(info->_mem_resident);
+        buf->putVar64(info->_mem_shared);
+        buf->putVar64(info->_mem_text);
+        buf->putVar64(info->_mem_data);
+
+        buf->putVar64(info->_minor_faults);
+        buf->putVar64(info->_major_faults);
+
+        buf->putVar64(info->_io_read);
+        buf->putVar64(info->_io_write);
+
+        buf->putVar32(start, buf->offset() - start);
+    }
+
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
@@ -1385,6 +1544,7 @@ char* Recording::_java_command = NULL;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
+    fprintf(stderr, "FlightRecorder::start\n");
     const char* filename = args.file();
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
@@ -1461,6 +1621,12 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
+
+#ifdef __linux__
+    // Process monitoring is only implemented for Linux
+    _rec->processMonitorCycle(wall_time);
+#endif
+
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 
     _rec_lock.unlockShared();

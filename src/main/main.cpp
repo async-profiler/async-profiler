@@ -44,7 +44,7 @@ static const char USAGE_STRING[] =
     "  collect           collect profile for the specified period of time\n"
     "                    and then stop (default action)\n"
     "Options:\n"
-    "  -e event          profiling event: cpu|alloc|nativemem|lock|cache-misses etc.\n"
+    "  -e event          profiling event: cpu|alloc|nativemem|lock|cache-misses|proc etc.\n"
     "  -d duration       run profiling for <duration> seconds\n"
     "  -f filename       dump output to <filename>\n"
     "  -i interval       sampling interval in nanoseconds\n"
@@ -75,6 +75,7 @@ static const char USAGE_STRING[] =
     "  --nofree          do not collect free calls in native allocation profiling\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
+    "  --proc interval   process profiling interval\n"
     "  --all             shorthand for enabling cpu, wall, alloc, live,\n"
     "                    nativemem and lock profiling simultaneously\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
@@ -505,7 +506,7 @@ int main(int argc, const char** argv) {
         } else if (arg == "--alloc" || arg == "--nativemem" || arg == "--lock" || arg == "--wall" ||
                    arg == "--chunksize" || arg == "--chunktime" ||
                    arg == "--cstack" || arg == "--signal" || arg == "--clock" || arg == "--begin" || arg == "--end" ||
-                   arg == "--target-cpu") {
+                   arg == "--target-cpu" || arg == "--proc") {
             params << "," << (arg.str() + 2) << "=" << args.next();
 
         } else if (arg == "--ttsp") {

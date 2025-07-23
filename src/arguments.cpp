@@ -60,6 +60,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     live             - build allocation profile from live objects only
 //     lock[=DURATION]  - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]        - run wall clock profiling together with CPU profiling
+//     proc[=S]         - collect system process metrics (default: 30s)
 //     nobatch          - legacy wall clock sampling without batch events
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
@@ -118,6 +119,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 // It is possible to specify multiple dump options at the same time
 
 Error Arguments::parse(const char* args) {
+    fprintf(stderr, "Arguments::parse %s\n", args);
     if (args == NULL) {
         return Error::OK;
     }
@@ -230,7 +232,10 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
-                } else if (_event != NULL && !_all) {
+                } else if (strcmp(value, EVENT_PROC) == 0) {
+                    if (_proc < 0) _proc = DEFAULT_PROC_INTERVAL;
+                }
+                else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";
                 } else {
                     _event = value;
@@ -262,6 +267,9 @@ Error Arguments::parse(const char* args) {
             CASE("wall")
                 _wall = value == NULL ? 0 : parseUnits(value, NANOS);
 
+            CASE("proc")
+                _proc = value == NULL ? DEFAULT_PROC_INTERVAL : parseUnits(value, SECONDS);
+
             CASE("cpu")
                 if (_event != NULL) {
                     msg = "Duplicate event argument";
@@ -283,6 +291,9 @@ Error Arguments::parse(const char* args) {
                 }
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
+                }
+                if (_proc < 0) {
+                    _proc = DEFAULT_PROC_INTERVAL;
                 }
                 if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
@@ -374,7 +385,7 @@ Error Arguments::parse(const char* args) {
 
             CASE("sched")
                 _sched = true;
-            
+
             CASE("record-cpu")
                 _record_cpu = true;
 
@@ -479,7 +490,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _proc < 0) {
         _event = EVENT_CPU;
     }
 

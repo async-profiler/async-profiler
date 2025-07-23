@@ -12,13 +12,15 @@
 const long DEFAULT_INTERVAL = 10000000;      // 10 ms
 const long DEFAULT_ALLOC_INTERVAL = 524287;  // 512 KiB
 const long DEFAULT_LOCK_INTERVAL = 10000;    // 10 us
+const long DEFAULT_PROC_INTERVAL = 30; // 30 seconds
 const int DEFAULT_JSTACKDEPTH = 2048;
 
 const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
-const char* const EVENT_WALL       = "wall";
+const char *const EVENT_WALL       = "wall";
+const char* const EVENT_PROC       = "proc";
 const char* const EVENT_CTIMER     = "ctimer";
 const char* const EVENT_ITIMER     = "itimer";
 
@@ -166,6 +168,7 @@ class Arguments {
     long _nativemem;
     long _lock;
     long _wall;
+    long _proc;
     bool _all;
     int _jstackdepth;
     int _signal;
@@ -224,6 +227,7 @@ class Arguments {
         _nativemem(-1),
         _lock(-1),
         _wall(-1),
+        _proc(-1),
         _all(false),
         _jstackdepth(DEFAULT_JSTACKDEPTH),
         _signal(0),

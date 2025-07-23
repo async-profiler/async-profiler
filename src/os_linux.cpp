@@ -100,6 +100,7 @@ static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 
 u64 OS::nanotime() {
@@ -428,6 +429,174 @@ bool OS::checkPreloaded() {
 
     Dl_info info[2] = {libprofiler, libc};
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
+}
+
+// Helper function to check if a string is a number (PID)
+static bool isNumber(const char* str) {
+    if (!str || *str == '\0') return false;
+    for (const char* p = str; *p; p++) {
+        if (*p < '0' || *p > '9') return false;
+    }
+    return true;
+}
+
+void OS::getProcessIds(int* pids, int* count, int max_pids) {
+    *count = 0;
+
+    DIR* proc_dir = opendir("/proc");
+    if (!proc_dir) return;
+
+    struct dirent* entry;
+    while ((entry = readdir(proc_dir)) && *count < max_pids) {
+        if (entry->d_type == DT_DIR && isNumber(entry->d_name)) {
+            pids[*count] = atoi(entry->d_name);
+            (*count)++;
+        }
+    }
+
+    closedir(proc_dir);
+    fprintf(stderr, "found the process count to be %d\n", *count);
+}
+
+bool OS::getProcessInfo(int pid, ProcessInfo* info) {
+    *info = ProcessInfo();
+    info->_pid = pid;
+
+    // Read process name from /proc/{pid}/comm
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/comm", pid);
+    FILE* file = fopen(path, "r");
+    if (file) {
+        if (fgets(info->_name, sizeof(info->_name), file)) {
+            // Remove trailing newline
+            size_t len = strlen(info->_name);
+            if (len > 0 && info->_name[len-1] == '\n') {
+                info->_name[len-1] = '\0';
+            }
+        }
+        fclose(file);
+    }
+    if (info->_name[0] == '\0') {
+        snprintf(info->_name, sizeof(info->_name), "pid-%d", pid);
+    }
+
+    // Read command line from /proc/{pid}/cmdline
+    snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
+    file = fopen(path, "rb");  // Use binary mode to handle null bytes
+    if (file) {
+        size_t len = fread(info->_cmdline, 1, sizeof(info->_cmdline) - 1, file);
+        if (len > 0) {
+            // Replace null bytes with spaces (arguments are separated by null bytes)
+            for (size_t i = 0; i < len; i++) {
+                if (info->_cmdline[i] == '\0') {
+                    info->_cmdline[i] = ' ';
+                }
+            }
+            // Ensure null termination
+            info->_cmdline[len] = '\0';
+            // Remove trailing space if present
+            if (len > 0 && info->_cmdline[len-1] == ' ') {
+                info->_cmdline[len-1] = '\0';
+            }
+        }
+        fclose(file);
+    }
+
+    // Read process stats from /proc/{pid}/stat
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    file = fopen(path, "r");
+    if (!file) return false;  // Critical failure
+
+    char buffer[1024];
+    if (!fgets(buffer, sizeof(buffer), file)) {
+        fclose(file);
+        return false;
+    }
+
+    // Parse the stat file - we need specific fields
+    // Format: pid (comm) state ppid pgrp session tty_nr tpgid flags minflt cminflt majflt cmajflt utime stime cutime cstime priority nice num_threads itrealvalue starttime vsize rss ...
+    int parsed_pid, parsed_ppid;
+    char state;
+    unsigned long minflt, majflt, utime, stime, starttime;
+    int threads;
+
+    int parsed = sscanf(buffer, "%d %*s %c %d %*d %*d %*d %*d %*u %lu %*u %lu %*u %lu %lu %*d %*d %*d %*d %d %*d %lu",
+                       &parsed_pid, &state, &parsed_ppid, &minflt, &majflt, &utime, &stime, &threads, &starttime);
+
+    fclose(file);
+
+    if (parsed >= 9) {
+        info->_ppid = parsed_ppid;
+        info->_state = (unsigned char)state;
+        info->_minor_faults = minflt;
+        info->_major_faults = majflt;
+        info->_cpu_user = utime;
+        info->_cpu_system = stime;
+        info->_threads = (unsigned short)threads;
+        info->_start_time = starttime;
+    } else {
+        return false;  // Critical parsing failure
+    }
+
+    // Read memory stats from /proc/{pid}/statm
+    snprintf(path, sizeof(path), "/proc/%d/statm", pid);
+    file = fopen(path, "r");
+    if (file) {
+        unsigned long size, resident, shared, text, lib, data_stack, dt;
+        int parsed = fscanf(file, "%lu %lu %lu %lu %lu %lu %lu",
+                           &size, &resident, &shared, &text, &lib, &data_stack, &dt);
+        fclose(file);
+
+        if (parsed >= 6) {
+            info->_mem_size = size;
+            info->_mem_resident = resident;
+            info->_mem_shared = shared;
+            info->_mem_text = text;
+            info->_mem_data = data_stack;  // data + stack
+        }
+    }
+
+    // Read UID from /proc/{pid}/status (fast version - only read first few lines)
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    file = fopen(path, "r");
+    if (file) {
+        char line[256];
+        int lines_read = 0;
+        while (fgets(line, sizeof(line), file) && lines_read < 10) {  // UID is usually in first few lines
+            lines_read++;
+            if (strncmp(line, "Uid:", 4) == 0) {
+                unsigned int uid;
+                if (sscanf(line + 4, "%u", &uid) == 1) {
+                    info->_uid = uid;
+                    break;
+                }
+            }
+        }
+        fclose(file);
+    }
+
+    // Read I/O stats from /proc/{pid}/io
+    snprintf(path, sizeof(path), "/proc/%d/io", pid);
+    file = fopen(path, "r");
+    if (file) {
+        char line[256];
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "read_bytes:", 11) == 0) {
+                unsigned long read_bytes;
+                if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
+                    info->_io_read = read_bytes;
+                }
+            } else if (strncmp(line, "write_bytes:", 12) == 0) {
+                unsigned long write_bytes;
+                if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
+                    info->_io_write = write_bytes;
+                }
+            }
+        }
+        fclose(file);
+    }
+
+    return true;
 }
 
 #endif // __linux__
