@@ -46,8 +46,8 @@ const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.0f;     // Minimum % cpu utilization to filter results (0 = no filtering)
-const u64 MIN_MEMORY_THRESHOLD = 0; // Minimum resident memory in pages (0 = no filtering)
+const float MIN_CPU_THRESHOLD = 0.1f;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const u64 MIN_MEMORY_THRESHOLD = 1; // Minimum resident memory in pages (0 = no filtering)
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
@@ -739,11 +739,11 @@ class Recording {
         }
     }
 
-    void processMonitorCycle(u64 wall_time) {
-        if (_process_monitor_interval < 0) return;
+    bool processMonitorCycle(u64 wall_time) {
+        if (_process_monitor_interval < 0) return false;
 
         if ((wall_time - _last_proc_sample_time) < (u64)_process_monitor_interval) {
-            return;
+            return false;
         }
 
         u64 start_time = OS::nanotime();
@@ -751,9 +751,9 @@ class Recording {
         int pid_count = 0;
 
         OS::getProcessIds(pids, &pid_count, MAX_PROCESSES);
-
         cleanupProcessHistory(pids, pid_count);
 
+        Buffer* buf = buffer(0); // Use regular recording buffer
         for (int i = 0; i < pid_count; i++) {
             if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
                 break;
@@ -761,17 +761,17 @@ class Recording {
 
             ProcessInfo info;
             if (OS::getProcessInfo(pids[i], &info)) {
-                // TODO: exclude first instance
                 info._last_update = OS::nanotime();
                 populateCpuPercent(&info);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
-                    recordProcessSample(&_monitor_buf, &info);
+                    recordProcessSample(buf, &info);
                 }
             }
         }
 
-        flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
+        flushIfNeeded(buf, RECORDING_BUFFER_LIMIT);
         _last_proc_sample_time = wall_time;
+        return true;
     }
 
     bool hasMasterRecording() const {
@@ -1419,6 +1419,15 @@ class Recording {
     }
 
     void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
+        // Estimate for fixed fields
+        const size_t process_non_string_size_limit = 200;
+        const size_t MAX_PROCESS_NAME_LENGTH = 256;
+        const size_t MAX_PROCESS_CMDLINE_LENGTH = ASPROF_MAX_JFR_EVENT_LENGTH - process_non_string_size_limit - MAX_PROCESS_NAME_LENGTH;
+
+        // Ensure the entire event fits within JFR event size limit
+        static_assert(process_non_string_size_limit + MAX_PROCESS_NAME_LENGTH + MAX_PROCESS_CMDLINE_LENGTH
+            <= ASPROF_MAX_JFR_EVENT_LENGTH, "process event must fit within JFR event size limit");
+
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
         buf->putVar64(info->_last_update);
@@ -1426,8 +1435,17 @@ class Recording {
 
         buf->putVar32(info->_pid);
         buf->putVar32(info->_ppid);
-        buf->putByteString(info->_name, strlen(info->_name));
-        buf->putByteString(info->_cmdline, strlen(info->_cmdline));
+
+        // Limit process name length
+        size_t name_len = strlen(info->_name);
+        buf->putByteString(info->_name,
+            name_len > MAX_PROCESS_NAME_LENGTH ? MAX_PROCESS_NAME_LENGTH : name_len);
+
+        // Limit command line length (uncommented and limited)
+        size_t cmdline_len = strlen(info->_cmdline);
+        buf->putByteString(info->_cmdline,
+            cmdline_len > MAX_PROCESS_CMDLINE_LENGTH ? MAX_PROCESS_CMDLINE_LENGTH : cmdline_len);
+
         buf->putVar32(info->_uid);
         buf->put8(info->_state);
         buf->putVar64(info->_start_time);
@@ -1583,6 +1601,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 }
 
 void FlightRecorder::stop() {
+    fprintf(stderr, "FlightRecorder::stop()");
     if (_rec != NULL) {
         _rec_lock.lock();
 
@@ -1624,7 +1643,13 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
 #ifdef __linux__
     // Process monitoring is only implemented for Linux
-    _rec->processMonitorCycle(wall_time);
+    u64 start_time = OS::nanotime();
+    if (_rec->processMonitorCycle(wall_time) == true) {
+      u64 fin_time = OS::nanotime();
+      u64 delta_ns = fin_time - start_time;
+      double delta_ms = static_cast<double>(delta_ns) / 1000000.0;  // → ms
+      fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
+    };
 #endif
 
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);

@@ -490,7 +490,7 @@ Error Arguments::parse(const char* args) {
         return Error(msg);
     }
 
-    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0 && _proc < 0) {
+    if (_event == NULL && _alloc < 0 && _lock < 0 && _wall < 0 && _nativemem < 0) {
         _event = EVENT_CPU;
     }
 
@@ -506,6 +506,13 @@ Error Arguments::parse(const char* args) {
     if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
     }
+
+#ifndef __linux__
+    // Process monitoring is only supported on Linux
+    if (_proc >= 0) {
+        return Error("Process monitoring (proc) is only supported on Linux");
+    }
+#endif
 
     return Error::OK;
 }
