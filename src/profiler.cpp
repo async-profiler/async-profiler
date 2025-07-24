@@ -1667,27 +1667,29 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    const char* engine_units = _engine->units();
+    // TODO: Ideally each event should record the engine which generated it
+    const char* engine_units = activeEngine()->units();
     size_t otel_units_strindex = strings.indexOf(
         strcmp(engine_units, "ns") == 0 ? "nanoseconds" :
             strcmp(engine_units, "total") == 0 ? "count" : engine_units
     );
-    size_t otel_type_strindex = strings.indexOf(_engine->otel_type());
+    size_t otel_type_strindex = strings.indexOf(activeEngine()->otel_type());
 
     protobuf_mark_t period_type_mark = otlp_buffer.startMessage(Profile::period_type);
     otlp_buffer.field(ValueType::type_strindex, otel_type_strindex);
     otlp_buffer.field(ValueType::unit_strindex, otel_units_strindex);
     otlp_buffer.commitMessage(period_type_mark);
 
-    // Engine                    period_type  period_unit
-    // ------------------------|-------------------------
-    // PerfEvents=cpu          | cpu          nanoseconds
-    // PerfEvents=cache-misses | cache-misses count
-    // CTimer                  | cpu          nanoseconds
-    // MallocTracer            | malloc       bytes
-    // AllocTracer             | alloc        bytes
-    // LockTracer              | lock         nanoseconds
-    // WallClock               | wall         nanoseconds
+    // Engine                    period_type       period_unit
+    // ------------------------|------------------------------
+    // PerfEvents=cpu          | cpu               nanoseconds
+    // PerfEvents=cache-misses | cache-misses      count
+    // CTimer                  | cpu               nanoseconds
+    // MallocTracer            | malloc            bytes
+    // AllocTracer             | alloc             bytes
+    // LockTracer              | lock              nanoseconds
+    // WallClock               | wall              nanoseconds
+    // Instrument              | com/example/class calls
     // ------------------------|-------------------------
     // total=false -> sample_type="samples"    sample_unit="count"
     // total=true  -> sample_type=period_type  sample_unit=period_unit

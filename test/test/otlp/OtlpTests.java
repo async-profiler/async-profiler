@@ -25,20 +25,107 @@ public class OtlpTests {
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=itimer,file=%f.pb")
-    public void testSampleType(TestProcess p) throws Exception {
+    public void testSampleTypeCpuProfiling(TestProcess p) throws Exception {
         ProfilesData profilesData = waitAndGetProfilesData(p);
 
         Profile profile = getFirstProfile(profilesData);
         assert profile.getSampleTypeList().size() == 2;
 
+        assert "cpu".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "nanoseconds".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
+
         ValueType sampleType0 = profile.getSampleType(0);
-        assert profilesData.getDictionary().getStringTable(sampleType0.getTypeStrindex()).equals("itimer");
-        assert profilesData.getDictionary().getStringTable(sampleType0.getUnitStrindex()).equals("count");
+        assert "samples".equals(getString(profilesData, sampleType0.getTypeStrindex()));
+        assert "count".equals(getString(profilesData, sampleType0.getUnitStrindex()));
         assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
 
         ValueType sampleType1 = profile.getSampleType(1);
-        assert profilesData.getDictionary().getStringTable(sampleType1.getTypeStrindex()).equals("itimer");
-        assert profilesData.getDictionary().getStringTable(sampleType1.getUnitStrindex()).equals("ns");
+        assert "cpu".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "nanoseconds".equals(getString(profilesData, sampleType1.getUnitStrindex()));
+        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=wall,file=%f.pb")
+    public void testSampleTypeWallClockProfiling(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        assert "wall".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "nanoseconds".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
+
+        ValueType sampleType0 = profile.getSampleType(0);
+        assert "samples".equals(getString(profilesData, sampleType0.getTypeStrindex()));
+        assert "count".equals(getString(profilesData, sampleType0.getUnitStrindex()));
+        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+
+        ValueType sampleType1 = profile.getSampleType(1);
+        assert "wall".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "nanoseconds".equals(getString(profilesData, sampleType1.getUnitStrindex()));
+        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,nativemem,file=%f.pb")
+    public void testSampleTypeNativemem(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        assert "malloc".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "bytes".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
+
+        ValueType sampleType0 = profile.getSampleType(0);
+        assert "samples".equals(getString(profilesData, sampleType0.getTypeStrindex()));
+        assert "count".equals(getString(profilesData, sampleType0.getUnitStrindex()));
+        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+
+        ValueType sampleType1 = profile.getSampleType(1);
+        assert "malloc".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "bytes".equals(getString(profilesData, sampleType1.getUnitStrindex()));
+        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,alloc,file=%f.pb")
+    public void testSampleTypeAlloc(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        assert "alloc".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "bytes".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
+
+        ValueType sampleType0 = profile.getSampleType(0);
+        assert "samples".equals(getString(profilesData, sampleType0.getTypeStrindex()));
+        assert "count".equals(getString(profilesData, sampleType0.getUnitStrindex()));
+        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+
+        ValueType sampleType1 = profile.getSampleType(1);
+        assert "alloc".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "bytes".equals(getString(profilesData, sampleType1.getUnitStrindex()));
+        assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,event=test.cpu.CpuBurner.main,file=%f.pb")
+    public void testSampleTypeInstrument(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        assert profile.getSampleTypeList().size() == 2;
+
+        assert "test/cpu/CpuBurner".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "calls".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
+
+        ValueType sampleType0 = profile.getSampleType(0);
+        assert "samples".equals(getString(profilesData, sampleType0.getTypeStrindex()));
+        assert "count".equals(getString(profilesData, sampleType0.getUnitStrindex()));
+        assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
+
+        ValueType sampleType1 = profile.getSampleType(1);
+        assert "test/cpu/CpuBurner".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "calls".equals(getString(profilesData, sampleType1.getUnitStrindex()));
         assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
 
@@ -104,5 +191,9 @@ public class OtlpTests {
     private static void assertCloseTo(long value, long target, String message) {
         Assert.isGreaterOrEqual(value, target * 0.75, message);
         Assert.isLessOrEqual(value, target * 1.25, message);
+    }
+
+    private static String getString(ProfilesData profilesData, int index) {
+        return profilesData.getDictionary().getStringTable(index);
     }
 }

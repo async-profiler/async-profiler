@@ -23,6 +23,8 @@ class Instrument : public Engine {
         return "instrument";
     }
 
+    const char* otel_type();
+
     const char* title() {
         return "Java method profile";
     }

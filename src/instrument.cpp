@@ -520,6 +520,10 @@ Error Instrument::check(Arguments& args) {
     return Error::OK;
 }
 
+const char* Instrument::otel_type() {
+    return _target_class;
+}
+
 Error Instrument::start(Arguments& args) {
     Error error = check(args);
     if (error) {
