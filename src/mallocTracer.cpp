@@ -21,8 +21,12 @@
 #  define NO_OPTIMIZE __attribute__((optimize("O1")))
 #endif
 
-#define SAVE_IMPORT(FUNC) \
-    _orig_##FUNC = (decltype(_orig_##FUNC))*lib->findImport(im_##FUNC)
+#define SAVE_IMPORT(FUNC) ({ \
+    if (!lib->findImport(im_##FUNC) || !(*lib->findImport(im_##FUNC))) { \
+        return Error("nativemem can't find " #FUNC); \
+    } \
+    _orig_##FUNC = (decltype(_orig_##FUNC))*lib->findImport(im_##FUNC); \
+})
 
 static void* (*_orig_malloc)(size_t);
 static void (*_orig_free)(void*);
@@ -122,7 +126,7 @@ static void resolveMallocSymbols() {
     sink = (intptr_t)p1 + (intptr_t)p2 + (intptr_t)p3 + (intptr_t)p4;
 }
 
-void MallocTracer::initialize() {
+Error MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
     assert(lib);
 
@@ -145,6 +149,8 @@ void MallocTracer::initialize() {
                 || strcmp(s, "aligned_alloc_hook") == 0;
         },
         MARK_ASYNC_PROFILER);
+
+    return Error::OK;
 }
 
 // To avoid complexity in hooking and tracking reentrancy, a TLS-based approach is not used.
@@ -209,7 +215,10 @@ Error MallocTracer::start(Arguments& args) {
     _allocated_bytes = 0;
 
     if (!_initialized) {
-        initialize();
+        Error error = initialize();
+        if (error) {
+            return error;
+        }
         _initialized = true;
     }
 
