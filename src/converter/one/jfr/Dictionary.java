@@ -36,10 +36,17 @@ public class Dictionary<T> {
        return size;
     }
 
-    public void put(long key, T value) {
-        if (key == 0) {
-            throw new IllegalArgumentException("Zero key not allowed");
+    // key[i]==0 is used to signal that the i-th position is unset.
+    // Thus, we map key=key+1, so the user can still use key=0.
+    private static long remapKey(long key) {
+        if (key < 0) {
+            throw new IllegalArgumentException("Negative keys not allowed");
         }
+        return key + 1;
+    }
+
+    public void put(long key, T value) {
+        key = remapKey(key);
 
         int mask = keys.length - 1;
         int i = hashCode(key) & mask;
@@ -60,6 +67,8 @@ public class Dictionary<T> {
 
     @SuppressWarnings("unchecked")
     public T get(long key) {
+        key = remapKey(key);
+
         int mask = keys.length - 1;
         int i = hashCode(key) & mask;
         while (keys[i] != key && keys[i] != 0) {

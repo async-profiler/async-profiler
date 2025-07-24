@@ -503,12 +503,7 @@ public class JfrReader implements Closeable {
             if (buf.get() != 3) {
                 throw new IllegalArgumentException("Invalid symbol encoding");
             }
-            byte[] bytes = getBytes();
-            if (id == 0 && bytes.length == 0) {
-                // Empty string at index 0
-                continue;
-            }
-            symbols.put(id, bytes);
+            symbols.put(id, getBytes());
         }
     }
 
