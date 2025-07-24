@@ -245,7 +245,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
 
     // Should be preserved across setjmp/longjmp
     volatile int depth = 0;
-    bool java_pc_observed = false;
+    bool code_heap_pc_observed = false;
 
     if (vm_thread != NULL) {
         vm_thread->exception() = &crash_protection_ctx;
@@ -261,7 +261,7 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
     // Walk until the bottom of the stack or until the first Java frame
     while (depth < max_depth) {
         if (CodeHeap::contains(pc)) {
-            java_pc_observed = true;
+            code_heap_pc_observed = true;
 
             NMethod* nm = CodeHeap::findNMethod(pc);
             if (nm == NULL) {
@@ -387,27 +387,26 @@ int StackWalker::walkVM(void* ucontext, ASGCT_CallFrame* frames, int max_depth,
         } else {
             const char* method_name = profiler->findNativeMethod(pc);
             char mark = method_name != NULL ? NativeFunc::mark(method_name) : 0;
+            bool add_native_frame = true;
 
-            if (java_pc_observed) {
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (mark == MARK_COMPILER_ENTRY && Profiler::instance()->features().comp_task) {
+            if (mark == MARK_COMPILER_ENTRY && Profiler::instance()->features().comp_task) {
                 // Insert current compile task as a pseudo Java frame
                 jmethodID compile_task = VMThread::getCurrentCompileTask();
                 if (compile_task != NULL) {
-                    fillFrame(frames[depth++], FRAME_INTERPRETED, 0, compile_task);
+                    fillFrame(frames[depth++], FRAME_JIT_COMPILED, 0, compile_task);
                 }
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
-            } else if (detail == VM_EXPERT) { // don't skip anything for VMX
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
+            } else if (code_heap_pc_observed || detail == VM_EXPERT) {
+                // branch to avoid any special handling for the native frames
             } else if (mark == MARK_ASYNC_PROFILER && event_type == MALLOC_SAMPLE) {
                 // Skip any frames above profiler hook methods
                 depth = 0;
-                fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
             } else if (mark == MARK_VM_RUNTIME && event_type >= ALLOC_SAMPLE && event_type <= ALLOC_OUTSIDE_TLAB) {
                 // Skip internal frames for allocation profiling
                 depth = 0;
-            } else {
-                // Normal native frame
+                add_native_frame = false;
+            }
+
+            if (add_native_frame) {
                 fillFrame(frames[depth++], BCI_NATIVE_FRAME, method_name);
             }
         }
