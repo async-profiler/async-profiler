@@ -28,10 +28,10 @@ class MethodInfo {
     u32 _name = 0;
     u32 _system_name = 0;
     u32 _sig = 0;
-    jint _modifiers;
-    jint _line_number_table_size;
-    jvmtiLineNumberEntry* _line_number_table;
-    FrameTypeId _type;
+    jint _modifiers = 0;
+    jint _line_number_table_size = 0;
+    jvmtiLineNumberEntry* _line_number_table = nullptr;
+    FrameTypeId _type = FrameTypeId::FRAME_UNSET;
 
     jint getLineNumber(jint bci) {
         if (_line_number_table_size == 0) {
@@ -93,8 +93,6 @@ class Lookup {
         }
 
         mi->_modifiers = 0x100;
-        mi->_line_number_table_size = 0;
-        mi->_line_number_table = NULL;
 
         if (_export_type == ExportType::OTLP) {
             mi->_system_name = _symbols->indexOf(name);
@@ -179,9 +177,6 @@ class Lookup {
         mi->_class = class_id;
         mi->_name = _symbols->indexOf("");
         mi->_sig = _symbols->indexOf("()L;");
-        mi->_modifiers = 0;
-        mi->_line_number_table_size = 0;
-        mi->_line_number_table = NULL;
         mi->_type = FRAME_INLINED;
     }
 
