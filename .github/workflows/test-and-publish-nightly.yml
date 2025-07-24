@@ -332,11 +332,5 @@ jobs:
           gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       - name: Maven release
         run: mvn clean deploy
-        env:
-          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Maven jfr-converter release
         run: mvn -f pom-converter.xml clean deploy
-        env:
-          GITHUB_USERNAME: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
