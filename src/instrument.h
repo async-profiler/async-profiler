@@ -7,6 +7,7 @@
 #define _INSTRUMENT_H
 
 #include <jvmti.h>
+#include "arch.h"
 #include "engine.h"
 
 
