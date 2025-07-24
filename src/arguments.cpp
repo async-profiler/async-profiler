@@ -514,6 +514,11 @@ Error Arguments::parse(const char* args) {
     }
 #endif
 
+    // Process monitoring requires JFR output format
+    if (_proc >= 0 && _output != OUTPUT_JFR) {
+        return Error("Process monitoring (proc) requires JFR output format");
+    }
+
     return Error::OK;
 }
 
