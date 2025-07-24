@@ -128,7 +128,9 @@ static void resolveMallocSymbols() {
 
 Error MallocTracer::initialize() {
     CodeCache* lib = Profiler::instance()->findLibraryByAddress((void*)MallocTracer::initialize);
-    assert(lib);
+    if (!lib) {
+        return Error("Couldn't find libasyncProfiler");
+    }
 
     resolveMallocSymbols();
 
