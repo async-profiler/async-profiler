@@ -1689,8 +1689,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // LockTracer              | lock         nanoseconds
     // WallClock               | wall         nanoseconds
     // ------------------------|-------------------------
-    // When total=false, sample_type=samples and sample_unit=count
-    // When total=true, sample_type=period_type and sample_unit=period_unit
+    // total=false -> sample_type="samples"    sample_unit="count"
+    // total=true  -> sample_type=period_type  sample_unit=period_unit
     // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/profiles/v1development/profiles.proto#L223
     recordSampleType(otlp_buffer, strings.indexOf("samples"), strings.indexOf("count"));
     recordSampleType(otlp_buffer, otel_type_strindex, otel_units_strindex);
