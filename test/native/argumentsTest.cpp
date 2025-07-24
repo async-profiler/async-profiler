@@ -59,3 +59,39 @@ TEST_CASE(Parse_override_before_all_mode) {
     ASSERT_EQ(args._lock, 100);
     ASSERT_EQ(args._live, true);
 }
+
+#ifndef __linux__
+TEST_CASE(Parse_proc_on_non_linux_should_fail) {
+    Arguments args;
+    char argument[] = "start,event=proc,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ((bool)error, true);
+    ASSERT_EQ(strcmp(error.message(), "Process monitoring (proc) is only supported on Linux"), 0);
+}
+
+TEST_CASE(Parse_proc_with_interval_on_non_linux_should_fail) {
+    Arguments args;
+    char argument[] = "start,proc=30,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ((bool)error, true);
+    ASSERT_EQ(strcmp(error.message(), "Process monitoring (proc) is only supported on Linux"), 0);
+}
+#endif
+
+#ifdef __linux__
+TEST_CASE(Parse_proc_on_linux_should_succeed) {
+    Arguments args;
+    char argument[] = "start,event=proc,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ((bool)error, false);
+    ASSERT_EQ(args._proc, DEFAULT_PROC_INTERVAL);
+}
+
+TEST_CASE(Parse_proc_with_interval_on_linux_should_succeed) {
+    Arguments args;
+    char argument[] = "start,proc=60,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ((bool)error, false);
+    ASSERT_EQ(args._proc, 60);
+}
+#endif
