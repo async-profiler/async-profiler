@@ -23,7 +23,7 @@ class MallocTracer : public Engine {
     static bool _initialized;
     static volatile bool _running;
 
-    static void initialize();
+    static Error initialize();
     static void patchLibraries();
 
   public:
