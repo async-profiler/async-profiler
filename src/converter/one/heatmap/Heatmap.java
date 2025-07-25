@@ -397,10 +397,10 @@ public class Heatmap {
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
 
+        final Arguments arguments;
+
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
-
-        final Arguments arguments;
 
         State(JfrConverter converter, long blockDurationMs, Arguments arguments) {
             sampleList = new SampleList(blockDurationMs);
