@@ -127,7 +127,7 @@ Tail length can be altered with `--tail` option that accepts `ratio` or `percent
 For example, to ignore allocations in the last 2 minutes of a 10 minutes profile, use
 
 ```
-jfrconf --nativemem --leak --tail 20% app.jfr app-leak.html
+jfrconv --nativemem --leak --tail 20% app.jfr app-leak.html
 ```
 
 The overhead of `nativemem` profiling depends on the number of native allocations,

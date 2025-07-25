@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>tools.profiler</groupId>
     <artifactId>async-profiler</artifactId>
-    <version>4.0</version>
+    <version>4.1</version>
     <packaging>jar</packaging>
 
     <name>async-profiler</name>
@@ -56,14 +56,43 @@
                 <version>3.3.0</version>
                 <executions>
                     <execution>
+                        <id>linux-x64-jar</id>
                         <phase>package</phase>
                         <goals>
                             <goal>jar</goal>
                         </goals>
                         <configuration>
-                            <classifier>${native.platform}</classifier>
+                            <classifier>linux-x64</classifier>
                             <includes>
-                                <include>${native.platform}/*</include>
+                                <include>linux-x64/*</include>
+                                <include>one/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>linux-arm64-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>linux-arm64</classifier>
+                            <includes>
+                                <include>linux-arm64/*</include>
+                                <include>one/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>macos-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>macos</classifier>
+                            <includes>
+                                <include>macos/*</include>
                                 <include>one/**</include>
                             </includes>
                         </configuration>
@@ -116,17 +145,15 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>0.8.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <publishingServerId>central</publishingServerId>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-        </repository>
-    </distributionManagement>
 </project>
