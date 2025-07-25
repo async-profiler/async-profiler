@@ -1134,7 +1134,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         _thread_names.clear();
         _thread_ids.clear();
         _first_dump = true;
-
     }
 
     // (Re-)allocate calltrace buffers
@@ -1404,11 +1403,12 @@ Error Profiler::dump(Writer& out, Arguments& args) {
             break;
         case OUTPUT_OTLP:
             dumpOtlp(out, args);
-            _first_dump = false;
             break;
         default:
             return Error("No output format selected");
     }
+    _first_dump = false;
+    
     return Error::OK;
 }
 

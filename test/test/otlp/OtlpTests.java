@@ -54,10 +54,10 @@ public class OtlpTests {
     }
 
     @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
-public void otlpAggregationTemporalityTest(TestProcess p) throws Exception {
-    p.waitForExit();
-    assert p.exitCode() == 0;
-}
+    public void otlpAggregationTemporalityTest(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
+    }
 
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
