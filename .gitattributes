@@ -1,1 +1,2 @@
 *.sh eol=lf
+README.md merge=ours
