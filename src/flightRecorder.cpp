@@ -4,11 +4,8 @@
  */
 
 #include <assert.h>
-#include <cstdio>
 #include <map>
-#include <set>
 #include <string>
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -473,7 +470,7 @@ class Recording {
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
-    long _process_monitor_interval;
+    long _process_sampling_interval;
 
     int _available_processors;
     int _recorded_lib_count;
@@ -481,7 +478,6 @@ class Recording {
     bool _in_memory;
     bool _cpu_monitor_enabled;
     bool _heap_monitor_enabled;
-
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
@@ -500,7 +496,7 @@ class Recording {
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
-        _process_monitor_interval = -1;
+        _process_sampling_interval = -1;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -540,7 +536,7 @@ class Recording {
         _last_gc_id = 0;
 
         if (args._proc > 0) {
-            _process_monitor_interval = args._proc * 1000000; // convert seconds to microseconds
+            _process_sampling_interval = args._proc * 1000000;
         }
     }
 
@@ -740,9 +736,9 @@ class Recording {
     }
 
     bool processMonitorCycle(u64 wall_time) {
-        if (_process_monitor_interval < 0) return false;
+        if (_process_sampling_interval < 0) return false;
 
-        if ((wall_time - _last_proc_sample_time) < (u64)_process_monitor_interval) {
+        if ((wall_time - _last_proc_sample_time) < (u64)_process_sampling_interval) {
             return false;
         }
 
@@ -753,7 +749,7 @@ class Recording {
         OS::getProcessIds(pids, &pid_count, MAX_PROCESSES);
         cleanupProcessHistory(pids, pid_count);
 
-        Buffer* buf = buffer(0); // Use regular recording buffer
+        Buffer* buf = buffer(0);
         for (int i = 0; i < pid_count; i++) {
             if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
                 break;
@@ -1562,7 +1558,6 @@ char* Recording::_java_command = NULL;
 
 
 Error FlightRecorder::start(Arguments& args, bool reset) {
-    fprintf(stderr, "FlightRecorder::start\n");
     const char* filename = args.file();
     if (filename == NULL || filename[0] == 0) {
         return Error("Flight Recorder output file is not specified");
@@ -1601,7 +1596,6 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 }
 
 void FlightRecorder::stop() {
-    fprintf(stderr, "FlightRecorder::stop()");
     if (_rec != NULL) {
         _rec_lock.lock();
 
