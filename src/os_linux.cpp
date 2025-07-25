@@ -434,6 +434,7 @@ bool OS::checkPreloaded() {
 // Helper function to check if a string is a number (PID)
 static bool isNumber(const char* str) {
     if (!str || *str == '\0') return false;
+
     for (const char* p = str; *p; p++) {
         if (*p < '0' || *p > '9') return false;
     }
@@ -463,19 +464,21 @@ static bool readProcessName(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/comm", pid);
     FILE* file = fopen(path, "r");
-    if (file) {
-        if (fgets(info->_name, sizeof(info->_name), file)) {
-            // Remove trailing newline
-            size_t len = strlen(info->_name);
-            if (len > 0 && info->_name[len-1] == '\n') {
-                info->_name[len-1] = '\0';
-            }
+    if (!file) return false;
+
+    if (fgets(info->_name, sizeof(info->_name), file)) {
+        // Remove trailing newline
+        size_t len = strlen(info->_name);
+        if (len > 0 && info->_name[len-1] == '\n') {
+            info->_name[len-1] = '\0';
         }
-        fclose(file);
     }
+    fclose(file);
+
     if (info->_name[0] == '\0') {
-        snprintf(info->_name, sizeof(info->_name), "pid-%d", pid);
+        snprintf(info->_name, sizeof(info->_name), "pid-%d", pid);\
     }
+
     return true;
 }
 
@@ -483,29 +486,29 @@ static bool readProcessName(int pid, ProcessInfo* info) {
 static bool readProcessCmdline(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-    FILE* file = fopen(path, "rb");  // Use binary mode to handle null bytes
-    if (file) {
-      const size_t max_read = sizeof(info->_cmdline) - 1;
-      size_t len = fread(info->_cmdline, 1, max_read, file);
-      info->_cmdline[max_read] = '\0';
+    FILE* file = fopen(path, "rb");
+    if (!file) return false;
 
-      if (len > 0) {
-        // Replace null bytes with spaces (arguments are separated by null bytes)
-        for (size_t i = 0; i < len; i++) {
+    const size_t max_read = sizeof(info->_cmdline) - 1;
+    size_t len = fread(info->_cmdline, 1, max_read, file);
+    info->_cmdline[max_read] = '\0';
+
+    if (len > 0) {
+      // Replace null bytes with spaces (arguments are separated by null bytes)
+      for (size_t i = 0; i < len; i++) {
           if (info->_cmdline[i] == '\0') {
-            info->_cmdline[i] = ' ';
-          }
-        }
-        // Ensure null termination
-        info->_cmdline[len] = '\0';
-        // Remove trailing space if present
-        if (len > 0 && info->_cmdline[len-1] == ' ') {
-          info->_cmdline[len-1] = '\0';
+              info->_cmdline[i] = ' ';
         }
       }
-
-      fclose(file);
+      // Ensure null termination
+      info->_cmdline[len] = '\0';
+      // Remove trailing space if present
+      if (len > 0 && info->_cmdline[len-1] == ' ') {
+          info->_cmdline[len-1] = '\0';
+      }
     }
+
+    fclose(file);
     return true;
 }
 
@@ -514,7 +517,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     FILE* file = fopen(path, "r");
-    if (!file) return false;  // Critical failure
+    if (!file) return false;
 
     char buffer[1024];
     if (!fgets(buffer, sizeof(buffer), file)) {
@@ -544,9 +547,9 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
         info->_threads = (unsigned short)threads;
         info->_start_time = starttime;
         return true;
-    } else {
-        return false;  // Critical parsing failure
     }
+
+    return false;
 }
 
 // Helper method to read memory stats from /proc/{pid}/statm
@@ -554,21 +557,22 @@ static bool readProcessMemory(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/statm", pid);
     FILE* file = fopen(path, "r");
-    if (file) {
-        unsigned long size, resident, shared, text, lib, data_stack, dt;
-        int parsed = fscanf(file, "%lu %lu %lu %lu %lu %lu %lu",
-                           &size, &resident, &shared, &text, &lib, &data_stack, &dt);
-        fclose(file);
+    if (!file) return false;
 
-        if (parsed >= 6) {
-            info->_mem_size = size;
-            info->_mem_resident = resident;
-            info->_mem_shared = shared;
-            info->_mem_text = text;
-            info->_mem_data = data_stack;  // data + stack
-            return true;
-        }
+    u64 size, resident, shared, text, lib, data_stack, dt;
+    int parsed = fscanf(file, "%lu %lu %lu %lu %lu %lu %lu",
+                        &size, &resident, &shared, &text, &lib, &data_stack, &dt);
+    fclose(file);
+
+    if (parsed >= 6) {
+        info->_mem_size = size;
+        info->_mem_resident = resident;
+        info->_mem_shared = shared;
+        info->_mem_text = text;
+        info->_mem_data = data_stack;  // data + stack
+        return true;
     }
+
     return false;
 }
 
@@ -577,22 +581,23 @@ static bool readProcessUID(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
     FILE* file = fopen(path, "r");
-    if (file) {
-        char line[256];
-        int lines_read = 0;
-        while (fgets(line, sizeof(line), file) && lines_read < 10) {  // UID is usually in first few lines
-            lines_read++;
-            if (strncmp(line, "Uid:", 4) == 0) {
-                unsigned int uid;
-                if (sscanf(line + 4, "%u", &uid) == 1) {
-                    info->_uid = uid;
-                    fclose(file);
-                    return true;
-                }
+    if (!file) return false;
+
+    char line[256];
+    int lines_read = 0;
+    while (fgets(line, sizeof(line), file) && lines_read < 10) {  // UID is usually in first few lines
+        lines_read++;
+        if (strncmp(line, "Uid:", 4) == 0) {
+            unsigned int uid;
+            if (sscanf(line + 4, "%u", &uid) == 1) {
+              info->_uid = uid;
+              fclose(file);
+              return true;
             }
         }
-        fclose(file);
     }
+    fclose(file);
+
     return false;
 }
 
@@ -601,25 +606,25 @@ static bool readProcessIO(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE* file = fopen(path, "r");
-    if (file) {
-        char line[256];
-        while (fgets(line, sizeof(line), file)) {
-            if (strncmp(line, "read_bytes:", 11) == 0) {
-                unsigned long read_bytes;
-                if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
-                    info->_io_read = read_bytes;
-                }
-            } else if (strncmp(line, "write_bytes:", 12) == 0) {
-                unsigned long write_bytes;
-                if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
-                    info->_io_write = write_bytes;
-                }
+    if (!file) return false;
+
+    char line[256];
+    while (fgets(line, sizeof(line), file)) {
+        if (strncmp(line, "read_bytes:", 11) == 0) {
+            unsigned long read_bytes;
+            if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
+                info->_io_read = read_bytes;
+            }
+        } else if (strncmp(line, "write_bytes:", 12) == 0) {
+            unsigned long write_bytes;
+            if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
+                info->_io_write = write_bytes;
             }
         }
-        fclose(file);
-        return true;
     }
-    return false;
+
+    fclose(file);
+    return true;
 }
 
 bool OS::getProcessInfo(int pid, ProcessInfo* info) {
