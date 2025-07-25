@@ -31,7 +31,7 @@ public class OtlpTests {
         Profile profile = getFirstProfile(profilesData);
         assert profile.getSampleTypeList().size() == 2;
 
-        assert "cpu".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
+        assert "itimer".equals(getString(profilesData, profile.getPeriodType().getTypeStrindex()));
         assert "nanoseconds".equals(getString(profilesData, profile.getPeriodType().getUnitStrindex()));
 
         ValueType sampleType0 = profile.getSampleType(0);
@@ -40,7 +40,7 @@ public class OtlpTests {
         assert sampleType0.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
 
         ValueType sampleType1 = profile.getSampleType(1);
-        assert "cpu".equals(getString(profilesData, sampleType1.getTypeStrindex()));
+        assert "itimer".equals(getString(profilesData, sampleType1.getTypeStrindex()));
         assert "nanoseconds".equals(getString(profilesData, sampleType1.getUnitStrindex()));
         assert sampleType1.getAggregationTemporality() == AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE;
     }
