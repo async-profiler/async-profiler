@@ -66,7 +66,7 @@ TEST_CASE(Parse_proc_on_non_linux_should_fail) {
     char argument[] = "start,event=proc,file=%f.jfr";
     Error error = args.parse(argument);
     ASSERT_EQ((bool)error, true);
-    ASSERT_EQ(strcmp(error.message(), "Process monitoring (proc) is only supported on Linux"), 0);
+    ASSERT_EQ(strcmp(error.message(), "Process sampling is only supported on Linux"), 0);
 }
 
 TEST_CASE(Parse_proc_with_interval_on_non_linux_should_fail) {
@@ -74,7 +74,7 @@ TEST_CASE(Parse_proc_with_interval_on_non_linux_should_fail) {
     char argument[] = "start,proc=30,file=%f.jfr";
     Error error = args.parse(argument);
     ASSERT_EQ((bool)error, true);
-    ASSERT_EQ(strcmp(error.message(), "Process monitoring (proc) is only supported on Linux"), 0);
+    ASSERT_EQ(strcmp(error.message(), "Process sampling is only supported on Linux"), 0);
 }
 #endif
 

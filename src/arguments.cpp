@@ -291,9 +291,11 @@ Error Arguments::parse(const char* args) {
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
                 }
+#ifdef __linux__
                 if (_proc < 0) {
                     _proc = DEFAULT_PROC_INTERVAL;
                 }
+#endif
                 if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
                 }
@@ -507,15 +509,15 @@ Error Arguments::parse(const char* args) {
     }
 
 #ifndef __linux__
-    // Process monitoring is only supported on Linux
+    // Currently we support process sampling on Linux only.
     if (_proc >= 0) {
-        return Error("Process monitoring (proc) is only supported on Linux");
+        return Error("Process sampling is only supported on Linux");
     }
 #endif
 
-    // Process monitoring requires JFR output format
+    // Process sampling requires JFR output format
     if (_proc >= 0 && _output != OUTPUT_JFR) {
-        return Error("Process monitoring (proc) requires JFR output format");
+        return Error("Process sampling requires JFR output format");
     }
 
     return Error::OK;

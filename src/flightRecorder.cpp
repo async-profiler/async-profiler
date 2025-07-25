@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <map>
+#include <set>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -719,7 +720,6 @@ class Recording {
     }
 
     void cleanupProcessHistory(const int* activePids, int pidCount) {
-        // Create set of active PIDs for quick lookup
         std::set<int> activePidSet;
         for (int i = 0; i < pidCount; i++) {
             activePidSet.insert(activePids[i]);
