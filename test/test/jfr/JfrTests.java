@@ -19,20 +19,26 @@ import java.util.*;
 
 public class JfrTests {
 
-    @Test(mainClass = RegularPeak.class, agentArgs = "start,event=cpu,file=%profile.jfr")
-    public void regularPeak(TestProcess p) throws Exception {
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,file=%profile.jfr")
+    public void cpuLoad(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
 
         String jfrOutPath = p.getFilePath("%profile");
-        String peakPattern = "test/jfr/Cache.*calculateTop.*";
+        String inconsistentPattern = "test/jfr/CpuLoad.inconsistentCpuLoad.*";
+        String consistentPattern = "test/jfr/CpuLoad.consistentCpuLoad.*";
 
-        Output out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
-        assert !out.contains(peakPattern);
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "2500", "--to", "5000");
-        assert out.samples(peakPattern) >= 1;
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "5000");
-        assert !out.contains(peakPattern);
+        Output out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "1500");
+        assert !out.contains(inconsistentPattern);
+        assert out.contains(consistentPattern);
+
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3000");
+        assert out.contains(inconsistentPattern);
+        assert out.contains(consistentPattern);
+
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3000");
+        assert !out.contains(inconsistentPattern);
+        assert out.contains(consistentPattern);
     }
 
     /**
