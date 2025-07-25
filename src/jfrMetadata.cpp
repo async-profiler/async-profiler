@@ -256,7 +256,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 // when encountering a T_BYTE/F_ARRAY.
                 << field("data", T_STRING, "User Data"))
 
-            << (type("profiler.ProcessSample", T_PROCESS_SAMPLE, "Process Metrics Sample")
+            << (type("profiler.ProcessSample", T_PROCESS_SAMPLE, "Process Stats Sample")
                 << category("Operating System", "Process")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
                 << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
@@ -266,7 +266,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("cmdLine", T_STRING, "Command Line")
                 << field("uid", T_INT, "User ID")
                 << field("state", T_BYTE, "Process State")
-                << field("startTimeProcess", T_LONG, "Process Start Time")
+                << field("processStartTime", T_LONG, "Process Start Time")
                 << field("cpuUser", T_LONG, "User CPU Time")
                 << field("cpuSystem", T_LONG, "System CPU Time")
                 << field("cpuPercent", T_FLOAT, "CPU Percentage")

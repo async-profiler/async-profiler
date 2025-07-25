@@ -25,9 +25,7 @@ enum ThreadState {
     THREAD_SLEEPING
 };
 
-// Process information structure
 struct ProcessInfo {
-    // Process identification
     int _pid;
     int _ppid;
     char _name[16];              // Process name from /proc/{pid}/comm
@@ -36,29 +34,28 @@ struct ProcessInfo {
     unsigned char _state;        // Process state (R, S, D, Z, T, etc.)
     unsigned long _start_time;   // Process start time (clock ticks since boot)
 
-    // CPU & thread metrics
+    // CPU & thread stats
     unsigned long _cpu_user;     // User CPU time (clock ticks)
     unsigned long _cpu_system;   // System CPU time (clock ticks)
     float _cpu_percent;          // CPU utilization percentage
     float _normalize_cpu_percent; // Solaris-style normalized CPU percentage (divided by CPU count)
     unsigned short _threads;     // Number of threads
 
-    // Memory metrics (in pages)
+    // Memory stats (in pages)
     unsigned long _mem_size;     // Total virtual memory size
     unsigned long _mem_resident; // Physical memory in RAM
     unsigned long _mem_shared;   // Shared memory pages
     unsigned long _mem_text;     // Code/executable pages
     unsigned long _mem_data;     // Data + stack pages
 
-    // Page fault metrics
+    // Page fault stats
     unsigned long _minor_faults; // Minor page faults (no I/O required)
     unsigned long _major_faults; // Major page faults (I/O required)
 
-    // I/O metrics
+    // I/O stats
     unsigned long _io_read;      // Bytes read from storage
     unsigned long _io_write;     // Bytes written to storage
 
-    // Cache management
     unsigned long _last_update;  // Timestamp of last update
 
     ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
