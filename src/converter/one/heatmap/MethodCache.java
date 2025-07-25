@@ -112,7 +112,7 @@ public class MethodCache {
             method = method.next;
         }
 
-        method = new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, false);
+        method = new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, true);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {
