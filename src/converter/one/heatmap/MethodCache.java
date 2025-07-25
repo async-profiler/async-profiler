@@ -7,6 +7,7 @@ package one.heatmap;
 
 import java.util.Arrays;
 
+import one.convert.Frame;
 import one.convert.Index;
 import one.convert.JfrConverter;
 import one.jfr.Dictionary;
@@ -89,6 +90,29 @@ public class MethodCache {
 
         String javaClassName = converter.getClassName(extra);
         method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
+        if (last == null) {
+            farMethods.put(methodId, method);
+        } else {
+            last.next = method;
+        }
+        return method.index = methodIndex.index(method);
+    }
+
+    public int indexForThread(String threadName) {
+        long methodId = (long) threadName.hashCode() << 32 | 1L << 63;
+        Method method = farMethods.get(methodId);
+        Method last = null;
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == -1 && method.type == Frame.TYPE_THREAD) {
+                    return method.index;
+                }
+            }
+            last = method;
+            method = method.next;
+        }
+
+        method = new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, true);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {

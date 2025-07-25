@@ -28,11 +28,11 @@ public class Heatmap {
 
     public Heatmap(Arguments args, JfrConverter converter) {
         this.args = args;
-        this.state = new State(converter, BLOCK_DURATION_MS);
+        this.state = new State(converter, BLOCK_DURATION_MS, args);
     }
 
-    public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
-        state.addEvent(stackTraceId, extra, type, timeMs);
+    public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
+        state.addEvent(stackTraceId, threadName, extra, type, timeMs);
     }
 
     public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
@@ -397,33 +397,43 @@ public class Heatmap {
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
 
+        final Arguments arguments;
+
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(JfrConverter converter, long blockDurationMs) {
+        State(JfrConverter converter, long blockDurationMs, Arguments arguments) {
             sampleList = new SampleList(blockDurationMs);
             methodsCache = new MethodCache(converter);
+            this.arguments = arguments;
         }
 
-        public void addEvent(int stackTraceId, int extra, byte type, long timeMs) {
+        public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            if (extra == 0) {
+            if (extra == 0 && !arguments.threads) {
                 sampleList.add(prototypeId, timeMs);
                 return;
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + 1;
+            int stackSize = prototype.length + (arguments.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
+            if (arguments.threads) {
+                cachedStackTrace[0] = methodsCache.indexForThread(threadName != null ? threadName : "unknown-thread");
+                System.arraycopy(prototype, 0, cachedStackTrace, 1, prototype.length);
+            } else {
+                System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
+            }
+            if (extra != 0) {
+                cachedStackTrace[stackSize - 1] = methodsCache.indexForClass(extra, type);
+            }
 
-            System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
-            cachedStackTrace[prototype.length] = methodsCache.indexForClass(extra, type);
             sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
         }
 
@@ -440,7 +450,9 @@ public class Heatmap {
                 int index = size - 1 - i;
                 boolean firstMethodInTrace = index == 0;
 
-                cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
+                // When arguments.threads is true, the first frame is the artificial thread frame
+                boolean firstFrameInStack = firstMethodInTrace && !arguments.threads;
+                cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstFrameInStack);
             }
 
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
