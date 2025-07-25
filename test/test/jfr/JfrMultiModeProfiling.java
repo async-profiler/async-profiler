@@ -5,7 +5,9 @@
 
 package test.jfr;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -19,6 +21,7 @@ public class JfrMultiModeProfiling {
 
     private static volatile Object sink;
     private static int count = 0;
+    private static final List<byte[]> holder = new ArrayList<>();
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -45,6 +48,9 @@ public class JfrMultiModeProfiling {
                 sink = new byte[65536];
             } else {
                 sink = String.format("some string: %s, some number: %d", new Date(), random.nextInt());
+            }
+            if (holder.size() < 100_000) {
+                holder.add(new byte[1]);
             }
         }
     }

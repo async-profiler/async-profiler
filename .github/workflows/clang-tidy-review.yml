@@ -1,0 +1,48 @@
+name: clang-tidy-review
+
+on:
+  workflow_run:
+    workflows:
+    - code-check
+    types:
+    - completed
+
+jobs:
+  clang-tidy-results:
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    container:
+      image: "public.ecr.aws/async-profiler/asprof-code-check:latest"
+    permissions:
+      pull-requests: write
+      contents: write
+      actions: read
+    steps:
+    - name: Download code-check artifacts
+      uses: actions/download-artifact@v4
+      with:
+        run-id: ${{ github.event.workflow_run.id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        name: code-check-artifacts
+        path: /tmp/code-check-artifacts/
+    - name: Read PR information
+      id: pr_info
+      run: |
+        cd /tmp/code-check-artifacts
+        echo "pr_id=$(cat pr-id.txt)" >> "$GITHUB_OUTPUT"
+        echo "pr_head_repo=$(cat pr-head-repo.txt)" >> "$GITHUB_OUTPUT"
+        echo "pr_head_sha=$(cat pr-head-sha.txt)" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@v4
+      with:
+        repository: ${{ steps.pr_info.outputs.pr_head_repo }}
+        ref: ${{ steps.pr_info.outputs.pr_head_sha }}
+        persist-credentials: false
+    - name: Run clang-tidy-pr-comments action
+      uses: platisd/clang-tidy-pr-comments@v1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        clang_tidy_fixes: /tmp/code-check-artifacts/clang-tidy-fixes.yml
+        pull_request_id: ${{ steps.pr_info.outputs.pr_id }}
+        python_path: python
+        auto_resolve_conversations: true
+        suggestions_per_comment: 100
