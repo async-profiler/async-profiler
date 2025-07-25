@@ -194,7 +194,7 @@ public class Heatmap {
             int methodId = context.nodeTree.extractMethodId(d);
 
             out.writeVar(synonymTable.nodeIdOrSynonym(parentId));
-            out.writeVar(context.orderedMethods[methodId].frequencyOrNewMethodId);
+            out.writeVar(context.orderedMethods[methodId].frequencyBasedId);
         }
     }
 
@@ -215,26 +215,24 @@ public class Heatmap {
         out.writeVar(startsCount);
         for (Method method : context.orderedMethods) {
             if (method.start) {
-                out.writeVar(method.frequencyOrNewMethodId);
+                out.writeVar(method.frequencyBasedId);
             }
         }
     }
 
     private void renameMethodsByFrequency(EvaluationContext context) {
-        Arrays.sort(context.orderedMethods, new Comparator<Method>() {
+        Method[] methodsByFrequency = context.orderedMethods.clone();
+        Arrays.sort(methodsByFrequency, new Comparator<Method>() {
             @Override
             public int compare(Method o1, Method o2) {
-                return Integer.compare(o2.frequencyOrNewMethodId, o1.frequencyOrNewMethodId);
+                return Integer.compare(o2.frequency, o1.frequency);
             }
         });
 
-        for (int i = 0; i < context.orderedMethods.length; i++) {
-            Method method = context.orderedMethods[i];
-            method.frequencyOrNewMethodId = i + 1; // zero is reserved for no method
+        for (int i = 0; i < methodsByFrequency.length; i++) {
+            Method method = methodsByFrequency[i];
+            method.frequencyBasedId = i + 1; // zero is reserved for no method
         }
-
-        // restores order
-        context.methods.keys(context.orderedMethods);
     }
 
     private int[] buildLz78TreeAndPrepareData(EvaluationContext context) {
@@ -263,7 +261,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
+                        context.orderedMethods[methodId].frequency++;
                         if (stackBuffer.length == chunksIterator) {
                             stackBuffer = Arrays.copyOf(stackBuffer, chunksIterator + chunksIterator / 2);
                         }
@@ -288,7 +286,7 @@ public class Heatmap {
                 for (int methodId : stack) {
                     current = context.nodeTree.appendChild(current, methodId);
                     if (current == 0) { // so we are starting from root again, it will be written to output as Lz78 element - [parent node id; method id]
-                        context.orderedMethods[methodId].frequencyOrNewMethodId++;
+                        context.orderedMethods[methodId].frequency++;
                     }
                 }
             }
@@ -351,7 +349,7 @@ public class Heatmap {
         Arrays.sort(evaluationContext.orderedMethods, new Comparator<Method>() {
             @Override
             public int compare(Method o1, Method o2) {
-                return Integer.compare(o1.frequencyOrNewMethodId, o2.frequencyOrNewMethodId);
+                return Integer.compare(o1.frequencyBasedId, o2.frequencyBasedId);
             }
         });
         out.nextByte('A');
@@ -372,7 +370,6 @@ public class Heatmap {
     }
 
     private static class EvaluationContext {
-        final Index<Method> methods;
         final Method[] orderedMethods;
         final int[][] stackTraces;
         final String[] symbols;
@@ -383,10 +380,8 @@ public class Heatmap {
 
         EvaluationContext(SampleList.Result sampleList, Index<Method> methods, int[][] stackTraces, String[] symbols) {
             this.sampleList = sampleList;
-            this.methods = methods;
             this.stackTraces = stackTraces;
             this.symbols = symbols;
-
             orderedMethods = methods.keys();
         }
     }
@@ -398,6 +393,7 @@ public class Heatmap {
         final SampleList sampleList;
         final StackStorage stackTracesRemap = new StackStorage();
 
+        // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
 
@@ -413,30 +409,27 @@ public class Heatmap {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
-            if (extra == 0) {
-                sampleList.add(stackTracesCache.get(stackTraceId), timeMs);
-                return;
-            }
-
-            int id = stackTracesCache.get((long) extra << 32 | stackTraceId, -1);
-            if (id != -1) {
-                sampleList.add(id, timeMs);
-                return;
-            }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
+            if (extra == 0) {
+                sampleList.add(prototypeId, timeMs);
+                return;
+            }
+
             int[] prototype = stackTracesRemap.get(prototypeId);
+            int stackSize = prototype.length + 1;
+            if (cachedStackTrace.length < stackSize) {
+                cachedStackTrace = new int[stackSize * 2];
+            }
 
-            id = stackTracesRemap.indexWithPrototype(prototype, methodsCache.indexForClass(extra, type));
-            stackTracesCache.put((long) extra << 32 | stackTraceId, id);
-
-            sampleList.add(id, timeMs);
+            System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
+            cachedStackTrace[prototype.length] = methodsCache.indexForClass(extra, type);
+            sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
         }
 
         public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
-            int[] stackTrace = cachedStackTrace;
-            if (stackTrace.length < size) {
-                cachedStackTrace = stackTrace = new int[size * 2];
+            if (cachedStackTrace.length < size) {
+                cachedStackTrace = new int[size * 2];
             }
 
             for (int i = size - 1; i >= 0; i--) {
@@ -447,10 +440,10 @@ public class Heatmap {
                 int index = size - 1 - i;
                 boolean firstMethodInTrace = index == 0;
 
-                stackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
+                cachedStackTrace[index] = methodsCache.index(methodId, location, type, firstMethodInTrace);
             }
 
-            stackTracesCache.put(id, stackTracesRemap.index(stackTrace, size));
+            stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
     }

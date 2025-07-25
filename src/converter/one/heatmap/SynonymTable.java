@@ -36,7 +36,7 @@ public class SynonymTable {
             nodeSynonyms[i] = synonymsCount + i;
         }
         for (int i = 0; i < synonymsCount; i++) {
-            nodeSynonyms[(int) (synonyms[i] & 0xFFFFFFFFL)] = i;
+            nodeSynonyms[(int) synonyms[i]] = i;
         }
     }
 
@@ -45,7 +45,7 @@ public class SynonymTable {
     }
 
     public int synonymAt(int synonymIndex) {
-        return (int) (synonyms[synonymIndex] & 0xFFFFFFFFL) + synonymsCount;
+        return (int) synonyms[synonymIndex] + synonymsCount;
     }
 
     public int nodeIdOrSynonym(int node) {
