@@ -708,9 +708,11 @@ class Recording {
         float cpuPercent = 0.0f;
 
         if (deltaTime > 0) {
-            float cpuSecs     = static_cast<float>(deltaCpu) / OS::clock_ticks_per_sec;
+            float cpuSecs = static_cast<float>(deltaCpu) / OS::clock_ticks_per_sec;
             float elapsedSecs = static_cast<float>(deltaTime) / 1e9;
-            cpuPercent         = (cpuSecs / elapsedSecs) * 100.0;
+            if (elapsedSecs > 0) {
+              cpuPercent = (cpuSecs / elapsedSecs) * 100.0;
+            }
         }
 
         info->_cpu_percent = cpuPercent;

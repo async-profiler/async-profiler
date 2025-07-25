@@ -437,6 +437,7 @@ static bool isNumber(const char* str) {
     for (const char* p = str; *p; p++) {
         if (*p < '0' || *p > '9') return false;
     }
+
     return true;
 }
 
@@ -455,7 +456,6 @@ void OS::getProcessIds(int* pids, int* count, int max_pids) {
     }
 
     closedir(proc_dir);
-    fprintf(stderr, "found the process count to be %d\n", *count);
 }
 
 // Helper method to read process name from /proc/{pid}/comm
@@ -485,22 +485,26 @@ static bool readProcessCmdline(int pid, ProcessInfo* info) {
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
     FILE* file = fopen(path, "rb");  // Use binary mode to handle null bytes
     if (file) {
-        size_t len = fread(info->_cmdline, 1, sizeof(info->_cmdline) - 1, file);
-        if (len > 0) {
-            // Replace null bytes with spaces (arguments are separated by null bytes)
-            for (size_t i = 0; i < len; i++) {
-                if (info->_cmdline[i] == '\0') {
-                    info->_cmdline[i] = ' ';
-                }
-            }
-            // Ensure null termination
-            info->_cmdline[len] = '\0';
-            // Remove trailing space if present
-            if (len > 0 && info->_cmdline[len-1] == ' ') {
-                info->_cmdline[len-1] = '\0';
-            }
+      const size_t max_read = sizeof(info->_cmdline) - 1;
+      size_t len = fread(info->_cmdline, 1, max_read, file);
+      info->_cmdline[max_read] = '\0';
+
+      if (len > 0) {
+        // Replace null bytes with spaces (arguments are separated by null bytes)
+        for (size_t i = 0; i < len; i++) {
+          if (info->_cmdline[i] == '\0') {
+            info->_cmdline[i] = ' ';
+          }
         }
-        fclose(file);
+        // Ensure null termination
+        info->_cmdline[len] = '\0';
+        // Remove trailing space if present
+        if (len > 0 && info->_cmdline[len-1] == ' ') {
+          info->_cmdline[len-1] = '\0';
+        }
+      }
+
+      fclose(file);
     }
     return true;
 }
