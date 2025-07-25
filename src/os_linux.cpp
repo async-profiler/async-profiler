@@ -458,11 +458,8 @@ void OS::getProcessIds(int* pids, int* count, int max_pids) {
     fprintf(stderr, "found the process count to be %d\n", *count);
 }
 
-bool OS::getProcessInfo(int pid, ProcessInfo* info) {
-    *info = ProcessInfo();
-    info->_pid = pid;
-
-    // Read process name from /proc/{pid}/comm
+// Helper method to read process name from /proc/{pid}/comm
+static bool readProcessName(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/comm", pid);
     FILE* file = fopen(path, "r");
@@ -479,10 +476,14 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
     if (info->_name[0] == '\0') {
         snprintf(info->_name, sizeof(info->_name), "pid-%d", pid);
     }
+    return true;
+}
 
-    // Read command line from /proc/{pid}/cmdline
+// Helper method to read command line from /proc/{pid}/cmdline
+static bool readProcessCmdline(int pid, ProcessInfo* info) {
+    char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
-    file = fopen(path, "rb");  // Use binary mode to handle null bytes
+    FILE* file = fopen(path, "rb");  // Use binary mode to handle null bytes
     if (file) {
         size_t len = fread(info->_cmdline, 1, sizeof(info->_cmdline) - 1, file);
         if (len > 0) {
@@ -501,10 +502,14 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
         }
         fclose(file);
     }
+    return true;
+}
 
-    // Read process stats from /proc/{pid}/stat
+// Helper method to read process stats from /proc/{pid}/stat
+static bool readProcessStats(int pid, ProcessInfo* info) {
+    char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
-    file = fopen(path, "r");
+    FILE* file = fopen(path, "r");
     if (!file) return false;  // Critical failure
 
     char buffer[1024];
@@ -534,13 +539,17 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
         info->_cpu_system = stime;
         info->_threads = (unsigned short)threads;
         info->_start_time = starttime;
+        return true;
     } else {
         return false;  // Critical parsing failure
     }
+}
 
-    // Read memory stats from /proc/{pid}/statm
+// Helper method to read memory stats from /proc/{pid}/statm
+static bool readProcessMemory(int pid, ProcessInfo* info) {
+    char path[64];
     snprintf(path, sizeof(path), "/proc/%d/statm", pid);
-    file = fopen(path, "r");
+    FILE* file = fopen(path, "r");
     if (file) {
         unsigned long size, resident, shared, text, lib, data_stack, dt;
         int parsed = fscanf(file, "%lu %lu %lu %lu %lu %lu %lu",
@@ -553,12 +562,17 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
             info->_mem_shared = shared;
             info->_mem_text = text;
             info->_mem_data = data_stack;  // data + stack
+            return true;
         }
     }
+    return false;
+}
 
-    // Read UID from /proc/{pid}/status (fast version - only read first few lines)
+// Helper method to read UID from /proc/{pid}/status
+static bool readProcessUID(int pid, ProcessInfo* info) {
+    char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
-    file = fopen(path, "r");
+    FILE* file = fopen(path, "r");
     if (file) {
         char line[256];
         int lines_read = 0;
@@ -568,16 +582,21 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
                 unsigned int uid;
                 if (sscanf(line + 4, "%u", &uid) == 1) {
                     info->_uid = uid;
-                    break;
+                    fclose(file);
+                    return true;
                 }
             }
         }
         fclose(file);
     }
+    return false;
+}
 
-    // Read I/O stats from /proc/{pid}/io
+// Helper method to read I/O stats from /proc/{pid}/io
+static bool readProcessIO(int pid, ProcessInfo* info) {
+    char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
-    file = fopen(path, "r");
+    FILE* file = fopen(path, "r");
     if (file) {
         char line[256];
         while (fgets(line, sizeof(line), file)) {
@@ -594,7 +613,25 @@ bool OS::getProcessInfo(int pid, ProcessInfo* info) {
             }
         }
         fclose(file);
+        return true;
     }
+    return false;
+}
+
+bool OS::getProcessInfo(int pid, ProcessInfo* info) {
+    *info = ProcessInfo();
+    info->_pid = pid;
+
+    if (!readProcessStats(pid, info)) {
+        return false;
+    }
+
+    readProcessName(pid, info);
+    readProcessCmdline(pid, info);
+
+    readProcessMemory(pid, info);
+    readProcessUID(pid, info);
+    readProcessIO(pid, info);
 
     return true;
 }

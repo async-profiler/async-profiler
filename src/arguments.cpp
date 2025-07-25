@@ -60,7 +60,7 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     live             - build allocation profile from live objects only
 //     lock[=DURATION]  - profile contended locks overflowing the DURATION ns bucket (default: 10us)
 //     wall[=NS]        - run wall clock profiling together with CPU profiling
-//     proc[=S]         - collect system process metrics (default: 30s)
+//     proc[=S]         - collect process stats (default: 30s)
 //     nobatch          - legacy wall clock sampling without batch events
 //     collapsed        - dump collapsed stacks (the format used by FlameGraph script)
 //     flamegraph       - produce Flame Graph in HTML format
@@ -119,7 +119,6 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 // It is possible to specify multiple dump options at the same time
 
 Error Arguments::parse(const char* args) {
-    fprintf(stderr, "Arguments::parse %s\n", args);
     if (args == NULL) {
         return Error::OK;
     }

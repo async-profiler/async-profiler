@@ -75,7 +75,7 @@ static const char USAGE_STRING[] =
     "  --nofree          do not collect free calls in native allocation profiling\n"
     "  --lock duration   lock profiling threshold in nanoseconds\n"
     "  --wall interval   wall clock profiling interval\n"
-    "  --proc interval   process profiling interval\n"
+    "  --proc interval   process sampling interval\n"
     "  --all             shorthand for enabling cpu, wall, alloc, live,\n"
     "                    nativemem and lock profiling simultaneously\n"
     "  --total           accumulate the total value (time, bytes, etc.)\n"
