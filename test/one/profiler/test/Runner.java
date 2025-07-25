@@ -22,6 +22,14 @@ public class Runner {
     private static final int currentJvmVersion = detectJvmVersion();
 
     private static final String logDir = System.getProperty("logDir", "");
+    private static final boolean musl;
+
+    static {
+        System.loadLibrary("isMusl");
+        musl = isMusl();
+    }
+
+    private static native boolean isMusl();
 
     private static Os detectOs() {
         String os = System.getProperty("os.name").toLowerCase();
@@ -118,7 +126,7 @@ public class Runner {
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
 
         String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
-        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir)) {
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, musl)) {
             Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);

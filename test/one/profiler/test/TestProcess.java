@@ -60,15 +60,17 @@ public class TestProcess implements Closeable {
 
     private final Test test;
     private final Os currentOs;
+    private final boolean musl;
     private final String logDir;
     private final String[] inputs;
     private final Process p;
     private final Map<String, File> tmpFiles = new HashMap<>();
     private final int timeout = 30;
 
-    public TestProcess(Test test, Os currentOs, String logDir) throws Exception {
+    public TestProcess(Test test, Os currentOs, String logDir, boolean musl) throws Exception {
         this.test = test;
         this.currentOs = currentOs;
+        this.musl = musl;
         this.logDir = logDir;
         this.inputs = test.inputs();
 
@@ -109,6 +111,10 @@ public class TestProcess implements Closeable {
 
     public Os currentOs() {
         return this.currentOs;
+    }
+
+    public boolean musl() {
+        return this.musl;
     }
 
     public String profilerLibPath() {
