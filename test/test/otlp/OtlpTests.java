@@ -53,6 +53,12 @@ public class OtlpTests {
         assert collapsed.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn");
     }
 
+    @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
+public void otlpAggregationTemporalityTest(TestProcess p) throws Exception {
+    p.waitForExit();
+    assert p.exitCode() == 0;
+}
+
     private static ProfilesData waitAndGetProfilesData(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
