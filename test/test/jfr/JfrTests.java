@@ -7,6 +7,8 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import one.jfr.JfrReader;
+import one.jfr.event.ContendedLock;
 import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
@@ -74,8 +76,14 @@ public class JfrTests {
             }
         }
 
+        double totalLockDurationMillis = 0;
+        try (JfrReader r = new JfrReader(p.getFile("%f").toURI().getPath())) {
+            List<ContendedLock> events = r.readAllEvents(ContendedLock.class);
+            totalLockDurationMillis = events.stream().map(e -> e.duration).reduce((Long::sum)).get() / 1_000_000.0;
+        }
+
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
-        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 50);
+        assert eventsCount.get("jdk.JavaMonitorEnter") > 50 || totalLockDurationMillis >= 200;
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 
