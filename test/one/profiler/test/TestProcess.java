@@ -86,7 +86,7 @@ public class TestProcess implements Closeable {
         for (String env : test.env()) {
             String[] keyValue = env.split("=", 2);
             if (keyValue.length == 2) {
-                pb.environment().put(substituteFiles(keyValue[0]), substituteFiles(keyValue[1]));
+                pb.environment().put(substituteFiles(substitutePlatform(keyValue[0])), substituteFiles(keyValue[1]));
             }
         }
         pb.environment().put("TEST_JAVA_HOME", JAVA_HOME);
@@ -179,10 +179,18 @@ public class TestProcess implements Closeable {
         }
     }
 
+    private String substitutePlatform(String s) {
+        if (this.currentOs.equals(Os.MACOS)) {
+            s = s.replaceAll("LD_PRELOAD", "DYLD_INSERT_LIBRARIES");
+            s = s.replaceAll("\\." + Os.LINUX.getLibExt(), "." + Os.MACOS.getLibExt());
+        }
+        return s;
+    }
+
     private String substituteFiles(String s) {
         Matcher m = filePattern.matcher(s);
         if (!m.find()) {
-            return s;
+            return substitutePlatform(s);
         }
 
         StringBuffer sb = new StringBuffer();
@@ -191,14 +199,7 @@ public class TestProcess implements Closeable {
             m.appendReplacement(sb, path);
         } while (m.find());
 
-        String result = m.appendTail(sb).toString();
-
-        if (this.currentOs().equals(Os.MACOS)) {
-            result = result.replaceAll("LD_PRELOAD", "DYLD_INSERT_LIBRARIES");
-            result = result.replaceAll("\\." + Os.LINUX.getLibExt(), "." + Os.MACOS.getLibExt());
-        }
-
-        return result;
+        return substitutePlatform(m.appendTail(sb).toString());
     }
 
     private String substituteFile(String fileId, String ext) {
