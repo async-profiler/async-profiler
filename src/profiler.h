@@ -97,6 +97,9 @@ class Profiler {
     const void* _call_stub_begin;
     const void* _call_stub_end;
 
+    // reset to true when the profiler restarts
+    bool _first_dump;
+
     // dlopen() hook support
     void** _dlopen_entry;
     static void* dlopen_hook(const char* filename, int flags);
@@ -175,6 +178,7 @@ class Profiler {
         _native_libs(),
         _call_stub_begin(NULL),
         _call_stub_end(NULL),
+        _first_dump(true),
         _dlopen_entry(NULL) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
