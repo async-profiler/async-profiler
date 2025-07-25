@@ -407,12 +407,10 @@ bool OS::checkPreloaded() {
 }
 
 void OS::getProcessIds(int* pids, int* count, int max_pids) {
-    // Stub implementation for macOS - not implemented
     *count = 0;
 }
 
 bool OS::getProcessInfo(int pid, ProcessInfo* info) {
-    // Stub implementation for macOS - not implemented
     *info = ProcessInfo();
     return false;
 }
