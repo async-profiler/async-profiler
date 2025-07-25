@@ -416,8 +416,6 @@ public class Heatmap {
                 return;
             }
 
-            int suffix = extra != 0 ? methodsCache.indexForClass(extra, type) : 0;
-
             int[] prototype = stackTracesRemap.get(prototypeId);
             int stackSize = prototype.length + (threadName != null ? 1 : 0) + (suffix != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
