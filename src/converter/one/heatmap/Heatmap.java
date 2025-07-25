@@ -419,12 +419,15 @@ public class Heatmap {
                 cachedStackTrace = new int[stackSize * 2];
             }
 
-            System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
-            if (extra != 0) {
+            int id;
+            if (extra == 0) {
+                id = prototypeId;
+            } else {
+                System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
                 cachedStackTrace[prototype.length] = methodsCache.indexForClass(extra, type);
+                id = stackTracesRemap.index(cachedStackTrace, stackSize);
             }
 
-            int id = stackTracesRemap.index(cachedStackTrace, stackSize);
             sampleList.add(id, timeMs);
         }
 
