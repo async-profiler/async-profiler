@@ -33,8 +33,6 @@ public class TestProcess implements Closeable {
     public static final String LIBPROF = "%lib";
     public static final String TESTBIN = "%testbin";
     public static final String TESTLIB = "%testlib";
-    public static final String PRELOAD = "%preload";
-    public static final String EXT = "%ext";
 
     private static final String JAVA_HOME = System.getProperty("java.home");
 
@@ -126,13 +124,6 @@ public class TestProcess implements Closeable {
         return "build/test/lib";
     }
 
-    public String preload() {
-        if (currentOs().equals(Os.MACOS)) {
-            return "DYLD_INSERT_LIBRARIES";
-        }
-        return "LD_PRELOAD";
-    }
-
     private List<String> buildCommandLine(Test test) {
         List<String> cmd = new ArrayList<>();
 
@@ -200,7 +191,14 @@ public class TestProcess implements Closeable {
             m.appendReplacement(sb, path);
         } while (m.find());
 
-        return m.appendTail(sb).toString();
+        String result = m.appendTail(sb).toString();
+
+        if (this.currentOs().equals(Os.MACOS)) {
+            result = result.replaceAll("LD_PRELOAD", "DYLD_INSERT_LIBRARIES");
+            result = result.replaceAll("\\." + Os.LINUX.getLibExt(), "." + Os.MACOS.getLibExt());
+        }
+
+        return result;
     }
 
     private String substituteFile(String fileId, String ext) {
@@ -212,12 +210,6 @@ public class TestProcess implements Closeable {
         }
         if (fileId.equals(TESTLIB)) {
             return testLibPath();
-        }
-        if (fileId.equals(PRELOAD)) {
-            return preload();
-        }
-        if (fileId.equals(EXT)) {
-            return currentOs().getLibExt();
         }
         return createTempFile(fileId, ext).getPath();
     }

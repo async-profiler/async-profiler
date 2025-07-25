@@ -37,10 +37,10 @@ void* mac_malloc(size_t size) {
 }
 
 __attribute__((used)) static struct {
-    const void *replacement;
-    const void *original;
+    const void* replacement;
+    const void* original;
 } interposers[] __attribute__((section("__DATA,__interpose"))) = {
-    { (const void *)mac_malloc, (const void *)malloc }
+    { (const void*)mac_malloc, (const void*)malloc }
 };
 
 #endif

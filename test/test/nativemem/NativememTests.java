@@ -162,7 +162,7 @@ public class NativememTests {
         assertNoLeaks(p);
     }
 
-    @Test(mainClass = CallsAllNoLeak.class, args = "once", env = {"%preload=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})
+    @Test(mainClass = CallsAllNoLeak.class, args = "once", env = {"LD_PRELOAD=%lib", "ASPROF_COMMAND=start,nativemem,file=%f.jfr"})
     public void ldpreload(TestProcess p) throws Exception {
         assertNoLeaks(p);
 
@@ -172,7 +172,7 @@ public class NativememTests {
         assert out.contains("malloc_hook");
     }
 
-    @Test(sh = "%preload=%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_plt_dyn")
+    @Test(sh = "LD_PRELOAD=%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/malloc_plt_dyn")
     public void malloc_plt_dyn(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
 
@@ -186,8 +186,8 @@ public class NativememTests {
 
     @Test(sh = "%testbin/profile_with_dlopen dlopen_first %f.jfr", nameSuffix = "dlopen_first")
     @Test(sh = "%testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first")
-    @Test(sh = "%preload=%lib %testbin/profile_with_dlopen dlopen_first %f.jfr", nameSuffix = "dlopen_first+LD_PRELOAD")
-    @Test(sh = "%preload=%lib %testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first+LD_PRELOAD")
+    @Test(sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen dlopen_first %f.jfr", nameSuffix = "dlopen_first+LD_PRELOAD")
+    @Test(sh = "LD_PRELOAD=%lib %testbin/profile_with_dlopen profile_first %f.jfr", nameSuffix = "profile_first+LD_PRELOAD")
     public void dlopenCustomLib(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
         assert p.exitCode() == 0;
@@ -195,11 +195,11 @@ public class NativememTests {
         Assert.isEqual(sizeCounts.getOrDefault((long) MALLOC_SIZE, 0L), 1);
     }
 
-    @Test(sh = "%preload=%lib:%testlib/libmalloc.%ext ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/preload_malloc preload %f.jfr",
+    @Test(sh = "LD_PRELOAD=%lib:%testlib/libmalloc.so ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/preload_malloc preload %f.jfr",
             nameSuffix = "LD_PRELOAD+profiler_first")
-    @Test(sh = "%preload=%testlib/libmalloc.%ext:%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/preload_malloc preload %f.jfr",
+    @Test(sh = "LD_PRELOAD=%testlib/libmalloc.so:%lib ASPROF_COMMAND=start,nativemem,file=%f.jfr %testbin/preload_malloc preload %f.jfr",
             nameSuffix = "LD_PRELOAD+profiler_second")
-    @Test(sh = "%preload=%testlib/libmalloc.%ext %testbin/preload_malloc api %f.jfr", nameSuffix = "api_test")
+    @Test(sh = "LD_PRELOAD=%testlib/libmalloc.so %testbin/preload_malloc api %f.jfr", nameSuffix = "api_test")
     public void preloadMalloc(TestProcess p) throws Exception {
         Map<Long, Long> sizeCounts = assertNoLeaks(p);
         assert p.exitCode() == 0;

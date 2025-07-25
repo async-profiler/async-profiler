@@ -32,7 +32,7 @@ class WallClock : public Engine {
 
     static void* threadEntry(void* wall_clock) {
         ((WallClock*)wall_clock)->timerLoop();
-        pthread_exit(NULL);
+        return NULL;
     }
 
     static ThreadState getThreadState(void* ucontext);

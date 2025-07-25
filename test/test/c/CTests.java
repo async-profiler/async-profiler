@@ -27,7 +27,7 @@ public class CTests {
         assert preloadFile == null || preloadFile.length() == 0;
     }
 
-    @Test(sh = "%preload=%lib %testbin/multiple_profilers %api_file.jfr", env = {"ASPROF_COMMAND=start,nativemem,file=%preload_file.jfr"})
+    @Test(sh = "LD_PRELOAD=%lib %testbin/multiple_profilers %api_file.jfr", env = {"ASPROF_COMMAND=start,nativemem,file=%preload_file.jfr"})
     public void twoProfilers(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
