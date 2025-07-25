@@ -246,12 +246,14 @@ jobs:
           path: |
             build/test/logs/
             hs_err*.log
-  publish-only-on-push:
+  publish-nightly-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     name: publish (nightly)
     runs-on: ubuntu-latest
     needs: [build-jars, integration-tests]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Download async-profiler binaries and jars
         uses: actions/download-artifact@v4
         with:
@@ -310,3 +312,23 @@ jobs:
               release_id: newReleaseId,
               draft: false,
             });
+      - name: Set snapshot version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          mvn versions:set -DnewVersion="${VERSION}-SNAPSHOT"
+      - name: Create directory structure for Maven release
+        run: |
+          mkdir -p native/{linux-x64,linux-arm64,macos}
+          tar xfO async-profiler-*-linux-x64.tar.gz --wildcards "*/lib/*" > native/linux-x64/libasyncProfiler.so
+          tar xfO async-profiler-*-linux-arm64.tar.gz --wildcards "*/lib/*" > native/linux-arm64/libasyncProfiler.so
+          unzip -p async-profiler-*-macos.zip "*/lib/*" > native/macos/libasyncProfiler.so
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: 21
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Maven release
+        run: mvn clean deploy
+      - name: Maven jfr-converter release
+        run: mvn -f pom-converter.xml clean deploy
