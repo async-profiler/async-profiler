@@ -27,10 +27,6 @@ class AllocTracer : public Engine {
 
   public:
     const char* type() {
-        return "alloc_tracer";
-    }
-
-    const char* otel_type() {
         return "alloc";
     }
 

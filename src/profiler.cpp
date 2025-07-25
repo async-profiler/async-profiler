@@ -1669,22 +1669,22 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // TODO: Ideally each event should record the engine which generated it
     const char* engine_units = activeEngine()->units();
-    size_t otel_units_strindex = strings.indexOf(
+    size_t units_strindex = strings.indexOf(
         strcmp(engine_units, "ns") == 0 ? "nanoseconds" :
             strcmp(engine_units, "total") == 0 ? "count" : engine_units
     );
-    size_t otel_type_strindex = strings.indexOf(activeEngine()->otel_type());
+    size_t type_strindex = strings.indexOf(activeEngine()->type());
 
     protobuf_mark_t period_type_mark = otlp_buffer.startMessage(Profile::period_type);
-    otlp_buffer.field(ValueType::type_strindex, otel_type_strindex);
-    otlp_buffer.field(ValueType::unit_strindex, otel_units_strindex);
+    otlp_buffer.field(ValueType::type_strindex, type_strindex);
+    otlp_buffer.field(ValueType::unit_strindex, units_strindex);
     otlp_buffer.commitMessage(period_type_mark);
 
     // Engine                    period_type       period_unit
     // ------------------------|------------------------------
     // PerfEvents=cpu          | cpu               nanoseconds
     // PerfEvents=cache-misses | cache-misses      count
-    // CTimer                  | cpu               nanoseconds
+    // CTimer                  | ctimer            nanoseconds
     // MallocTracer            | malloc            bytes
     // AllocTracer             | alloc             bytes
     // LockTracer              | lock              nanoseconds
@@ -1695,7 +1695,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     // total=true  -> sample_type=period_type  sample_unit=period_unit
     // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/profiles/v1development/profiles.proto#L223
     recordSampleType(otlp_buffer, strings.indexOf("samples"), strings.indexOf("count"));
-    recordSampleType(otlp_buffer, otel_type_strindex, otel_units_strindex);
+    recordSampleType(otlp_buffer, type_strindex, units_strindex);
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);

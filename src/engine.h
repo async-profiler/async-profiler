@@ -38,10 +38,6 @@ class Engine {
         return "noop";
     }
 
-    virtual const char* otel_type() {
-        return type();
-    }
-
     virtual const char* title() {
         return "Flame Graph";
     }

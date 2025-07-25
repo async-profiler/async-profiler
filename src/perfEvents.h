@@ -37,11 +37,7 @@ class PerfEvents : public CpuEngine {
     Error start(Arguments& args);
     void stop();
 
-    const char* type() {
-        return "perf_events";
-    }
-
-    const char* otel_type();
+    const char* type();
     const char* title();
     const char* units();
 

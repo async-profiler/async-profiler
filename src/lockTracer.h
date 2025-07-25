@@ -48,10 +48,6 @@ class LockTracer : public Engine {
 
   public:
     const char* type() {
-        return "lock_tracer";
-    }
-
-    const char* otel_type() {
         return "lock";
     }
 

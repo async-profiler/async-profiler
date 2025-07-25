@@ -26,10 +26,6 @@ class ObjectSampler : public Engine {
 
   public:
     const char* type() {
-        return "object_sampler";
-    }
-
-    const char* otel_type() {
         return "alloc";
     }
 

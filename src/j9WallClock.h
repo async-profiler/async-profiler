@@ -27,10 +27,6 @@ class J9WallClock : public Engine {
 
   public:
     const char* type() {
-        return "j9_wall";
-    }
-
-    const char* otel_type() {
         return "wall";
     }
 

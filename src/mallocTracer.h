@@ -28,10 +28,6 @@ class MallocTracer : public Engine {
 
   public:
     const char* type() {
-        return "malloc_tracer";
-    }
-
-    const char* otel_type() {
         return "malloc";
     }
 
