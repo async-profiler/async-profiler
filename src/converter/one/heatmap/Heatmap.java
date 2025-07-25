@@ -417,7 +417,7 @@ public class Heatmap {
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + (threadName != null ? 1 : 0) + (suffix != 0 ? 1 : 0);
+            int stackSize = prototype.length + (threadName != null ? 1 : 0) + (extra != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
