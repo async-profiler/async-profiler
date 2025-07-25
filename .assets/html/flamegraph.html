@@ -3,10 +3,41 @@
 <head>
 <meta charset='utf-8'>
 <style>
-	body {margin: 0; padding: 10px 10px 22px 10px; background-color: #ffffff}
-	h1 {margin: 5px 0 0 0; font-size: 18px; font-weight: normal; text-align: center}
-	header {margin: -24px 0 5px 0; line-height: 24px}
-	button {font: 12px sans-serif; cursor: pointer}
+	body {margin: 0; padding: 5px 5px 15px 5px; background-color: #ffffff}
+	h1 {margin: 0; font-size: 18px; font-weight: normal; flex-grow: 1; text-align: center}
+	header {margin: 0; line-height: 20px; text-align: right; font-size: 11px; color: #666;}
+	.title-toolbar-container {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 2px;
+		background-color: #ffffff;
+		padding: 1px 2px;
+		border: none;
+		border-radius: 0;
+	}
+	.title-section {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		flex-grow: 1;
+	}
+	.toolbar-section {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+	}
+	.left-toolbar {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		width: 150px;
+	}
+	.right-section {
+		display: flex;
+		align-items: center;
+		width: 150px;
+	}
 	p {position: fixed; bottom: 0; margin: 0; padding: 2px 3px 2px 3px; outline: 1px solid #ffc000; display: none; overflow: hidden; white-space: nowrap; background-color: #ffffe0}
 	a {color: #0366d6}
 	#hl {position: absolute; display: none; overflow: hidden; white-space: nowrap; pointer-events: none; background-color: #ffffe0; outline: 1px solid #ffc000; height: 15px}
@@ -15,16 +46,123 @@
 	#match {right: 0}
 	#reset {cursor: pointer}
 	#canvas {width: 100%; height: 576px}
+
+	#info-tooltip {
+		display: none;
+		position: fixed;
+		width: 404px;
+		border: 1px solid #666666;
+		background: #ffffe0;
+		border-radius: 8px;
+		padding: 2px;
+		z-index: 1000;
+		pointer-events: none;
+	}
+	.top {
+		border-top: .1px solid #000
+	}
+	.left {
+		border-left: .1px solid #000
+	}
+	.bottom {
+		border-bottom: .1px solid #000
+	}
+	.right {
+		border-right: .1px solid #000
+	}
+	.toolbarIcon {
+		width: 24px;
+		height: 24px;
+		margin: 0 2px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		cursor: pointer;
+	}
+	.toolbarSelected {
+		background-color: #cccccc;
+		outline: 1px solid #999999;
+		border-radius: 4px;
+	}
+	.toolbarIcon:hover {
+		background-color: #ffffe0;
+		outline: 1px solid #ffc000;
+		border-radius: 4px;
+	}
+	.bordered {
+		outline: none;
+		border: none;
+	}
+	.colortip {
+		width: 200px;
+		box-sizing: border-box;
+		padding: 2px;
+		margin: 1px 0;
+	}
+	.colortip-title {
+		font-weight: bold;
+		padding: 2px;
+	}
 </style>
 </head>
 <body style='font: 12px Verdana, sans-serif'>
-<h1>CPU profile</h1>
-<header style='text-align: left'><button id='reverse' title='Reverse'>&#x1f53b;</button>&nbsp;&nbsp;<button id='search' title='Search'>&#x1f50d;</button></header>
-<header style='text-align: right'>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
-<canvas id='canvas'></canvas>
-<div id='hl'><span></span></div>
-<p id='status'></p>
-<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+
+<div class="title-toolbar-container">
+	<div class="left-toolbar">
+		<div id="invert" class="toolbarIcon" title="Invert Graph [I]"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="m10 4-7 6h14Z" fill="#004d80"/><path d="m10 16-7-6h14Z" fill="#ff8d40"/><path stroke="#c4c4c4" d="M0 10h20"/></svg></div>
+		<div id="search" class="toolbarIcon" title="Search by Regex [Ctrl + F]"><svg height="20" width="20" viewBox="-39.26 -39.26 471.13 471.13" xml:space="preserve" stroke="#000" stroke-width=".004"><path style="fill:#fff" d="M273.713 147.774c0 69.495-56.501 125.931-125.931 125.931-69.495 0-125.931-56.501-125.931-125.931 0-69.495 56.501-125.931 125.931-125.931s125.931 56.501 125.931 125.931z"/><path style="fill:#40b2ff" d="M370.747 348.695c0 1.422-1.616 6.271-7.176 12.283-6.206 6.659-12.477 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.614 47.514 105.181 90.116 106.797 109.51z"/><path style="fill:#ff8d40" d="m208.679 86.877-14.481 14.481c-17.131 17.131-46.545 5.042-46.545-19.265V61.6c-49.002 0-88.372 40.792-86.109 90.246 2.004 43.895 38.141 80.032 82.036 82.036 49.455 2.263 90.246-37.172 90.246-86.109.13-23.724-9.503-45.251-25.147-60.896z"/><path style="fill:#004d80" d="M276.105 220.954c12.347-21.527 19.459-46.545 19.459-73.18C295.564 66.319 229.237.057 147.718.057S0 66.32 0 147.904s66.327 147.717 147.717 147.717c26.57 0 51.523-7.111 73.18-19.459 39.822 53.333 91.863 113.519 126.061 116.364 12.283.517 22.885-6.723 32.776-16.743 5.172-5.624 13.77-16.937 12.8-28.768-2.91-34.134-63.096-86.239-116.429-126.061zM147.717 273.77c-69.495 0-125.931-56.501-125.931-125.931S78.287 21.908 147.717 21.908s125.931 56.501 125.931 125.931S217.212 273.77 147.717 273.77zm215.855 87.208c-6.206 6.659-12.412 9.762-14.739 9.762h-.065c-19.459-1.616-61.996-43.184-109.576-106.796v-.129a148 148 0 0 0 24.63-24.63h.129c63.612 47.58 105.18 90.182 106.796 109.576 0 1.357-1.616 6.205-7.175 12.217z"/></svg></div>
+		<div id="graph-info" class="toolbarIcon"><svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" stroke="#004d80" fill="none"/><path d="M10 5.5c-1.25 0-2.25 1-2.25 2.25H9a1.25 1.25 0 0 1 2.5 0c0 .65-.55 1-1 1.2-.7.35-1.25.85-1.25 1.8V11h1.5v-.25c0-.37.29-.65.68-.83.73-.34 1.32-.87 1.32-2.17 0-1.25-1.5-2.25-2.75-2.25" fill="#ff8d40" stroke="#ff8d40" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="13.5" r="1" fill="#ff8d40"/></svg></div>
+
+		<div id="info-tooltip">
+			<div style="float:left">
+				<div class="colortip-title">Frame types:</div>
+				<div class="colortip" style="background-color: #e17d00">Kernel</div>
+				<div class="colortip" style="background-color: #e15a5a">Native</div>
+				<div class="colortip" style="background-color: #c8c83c">C++ (VM)</div>
+				<div class="colortip" style="background-color: #50e150">Java compiled (C2/JVMCI)</div>
+				<div class="colortip" style="background-color: #cce880">Java C1 compiled</div>
+				<div class="colortip" style="background-color: #50cccc">Java inlined</div>
+				<div class="colortip" style="background-color: #b2e1b2">Interpreted</div>
+			</div>
+			<div style="float:left; margin-left: 2px">
+				<div class="colortip-title">Special colors:</div>
+				<div class="colortip" style="background-color: #ee00ee">Matches regexp</div>
+				<div class="colortip-title">Allocation mode:</div>
+				<div class="colortip" style="background-color: #e17d00">Allocation outside TLAB</div>
+				<div class="colortip" style="background-color: #50cccc">Allocated object</div>
+				<div class="colortip-title">Lock mode:</div>
+				<div class="colortip" style="background-color: #50cccc">Locked object</div>
+			</div>
+			<div style="float:left; margin-top: 2px; width: 100%; border: 1px solid #666666; border-radius: 2px; padding: 1px; box-sizing: border-box;">
+				Click frame - Zoom in frame<br>
+				Alt + click frame - Remove frame<br>
+				0 - Reset zoom<br>
+				<br>
+				Ctrl + F - Search<br>
+				N - Focus on next match<br>
+				Shift + N - Focus on previous match<br>
+				Esc - Cancel search<br>
+				<br>
+				I - invert graph<br>
+			</div>
+		</div>
+	</div>
+
+	<div class="title-section">
+		<h1>CPU Profile</h1>
+	</div>
+
+	<div class="right-section">
+		<header>Produced by <a href='https://github.com/async-profiler/async-profiler'>async-profiler</a></header>
+	</div>
+</div>
+
+<div class='bordered' style="display: flex; flex-direction: column;">
+	<canvas id='canvas'></canvas>
+	<div id='hl'><span></span></div>
+	<p id='status'></p>
+	<p id='match'>Matched: <span id='matchval'></span> <span id='reset' title='Clear'>&#x274c;</span></p>
+</div>
 <script>
 	// Copyright The async-profiler authors
 	// SPDX-License-Identifier: Apache-2.0
@@ -32,7 +170,7 @@
 	let root, px, pattern;
 	let level0 = 0, left0 = 0, width0 = 0;
 	let nav = [], navIndex, matchval;
-	let reverse = false;
+	let inverted = false;
 	const levels = Array(36);
 	for (let h = 0; h < levels.length; h++) {
 		levels[h] = [];
@@ -42,6 +180,9 @@
 	const c = canvas.getContext('2d');
 	const hl = document.getElementById('hl');
 	const status = document.getElementById('status');
+	const infoTooltip = document.getElementById('info-tooltip');
+	const btnInfo = document.getElementById('graph-info');
+	const btnInvert = document.getElementById('invert');
 
 	const canvasWidth = canvas.offsetWidth;
 	const canvasHeight = canvas.offsetHeight;
@@ -57,18 +198,20 @@
 		[0x50cccc, 30, 30, 30],
 		[0xe15a5a, 30, 40, 40],
 		[0xc8c83c, 30, 30, 10],
-		[0xe17d00, 30, 30,  0],
+		[0xe17d00, 30, 30, 0],
 		[0xcce880, 20, 20, 20],
 	];
 
-	function getColor(p) {
+	function getTypeColor(type) {
 		const v = Math.random();
+		const p = palette[type];
 		return '#' + (p[0] + ((p[1] * v) << 16 | (p[2] * v) << 8 | (p[3] * v))).toString(16);
 	}
 
 	function f(key, level, left, width, inln, c1, int) {
 		levels[level0 = level].push({level, left: left0 += left, width: width0 = width || width0,
-			color: getColor(palette[key & 7]), title: cpool[key >>> 3],
+			color: getTypeColor(key & 7), title: cpool[key >>> 3],
+			type: key & 7,
 			details: (int ? ', int=' + int : '') + (c1 ? ', c1=' + c1 : '') + (inln ? ', inln=' + inln : '')
 		});
 	}
@@ -134,6 +277,7 @@
 		}
 
 		pattern = r ? RegExp(r) : undefined;
+
 		const matched = render(root, nav = []);
 		navIndex = -1;
 		document.getElementById('matchval').textContent = matchval = pct(matched, root.width) + '%';
@@ -191,7 +335,7 @@
 		}
 
 		for (let h = 0; h < levels.length; h++) {
-			const y = reverse ? h * 16 : canvasHeight - (h + 1) * 16;
+			const y = inverted ? h * 16 : canvasHeight - (h + 1) * 16;
 			const frames = levels[h];
 			for (let i = 0; i < frames.length; i++) {
 				drawFrame(frames[i], y);
@@ -207,21 +351,27 @@
 		}
 	}
 
+	function resetZoom() {
+		canvas.onmouseout();
+		root = levels[0][0];
+		search(false);
+	}
+
 	canvas.onmousemove = function() {
-		const h = Math.floor((reverse ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
+		const h = Math.floor((inverted ? event.offsetY : (canvasHeight - event.offsetY)) / 16);
 		if (h >= 0 && h < levels.length) {
 			const f = findFrame(levels[h], event.offsetX / px + root.left);
 			if (f) {
 				if (f !== root) getSelection().removeAllRanges();
 				hl.style.left = (Math.max(f.left - root.left, 0) * px + canvas.offsetLeft) + 'px';
 				hl.style.width = (Math.min(f.width, root.width) * px) + 'px';
-				hl.style.top = ((reverse ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
+				hl.style.top = ((inverted ? h * 16 : canvasHeight - (h + 1) * 16) + canvas.offsetTop) + 'px';
 				hl.firstChild.textContent = f.title;
 				hl.style.display = 'block';
 				canvas.title = f.title + '\n(' + samples(f.width) + f.details + ', ' + pct(f.width, levels[0][0].width) + '%)';
 				canvas.style.cursor = 'pointer';
 				canvas.onclick = function() {
-					if (event.altKey && h >= root.level) {
+					if (event.altKey && h >= root.level && h > 0) {
 						removeStack(f.left, f.width);
 						root.width > f.width ? render(root) : render();
 					} else if (f !== root) {
@@ -249,11 +399,6 @@
 		getSelection().selectAllChildren(hl);
 	}
 
-	document.getElementById('reverse').onclick = function() {
-		reverse = !reverse;
-		render();
-	}
-
 	document.getElementById('search').onclick = function() {
 		search(true);
 	}
@@ -262,19 +407,54 @@
 		search(false);
 	}
 
+	btnInvert.onclick = function(e) {
+		invertMode();
+	}
+
+	btnInvert.onmousedown = function(e) {
+		return false;
+	}
+
+	btnInfo.onmouseenter = function(e) {
+		infoTooltip.style.left = (btnInfo.offsetLeft + 25) + 'px';
+		infoTooltip.style.top = (btnInfo.offsetTop + 25) + 'px';
+		infoTooltip.style.display = 'block';
+	};
+
+	btnInfo.onmouseleave = function() {
+		infoTooltip.style.display = 'none';
+	};
+
+	btnInfo.onmousedown = function() {
+		return false;
+	};
+
+	btnInfo.ondblclick = function(e) {
+		return false;
+	}
+
 	window.onkeydown = function(event) {
-		if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-			event.preventDefault();
-			search(true);
-		} else if (event.key === 'Escape') {
+		if (event.key === 'Escape') {
 			search(false);
-		} else if ((event.key === 'n' || event.key === 'N') && nav.length > 0) {
+		} else if((event.ctrlKey || event.metaKey) && event.key === 'f') {
+			search(true);
+		} else if (event.key === 'n' && nav.length > 0) {
 			navIndex = (navIndex + (event.shiftKey ? nav.length - 1 : 1)) % nav.length;
 			render(nav[navIndex]);
 			document.getElementById('matchval').textContent = matchval + ' (' + (navIndex + 1) + ' of ' + nav.length + ')';
-			window.scroll(0, reverse ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
+			window.scroll(0, inverted ? root.level * 16 : canvasHeight - (root.level + 1) * 16);
 			canvas.onmousemove();
+		} else if (event.key === 'i') {
+			invertMode();
+		} else if (event.key === '0') {
+			resetZoom();
 		}
+		return false;
+	}
+
+	function invertMode() {
+		inverted = !inverted;
+		render();
 	}
 
 const cpool = [
@@ -492,7 +672,7 @@ f(484,12,2,3)
 u(476)
 f(68,10,3,23)
 f(412,11,2,16)
-u(380,15)
+f(380,12,1,15)
 f(372,13,1,3)
 n(388,2)
 n(396)
@@ -501,7 +681,7 @@ n(428,5)
 f(436,14,1,2)
 n(444)
 u(420)
-f(452,11,3,3)
+f(452,11,2,3)
 u(468)
 f(460,13,1,2)
 f(492,11,2)
@@ -539,7 +719,7 @@ u(108)
 f(1444,15,12,50)
 f(1452,16,1,22)
 f(124,17,2,20)
-f(156,18,9,8)
+f(156,18,10,8)
 f(228,19,2,2)
 n(508)
 n(605)
@@ -552,7 +732,7 @@ u(613)
 u(629)
 u(621)
 f(579,18,2)
-f(1460,16,3,27)
+f(1460,16,2,27)
 f(124,17,11,16)
 f(156,18,13,3)
 u(605)
