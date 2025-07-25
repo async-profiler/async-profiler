@@ -6,7 +6,6 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <string.h>
-#include "arch.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"

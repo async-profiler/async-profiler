@@ -7,6 +7,7 @@
 #define _INSTRUMENT_H
 
 #include <jvmti.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -20,7 +21,7 @@ class Instrument : public Engine {
 
   public:
     const char* type() {
-        return "instrument";
+      return _target_class;
     }
 
     const char* title() {

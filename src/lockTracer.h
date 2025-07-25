@@ -48,7 +48,7 @@ class LockTracer : public Engine {
 
   public:
     const char* type() {
-        return "lock_tracer";
+        return "lock";
     }
 
     const char* title() {

@@ -26,7 +26,7 @@ class ObjectSampler : public Engine {
 
   public:
     const char* type() {
-        return "object_sampler";
+        return "alloc";
     }
 
     const char* title() {

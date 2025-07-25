@@ -28,7 +28,7 @@ class MallocTracer : public Engine {
 
   public:
     const char* type() {
-        return "malloc_tracer";
+        return "malloc";
     }
 
     const char* title() {

@@ -1648,11 +1648,11 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, size_t type_strindex, size_t units_strindex) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
-    otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
-    otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
+    otlp_buffer.field(ValueType::type_strindex, type_strindex);
+    otlp_buffer.field(ValueType::unit_strindex, units_strindex);
     otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
     otlp_buffer.commitMessage(sample_type_mark);
 }
@@ -1667,8 +1667,35 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    recordSampleType(otlp_buffer, strings, _engine->type(), "count");
-    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
+    // TODO: Ideally each event should record the engine which generated it
+    const char* engine_units = activeEngine()->units();
+    size_t units_strindex = strings.indexOf(
+        strcmp(engine_units, "ns") == 0 ? "nanoseconds" :
+            strcmp(engine_units, "total") == 0 ? "count" : engine_units
+    );
+    size_t type_strindex = strings.indexOf(activeEngine()->type());
+
+    protobuf_mark_t period_type_mark = otlp_buffer.startMessage(Profile::period_type);
+    otlp_buffer.field(ValueType::type_strindex, type_strindex);
+    otlp_buffer.field(ValueType::unit_strindex, units_strindex);
+    otlp_buffer.commitMessage(period_type_mark);
+
+    // Engine                    period_type       period_unit
+    // ------------------------|------------------------------
+    // PerfEvents=cpu          | cpu               nanoseconds
+    // PerfEvents=cache-misses | cache-misses      count
+    // CTimer                  | ctimer            nanoseconds
+    // MallocTracer            | malloc            bytes
+    // AllocTracer             | alloc             bytes
+    // LockTracer              | lock              nanoseconds
+    // WallClock               | wall              nanoseconds
+    // Instrument              | com/example/class calls
+    // ------------------------|-------------------------
+    // total=false -> sample_type="samples"    sample_unit="count"
+    // total=true  -> sample_type=period_type  sample_unit=period_unit
+    // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.7.0/opentelemetry/proto/profiles/v1development/profiles.proto#L223
+    recordSampleType(otlp_buffer, strings.indexOf("samples"), strings.indexOf("count"));
+    recordSampleType(otlp_buffer, type_strindex, units_strindex);
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);

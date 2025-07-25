@@ -27,7 +27,7 @@ class J9WallClock : public Engine {
 
   public:
     const char* type() {
-        return "j9_wall";
+        return "wall";
     }
 
     const char* title() {
