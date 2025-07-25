@@ -17,7 +17,7 @@ const static int musl = confstr(_CS_GNU_LIBC_VERSION, NULL, 0) == 0 && errno != 
 
 #endif
 
-JNIEXPORT jboolean JNICALL Java_one_profiler_test_Runner_isMusl(JNIEnv* env, jclass cls) {
+extern "C" JNIEXPORT jboolean JNICALL Java_one_profiler_test_Runner_isMusl(JNIEnv* env, jclass cls) {
     return musl;
 }
 
