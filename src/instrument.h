@@ -20,7 +20,9 @@ class Instrument : public Engine {
     static volatile bool _running;
 
   public:
-    const char* type();
+    const char* type() {
+      return _target_class;
+    }
 
     const char* title() {
         return "Java method profile";
