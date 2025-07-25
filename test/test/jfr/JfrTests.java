@@ -32,11 +32,11 @@ public class JfrTests {
         assert !out.contains(inconsistentPattern);
         assert out.contains(consistentPattern);
 
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3000");
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3500");
         assert out.contains(inconsistentPattern);
         assert out.contains(consistentPattern);
 
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3000");
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3500");
         assert !out.contains(inconsistentPattern);
         assert out.contains(consistentPattern);
     }
