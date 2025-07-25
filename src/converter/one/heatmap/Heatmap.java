@@ -221,16 +221,16 @@ public class Heatmap {
     }
 
     private void renameMethodsByFrequency(EvaluationContext context) {
-        Method[] descsByFrequency = context.orderedMethods.clone();
-        Arrays.sort(descsByFrequency, new Comparator<Method>() {
+        Method[] methodsByFrequency = context.orderedMethods.clone();
+        Arrays.sort(methodsByFrequency, new Comparator<Method>() {
             @Override
             public int compare(Method o1, Method o2) {
                 return Integer.compare(o2.frequency, o1.frequency);
             }
         });
 
-        for (int i = 0; i < descsByFrequency.length; i++) {
-            Method method = descsByFrequency[i];
+        for (int i = 0; i < methodsByFrequency.length; i++) {
+            Method method = methodsByFrequency[i];
             method.frequencyBasedId = i + 1; // zero is reserved for no method
         }
     }
