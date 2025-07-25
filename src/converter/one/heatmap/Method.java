@@ -7,29 +7,31 @@ package one.heatmap;
 
 import one.convert.Frame;
 
-public class FrameDesc {
+public class Method {
 
     public final int className;
-    public final int name;
+    public final int methodName;
     public final int location;
     public final byte type;
     public final boolean start;
 
     final long originalMethodId;
 
+    Method next;
+
     public int frequency;
     // An identifier based on frequency ordering, more frequent methods will get a lower ID
     public int frequencyBasedId;
     public int index;
 
-    FrameDesc(int className, int name) {
-        this(0, className, name, 0, Frame.TYPE_NATIVE, true);
+    Method(int className, int methodName) {
+        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
     }
 
-    FrameDesc(long originalMethodId, int className, int name, int location, byte type, boolean start) {
+    Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
         this.originalMethodId = originalMethodId;
         this.className = className;
-        this.name = name;
+        this.methodName = methodName;
         this.location = location;
         this.type = type;
         this.start = start;
@@ -40,19 +42,19 @@ public class FrameDesc {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
-        FrameDesc frameDesc = (FrameDesc) o;
+        Method method = (Method) o;
 
-        if (className != frameDesc.className) return false;
-        if (name != frameDesc.name) return false;
-        if (location != frameDesc.location) return false;
-        if (type != frameDesc.type) return false;
-        return start == frameDesc.start;
+        if (className != method.className) return false;
+        if (methodName != method.methodName) return false;
+        if (location != method.location) return false;
+        if (type != method.type) return false;
+        return start == method.start;
     }
 
     @Override
     public int hashCode() {
         int result = className;
-        result = 31 * result + name;
+        result = 31 * result + methodName;
         result = 31 * result + location;
         result = 31 * result + (int) type;
         result = 31 * result + (start ? 1 : 0);

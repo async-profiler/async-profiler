@@ -32,35 +32,21 @@ public final class StackStorage {
         return values[id - 1];
     }
 
-    public int index(int[] prototype, int stackSize, int prefix, int suffix) {
+    public int index(int[] input, int inputSize) {
         int mask = meta.length - 1;
-        int targetHash = murmur(prototype, stackSize, prefix, suffix);
+        int targetHash = murmur(input, inputSize);
         int i = targetHash & mask;
-        long currentMeta;
-        while ((currentMeta = meta[i]) != 0) {
+        for (long currentMeta = meta[i]; currentMeta != 0; currentMeta = meta[i]) {
             if ((int) currentMeta == targetHash) {
                 int index = (int) (currentMeta >>> 32);
-                int[] value = values[index - 1];
-                if (equals(value, prototype, stackSize, prefix, suffix)) {
-                    return index;
+                if (equals(input, inputSize, values[index])) {
+                    return index + 1;
                 }
             }
-
             i = (i + 1) & mask;
         }
 
-        int[] stack = new int[stackSize + (prefix == 0 ? 0 : 1) + (suffix == 0 ? 0 : 1)];
-        if (prefix != 0) {
-            stack[0] = prefix;
-            System.arraycopy(prototype, 0, stack, 1, stackSize);
-        } else {
-            System.arraycopy(prototype, 0, stack, 0, stackSize);
-        }
-        if (suffix != 0) {
-            stack[prototype.length] = suffix;
-        }
-
-        values[size] = stack;
+        values[size] = Arrays.copyOf(input, inputSize);
         meta[i] = (long) size << 32 | (targetHash & 0xFFFFFFFFL);
         size++;
 
@@ -95,45 +81,21 @@ public final class StackStorage {
         values = Arrays.copyOf(values, newCapacity);
     }
 
-    private boolean equals(int[] a, int[] b, int bSize, int prefix, int suffix) {
-        if (a.length != bSize + (prefix == 0 ? 0 : 1) + (suffix == 0 ? 0 : 1)) {
-            return false;
+    private boolean equals(int[] a, int size, int[] b) {
+        if (b.length != size) return false;
+        for (int i = 0; i < size; ++i) {
+            if (a[i] != b[i]) return false;
         }
-        int aIndex = 0;
-        if (prefix != 0 && a[aIndex++] != prefix) {
-            return false;
-        }
-        for (int bIndex = 0; bIndex < bSize; ++bIndex) {
-            if (a[aIndex++] != b[bIndex]) {
-                return false;
-            }
-        }
-        return suffix != 0 && a[aIndex] == suffix;
+        return true;
     }
 
-    private static int murmur(int[] data, int size, int prefix, int suffix) {
+    private static int murmur(int[] data, int size) {
         int m = 0x5bd1e995;
-        int h = 0x9747b28c ^ (data.length + 1);
-
-        if (prefix != 0) {
-            int k = prefix * m;
-            k ^= k >>> 24;
-            k *= m;
-            h *= m;
-            h ^= k;
-        }
+        int h = 0x9747b28c ^ size;
 
         for (int i = 0; i < size; i++) {
             int k = data[i];
             k *= m;
-            k ^= k >>> 24;
-            k *= m;
-            h *= m;
-            h ^= k;
-        }
-
-        if (suffix != 0) {
-            int k = suffix * m;
             k ^= k >>> 24;
             k *= m;
             h *= m;

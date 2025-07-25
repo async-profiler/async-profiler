@@ -6,23 +6,21 @@
 package one.heatmap;
 
 import java.util.Arrays;
-import java.util.LinkedList;
 
 import one.convert.Frame;
 import one.convert.Index;
 import one.convert.JfrConverter;
 import one.jfr.Dictionary;
 
-// TODO Rename to FrameDescCache
 public class MethodCache {
     private final JfrConverter converter;
     private final Index<String> symbolTable = new Index<>(String.class, "", 32768);
-    private final Index<FrameDesc> methodIndex = new Index<>(FrameDesc.class, new FrameDesc(symbolTable.index("all"), 0), 32768);
+    private final Index<Method> methodIndex = new Index<>(Method.class, new Method(symbolTable.index("all"), 0), 32768);
 
-    private final FrameDesc[] nearCache = new FrameDesc[256 * 256];
+    private final Method[] nearCache = new Method[256 * 256];
     // It should be better to create dictionary with linked methods instead of open addressed hash table
     // but in most cases all methods should fit nearCache, so less code is better
-    private final Dictionary<LinkedList<FrameDesc>> farMethods = new Dictionary<>(1024);
+    private final Dictionary<Method> farMethods = new Dictionary<>(1024);
 
     public MethodCache(JfrConverter converter) {
         this.converter = converter;
@@ -34,104 +32,107 @@ public class MethodCache {
     }
 
     public int index(long methodId, int location, byte type, boolean firstInStack) {
+        Method method;
         if (methodId < nearCache.length) {
             int mid = (int) methodId;
-            FrameDesc frameDesc = nearCache[mid];
-            if (frameDesc == null) {
-                frameDesc = createMethod(methodId, location, type, firstInStack);
-                nearCache[mid] = frameDesc;
-                frameDesc.index = methodIndex.index(frameDesc);
-                return frameDesc.index;
+            method = nearCache[mid];
+            if (method == null) {
+                method = createMethod(methodId, location, type, firstInStack);
+                nearCache[mid] = method;
+                return method.index = methodIndex.index(method);
             }
         } else {
             // this should be extremely rare case
-            LinkedList<FrameDesc> list = getFarMethodList(methodId);
-            if (list.isEmpty()) {
-                FrameDesc frameDesc = createMethod(methodId, location, type, firstInStack);
-                list.add(frameDesc);
-                frameDesc.index = methodIndex.index(frameDesc);
-                return frameDesc.index;
+            method = farMethods.get(methodId);
+            if (method == null) {
+                method = createMethod(methodId, location, type, firstInStack);
+                farMethods.put(methodId, method);
+                return method.index = methodIndex.index(method);
             }
         }
 
-        FrameDesc prototype = null;
-        LinkedList<FrameDesc> list = getFarMethodList(methodId);
-        for (FrameDesc frameDesc : list) {
-            if (frameDesc.originalMethodId == methodId) {
-                if (frameDesc.location == location && frameDesc.type == type && frameDesc.start == firstInStack) {
-                    return frameDesc.index;
+        Method last = null;
+        Method prototype = null;
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == location && method.type == type && method.start == firstInStack) {
+                    return method.index;
                 }
-                prototype = frameDesc;
-                break;
+                prototype = method;
             }
+            last = method;
+            method = method.next;
         }
 
-        FrameDesc frameDesc;
-        if (prototype == null) {
-            frameDesc = createMethod(methodId, location, type, firstInStack);
-        } else {
-            frameDesc = new FrameDesc(methodId, prototype.className, prototype.name, location, type, firstInStack);
+        if (prototype != null) {
+            last.next = method = new Method(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
+            return method.index = methodIndex.index(method);
         }
-        frameDesc.index = methodIndex.index(frameDesc);
-        list.add(frameDesc);
-        return frameDesc.index;
+
+        last.next = method = createMethod(methodId, location, type, firstInStack);
+
+        return method.index = methodIndex.index(method);
     }
 
     public int indexForClass(int extra, byte type) {
         long methodId = (long) extra << 32 | 1L << 63;
-        LinkedList<FrameDesc> list = getFarMethodList(methodId);
-        for (FrameDesc frameDesc : list) {
-            if (frameDesc.originalMethodId == methodId && frameDesc.location == -1 && frameDesc.type == type
-                    && !frameDesc.start) {
-                return frameDesc.index;
+        Method method = farMethods.get(methodId);
+        Method last = null;
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == -1 && method.type == type && !method.start) {
+                    return method.index;
+                }
             }
+            last = method;
+            method = method.next;
         }
 
         String javaClassName = converter.getClassName(extra);
-        FrameDesc frameDesc = new FrameDesc(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
-        frameDesc.index = methodIndex.index(frameDesc);
-        list.add(frameDesc);
-        return frameDesc.index;
+        method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
+        if (last == null) {
+            farMethods.put(methodId, method);
+        } else {
+            last.next = method;
+        }
+        return method.index = methodIndex.index(method);
     }
 
     public int indexForThread(String threadName) {
-        long id = (long) threadName.hashCode() << 32 | 1L << 63;
-        LinkedList<FrameDesc> list = getFarMethodList(id);
-        for (FrameDesc frameDesc : list) {
-            if (frameDesc.originalMethodId == id && frameDesc.location == -1 && frameDesc.type == Frame.TYPE_THREAD) {
-                frameDesc.frequency++;
-                return frameDesc.index;
+        long methodId = (long) threadName.hashCode() << 32 | 1L << 63;
+        Method method = farMethods.get(methodId);
+        Method last = null;
+        while (method != null) {
+            if (method.originalMethodId == methodId) {
+                if (method.location == -1 && method.type == Frame.TYPE_THREAD) {
+                    return method.index;
+                }
             }
+            last = method;
+            method = method.next;
         }
 
-        FrameDesc frameDesc = new FrameDesc(id, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, true);
-        frameDesc.index = methodIndex.index(frameDesc);
-        frameDesc.frequency = 1;
-        list.add(frameDesc);
-        return frameDesc.index;
+        method = new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, false);
+        if (last == null) {
+            farMethods.put(methodId, method);
+        } else {
+            last.next = method;
+        }
+        return method.index = methodIndex.index(method);
     }
 
-    private FrameDesc createMethod(long methodId, int location, byte type, boolean firstInStack) {
+    private Method createMethod(long methodId, int location, byte type, boolean firstInStack) {
         StackTraceElement ste = converter.getStackTraceElement(methodId, type, location);
         int className = symbolTable.index(ste.getClassName());
         int methodName = symbolTable.index(ste.getMethodName());
-        return new FrameDesc(methodId, className, methodName, location, type, firstInStack);
+        return new Method(methodId, className, methodName, location, type, firstInStack);
     }
 
     public String[] orderedSymbolTable() {
         return symbolTable.keys();
     }
 
-    public Index<FrameDesc> methodsIndex() {
+    public Index<Method> methodsIndex() {
         return methodIndex;
-    }
-
-    private LinkedList<FrameDesc> getFarMethodList(long methodId) {
-        LinkedList<FrameDesc> list = farMethods.get(methodId);
-        if (list == null) {
-            list = new LinkedList<>();
-            farMethods.put(methodId, list);
-        }
-        return list;
     }
 }
