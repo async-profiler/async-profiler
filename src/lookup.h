@@ -31,7 +31,7 @@ class MethodInfo {
     jint _modifiers = 0;
     jint _line_number_table_size = 0;
     jvmtiLineNumberEntry* _line_number_table = nullptr;
-    FrameTypeId _type = FrameTypeId::FRAME_UNSET;
+    FrameTypeId _type;
 
     jint getLineNumber(jint bci) {
         if (_line_number_table_size == 0) {

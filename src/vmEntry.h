@@ -25,7 +25,6 @@ enum FrameTypeId {
     FRAME_CPP          = 4,
     FRAME_KERNEL       = 5,
     FRAME_C1_COMPILED  = 6,
-    FRAME_UNSET        = 7,
 };
 
 class FrameType {
