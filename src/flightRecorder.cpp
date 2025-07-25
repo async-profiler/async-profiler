@@ -786,7 +786,7 @@ class Recording {
 
         Index packages;
         Index symbols;
-        Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols);
+        Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols, Output::OUTPUT_JFR);
         writeFrameTypes(buf);
         writeThreadStates(buf);
         writeGCWhen(buf);

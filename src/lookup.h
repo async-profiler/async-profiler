@@ -15,10 +15,6 @@
 #include "vmStructs.h"
 #include <jvmti.h>
 
-enum class ExportType {
-    JFR, OTLP
-};
-
 class MethodInfo {
   public:
     bool _mark = false;
@@ -81,7 +77,7 @@ class Lookup {
 
   private:
     JNIEnv* _jni;
-    ExportType _export_type;
+    Output _output_type;
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
@@ -94,7 +90,7 @@ class Lookup {
 
         mi->_modifiers = 0x100;
 
-        if (_export_type == ExportType::OTLP) {
+        if (_output_type == Output::OUTPUT_OTLP) {
             mi->_system_name = _symbols->indexOf(name);
         }
         if (Demangle::needsDemangling(name)) {
@@ -142,7 +138,7 @@ class Lookup {
             if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
                 mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             }
-            if (_export_type == ExportType::OTLP && (err = jvmti->GetSourceFileName(method_class, &source_name)) == 0) {
+            if (_output_type == Output::OUTPUT_OTLP && (err = jvmti->GetSourceFileName(method_class, &source_name)) == 0) {
                 mi->_file = _classes->lookup(source_name);
             }
         }
@@ -181,14 +177,14 @@ class Lookup {
     }
 
   public:
-    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, ExportType export_type = ExportType::JFR) :
+    Lookup(MethodMap* method_map, Dictionary* classes, Index* packages, Index* symbols, Output output) :
         _method_map(method_map),
         _classes(classes),
         _packages(packages),
         _symbols(symbols),
         _jni(VM::jni()),
-        _export_type(export_type) {
-        assert(_packages != nullptr || export_type != ExportType::JFR);
+        _output_type(output) {
+        assert(_packages != nullptr || output != Output::OUTPUT_JFR);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
