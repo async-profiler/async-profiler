@@ -51,6 +51,13 @@ const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 
+// debug start
+static double min_ms = 10000000;
+static double max_ms = 0.0;
+static double sum_ms = 0.0;
+static double total = 0.0;
+// debug end
+
 enum GCWhen {
     BEFORE_GC,
     AFTER_GC
@@ -1598,6 +1605,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 }
 
 void FlightRecorder::stop() {
+    fprintf(stderr, "Time(ms): avg = %f | max = %f | min = %f\n", sum_ms / total, max_ms, min_ms);
     if (_rec != NULL) {
         _rec_lock.lock();
 
@@ -1643,7 +1651,11 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
     if (_rec->processMonitorCycle(wall_time) == true) {
       u64 fin_time = OS::nanotime();
       u64 delta_ns = fin_time - start_time;
-      double delta_ms = static_cast<double>(delta_ns) / 1000000.0;  // → ms
+      double delta_ms = static_cast<double>(delta_ns) / 1000000.0;
+      if (delta_ms > max_ms) max_ms = delta_ms;
+      if (delta_ms < min_ms) min_ms = delta_ms;
+      sum_ms += delta_ms;
+      total += 1;
       fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
     };
 #endif
