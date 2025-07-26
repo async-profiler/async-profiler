@@ -5,7 +5,7 @@
 
 #include <assert.h>
 #include <map>
-#include <set>
+#include <unordered_set>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -728,20 +728,15 @@ class Recording {
         history.prevTimestamp = currentTime;
     }
 
-    void cleanupProcessHistory(const int* activePids, int pidCount) {
-        std::set<int> activePidSet;
-        for (int i = 0; i < pidCount; i++) {
-            activePidSet.insert(activePids[i]);
-        }
-
-        auto it = _process_history.begin();
-        while (it != _process_history.end()) {
-            if (activePidSet.find(it->first) == activePidSet.end()) {
-                it = _process_history.erase(it);
-            } else {
-                ++it;
-            }
-        }
+  void cleanupProcessHistory(const int* activePids, int pidCount) {
+      std::unordered_set<int> activePidSet(activePids, activePids + pidCount);
+      for (auto it = _process_history.begin(); it != _process_history.end(); ) {
+          if (activePidSet.count(it->first) == 0) {
+              it = _process_history.erase(it);
+          } else {
+              ++it;
+          }
+      }
     }
 
     bool processMonitorCycle(u64 wall_time) {
