@@ -410,8 +410,12 @@ void OS::getProcessIds(int* pids, int* count, int max_pids) {
     *count = 0;
 }
 
-bool OS::getProcessInfo(int pid, ProcessInfo* info) {
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
     *info = ProcessInfo();
+    return false;
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
     return false;
 }
 

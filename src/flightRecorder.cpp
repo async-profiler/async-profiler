@@ -765,10 +765,11 @@ class Recording {
             }
 
             ProcessInfo info;
-            if (OS::getProcessInfo(pids[i], &info)) {
+            if (OS::getBasicProcessInfo(pids[i], &info)) {
                 info._last_update = OS::nanotime();
                 populateCpuPercent(&info);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
+                    OS::getDetailedProcessInfo(&info);
                     recordProcessSample(buf, &info);
                 }
             }

@@ -431,32 +431,37 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
-// Helper function to check if a string is a number (PID)
-static bool isNumber(const char* str) {
-    if (!str || *str == '\0') return false;
-
-    for (const char* p = str; *p; p++) {
-        if (*p < '0' || *p > '9') return false;
-    }
-
+static inline bool isNum(const char* s) noexcept
+{
+    uint8_t c;
+    while ((c = *s++))
+        if (c < '0' || c > '9')
+            return false;
     return true;
 }
 
-void OS::getProcessIds(int* pids, int* count, int max_pids) {
+static inline int parsePid(const char* s) noexcept
+{
+    int pid = 0;
+    for (uint8_t c; (c = *s++); )
+        pid = pid * 10 + (c - '0');
+    return pid;
+}
+
+void OS::getProcessIds(int* pids, int* count, int max_pids)
+{
     *count = 0;
 
-    DIR* proc_dir = opendir("/proc");
-    if (!proc_dir) return;
+    DIR* proc = opendir("/proc");
+    if (!proc) return;
+    for (dirent* de; (de = readdir(proc)) && *count < max_pids; ) {
+        if (!isNum(de->d_name))
+            continue;
 
-    struct dirent* entry;
-    while ((entry = readdir(proc_dir)) && *count < max_pids) {
-        if (entry->d_type == DT_DIR && isNumber(entry->d_name)) {
-            pids[*count] = atoi(entry->d_name);
-            (*count)++;
-        }
+        pids[*count] = parsePid(de->d_name);
+        ++(*count);
     }
-
-    closedir(proc_dir);
+    closedir(proc);
 }
 
 // Helper method to read process name from /proc/{pid}/comm
@@ -627,20 +632,19 @@ static bool readProcessIO(int pid, ProcessInfo* info) {
     return true;
 }
 
-bool OS::getProcessInfo(int pid, ProcessInfo* info) {
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
     *info = ProcessInfo();
     info->_pid = pid;
+    return readProcessStats(pid, info);
+}
 
-    if (!readProcessStats(pid, info)) {
-        return false;
-    }
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
+    readProcessName(info->_pid, info);
+    readProcessCmdline(info->_pid, info);
 
-    readProcessName(pid, info);
-    readProcessCmdline(pid, info);
-
-    readProcessMemory(pid, info);
-    readProcessUID(pid, info);
-    readProcessIO(pid, info);
+    readProcessMemory(info->_pid, info);
+    readProcessUID(info->_pid, info);
+    readProcessIO(info->_pid, info);
 
     return true;
 }
