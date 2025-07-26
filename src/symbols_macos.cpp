@@ -50,6 +50,17 @@ class MachOParser {
         }
     }
 
+    const section_64* findStubSection(const segment_command_64* sc) {
+        const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
+        for (uint32_t i = 0; i < sc->nsects; i++) {
+            if (strcmp(section->sectname, "__stubs") == 0) {
+                return section;
+            }
+            section++;
+        }
+        return NULL;
+    }
+
     void loadSymbols(const symtab_command* symtab, const char* link_base) {
         const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
@@ -67,6 +78,24 @@ class MachOParser {
         }
 
         _cc->setDebugSymbols(debug_symbols);
+    }
+
+    void loadStubSymbols(const symtab_command* symtab, const dysymtab_command* dysymtab,
+                     const section_64* stubs_section, const char* link_base) {
+        const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
+        const char* str_table = add(link_base, symtab->stroff);
+
+        const uint32_t* isym = (const uint32_t*)add(link_base, dysymtab->indirectsymoff) + stubs_section->reserved1;
+        uint32_t isym_count = stubs_section->size / stubs_section->reserved2;
+        const char* base_addr = _vmaddr_slide + stubs_section->addr;
+
+        for (uint32_t i = 0; i < isym_count; i++) {
+            if ((isym[i] & (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) == 0) {
+                const char* name = str_table + sym[isym[i]].n_un.n_strx;
+                if (name[0] == '_') name++;
+                _cc->add(base_addr + i * stubs_section->reserved2, 0, name);
+            }
+        }
     }
 
     void loadImports(const symtab_command* symtab, const dysymtab_command* dysymtab,
@@ -103,12 +132,14 @@ class MachOParser {
         const section_64* symbol_ptr[2] = {NULL, NULL};
         const symtab_command* symtab = NULL;
         const dysymtab_command* dysymtab = NULL;
+        const section_64* stubs_section = NULL;
 
         for (uint32_t i = 0; i < header->ncmds; i++) {
             if (lc->cmd == LC_SEGMENT_64) {
                 const segment_command_64* sc = (const segment_command_64*)lc;
                 if (strcmp(sc->segname, "__TEXT") == 0) {
                     _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
+                    stubs_section = findStubSection(sc);
                 } else if (strcmp(sc->segname, "__LINKEDIT") == 0) {
                     link_base = _vmaddr_slide + sc->vmaddr - sc->fileoff;
                 } else if (strcmp(sc->segname, "__DATA") == 0 || strcmp(sc->segname, "__DATA_CONST") == 0) {
@@ -128,6 +159,7 @@ class MachOParser {
             if (dysymtab != NULL) {
                 if (symbol_ptr[0] != NULL) loadImports(symtab, dysymtab, symbol_ptr[0], link_base);
                 if (symbol_ptr[1] != NULL) loadImports(symtab, dysymtab, symbol_ptr[1], link_base);
+                if (stubs_section != NULL) loadStubSymbols(symtab, dysymtab, stubs_section, link_base);
             }
         }
 
