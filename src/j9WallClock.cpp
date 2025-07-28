@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
-#include "arch.h"
 #include "j9WallClock.h"
 #include "j9Ext.h"
 #include "profiler.h"

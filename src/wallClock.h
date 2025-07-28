@@ -9,6 +9,7 @@
 #include <jvmti.h>
 #include <signal.h>
 #include <pthread.h>
+#include "arch.h"
 #include "engine.h"
 #include "os.h"
 

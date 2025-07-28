@@ -7,6 +7,7 @@
 #define _J9WALLCLOCK_H
 
 #include <pthread.h>
+#include "arch.h"
 #include "engine.h"
 
 
