@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include "arch.h"
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
