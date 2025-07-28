@@ -50,10 +50,10 @@ class MachOParser {
         }
     }
 
-    const section_64* findStubSection(const segment_command_64* sc) {
+    const section_64* findSection(const segment_command_64* sc, const char* section_name) {
         const section_64* section = (const section_64*)add(sc, sizeof(segment_command_64));
         for (uint32_t i = 0; i < sc->nsects; i++) {
-            if (strcmp(section->sectname, "__stubs") == 0) {
+            if (strcmp(section->sectname, section_name) == 0) {
                 return section;
             }
             section++;
@@ -93,7 +93,10 @@ class MachOParser {
             if ((isym[i] & (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) == 0) {
                 const char* name = str_table + sym[isym[i]].n_un.n_strx;
                 if (name[0] == '_') name++;
-                _cc->add(base_addr + i * stubs_section->reserved2, 0, name);
+                
+                char final_name[256];
+                snprintf(final_name, sizeof(final_name), "%s@plt", name);
+                _cc->add(base_addr + i * stubs_section->reserved2, stubs_section->reserved2, final_name);
             }
         }
     }
@@ -139,7 +142,7 @@ class MachOParser {
                 const segment_command_64* sc = (const segment_command_64*)lc;
                 if (strcmp(sc->segname, "__TEXT") == 0) {
                     _cc->updateBounds(_image_base, add(_image_base, sc->vmsize));
-                    stubs_section = findStubSection(sc);
+                    stubs_section = findSection(sc, "__stubs");
                 } else if (strcmp(sc->segname, "__LINKEDIT") == 0) {
                     link_base = _vmaddr_slide + sc->vmaddr - sc->fileoff;
                 } else if (strcmp(sc->segname, "__DATA") == 0 || strcmp(sc->segname, "__DATA_CONST") == 0) {
