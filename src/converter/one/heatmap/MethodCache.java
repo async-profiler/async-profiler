@@ -6,6 +6,8 @@
 package one.heatmap;
 
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 import one.convert.Frame;
 import one.convert.Index;
@@ -31,99 +33,75 @@ public class MethodCache {
         farMethods.clear();
     }
 
-    public int index(long methodId, int location, byte type, boolean firstInStack) {
-        Method method;
-        if (methodId < nearCache.length) {
-            int mid = (int) methodId;
-            method = nearCache[mid];
-            if (method == null) {
-                method = createMethod(methodId, location, type, firstInStack);
-                nearCache[mid] = method;
-                return method.index = methodIndex.index(method);
-            }
-        } else {
-            // this should be extremely rare case
-            method = farMethods.get(methodId);
-            if (method == null) {
-                method = createMethod(methodId, location, type, firstInStack);
-                farMethods.put(methodId, method);
-                return method.index = methodIndex.index(method);
-            }
-        }
-
-        Method last = null;
-        Method prototype = null;
-        while (method != null) {
-            if (method.originalMethodId == methodId) {
-                if (method.location == location && method.type == type && method.start == firstInStack) {
-                    return method.index;
-                }
-                prototype = method;
-            }
-            last = method;
-            method = method.next;
-        }
-
-        if (prototype != null) {
-            last.next = method = new Method(methodId, prototype.className, prototype.methodName, location, type, firstInStack);
-            return method.index = methodIndex.index(method);
-        }
-
-        last.next = method = createMethod(methodId, location, type, firstInStack);
-
-        return method.index = methodIndex.index(method);
+    public int index(long methodId, int location, byte type, boolean start) {
+        return index(methodId, location, type, start,
+                () -> createStackTraceMethod(methodId, location, type, start));
     }
 
     public int indexForClass(int extra, byte type) {
-        long methodId = (long) extra << 32 | 1L << 63;
-        Method method = farMethods.get(methodId);
-        Method last = null;
-        while (method != null) {
-            if (method.originalMethodId == methodId) {
-                if (method.location == -1 && method.type == type && !method.start) {
-                    return method.index;
-                }
-            }
-            last = method;
-            method = method.next;
-        }
-
-        String javaClassName = converter.getClassName(extra);
-        method = new Method(methodId, symbolTable.index(javaClassName), 0, -1, type, false);
-        if (last == null) {
-            farMethods.put(methodId, method);
-        } else {
-            last.next = method;
-        }
-        return method.index = methodIndex.index(method);
+        long methodId = (long) extra << 32 | type;
+        return index(methodId, -1, type, false,
+                () -> new Method(methodId, symbolTable.index(converter.getClassName(extra)), 0, -1, type, false));
     }
 
     public int indexForThread(String threadName) {
-        long methodId = (long) threadName.hashCode() << 32 | 1L << 63;
-        int threadNameIdx = symbolTable.index(threadName);
-        Method method = farMethods.get(methodId);
-        Method last = null;
-        while (method != null) {
-            if (method.originalMethodId == methodId) {
-                if (method.location == -1 && method.type == Frame.TYPE_NATIVE && 
-                    method.methodName == threadNameIdx) {
-                    return method.index;
-                }
-            }
-            last = method;
-            method = method.next;
-        }
+        long methodId = (long) threadName.hashCode() << 32 | Frame.TYPE_NATIVE;
+        return index(methodId, -1, Frame.TYPE_NATIVE, true,
+                () -> new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_NATIVE, true));
+    }
 
-        method = new Method(methodId, 0, threadNameIdx, -1, Frame.TYPE_NATIVE, true);
-        if (last == null) {
-            farMethods.put(methodId, method);
+    public int index(long methodId, int location, byte type, boolean start, Supplier<Method> methodSupplier) {
+        Optional<Method> methodOpt = findMethodById(methodId);
+        if (!methodOpt.isPresent()) {
+            return putMethod(methodSupplier.get());
+        }
+        Method head = methodOpt.get();
+        return traverseAndAppend(head, methodId, location, type, start);
+    }
+
+    private Optional<Method> findMethodById(long id) {
+        if (id < nearCache.length) {
+            return Optional.ofNullable(nearCache[(int) id]);
         } else {
-            last.next = method;
+            return Optional.ofNullable(farMethods.get(id));
+        }
+    }
+
+    private TraverseResult findMatch(Method current, int location, byte type, boolean start) {
+        Method last = null;
+        while (current != null) {
+            if (current.location == location && current.type == type && current.start == start) {
+                return new TraverseResult(current, null);
+            }
+            last = current;
+            current = current.next;
+        }
+        return new TraverseResult(null, last);
+    }
+
+    private int putMethod(Method method) {
+        long id = method.originalMethodId;
+        if (id < nearCache.length) {
+            nearCache[(int) id] = method;
+        } else {
+            farMethods.put(id, method);
         }
         return method.index = methodIndex.index(method);
     }
 
-    private Method createMethod(long methodId, int location, byte type, boolean firstInStack) {
+    private int traverseAndAppend(Method head, long methodId, int location, byte type, boolean start) {
+        TraverseResult traverseResult = findMatch(head, location, type, start);
+        if (traverseResult.match != null) {
+            return traverseResult.match.index;
+        }
+
+        Method method = new Method(methodId, head.className, head.methodName, location, type, start);
+        method.index = methodIndex.index(method);
+        traverseResult.last.next = method;
+        return method.index;
+    }
+
+    private Method createStackTraceMethod(long methodId, int location, byte type, boolean firstInStack) {
         StackTraceElement ste = converter.getStackTraceElement(methodId, type, location);
         int className = symbolTable.index(ste.getClassName());
         int methodName = symbolTable.index(ste.getMethodName());
@@ -136,5 +114,16 @@ public class MethodCache {
 
     public Index<Method> methodsIndex() {
         return methodIndex;
+    }
+
+    private static final class TraverseResult {
+        private final Method match;
+        // ID matches, but other parts don't (e.g. `firstInStack`)
+        private final Method last;
+
+        public TraverseResult(Method match, Method last) {
+            this.match = match;
+            this.last = last;
+        }
     }
 }
