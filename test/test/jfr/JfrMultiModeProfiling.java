@@ -5,8 +5,11 @@
 
 package test.jfr;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -22,9 +25,13 @@ public class JfrMultiModeProfiling {
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+        long startTime = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
-            executor.submit(JfrMultiModeProfiling::cpuIntensiveIncrement);
+            completableFutures.add(CompletableFuture.runAsync(JfrMultiModeProfiling::cpuIntensiveIncrement, executor));
         }
+        completableFutures.forEach(CompletableFuture::join);
+        System.out.println(System.currentTimeMillis() - startTime);
         executor.shutdown();
         allocate();
     }
