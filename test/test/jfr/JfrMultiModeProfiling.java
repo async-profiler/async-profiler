@@ -21,7 +21,7 @@ public class JfrMultiModeProfiling {
     private static int count = 0;
 
     public static void main(String[] args) throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors()));
+        ExecutorService executor = Executors.newFixedThreadPool(2);
         for (int i = 0; i < 10; i++) {
             executor.submit(JfrMultiModeProfiling::cpuIntensiveIncrement);
         }

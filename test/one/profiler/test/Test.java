@@ -48,4 +48,6 @@ public @interface Test {
     String[] inputs() default {};
 
     String nameSuffix() default "";
+
+    Musl musl() default Musl.ALL;
 }

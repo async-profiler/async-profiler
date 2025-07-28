@@ -22,11 +22,11 @@ public class Runner {
     private static final int currentJvmVersion = detectJvmVersion();
 
     private static final String logDir = System.getProperty("logDir", "");
-    private static final boolean musl;
+    private static final boolean currentMusl;
 
     static {
         System.loadLibrary("isMusl");
-        musl = isMusl();
+        currentMusl = isMusl();
     }
 
     private static native boolean isMusl();
@@ -109,10 +109,12 @@ public class Runner {
         Arch[] arch = test.arch();
         Jvm[] jvm = test.jvm();
         int[] jvmVer = test.jvmVer();
+        Musl musl = test.musl();
         return (os.length == 0 || Arrays.asList(os).contains(currentOs)) &&
                 (arch.length == 0 || Arrays.asList(arch).contains(currentArch)) &&
                 (jvm.length == 0 || Arrays.asList(jvm).contains(currentJvm)) &&
-                (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1]));
+                (jvmVer.length == 0 || (currentJvmVersion >= jvmVer[0] && currentJvmVersion <= jvmVer[jvmVer.length - 1])) &&
+                (Musl.ALL.equals(musl) || musl.equals(Runner.currentMusl ? Musl.MUSL : Musl.NOT_MUSL));
     }
 
     private static TestResult run(RunnableTest rt, TestDeclaration decl) {
@@ -126,7 +128,7 @@ public class Runner {
         log.log(Level.INFO, "Running " + rt.testInfo() + "...");
 
         String testLogDir = logDir.isEmpty() ? null : logDir + '/' + rt.testName();
-        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, musl)) {
+        try (TestProcess p = new TestProcess(rt.test(), currentOs, testLogDir, currentMusl)) {
             Object holder = (rt.method().getModifiers() & Modifier.STATIC) == 0 ?
                     rt.method().getDeclaringClass().getDeclaredConstructor().newInstance() : null;
             rt.method().invoke(holder, p);

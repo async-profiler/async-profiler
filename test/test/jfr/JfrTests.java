@@ -67,23 +67,23 @@ public class JfrTests {
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         p.waitForExit();
         assert p.exitCode() == 0;
+
+        double totalLockDurationMillis = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
+
+                if (eventName.equals("jdk.JavaMonitorEnter")) {
+                    totalLockDurationMillis += event.getDuration().toNanos() / 1000.0 / 1000.0;
+                }
                 eventsCount.put(eventName, eventsCount.getOrDefault(eventName, 0) + 1);
             }
         }
 
-        double totalLockDurationMillis = 0;
-        try (JfrReader r = new JfrReader(p.getFile("%f").toURI().getPath())) {
-            List<ContendedLock> events = r.readAllEvents(ContendedLock.class);
-            totalLockDurationMillis = events.stream().map(e -> e.duration).reduce((Long::sum)).get() / 1_000_000.0;
-        }
-
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
-        assert eventsCount.get("jdk.JavaMonitorEnter") > 50 || totalLockDurationMillis >= 200;
+        assert eventsCount.get("jdk.JavaMonitorEnter") > 10 && totalLockDurationMillis >= 200;
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 
