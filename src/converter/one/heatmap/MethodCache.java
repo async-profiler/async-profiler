@@ -100,11 +100,13 @@ public class MethodCache {
 
     public int indexForThread(String threadName) {
         long methodId = (long) threadName.hashCode() << 32 | 1L << 63;
+        int threadNameIdx = symbolTable.index(threadName);
         Method method = farMethods.get(methodId);
         Method last = null;
         while (method != null) {
             if (method.originalMethodId == methodId) {
-                if (method.location == -1 && method.type == Frame.TYPE_THREAD) {
+                if (method.location == -1 && method.type == Frame.TYPE_NATIVE && 
+                    method.methodName == threadNameIdx) {
                     return method.index;
                 }
             }
@@ -112,7 +114,7 @@ public class MethodCache {
             method = method.next;
         }
 
-        method = new Method(methodId, 0, symbolTable.index(threadName), -1, Frame.TYPE_THREAD, false);
+        method = new Method(methodId, 0, threadNameIdx, -1, Frame.TYPE_NATIVE, false);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {

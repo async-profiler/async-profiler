@@ -15,7 +15,6 @@ public class Frame extends HashMap<Integer, Frame> {
     public static final byte TYPE_CPP = 4;
     public static final byte TYPE_KERNEL = 5;
     public static final byte TYPE_C1_COMPILED = 6;
-    public static final byte TYPE_THREAD = 7;
 
     private static final int TYPE_SHIFT = 28;
 
