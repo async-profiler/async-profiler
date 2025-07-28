@@ -66,7 +66,6 @@ public class JfrTests {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
-        // First line of the output will be "
         long LockJobDurationMillis = Long.parseLong(output.stream().findFirst().get());
 
         double totalLockDurationMillis = 0;
