@@ -23,6 +23,8 @@ class J9WallClock : public Engine {
         return NULL;
     }
 
+    void uninterruptibleSleep(u64 nanos);
+
     void timerLoop();
 
   public:

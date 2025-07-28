@@ -28,6 +28,8 @@ class WallClock : public Engine {
     volatile bool _running;
     pthread_t _thread;
 
+    void uninterruptibleSleep(u64 nanos);
+
     void timerLoop();
 
     static void* threadEntry(void* wall_clock) {

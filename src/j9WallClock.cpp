@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <errno.h>
 #include <stdlib.h>
+#include <time.h>
 #include "j9WallClock.h"
 #include "j9Ext.h"
 #include "profiler.h"
@@ -31,6 +33,11 @@ void J9WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
+void J9WallClock::uninterruptibleSleep(u64 nanos) {
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    while (nanosleep(&ts, &ts) < 0 && errno == EINTR && _running);
+}
+
 void J9WallClock::timerLoop() {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
     jvmtiEnv* jvmti = VM::jvmti();
@@ -40,7 +47,7 @@ void J9WallClock::timerLoop() {
 
     while (_running) {
         if (!_enabled) {
-            OS::sleep(_interval);
+            uninterruptibleSleep(_interval);
             continue;
         }
 
@@ -68,7 +75,7 @@ void J9WallClock::timerLoop() {
 
         jni->PopLocalFrame(NULL);
 
-        OS::sleep(_interval);
+        uninterruptibleSleep(_interval);
     }
 
     free(frames);
