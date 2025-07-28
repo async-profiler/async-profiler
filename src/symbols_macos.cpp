@@ -95,7 +95,7 @@ class MachOParser {
                 if (name[0] == '_') name++;
                 
                 char final_name[256];
-                snprintf(final_name, sizeof(final_name), "%s@plt", name);
+                snprintf(final_name, sizeof(final_name), "stub:%s", name);
                 _cc->add(base_addr + i * stubs_section->reserved2, stubs_section->reserved2, final_name);
             }
         }
