@@ -1240,7 +1240,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchThreadEvents(JVMTI_ENABLE);
 
     _state = RUNNING;
-    _start_time = time(NULL);
+    _start_time = OS::nanotime();
     _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
@@ -1406,7 +1406,6 @@ Error Profiler::dump(Writer& out, Arguments& args) {
         default:
             return Error("No output format selected");
     }
-    
     return Error::OK;
 }
 
@@ -1653,7 +1652,7 @@ static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const cha
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
     otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
     otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
-    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative); 
+    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative);
     otlp_buffer.commitMessage(sample_type_mark);
 }
 
@@ -1667,8 +1666,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    u64 time_nanos = (u64)_start_time * 1000000000ULL;
-    u64 duration_nanos = (u64)(time(NULL) - _start_time) * 1000000000ULL;
+    u64 time_nanos = _start_time;
+    u64 duration_nanos = OS::nanotime() - _start_time;
 
     otlp_buffer.field(Profile::time_nanos, time_nanos);
     otlp_buffer.field(Profile::duration_nanos, duration_nanos);

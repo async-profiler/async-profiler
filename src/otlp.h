@@ -38,8 +38,8 @@ namespace Profile {
     const protobuf_index_t location_indices = 3;
     const protobuf_index_t period_type = 6;
     const protobuf_index_t period = 7;
-    const protobuf_index_t time_nanos = 8;
-    const protobuf_index_t duration_nanos = 9;
+    const protobuf_index_t time_nanos = 4;
+    const protobuf_index_t duration_nanos = 5;
 }
 
 namespace ValueType {
