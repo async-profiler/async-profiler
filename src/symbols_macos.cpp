@@ -81,22 +81,22 @@ class MachOParser {
     }
 
     void loadStubSymbols(const symtab_command* symtab, const dysymtab_command* dysymtab,
-                     const section_64* stubs_section, const char* link_base) {
+                         const section_64* stubs_section, const char* link_base) {
         const nlist_64* sym = (const nlist_64*)add(link_base, symtab->symoff);
         const char* str_table = add(link_base, symtab->stroff);
 
         const uint32_t* isym = (const uint32_t*)add(link_base, dysymtab->indirectsymoff) + stubs_section->reserved1;
         uint32_t isym_count = stubs_section->size / stubs_section->reserved2;
-        const char* base_addr = _vmaddr_slide + stubs_section->addr;
+        const char* stubs_start = _vmaddr_slide + stubs_section->addr;
 
         for (uint32_t i = 0; i < isym_count; i++) {
             if ((isym[i] & (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) == 0) {
                 const char* name = str_table + sym[isym[i]].n_un.n_strx;
                 if (name[0] == '_') name++;
-                
-                char final_name[256];
-                snprintf(final_name, sizeof(final_name), "stub:%s", name);
-                _cc->add(base_addr + i * stubs_section->reserved2, stubs_section->reserved2, final_name);
+
+                char stub_name[256];
+                snprintf(stub_name, sizeof(stub_name), "stub:%s", name);
+                _cc->add(stubs_start + i * stubs_section->reserved2, stubs_section->reserved2, stub_name);
             }
         }
     }
