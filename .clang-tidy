@@ -96,7 +96,6 @@ Checks: >
   readability-static-definition-in-anonymous-namespace,
   readability-string-compare,
   readability-uniqueptr-delete-release,
-  readability-uppercase-literal-suffix,
   readability-use-anyofallof,
 # TODO: Consider these
 # bugprone-switch-missing-default-case
