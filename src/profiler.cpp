@@ -1133,7 +1133,6 @@ Error Profiler::start(Arguments& args, bool reset) {
         MutexLocker ml(_thread_names_lock);
         _thread_names.clear();
         _thread_ids.clear();
-        _first_dump = true;
     }
 
     // (Re-)allocate calltrace buffers
@@ -1407,7 +1406,6 @@ Error Profiler::dump(Writer& out, Arguments& args) {
         default:
             return Error("No output format selected");
     }
-    _first_dump = false;
     
     return Error::OK;
 }
@@ -1650,12 +1648,12 @@ void Profiler::dumpText(Writer& out, Arguments& args) {
     }
 }
 
-static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units, u64 aggregation_temporality) {
+static void recordSampleType(ProtoBuffer& otlp_buffer, Index& strings, const char* type, const char* units) {
     using namespace Otlp;
     protobuf_mark_t sample_type_mark = otlp_buffer.startMessage(Profile::sample_type, 1);
     otlp_buffer.field(ValueType::type_strindex, strings.indexOf(type));
     otlp_buffer.field(ValueType::unit_strindex, strings.indexOf(units));
-    otlp_buffer.field(ValueType::aggregation_temporality, aggregation_temporality);
+    otlp_buffer.field(ValueType::aggregation_temporality, AggregationTemporality::cumulative); 
     otlp_buffer.commitMessage(sample_type_mark);
 }
 
@@ -1669,9 +1667,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    u64 aggregation_temporality = _first_dump ? AggregationTemporality::delta : AggregationTemporality::cumulative;
-    recordSampleType(otlp_buffer, strings, _engine->type(), "count", aggregation_temporality);
-    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units(), aggregation_temporality);
+    u64 time_nanos = (u64)_start_time * 1000000000ULL;
+    u64 duration_nanos = (u64)(time(NULL) - _start_time) * 1000000000ULL;
+
+    otlp_buffer.field(Profile::time_nanos, time_nanos);
+    otlp_buffer.field(Profile::duration_nanos, duration_nanos);
+
+    recordSampleType(otlp_buffer, strings, _engine->type(), "count");
+    recordSampleType(otlp_buffer, strings, _engine->type(), _engine->units());
 
     std::vector<CallTraceSample*> call_trace_samples;
     _call_trace_storage.collectSamples(call_trace_samples);
