@@ -396,7 +396,6 @@ public class Heatmap {
         // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
         final MethodCache methodsCache;
-
         final Arguments arguments;
 
         // reusable array to (temporary) store (potentially) new stack trace
@@ -414,18 +413,18 @@ public class Heatmap {
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            if (extra == 0 && !arguments.threads) {
+            if (extra == 0 && threadName == null) {
                 sampleList.add(prototypeId, timeMs);
                 return;
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + (arguments.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
+            int stackSize = prototype.length + (threadName != null ? 1 : 0) + (extra != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
-            if (arguments.threads) {
-                cachedStackTrace[0] = methodsCache.indexForThread(threadName != null ? threadName : "unknown-thread");
+            if (threadName != null) {
+                cachedStackTrace[0] = methodsCache.indexForThread(threadName);
                 System.arraycopy(prototype, 0, cachedStackTrace, 1, prototype.length);
             } else {
                 System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
