@@ -25,7 +25,7 @@ public class OtlpTemporalityTest {
         long durationNanos2 = profile2.getDurationNanos();
         
         assert timeNanos1 == timeNanos2;
-        assert durationNanos2 > durationNanos1;
+        assert durationNanos2 - durationNanos1 >= 100_000_000L;
         
         profiler.stop();
         profiler.start(Events.CPU, 1_000_000);
@@ -33,7 +33,7 @@ public class OtlpTemporalityTest {
         Profile profile3 = dumpAndGetProfile(profiler);
         long timeNanos3 = profile3.getTimeNanos();
         
-        assert timeNanos3 != timeNanos1;
+        assert timeNanos3 > timeNanos1;
         
         profiler.stop();
     }

@@ -1244,7 +1244,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        _stop_time = addTimeout(_start_time, args._timeout);
+        _stop_time = addTimeout(_start_time / 1000000000ULL, args._timeout);
         startTimer();
     }
 
@@ -1406,6 +1406,7 @@ Error Profiler::dump(Writer& out, Arguments& args) {
         default:
             return Error("No output format selected");
     }
+
     return Error::OK;
 }
 
