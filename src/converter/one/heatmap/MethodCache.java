@@ -114,7 +114,7 @@ public class MethodCache {
             method = method.next;
         }
 
-        method = new Method(methodId, 0, threadNameIdx, -1, Frame.TYPE_NATIVE, false);
+        method = new Method(methodId, 0, threadNameIdx, -1, Frame.TYPE_NATIVE, true);
         if (last == null) {
             farMethods.put(methodId, method);
         } else {
