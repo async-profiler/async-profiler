@@ -7,8 +7,6 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
-import one.jfr.JfrReader;
-import one.jfr.event.ContendedLock;
 import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
