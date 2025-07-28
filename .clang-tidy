@@ -1,6 +1,5 @@
 Checks: >
   -*,
-  google-readability-braces-around-statements,
   bugprone-assert-side-effect,
   bugprone-bool-pointer-implicit-conversion,
   bugprone-chained-comparison,
@@ -129,5 +128,3 @@ CheckOptions:
     value: '(KB|Thread|setDaemon|klassOop|nVMs|loadLibrary|getTicksFrequency|counterTime|System|M|R|s_)'
   - key: readability-identifier-naming.PrivateMemberPrefix
     value: _
-  - key: google-readability-braces-around-statements.ShortStatementLines
-    value: '1'
