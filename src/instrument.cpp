@@ -306,6 +306,8 @@ void BytecodeRewriter::rewriteCode() {
 
         total_relocation = EXTRA_BYTECODES;
     } else {
+        // Op additions (e.g. new invokestatic, wider jumps) will be added
+        // as needed in the linked list.
         LinkedListNode* head = toLinkedList(get(code_length), code_length);
         
         u32 relocation = 0;
