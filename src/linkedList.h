@@ -7,6 +7,7 @@
 #define _LINKEDLIST_H
 
 #include <stdlib.h>
+#include "arch.h"
 
 class LinkedListNode {
   public:
