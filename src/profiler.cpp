@@ -1751,26 +1751,26 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }
 
-u64 Profiler::addTimeout(u64 start_micros, int timeout_sec) {
-    if (timeout_sec == 0) {
+u64 Profiler::addTimeout(u64 start_micros, int timeout) {
+    if (timeout == 0) {
         return 0x7fffffffffffffffULL;
-    } else if (timeout_sec > 0) {
-        return start_micros + (u64)timeout_sec * 1000000ULL;
+    } else if (timeout > 0) {
+        return start_micros + (u64)timeout * 1000000ULL;
     }
 
     time_t start_seconds = start_micros / 1000000ULL;
     struct tm t;
     localtime_r(&start_seconds, &t);
 
-    int hh = (timeout_sec >> 16) & 0xff;
+    int hh = (timeout >> 16) & 0xff;
     if (hh < 24) {
         t.tm_hour = hh;
     }
-    int mm = (timeout_sec >> 8) & 0xff;
+    int mm = (timeout >> 8) & 0xff;
     if (mm < 60) {
         t.tm_min = mm;
     }
-    int ss = timeout_sec & 0xff;
+    int ss = timeout & 0xff;
     if (ss < 60) {
         t.tm_sec = ss;
     }
