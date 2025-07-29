@@ -27,7 +27,7 @@ class AllocTracer : public Engine {
 
   public:
     const char* type() {
-        return "alloc_tracer";
+        return "alloc";
     }
 
     const char* title() {
