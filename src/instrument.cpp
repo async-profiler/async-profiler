@@ -288,6 +288,7 @@ void BytecodeRewriter::rewriteCode() {
 
     u32 code_length = get32();
     u32 relocation_table[code_length];
+    u32 total_relocation = 0;
 
     if (_record_start) {
         for (int i = 0; i < code_length; ++i) {
@@ -302,6 +303,8 @@ void BytecodeRewriter::rewriteCode() {
         put8(0);
         // The rest of the code is unchanged
         put(get(code_length), code_length);
+
+        total_relocation = EXTRA_BYTECODES;
     } else {
         unsigned char opcode_length[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
         LinkedListNode* head = toLinkedList(get(code_length), code_length);
@@ -353,16 +356,17 @@ void BytecodeRewriter::rewriteCode() {
                     }
                 }
 
-                relocation_table[idx++] = relocation;
+                relocation_table[idx++] += relocation;
                 for (u32 args_idx = 0; args_idx < opcode_length[opcode]; ++args_idx) {
-                    relocation_table[idx++] = relocation;
+                    relocation_table[idx++] += relocation;
                 }
 
                 before_current_instruction = current;
                 current = current->next;
             } while (current != nullptr);
 
-            put32(code_length + relocation);
+            total_relocation = code_length == 0 ? 0 : relocation_table[code_length - 1];
+            put32(code_length + total_relocation);
 
             current = head;
             do {
@@ -386,7 +390,7 @@ void BytecodeRewriter::rewriteCode() {
         put16(catch_type);
     }
 
-    rewriteCodeAttributes(relocation_table, relocation_table[code_length - 1] / EXTRA_BYTECODES);
+    rewriteCodeAttributes(relocation_table, total_relocation / EXTRA_BYTECODES);
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
