@@ -1240,11 +1240,11 @@ Error Profiler::start(Arguments& args, bool reset) {
     switchThreadEvents(JVMTI_ENABLE);
 
     _state = RUNNING;
-    _start_time = OS::nanotime();
+    _start_time = OS::micros();
     _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        _stop_time = addTimeout(_start_time / 1000000000ULL, args._timeout);
+        _stop_time = addTimeout(_start_time, args._timeout);
         startTimer();
     }
 
@@ -1667,8 +1667,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     protobuf_mark_t scope_profiles_mark = otlp_buffer.startMessage(ResourceProfiles::scope_profiles);
     protobuf_mark_t profile_mark = otlp_buffer.startMessage(ScopeProfiles::profiles);
 
-    u64 time_nanos = _start_time;
-    u64 duration_nanos = OS::nanotime() - _start_time;
+    u64 time_nanos = _start_time * 1000ULL;
+    u64 duration_nanos = (OS::micros() - _start_time) * 1000ULL;
 
     otlp_buffer.field(Profile::time_nanos, time_nanos);
     otlp_buffer.field(Profile::duration_nanos, duration_nanos);
@@ -1750,15 +1750,16 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }
 
-time_t Profiler::addTimeout(time_t start, int timeout) {
+u64 Profiler::addTimeout(u64 start, int timeout) {
     if (timeout == 0) {
-        return (time_t)0x7fffffff;
+        return 0x7fffffffffffffffULL;
     } else if (timeout > 0) {
-        return start + timeout;
+        return start + (u64)timeout * 1000000ULL;
     }
 
+    time_t start_seconds = start / 1000000ULL;
     struct tm t;
-    localtime_r(&start, &t);
+    localtime_r(&start_seconds, &t);
 
     int hh = (timeout >> 16) & 0xff;
     if (hh < 24) {
@@ -1774,10 +1775,10 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
     }
 
     time_t result = mktime(&t);
-    if (result <= start) {
+    if (result <= start_seconds) {
         result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
     }
-    return result;
+    return (u64)result * 1000000ULL;
 }
 
 void Profiler::startTimer() {
@@ -1825,7 +1826,7 @@ void Profiler::stopTimer() {
 
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
-    u64 stop_micros = _stop_time * 1000000ULL;
+    u64 stop_micros = _stop_time;
     u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
 
     while (true) {

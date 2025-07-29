@@ -69,7 +69,7 @@ class Profiler {
     int _event_mask;
 
     u64 _start_time;
-    time_t _stop_time;
+    u64 _stop_time;
     int _epoch;
     u32 _gc_id;
     WaitableMutex _timer_lock;
@@ -130,7 +130,7 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
-    time_t addTimeout(time_t start, int timeout);
+    u64 addTimeout(u64 start, int timeout);
     void startTimer();
     void stopTimer();
     void timerLoop(void* timer_id);
@@ -187,7 +187,7 @@ class Profiler {
     }
 
     u64 total_samples() { return _total_samples; }
-    long uptime()       { return time(NULL) - (_start_time / 1000000000ULL); }
+    long uptime()       { return (OS::micros() - _start_time) / 1000000ULL; }
 
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
