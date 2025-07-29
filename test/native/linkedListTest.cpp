@@ -75,9 +75,20 @@ TEST_CASE(LinkedList_detach2) {
     CHECK_EQ(node1->next, nullptr);
 }
 
+TEST_CASE(LinkedList_toLinkedList) {
+    u8 arr[] = {1, 2, 3, 4};
+    LinkedListNode* head = toLinkedList(arr, 4);
+
+    CHECK_EQ(head->value, 1);
+    CHECK_EQ(head->next->value, 2);
+    CHECK_EQ(head->next->next->value, 3);
+    CHECK_EQ(head->next->next->next->value, 4);
+    CHECK_EQ(head->next->next->next->next, nullptr);
+}
+
+
 TEST_CASE(LinkedList_destructor) {
-    u8* arr = new u8[4]{1,2,3,4};
-    LinkedListNode* nodes = toLinkedList(arr, 4);
-    delete nodes;
-    delete[] arr;
+    u8 arr[] = {1, 2, 3, 4};
+    LinkedListNode* head = toLinkedList(arr, 4);
+    delete head;
 }
