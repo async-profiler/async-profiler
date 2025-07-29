@@ -227,10 +227,10 @@ class BytecodeRewriter {
 
     void rewriteCode();
     void rewriteBytecodeTable(int data_len, u32* relocation_table);
-    void rewriteStackMapTable(u32* relocation_table, u32 new_ops_count);
+    void rewriteStackMapTable(u32* relocation_table);
     void rewriteVerificationTypeInfo(u32* relocation_table);
     void rewriteAttributes(Scope scope);
-    void rewriteCodeAttributes(u32* relocation_table, u32 new_ops_count);
+    void rewriteCodeAttributes(u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
     void writeInvokeRecordSample();
@@ -313,6 +313,7 @@ void BytecodeRewriter::rewriteCode() {
         u32 idx = 0;
         do {
             u8 opcode = current->value;
+            // TODO: Handle the case in which none of these is found
             if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xae || 
                 opcode == 0xac || opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
                 current->value = 0xb8;
@@ -408,7 +409,7 @@ void BytecodeRewriter::rewriteCode() {
         put16(catch_type);
     }
 
-    rewriteCodeAttributes(relocation_table, total_relocation / EXTRA_BYTECODES);
+    rewriteCodeAttributes(relocation_table);
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
@@ -429,16 +430,22 @@ void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table)
     }
 }
 
-void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table, u32 new_ops_count) {
+void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
     u32 attribute_length = get32();
-    put32(attribute_length + new_ops_count);
-
     u16 number_of_entries = get16();
-    put16(number_of_entries + new_ops_count);
+    if (_record_start) {
+        // If the start of the method is being profiled, the first instruction will be
+        // invokestatic towards recordSample.
+        put32(attribute_length + 1);
+        put16(number_of_entries + 1);
+        // Prepend same_frame
+        put8(EXTRA_BYTECODES - 1);
+    } else {
+        put32(attribute_length);
+        put16(number_of_entries);
+    }
 
-    // Prepend same_frame
-    put8(EXTRA_BYTECODES - 1);
-
+    int new_number_of_entries = 0;
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
         put8(frame_type);
@@ -511,7 +518,7 @@ void BytecodeRewriter::rewriteAttributes(Scope scope) {
     }
 }
 
-void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table, u32 new_ops_count) {
+void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -528,7 +535,7 @@ void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table, u32 new_ops_
             rewriteBytecodeTable(8, relocation_table);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
-            rewriteStackMapTable(relocation_table, new_ops_count);
+            rewriteStackMapTable(relocation_table);
             continue;
         }
 
