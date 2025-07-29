@@ -375,8 +375,8 @@ void BytecodeRewriter::rewriteCode() {
                         relocation_table[idx++] += relocation;
                     }
                 } else if (current->value == 0xc9 || current->value == 0xc8) {
-                    // Originally, this was a narrow jump; it got replaced with a wide variant.
-                    // Thus, we gotta skeep only three indexes.
+                    // Originally, this was a narrow jump: it got replaced with a wide variant.
+                    // Thus, we gotta skip only three indexes.
                     for (u32 args_idx = 0; args_idx < 3; ++args_idx) {
                         relocation_table[idx++] += relocation;
                     }
