@@ -1825,8 +1825,7 @@ void Profiler::stopTimer() {
 
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
-    u64 stop_micros = _stop_time;
-    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
+    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : _stop_time;
 
     while (true) {
         {
@@ -1838,7 +1837,7 @@ void Profiler::timerLoop(void* timer_id) {
             if (_timer_id != timer_id) return;
         }
 
-        if ((current_micros = OS::micros()) >= stop_micros) {
+        if ((current_micros = OS::micros()) >= _stop_time) {
             restart(_global_args);
             return;
         }
