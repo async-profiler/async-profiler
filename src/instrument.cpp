@@ -4,14 +4,17 @@
  */
 
 #include <arpa/inet.h>
+#include <limits>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 #include "arch.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "vmEntry.h"
 #include "instrument.h"
+#include "opcode.h"
 
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
@@ -130,6 +133,8 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
+    bool _record_start;
+
     // Reader
 
     const u8* get(int bytes) {
@@ -228,6 +233,7 @@ class BytecodeRewriter {
     void rewriteAttributes(Scope scope);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
+    void writeInvokeRecordSample();
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
@@ -268,6 +274,58 @@ class BytecodeRewriter {
     }
 };
 
+class LinkedListNode {
+  public:
+    LinkedListNode* next;
+    u8 value;
+
+    LinkedListNode() : LinkedListNode(nullptr, 0) {}
+    LinkedListNode(LinkedListNode* next, u8 value) : next(next), value(value) {}
+
+    ~LinkedListNode() {
+        delete next;
+    }
+};
+
+LinkedListNode* toLinkedList(const u8* arr, size_t len) {
+    LinkedListNode* nodes = new LinkedListNode[len];
+    for (size_t i = 0; i < len - 1; ++i) {
+        nodes[i].next = nodes + i + 1;
+        nodes[i].value = arr[i];
+    }
+    nodes[len-1].value = arr[len-1];
+    return nodes;
+}
+
+LinkedListNode* insert8(LinkedListNode* node, u8 value) {
+    node->next = new LinkedListNode(node->next, value);
+    return node->next;
+}
+
+LinkedListNode* insert16(LinkedListNode* node, u16 value) {
+    return insert8(insert8(node, (value >> 8) & 0xFF), value & 0xFF);
+}
+
+LinkedListNode* insert32(LinkedListNode* node, u32 value) {
+    return insert8(insert8(insert8(insert8(node, (value >> 24) & 0xFF), (value >> 16) & 0xFF), (value >> 8) & 0xFF), value & 0xFF);
+}
+
+// Detach the segment [prev+1:prev+1+segment_size)
+// E.g. a->b->c
+// detachSegment(b, 1) => a->b
+// detachSegment(a, 2) => a
+// detachSegment(a, 1) => a->c
+// detachSegment(a, 0) => a->b->c
+void detachSegment(LinkedListNode* prev, u32 segment_size) {
+    LinkedListNode* detached_head = prev->next;
+    for (int i = 0; i < segment_size - 1; ++i) {
+        prev->next = prev->next->next;
+    }
+    LinkedListNode* after_segment = prev->next->next;
+    prev->next->next = nullptr;
+    prev->next = after_segment;
+    delete detached_head;
+}
 
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
@@ -282,15 +340,81 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_locals);
 
     u32 code_length = get32();
-    put32(code_length + EXTRA_BYTECODES);
 
-    // invokestatic "one/profiler/Instrument.recordSample()V"
-    // nop ensures that tableswitch/lookupswitch needs no realignment
-    put8(0xb8);
-    put16(_cpool_len);
-    put8(0);
-    // The rest of the code is unchanged
-    put(get(code_length), code_length);
+    if (_record_start) {
+        put32(code_length + EXTRA_BYTECODES);
+        // invokestatic "one/profiler/Instrument.recordSample()V"
+        // nop ensures that tableswitch/lookupswitch needs no realignment
+        put8(0xb8);
+        put16(_cpool_len);
+        put8(0);
+        // The rest of the code is unchanged
+        put(get(code_length), code_length);
+    } else {
+        unsigned char opcode_length[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
+        u32 relocation_table[code_length];
+        LinkedListNode* head = toLinkedList(get(code_length), code_length);
+        
+        u32 relocation = 0;
+        LinkedListNode* current = head;
+        u32 idx = 0;
+        do {
+            u8 opcode = current->value;
+            if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xae || 
+                opcode == 0xac || opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+                current = insert8(current, 0xb8);
+                current = insert16(current, _cpool_len);
+                current = insert8(current, 0);
+                relocation += EXTRA_BYTECODES;
+            }
+            relocation_table[idx++] = relocation;
+            for (u32 args_idx = 0; args_idx < opcode_length[opcode]; ++args_idx) {
+                relocation_table[idx++] = relocation;
+            }
+        } while ((current = current->next) != nullptr);
+
+        bool changed = true;
+        while (changed) {
+            changed = false;
+
+            current = head;
+            LinkedListNode* before_current_instruction = nullptr;
+            idx = 0;
+            relocation = 0;
+            do {
+                u8 opcode = current->value;
+                if (opcode == 0xa8 && opcode == 0xa7) {
+                    u8 branchbyte1 = (current = current->next)->value;
+                    u8 branchbyte2 = (current = current->next)->value;
+                    int16_t offset = (branchbyte1 << 8) | branchbyte2;
+                    if (offset > std::numeric_limits<int16_t>::max() - relocation_table[idx + offset]) {
+                        changed = true;
+                        
+                        u8 new_opcode = opcode == 0xa8 ? 0xc9 : 0xc8;
+                        current = insert8(before_current_instruction, new_opcode);
+                        int32_t new_offset = offset + relocation_table[idx + offset];
+                        current = insert32(current, (u32) new_offset);
+                        detachSegment(current, 3);
+                        relocation += 2;
+                    }
+                }
+
+                relocation_table[idx++] = relocation;
+                for (u32 args_idx = 0; args_idx < opcode_length[opcode]; ++args_idx) {
+                    relocation_table[idx++] = relocation;
+                }
+
+                before_current_instruction = current;
+                current = current->next;
+            } while (current != nullptr);
+
+            current = head;
+            do {
+                put8(current->value);
+            } while ((current = current->next) != nullptr);
+            delete head;
+        }
+    }
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
