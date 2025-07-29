@@ -42,27 +42,4 @@ LinkedListNode* insert16(LinkedListNode* node, u16 value) {
     return insert8(insert8(node, (value >> 8) & 0xFF), value & 0xFF);
 }
 
-LinkedListNode* insert32(LinkedListNode* node, u32 value) {
-    return insert8(insert8(insert8(insert8(node, (value >> 24) & 0xFF), (value >> 16) & 0xFF), (value >> 8) & 0xFF), value & 0xFF);
-}
-
-// Detach the segment [prev+1:prev+1+segment_size)
-// E.g. a->b->c
-// detachSegment(b, 1) => a->b
-// detachSegment(a, 2) => a
-// detachSegment(a, 1) => a->c
-// detachSegment(a, 0) => a->b->c
-void detachSegment(LinkedListNode* prev, u32 segment_size) {
-    if (segment_size == 0) return;
-
-    LinkedListNode* detached_head = prev->next;
-    for (int i = 0; i < segment_size - 1; ++i) {
-        prev->next = prev->next->next;
-    }
-    LinkedListNode* after_segment = prev->next->next;
-    prev->next->next = nullptr;
-    prev->next = after_segment;
-    delete detached_head;
-}
-
 #endif // _LINKEDLIST_H

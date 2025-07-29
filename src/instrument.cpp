@@ -316,25 +316,24 @@ void BytecodeRewriter::rewriteCode() {
             u8 opcode = current->value;
             if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xae || 
                 opcode == 0xac || opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
-                current = insert8(current, 0xb8);
+                current->value = 0xb8;
                 current = insert16(current, _cpool_len);
                 current = insert8(current, 0);
-                current = current->next;
+                // Restore the previous instruction
+                current = insert8(current, opcode);
                 relocation += EXTRA_BYTECODES;
             }
-            relocation_table[idx++] = relocation;
             for (u32 args_idx = 0; args_idx < opcode_length[opcode]; ++args_idx) {
                 relocation_table[idx++] = relocation;
                 current = current->next;
             }
-        } while ((current = current->next) != nullptr);
+        } while (current != nullptr);
 
         bool changed = true;
         while (changed) {
             changed = false;
 
             current = head;
-            LinkedListNode* before_current_instruction = nullptr;
             idx = 0;
             relocation = 0;
             do {
@@ -348,21 +347,29 @@ void BytecodeRewriter::rewriteCode() {
                         changed = true;
                         
                         u8 new_opcode = opcode == 0xa8 ? 0xc9 : 0xc8;
-                        current = insert8(before_current_instruction, new_opcode);
+                        current->value = new_opcode;
+                        current = current->next;
+
                         int32_t new_offset = offset + relocation_table[idx + offset];
-                        current = insert32(current, (u32) new_offset);
-                        detachSegment(current, 3);
+                        current->value = ((u32) new_offset >> 24) & 0xFF;
+                        current = current->next;
+                        current->value = ((u32) new_offset >> 16) & 0xFF;
+                        current = insert16(current, (u32) new_offset & 0xFFFF);
+                        
+                        current = current->next;
+                        relocation_table[idx++] += relocation;
+                        relocation_table[idx++] += relocation;
+                        relocation_table[idx++] += relocation;
+
                         relocation += 2;
+                        continue;
                     }
                 }
 
-                relocation_table[idx++] += relocation;
                 for (u32 args_idx = 0; args_idx < opcode_length[opcode]; ++args_idx) {
                     relocation_table[idx++] += relocation;
+                    current = current->next;
                 }
-
-                before_current_instruction = current;
-                current = current->next;
             } while (current != nullptr);
 
             total_relocation = code_length == 0 ? 0 : relocation_table[code_length - 1];
