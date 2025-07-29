@@ -1244,7 +1244,7 @@ Error Profiler::start(Arguments& args, bool reset) {
     _epoch++;
 
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
-        _stop_time = addTimeout(_start_time, args._timeout);
+        _stop_time = addTimeout(_start_time / 1000000ULL, args._timeout) * 1000000ULL;
         startTimer();
     }
 
@@ -1750,16 +1750,15 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }
 
-u64 Profiler::addTimeout(u64 start, int timeout) {
+time_t Profiler::addTimeout(time_t start, int timeout) {
     if (timeout == 0) {
-        return 0x7fffffffffffffffULL;
+        return 0x7fffffff;
     } else if (timeout > 0) {
-        return start + (u64)timeout * 1000000ULL;
+        return start + timeout;
     }
 
-    time_t start_seconds = start / 1000000ULL;
     struct tm t;
-    localtime_r(&start_seconds, &t);
+    localtime_r(&start, &t);
 
     int hh = (timeout >> 16) & 0xff;
     if (hh < 24) {
@@ -1775,10 +1774,10 @@ u64 Profiler::addTimeout(u64 start, int timeout) {
     }
 
     time_t result = mktime(&t);
-    if (result <= start_seconds) {
+    if (result <= start) {
         result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
     }
-    return (u64)result * 1000000ULL;
+    return result;
 }
 
 void Profiler::startTimer() {
