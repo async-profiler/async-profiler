@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#ifndef _OPCODE_H
+#define _OPCODE_H
+
 #define JVM_OPC_MAX 201
 
 #define JVM_OPCODE_LENGTH_INITIALIZER { \
@@ -211,3 +214,5 @@
 }
 
 constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
+
+#endif // _OPCODE_H
