@@ -1752,7 +1752,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
 time_t Profiler::addTimeout(time_t start, int timeout) {
     if (timeout == 0) {
-        return 0x7fffffff;
+        return (time_t)0x7fffffff;
     } else if (timeout > 0) {
         return start + timeout;
     }
