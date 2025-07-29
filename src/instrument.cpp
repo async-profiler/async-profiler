@@ -228,7 +228,7 @@ class BytecodeRewriter {
     void rewriteCode();
     void rewriteBytecodeTable(int data_len, u32* relocation_table);
     void rewriteStackMapTable(u32* relocation_table);
-    void rewriteVerificationTypeInfo();
+    void rewriteVerificationTypeInfo(u32* relocation_table);
     void rewriteAttributes(Scope scope);
     void rewriteCodeAttributes(u32* relocation_table);
     void rewriteMembers(Scope scope);
@@ -474,11 +474,11 @@ void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
             // same_frame
         } else if (frame_type <= 127) {
             // same_locals_1_stack_item_frame
-            rewriteVerificationTypeInfo();
+            rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
             put16(get16());
-            rewriteVerificationTypeInfo();
+            rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type <= 251) {
             // chop_frame or same_frame_extended
             put16(get16());
@@ -487,7 +487,7 @@ void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
             put16(get16());
             u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
             for (u8 j = 0; j < count; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
         } else {
             // full_frame
@@ -495,23 +495,28 @@ void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
             u16 number_of_locals = get16();
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
             u16 number_of_stack_items = get16();
             put16(number_of_stack_items);
             for (int j = 0; j < number_of_stack_items; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
         }
     }
 }
 
-void BytecodeRewriter::rewriteVerificationTypeInfo() {
+void BytecodeRewriter::rewriteVerificationTypeInfo(u32* relocation_table) {
     u8 tag = get8();
     put8(tag);
     if (tag >= 7) {
         // Adjust ITEM_Uninitialized offset
-        put16(tag == 8 ? EXTRA_BYTECODES + get16() : get16());
+        if (tag == 8) {
+            u16 offset = get16();
+            put16(offset + relocation_table[offset]);
+        } else {
+            put16(get16());
+        }
     }
 }
 
