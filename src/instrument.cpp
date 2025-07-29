@@ -482,14 +482,12 @@ void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table, u32 new_ops_c
 void BytecodeRewriter::rewriteVerificationTypeInfo(u32* relocation_table) {
     u8 tag = get8();
     put8(tag);
-    if (tag >= 7) {
+    if (tag == 8) {
+        u16 offset = get16();
+        put16(offset + relocation_table[offset]);
+    } else if (tag >= 7) {
         // Adjust ITEM_Uninitialized offset
-        if (tag == 8) {
-            u16 offset = get16();
-            put16(offset + relocation_table[offset]);
-        } else {
-            put16(get16());
-        }
+        put16(get16());
     }
 }
 
