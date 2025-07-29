@@ -340,8 +340,13 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_locals);
 
     u32 code_length = get32();
+    u32 relocation_table[code_length];
 
     if (_record_start) {
+        for (int i = 0; i < code_length; ++i) {
+            relocation_table[i] = EXTRA_BYTECODES;
+        }
+
         put32(code_length + EXTRA_BYTECODES);
         // invokestatic "one/profiler/Instrument.recordSample()V"
         // nop ensures that tableswitch/lookupswitch needs no realignment
@@ -424,9 +429,9 @@ void BytecodeRewriter::rewriteCode() {
         u16 end_pc = get16();
         u16 handler_pc = get16();
         u16 catch_type = get16();
-        put16(EXTRA_BYTECODES + start_pc);
-        put16(EXTRA_BYTECODES + end_pc);
-        put16(EXTRA_BYTECODES + handler_pc);
+        put16(start_pc + relocation_table[start_pc]);
+        put16(start_pc + relocation_table[end_pc]);
+        put16(start_pc + relocation_table[handler_pc]);
         put16(catch_type);
     }
 
