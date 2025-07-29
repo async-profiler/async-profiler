@@ -342,7 +342,7 @@ void BytecodeRewriter::rewriteCode() {
             do {
                 // TODO: We can maintain a list of jumps to avoid scanning through the whole Code segment
                 u8 opcode = current->value;
-                if (opcode == 0xa8 && opcode == 0xa7) {
+                if (opcode == 0xa8 || opcode == 0xa7) {
                     u8 branchbyte1 = (current = current->next)->value;
                     u8 branchbyte2 = (current = current->next)->value;
                     int16_t offset = (branchbyte1 << 8) | branchbyte2;
