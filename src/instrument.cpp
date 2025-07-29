@@ -316,8 +316,8 @@ void BytecodeRewriter::rewriteCode() {
         do {
             u8 opcode = current->value;
             // TODO: Handle the case in which none of these is found
-            if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xae || 
-                opcode == 0xac || opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+            if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
+                opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
                 current->value = 0xb8;
                 current->mark = true;
                 current = insert16(current, _cpool_len);
