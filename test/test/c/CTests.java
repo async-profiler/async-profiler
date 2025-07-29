@@ -17,6 +17,9 @@ public class CTests {
     @Test(sh = "%testbin/native_api %api_file.jfr", env = {"ASPROF_COMMAND=start,cpu,file=%preload_file.jfr"},
             output = true, nameSuffix = "fake-preload")
     public void nativeApi(TestProcess p) throws Exception {
+        if (System.getProperty("os.arch").equals("ppc64le")) {
+            return; // dwarf based unwinding is not supported on PowerPC
+        }
         Output out = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
         assert out.contains("Starting profiler");
