@@ -1750,15 +1750,16 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     out.write((const char*) otlp_buffer.data(), otlp_buffer.offset());
 }
 
-time_t Profiler::addTimeout(time_t start, int timeout) {
+u64 Profiler::addTimeout(u64 start, int timeout) {
     if (timeout == 0) {
-        return (time_t)0x7fffffff;
+        return 0x7fffffffffffffffULL;
     } else if (timeout > 0) {
-        return start + timeout;
+        return start + (u64)timeout * 1000000ULL;
     }
 
+    time_t start_seconds = start / 1000000ULL;
     struct tm t;
-    localtime_r(&start, &t);
+    localtime_r(&start_seconds, &t);
 
     int hh = (timeout >> 16) & 0xff;
     if (hh < 24) {
@@ -1774,10 +1775,10 @@ time_t Profiler::addTimeout(time_t start, int timeout) {
     }
 
     time_t result = mktime(&t);
-    if (result <= start) {
+    if (result <= start_seconds) {
         result += (hh < 24 ? 86400 : (mm < 60 ? 3600 : 60));
     }
-    return result;
+    return (u64)result * 1000000ULL;
 }
 
 void Profiler::startTimer() {

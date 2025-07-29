@@ -130,7 +130,7 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
-    time_t addTimeout(time_t start, int timeout);
+    u64 addTimeout(u64 start, int timeout);
     void startTimer();
     void stopTimer();
     void timerLoop(void* timer_id);
