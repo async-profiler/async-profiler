@@ -109,8 +109,7 @@ enum Scope {
 
 enum PatchConstants {
     EXTRA_CONSTANTS = 6,
-    EXTRA_BYTECODES = 4,
-    EXTRA_STACKMAPS = 1
+    EXTRA_BYTECODES = 4
 };
 
 
@@ -228,10 +227,10 @@ class BytecodeRewriter {
 
     void rewriteCode();
     void rewriteBytecodeTable(int data_len, u32* relocation_table);
-    void rewriteStackMapTable(u32* relocation_table);
+    void rewriteStackMapTable(u32* relocation_table, u32 new_ops_count);
     void rewriteVerificationTypeInfo(u32* relocation_table);
     void rewriteAttributes(Scope scope);
-    void rewriteCodeAttributes(u32* relocation_table);
+    void rewriteCodeAttributes(u32* relocation_table, u32 new_ops_count);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
     void writeInvokeRecordSample();
@@ -385,7 +384,7 @@ void BytecodeRewriter::rewriteCode() {
         put16(catch_type);
     }
 
-    rewriteCodeAttributes(relocation_table);
+    rewriteCodeAttributes(relocation_table, relocation_table[code_length - 1] / EXTRA_BYTECODES);
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
@@ -406,12 +405,12 @@ void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table)
     }
 }
 
-void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
+void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table, u32 new_ops_count) {
     u32 attribute_length = get32();
-    put32(attribute_length + EXTRA_STACKMAPS);
+    put32(attribute_length + new_ops_count);
 
     u16 number_of_entries = get16();
-    put16(number_of_entries + EXTRA_STACKMAPS);
+    put16(number_of_entries + new_ops_count);
 
     // Prepend same_frame
     put8(EXTRA_BYTECODES - 1);
@@ -490,7 +489,7 @@ void BytecodeRewriter::rewriteAttributes(Scope scope) {
     }
 }
 
-void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table) {
+void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table, u32 new_ops_count) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -507,7 +506,7 @@ void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table) {
             rewriteBytecodeTable(8, relocation_table);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
-            rewriteStackMapTable(relocation_table);
+            rewriteStackMapTable(relocation_table, new_ops_count);
             continue;
         }
 
