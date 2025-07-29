@@ -51,3 +51,33 @@ TEST_CASE(LinkedList_insert32) {
     CHECK_EQ(node1->next->next->next->next->next->next->value, 3);
     CHECK_EQ(node1->next->next->next->next->next->next->next, nullptr);
 }
+
+TEST_CASE(LinkedList_detach) {
+    LinkedListNode* node3 = new LinkedListNode(nullptr, 3);
+    LinkedListNode* node2 = new LinkedListNode(node3, 2);
+    LinkedListNode* node1 = new LinkedListNode(node2, 1);
+
+    detachSegment(node1, 1);
+
+    CHECK_EQ(node1->value, 1);
+    CHECK_EQ(node1->next->value, 3);
+    CHECK_EQ(node1->next->next, nullptr);
+}
+
+TEST_CASE(LinkedList_detach2) {
+    LinkedListNode* node3 = new LinkedListNode(nullptr, 3);
+    LinkedListNode* node2 = new LinkedListNode(node3, 2);
+    LinkedListNode* node1 = new LinkedListNode(node2, 1);
+
+    detachSegment(node1, 2);
+
+    CHECK_EQ(node1->value, 1);
+    CHECK_EQ(node1->next, nullptr);
+}
+
+TEST_CASE(LinkedList_destructor) {
+    u8* arr = new u8[4]{1,2,3,4};
+    LinkedListNode* nodes = toLinkedList(arr, 4);
+    delete nodes;
+    delete[] arr;
+}

@@ -22,13 +22,15 @@ class LinkedListNode {
 };
 
 LinkedListNode* toLinkedList(const u8* arr, size_t len) {
-    LinkedListNode* nodes = new LinkedListNode[len];
-    for (size_t i = 0; i < len - 1; ++i) {
-        nodes[i].next = nodes + i + 1;
-        nodes[i].value = arr[i];
+    if (len == 0) return nullptr;
+
+    LinkedListNode* node = new LinkedListNode(nullptr, arr[0]);
+    LinkedListNode* head = node;
+    for (size_t i = 1; i < len; ++i) {
+        node->next = new LinkedListNode(nullptr, arr[i]);
+        node = node->next;
     }
-    nodes[len-1].value = arr[len-1];
-    return nodes;
+    return head;
 }
 
 LinkedListNode* insert8(LinkedListNode* node, u8 value) {
