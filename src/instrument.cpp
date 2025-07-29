@@ -103,8 +103,7 @@ enum Scope {
     SCOPE_CLASS,
     SCOPE_FIELD,
     SCOPE_METHOD,
-    SCOPE_REWRITE_METHOD,
-    SCOPE_REWRITE_CODE
+    SCOPE_REWRITE_METHOD
 };
 
 enum PatchConstants {
@@ -227,10 +226,11 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    void rewriteBytecodeTable(int data_len);
-    void rewriteStackMapTable();
+    void rewriteBytecodeTable(int data_len, u32* relocation_table);
+    void rewriteStackMapTable(u32* relocation_table);
     void rewriteVerificationTypeInfo();
     void rewriteAttributes(Scope scope);
+    void rewriteCodeAttributes(u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
     void writeInvokeRecordSample();
@@ -435,13 +435,13 @@ void BytecodeRewriter::rewriteCode() {
         put16(catch_type);
     }
 
-    rewriteAttributes(SCOPE_REWRITE_CODE);
+    rewriteCodeAttributes(relocation_table);
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
 }
 
-void BytecodeRewriter::rewriteBytecodeTable(int data_len) {
+void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -450,13 +450,13 @@ void BytecodeRewriter::rewriteBytecodeTable(int data_len) {
 
     for (int i = 0; i < table_length; i++) {
         u16 start_pc = get16();
-        put16(EXTRA_BYTECODES + start_pc);
+        put16(start_pc + relocation_table[start_pc]);
 
         put(get(data_len), data_len);
     }
 }
 
-void BytecodeRewriter::rewriteStackMapTable() {
+void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length + EXTRA_STACKMAPS);
 
@@ -527,18 +527,33 @@ void BytecodeRewriter::rewriteAttributes(Scope scope) {
         if (scope == SCOPE_REWRITE_METHOD && attribute_name->equals("Code", 4)) {
             rewriteCode();
             continue;
-        } else if (scope == SCOPE_REWRITE_CODE) {
-            if (attribute_name->equals("LineNumberTable", 15)) {
-                rewriteBytecodeTable(2);
-                continue;
-            } else if (attribute_name->equals("LocalVariableTable", 18) ||
-                       attribute_name->equals("LocalVariableTypeTable", 22)) {
-                rewriteBytecodeTable(8);
-                continue;
-            } else if (attribute_name->equals("StackMapTable", 13)) {
-                rewriteStackMapTable();
-                continue;
-            }
+        }
+
+        u32 attribute_length = get32();
+        put32(attribute_length);
+        put(get(attribute_length), attribute_length);
+    }
+}
+
+void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table) {
+    u16 attributes_count = get16();
+    put16(attributes_count);
+
+    for (int i = 0; i < attributes_count; i++) {
+        u16 attribute_name_index = get16();
+        put16(attribute_name_index);
+
+        Constant* attribute_name = _cpool[attribute_name_index];
+        if (attribute_name->equals("LineNumberTable", 15)) {
+            rewriteBytecodeTable(2, relocation_table);
+            continue;
+        } else if (attribute_name->equals("LocalVariableTable", 18) ||
+                    attribute_name->equals("LocalVariableTypeTable", 22)) {
+            rewriteBytecodeTable(8, relocation_table);
+            continue;
+        } else if (attribute_name->equals("StackMapTable", 13)) {
+            rewriteStackMapTable(relocation_table);
+            continue;
         }
 
         u32 attribute_length = get32();
