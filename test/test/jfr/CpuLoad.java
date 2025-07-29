@@ -37,7 +37,6 @@ public class CpuLoad {
 
         while (System.currentTimeMillis() - startTime < 500) {
             cpuLoad();
-            sleep(20);
         }
     }
 
