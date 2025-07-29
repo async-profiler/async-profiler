@@ -334,6 +334,7 @@ void BytecodeRewriter::rewriteCode() {
             idx = 0;
             relocation = 0;
             do {
+                // TODO: We can maintain a list of jumps to avoid scanning through the whole Code segment
                 u8 opcode = current->value;
                 if (opcode == 0xa8 && opcode == 0xa7) {
                     u8 branchbyte1 = (current = current->next)->value;
