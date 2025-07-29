@@ -133,7 +133,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _record_start = true;
+    bool _record_start = false;
 
     // Reader
 
@@ -360,6 +360,8 @@ void BytecodeRewriter::rewriteCode() {
                 before_current_instruction = current;
                 current = current->next;
             } while (current != nullptr);
+
+            put32(code_length + relocation);
 
             current = head;
             do {
