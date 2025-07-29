@@ -8,7 +8,6 @@
 
 #include <map>
 #include <string>
-#include <time.h>
 #include "arch.h"
 #include "arguments.h"
 #include "callTraceStorage.h"
@@ -130,7 +129,7 @@ class Profiler {
     Engine* activeEngine();
     Error checkJvmCapabilities();
 
-    u64 addTimeout(u64 start, int timeout);
+    u64 addTimeout(u64 start_micros, int timeout_sec);
     void startTimer();
     void stopTimer();
     void timerLoop(void* timer_id);
