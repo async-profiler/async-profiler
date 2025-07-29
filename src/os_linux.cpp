@@ -34,6 +34,7 @@
 #  define MMAP_SYSCALL __NR_mmap2
 #endif
 
+#define COMM_LEN 16
 
 class LinuxThreadList : public ThreadList {
   private:
@@ -431,8 +432,7 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
-static inline bool isNum(const char* s) noexcept
-{
+static inline bool isNum(const char* s) noexcept {
     uint8_t c;
     while ((c = *s++)) {
         if (c < '0' || c > '9') {
@@ -442,8 +442,7 @@ static inline bool isNum(const char* s) noexcept
     return true;
 }
 
-static inline int parsePid(const char* s) noexcept
-{
+static inline int parsePid(const char* s) noexcept {
     int pid = 0;
     for (uint8_t c; (c = *s++); ) {
         pid = pid * 10 + (c - '0');
@@ -451,8 +450,7 @@ static inline int parsePid(const char* s) noexcept
     return pid;
 }
 
-void OS::getProcessIds(int* pids, int* count, int max_pids)
-{
+void OS::getProcessIds(int* pids, int* count, int max_pids) {
     *count = 0;
 
     DIR* proc = opendir("/proc");
@@ -466,29 +464,6 @@ void OS::getProcessIds(int* pids, int* count, int max_pids)
         ++(*count);
     }
     closedir(proc);
-}
-
-// Helper method to read process name from /proc/{pid}/comm
-static bool readProcessName(int pid, ProcessInfo* info) {
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/%d/comm", pid);
-    FILE* file = fopen(path, "r");
-    if (!file) return false;
-
-    if (fgets(info->_name, sizeof(info->_name), file)) {
-        // Remove trailing newline
-        size_t len = strlen(info->_name);
-        if (len > 0 && info->_name[len-1] == '\n') {
-            info->_name[len-1] = '\0';
-        }
-    }
-    fclose(file);
-
-    if (info->_name[0] == '\0') {
-        snprintf(info->_name, sizeof(info->_name), "pid-%d", pid);\
-    }
-
-    return true;
 }
 
 // Helper method to read command line from /proc/{pid}/cmdline
@@ -533,47 +508,54 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
         fclose(file);
         return false;
     }
+    fclose(file);
 
-    int parsed_pid, parsed_ppid;
+    int  parsed_pid, parsed_ppid;
+    char comm[COMM_LEN] = {0};
     char state;
-    unsigned long minflt, majflt, utime, stime, starttime;
-    int threads;
+    unsigned long minflt, majflt, utime, stime;
+    unsigned long long starttime64;
+    unsigned long vsize;
+    long threads;
     long rss;
 
     int parsed = sscanf(buffer,
-                        "%d "              /*  1 pid                    */
-                        "%*[^)]"           /*  2 comm  (skip until ')') */
-                        ") %c %d "         /*  3 state, 4 ppid          */
-                        "%*d %*d %*d %*d " /*  5-8 pgrp,session,tty,tpgid*/
-                        "%*u "             /*  9 flags                  */
-                        "%lu %*u %lu %*u " /* 10-13 minflt,-,majflt,-   */
-                        "%lu %lu "         /* 14-15 utime, stime        */
-                        "%*d %*d %*d %*d " /* 16-19 cutime,cstime,prio,nice (skip) */
-                        "%ld "             /* 20 num_threads            */
-                        "%*d "             /* 21 itrealvalue (skip)     */
-                        "%llu "            /* 22 starttime              */
-                        "%*lu "            /* 23 vsize (skip)           */
-                        "%ld",             /* 24 rss  (PAGES)           */
-        &parsed_pid, &state, &parsed_ppid,
+                        "%d "                     /*  1 pid                                   */
+                        "(%15[^)]) "              /*  2 comm  (read until ')')                */
+                        "%c %d "                  /*  3 state, 4 ppid                         */
+                        "%*d %*d %*d %*d %*u "    /*  5-9(skip) pgrp,session,tty,tpgid,flags  */
+                        "%lu %*u %lu %*u "        /*  10-13 minflt,-,majflt,-                 */
+                        "%lu %lu "                /*  14-15 utime, stime                      */
+                        "%*d %*d %*d %*d "        /*  16-19(skip) cutime,cstime,prio,nice     */
+                        "%ld "                    /*  20 num_threads                          */
+                        "%*d "                    /*  21 itrealvalue (skip)                   */
+                        "%llu "                   /*  22 starttime                            */
+                        "%lu "                    /*  23 vsize                                */
+                        "%ld",                    /*  24 rss                                  */
+        &parsed_pid, comm, &state, &parsed_ppid,
         &minflt, &majflt, &utime, &stime,
-        &threads, &starttime, &rss);
+        &threads, &starttime64, &vsize, &rss);
 
-    fclose(file);
+    if (parsed < 12) return false;
 
-    if (parsed >= 10) {
-        info->_ppid = parsed_ppid;
-        info->_state = (unsigned char)state;
-        info->_minor_faults = minflt;
-        info->_major_faults = majflt;
-        info->_cpu_user = utime;
-        info->_cpu_system = stime;
-        info->_threads = (unsigned short)threads;
-        info->_start_time = starttime;
-        info->_mem_resident = rss;
-        return true;
-    }
+    info->_pid           = parsed_pid;
+    info->_ppid          = parsed_ppid;
+    strncpy(info->_name, comm, sizeof(info->_name));
+    info->_name[sizeof(info->_name) - 1] = '\0';
 
-    return false;
+    info->_state         = (unsigned char)state;
+    info->_minor_faults  = minflt;
+    info->_major_faults  = majflt;
+    info->_cpu_user      = utime;
+    info->_cpu_system    = stime;
+    info->_threads       = (unsigned short)threads;
+
+    info->_start_time    = (unsigned long)starttime64;
+
+    info->_mem_size      = vsize;
+    info->_mem_resident  = rss;
+
+    return true;
 }
 
 // Helper method to read memory stats from /proc/{pid}/statm
@@ -593,7 +575,7 @@ static bool readProcessMemory(int pid, ProcessInfo* info) {
         info->_mem_resident = resident;
         info->_mem_shared = shared;
         info->_mem_text = text;
-        info->_mem_data = data_stack;  // data + stack
+        info->_mem_data = data_stack;
         return true;
     }
 
@@ -657,14 +639,11 @@ bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
     return readProcessStats(pid, info);
 }
 
-bool OS::getDetailedProcessInfo(ProcessInfo* info) {
-    readProcessName(info->_pid, info);
-    readProcessCmdline(info->_pid, info);
-
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {\
     readProcessMemory(info->_pid, info);
     readProcessUID(info->_pid, info);
     readProcessIO(info->_pid, info);
-
+    readProcessCmdline(info->_pid, info);
     return true;
 }
 
