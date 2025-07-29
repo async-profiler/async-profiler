@@ -1,3 +1,11 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef _LINKEDLIST_H
+#define _LINKEDLIST_H
+
 #include <stdlib.h>
 
 class LinkedListNode {
@@ -54,3 +62,5 @@ void detachSegment(LinkedListNode* prev, u32 segment_size) {
     prev->next = after_segment;
     delete detached_head;
 }
+
+#endif // _LINKEDLIST_H
