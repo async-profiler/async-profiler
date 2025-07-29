@@ -1,3 +1,8 @@
+/*
+ * Copyright The async-profiler authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #define JVM_OPC_MAX 201
 
 #define JVM_OPCODE_LENGTH_INITIALIZER { \
