@@ -25,20 +25,20 @@ public class JfrTests {
         assert p.exitCode() == 0;
 
         String jfrOutPath = p.getFilePath("%profile");
-        String inconsistentPattern = "test/jfr/CpuLoad.inconsistentCpuLoad.*";
-        String consistentPattern = "test/jfr/CpuLoad.consistentCpuLoad.*";
+        String spikePattern = "test/jfr/CpuLoad.cpuSpike.*";
+        String normalLoadPattern = "test/jfr/CpuLoad.normalCpuLoad.*";
 
         Output out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "1500");
-        assert !out.contains(inconsistentPattern);
-        assert out.contains(consistentPattern);
+        assert !out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
 
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3500");
-        assert out.contains(inconsistentPattern);
-        assert out.contains(consistentPattern);
+        assert out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
 
         out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3500");
-        assert !out.contains(inconsistentPattern);
-        assert out.contains(consistentPattern);
+        assert !out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
     }
 
     /**

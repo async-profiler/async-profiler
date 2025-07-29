@@ -23,7 +23,7 @@ public class CpuLoad {
         return count;
     }
 
-    private static void consistentCpuLoad() {
+    private static void normalCpuLoad() {
         long startTime = System.currentTimeMillis();
 
         while (System.currentTimeMillis() - startTime < 4000) {
@@ -32,19 +32,21 @@ public class CpuLoad {
         }
     }
 
-    private static void inconsistentCpuLoad() {
-        sleep(2000);
+    private static void cpuSpike() {
+        long startTime = System.currentTimeMillis();
 
-        for (int i = 0; i < 10; i++) {
+        while (System.currentTimeMillis() - startTime < 500) {
             cpuLoad();
+            sleep(20);
         }
     }
 
     public static void main(String[] args) throws Exception {
-        Thread thread = new Thread(CpuLoad::consistentCpuLoad);
+        Thread thread = new Thread(CpuLoad::normalCpuLoad);
         thread.start();
 
-        inconsistentCpuLoad();
+        sleep(2000);
+        cpuSpike();
         thread.join();
     }
 }
