@@ -204,3 +204,5 @@
    5,   /* goto_w */                    \
    5    /* jsr_w */                     \
 }
+
+constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
