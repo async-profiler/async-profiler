@@ -44,7 +44,7 @@ const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
 const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.1f;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
 const u64 MIN_MEMORY_THRESHOLD = 1; // Minimum resident memory in pages (0 = no filtering)
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
@@ -685,53 +685,49 @@ class Recording {
 
     // Helper function to determine if a process should be included based on thresholds
     bool shouldIncludeProcess(const ProcessInfo* info) {
-        if (info->_cpu_percent < MIN_CPU_THRESHOLD) {
-            return false;
+        if (info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_mem_resident >= MIN_MEMORY_THRESHOLD) {
+            return true;
         }
 
-        if (info->_mem_resident < MIN_MEMORY_THRESHOLD) {
-            return false;
-        }
-
-        return true;
+        return false;
     }
 
     void populateCpuPercent(ProcessInfo* info) {
         int pid = info->_pid;
-        u64 currentCpuTotal = info->_cpu_user + info->_cpu_system;
-        u64 currentTime = info->_last_update;
+        u64 current_cpu_total = info->_cpu_user + info->_cpu_system;
+        u64 current_time = info->_last_update;
 
         ProcessHistory& history = _process_history[pid];
         if (!history.hasHistory) {
-            history.prevCpuTotal = currentCpuTotal;
-            history.prevTimestamp = currentTime;
+            history.prevCpuTotal = current_cpu_total;
+            history.prevTimestamp = current_time;
             history.hasHistory = true;
             return;
         }
 
-        u64 deltaCpu = currentCpuTotal - history.prevCpuTotal;
-        u64 deltaTime = currentTime - history.prevTimestamp;
+        u64 delta_cpu = current_cpu_total - history.prevCpuTotal;
+        u64 delta_time = current_time - history.prevTimestamp;
 
-        float cpuPercent = 0.0f;
+        float cpu_percent = 0.0f;
 
-        if (deltaTime > 0) {
-            float cpuSecs = static_cast<float>(deltaCpu) / OS::clock_ticks_per_sec;
-            float elapsedSecs = static_cast<float>(deltaTime) / 1e9;
-            if (elapsedSecs > 0) {
-              cpuPercent = (cpuSecs / elapsedSecs) * 100.0;
+        if (delta_time > 0) {
+            float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
+            float elapsed_secs = static_cast<float>(delta_time) / 1e9;
+            if (elapsed_secs > 0) {
+              cpu_percent = (cpu_secs / elapsed_secs) * 100.0;
             }
         }
 
-        info->_cpu_percent = cpuPercent;
-        info->_normalize_cpu_percent = cpuPercent / _available_processors;
-        history.prevCpuTotal = currentCpuTotal;
-        history.prevTimestamp = currentTime;
+        info->_cpu_percent = cpu_percent;
+        info->_normalize_cpu_percent = cpu_percent / _available_processors;
+        history.prevCpuTotal = current_cpu_total;
+        history.prevTimestamp = current_time;
     }
 
   void cleanupProcessHistory(const int* activePids, int pidCount) {
-      std::unordered_set<int> activePidSet(activePids, activePids + pidCount);
+      std::unordered_set<int> active_pid_set(activePids, activePids + pidCount);
       for (auto it = _process_history.begin(); it != _process_history.end(); ) {
-          if (activePidSet.count(it->first) == 0) {
+          if (active_pid_set.count(it->first) == 0) {
               it = _process_history.erase(it);
           } else {
               ++it;
@@ -1422,11 +1418,11 @@ class Recording {
     void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
         // Estimate for fixed fields
         const size_t process_non_string_size_limit = 200;
-        const size_t MAX_PROCESS_NAME_LENGTH = 256;
-        const size_t MAX_PROCESS_CMDLINE_LENGTH = ASPROF_MAX_JFR_EVENT_LENGTH - process_non_string_size_limit - MAX_PROCESS_NAME_LENGTH;
+        const size_t max_process_name_length = 256;
+        const size_t max_process_cmdline_length = ASPROF_MAX_JFR_EVENT_LENGTH - process_non_string_size_limit - max_process_name_length;
 
         // Ensure the entire event fits within JFR event size limit
-        static_assert(process_non_string_size_limit + MAX_PROCESS_NAME_LENGTH + MAX_PROCESS_CMDLINE_LENGTH
+        static_assert(process_non_string_size_limit + max_process_name_length + max_process_cmdline_length
             <= ASPROF_MAX_JFR_EVENT_LENGTH, "process event must fit within JFR event size limit");
 
         int start = buf->skip(5);
@@ -1440,12 +1436,12 @@ class Recording {
         // Limit process name length
         size_t name_len = strlen(info->_name);
         buf->putByteString(info->_name,
-            name_len > MAX_PROCESS_NAME_LENGTH ? MAX_PROCESS_NAME_LENGTH : name_len);
+            name_len > max_process_name_length ? max_process_name_length : name_len);
 
         // Limit command line length (uncommented and limited)
         size_t cmdline_len = strlen(info->_cmdline);
         buf->putByteString(info->_cmdline,
-            cmdline_len > MAX_PROCESS_CMDLINE_LENGTH ? MAX_PROCESS_CMDLINE_LENGTH : cmdline_len);
+            cmdline_len > max_process_cmdline_length ? max_process_cmdline_length : cmdline_len);
 
         buf->putVar32(info->_uid);
         buf->put8(info->_state);

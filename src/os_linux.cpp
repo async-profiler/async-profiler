@@ -434,17 +434,20 @@ bool OS::checkPreloaded() {
 static inline bool isNum(const char* s) noexcept
 {
     uint8_t c;
-    while ((c = *s++))
-        if (c < '0' || c > '9')
+    while ((c = *s++)) {
+        if (c < '0' || c > '9') {
             return false;
+        }
+    }
     return true;
 }
 
 static inline int parsePid(const char* s) noexcept
 {
     int pid = 0;
-    for (uint8_t c; (c = *s++); )
+    for (uint8_t c; (c = *s++); ) {
         pid = pid * 10 + (c - '0');
+    }
     return pid;
 }
 
@@ -455,8 +458,9 @@ void OS::getProcessIds(int* pids, int* count, int max_pids)
     DIR* proc = opendir("/proc");
     if (!proc) return;
     for (dirent* de; (de = readdir(proc)) && *count < max_pids; ) {
-        if (!isNum(de->d_name))
+        if (!isNum(de->d_name)) {
             continue;
+        }
 
         pids[*count] = parsePid(de->d_name);
         ++(*count);
@@ -530,19 +534,33 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
         return false;
     }
 
-    // Parse the stat file - we need specific fields
-    // Format: pid (comm) state ppid pgrp session tty_nr tpgid flags minflt cminflt majflt cmajflt utime stime cutime cstime priority nice num_threads itrealvalue starttime vsize rss ...
     int parsed_pid, parsed_ppid;
     char state;
     unsigned long minflt, majflt, utime, stime, starttime;
     int threads;
+    long rss;
 
-    int parsed = sscanf(buffer, "%d %*s %c %d %*d %*d %*d %*d %*u %lu %*u %lu %*u %lu %lu %*d %*d %*d %*d %d %*d %lu",
-                       &parsed_pid, &state, &parsed_ppid, &minflt, &majflt, &utime, &stime, &threads, &starttime);
+    int parsed = sscanf(buffer,
+                        "%d "              /*  1 pid                    */
+                        "%*[^)]"           /*  2 comm  (skip until ')') */
+                        ") %c %d "         /*  3 state, 4 ppid          */
+                        "%*d %*d %*d %*d " /*  5-8 pgrp,session,tty,tpgid*/
+                        "%*u "             /*  9 flags                  */
+                        "%lu %*u %lu %*u " /* 10-13 minflt,-,majflt,-   */
+                        "%lu %lu "         /* 14-15 utime, stime        */
+                        "%*d %*d %*d %*d " /* 16-19 cutime,cstime,prio,nice (skip) */
+                        "%ld "             /* 20 num_threads            */
+                        "%*d "             /* 21 itrealvalue (skip)     */
+                        "%llu "            /* 22 starttime              */
+                        "%*lu "            /* 23 vsize (skip)           */
+                        "%ld",             /* 24 rss  (PAGES)           */
+        &parsed_pid, &state, &parsed_ppid,
+        &minflt, &majflt, &utime, &stime,
+        &threads, &starttime, &rss);
 
     fclose(file);
 
-    if (parsed >= 9) {
+    if (parsed >= 10) {
         info->_ppid = parsed_ppid;
         info->_state = (unsigned char)state;
         info->_minor_faults = minflt;
@@ -551,6 +569,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
         info->_cpu_system = stime;
         info->_threads = (unsigned short)threads;
         info->_start_time = starttime;
+        info->_mem_resident = rss;
         return true;
     }
 
