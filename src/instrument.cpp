@@ -316,6 +316,7 @@ void BytecodeRewriter::rewriteCode() {
             if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xae || 
                 opcode == 0xac || opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
                 current->value = 0xb8;
+                current->mark = true;
                 current = insert16(current, _cpool_len);
                 current = insert8(current, 0);
                 // Restore the previous instruction
@@ -347,6 +348,7 @@ void BytecodeRewriter::rewriteCode() {
                         
                         u8 new_opcode = opcode == 0xa8 ? 0xc9 : 0xc8;
                         current->value = new_opcode;
+                        current->mark = true;
                         current = current->next;
 
                         int32_t new_offset = offset + relocation_table[idx + offset];
@@ -365,8 +367,18 @@ void BytecodeRewriter::rewriteCode() {
                     }
                 }
 
+                if (!current->mark) {
+                    for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+                        relocation_table[idx++] += relocation;
+                    }
+                } else if (current->value == 0xc9 || current->value == 0xc8) {
+                    // Originally, this was a narrow jump; it got replaced with a wide variant.
+                    // Thus, we gotta skeep only three indexes.
+                    for (u32 args_idx = 0; args_idx < 3; ++args_idx) {
+                        relocation_table[idx++] += relocation;
+                    }
+                }
                 for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
-                    relocation_table[idx++] += relocation;
                     current = current->next;
                 }
             } while (current != nullptr);

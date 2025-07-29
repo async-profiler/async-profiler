@@ -12,9 +12,10 @@ class LinkedListNode {
   public:
     LinkedListNode* next;
     u8 value;
+    bool mark;
 
     LinkedListNode() : LinkedListNode(nullptr, 0) {}
-    LinkedListNode(LinkedListNode* next, u8 value) : next(next), value(value) {}
+    LinkedListNode(LinkedListNode* next, u8 value) : next(next), value(value), mark(false) {}
 
     ~LinkedListNode() {
         delete next;
