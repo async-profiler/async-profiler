@@ -7,7 +7,6 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
-import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
@@ -84,9 +83,9 @@ public class JfrTests {
 
         double percentage = totalLockDurationMillis / LockJobDurationMillis;
 
-        Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
+        assert eventsCount.get("jdk.ExecutionSample") > 50;
         assert eventsCount.get("jdk.JavaMonitorEnter") > 10 && percentage >= 0.50;
-        Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
+        assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 50;
     }
 
     /**
