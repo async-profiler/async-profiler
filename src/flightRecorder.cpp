@@ -42,14 +42,14 @@ static void JNICALL JfrSync_stopProfiler(JNIEnv* env, jclass cls) {
 const int SMALL_BUFFER_SIZE = 1024;
 const int SMALL_BUFFER_LIMIT = SMALL_BUFFER_SIZE - 128;
 const int RECORDING_BUFFER_SIZE = 65536;
-const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
-const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
-const u64 MIN_MEMORY_THRESHOLD = 1; // Minimum resident memory in pages (0 = no filtering)
 const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
+const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const u64 MIN_MEMORY_THRESHOLD = 1; // Minimum resident memory in pages (0 = no filtering)
 
 // debug start
 static double min_ms = 10000000;
@@ -489,6 +489,7 @@ class Recording {
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
+    RecordingBuffer _proc_buf;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -565,6 +566,7 @@ class Recording {
 
     off_t finishChunk() {
         flush(&_monitor_buf);
+        flush(&_proc_buf);
 
         writeNativeLibraries(_buf);
 
@@ -749,7 +751,6 @@ class Recording {
         OS::getProcessIds(pids, &pid_count, MAX_PROCESSES);
         cleanupProcessHistory(pids, pid_count);
 
-        Buffer* buf = buffer(0);
         for (int i = 0; i < pid_count; i++) {
             if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
                 break;
@@ -761,12 +762,12 @@ class Recording {
                 populateCpuPercent(&info);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
                     OS::getDetailedProcessInfo(&info);
-                    recordProcessSample(buf, &info);
+                    flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - ASPROF_MAX_JFR_EVENT_LENGTH);
+                    recordProcessSample(&_proc_buf, &info);
                 }
             }
         }
 
-        flushIfNeeded(buf, RECORDING_BUFFER_LIMIT);
         _last_proc_sample_time = wall_time;
         return true;
     }

@@ -28,7 +28,7 @@ enum ThreadState {
 struct ProcessInfo {
     int _pid;
     int _ppid;
-    char _name[16];              // Process name from /proc/{pid}/comm
+    char _name[16];              // Process name from /proc/{pid}/stats
     char _cmdline[2048];         // Command line from /proc/{pid}/cmdline
     unsigned int _uid;           // User ID
     unsigned char _state;        // Process state (R, S, D, Z, T, etc.)

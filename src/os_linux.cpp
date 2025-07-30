@@ -603,7 +603,6 @@ static bool readProcessUID(int pid, ProcessInfo* info) {
         }
     }
     fclose(file);
-
     return false;
 }
 
