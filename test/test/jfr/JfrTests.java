@@ -19,18 +19,26 @@ import java.util.*;
 
 public class JfrTests {
 
-    @Test(mainClass = RegularPeak.class)
-    public void regularPeak(TestProcess p) throws Exception {
-        Output out = p.profile("-e cpu -d 6 -f %f.jfr");
-        String jfrOutPath = p.getFilePath("%f");
-        String peakPattern = "test/jfr/Cache.*calculateTop.*";
+    @Test(mainClass = CpuLoad.class, agentArgs = "start,event=cpu,file=%profile.jfr")
+    public void cpuLoad(TestProcess p) throws Exception {
+        p.waitForExit();
+        assert p.exitCode() == 0;
 
-        out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "2500");
-        assert !out.contains(peakPattern);
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "2500", "--to", "5000");
-        assert out.samples(peakPattern) >= 1;
-        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "5000");
-        assert !out.contains(peakPattern);
+        String jfrOutPath = p.getFilePath("%profile");
+        String spikePattern = "test/jfr/CpuLoad.cpuSpike.*";
+        String normalLoadPattern = "test/jfr/CpuLoad.normalCpuLoad.*";
+
+        Output out = Output.convertJfrToCollapsed(jfrOutPath, "--to", "1500");
+        assert !out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
+
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "1500", "--to", "3500");
+        assert out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
+
+        out = Output.convertJfrToCollapsed(jfrOutPath,"--from", "3500");
+        assert !out.contains(spikePattern);
+        assert out.contains(normalLoadPattern);
     }
 
     /**
