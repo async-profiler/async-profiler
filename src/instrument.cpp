@@ -287,6 +287,8 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_locals);
 
     u32 code_length = get32();
+    // For each index in the (original) bytecode, this holds the rightwards offset
+    // in the modified bytecode.
     u32 relocation_table[code_length];
     u32 total_relocation = 0;
 
