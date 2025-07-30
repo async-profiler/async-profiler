@@ -179,11 +179,25 @@ static std::unordered_set<const void*> _parsed_libraries;
 void Symbols::parseKernelSymbols(CodeCache* cc) {
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const char* library) {
     MutexLocker ml(_parse_lock);
-    uint32_t images = _dyld_image_count();
 
+    if (array->count() >= MAX_NATIVE_LIBS) {
+        return;
+    }
+
+    const size_t library_name_len = library ? strlen(library) : 0;
+
+    uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
+        const char* path = _dyld_get_image_name(i);
+        const size_t path_len = strlen(path);
+
+        // Skip non target libs
+        if (library && (path_len < library_name_len || strcmp(path + (path_len - library_name_len), library))) {
+            continue;
+        }
+
         const mach_header* image_base = _dyld_get_image_header(i);
         if (image_base == NULL || !_parsed_libraries.insert(image_base).second) {
             continue;  // the library was already parsed
@@ -198,7 +212,6 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
             break;
         }
 
-        const char* path = _dyld_get_image_name(i);
         const char* vmaddr_slide = (const char*)_dyld_get_image_vmaddr_slide(i);
 
         CodeCache* cc = new CodeCache(path, count);

@@ -723,7 +723,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count) {
+static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, const char* library) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
         return;
@@ -735,11 +735,19 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     size_t str_size = 0;
     ssize_t len;
 
+    const size_t library_name_len = library ? strlen(library) : 0;
+
     while (max_count > 0 && (len = getline(&str, &str_size, f)) > 0) {
         str[len - 1] = 0;
 
         MemoryMapDesc map(str);
         if (!map.isReadable() || map.file() == NULL || map.file()[0] == 0) {
+            continue;
+        }
+
+        // Skip non target libs
+        const size_t file_name_len = strlen(map.file());
+        if (library && (file_name_len < library_name_len || strcmp(path + (file_name_len - library_name_len), library))) {
             continue;
         }
 
@@ -777,7 +785,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const char* library) {
     MutexLocker ml(_parse_lock);
 
     if (_in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
@@ -798,7 +806,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols) {
     }
 
     std::unordered_map<u64, SharedLibrary> libs;
-    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count());
+    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count(), library);
 
     for (auto& it : libs) {
         u64 inode = it.first;
