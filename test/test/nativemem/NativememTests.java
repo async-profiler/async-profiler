@@ -33,6 +33,7 @@ public class NativememTests {
     public void canAgentTraceMallocCalloc(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
 
+        assert !out.contains("recordMalloc");
         Assert.isEqual(out.samples("Java_test_nativemem_Native_malloc"), MALLOC_SIZE);
         Assert.isEqual(out.samples("Java_test_nativemem_Native_calloc"), CALLOC_SIZE);
     }
