@@ -10,6 +10,7 @@
 #include <jvmti.h>
 #include "dictionary.h"
 #include "index.h"
+#include "vmEntry.h"
 
 class MethodInfo {
   public:
