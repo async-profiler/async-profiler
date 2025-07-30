@@ -289,6 +289,9 @@ void BytecodeRewriter::rewriteCode() {
     u32 code_length = get32();
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
+    // TODO: We could consider giving each node in the linked list a pointer to
+    // a location in the array, such that we don't need to keep track of their
+    // index manually. This would simplify code a bit.
     u32 relocation_table[code_length];
     u32 total_relocation = 0;
 
