@@ -55,6 +55,8 @@ public class OtlpTests {
 
     @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
     public void otlpAggregationTemporalityTest(TestProcess p) throws Exception {
+        classpathCheck();
+
         p.waitForExit();
         assert p.exitCode() == 0;
     }
@@ -110,5 +112,13 @@ public class OtlpTests {
     private static void assertCloseTo(long value, long target, String message) {
         Assert.isGreaterOrEqual(value, target * 0.75, message);
         Assert.isLessOrEqual(value, target * 1.25, message);
+    }
+
+    // Simple check to make sure the classpath contains the required dependencies.
+    // If not, it will throw a NoClassDefFoundError, which will be caught by the test runner.
+    // It's useful to anticipate the same NoClassDefFoundError to happen in the child process,
+    // where it's harder to detect.
+    private static void classpathCheck() {
+        ProfilesData.newBuilder();
     }
 }
