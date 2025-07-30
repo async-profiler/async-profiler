@@ -6,6 +6,7 @@
 #include "demangle.h"
 #include "lookup.h"
 #include "profiler.h"
+#include "vmStructs.h"
 
 jint MethodInfo::getLineNumber(jint bci) {
     if (_line_number_table_size == 0) {

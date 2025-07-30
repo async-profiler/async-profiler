@@ -12,7 +12,6 @@
 #include "dictionary.h"
 #include "index.h"
 #include "vmEntry.h"
-#include "vmStructs.h"
 
 class MethodInfo {
   public:
@@ -29,7 +28,7 @@ class MethodInfo {
     jint getLineNumber(jint bci);
 };
 
-class MethodMap : public std::map<jmethodID, MethodInfo> {
+class MethodMap : public std::unordered_map<jmethodID, MethodInfo> {
   public:
     MethodMap() = default;
     ~MethodMap();
