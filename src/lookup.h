@@ -120,7 +120,6 @@ class Lookup {
         char* class_name = NULL;
         char* method_name = NULL;
         char* method_sig = NULL;
-        char* source_name = NULL;
 
         jvmtiEnv* jvmti = VM::jvmti();
         jvmtiError err;
@@ -138,7 +137,6 @@ class Lookup {
         if (method_class) {
             _jni->DeleteLocalRef(method_class);
         }
-        jvmti->Deallocate((unsigned char*)source_name);
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
