@@ -747,7 +747,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
 
         // Skip non target libs
         const size_t file_name_len = strlen(map.file());
-        if (library && (file_name_len < library_name_len || strcmp(map.file() + (file_name_len - library_name_len), library))) {
+        if (library && (file_name_len < library_name_len || strcmp(map.file() + (file_name_len - library_name_len), library) != 0)) {
             continue;
         }
 

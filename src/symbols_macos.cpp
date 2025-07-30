@@ -194,7 +194,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const c
         const size_t path_len = strlen(path);
 
         // Skip non target libs
-        if (library && (path_len < library_name_len || strcmp(path + (path_len - library_name_len), library))) {
+        if (library && (path_len < library_name_len || strcmp(path + (path_len - library_name_len), library)  != 0)) {
             continue;
         }
 
