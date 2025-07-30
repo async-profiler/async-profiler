@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/param.h>
+#include <time.h>
 #include "index.h"
 #include "profiler.h"
 #include "perfEvents.h"
 #include "ctimer.h"
-#include <time.h>
 #include "allocTracer.h"
 #include "mallocTracer.h"
 #include "lockTracer.h"
