@@ -45,10 +45,6 @@ public class Dictionary<T> {
         return key + 1;
     }
 
-    private static long remapKeyBack(long key) {
-        return key - 1;
-    }
-
     public void put(long key, T value) {
         key = remapKey(key);
 
@@ -85,7 +81,8 @@ public class Dictionary<T> {
     public void forEach(Visitor<T> visitor) {
         for (int i = 0; i < keys.length; i++) {
             if (keys[i] != 0) {
-                visitor.visit(remapKeyBack(keys[i]), (T) values[i]);
+                // Map key back, see remapKey
+                visitor.visit(keys[i] - 1, (T) values[i]);
             }
         }
     }
