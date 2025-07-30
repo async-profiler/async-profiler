@@ -97,6 +97,8 @@ JitWriteProtection::~JitWriteProtection() {
 
 
 static SigAction installed_sigaction[32];
+static SigAction orig_sigbus_handler;
+static SigAction orig_sigsegv_handler;
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
@@ -228,12 +230,27 @@ SigAction OS::installSignalHandler(int signo, SigAction action, SigHandler handl
 }
 
 SigAction OS::replaceCrashHandler(SigAction action) {
+    // It's not well specified when macOS raises SIGBUS and when SIGSEGV.
+    // HotSpot handles both similarly, so do we.
     struct sigaction sa;
+
     sigaction(SIGBUS, NULL, &sa);
-    SigAction old_action = sa.sa_sigaction;
+    orig_sigbus_handler = sa.sa_sigaction;
     sa.sa_sigaction = action;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
     sigaction(SIGBUS, &sa, NULL);
-    return old_action;
+
+    sigaction(SIGSEGV, NULL, &sa);
+    orig_sigsegv_handler = sa.sa_sigaction;
+    sa.sa_sigaction = action;
+    sa.sa_flags |= SA_SIGINFO | SA_RESTART;
+    sigaction(SIGSEGV, &sa, NULL);
+
+    // Return an action that dispatches to one of the original handlers depending on signo,
+    // so that the caller does not need to deal with multiple handlers
+    return [](int signo, siginfo_t* siginfo, void* ucontext) {
+        (signo == SIGBUS ? orig_sigbus_handler : orig_sigsegv_handler)(signo, siginfo, ucontext);
+    };
 }
 
 int OS::getProfilingSignal(int mode) {
