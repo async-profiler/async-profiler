@@ -12,6 +12,7 @@
 #include "dictionary.h"
 #include "index.h"
 #include "vmEntry.h"
+#include "vmStructs.h"
 
 class MethodInfo {
   public:
