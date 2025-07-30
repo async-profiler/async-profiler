@@ -174,8 +174,8 @@ class Lookup {
         _classes(classes),
         _packages(packages),
         _symbols(symbols),
-        _jni(VM::jni()),
-        _output_type(output) {
+        _output_type(output),
+        _jni(VM::jni()) {
         assert(_packages != nullptr || output != OUTPUT_JFR);
     }
 
