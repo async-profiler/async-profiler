@@ -135,14 +135,13 @@ class Lookup {
             }
         }
 
-
         if (method_class) {
             _jni->DeleteLocalRef(method_class);
         }
+        jvmti->Deallocate((unsigned char*)source_name);
         jvmti->Deallocate((unsigned char*)method_sig);
         jvmti->Deallocate((unsigned char*)method_name);
         jvmti->Deallocate((unsigned char*)class_name);
-        jvmti->Deallocate((unsigned char*)source_name);
 
         if (err != 0) {
             return false;
