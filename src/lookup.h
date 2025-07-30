@@ -9,9 +9,10 @@
 #include <assert.h>
 #include <jvmti.h>
 #include "arguments.h"
-#include "dictionary.h"
 #include "index.h"
 #include "vmEntry.h"
+
+class Dictionary;
 
 class MethodInfo {
   public:
