@@ -5,6 +5,7 @@
 
 #include "demangle.h"
 #include "dictionary.h"
+#include "index.h"
 #include "lookup.h"
 #include "profiler.h"
 #include "vmStructs.h"

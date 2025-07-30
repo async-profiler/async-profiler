@@ -7,12 +7,13 @@
 #define _LOOKUP_H
 
 #include <assert.h>
+#include <unordered_map>
 #include <jvmti.h>
 #include "arguments.h"
-#include "index.h"
 #include "vmEntry.h"
 
 class Dictionary;
+class Index;
 
 class MethodInfo {
   public:
@@ -57,14 +58,6 @@ class Lookup {
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame);
     u32 getPackage(const char* class_name);
-
-    u32 getSymbol(const char* name) {
-        return _symbols->indexOf(name);
-    }
-
-    u32 getSymbol(const std::string& name) {
-        return _symbols->indexOf(name);
-    }
 
   private:
     JNIEnv* _jni;

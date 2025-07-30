@@ -947,7 +947,7 @@ class Recording {
         for (std::map<u32, const char*>::const_iterator it = classes.begin(); it != classes.end(); ++it) {
             buf->putVar32(it->first);
             buf->putVar32(0);  // classLoader
-            buf->putVar64(lookup->getSymbol(it->second) | _base_id);
+            buf->putVar64(lookup->_symbols->indexOf(it->second) | _base_id);
             buf->putVar64(lookup->getPackage(it->second) | _base_id);
             buf->putVar32(0);  // access flags
             flushIfNeeded(buf);
@@ -958,7 +958,7 @@ class Recording {
         writePoolHeader(buf, T_PACKAGE, lookup->_packages->size());
         lookup->_packages->forEachOrdered([&] (size_t idx, const std::string& s) {
             buf->putVar64(idx | _base_id);
-            buf->putVar64(lookup->getSymbol(s) | _base_id);
+            buf->putVar64(lookup->_symbols->indexOf(s) | _base_id);
             flushIfNeeded(buf);
         });
     }
