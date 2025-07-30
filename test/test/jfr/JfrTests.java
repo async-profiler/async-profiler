@@ -65,7 +65,7 @@ public class JfrTests {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
-        long LockJobDurationMillis = Long.parseLong(output.stream().findFirst().get());
+        long lockJobDurationMillis = Long.parseLong(output.stream().findFirst().get());
 
         double totalLockDurationMillis = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
@@ -73,7 +73,6 @@ public class JfrTests {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
-
                 if (eventName.equals("jdk.JavaMonitorEnter")) {
                     totalLockDurationMillis += event.getDuration().toNanos() / 1000.0 / 1000.0;
                 }
@@ -81,10 +80,8 @@ public class JfrTests {
             }
         }
 
-        double percentage = totalLockDurationMillis / LockJobDurationMillis;
-
         assert eventsCount.get("jdk.ExecutionSample") > 50;
-        assert eventsCount.get("jdk.JavaMonitorEnter") > 10 && percentage >= 0.50;
+        assert eventsCount.get("jdk.JavaMonitorEnter") > 10 && (totalLockDurationMillis / lockJobDurationMillis) >= 0.50;
         assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 50;
     }
 
