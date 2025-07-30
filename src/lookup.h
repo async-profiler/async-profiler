@@ -20,7 +20,6 @@ class MethodInfo {
     bool _mark = false;
     u32 _key = 0;
     u32 _class = 0;
-    u32 _file = 0;
     u32 _name = 0;
     u32 _system_name = 0;
     u32 _sig = 0;
@@ -81,18 +80,15 @@ class Lookup {
 
     void fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* lib_name) {
         if (lib_name == NULL) {
-            mi->_file = _classes->lookup("");
+            mi->_class = _classes->lookup("");
         } else if (lib_name[0] == '[' && lib_name[1] != 0) {
-            mi->_file = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
+            mi->_class = _classes->lookup(lib_name + 1, strlen(lib_name) - 2);
         } else {
-            mi->_file = _classes->lookup(lib_name);
+            mi->_class = _classes->lookup(lib_name);
         }
 
         mi->_modifiers = 0x100;
 
-        if (_output_type == Output::OUTPUT_OTLP) {
-            mi->_system_name = _symbols->indexOf(name);
-        }
         if (Demangle::needsDemangling(name)) {
             char* demangled = Demangle::demangle(name, false);
             if (demangled != NULL) {
