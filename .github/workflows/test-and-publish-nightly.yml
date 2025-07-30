@@ -29,7 +29,6 @@ jobs:
           if-no-files-found: error
   build-and-upload-binaries:
     strategy:
-      fail-fast: false
       matrix:
         include:
           - runson:
