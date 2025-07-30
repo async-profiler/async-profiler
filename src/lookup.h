@@ -176,7 +176,7 @@ class Lookup {
         _symbols(symbols),
         _jni(VM::jni()),
         _output_type(output) {
-        assert(_packages != nullptr || output != Output::OUTPUT_JFR);
+        assert(_packages != nullptr || output != OUTPUT_JFR);
     }
 
     MethodInfo* resolveMethod(ASGCT_CallFrame& frame) {
