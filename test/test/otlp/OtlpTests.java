@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import one.profiler.test.*;
@@ -50,7 +51,18 @@ public class OtlpTests {
         ProfilesDictionary dictionary = profilesData.getDictionary();
 
         Output collapsed = toCollapsed(profile, dictionary);
-        assert collapsed.contains("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn");
+        assert collapsed.contains(Pattern.quote("test/otlp/CpuBurner.main;test/otlp/CpuBurner.burn"));
+    }
+
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,otlp,file=%f.pb")
+    public void testSamplesSystemName(TestProcess p) throws Exception {
+        ProfilesData profilesData = waitAndGetProfilesData(p);
+
+        Profile profile = getFirstProfile(profilesData);
+        ProfilesDictionary dictionary = profilesData.getDictionary();
+
+        Output collapsed = toCollapsed(profile, dictionary, 0, Function::getSystemNameStrindex);
+        assert collapsed.contains(Pattern.quote("test/otlp/CpuBurner.main([Ljava/lang/String;)V;test/otlp/CpuBurner.burn()V;"));
     }
 
     @Test(mainClass = OtlpTemporalityTest.class, jvmArgs = "-Djava.library.path=build/lib")
@@ -70,19 +82,19 @@ public class OtlpTests {
     }
 
     private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary) {
-        return toCollapsed(profile, dictionary, 0);
+        return toCollapsed(profile, dictionary, 0, Function::getNameStrindex);
     }
 
-    private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx) {
+    private static Output toCollapsed(Profile profile, ProfilesDictionary dictionary, int valueIdx, java.util.function.Function<Function, Integer> functionNameExtractor) {
         Map<String, Long> stackTracesCount = new HashMap<>();
         for (Sample sample : profile.getSampleList()) {
             StringBuilder stackTrace = new StringBuilder();
             for (int i = sample.getLocationsLength() - 1; i > 0; --i) {
                 int locationIndex = profile.getLocationIndices(sample.getLocationsStartIndex() + i);
-                stackTrace.append(getFrameName(locationIndex, dictionary)).append(';');
+                stackTrace.append(getFrameName(locationIndex, dictionary, functionNameExtractor)).append(';');
             }
             int locationIndex = profile.getLocationIndices(sample.getLocationsStartIndex());
-            stackTrace.append(getFrameName(locationIndex, dictionary));
+            stackTrace.append(getFrameName(locationIndex, dictionary, functionNameExtractor));
 
             stackTracesCount.compute(stackTrace.toString(), (key, oldValue) -> sample.getValue(valueIdx) + (oldValue == null ? 0 : oldValue));
         }
@@ -90,11 +102,11 @@ public class OtlpTests {
         return new Output(lines.toArray(new String[0]));
     }
 
-    private static String getFrameName(int locationIndex, ProfilesDictionary dictionary) {
+    private static String getFrameName(int locationIndex, ProfilesDictionary dictionary, java.util.function.Function<Function, Integer> functionNameExtractor) {
         Location location = dictionary.getLocationTable(locationIndex);
         Line line = location.getLine(location.getLineList().size() - 1);
         Function function = dictionary.getFunctionTable(line.getFunctionIndex());
-        return dictionary.getStringTable(function.getNameStrindex());
+        return dictionary.getStringTable(functionNameExtractor.apply(function));
     }
 
     private static Profile getFirstProfile(ProfilesData profilesData) {
