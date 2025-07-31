@@ -7,6 +7,7 @@ package test.jfr;
 
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import one.profiler.test.Assert;
 import one.profiler.test.Os;
 import one.profiler.test.Output;
 import one.profiler.test.Test;
@@ -67,21 +68,22 @@ public class JfrTests {
 
         long lockJobDurationMillis = Long.parseLong(output.stream().findFirst().get());
 
-        double totalLockDurationMillis = 0;
+        double totalLockDurationNanos = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
                 if (eventName.equals("jdk.JavaMonitorEnter")) {
-                    totalLockDurationMillis += event.getDuration().toNanos() / 1000.0 / 1000.0;
+                    totalLockDurationNanos += event.getDuration().toNanos();
                 }
                 eventsCount.put(eventName, eventsCount.getOrDefault(eventName, 0) + 1);
             }
         }
 
-        assert eventsCount.get("jdk.ExecutionSample") > 50;
-        assert eventsCount.get("jdk.JavaMonitorEnter") > 10 && (totalLockDurationMillis / lockJobDurationMillis) >= 0.50;
+        Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
+        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 10);
+        Assert.isGreater(totalLockDurationNanos / lockJobDurationMillis, 0.50);
         assert eventsCount.get("jdk.ObjectAllocationInNewTLAB") > 50;
     }
 

@@ -26,23 +26,24 @@ public class JfrMultiModeProfiling {
 
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-        long startTime = System.currentTimeMillis();
+        List<CompletableFuture<Long>> completableFutures = new ArrayList<>();
+        long startTime = System.nanoTime();
         for (int i = 0; i < 10; i++) {
-            completableFutures.add(CompletableFuture.runAsync(JfrMultiModeProfiling::cpuIntensiveIncrement, executor));
+            completableFutures.add(CompletableFuture.supplyAsync(JfrMultiModeProfiling::cpuIntensiveIncrement, executor));
         }
-        completableFutures.forEach(CompletableFuture::join);
-        System.out.println(System.currentTimeMillis() - startTime);
-        executor.shutdown();
         allocate();
+        long endTime = completableFutures.stream().map(CompletableFuture::join).max(Long::compareTo).get();
+        System.out.println(endTime - startTime);
+        executor.shutdown();
     }
 
-    private static void cpuIntensiveIncrement() {
+    private static long cpuIntensiveIncrement() {
         for (int i = 0; i < 100_000; i++) {
             synchronized (lock) {
                 count += System.getProperties().hashCode();
             }
         }
+        return System.nanoTime();
     }
 
     private static void allocate() {
