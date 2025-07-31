@@ -224,7 +224,7 @@ class Profiler {
     bool isAddressInCode(const void* pc);
 
     void trapHandler(int signo, siginfo_t* siginfo, void* ucontext);
-    static void segvHandler(int signo, siginfo_t* siginfo, void* ucontext);
+    static void crashHandler(int signo, siginfo_t* siginfo, void* ucontext);
     static void wakeupHandler(int signo);
     static void setupSignalHandlers();
 
