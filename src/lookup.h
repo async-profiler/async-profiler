@@ -57,7 +57,7 @@ class Lookup {
         assert(_packages != nullptr || output != OUTPUT_JFR);
     }
 
-    MethodInfo* resolveMethod(ASGCT_CallFrame& frame);
+    MethodInfo* resolveMethod(const ASGCT_CallFrame& frame);
     u32 getPackage(const char* class_name);
 
   private:

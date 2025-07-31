@@ -76,6 +76,10 @@ typedef struct {
     jmethodID method_id;
 } ASGCT_CallFrame;
 
+bool operator==(const ASGCT_CallFrame& lhs, const ASGCT_CallFrame& rhs) {
+    return lhs.bci == rhs.bci && lhs.method_id == rhs.method_id;
+}
+
 typedef struct {
     JNIEnv* env;
     jint num_frames;

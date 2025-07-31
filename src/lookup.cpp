@@ -41,7 +41,7 @@ size_t MethodMap::usedMemory() {
     return bytes;
 }
 
-MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
+MethodInfo* Lookup::resolveMethod(const ASGCT_CallFrame& frame) {
     jmethodID method = frame.method_id;
     MethodInfo* mi = &(*_method_map)[method];
 
