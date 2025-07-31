@@ -274,9 +274,10 @@ class BytecodeRewriter {
 };
 
 void BytecodeRewriter::rewriteCode() {
-    int code_attribute_begin = _dst_len;
     u32 attribute_length = get32();
     put32(attribute_length);
+
+    int code_begin = _dst_len;
 
     u16 max_stack = get16();
     put16(max_stack);
@@ -289,7 +290,7 @@ void BytecodeRewriter::rewriteCode() {
     u32 code_length_idx = _dst_len;
     put32(code_length); // to be fixed later
 
-    int code_begin = _dst_len;
+    int code_segment_begin = _dst_len;
 
     u32 max_relocation = 0;
     for (u32 i = 0; i < code_length;) {
@@ -350,7 +351,7 @@ void BytecodeRewriter::rewriteCode() {
 
     for (u32 jump_idx : jumps) {
         u32 new_idx = jump_idx + relocation_table[jump_idx];
-        u8* opcode_ptr = _dst + code_begin + new_idx;
+        u8* opcode_ptr = _dst + code_segment_begin + new_idx;
         if (*opcode_ptr == 0xa7 || *opcode_ptr == 0xa8) {
             // narrow jump
             int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
@@ -379,7 +380,7 @@ void BytecodeRewriter::rewriteCode() {
     rewriteCodeAttributes(relocation_table);
 
     // Patch attribute length
-    *(u32*)(_dst + code_attribute_begin) = htonl(_dst_len - code_attribute_begin);
+    *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
 }
 
 void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table) {
