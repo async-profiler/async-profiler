@@ -1691,9 +1691,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
     _call_trace_storage.collectSamples(call_trace_samples);
 
     std::vector<size_t> location_indices;
-    location_indices.reserve(call_trace_samples.size() > 0 ?
-        call_trace_samples.size() * call_trace_samples[0]->trace->num_frames :
-        0);
+    location_indices.reserve(call_trace_samples.empty() ? 0 :
+        call_trace_samples.size() * call_trace_samples[0]->trace->num_frames);
 
     FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
     for (const auto& cts : call_trace_samples) {

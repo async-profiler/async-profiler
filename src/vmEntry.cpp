@@ -525,3 +525,7 @@ JNI_OnUnload(JavaVM* vm, void* reserved) {
         profiler->stop();
     }
 }
+
+bool operator==(const ASGCT_CallFrame& lhs, const ASGCT_CallFrame& rhs) {
+    return lhs.bci == rhs.bci && lhs.method_id == rhs.method_id;
+}
