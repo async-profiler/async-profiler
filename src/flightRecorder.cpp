@@ -687,7 +687,7 @@ class Recording {
 
     // Helper function to determine if a process should be included based on thresholds
     inline bool shouldIncludeProcess(const ProcessInfo* info) {
-        return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD;
+        return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD_KB;
     }
 
     void populateCpuPercent(ProcessInfo* info) {
