@@ -31,10 +31,10 @@ public class JfrMultiModeProfiling {
         for (int i = 0; i < 10; i++) {
             completableFutures.add(CompletableFuture.supplyAsync(JfrMultiModeProfiling::cpuIntensiveIncrement, executor));
         }
-        allocate();
         long endTime = completableFutures.stream().map(CompletableFuture::join).max(Long::compareTo).get();
         System.out.println(endTime - startTime);
         executor.shutdown();
+        allocate();
     }
 
     private static long cpuIntensiveIncrement() {
