@@ -108,6 +108,7 @@ void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* 
 
     mi->_modifiers = 0x100;
 
+    mi->_system_name = _symbols->indexOf(name);
     if (Demangle::needsDemangling(name)) {
         char* demangled = Demangle::demangle(name, false);
         if (demangled != NULL) {
@@ -151,6 +152,9 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
 
         if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
             mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
+            if (_output_type == OUTPUT_OTLP) {
+                mi->_system_name = _symbols->indexOf(std::string(class_name) + "." + method_sig);
+            }
         }
     }
 
