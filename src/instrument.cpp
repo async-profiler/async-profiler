@@ -346,7 +346,7 @@ void BytecodeRewriter::rewriteCode() {
         }
     }
 
-    *(u32*)(_dst + code_length_idx) = code_length + current_relocation;
+    *(u32*)(_dst + code_length_idx) = htonl(code_length + current_relocation);
 
     for (u32 jump_idx : jumps) {
         u32 new_idx = jump_idx + relocation_table[jump_idx];
