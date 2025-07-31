@@ -439,7 +439,6 @@ static inline bool isNum(const char* s) noexcept {
             return false;
         }
     }
-}
     return true;
 }
 
