@@ -746,9 +746,11 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
         }
 
         // Skip non target libs
-        const size_t file_name_len = strlen(map.file());
-        if (library && (file_name_len < library_name_len || strcmp(map.file() + (file_name_len - library_name_len), library) != 0)) {
-            continue;
+        if (library) {
+            const char* current_file = strrchr(map.file(), '/');
+            if (!current_file || strncmp(current_file + 1, library, library_name_len) != 0) {
+                continue;
+            }
         }
 
         u64 inode = u64(map.dev()) << 32 | map.inode();

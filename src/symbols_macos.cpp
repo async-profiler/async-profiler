@@ -191,11 +191,13 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const c
     uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
         const char* path = _dyld_get_image_name(i);
-        const size_t path_len = strlen(path);
 
         // Skip non target libs
-        if (library && (path_len < library_name_len || strcmp(path + (path_len - library_name_len), library)  != 0)) {
-            continue;
+        if (library) {
+            const char* current_file = strrchr(path, '/');
+            if (!current_file || strncmp(current_file + 1, library, library_name_len) != 0) {
+                continue;
+            }
         }
 
         const mach_header* image_base = _dyld_get_image_header(i);
