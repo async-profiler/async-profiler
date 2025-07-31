@@ -538,72 +538,72 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
 
     if (parsed < 12) return false;
 
+    memcpy(info->_name, comm, COMM_LEN);
+
     info->_pid           = parsed_pid;
     info->_ppid          = parsed_ppid;
-    strncpy(info->_name, comm, sizeof(info->_name));
-    info->_name[sizeof(info->_name) - 1] = '\0';
-
     info->_state         = (unsigned char)state;
     info->_minor_faults  = minflt;
     info->_major_faults  = majflt;
     info->_cpu_user      = utime;
     info->_cpu_system    = stime;
     info->_threads       = (unsigned short)threads;
-
     info->_start_time    = (unsigned long)starttime64;
-
-    info->_mem_size      = vsize;
-    info->_mem_resident  = rss;
-
+    // (23) vsize convert from bytes to kB
+    info->_vm_size      = vsize >> 10;
+    //(24) rss - convert from number of pages to kB
+    info->_vm_rss  = (rss * OS::page_size) >> 10;
     return true;
 }
 
-// Helper method to read memory stats from /proc/{pid}/statm
-static bool readProcessMemory(int pid, ProcessInfo* info) {
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/%d/statm", pid);
-    FILE* file = fopen(path, "r");
-    if (!file) return false;
-
-    u64 size, resident, shared, text, lib, data_stack, dt;
-    int parsed = fscanf(file, "%lu %lu %lu %lu %lu %lu %lu",
-                        &size, &resident, &shared, &text, &lib, &data_stack, &dt);
-    fclose(file);
-
-    if (parsed >= 6) {
-        info->_mem_size = size;
-        info->_mem_resident = resident;
-        info->_mem_shared = shared;
-        info->_mem_text = text;
-        info->_mem_data = data_stack;
-        return true;
-    }
-
-    return false;
-}
-
-// Helper method to read UID from /proc/{pid}/status
-static bool readProcessUID(int pid, ProcessInfo* info) {
+// Helper method to read data from /proc/{pid}/status
+static bool readProcessStatus(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
     FILE* file = fopen(path, "r");
-    if (!file) return false;
+    if (!file) {
+        return false;
+    }
 
-    char line[256];
-    int lines_read = 0;
-    while (fgets(line, sizeof(line), file) && lines_read < 10) {  // UID is usually in first few lines
-        lines_read++;
-        if (strncmp(line, "Uid:", 4) == 0) {
-            unsigned int uid;
-            if (sscanf(line + 4, "%u", &uid) == 1) {
-              info->_uid = uid;
-              fclose(file);
-              return true;
-            }
+    int read_count = 0;
+    char line[1024];
+    char key[32];
+    unsigned long value;
+
+    while (fgets(line, sizeof(line), file) && read_count < 6) {
+        if (sscanf(line, "%31s %lu", key, &value) != 2) {
+            continue;
+        }
+
+        size_t len = strlen(key);
+        if (len && key[len - 1] == ':')
+            key[len - 1] = '\0';
+
+        if (strcmp(key, "Uid") == 0) {
+            read_count++;
+            info->_uid = static_cast<unsigned int>(value);
+        } else if (strcmp(key, "RssAnon") == 0) {
+            read_count++;
+            info->_rss_anon = value;
+        } else if (strcmp(key, "RssFile") == 0) {
+            read_count++;
+            info->_rss_files = value;
+        } else if (strcmp(key, "RssShmem") == 0) {
+            read_count++;
+            info->_rss_shmem = value;
+        }
+        else if (strcmp(key, "VmSize") == 0) {
+            read_count++;
+            info->_vm_size = value;
+        }
+        else if (strcmp(key, "VmRSS") == 0) {
+            read_count++;
+            info->_vm_rss = value;
         }
     }
+
     fclose(file);
-    return false;
+    return true;
 }
 
 // Helper method to read I/O stats from /proc/{pid}/io
@@ -611,19 +611,23 @@ static bool readProcessIO(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE* file = fopen(path, "r");
-    if (!file) return false;
+    if (!file) {
+        info->_io_read = -1;
+        info->_io_write = -1;
+        return false;
+    }
 
     char line[256];
     while (fgets(line, sizeof(line), file)) {
         if (strncmp(line, "read_bytes:", 11) == 0) {
             unsigned long read_bytes;
             if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
-                info->_io_read = read_bytes;
+                info->_io_read = read_bytes >> 10;
             }
         } else if (strncmp(line, "write_bytes:", 12) == 0) {
             unsigned long write_bytes;
             if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
-                info->_io_write = write_bytes;
+                info->_io_write = write_bytes >> 10;
             }
         }
     }
@@ -639,8 +643,7 @@ bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
 }
 
 bool OS::getDetailedProcessInfo(ProcessInfo* info) {\
-    readProcessMemory(info->_pid, info);
-    readProcessUID(info->_pid, info);
+    readProcessStatus(info->_pid, info);
     readProcessIO(info->_pid, info);
     readProcessCmdline(info->_pid, info);
     return true;

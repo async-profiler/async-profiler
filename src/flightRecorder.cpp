@@ -49,7 +49,7 @@ const u64 MIN_JLONG = 0x8000000000000000ULL;
 const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
 const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
-const u64 MIN_MEMORY_THRESHOLD = 1; // Minimum resident memory in pages (0 = no filtering)
+const u64 MIN_MEMORY_THRESHOLD_KB = 1; // Minimum resident memory in kB .
 
 // debug start
 static double min_ms = 10000000;
@@ -686,12 +686,8 @@ class Recording {
     }
 
     // Helper function to determine if a process should be included based on thresholds
-    bool shouldIncludeProcess(const ProcessInfo* info) {
-        if (info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_mem_resident >= MIN_MEMORY_THRESHOLD) {
-            return true;
-        }
-
-        return false;
+    inline bool shouldIncludeProcess(const ProcessInfo* info) {
+        return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD;
     }
 
     void populateCpuPercent(ProcessInfo* info) {
@@ -721,7 +717,6 @@ class Recording {
         }
 
         info->_cpu_percent = cpu_percent;
-        info->_normalize_cpu_percent = cpu_percent / _available_processors;
         history.prev_cpu_total = current_cpu_total;
         history.prev_timestamp = current_time;
     }
@@ -753,6 +748,7 @@ class Recording {
 
         for (int i = 0; i < pid_count; i++) {
             if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
+                Log::debug("Incomplete process sampling cycle.");
                 break;
             }
 
@@ -1450,14 +1446,14 @@ class Recording {
         buf->putVar64(info->_cpu_user);
         buf->putVar64(info->_cpu_system);
         buf->putFloat(info->_cpu_percent);
-        buf->putFloat(info->_normalize_cpu_percent);
         buf->putVar32(info->_threads);
 
-        buf->putVar64(info->_mem_size);
-        buf->putVar64(info->_mem_resident);
-        buf->putVar64(info->_mem_shared);
-        buf->putVar64(info->_mem_text);
-        buf->putVar64(info->_mem_data);
+        buf->putVar64(info->_vm_size);
+        buf->putVar64(info->_vm_rss);
+
+        buf->putVar64(info->_rss_anon);
+        buf->putVar64(info->_rss_files);
+        buf->putVar64(info->_rss_shmem);
 
         buf->putVar64(info->_minor_faults);
         buf->putVar64(info->_major_faults);

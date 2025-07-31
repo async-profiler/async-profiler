@@ -19,8 +19,7 @@ const char* const EVENT_CPU        = "cpu";
 const char* const EVENT_ALLOC      = "alloc";
 const char* const EVENT_NATIVEMEM  = "nativemem";
 const char* const EVENT_LOCK       = "lock";
-const char *const EVENT_WALL       = "wall";
-const char* const EVENT_PROC       = "proc";
+const char* const EVENT_WALL       = "wall";
 const char* const EVENT_CTIMER     = "ctimer";
 const char* const EVENT_ITIMER     = "itimer";
 

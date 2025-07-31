@@ -231,8 +231,6 @@ Error Arguments::parse(const char* args) {
                     if (_nativemem < 0) _nativemem = 0;
                 } else if (strcmp(value, EVENT_LOCK) == 0) {
                     if (_lock < 0) _lock = DEFAULT_LOCK_INTERVAL;
-                } else if (strcmp(value, EVENT_PROC) == 0) {
-                    if (_proc < 0) _proc = DEFAULT_PROC_INTERVAL;
                 }
                 else if (_event != NULL && !_all) {
                     msg = "Duplicate event argument";

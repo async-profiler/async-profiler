@@ -38,30 +38,28 @@ struct ProcessInfo {
     unsigned long _cpu_user;     // User CPU time (clock ticks)
     unsigned long _cpu_system;   // System CPU time (clock ticks)
     float _cpu_percent;          // CPU utilization percentage
-    float _normalize_cpu_percent; // Solaris-style normalized CPU percentage (divided by CPU count)
     unsigned short _threads;     // Number of threads
 
-    // Memory stats (in pages)
-    unsigned long _mem_size;     // Total virtual memory size
-    unsigned long _mem_resident; // Physical memory in RAM
-    unsigned long _mem_shared;   // Shared memory pages
-    unsigned long _mem_text;     // Code/executable pages
-    unsigned long _mem_data;     // Data + stack pages
+    // Memory stats (in KB)
+    unsigned long _vm_size;     // Total virtual memory size
+    unsigned long _vm_rss;      // Resident memory size
+    unsigned long _rss_anon;     // Resident anonymous memory
+    unsigned long _rss_files;    // Resident file mappings
+    unsigned long _rss_shmem;    // Resident shared memory
 
     // Page fault stats
     unsigned long _minor_faults; // Minor page faults (no I/O required)
     unsigned long _major_faults; // Major page faults (I/O required)
 
     // I/O stats
-    unsigned long _io_read;      // Bytes read from storage
-    unsigned long _io_write;     // Bytes written to storage
+    long _io_read;      // KB read from storage
+    long _io_write;     // KB written to storage
 
     unsigned long _last_update;  // Timestamp of last update
 
     ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
-                    _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _normalize_cpu_percent(0.0F), _threads(0),
-                    _mem_size(0), _mem_resident(0), _mem_shared(0),
-                    _mem_text(0), _mem_data(0),
+                    _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _threads(0),
+                    _vm_size(0), _vm_rss(0), _rss_anon(0), _rss_files(0), _rss_shmem(0),
                     _minor_faults(0), _major_faults(0),
                     _io_read(0), _io_write(0), _last_update(0) {
         _name[0] = '\0';
