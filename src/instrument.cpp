@@ -15,7 +15,6 @@
 #include "vmEntry.h"
 #include "instrument.h"
 #include "opcode.h"
-#include "linkedList.h"
 
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
@@ -275,10 +274,9 @@ class BytecodeRewriter {
 };
 
 void BytecodeRewriter::rewriteCode() {
+    int code_attribute_begin = _dst_len;
     u32 attribute_length = get32();
     put32(attribute_length);
-
-    int code_begin = _dst_len;
 
     u16 max_stack = get16();
     put16(max_stack);
@@ -287,118 +285,80 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_locals);
 
     u32 code_length = get32();
+    const u8* code = get(code_length);
+    u32 code_length_idx = _dst_len;
+    put32(code_length); // to be fixed later
+
+    int code_begin = _dst_len;
+
+    u32 max_relocation = 0;
+    for (u32 i = 0; i < code_length;) {
+        u8 opcode = code[i];
+
+        if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
+            opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+            max_relocation += EXTRA_BYTECODES;
+        } else if (opcode == 0xa8 || opcode == 0xa7) {
+            max_relocation += 2;
+        }
+        i += OPCODE_LENGTH[opcode];
+    }
+
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
-    // TODO: We could consider giving each node in the linked list a pointer to
-    // a location in the array, such that we don't need to keep track of their
-    // index manually. This would simplify code a bit.
     u32 relocation_table[code_length];
-    u32 total_relocation = 0;
+    u32 current_relocation = 0;
+    std::vector<u32> jumps;
+    for (u32 i = 0; i < code_length;) {
+        u8 opcode = code[i];
 
-    if (_record_start) {
-        for (int i = 0; i < code_length; ++i) {
-            relocation_table[i] = EXTRA_BYTECODES;
+        relocation_table[i] = 0;
+        if (opcode == 0xa7 || opcode == 0xa8) {
+            jumps.push_back(i);
+
+            int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
+            if (offset > std::numeric_limits<int16_t>::max() - max_relocation) {
+                current_relocation += 2;
+
+                put8(opcode == 0xa8 ? 0xc9 : 0xc8);
+                put16(0); // to be fixed later
+                put16(offset);
+            }
+            relocation_table[i+1] = current_relocation;
+            relocation_table[i+2] = current_relocation;
+
+            i += 3;
+            continue;
         }
 
-        put32(code_length + EXTRA_BYTECODES);
-        // invokestatic "one/profiler/Instrument.recordSample()V"
-        // nop ensures that tableswitch/lookupswitch needs no realignment
-        put8(0xb8);
-        put16(_cpool_len);
-        put8(0);
-        // The rest of the code is unchanged
-        put(get(code_length), code_length);
+        if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
+            opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+            current_relocation += EXTRA_BYTECODES;
+            put8(0xb8);
+            put16(_cpool_len);
+            put8(0);
+        } else if (opcode == 0xc8 || opcode == 0xc9) {
+            jumps.push_back(i);
+        }
+        for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+            relocation_table[i] = current_relocation;
+            put8(code[i++]);
+        }
+    }
 
-        total_relocation = EXTRA_BYTECODES;
-    } else {
-        // Op additions (e.g. new invokestatic, wider jumps) will be added
-        // as needed in the linked list.
-        LinkedListNode* head = toLinkedList(get(code_length), code_length);
-        
-        u32 relocation = 0;
-        LinkedListNode* current = head;
-        u32 idx = 0;
-        do {
-            u8 opcode = current->value;
-            // TODO: Handle the case in which none of these is found
-            if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
-                opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
-                current->value = 0xb8;
-                current->mark = true;
-                current = insert16(current, _cpool_len);
-                current = insert8(current, 0);
-                // Restore the previous instruction
-                current = insert8(current, opcode);
-                relocation += EXTRA_BYTECODES;
-            }
-            for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
-                relocation_table[idx++] = relocation;
-                current = current->next;
-            }
-        } while (current != nullptr);
+    *(u32*)(_dst + code_length_idx) = code_length + current_relocation;
 
-        bool changed = true;
-        while (changed) {
-            changed = false;
-
-            current = head;
-            idx = 0;
-            relocation = 0;
-            do {
-                // TODO: We can maintain a list of jumps to avoid scanning through the whole Code segment
-                u8 opcode = current->value;
-                if (opcode == 0xa8 || opcode == 0xa7) {
-                    u8 branchbyte1 = (current = current->next)->value;
-                    u8 branchbyte2 = (current = current->next)->value;
-                    int16_t offset = (branchbyte1 << 8) | branchbyte2;
-                    if (offset > std::numeric_limits<int16_t>::max() - relocation_table[idx + offset]) {
-                        changed = true;
-                        
-                        u8 new_opcode = opcode == 0xa8 ? 0xc9 : 0xc8;
-                        current->value = new_opcode;
-                        current->mark = true;
-                        current = current->next;
-
-                        int32_t new_offset = offset + relocation_table[idx + offset];
-                        current->value = ((u32) new_offset >> 24) & 0xFF;
-                        current = current->next;
-                        current->value = ((u32) new_offset >> 16) & 0xFF;
-                        current = insert16(current, (u32) new_offset & 0xFFFF);
-                        
-                        current = current->next;
-                        relocation_table[idx++] += relocation;
-                        relocation_table[idx++] += relocation;
-                        relocation_table[idx++] += relocation;
-
-                        relocation += 2;
-                        continue;
-                    }
-                }
-
-                if (!current->mark) {
-                    for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
-                        relocation_table[idx++] += relocation;
-                    }
-                } else if (current->value == 0xc9 || current->value == 0xc8) {
-                    // Originally, this was a narrow jump: it got replaced with a wide variant.
-                    // Thus, we gotta skip only three indexes.
-                    for (u32 args_idx = 0; args_idx < 3; ++args_idx) {
-                        relocation_table[idx++] += relocation;
-                    }
-                }
-                for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
-                    current = current->next;
-                }
-            } while (current != nullptr);
-
-            total_relocation = code_length == 0 ? 0 : relocation_table[code_length - 1];
-            put32(code_length + total_relocation);
-
-            current = head;
-            do {
-                put8(current->value);
-            } while ((current = current->next) != nullptr);
-            delete head;
+    for (u32 jump_idx : jumps) {
+        u32 new_idx = jump_idx + relocation_table[jump_idx];
+        u8* opcode_ptr = _dst + code_begin + new_idx;
+        if (*opcode_ptr == 0xa7 || *opcode_ptr == 0xa8) {
+            // narrow jump
+            int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
+            *(u16*)(opcode_ptr + 1) = htons(old_offset + relocation_table[old_offset]);
+        } else {
+            // wide jump
+            int32_t old_offset = (int32_t) ntohl(*(u32*)(opcode_ptr + 1));
+            *(u32*)(opcode_ptr + 1) = htonl(old_offset + relocation_table[old_offset]);
         }
     }
 
@@ -419,7 +379,7 @@ void BytecodeRewriter::rewriteCode() {
     rewriteCodeAttributes(relocation_table);
 
     // Patch attribute length
-    *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
+    *(u32*)(_dst + code_attribute_begin) = htonl(_dst_len - code_attribute_begin);
 }
 
 void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table) {
