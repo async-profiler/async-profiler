@@ -259,7 +259,6 @@ JfrMetadata::JfrMetadata() : Element("root") {
             << (type("profiler.ProcessSample", T_PROCESS_SAMPLE, "Process Stats Sample")
                 << category("Operating System", "Process")
                 << field("startTime", T_LONG, "Start Time", F_TIME_TICKS)
-                << field("eventThread", T_THREAD, "Event Thread", F_CPOOL)
                 << field("pid", T_INT, "Process ID")
                 << field("ppid", T_INT, "Parent Process ID")
                 << field("name", T_STRING, "Process Name")

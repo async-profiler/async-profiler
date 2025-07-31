@@ -1429,7 +1429,6 @@ class Recording {
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
         buf->putVar64(info->_last_update);
-        buf->putVar32(0);
 
         buf->putVar32(info->_pid);
         buf->putVar32(info->_ppid);
