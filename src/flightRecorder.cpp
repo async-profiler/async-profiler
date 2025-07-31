@@ -86,11 +86,11 @@ struct CpuTimes {
 };
 
 struct ProcessHistory {
-    unsigned long prevCpuTotal;
-    unsigned long prevTimestamp;
-    bool hasHistory;
+    unsigned long prev_cpu_total;
+    unsigned long prev_timestamp;
+    bool has_history;
 
-    ProcessHistory() : prevCpuTotal(0), prevTimestamp(0), hasHistory(false) {}
+    ProcessHistory() : prev_cpu_total(0), prev_timestamp(0), has_history(false) {}
 };
 
 static std::map<int, ProcessHistory> _process_history;
@@ -700,17 +700,17 @@ class Recording {
         u64 current_time = info->_last_update;
 
         ProcessHistory& history = _process_history[pid];
-        if (!history.hasHistory) {
-            history.prevCpuTotal = current_cpu_total;
-            history.prevTimestamp = current_time;
-            history.hasHistory = true;
+        if (!history.has_history) {
+            history.prev_cpu_total = current_cpu_total;
+            history.prev_timestamp = current_time;
+            history.has_history = true;
             return;
         }
 
-        u64 delta_cpu = current_cpu_total - history.prevCpuTotal;
-        u64 delta_time = current_time - history.prevTimestamp;
+        u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
+        u64 delta_time = current_time - history.prev_timestamp;
 
-        float cpu_percent = 0.0f;
+        float cpu_percent = 0.0F;
 
         if (delta_time > 0) {
             float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
@@ -722,8 +722,8 @@ class Recording {
 
         info->_cpu_percent = cpu_percent;
         info->_normalize_cpu_percent = cpu_percent / _available_processors;
-        history.prevCpuTotal = current_cpu_total;
-        history.prevTimestamp = current_time;
+        history.prev_cpu_total = current_cpu_total;
+        history.prev_timestamp = current_time;
     }
 
   void cleanupProcessHistory(const int* activePids, int pidCount) {
