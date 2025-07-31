@@ -41,6 +41,7 @@ Checks: >
   cert-oop58-cpp,
   cert-flp30-c,
   misc-confusable-identifiers,
+  misc-definitions-in-headers,
   misc-header-include-cycle,
   misc-misplaced-const,
   misc-non-copyable-objects,
