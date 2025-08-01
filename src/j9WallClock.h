@@ -7,6 +7,7 @@
 #define _J9WALLCLOCK_H
 
 #include <pthread.h>
+#include "arch.h"
 #include "engine.h"
 
 
@@ -22,6 +23,8 @@ class J9WallClock : public Engine {
         ((J9WallClock*)wall_clock)->timerLoop();
         return NULL;
     }
+
+    void uninterruptibleSleep(u64 nanos);
 
     void timerLoop();
 
