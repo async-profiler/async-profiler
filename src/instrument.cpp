@@ -294,10 +294,13 @@ void BytecodeRewriter::rewriteCode() {
 
     int code_segment_begin = _dst_len;
 
+    // First scan: identify the maximum possible relocation for any position in code[]
+    // Relocation can happen due to:
+    // - Adding a new invocation
+    // - Narrow jump becoming a wide jump
     u32 max_relocation = 0;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
-
         if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
             opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
             max_relocation += EXTRA_BYTECODES;
@@ -310,6 +313,10 @@ void BytecodeRewriter::rewriteCode() {
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
     u32 relocation_table[code_length];
+
+    // Second scan: fill relocation_table and rewrite code.
+    // Any jump which is "close" to the narrow->wide threshold conservatively becomes
+    // a wide jump.
     u32 current_relocation = 0;
     std::vector<u32> jumps;
     for (u32 i = 0; i < code_length;) {
@@ -349,8 +356,10 @@ void BytecodeRewriter::rewriteCode() {
         }
     }
 
+    // Fix code length, we now know the real relocation
     *(u32*)(_dst + code_length_idx) = htonl(code_length + current_relocation);
 
+    // Third scan (jumps only): fix the jump offset using information in relocation_table.
     for (u32 jump_idx : jumps) {
         u32 new_idx = jump_idx + relocation_table[jump_idx];
         u8* opcode_ptr = _dst + code_segment_begin + new_idx;
