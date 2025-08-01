@@ -8,13 +8,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include "classfile_constants.h"
 #include "arch.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "vmEntry.h"
 #include "instrument.h"
-#include "opcode.h"
+
+constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
 
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
