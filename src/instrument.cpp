@@ -323,7 +323,7 @@ void BytecodeRewriter::rewriteCode() {
 
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
-    u32 relocation_table[code_length];
+    u32* relocation_table = new u32[code_length];
 
     // Second scan: fill relocation_table and rewrite code.
     // Any jump which is "close" to the narrow->wide threshold conservatively becomes
@@ -397,6 +397,7 @@ void BytecodeRewriter::rewriteCode() {
     }
 
     rewriteCodeAttributes(relocation_table);
+    delete[] relocation_table;
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
