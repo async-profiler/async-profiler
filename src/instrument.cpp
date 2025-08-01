@@ -342,8 +342,9 @@ void BytecodeRewriter::rewriteCode() {
                 current_relocation += 2;
 
                 put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
-                put16(0); // to be fixed later
-                put16(offset);
+                // to be fixed later
+                put16(0);
+                put16(0);
             }
             relocation_table[i+1] = current_relocation;
             relocation_table[i+2] = current_relocation;
