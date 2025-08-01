@@ -66,24 +66,23 @@ public class JfrTests {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
-        long lockJobDurationMillis = Long.parseLong(output.stream().findFirst().get());
+        long totalLockDurationMillis = output.stream().map(Long::parseLong).reduce((Long::sum)).orElse(0L);
 
-        double totalLockDurationNanos = 0;
+        double jfrTotalLockDurationMillis = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
         try (RecordingFile recordingFile = new RecordingFile(p.getFile("%f").toPath())) {
             while (recordingFile.hasMoreEvents()) {
                 RecordedEvent event = recordingFile.readEvent();
                 String eventName = event.getEventType().getName();
                 if (eventName.equals("jdk.JavaMonitorEnter")) {
-                    totalLockDurationNanos += event.getDuration().toNanos();
+                    jfrTotalLockDurationMillis += event.getDuration().toNanos() / 1_000_000.0;
                 }
                 eventsCount.put(eventName, eventsCount.getOrDefault(eventName, 0) + 1);
             }
         }
 
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
-        Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 10);
-        Assert.isGreater(totalLockDurationNanos / lockJobDurationMillis, 0.50);
+        Assert.isGreater(jfrTotalLockDurationMillis / totalLockDurationMillis, 0.90);
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 

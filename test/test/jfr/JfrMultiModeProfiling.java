@@ -5,11 +5,15 @@
 
 package test.jfr;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -24,26 +28,33 @@ public class JfrMultiModeProfiling {
     private static int count = 0;
     private static final List<byte[]> holder = new ArrayList<>();
 
-    public static void main(String[] args) throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        List<CompletableFuture<Long>> completableFutures = new ArrayList<>();
-        long startTime = System.nanoTime();
-        for (int i = 0; i < 10; i++) {
-            completableFutures.add(CompletableFuture.supplyAsync(JfrMultiModeProfiling::cpuIntensiveIncrement, executor));
-        }
-        long endTime = completableFutures.stream().map(CompletableFuture::join).max(Long::compareTo).get();
-        System.out.println(endTime - startTime);
-        executor.shutdown();
-        allocate();
+    private static ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
+    private static Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
+
+    static {
+        tmx.setThreadContentionMonitoringEnabled(true);
     }
 
-    private static long cpuIntensiveIncrement() {
+    public static void main(String[] args) throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        for (int i = 0; i < 10; i++) {
+            executor.submit(JfrMultiModeProfiling::cpuIntensiveIncrement);
+        }
+        allocate();
+        executor.shutdown();
+
+        threadLockTimes.forEach((key, value) -> System.out.println(value));
+    }
+
+    private static void cpuIntensiveIncrement() {
         for (int i = 0; i < 100_000; i++) {
             synchronized (lock) {
                 count += System.getProperties().hashCode();
             }
         }
-        return System.nanoTime();
+
+        long threadId = Thread.currentThread().getId();
+        threadLockTimes.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
     }
 
     private static void allocate() {
