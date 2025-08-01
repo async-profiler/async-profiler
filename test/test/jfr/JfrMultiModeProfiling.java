@@ -28,8 +28,8 @@ public class JfrMultiModeProfiling {
     private static int count = 0;
     private static final List<byte[]> holder = new ArrayList<>();
 
-    private static ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
-    private static Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
+    private static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
+    private static final Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
 
     static {
         tmx.setThreadContentionMonitoringEnabled(true);

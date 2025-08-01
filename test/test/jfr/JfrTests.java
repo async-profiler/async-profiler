@@ -66,7 +66,7 @@ public class JfrTests {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
-        long totalLockDurationMillis = output.stream().map(Long::parseLong).reduce((Long::sum)).orElse(0L);
+        long totalLockDurationMillis = output.stream().mapToLong(Long::parseLong).sum();
 
         double jfrTotalLockDurationMillis = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
