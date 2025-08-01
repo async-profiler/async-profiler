@@ -329,6 +329,7 @@ void BytecodeRewriter::rewriteCode() {
     // Any jump which is "close" to the narrow->wide threshold conservatively becomes
     // a wide jump.
     u32 current_relocation = 0;
+    // Original index in code[] of all jumps
     std::vector<u32> jumps;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
@@ -376,10 +377,14 @@ void BytecodeRewriter::rewriteCode() {
         u8* opcode_ptr = _dst + code_segment_begin + new_idx;
         if (is_narrow_jump(*opcode_ptr)) {
             int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
-            *(u16*)(opcode_ptr + 1) = htons(old_offset + relocation_table[old_offset]);
+            u32 old_jump_target = (u32) (jump_idx + old_offset);
+            int16_t new_offset = old_offset + relocation_table[old_jump_target];
+            *(u16*)(opcode_ptr + 1) = htons((u16) new_offset);
         } else {
             int32_t old_offset = (int32_t) ntohl(*(u32*)(opcode_ptr + 1));
-            *(u32*)(opcode_ptr + 1) = htonl(old_offset + relocation_table[old_offset]);
+            u32 old_jump_target = (u32) (jump_idx + old_offset);
+            int32_t new_offset = old_offset + relocation_table[old_jump_target];
+            *(u32*)(opcode_ptr + 1) = htonl((u32) new_offset);
         }
     }
 
