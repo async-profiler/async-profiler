@@ -5,6 +5,8 @@
 
 #include <assert.h>
 #include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -44,6 +46,17 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
+const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const u64 MIN_MEMORY_THRESHOLD_KB = 1; // Minimum resident memory in kB .
+
+// debug start
+static double min_ms = 10000000;
+static double max_ms = 0.0;
+static double sum_ms = 0.0;
+static double total = 0.0;
+// debug end
 
 enum GCWhen {
     BEFORE_GC,
@@ -72,6 +85,15 @@ struct CpuTimes {
     CpuTime total;
 };
 
+struct ProcessHistory {
+    unsigned long prev_cpu_total;
+    unsigned long prev_timestamp;
+
+    ProcessHistory() : prev_cpu_total(0), prev_timestamp(0) {}
+};
+
+static std::unordered_map<int, ProcessHistory> _process_history;
+static u64 _last_proc_sample_time = 0;
 
 class Buffer {
   private:
@@ -235,6 +257,7 @@ class Recording {
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
+    long _process_sampling_interval;
 
     int _available_processors;
     int _recorded_lib_count;
@@ -245,6 +268,7 @@ class Recording {
     u32 _last_gc_id;
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
+    RecordingBuffer _proc_buf;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -260,6 +284,7 @@ class Recording {
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
+        _process_sampling_interval = -1;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -297,6 +322,10 @@ class Recording {
 
         _heap_monitor_enabled = !args.hasOption(NO_HEAP_SUMMARY) && VM::_totalMemory != NULL && VM::_freeMemory != NULL;
         _last_gc_id = 0;
+
+        if (args._proc > 0) {
+            _process_sampling_interval = args._proc * 1000000;
+        }
     }
 
     ~Recording() {
@@ -316,6 +345,7 @@ class Recording {
 
     off_t finishChunk() {
         flush(&_monitor_buf);
+        flush(&_proc_buf);
 
         writeNativeLibraries(_buf);
 
@@ -432,6 +462,86 @@ class Recording {
         flushIfNeeded(&_monitor_buf, SMALL_BUFFER_LIMIT);
 
         _last_gc_id = gc_id;
+    }
+
+    // Helper function to determine if a process should be included based on thresholds
+    inline bool shouldIncludeProcess(const ProcessInfo* info) {
+        return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD_KB;
+    }
+
+    void populateCpuPercent(ProcessInfo* info) {
+        int pid = info->_pid;
+        u64 current_cpu_total = info->_cpu_user + info->_cpu_system;
+        u64 current_time = info->_last_update;
+
+        ProcessHistory& history = _process_history[pid];
+        if (history.prev_timestamp == 0) {
+            history.prev_cpu_total = current_cpu_total;
+            history.prev_timestamp = current_time;
+            return;
+        }
+
+        u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
+        u64 delta_time = current_time - history.prev_timestamp;
+
+        float cpu_percent = 0.0F;
+
+        if (delta_time > 0) {
+            float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
+            float elapsed_secs = static_cast<float>(delta_time) / 1e9;
+            if (elapsed_secs > 0) {
+              cpu_percent = (cpu_secs / elapsed_secs) * 100.0;
+            }
+        }
+
+        info->_cpu_percent = cpu_percent;
+        history.prev_cpu_total = current_cpu_total;
+        history.prev_timestamp = current_time;
+    }
+
+  void cleanupProcessHistory(const int* activePids, int pidCount) {
+      std::unordered_set<int> active_pid_set(activePids, activePids + pidCount);
+      for (auto it = _process_history.begin(); it != _process_history.end(); ) {
+          if (active_pid_set.count(it->first) == 0) {
+              it = _process_history.erase(it);
+          } else {
+              ++it;
+          }
+      }
+    }
+
+    bool processMonitorCycle(u64 wall_time) {
+        if (_process_sampling_interval < 0) return false;
+
+        if ((wall_time - _last_proc_sample_time) < (u64)_process_sampling_interval) {
+            return false;
+        }
+
+        u64 start_time = OS::nanotime();
+        int pids[MAX_PROCESSES];
+        int pid_count = OS::getProcessIds(pids, MAX_PROCESSES);
+        cleanupProcessHistory(pids, pid_count);
+
+        for (int i = 0; i < pid_count; i++) {
+            if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
+                Log::debug("Incomplete process sampling cycle.");
+                break;
+            }
+
+            ProcessInfo info;
+            if (OS::getBasicProcessInfo(pids[i], &info)) {
+                info._last_update = OS::nanotime();
+                populateCpuPercent(&info);
+                if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
+                    OS::getDetailedProcessInfo(&info);
+                    flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - ASPROF_MAX_JFR_EVENT_LENGTH);
+                    recordProcessSample(&_proc_buf, &info);
+                }
+            }
+        }
+
+        _last_proc_sample_time = wall_time;
+        return true;
     }
 
     bool hasMasterRecording() const {
@@ -636,6 +746,11 @@ class Recording {
         writeBoolSetting(buf, T_THREAD_PARK, "enabled", args._lock >= 0);
         if (args._lock >= 0) {
             writeIntSetting(buf, T_MONITOR_ENTER, "lock", args._lock);
+        }
+
+        writeBoolSetting(buf, T_PROCESS_SAMPLE, "enabled", args._proc > 0);
+        if (args._proc > 0) {
+            writeIntSetting(buf, T_PROCESS_SAMPLE, "proc", args._proc);
         }
 
         writeBoolSetting(buf, T_ACTIVE_RECORDING, "debugSymbols", VM::loaded() && VMStructs::libjvm()->hasDebugSymbols());
@@ -1068,6 +1183,41 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
+        int start = buf->skip(5);
+        buf->put8(T_PROCESS_SAMPLE);
+        buf->putVar64(info->_last_update);
+
+        buf->putVar32(info->_pid);
+        buf->putVar32(info->_ppid);
+        buf->putByteString(info->_name, strlen(info->_name));
+        buf->putByteString(info->_cmdline, strlen(info->_cmdline));
+
+        buf->putVar32(info->_uid);
+        buf->put8(info->_state);
+        buf->putVar64(info->_start_time);
+
+        buf->putVar64(info->_cpu_user);
+        buf->putVar64(info->_cpu_system);
+        buf->putFloat(info->_cpu_percent);
+        buf->putVar32(info->_threads);
+
+        buf->putVar64(info->_vm_size);
+        buf->putVar64(info->_vm_rss);
+
+        buf->putVar64(info->_rss_anon);
+        buf->putVar64(info->_rss_files);
+        buf->putVar64(info->_rss_shmem);
+
+        buf->putVar64(info->_minor_faults);
+        buf->putVar64(info->_major_faults);
+
+        buf->putVar64(info->_io_read);
+        buf->putVar64(info->_io_write);
+
+        buf->putVar32(start, buf->offset() - start);
+    }
+
     void recordLiveObject(Buffer* buf, int tid, u32 call_trace_id, LiveObject* event) {
         int start = buf->skip(1);
         buf->put8(T_LIVE_OBJECT);
@@ -1197,6 +1347,7 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 }
 
 void FlightRecorder::stop() {
+    fprintf(stderr, "Time(ms): avg = %f | max = %f | min = %f\n", sum_ms / total, max_ms, min_ms);
     if (_rec != NULL) {
         _rec_lock.lock();
 
@@ -1235,6 +1386,22 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
 
     _rec->cpuMonitorCycle();
     _rec->heapMonitorCycle(gc_id);
+
+#ifdef __linux__
+    // Process monitoring is only implemented for Linux
+    u64 start_time = OS::nanotime();
+    if (_rec->processMonitorCycle(wall_time) == true) {
+        u64 fin_time = OS::nanotime();
+        u64 delta_ns = fin_time - start_time;
+        double delta_ms = static_cast<double>(delta_ns) / 1000000.0;
+        if (delta_ms > max_ms) max_ms = delta_ms;
+        if (delta_ms < min_ms) min_ms = delta_ms;
+        sum_ms += delta_ms;
+        total += 1;
+        fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
+    }
+#endif
+
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
 
     _rec_lock.unlockShared();

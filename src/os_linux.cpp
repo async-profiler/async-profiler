@@ -34,6 +34,7 @@
 #  define MMAP_SYSCALL __NR_mmap2
 #endif
 
+#define COMM_LEN 16
 
 class LinuxThreadList : public ThreadList {
   private:
@@ -100,6 +101,7 @@ static SigAction installed_sigaction[64];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 
 u64 OS::nanotime() {
@@ -428,6 +430,203 @@ bool OS::checkPreloaded() {
 
     Dl_info info[2] = {libprofiler, libc};
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
+}
+
+int OS::getProcessIds(int* pids, int max_pids) {
+    int count = 0;
+    DIR* proc = opendir("/proc");
+    if (!proc) return 0;
+    for (dirent* de; (de = readdir(proc)) && count < max_pids; ) {
+        unsigned long pid = strtoul(de->d_name, NULL, 10);
+        if (pid != 0 && pid != ULLONG_MAX)  {
+            pids[count++] = pid;
+        }
+    }
+    closedir(proc);
+    return count;
+}
+
+// Helper method to read command line from /proc/{pid}/cmdline
+static bool readProcessCmdline(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
+    FILE* file = fopen(path, "rb");
+    if (!file) return false;
+
+    const size_t max_read = sizeof(info->_cmdline) - 1;
+    size_t len = fread(info->_cmdline, 1, max_read, file);
+    info->_cmdline[max_read] = '\0';
+
+    if (len > 0) {
+      // Replace null bytes with spaces (arguments are separated by null bytes)
+      for (size_t i = 0; i < len; i++) {
+          if (info->_cmdline[i] == '\0') {
+              info->_cmdline[i] = ' ';
+        }
+      }
+      // Ensure null termination
+      info->_cmdline[len] = '\0';
+      // Remove trailing space if present
+      if (len > 0 && info->_cmdline[len-1] == ' ') {
+          info->_cmdline[len-1] = '\0';
+      }
+    }
+
+    fclose(file);
+    return true;
+}
+
+// Helper method to read process stats from /proc/{pid}/stat
+static bool readProcessStats(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    FILE* file = fopen(path, "r");
+    if (!file) return false;
+
+    char buffer[1024];
+    if (!fgets(buffer, sizeof(buffer), file)) {
+        fclose(file);
+        return false;
+    }
+    fclose(file);
+
+    int  parsed_pid, parsed_ppid;
+    char comm[COMM_LEN] = {0};
+    char state;
+    unsigned long minflt, majflt, utime, stime;
+    unsigned long long starttime64;
+    unsigned long vsize;
+    long threads;
+    long rss;
+
+    int parsed = sscanf(buffer,
+                        "%d "                     /*  1 pid                                   */
+                        "(%15[^)]) "              /*  2 comm  (read until ')')                */
+                        "%c %d "                  /*  3 state, 4 ppid                         */
+                        "%*d %*d %*d %*d %*u "    /*  5-9(skip) pgrp,session,tty,tpgid,flags  */
+                        "%lu %*u %lu %*u "        /*  10-13 minflt,-,majflt,-                 */
+                        "%lu %lu "                /*  14-15 utime, stime                      */
+                        "%*d %*d %*d %*d "        /*  16-19(skip) cutime,cstime,prio,nice     */
+                        "%ld "                    /*  20 num_threads                          */
+                        "%*d "                    /*  21 itrealvalue (skip)                   */
+                        "%llu "                   /*  22 starttime                            */
+                        "%lu "                    /*  23 vsize                                */
+                        "%ld",                    /*  24 rss                                  */
+        &parsed_pid, comm, &state, &parsed_ppid,
+        &minflt, &majflt, &utime, &stime,
+        &threads, &starttime64, &vsize, &rss);
+
+    if (parsed < 12) return false;
+
+    memcpy(info->_name, comm, COMM_LEN);
+
+    info->_pid           = parsed_pid;
+    info->_ppid          = parsed_ppid;
+    info->_state         = (unsigned char)state;
+    info->_minor_faults  = minflt;
+    info->_major_faults  = majflt;
+    info->_cpu_user      = utime;
+    info->_cpu_system    = stime;
+    info->_threads       = (unsigned short)threads;
+    info->_start_time    = (unsigned long)starttime64;
+    // (23) vsize convert from bytes to kB
+    info->_vm_size      = vsize >> 10;
+    //(24) rss - convert from number of pages to kB
+    info->_vm_rss  = (rss * OS::page_size) >> 10;
+    return true;
+}
+
+// Helper method to read data from /proc/{pid}/status
+static bool readProcessStatus(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    FILE* file = fopen(path, "r");
+    if (!file) {
+        return false;
+    }
+
+    int read_count = 0;
+    char line[1024];
+    char key[32];
+    unsigned long value;
+
+    while (fgets(line, sizeof(line), file) && read_count < 6) {
+        if (sscanf(line, "%31s %lu", key, &value) != 2) {
+            continue;
+        }
+
+        size_t len = strlen(key);
+        if (len && key[len - 1] == ':')
+            key[len - 1] = '\0';
+
+        if (strcmp(key, "Uid") == 0) {
+            read_count++;
+            info->_uid = static_cast<unsigned int>(value);
+        } else if (strcmp(key, "RssAnon") == 0) {
+            read_count++;
+            info->_rss_anon = value;
+        } else if (strcmp(key, "RssFile") == 0) {
+            read_count++;
+            info->_rss_files = value;
+        } else if (strcmp(key, "RssShmem") == 0) {
+            read_count++;
+            info->_rss_shmem = value;
+        }
+        else if (strcmp(key, "VmSize") == 0) {
+            read_count++;
+            info->_vm_size = value;
+        }
+        else if (strcmp(key, "VmRSS") == 0) {
+            read_count++;
+            info->_vm_rss = value;
+        }
+    }
+
+    fclose(file);
+    return true;
+}
+
+// Helper method to read I/O stats from /proc/{pid}/io
+static bool readProcessIO(int pid, ProcessInfo* info) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/io", pid);
+    FILE* file = fopen(path, "r");
+    if (!file) {
+        info->_io_read = -1;
+        info->_io_write = -1;
+        return false;
+    }
+
+    char line[256];
+    while (fgets(line, sizeof(line), file)) {
+        if (strncmp(line, "read_bytes:", 11) == 0) {
+            unsigned long read_bytes;
+            if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
+                info->_io_read = read_bytes >> 10;
+            }
+        } else if (strncmp(line, "write_bytes:", 12) == 0) {
+            unsigned long write_bytes;
+            if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
+                info->_io_write = write_bytes >> 10;
+            }
+        }
+    }
+
+    fclose(file);
+    return true;
+}
+
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
+    *info = ProcessInfo();
+    info->_pid = pid;
+    return readProcessStats(pid, info);
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {\
+    readProcessStatus(info->_pid, info);
+    readProcessIO(info->_pid, info);
+    readProcessCmdline(info->_pid, info);
+    return true;
 }
 
 #endif // __linux__

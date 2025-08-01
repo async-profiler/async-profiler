@@ -25,6 +25,48 @@ enum ThreadState {
     THREAD_SLEEPING
 };
 
+struct ProcessInfo {
+    int _pid;
+    int _ppid;
+    char _name[16];              // Process name from /proc/{pid}/stats
+    char _cmdline[2048];         // Command line from /proc/{pid}/cmdline
+    unsigned int _uid;           // User ID
+    unsigned char _state;        // Process state (R, S, D, Z, T, etc.)
+    unsigned long _start_time;   // Process start time (clock ticks since boot)
+
+    // CPU & thread stats
+    unsigned long _cpu_user;     // User CPU time (clock ticks)
+    unsigned long _cpu_system;   // System CPU time (clock ticks)
+    float _cpu_percent;          // CPU utilization percentage
+    unsigned short _threads;     // Number of threads
+
+    // Memory stats (in KB)
+    unsigned long _vm_size;     // Total virtual memory size
+    unsigned long _vm_rss;      // Resident memory size
+    unsigned long _rss_anon;     // Resident anonymous memory
+    unsigned long _rss_files;    // Resident file mappings
+    unsigned long _rss_shmem;    // Resident shared memory
+
+    // Page fault stats
+    unsigned long _minor_faults; // Minor page faults (no I/O required)
+    unsigned long _major_faults; // Major page faults (I/O required)
+
+    // I/O stats
+    long _io_read;      // KB read from storage
+    long _io_write;     // KB written to storage
+
+    unsigned long _last_update;  // Timestamp of last update
+
+    ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
+                    _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _threads(0),
+                    _vm_size(0), _vm_rss(0), _rss_anon(0), _rss_files(0), _rss_shmem(0),
+                    _minor_faults(0), _major_faults(0),
+                    _io_read(0), _io_write(0), _last_update(0) {
+        _name[0] = '\0';
+        _cmdline[0] = '\0';
+    }
+};
+
 
 class ThreadList {
   protected:
@@ -65,6 +107,7 @@ class OS {
   public:
     static const size_t page_size;
     static const size_t page_mask;
+    static const long clock_ticks_per_sec;  // System clock ticks per second (_SC_CLK_TCK)
 
     static u64 nanotime();
     static u64 micros();
@@ -106,6 +149,10 @@ class OS {
     static int mprotect(void* addr, size_t size, int prot);
 
     static bool checkPreloaded();
+
+    static int getProcessIds(int* pids, int max_pids);
+    static bool getBasicProcessInfo(int pid, ProcessInfo* info);
+    static bool getDetailedProcessInfo(ProcessInfo* info);
 };
 
 #endif // _OS_H

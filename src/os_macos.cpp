@@ -100,6 +100,7 @@ static SigAction installed_sigaction[32];
 
 const size_t OS::page_size = sysconf(_SC_PAGESIZE);
 const size_t OS::page_mask = OS::page_size - 1;
+const long OS::clock_ticks_per_sec = sysconf(_SC_CLK_TCK);
 
 static mach_timebase_info_data_t timebase = {0, 0};
 
@@ -402,6 +403,19 @@ bool OS::checkPreloaded() {
         }
     }
 
+    return false;
+}
+
+int OS::getProcessIds(int* pids, int max_pids) {
+    return 0;
+}
+
+bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
+    *info = ProcessInfo();
+    return false;
+}
+
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
     return false;
 }
 
