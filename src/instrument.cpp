@@ -4,14 +4,19 @@
  */
 
 #include <arpa/inet.h>
+#include <limits>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
+#include "classfile_constants.h"
 #include "arch.h"
 #include "incbin.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "vmEntry.h"
 #include "instrument.h"
+
+constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
 
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
@@ -100,14 +105,12 @@ enum Scope {
     SCOPE_CLASS,
     SCOPE_FIELD,
     SCOPE_METHOD,
-    SCOPE_REWRITE_METHOD,
-    SCOPE_REWRITE_CODE
+    SCOPE_REWRITE_METHOD
 };
 
 enum PatchConstants {
     EXTRA_CONSTANTS = 6,
-    EXTRA_BYTECODES = 4,
-    EXTRA_STACKMAPS = 1
+    EXTRA_BYTECODES = 4
 };
 
 
@@ -129,6 +132,8 @@ class BytecodeRewriter {
     u16 _target_method_len;
     const char* _target_signature;
     u16 _target_signature_len;
+
+    bool _record_start = false;
 
     // Reader
 
@@ -222,12 +227,14 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    void rewriteBytecodeTable(int data_len);
-    void rewriteStackMapTable();
-    void rewriteVerificationTypeInfo();
+    void rewriteBytecodeTable(int data_len, u32* relocation_table);
+    void rewriteStackMapTable(u32* relocation_table);
+    void rewriteVerificationTypeInfo(u32* relocation_table);
     void rewriteAttributes(Scope scope);
+    void rewriteCodeAttributes(u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
+    void writeInvokeRecordSample();
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
@@ -268,6 +275,17 @@ class BytecodeRewriter {
     }
 };
 
+static inline bool isFunctionExitOpcode(u8 opcode) {
+    return (opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return) || opcode == JVM_OPC_athrow;
+}
+
+static inline bool isNarrowJump(u8 opcode) {
+    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull || opcode == JVM_OPC_ifnonnull;
+}
+
+static inline bool isWideJump(u8 opcode) {
+    return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
+}
 
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
@@ -282,15 +300,98 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_locals);
 
     u32 code_length = get32();
-    put32(code_length + EXTRA_BYTECODES);
+    const u8* code = get(code_length);
+    u32 code_length_idx = _dst_len;
+    put32(code_length); // to be fixed later
 
-    // invokestatic "one/profiler/Instrument.recordSample()V"
-    // nop ensures that tableswitch/lookupswitch needs no realignment
-    put8(0xb8);
-    put16(_cpool_len);
-    put8(0);
-    // The rest of the code is unchanged
-    put(get(code_length), code_length);
+    int code_segment_begin = _dst_len;
+
+    // First scan: identify the maximum possible relocation for any position in code[]
+    // Relocation can happen due to:
+    // - Adding a new invocation
+    // - Narrow jump becoming a wide jump
+    u32 max_relocation = 0;
+    for (u32 i = 0; i < code_length;) {
+        u8 opcode = code[i];
+        if (isFunctionExitOpcode(opcode)) {
+            max_relocation += EXTRA_BYTECODES;
+        } else if (isNarrowJump(opcode)) {
+            max_relocation += 2;
+        }
+        i += OPCODE_LENGTH[opcode];
+    }
+
+    // For each index in the (original) bytecode, this holds the rightwards offset
+    // in the modified bytecode.
+    u32* relocation_table = new u32[code_length];
+
+    // Second scan: fill relocation_table and rewrite code.
+    // Any jump which is "close" to the narrow->wide threshold conservatively becomes
+    // a wide jump.
+    u32 current_relocation = 0;
+    // Original index in code[] of all jumps
+    std::vector<u32> jumps;
+    for (u32 i = 0; i < code_length;) {
+        u8 opcode = code[i];
+
+        if (isNarrowJump(opcode)) {
+            jumps.push_back(i);
+
+            int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
+            if (max_relocation > std::numeric_limits<int16_t>::max() - offset) {
+                current_relocation += 2;
+                put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
+                put16(0);
+            } else {
+                put8(opcode);
+            }
+            put16(offset);
+
+            for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+                relocation_table[i++] = current_relocation;
+            }
+            continue;
+        }
+
+        if (isFunctionExitOpcode(opcode)) {
+            put8(JVM_OPC_invokestatic);
+            put16(_cpool_len);
+            put8(0);
+        } else if (isWideJump(opcode)) {
+            jumps.push_back(i);
+        }
+        for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+            relocation_table[i] = current_relocation;
+            put8(code[i++]);
+        }
+        // current_relocation should be incremented for addresses after the
+        // current instruction: any instruction referring to the current one
+        // (e.g. a jump) should now target our invokestatic, otherwise it will
+        // be skipped.
+        if (isFunctionExitOpcode(opcode)) {
+            current_relocation += EXTRA_BYTECODES;
+        }
+    }
+
+    // Fix code length, we now know the real relocation
+    *(u32*)(_dst + code_length_idx) = htonl(code_length + current_relocation);
+
+    // Third scan (jumps only): fix the jump offset using information in relocation_table.
+    for (u32 jump_idx : jumps) {
+        u32 new_idx = jump_idx + relocation_table[jump_idx];
+        u8* opcode_ptr = _dst + code_segment_begin + new_idx;
+        if (isNarrowJump(*opcode_ptr)) {
+            int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
+            u32 old_jump_target = (u32) (jump_idx + old_offset);
+            int16_t new_offset = old_offset + relocation_table[old_jump_target];
+            *(u16*)(opcode_ptr + 1) = htons((u16) new_offset);
+        } else {
+            int32_t old_offset = (int32_t) ntohl(*(u32*)(opcode_ptr + 1));
+            u32 old_jump_target = (u32) (jump_idx + old_offset);
+            int32_t new_offset = old_offset + relocation_table[old_jump_target];
+            *(u32*)(opcode_ptr + 1) = htonl((u32) new_offset);
+        }
+    }
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
@@ -300,19 +401,20 @@ void BytecodeRewriter::rewriteCode() {
         u16 end_pc = get16();
         u16 handler_pc = get16();
         u16 catch_type = get16();
-        put16(EXTRA_BYTECODES + start_pc);
-        put16(EXTRA_BYTECODES + end_pc);
-        put16(EXTRA_BYTECODES + handler_pc);
+        put16(start_pc + relocation_table[start_pc]);
+        put16(start_pc + relocation_table[end_pc]);
+        put16(start_pc + relocation_table[handler_pc]);
         put16(catch_type);
     }
 
-    rewriteAttributes(SCOPE_REWRITE_CODE);
+    rewriteCodeAttributes(relocation_table);
+    delete[] relocation_table;
 
     // Patch attribute length
     *(u32*)(_dst + code_begin - 4) = htonl(_dst_len - code_begin);
 }
 
-void BytecodeRewriter::rewriteBytecodeTable(int data_len) {
+void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -321,68 +423,84 @@ void BytecodeRewriter::rewriteBytecodeTable(int data_len) {
 
     for (int i = 0; i < table_length; i++) {
         u16 start_pc = get16();
-        put16(EXTRA_BYTECODES + start_pc);
+        put16(start_pc + relocation_table[start_pc]);
 
         put(get(data_len), data_len);
     }
 }
 
-void BytecodeRewriter::rewriteStackMapTable() {
+#define UPDATE_OFFSET_DELTA(relocation_table)              \
+    u16 offset_delta = get16();                            \
+    current_frame += offset_delta + 1;                     \
+    put16(offset_delta + relocation_table[current_frame]);
+
+void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
     u32 attribute_length = get32();
-    put32(attribute_length + EXTRA_STACKMAPS);
-
     u16 number_of_entries = get16();
-    put16(number_of_entries + EXTRA_STACKMAPS);
+    if (_record_start) {
+        // If the start of the method is being profiled, the first instruction will be
+        // invokestatic towards recordSample.
+        put32(attribute_length + 1);
+        put16(number_of_entries + 1);
+        // Prepend same_frame
+        put8(EXTRA_BYTECODES - 1);
+    } else {
+        put32(attribute_length);
+        put16(number_of_entries);
+    }
 
-    // Prepend same_frame
-    put8(EXTRA_BYTECODES - 1);
-
+    long current_frame = -1;
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
         put8(frame_type);
 
         if (frame_type <= 63) {
             // same_frame
+            current_frame += frame_type + 1;
         } else if (frame_type <= 127) {
             // same_locals_1_stack_item_frame
-            rewriteVerificationTypeInfo();
+            current_frame += frame_type + 1 - 64;
+            rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
-            put16(get16());
-            rewriteVerificationTypeInfo();
+            UPDATE_OFFSET_DELTA(relocation_table)
+            rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type <= 251) {
             // chop_frame or same_frame_extended
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
         } else if (frame_type <= 254) {
             // append_frame
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
             u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
             for (u8 j = 0; j < count; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
         } else {
             // full_frame
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
             u16 number_of_locals = get16();
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
             u16 number_of_stack_items = get16();
             put16(number_of_stack_items);
             for (int j = 0; j < number_of_stack_items; j++) {
-                rewriteVerificationTypeInfo();
+                rewriteVerificationTypeInfo(relocation_table);
             }
         }
     }
 }
 
-void BytecodeRewriter::rewriteVerificationTypeInfo() {
+void BytecodeRewriter::rewriteVerificationTypeInfo(u32* relocation_table) {
     u8 tag = get8();
     put8(tag);
-    if (tag >= 7) {
+    if (tag == 8) {
+        u16 offset = get16();
+        put16(offset + relocation_table[offset]);
+    } else if (tag >= 7) {
         // Adjust ITEM_Uninitialized offset
-        put16(tag == 8 ? EXTRA_BYTECODES + get16() : get16());
+        put16(get16());
     }
 }
 
@@ -398,18 +516,33 @@ void BytecodeRewriter::rewriteAttributes(Scope scope) {
         if (scope == SCOPE_REWRITE_METHOD && attribute_name->equals("Code", 4)) {
             rewriteCode();
             continue;
-        } else if (scope == SCOPE_REWRITE_CODE) {
-            if (attribute_name->equals("LineNumberTable", 15)) {
-                rewriteBytecodeTable(2);
-                continue;
-            } else if (attribute_name->equals("LocalVariableTable", 18) ||
-                       attribute_name->equals("LocalVariableTypeTable", 22)) {
-                rewriteBytecodeTable(8);
-                continue;
-            } else if (attribute_name->equals("StackMapTable", 13)) {
-                rewriteStackMapTable();
-                continue;
-            }
+        }
+
+        u32 attribute_length = get32();
+        put32(attribute_length);
+        put(get(attribute_length), attribute_length);
+    }
+}
+
+void BytecodeRewriter::rewriteCodeAttributes(u32* relocation_table) {
+    u16 attributes_count = get16();
+    put16(attributes_count);
+
+    for (int i = 0; i < attributes_count; i++) {
+        u16 attribute_name_index = get16();
+        put16(attribute_name_index);
+
+        Constant* attribute_name = _cpool[attribute_name_index];
+        if (attribute_name->equals("LineNumberTable", 15)) {
+            rewriteBytecodeTable(2, relocation_table);
+            continue;
+        } else if (attribute_name->equals("LocalVariableTable", 18) ||
+                    attribute_name->equals("LocalVariableTypeTable", 22)) {
+            rewriteBytecodeTable(8, relocation_table);
+            continue;
+        } else if (attribute_name->equals("StackMapTable", 13)) {
+            rewriteStackMapTable(relocation_table);
+            continue;
         }
 
         u32 attribute_length = get32();
