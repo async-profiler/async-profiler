@@ -275,15 +275,15 @@ class BytecodeRewriter {
     }
 };
 
-static inline bool is_function_exit_opcode(u8 opcode) {
+static inline bool isFunctionExitOpcode(u8 opcode) {
     return (opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return) || opcode == JVM_OPC_athrow;
 }
 
-static inline bool is_narrow_jump(u8 opcode) {
+static inline bool isNarrowJump(u8 opcode) {
     return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull || opcode == JVM_OPC_ifnonnull;
 }
 
-static inline bool is_wide_jump(u8 opcode) {
+static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
@@ -313,9 +313,9 @@ void BytecodeRewriter::rewriteCode() {
     u32 max_relocation = 0;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
-        if (is_function_exit_opcode(opcode)) {
+        if (isFunctionExitOpcode(opcode)) {
             max_relocation += EXTRA_BYTECODES;
-        } else if (is_narrow_jump(opcode)) {
+        } else if (isNarrowJump(opcode)) {
             max_relocation += 2;
         }
         i += OPCODE_LENGTH[opcode];
@@ -334,7 +334,7 @@ void BytecodeRewriter::rewriteCode() {
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
-        if (is_narrow_jump(opcode)) {
+        if (isNarrowJump(opcode)) {
             jumps.push_back(i);
 
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
@@ -353,11 +353,11 @@ void BytecodeRewriter::rewriteCode() {
             continue;
         }
 
-        if (is_function_exit_opcode(opcode)) {
+        if (isFunctionExitOpcode(opcode)) {
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len);
             put8(0);
-        } else if (is_wide_jump(opcode)) {
+        } else if (isWideJump(opcode)) {
             jumps.push_back(i);
         }
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
@@ -368,7 +368,7 @@ void BytecodeRewriter::rewriteCode() {
         // current instruction: any instruction referring to the current one
         // (e.g. a jump) should now target our invokestatic, otherwise it will
         // be skipped.
-        if (is_function_exit_opcode(opcode)) {
+        if (isFunctionExitOpcode(opcode)) {
             current_relocation += EXTRA_BYTECODES;
         }
     }
@@ -380,7 +380,7 @@ void BytecodeRewriter::rewriteCode() {
     for (u32 jump_idx : jumps) {
         u32 new_idx = jump_idx + relocation_table[jump_idx];
         u8* opcode_ptr = _dst + code_segment_begin + new_idx;
-        if (is_narrow_jump(*opcode_ptr)) {
+        if (isNarrowJump(*opcode_ptr)) {
             int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
             u32 old_jump_target = (u32) (jump_idx + old_offset);
             int16_t new_offset = old_offset + relocation_table[old_jump_target];
