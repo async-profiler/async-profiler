@@ -406,8 +406,8 @@ bool OS::checkPreloaded() {
     return false;
 }
 
-void OS::getProcessIds(int* pids, int* count, int max_pids) {
-    *count = 0;
+int OS::getProcessIds(int* pids, int max_pids) {
+    return 0;
 }
 
 bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {

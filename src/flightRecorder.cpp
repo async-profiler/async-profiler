@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <string>
 #include <arpa/inet.h>
@@ -88,12 +89,11 @@ struct CpuTimes {
 struct ProcessHistory {
     unsigned long prev_cpu_total;
     unsigned long prev_timestamp;
-    bool has_history;
 
-    ProcessHistory() : prev_cpu_total(0), prev_timestamp(0), has_history(false) {}
+    ProcessHistory() : prev_cpu_total(0), prev_timestamp(0) {}
 };
 
-static std::map<int, ProcessHistory> _process_history;
+static std::unordered_map<int, ProcessHistory> _process_history;
 static u64 _last_proc_sample_time = 0;
 
 class MethodInfo {
@@ -696,10 +696,9 @@ class Recording {
         u64 current_time = info->_last_update;
 
         ProcessHistory& history = _process_history[pid];
-        if (!history.has_history) {
+        if (history.prev_timestamp == 0) {
             history.prev_cpu_total = current_cpu_total;
             history.prev_timestamp = current_time;
-            history.has_history = true;
             return;
         }
 
@@ -741,9 +740,7 @@ class Recording {
 
         u64 start_time = OS::nanotime();
         int pids[MAX_PROCESSES];
-        int pid_count = 0;
-
-        OS::getProcessIds(pids, &pid_count, MAX_PROCESSES);
+        int pid_count = OS::getProcessIds(pids, MAX_PROCESSES);
         cleanupProcessHistory(pids, pid_count);
 
         for (int i = 0; i < pid_count; i++) {
@@ -1413,31 +1410,14 @@ class Recording {
     }
 
     void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
-        // Estimate for fixed fields
-        const size_t process_non_string_size_limit = 200;
-        const size_t max_process_name_length = 256;
-        const size_t max_process_cmdline_length = ASPROF_MAX_JFR_EVENT_LENGTH - process_non_string_size_limit - max_process_name_length;
-
-        // Ensure the entire event fits within JFR event size limit
-        static_assert(process_non_string_size_limit + max_process_name_length + max_process_cmdline_length
-            <= ASPROF_MAX_JFR_EVENT_LENGTH, "process event must fit within JFR event size limit");
-
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
         buf->putVar64(info->_last_update);
 
         buf->putVar32(info->_pid);
         buf->putVar32(info->_ppid);
-
-        // Limit process name length
-        size_t name_len = strlen(info->_name);
-        buf->putByteString(info->_name,
-            name_len > max_process_name_length ? max_process_name_length : name_len);
-
-        // Limit command line length (uncommented and limited)
-        size_t cmdline_len = strlen(info->_cmdline);
-        buf->putByteString(info->_cmdline,
-            cmdline_len > max_process_cmdline_length ? max_process_cmdline_length : cmdline_len);
+        buf->putByteString(info->_name, strlen(info->_name));
+        buf->putByteString(info->_cmdline, strlen(info->_cmdline));
 
         buf->putVar32(info->_uid);
         buf->put8(info->_state);
@@ -1637,15 +1617,15 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
     // Process monitoring is only implemented for Linux
     u64 start_time = OS::nanotime();
     if (_rec->processMonitorCycle(wall_time) == true) {
-      u64 fin_time = OS::nanotime();
-      u64 delta_ns = fin_time - start_time;
-      double delta_ms = static_cast<double>(delta_ns) / 1000000.0;
-      if (delta_ms > max_ms) max_ms = delta_ms;
-      if (delta_ms < min_ms) min_ms = delta_ms;
-      sum_ms += delta_ms;
-      total += 1;
-      fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
-    };
+        u64 fin_time = OS::nanotime();
+        u64 delta_ns = fin_time - start_time;
+        double delta_ms = static_cast<double>(delta_ns) / 1000000.0;
+        if (delta_ms > max_ms) max_ms = delta_ms;
+        if (delta_ms < min_ms) min_ms = delta_ms;
+        sum_ms += delta_ms;
+        total += 1;
+        fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
+    }
 #endif
 
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);

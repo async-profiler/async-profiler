@@ -432,38 +432,18 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
-static inline bool isNum(const char* s) noexcept {
-    uint8_t c;
-    while ((c = *s++)) {
-        if (c < '0' || c > '9') {
-            return false;
-        }
-    }
-    return true;
-}
-
-static inline int parsePid(const char* s) noexcept {
-    int pid = 0;
-    for (uint8_t c; (c = *s++); ) {
-        pid = pid * 10 + (c - '0');
-    }
-    return pid;
-}
-
-void OS::getProcessIds(int* pids, int* count, int max_pids) {
-    *count = 0;
-
+int OS::getProcessIds(int* pids, int max_pids) {
+    int count = 0;
     DIR* proc = opendir("/proc");
-    if (!proc) return;
-    for (dirent* de; (de = readdir(proc)) && *count < max_pids; ) {
-        if (!isNum(de->d_name)) {
-            continue;
+    if (!proc) return 0;
+    for (dirent* de; (de = readdir(proc)) && count < max_pids; ) {
+        unsigned long pid = strtoul(de->d_name, NULL, 10);
+        if (pid != 0 && pid != ULLONG_MAX)  {
+            pids[count++] = pid;
         }
-
-        pids[*count] = parsePid(de->d_name);
-        ++(*count);
     }
     closedir(proc);
+    return count;
 }
 
 // Helper method to read command line from /proc/{pid}/cmdline

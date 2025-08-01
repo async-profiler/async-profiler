@@ -1108,6 +1108,16 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    if (args._proc > 0) {
+        if (!OS::isLinux()) {
+            return Error("Process sampling is not supported on the platform");
+        }
+
+        if (args._output != OUTPUT_JFR) {
+            return Error("Process sampling requires JFR output format");
+        }
+    }
+
     // Save the arguments for shutdown or restart
     args.save();
 

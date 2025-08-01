@@ -150,7 +150,7 @@ class OS {
 
     static bool checkPreloaded();
 
-    static void getProcessIds(int* pids, int* count, int max_pids);
+    static int getProcessIds(int* pids, int max_pids);
     static bool getBasicProcessInfo(int pid, ProcessInfo* info);
     static bool getDetailedProcessInfo(ProcessInfo* info);
 };

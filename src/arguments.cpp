@@ -289,11 +289,11 @@ Error Arguments::parse(const char* args) {
                 if (_nativemem < 0) {
                     _nativemem = DEFAULT_ALLOC_INTERVAL;
                 }
-#ifdef __linux__
-                if (_proc < 0) {
+
+                if (_proc < 0 && OS::isLinux()) {
                     _proc = DEFAULT_PROC_INTERVAL;
                 }
-#endif
+
                 if (_event == NULL && OS::isLinux()) {
                     _event = EVENT_CPU;
                 }
@@ -504,18 +504,6 @@ Error Arguments::parse(const char* args) {
 
     if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
-    }
-
-#ifndef __linux__
-    // Currently we support process sampling on Linux only.
-    if (_proc >= 0) {
-        return Error("Process sampling is only supported on Linux");
-    }
-#endif
-
-    // Process sampling requires JFR output format
-    if (_proc >= 0 && _output != OUTPUT_JFR) {
-        return Error("Process sampling requires JFR output format");
     }
 
     return Error::OK;
