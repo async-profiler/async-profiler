@@ -341,15 +341,15 @@ void BytecodeRewriter::rewriteCode() {
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (offset > std::numeric_limits<int16_t>::max() - max_relocation) {
                 current_relocation += 2;
-
                 put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
-                // to be fixed later
                 put16(0);
-                put16(0);
+            } else {
+                put8(opcode);
             }
+            put16(offset);
+
             relocation_table[i+1] = current_relocation;
             relocation_table[i+2] = current_relocation;
-
             i += 3;
             continue;
         }
