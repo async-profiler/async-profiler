@@ -334,7 +334,6 @@ void BytecodeRewriter::rewriteCode() {
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
-        relocation_table[i] = 0;
         if (is_narrow_jump(opcode)) {
             jumps.push_back(i);
 
@@ -348,9 +347,9 @@ void BytecodeRewriter::rewriteCode() {
             }
             put16(offset);
 
-            relocation_table[i+1] = current_relocation;
-            relocation_table[i+2] = current_relocation;
-            i += 3;
+            for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+                relocation_table[i++] = current_relocation;
+            }
             continue;
         }
 
