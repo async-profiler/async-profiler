@@ -354,7 +354,6 @@ void BytecodeRewriter::rewriteCode() {
         }
 
         if (is_function_exit_opcode(opcode)) {
-            current_relocation += EXTRA_BYTECODES;
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len);
             put8(0);
@@ -364,6 +363,13 @@ void BytecodeRewriter::rewriteCode() {
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
             relocation_table[i] = current_relocation;
             put8(code[i++]);
+        }
+        // current_relocation should be incremented for addresses after the
+        // current instruction: any instruction referring to the current one
+        // (e.g. a jump) should now target our invokestatic, otherwise it will
+        // be skipped.
+        if (is_function_exit_opcode(opcode)) {
+            current_relocation += EXTRA_BYTECODES;
         }
     }
 
