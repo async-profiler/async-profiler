@@ -275,6 +275,18 @@ class BytecodeRewriter {
     }
 };
 
+static inline bool is_function_exit_opcode(u8 opcode) {
+    return (opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return) || opcode == JVM_OPC_athrow;
+}
+
+static inline bool is_narrow_jump(u8 opcode) {
+    return opcode == JVM_OPC_goto || opcode == JVM_OPC_jsr;
+}
+
+static inline bool is_wide_jump(u8 opcode) {
+    return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
+}
+
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
     put32(attribute_length);
@@ -301,10 +313,9 @@ void BytecodeRewriter::rewriteCode() {
     u32 max_relocation = 0;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
-        if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
-            opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+        if (is_function_exit_opcode(opcode)) {
             max_relocation += EXTRA_BYTECODES;
-        } else if (opcode == 0xa8 || opcode == 0xa7) {
+        } else if (is_narrow_jump(opcode)) {
             max_relocation += 2;
         }
         i += OPCODE_LENGTH[opcode];
@@ -323,14 +334,14 @@ void BytecodeRewriter::rewriteCode() {
         u8 opcode = code[i];
 
         relocation_table[i] = 0;
-        if (opcode == 0xa7 || opcode == 0xa8) {
+        if (is_narrow_jump(opcode)) {
             jumps.push_back(i);
 
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (offset > std::numeric_limits<int16_t>::max() - max_relocation) {
                 current_relocation += 2;
 
-                put8(opcode == 0xa8 ? 0xc9 : 0xc8);
+                put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
                 put16(0); // to be fixed later
                 put16(offset);
             }
@@ -341,13 +352,12 @@ void BytecodeRewriter::rewriteCode() {
             continue;
         }
 
-        if (opcode == 0xb0 || opcode == 0xaf || opcode == 0xae || opcode == 0xac ||
-            opcode == 0xad || opcode == 0xb1 || opcode == 0xbf) {
+        if (is_function_exit_opcode(opcode)) {
             current_relocation += EXTRA_BYTECODES;
             put8(0xb8);
             put16(_cpool_len);
             put8(0);
-        } else if (opcode == 0xc8 || opcode == 0xc9) {
+        } else if (is_wide_jump(opcode)) {
             jumps.push_back(i);
         }
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
@@ -363,12 +373,10 @@ void BytecodeRewriter::rewriteCode() {
     for (u32 jump_idx : jumps) {
         u32 new_idx = jump_idx + relocation_table[jump_idx];
         u8* opcode_ptr = _dst + code_segment_begin + new_idx;
-        if (*opcode_ptr == 0xa7 || *opcode_ptr == 0xa8) {
-            // narrow jump
+        if (is_narrow_jump(*opcode_ptr)) {
             int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
             *(u16*)(opcode_ptr + 1) = htons(old_offset + relocation_table[old_offset]);
         } else {
-            // wide jump
             int32_t old_offset = (int32_t) ntohl(*(u32*)(opcode_ptr + 1));
             *(u32*)(opcode_ptr + 1) = htonl(old_offset + relocation_table[old_offset]);
         }
