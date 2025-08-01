@@ -280,7 +280,7 @@ static inline bool is_function_exit_opcode(u8 opcode) {
 }
 
 static inline bool is_narrow_jump(u8 opcode) {
-    return opcode == JVM_OPC_goto || opcode == JVM_OPC_jsr;
+    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull || opcode == JVM_OPC_ifnonnull;
 }
 
 static inline bool is_wide_jump(u8 opcode) {
