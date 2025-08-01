@@ -354,7 +354,7 @@ void BytecodeRewriter::rewriteCode() {
 
         if (is_function_exit_opcode(opcode)) {
             current_relocation += EXTRA_BYTECODES;
-            put8(0xb8);
+            put8(JVM_OPC_invokestatic);
             put16(_cpool_len);
             put8(0);
         } else if (is_wide_jump(opcode)) {
