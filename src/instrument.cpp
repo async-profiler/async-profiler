@@ -424,6 +424,11 @@ void BytecodeRewriter::rewriteBytecodeTable(int data_len, u32* relocation_table)
     }
 }
 
+#define UPDATE_OFFSET_DELTA(relocation_table)              \
+    u16 offset_delta = get16();                            \
+    current_frame += offset_delta + 1;                     \
+    put16(offset_delta + relocation_table[current_frame]);
+
 void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
     u32 attribute_length = get32();
     u16 number_of_entries = get16();
@@ -439,33 +444,35 @@ void BytecodeRewriter::rewriteStackMapTable(u32* relocation_table) {
         put16(number_of_entries);
     }
 
-    int new_number_of_entries = 0;
+    long current_frame = -1;
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
         put8(frame_type);
 
         if (frame_type <= 63) {
             // same_frame
+            current_frame += frame_type + 1;
         } else if (frame_type <= 127) {
             // same_locals_1_stack_item_frame
+            current_frame += frame_type + 1 - 64;
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type <= 251) {
             // chop_frame or same_frame_extended
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
         } else if (frame_type <= 254) {
             // append_frame
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
             u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
             for (u8 j = 0; j < count; j++) {
                 rewriteVerificationTypeInfo(relocation_table);
             }
         } else {
             // full_frame
-            put16(get16());
+            UPDATE_OFFSET_DELTA(relocation_table)
             u16 number_of_locals = get16();
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
