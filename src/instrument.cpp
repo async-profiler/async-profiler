@@ -338,7 +338,7 @@ void BytecodeRewriter::rewriteCode() {
             jumps.push_back(i);
 
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
-            if (offset > std::numeric_limits<int16_t>::max() - max_relocation) {
+            if (max_relocation > std::numeric_limits<int16_t>::max() - offset) {
                 current_relocation += 2;
                 put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
                 put16(0);
