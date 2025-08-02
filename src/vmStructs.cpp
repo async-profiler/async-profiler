@@ -579,7 +579,7 @@ void VMStructs::patchSafeFetch() {
     } else if (WX_MEMORY && VM::hotspot_version() == 11) {
         void** entry = (void**)_libjvm->findSymbol("_ZN12StubRoutines17_safefetchN_entryE");
         if (entry != NULL) {
-            *entry = (void*)SafeAccess::loadPtr;
+            *entry = (void*)SafeAccess::load;
         }
     }
 }
