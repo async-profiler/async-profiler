@@ -21,6 +21,7 @@ class MethodInfo {
     u32 _key = 0;
     u32 _class = 0;
     u32 _name = 0;
+    u32 _system_name = 0;
     u32 _sig = 0;
     jint _modifiers = 0;
     jint _line_number_table_size = 0;
@@ -56,7 +57,7 @@ class Lookup {
         assert(_packages != nullptr || output != OUTPUT_JFR);
     }
 
-    MethodInfo* resolveMethod(ASGCT_CallFrame& frame);
+    MethodInfo* resolveMethod(const ASGCT_CallFrame& frame);
     u32 getPackage(const char* class_name);
 
   private:

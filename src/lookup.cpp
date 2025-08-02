@@ -41,7 +41,7 @@ size_t MethodMap::usedMemory() {
     return bytes;
 }
 
-MethodInfo* Lookup::resolveMethod(ASGCT_CallFrame& frame) {
+MethodInfo* Lookup::resolveMethod(const ASGCT_CallFrame& frame) {
     jmethodID method = frame.method_id;
     MethodInfo* mi = &(*_method_map)[method];
 
@@ -108,6 +108,7 @@ void Lookup::fillNativeMethodInfo(MethodInfo* mi, const char* name, const char* 
 
     mi->_modifiers = 0x100;
 
+    mi->_system_name = _symbols->indexOf(name);
     if (Demangle::needsDemangling(name)) {
         char* demangled = Demangle::demangle(name, false);
         if (demangled != NULL) {
@@ -150,7 +151,11 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
         mi->_name = _symbols->indexOf(method_name);
 
         if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
-            mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
+            std::string class_name_clean = std::string(class_name + 1, strlen(class_name) - 2);
+            mi->_class = _classes->lookup(class_name_clean.data());
+            if (_output_type == OUTPUT_OTLP) {
+                mi->_system_name = _symbols->indexOf(class_name_clean + "." + method_name + method_sig);
+            }
         }
     }
 
