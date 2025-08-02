@@ -17,9 +17,9 @@
 #endif
 
 #ifdef __APPLE__
-#  define DEFINE_LABEL(sym) asm volatile("_" #sym ":")
+#  define DEFINE_LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
 #else
-#  define DEFINE_LABEL(sym) asm volatile(#sym ":")
+#  define DEFINE_LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
 #endif
 
 extern instruction_t sa_load_start[];
