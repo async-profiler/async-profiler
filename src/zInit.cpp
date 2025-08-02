@@ -33,10 +33,12 @@ class LateInitializer {
 
   private:
     bool checkJvmLoaded() {
-        Profiler* profiler = Profiler::instance();
-        profiler->updateSymbols(false);
+        const char* jvm_lib = OS::isLinux() ? "libjvm.so" : "libjvm.dylib";
 
-        CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
+        Profiler* profiler = Profiler::instance();
+        profiler->updateLibrarySymbols(jvm_lib);
+
+        CodeCache* libjvm = profiler->findLibraryByName(jvm_lib);
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
             VMStructs::init(libjvm);
             if (CollectedHeap::created()) {  // heap is already created => this is dynamic attach

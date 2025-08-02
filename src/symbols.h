@@ -18,7 +18,7 @@ class Symbols {
 
   public:
     static void parseKernelSymbols(CodeCache* cc);
-    static void parseLibraries(CodeCacheArray* array, bool kernel_symbols);
+    static void parseLibraries(CodeCacheArray* array, bool kernel_symbols, const char* library);
 
     static bool haveKernelSymbols() {
         return _have_kernel_symbols;
