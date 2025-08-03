@@ -66,9 +66,10 @@ jobs:
             macos*)
               brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release -j
+              make COMMIT_TAG=$HASH FAT_BINARY=false test-cpp -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release test-cpp -j
               echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
