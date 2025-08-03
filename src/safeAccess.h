@@ -17,37 +17,33 @@
 #endif
 
 #ifdef __APPLE__
-#  define DEFINE_LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
+#  define LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
 #else
-#  define DEFINE_LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
+#  define LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
 #endif
 
-extern instruction_t sa_load_start[];
-extern instruction_t sa_load_end[];
-extern instruction_t sa_load32_start[];
-extern instruction_t sa_load32_end[];
+extern instruction_t load_end[];
+extern instruction_t load32_end[];
 
 class SafeAccess {
   public:
     NOINLINE
     static void* load(void** ptr, void* default_value = NULL) {
-        DEFINE_LABEL(sa_load_start);
         void* ret = *ptr;
-        DEFINE_LABEL(sa_load_end);
+        LABEL(load_end);
         return ret;
     }
 
     NOINLINE
     static u32 load32(u32* ptr, u32 default_value = 0) {
-        DEFINE_LABEL(sa_load32_start);
         u32 ret = *ptr;
-        DEFINE_LABEL(sa_load32_end);
+        LABEL(load32_end);
         return ret;
     }
 
     static uintptr_t skipLoad(instruction_t* pc) {
-        if ((pc >= sa_load_start && pc < sa_load_end) ||
-            (pc >= sa_load32_start && pc < sa_load32_end)) {
+        if ((pc >= (void*)load && pc < load_end) ||
+            (pc >= (void*)load32 && pc < load32_end)) {
 #if defined(__x86_64__) || defined(__i386__)
             if (pc[0] == 0x8b) return 2;                   // mov eax, [reg]
             if (pc[0] == 0x48 && pc[1] == 0x8b) return 3;  // mov rax, [reg]

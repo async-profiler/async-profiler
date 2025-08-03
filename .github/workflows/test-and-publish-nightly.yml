@@ -65,10 +65,10 @@ jobs:
           case "${{ matrix.runson.display }}" in
             macos*)
               brew install gcovr
-              make COMMIT_TAG=$HASH FAT_BINARY=true release coverage -j
+              make COMMIT_TAG=$HASH FAT_BINARY=true release -j
             ;;
             *)
-              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release coverage -j
+              make COMMIT_TAG=$HASH CC=/usr/local/musl/bin/musl-gcc release -j
               echo "debug_archive=$(find . -type f -name "async-profiler-*-debug*" -exec basename {} \;)" >> $GITHUB_OUTPUT
             ;;
           esac
@@ -97,6 +97,7 @@ jobs:
           if-no-files-found: error
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
+        if: false
         with:
           name: test-coverage-${{ matrix.runson.display }}
           path: build/test/coverage/
