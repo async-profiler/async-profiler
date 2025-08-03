@@ -12,9 +12,9 @@
 #endif
 
 #ifdef __APPLE__
-#  define LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":" : : "r"(default_value))
+#  define LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
 #else
-#  define LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":" : : "r"(default_value))
+#  define LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
 #endif
 
 extern instruction_t load_end[];
@@ -22,6 +22,7 @@ extern instruction_t load32_end[];
 
 NOINLINE
 void* SafeAccess::load(void** ptr, void* default_value) {
+    asm volatile("" : : "r"(default_value));
     void* ret = *ptr;
     LABEL(load_end);
     return ret;
@@ -29,6 +30,7 @@ void* SafeAccess::load(void** ptr, void* default_value) {
 
 NOINLINE
 u32 SafeAccess::load32(u32* ptr, u32 default_value) {
+    asm volatile("" : : "r"(default_value));
     u32 ret = *ptr;
     LABEL(load32_end);
     return ret;
