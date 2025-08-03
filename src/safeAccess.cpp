@@ -12,9 +12,9 @@
 #endif
 
 #ifdef __APPLE__
-#  define LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
+#  define LABEL(sym) asm volatile("_" #sym ":")
 #else
-#  define LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
+#  define LABEL(sym) asm volatile(#sym ":")
 #endif
 
 extern instruction_t load_end[];
