@@ -857,8 +857,8 @@ void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
     uintptr_t pc = frame.pc();
 
-    uintptr_t length = SafeAccess::skipLoad((instruction_t*)pc);
-    if (length > 0) {
+    u32 length = SafeAccess::skipLoad((instruction_t*)pc);
+    if (length != 0) {
         // Skip the fault instruction as if it successfully loaded default_value
         frame.pc() += length;
         frame.retval() = frame.arg1();
