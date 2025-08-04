@@ -6,7 +6,6 @@
 package test.jfr;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Date;
@@ -30,7 +29,7 @@ public class JfrMultiModeProfiling {
     private static final List<byte[]> holder = new ArrayList<>();
 
     private static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
-    private static final Map<Long, Long> threadInformation = new ConcurrentHashMap<>();
+    private static final Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
 
     static {
         tmx.setThreadContentionMonitoringEnabled(true);
@@ -45,7 +44,7 @@ public class JfrMultiModeProfiling {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        threadInformation.values().forEach(System.out::println);
+        threadLockTimes.values().forEach(System.out::println);
     }
 
     private static void cpuIntensiveIncrement() {
@@ -56,7 +55,7 @@ public class JfrMultiModeProfiling {
         }
 
         long threadId = Thread.currentThread().getId();
-        threadInformation.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
+        threadLockTimes.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
     }
 
     private static void allocate() {
