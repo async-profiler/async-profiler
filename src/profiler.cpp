@@ -896,7 +896,7 @@ void Profiler::setupSignalHandlers() {
 
     // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs don't
     if (!VM::isOpenJ9() && !VM::isZing()) {
-        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)wakeupHandler);
+        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)crashHandler);
         if (profiler_lib != NULL) {
             // Record boundaries of our own library for the signal handler to check
             // if a crash has happened in the profiler code
