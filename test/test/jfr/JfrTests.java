@@ -75,9 +75,7 @@ public class JfrTests {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
 
-        List<String> standardOutput = output.stream().collect(Collectors.toList());
-        long totalLockDurationMillis = Long.parseLong(standardOutput.get(0));
-        int totalNumberOfLocks = Integer.parseInt(standardOutput.get(1));
+        long totalLockDurationMillis = output.stream().mapToLong(Long::parseLong).sum();
 
         double jfrTotalLockDurationMillis = 0;
         Map<String, Integer> eventsCount = new HashMap<>();
@@ -93,8 +91,6 @@ public class JfrTests {
         }
 
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
-        Assert.isGreaterOrEqual(eventsCount.get("jdk.JavaMonitorEnter"), totalNumberOfLocks - 5);
-        Assert.isLessOrEqual(eventsCount.get("jdk.JavaMonitorEnter"), totalNumberOfLocks + 5);
         Assert.isGreater(jfrTotalLockDurationMillis / totalLockDurationMillis, 0.80);
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }

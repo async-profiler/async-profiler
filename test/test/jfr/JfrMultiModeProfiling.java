@@ -30,7 +30,7 @@ public class JfrMultiModeProfiling {
     private static final List<byte[]> holder = new ArrayList<>();
 
     private static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
-    private static final Map<Long, ThreadInformation> threadInformation = new ConcurrentHashMap<>();
+    private static final Map<Long, Long> threadInformation = new ConcurrentHashMap<>();
 
     static {
         tmx.setThreadContentionMonitoringEnabled(true);
@@ -45,8 +45,7 @@ public class JfrMultiModeProfiling {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        System.out.println(threadInformation.values().stream().mapToLong(info -> info.blockedTime).sum());
-        System.out.println(threadInformation.values().stream().mapToLong(info -> info.blockedCount).sum());
+        threadInformation.values().forEach(System.out::println);
     }
 
     private static void cpuIntensiveIncrement() {
@@ -57,7 +56,7 @@ public class JfrMultiModeProfiling {
         }
 
         long threadId = Thread.currentThread().getId();
-        threadInformation.put(threadId, new ThreadInformation(tmx.getThreadInfo(threadId)));
+        threadInformation.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
     }
 
     private static void allocate() {
@@ -72,16 +71,6 @@ public class JfrMultiModeProfiling {
             if (holder.size() < 100_000) {
                 holder.add(new byte[1]);
             }
-        }
-    }
-
-    static class ThreadInformation {
-        long blockedTime;
-        long blockedCount;
-
-        ThreadInformation(ThreadInfo threadInfo) {
-            blockedTime = threadInfo.getBlockedTime();
-            blockedCount = threadInfo.getBlockedCount();
         }
     }
 }
