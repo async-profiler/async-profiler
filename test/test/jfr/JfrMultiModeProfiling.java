@@ -6,17 +6,18 @@
 package test.jfr;
 
 import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Process to simulate lock contention and allocate objects.
@@ -29,7 +30,7 @@ public class JfrMultiModeProfiling {
     private static final List<byte[]> holder = new ArrayList<>();
 
     private static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
-    private static final Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
+    private static final Map<Long, ThreadInformation> threadInformation = new ConcurrentHashMap<>();
 
     static {
         tmx.setThreadContentionMonitoringEnabled(true);
@@ -42,8 +43,10 @@ public class JfrMultiModeProfiling {
         }
         allocate();
         executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        threadLockTimes.forEach((key, value) -> System.out.println(value));
+        System.out.println(threadInformation.values().stream().mapToLong(info -> info.blockedTime).sum());
+        System.out.println(threadInformation.values().stream().mapToLong(info -> info.blockedCount).sum());
     }
 
     private static void cpuIntensiveIncrement() {
@@ -54,7 +57,7 @@ public class JfrMultiModeProfiling {
         }
 
         long threadId = Thread.currentThread().getId();
-        threadLockTimes.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
+        threadInformation.put(threadId, new ThreadInformation(tmx.getThreadInfo(threadId)));
     }
 
     private static void allocate() {
@@ -69,6 +72,16 @@ public class JfrMultiModeProfiling {
             if (holder.size() < 100_000) {
                 holder.add(new byte[1]);
             }
+        }
+    }
+
+    static class ThreadInformation {
+        long blockedTime;
+        long blockedCount;
+
+        ThreadInformation(ThreadInfo threadInfo) {
+            blockedTime = threadInfo.getBlockedTime();
+            blockedCount = threadInfo.getBlockedCount();
         }
     }
 }
