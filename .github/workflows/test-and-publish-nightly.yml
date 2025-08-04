@@ -64,7 +64,6 @@ jobs:
           HASH=${GITHUB_SHA:0:7}
           case "${{ matrix.runson.display }}" in
             macos*)
-              brew install gcovr
               make COMMIT_TAG=$HASH FAT_BINARY=true release -j
               make COMMIT_TAG=$HASH FAT_BINARY=false test-cpp -j
             ;;
@@ -95,13 +94,6 @@ jobs:
         with:
           name: ${{ steps.set_artifact_name.outputs.artifact_name }}-debug
           path: ${{ steps.build.outputs.debug_archive }}
-          if-no-files-found: error
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        if: false
-        with:
-          name: test-coverage-${{ matrix.runson.display }}
-          path: build/test/coverage/
           if-no-files-found: error
   integration-tests:
     needs: build-and-upload-binaries

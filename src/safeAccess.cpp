@@ -12,17 +12,21 @@
 #endif
 
 #ifdef __APPLE__
-#  define LABEL(sym) asm volatile("_" #sym ":")
+#  define LABEL(sym) asm volatile(".globl _" #sym "\n_" #sym ":")
 #else
-#  define LABEL(sym) asm volatile(#sym ":")
+#  define LABEL(sym) asm volatile(".globl " #sym "\n" #sym ":")
 #endif
+
+// Ensure that compiler passes the argument, i.e. assigns the corresponding input register
+#define CONSUME_ARG(arg) asm volatile("" : : "r"(arg))
+
 
 extern instruction_t load_end[];
 extern instruction_t load32_end[];
 
 NOINLINE
 void* SafeAccess::load(void** ptr, void* default_value) {
-    asm volatile("" : : "r"(default_value));
+    CONSUME_ARG(default_value);
     void* ret = *ptr;
     LABEL(load_end);
     return ret;
@@ -30,12 +34,14 @@ void* SafeAccess::load(void** ptr, void* default_value) {
 
 NOINLINE
 u32 SafeAccess::load32(u32* ptr, u32 default_value) {
-    asm volatile("" : : "r"(default_value));
+    CONSUME_ARG(default_value);
     u32 ret = *ptr;
     LABEL(load32_end);
     return ret;
 }
 
+// When a memory access error happens in SafeAccess::load/load32,
+// this function returns how many bytes to skip to advance to the next instruction
 u32 SafeAccess::skipLoad(instruction_t* pc) {
     if ((pc >= (void*)load && pc < load_end) ||
         (pc >= (void*)load32 && pc < load32_end)) {
