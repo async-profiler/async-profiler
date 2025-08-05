@@ -695,6 +695,7 @@ bool BytecodeRewriter::rewriteClass() {
 char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
+u64 Instrument::_latency;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
@@ -716,6 +717,15 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
+    if (args._latency > 0) {
+        if (args._interval > 0) {
+            return Error("latency and interval cannot both be positive");
+        }
+    }
+    if (args._interval < 0) {
+        return Error("interval must be positive");
+    }
+
     return Error::OK;
 }
 
@@ -725,12 +735,13 @@ Error Instrument::start(Arguments& args) {
         return error;
     }
 
-    if (args._interval < 0) {
-        return Error("interval must be positive");
-    }
-
     setupTargetClassAndMethod(args._event);
-    _interval = args._interval ? args._interval : 1;
+    if (args._latency > 0) {
+        _latency = args._latency;
+        _interval = 0;
+    } else {
+        _interval = args._interval ? args._interval : 1;
+    }
     _calls = 0;
     _running = true;
 
