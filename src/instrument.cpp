@@ -276,7 +276,7 @@ class BytecodeRewriter {
 };
 
 static inline bool isFunctionExitOpcode(u8 opcode) {
-    return (opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return) || opcode == JVM_OPC_athrow;
+    return opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return;
 }
 
 static inline bool isNarrowJump(u8 opcode) {
