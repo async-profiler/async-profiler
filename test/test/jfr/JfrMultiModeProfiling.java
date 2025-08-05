@@ -5,13 +5,18 @@
 
 package test.jfr;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Process to simulate lock contention and allocate objects.
@@ -23,13 +28,23 @@ public class JfrMultiModeProfiling {
     private static int count = 0;
     private static final List<byte[]> holder = new ArrayList<>();
 
+    private static final ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
+    private static final Map<Long, Long> threadLockTimes = new ConcurrentHashMap<>();
+
+    static {
+        tmx.setThreadContentionMonitoringEnabled(true);
+    }
+
     public static void main(String[] args) throws InterruptedException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         for (int i = 0; i < 10; i++) {
             executor.submit(JfrMultiModeProfiling::cpuIntensiveIncrement);
         }
-        executor.shutdown();
         allocate();
+        executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
+
+        threadLockTimes.values().forEach(System.out::println);
     }
 
     private static void cpuIntensiveIncrement() {
@@ -38,6 +53,9 @@ public class JfrMultiModeProfiling {
                 count += System.getProperties().hashCode();
             }
         }
+
+        long threadId = Thread.currentThread().getId();
+        threadLockTimes.put(threadId, tmx.getThreadInfo(threadId).getBlockedTime());
     }
 
     private static void allocate() {

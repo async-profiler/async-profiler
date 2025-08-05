@@ -36,6 +36,8 @@ namespace Profile {
     const protobuf_index_t sample_type = 1;
     const protobuf_index_t sample = 2;
     const protobuf_index_t location_indices = 3;
+    const protobuf_index_t time_nanos = 4;
+    const protobuf_index_t duration_nanos = 5;
     const protobuf_index_t period_type = 6;
     const protobuf_index_t period = 7;
 }
