@@ -51,6 +51,7 @@ const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
 const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
 const u64 MIN_MEMORY_THRESHOLD_KB = 1; // Minimum resident memory in kB .
+const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
 // debug start
 static double min_ms = 10000000;
@@ -422,6 +423,15 @@ class Buffer {
         put(v, len);
     }
 
+    void putByteString(const char* v) {
+        if (v == NULL) {
+            put8(0);
+        } else {
+            size_t len = strlen(v);
+            putByteString(v, len < MAX_STRING_LENGTH ? len : MAX_STRING_LENGTH);
+        }
+    }
+
     void put8(int offset, char v) {
         _data[offset] = v;
     }
@@ -704,7 +714,6 @@ class Recording {
 
         u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
         u64 delta_time = current_time - history.prev_timestamp;
-
         float cpu_percent = 0.0F;
 
         if (delta_time > 0) {
@@ -751,11 +760,11 @@ class Recording {
 
             ProcessInfo info;
             if (OS::getBasicProcessInfo(pids[i], &info)) {
-                info._last_update = OS::nanotime();
+                info._last_update = start_time;
                 populateCpuPercent(&info);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
                     OS::getDetailedProcessInfo(&info);
-                    flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - ASPROF_MAX_JFR_EVENT_LENGTH);
+                    flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
                     recordProcessSample(&_proc_buf, &info);
                 }
             }
@@ -1416,15 +1425,15 @@ class Recording {
 
         buf->putVar32(info->_pid);
         buf->putVar32(info->_ppid);
-        buf->putByteString(info->_name, strlen(info->_name));
-        buf->putByteString(info->_cmdline, strlen(info->_cmdline));
+        buf->putByteString(info->_name);
+        buf->putByteString(info->_cmdline);
 
         buf->putVar32(info->_uid);
         buf->put8(info->_state);
         buf->putVar64(info->_start_time);
 
-        buf->putVar64(info->_cpu_user);
-        buf->putVar64(info->_cpu_system);
+        buf->putVar64(info->_cpu_user / OS::clock_ticks_per_sec);
+        buf->putVar64(info->_cpu_system / OS::clock_ticks_per_sec);
         buf->putFloat(info->_cpu_percent);
         buf->putVar32(info->_threads);
 
