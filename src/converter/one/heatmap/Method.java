@@ -24,10 +24,6 @@ public class Method {
     public int frequencyBasedId;
     public int index;
 
-    Method(int className, int methodName) {
-        this(0, className, methodName, 0, Frame.TYPE_NATIVE, true);
-    }
-
     Method(long originalMethodId, int className, int methodName, int location, byte type, boolean start) {
         this.originalMethodId = originalMethodId;
         this.className = className;
