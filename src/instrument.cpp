@@ -467,15 +467,19 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
         u8* new_jump_base_ptr = _dst + code_segment_begin + new_jump_base_idx;
         u8* new_jump_offset_ptr = _dst + code_segment_begin + (old_jump_offset_idx + relocation_table[old_jump_offset_idx]);
-        if (isNarrowJump(*new_jump_base_ptr)) {
-            int16_t old_offset = (int16_t) ntohs(*(u16*)(code + old_jump_offset_idx));
-            u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
-            int16_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
+
+        bool is_narrow = isNarrowJump(*new_jump_base_ptr);
+        int32_t old_offset;
+        if (is_narrow) {
+            old_offset = (int32_t) ntohs(*(u16*)(code + old_jump_offset_idx));
+        } else {
+            old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
+        }
+        u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
+        int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
+        if (is_narrow) {
             *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
         } else {
-            int32_t old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
-            u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
-            int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
             *(u32*)(new_jump_offset_ptr) = htonl((u32) new_offset);
         }
     }
