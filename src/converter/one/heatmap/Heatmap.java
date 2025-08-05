@@ -7,8 +7,9 @@ package one.heatmap;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.util.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import one.convert.*;
 import one.jfr.DictionaryInt;
@@ -387,8 +388,9 @@ public class Heatmap {
 
         // Maps stack trace ID to prototype ID in stackTracesRemap
         final DictionaryInt stackTracesCache = new DictionaryInt();
-        final Index<Method> methods;
-        final Index<String> symbolTable;
+        final Map<MethodKey, Integer> methodCache = new HashMap<>();
+        final Index<Method> methods = new Index<>(Method.class, Method.EMPTY);
+        final Index<String> symbolTable = new Index<>(String.class, "");
         final Arguments arguments;
 
         final JfrConverter converter;
@@ -397,10 +399,8 @@ public class Heatmap {
         int[] cachedStackTrace = new int[4096];
 
         State(JfrConverter converter, long blockDurationMs, Arguments arguments) {
-            this.converter = converter;
             sampleList = new SampleList(blockDurationMs);
-            methods = new Index<>(Method.class, Method.EMPTY);
-            symbolTable = new Index<>(String.class, "");
+            this.converter = converter;
             this.arguments = arguments;
         }
 
@@ -421,19 +421,20 @@ public class Heatmap {
                 cachedStackTrace = new int[stackSize * 2];
             }
             if (arguments.threads) {
-                String threadName = converter.getThreadName(threadId);
                 long id = (long) threadId << 32 | 1L << 63;
-                cachedStackTrace[0] = methods.index(new Method(id, 0, symbolTable.index(threadName), -1,
-                        Frame.TYPE_NATIVE, true));
+                MethodKey key = new MethodKey(id, -1, Frame.TYPE_NATIVE, true);
+                Integer threadFrameIndex = getMethodIndex(key, () -> createThreadMethod(key, threadId));
+                cachedStackTrace[0] = threadFrameIndex;
                 System.arraycopy(prototype, 0, cachedStackTrace, 1, prototype.length);
             } else {
                 System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
             }
+
             if (extra != 0) {
                 long id = (long) extra << 32 | 1L << 63;
-                String javaClassName = converter.getClassName(extra);
-                cachedStackTrace[stackSize - 1] = methods.index(new Method(id, symbolTable.index(javaClassName), 0, -1,
-                        type, false));
+                MethodKey key = new MethodKey(id, -1, type, false);
+                Integer threadFrameIndex = getMethodIndex(key, () -> createExtraMethod(key, extra));
+                cachedStackTrace[stackSize - 1] = threadFrameIndex;
             }
 
             sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
@@ -454,17 +455,73 @@ public class Heatmap {
 
                 // When arguments.threads is true, the first frame is the artificial thread frame
                 boolean firstFrameInStack = firstMethodInTrace && !arguments.threads;
-                cachedStackTrace[index] = this.methods.index(createMethod(methodId, location, type, firstFrameInStack));
+
+                MethodKey key = new MethodKey(methodId, location, type, firstFrameInStack);
+                Integer threadFrameIndex = getMethodIndex(key, () -> createMethod(key));
+                cachedStackTrace[index] = threadFrameIndex;
             }
 
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Method createMethod(long methodId, int location, byte type, boolean firstInStack) {
-            StackTraceElement ste = converter.getStackTraceElement(methodId, type, location);
+        private Integer getMethodIndex(MethodKey key, Supplier<Method> methodSupplier) {
+            return methodCache.computeIfAbsent(key, k -> methods.index(methodSupplier.get()));
+        }
+
+        private Method createMethod(MethodKey key) {
+            StackTraceElement ste = converter.getStackTraceElement(key.methodId, key.getType(), key.getLocation());
             int className = symbolTable.index(ste.getClassName());
             int methodName = symbolTable.index(ste.getMethodName());
-            return new Method(methodId, className, methodName, location, type, firstInStack);
+            return new Method(key.methodId, className, methodName, key.getLocation(), key.getType(), key.getFirstInStack());
+        }
+
+        private Method createExtraMethod(MethodKey key, int extra) {
+            String javaClassName = converter.getClassName(extra);
+            return new Method(key.methodId, symbolTable.index(javaClassName), 0, key.getLocation(),
+                    key.getType(), key.getFirstInStack());
+        }
+
+        private Method createThreadMethod(MethodKey key, int tid) {
+            String threadName = converter.getThreadName(tid);
+            return new Method(key.methodId, 0, symbolTable.index(threadName), key.getLocation(),
+                    key.getType(), key.getFirstInStack());
+        }
+
+        private static final class MethodKey {
+            private final long methodId;
+            // 32 bits: location
+            // 8 bits: type
+            // 1 bit: firstInStack
+            private final long metadata;
+
+            public MethodKey(long methodId, int location, byte type, boolean firstInStack) {
+                this.methodId = methodId;
+                this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (long) type << 32 | location;
+            }
+
+            public int getLocation() {
+                return (int) metadata;
+            }
+
+            public byte getType() {
+                return (byte) (metadata >> 32);
+            }
+
+            public boolean getFirstInStack() {
+                return ((metadata >> 40) & 1L) != 0;
+            }
+
+            @Override
+            public boolean equals(Object other) {
+                if (!(other instanceof MethodKey)) return false;
+                MethodKey methodKey = (MethodKey) other;
+                return methodId == methodKey.methodId && metadata == methodKey.metadata;
+            }
+
+            @Override
+            public int hashCode() {
+                return 31 * Long.hashCode(methodId) + Long.hashCode(metadata);
+            }
         }
 
     }
