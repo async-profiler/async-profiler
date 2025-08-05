@@ -495,8 +495,9 @@ public class Heatmap {
             private final long metadata;
 
             public MethodKey(long methodId, int location, byte type, boolean firstInStack) {
+                if (type < 0) throw new IllegalArgumentException("Unexpected type: " + type);
                 this.methodId = methodId;
-                this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (long) type << 32 | location;
+                this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (long) type << 32 | (location & 0xFFFFFFFFL);
             }
 
             public int getLocation() {
