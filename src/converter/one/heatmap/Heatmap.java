@@ -399,7 +399,7 @@ public class Heatmap {
         State(JfrConverter converter, long blockDurationMs, Arguments arguments) {
             this.converter = converter;
             sampleList = new SampleList(blockDurationMs);
-            methods = new Index<>(Method.class, new Method(0, 0, 0, -1, (byte) 0, false));
+            methods = new Index<>(Method.class, Method.EMPTY);
             symbolTable = new Index<>(String.class, "");
             this.arguments = arguments;
         }

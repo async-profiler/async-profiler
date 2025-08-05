@@ -9,6 +9,8 @@ import one.convert.Frame;
 
 public class Method {
 
+    public static final Method EMPTY = new Method(0, 0, 0, -1, (byte) 0, false);
+
     public final int className;
     public final int methodName;
     public final int location;
@@ -16,8 +18,6 @@ public class Method {
     public final boolean start;
 
     final long originalMethodId;
-
-    Method next;
 
     public int frequency;
     // An identifier based on frequency ordering, more frequent methods will get a lower ID
