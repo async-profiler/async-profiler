@@ -151,10 +151,13 @@ bool Lookup::fillJavaMethodInfo(MethodInfo* mi, jmethodID method, bool first_tim
         mi->_name = _symbols->indexOf(method_name);
 
         if ((err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
-            std::string class_name_clean = std::string(class_name + 1, strlen(class_name) - 2);
-            mi->_class = _classes->lookup(class_name_clean.data());
+            mi->_class = _classes->lookup(class_name + 1, strlen(class_name) - 2);
             if (_output_type == OUTPUT_OTLP) {
-                mi->_system_name = _symbols->indexOf(class_name_clean + "." + method_name + method_sig);
+                std::string system_name = std::string(class_name + 1, strlen(class_name) - 2);
+                system_name += ".";
+                system_name += method_name;
+                system_name += method_sig;
+                mi->_system_name = _symbols->indexOf(system_name);
             }
         }
     }
