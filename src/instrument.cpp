@@ -228,7 +228,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    u32 rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table, u32 max_relocation);
+    u32 rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table);
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
@@ -306,33 +306,26 @@ void BytecodeRewriter::rewriteCode() {
     u32 code_length_idx = _dst_len;
     put32(code_length); // to be fixed later
 
-    // First scan: identify the maximum possible relocation for any position in code[]
-    // Relocation can happen due to:
-    // - Adding a new invocation
-    // - Narrow jump becoming a wide jump
-    u32 max_relocation = 0;
-    for (u32 i = 0; i < code_length;) {
-        u8 opcode = code[i];
-        if (isFunctionExitOpcode(opcode)) {
-            max_relocation += EXTRA_BYTECODES;
-        } else if (isNarrowJump(opcode)) {
-            max_relocation += 2;
-        }
-        i += OPCODE_LENGTH[opcode];
-    }
-
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
     u32* relocation_table = new u32[code_length];
-    if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
-        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting", MAX_CODE_SEGMENT_BYTES);
+
+    u32 relocation = 0;
+    if (_record_start) {
+        // invokestatic "one/profiler/Instrument.recordSample()V"
+        // nop ensures that tableswitch/lookupswitch needs no realignment
+        put8(0xb8);
+        put16(_cpool_len);
+        put8(0);
+        // The rest of the code is unchanged
         put(get(code_length), code_length);
-        for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
+        relocation = EXTRA_BYTECODES;
     } else {
-        u32 relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table, code_length);
-        // Fix code length, we now know the real relocation
-        *(u32*)(_dst + code_length_idx) = htonl(code_length + relocation);
+        relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
     }
+
+    // Fix code length, we now know the real relocation
+    *(u32*)(_dst + code_length_idx) = htonl(code_length + relocation);
 
     u16 exception_table_length = get16();
     put16(exception_table_length);
@@ -356,7 +349,29 @@ void BytecodeRewriter::rewriteCode() {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table, u32 max_relocation) {
+u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table) {
+    // First scan: identify the maximum possible relocation for any position in code[]
+    // Relocation can happen due to:
+    // - Adding a new invocation
+    // - Narrow jump becoming a wide jump
+    u32 max_relocation = 0;
+    for (u32 i = 0; i < code_length;) {
+        u8 opcode = code[i];
+        if (isFunctionExitOpcode(opcode)) {
+            max_relocation += EXTRA_BYTECODES;
+        } else if (isNarrowJump(opcode)) {
+            max_relocation += 2;
+        }
+        i += OPCODE_LENGTH[opcode];
+    }
+
+    if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
+        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting", MAX_CODE_SEGMENT_BYTES);
+        put(get(code_length), code_length);
+        for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
+        return 0;
+    }
+
     int code_segment_begin = _dst_len;
 
     // Second scan: fill relocation_table and rewrite code.
