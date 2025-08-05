@@ -28,8 +28,8 @@ public class Heatmap {
         this.state = new State(converter, BLOCK_DURATION_MS, args);
     }
 
-    public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
-        state.addEvent(stackTraceId, threadName, extra, type, timeMs);
+    public void addEvent(int stackTraceId, int threadId, int extra, byte type, long timeMs) {
+        state.addEvent(stackTraceId, threadId, extra, type, timeMs);
     }
 
     public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
@@ -404,23 +404,24 @@ public class Heatmap {
             this.arguments = arguments;
         }
 
-        public void addEvent(int stackTraceId, String threadName, int extra, byte type, long timeMs) {
+        public void addEvent(int stackTraceId, int threadId, int extra, byte type, long timeMs) {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            if (extra == 0 && threadName == null) {
+            if (extra == 0 && !arguments.threads) {
                 sampleList.add(prototypeId, timeMs);
                 return;
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + (threadName != null ? 1 : 0) + (extra != 0 ? 1 : 0);
+            int stackSize = prototype.length + (arguments.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
-            if (threadName != null) {
+            if (arguments.threads) {
+                String threadName = converter.getThreadName(threadId);
                 long id = (long) threadName.hashCode() << 32 | 1L << 63;
                 cachedStackTrace[0] = methods.index(new Method(id, 0, symbolTable.index(threadName), -1,
                         Frame.TYPE_NATIVE, true));
