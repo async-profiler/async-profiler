@@ -329,7 +329,7 @@ void BytecodeRewriter::rewriteCode() {
         put(get(code_length), code_length);
 
         relocation = EXTRA_BYTECODES;
-        for (int i = 0; i < code_length; ++i) relocation_table[i] = relocation;
+        for (u32 i = 0; i < code_length; ++i) relocation_table[i] = relocation;
     }
 
     // Fix code length, we now know the real relocation
