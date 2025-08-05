@@ -483,7 +483,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     FILE* file = fopen(path, "r");
     if (!file) return false;
 
-    char buffer[1024];
+    char buffer[4096];
     if (!fgets(buffer, sizeof(buffer), file)) {
         fclose(file);
         return false;
@@ -493,25 +493,24 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     int  parsed_pid, parsed_ppid;
     char comm[COMM_LEN] = {0};
     char state;
-    unsigned long minflt, majflt, utime, stime;
-    unsigned long long starttime64;
-    unsigned long vsize;
-    long threads;
-    long rss;
+    u64  minflt, majflt, utime, stime;
+    u64 starttime64;
+    u64 vsize, rss;
+    int  threads;
 
     int parsed = sscanf(buffer,
                         "%d "                     /*  1 pid                                   */
                         "(%15[^)]) "              /*  2 comm  (read until ')')                */
                         "%c %d "                  /*  3 state, 4 ppid                         */
                         "%*d %*d %*d %*d %*u "    /*  5-9(skip) pgrp,session,tty,tpgid,flags  */
-                        "%lu %*u %lu %*u "        /*  10-13 minflt,-,majflt,-                 */
-                        "%lu %lu "                /*  14-15 utime, stime                      */
+                        "%llu %*llu %llu %*llu "  /*  10-13 minflt,-,majflt,-                 */
+                        "%llu %llu "              /*  14-15 utime, stime                      */
                         "%*d %*d %*d %*d "        /*  16-19(skip) cutime,cstime,prio,nice     */
-                        "%ld "                    /*  20 num_threads                          */
+                        "%d "                     /*  20 num_threads                          */
                         "%*d "                    /*  21 itrealvalue (skip)                   */
                         "%llu "                   /*  22 starttime                            */
-                        "%lu "                    /*  23 vsize                                */
-                        "%ld",                    /*  24 rss                                  */
+                        "%llu "                   /*  23 vsize                                */
+                        "%llu",                   /*  24 rss                                  */
         &parsed_pid, comm, &state, &parsed_ppid,
         &minflt, &majflt, &utime, &stime,
         &threads, &starttime64, &vsize, &rss);
@@ -527,8 +526,8 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     info->_major_faults  = majflt;
     info->_cpu_user      = utime;
     info->_cpu_system    = stime;
-    info->_threads       = (unsigned short)threads;
-    info->_start_time    = (unsigned long)starttime64;
+    info->_threads       = threads;
+    info->_start_time    = starttime64;
     // (23) vsize convert from bytes to kB
     info->_vm_size      = vsize >> 10;
     //(24) rss - convert from number of pages to kB
