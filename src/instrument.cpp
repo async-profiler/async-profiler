@@ -227,7 +227,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    u32 rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table);
+    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table);
     void writeRecordSampleInvocation();
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
@@ -319,14 +319,13 @@ void BytecodeRewriter::rewriteCode() {
     // in the modified bytecode.
     u32* relocation_table = new u32[code_length];
 
-    u32 relocation = 0;
+    u32 relocation;
     if (_latency) {
-        relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
+        relocation = rewriteCodeForLatency(code, code_length, relocation_table);
     } else {
         writeInvokeRecordSample(true);
         // The rest of the code is unchanged
         put(code, code_length);
-
         relocation = EXTRA_BYTECODES;
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = relocation;
     }
@@ -356,7 +355,7 @@ void BytecodeRewriter::rewriteCode() {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table) {
+u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table) {
     // First scan: identify the maximum possible relocation for any position in code[]
     // Relocation can happen due to:
     // - Adding a new invocation
@@ -381,7 +380,10 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
 
     u32 code_segment_begin = _dst_len;
 
-    u32 current_relocation = 0;
+    writeInvokeRecordSample(true);
+
+    // Method start is relocated
+    u32 current_relocation = EXTRA_BYTECODES;
     // Low 32 bits: jump base index
     // High 32 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
@@ -459,21 +461,22 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
 
     // Third scan (jumps only): fix the jump offset using information in relocation_table.
     for (u64 jump : jumps) {
-        u32 jump_base_idx = (u32) jump;
-        u32 jump_offset_idx = (u32) (jump >> 32);
+        u32 old_jump_base_idx = (u32) jump;
+        u32 old_jump_offset_idx = (u32) (jump >> 32);
 
-        u8* new_jump_base = _dst + code_segment_begin + (jump_base_idx + relocation_table[jump_base_idx]);
-        u8* new_jump_offset = _dst + code_segment_begin + (jump_offset_idx + relocation_table[jump_offset_idx]);
-        if (isNarrowJump(*new_jump_base)) {
-            int16_t old_offset = (int16_t) ntohs(*(u16*)(code + jump_offset_idx));
-            u32 old_jump_target = (u32) (jump_base_idx + old_offset);
-            int16_t new_offset = old_offset + relocation_table[old_jump_target];
-            *(u16*)(new_jump_offset) = htons((u16) new_offset);
+        u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
+        u8* new_jump_base_ptr = _dst + code_segment_begin + new_jump_base_idx;
+        u8* new_jump_offset_ptr = _dst + code_segment_begin + (old_jump_offset_idx + relocation_table[old_jump_offset_idx]);
+        if (isNarrowJump(*new_jump_base_ptr)) {
+            int16_t old_offset = (int16_t) ntohs(*(u16*)(code + old_jump_offset_idx));
+            u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
+            int16_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
+            *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
         } else {
-            int32_t old_offset = (int32_t) ntohl(*(u32*)(code + jump_offset_idx));
-            u32 old_jump_target = (u32) (jump_base_idx + old_offset);
-            int32_t new_offset = old_offset + relocation_table[old_jump_target];
-            *(u32*)(new_jump_offset) = htonl((u32) new_offset);
+            int32_t old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
+            u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
+            int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
+            *(u32*)(new_jump_offset_ptr) = htonl((u32) new_offset);
         }
     }
 
@@ -495,10 +498,12 @@ void BytecodeRewriter::rewriteBytecodeTable(const u32* relocation_table, int dat
     }
 }
 
-#define UPDATE_OFFSET_DELTA(relocation_table)              \
-    u16 offset_delta = get16();                            \
-    current_frame += offset_delta + 1;                     \
-    put16(offset_delta + relocation_table[current_frame]);
+#define UPDATE_OFFSET_DELTA(relocation_table)                                        \
+    long previous = current_frame_old;                                               \
+    current_frame_old += get16() + 1;                                                \
+    u64 previous_new = previous < 0 ? 0 : previous + relocation_table[previous];     \
+    u64 current_frame_new = current_frame_old + relocation_table[current_frame_old]; \
+    put16(current_frame_new - previous_new);
 
 void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
@@ -506,17 +511,18 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u16 number_of_entries = get16();
     put16(number_of_entries);
 
-    long current_frame = -1;
+    // Keep track of the current frame being visited, in the old code
+    long current_frame_old = -1;
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
         put8(frame_type);
 
         if (frame_type <= 63) {
             // same_frame
-            current_frame += frame_type + 1;
+            current_frame_old += frame_type + 1;
         } else if (frame_type <= 127) {
             // same_locals_1_stack_item_frame
-            current_frame += frame_type + 1 - 64;
+            current_frame_old += frame_type + 1 - 64;
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
