@@ -438,7 +438,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
             int32_t npairs = ntohl(*(u32*)(code + default_index + 4));
             u32 branches_base_index = default_index + 8;
             for (u64 c = 0; c < npairs; ++c) {
-                u32 pair_base = branches_base_index + c * 8;
+                u64 pair_base = branches_base_index + c * 8;
                 // 4 bits: match
                 // 4 bits: offset
                 jumps.push_back((pair_base + 4) << 32 | i);
@@ -603,7 +603,7 @@ void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table) {
             rewriteBytecodeTable(relocation_table, 2);
             continue;
         } else if (attribute_name->equals("LocalVariableTable", 18) ||
-                    attribute_name->equals("LocalVariableTypeTable", 22)) {
+                   attribute_name->equals("LocalVariableTypeTable", 22)) {
             rewriteBytecodeTable(relocation_table, 8);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
