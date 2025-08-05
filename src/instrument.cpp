@@ -121,8 +121,8 @@ class BytecodeRewriter {
     const u8* _src_limit;
 
     u8* _dst;
-    int _dst_len;
-    int _dst_capacity;
+    u32 _dst_len;
+    u32 _dst_capacity;
 
     Constant** _cpool;
     u16 _cpool_len;
@@ -379,19 +379,21 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
         return 0;
     }
 
-    int code_segment_begin = _dst_len;
+    u32 code_segment_begin = _dst_len;
 
     // Second scan: fill relocation_table and rewrite code.
     // Any jump which is "close" to the narrow->wide threshold conservatively becomes
     // a wide jump.
     u32 current_relocation = 0;
-    // Original index in code[] of all jumps
-    std::vector<u32> jumps;
+    // Low 32 bits: jump base index
+    // High 32 bits: jump offset index
+    // This supports narrow and wide jumps, as well as tableswitch
+    std::vector<u64> jumps;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
         if (isNarrowJump(opcode)) {
-            jumps.push_back(i);
+            jumps.push_back((i + 1ULL) << 32 | i);
 
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (max_relocation > std::numeric_limits<int16_t>::max() - offset) {
@@ -401,7 +403,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
             } else {
                 put8(opcode);
             }
-            put16(offset);
+            put16(0);
 
             for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
                 relocation_table[i++] = current_relocation;
@@ -412,7 +414,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
         if (isFunctionExit(opcode)) {
             writeInvokeRecordSample();
         } else if (isWideJump(opcode)) {
-            jumps.push_back(i);
+            jumps.push_back((i + 1ULL) << 32 | i);
         }
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
             relocation_table[i] = current_relocation;
@@ -428,19 +430,22 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
     }
 
     // Third scan (jumps only): fix the jump offset using information in relocation_table.
-    for (u32 jump_idx : jumps) {
-        u32 new_idx = jump_idx + relocation_table[jump_idx];
-        u8* opcode_ptr = _dst + code_segment_begin + new_idx;
-        if (isNarrowJump(*opcode_ptr)) {
-            int16_t old_offset = (int16_t) ntohs(*(u16*)(opcode_ptr + 1));
-            u32 old_jump_target = (u32) (jump_idx + old_offset);
+    for (u64 jump : jumps) {
+        u32 jump_base_idx = (u32) jump;
+        u32 jump_offset_idx = (u32) (jump >> 32);
+
+        u8* new_jump_base = _dst + code_segment_begin + (jump_base_idx + relocation_table[jump_base_idx]);
+        u8* new_jump_offset = _dst + code_segment_begin + (jump_offset_idx + relocation_table[jump_offset_idx]);
+        if (isNarrowJump(*new_jump_base)) {
+            int16_t old_offset = (int16_t) ntohs(*(u16*)(code + jump_offset_idx));
+            u32 old_jump_target = (u32) (jump_base_idx + old_offset);
             int16_t new_offset = old_offset + relocation_table[old_jump_target];
-            *(u16*)(opcode_ptr + 1) = htons((u16) new_offset);
+            *(u16*)(new_jump_offset) = htons((u16) new_offset);
         } else {
-            int32_t old_offset = (int32_t) ntohl(*(u32*)(opcode_ptr + 1));
-            u32 old_jump_target = (u32) (jump_idx + old_offset);
+            int32_t old_offset = (int32_t) ntohl(*(u32*)(code + jump_offset_idx));
+            u32 old_jump_target = (u32) (jump_base_idx + old_offset);
             int32_t new_offset = old_offset + relocation_table[old_jump_target];
-            *(u32*)(opcode_ptr + 1) = htonl((u32) new_offset);
+            *(u32*)(new_jump_offset) = htonl((u32) new_offset);
         }
     }
 
