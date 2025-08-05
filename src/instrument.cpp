@@ -109,7 +109,7 @@ enum Scope {
 };
 
 enum PatchConstants {
-    EXTRA_CONSTANTS = 6,
+    EXTRA_CONSTANTS = 9,
     EXTRA_BYTECODES = 4
 };
 
@@ -236,7 +236,7 @@ class BytecodeRewriter {
     void rewriteCodeAttributes(const u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
-    void writeInvokeRecordSample();
+    void writeInvokeRecordSample(bool entry);
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency) :
@@ -290,10 +290,10 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-void BytecodeRewriter::writeInvokeRecordSample() {
+void BytecodeRewriter::writeInvokeRecordSample(bool entry) {
     // invokestatic "one/profiler/Instrument.recordSample()V"
     put8(JVM_OPC_invokestatic);
-    put16(_cpool_len);
+    put16(_cpool_len + (entry ? 0 : 6));
     // nop ensures that tableswitch/lookupswitch needs no realignment
     put8(0);
 }
@@ -323,7 +323,7 @@ void BytecodeRewriter::rewriteCode() {
     if (_latency) {
         relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
     } else {
-        writeInvokeRecordSample();
+        writeInvokeRecordSample(true);
         // The rest of the code is unchanged
         put(code, code_length);
 
@@ -412,7 +412,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
         }
 
         if (isFunctionExit(opcode)) {
-            writeInvokeRecordSample();
+            writeInvokeRecordSample(false);
         } else if (isWideJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
@@ -655,8 +655,12 @@ bool BytecodeRewriter::rewriteClass() {
     putConstant(CONSTANT_Class, _cpool_len + 3);
     putConstant(CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
     putConstant("one/profiler/Instrument");
-    putConstant("recordSample");
+    putConstant("recordEntry");
     putConstant("()V");
+
+    putConstant(CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
+    putConstant(CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 5);
+    putConstant("recordExit");
 
     u16 access_flags = get16();
     put16(access_flags);
@@ -698,10 +702,12 @@ Error Instrument::check(Arguments& args) {
         }
 
         JNIEnv* jni = VM::jni();
-        const JNINativeMethod native_method = {(char*)"recordSample", (char*)"()V", (void*)recordSample};
+        JNINativeMethod native_method[2];
+        native_method[0] = {(char*)"recordEntry", (char*)"()V", (void*)recordEntry};
+        native_method[1] = {(char*)"recordExit", (char*)"()V", (void*)recordExit};
 
         jclass cls = jni->DefineClass(INSTRUMENT_NAME, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
-        if (cls == NULL || jni->RegisterNatives(cls, &native_method, 1) != 0) {
+        if (cls == NULL || jni->RegisterNatives(cls, native_method, 2) != 0) {
             jni->ExceptionDescribe();
             return Error("Could not load Instrument class");
         }
@@ -806,7 +812,16 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     }
 }
 
-void JNICALL Instrument::recordSample(JNIEnv* jni, jobject unused) {
+void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
+    if (!_enabled) return;
+
+    if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
+        ExecutionEvent event(TSC::ticks());
+        Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
+    }
+}
+
+void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
