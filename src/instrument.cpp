@@ -374,7 +374,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
         Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting", MAX_CODE_SEGMENT_BYTES);
-        put(get(code_length), code_length);
+        put(code, code_length);
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
         return 0;
     }
