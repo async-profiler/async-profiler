@@ -387,7 +387,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
     u32 current_relocation = 0;
     // Low 32 bits: jump base index
     // High 32 bits: jump offset index
-    // This supports narrow and wide jumps, as well as tableswitch
+    // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
@@ -425,8 +425,23 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
             // 4 bits: high
             int32_t h = ntohl(*(u32*)(code + default_index + 8));
             // (high - low + 1) * 4 bits: branches
+            u32 branches_base_index = default_index + 12;
             for (u64 c = 0; c <= h - l + 1; ++c) {
-                jumps.push_back((default_index + 12 + c * 4) << 32 | i);
+                jumps.push_back((branches_base_index + c * 4) << 32 | i);
+            }
+        } else if (opcode == JVM_OPC_lookupswitch) {
+            // Nearest multiple of 4, 'default' lies after the padding
+            u32 default_index = ((i + 3) / 4) * 4;
+            // 4 bits: default
+            jumps.push_back((u64) default_index << 32 | i);
+            // 4 bits: npairs
+            int32_t npairs = ntohl(*(u32*)(code + default_index + 4));
+            u32 branches_base_index = default_index + 8;
+            for (u64 c = 0; c < npairs; ++c) {
+                u32 pair_base = branches_base_index + c * 8;
+                // 4 bits: match
+                // 4 bits: offset
+                jumps.push_back((pair_base + 4) << 32 | i);
             }
         }
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
