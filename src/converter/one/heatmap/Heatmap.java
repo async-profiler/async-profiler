@@ -422,7 +422,7 @@ public class Heatmap {
             }
             if (arguments.threads) {
                 String threadName = converter.getThreadName(threadId);
-                long id = (long) threadName.hashCode() << 32 | 1L << 63;
+                long id = (long) threadId << 32 | 1L << 63;
                 cachedStackTrace[0] = methods.index(new Method(id, 0, symbolTable.index(threadName), -1,
                         Frame.TYPE_NATIVE, true));
                 System.arraycopy(prototype, 0, cachedStackTrace, 1, prototype.length);
