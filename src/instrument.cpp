@@ -396,7 +396,7 @@ void BytecodeRewriter::rewriteCode() {
     // For each index in the (original) bytecode, this holds the rightwards offset
     // in the modified bytecode.
     u32* relocation_table = new u32[code_length];
-    if (max_relocation >= MAX_CODE_SEGMENT_BYTES - code_length) {
+    if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
         Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting", MAX_CODE_SEGMENT_BYTES);
         put(get(code_length), code_length);
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
