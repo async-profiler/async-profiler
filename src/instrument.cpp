@@ -229,6 +229,7 @@ class BytecodeRewriter {
 
     void rewriteCode();
     u32 rewriteCodeWithEndHooks(const u8* code, u32 code_length, u32* relocation_table);
+    void writeRecordSampleInvocation();
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
@@ -289,6 +290,14 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
+void BytecodeRewriter::writeInvokeRecordSample() {
+    // invokestatic "one/profiler/Instrument.recordSample()V"
+    put8(JVM_OPC_invokestatic);
+    put16(_cpool_len);
+    // nop ensures that tableswitch/lookupswitch needs no realignment
+    put8(0);
+}
+
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
     put32(attribute_length);
@@ -312,11 +321,7 @@ void BytecodeRewriter::rewriteCode() {
 
     u32 relocation = 0;
     if (_record_start) {
-        // invokestatic "one/profiler/Instrument.recordSample()V"
-        // nop ensures that tableswitch/lookupswitch needs no realignment
-        put8(0xb8);
-        put16(_cpool_len);
-        put8(0);
+        writeInvokeRecordSample();
         // The rest of the code is unchanged
         put(get(code_length), code_length);
 
@@ -405,9 +410,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
         }
 
         if (isFunctionExit(opcode)) {
-            put8(JVM_OPC_invokestatic);
-            put16(_cpool_len);
-            put8(0);
+            writeInvokeRecordSample();
         } else if (isWideJump(opcode)) {
             jumps.push_back(i);
         }
