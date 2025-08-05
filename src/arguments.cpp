@@ -293,6 +293,11 @@ Error Arguments::parse(const char* args) {
                     msg = "Invalid interval";
                 }
 
+            CASE("latency")
+                if (value == NULL || (_latency = parseUnits(value, UNIVERSAL)) <= 0) {
+                    msg = "Invalid latency";
+                }
+
             CASE("jstackdepth")
                 if (value == NULL || (_jstackdepth = atoi(value)) <= 0) {
                     msg = "jstackdepth must be > 0";

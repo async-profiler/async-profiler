@@ -162,6 +162,7 @@ class Arguments {
     const char* _event;
     int _timeout;
     long _interval;
+    long _latency;
     long _alloc;
     long _nativemem;
     long _lock;
