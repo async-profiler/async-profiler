@@ -277,7 +277,7 @@ class BytecodeRewriter {
     }
 };
 
-static inline bool isFunctionExitOpcode(u8 opcode) {
+static inline bool isFunctionExit(u8 opcode) {
     return opcode >= JVM_OPC_ireturn && opcode <= JVM_OPC_return;
 }
 
@@ -357,7 +357,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
     u32 max_relocation = 0;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
-        if (isFunctionExitOpcode(opcode)) {
+        if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES;
         } else if (isNarrowJump(opcode)) {
             max_relocation += 2;
@@ -402,7 +402,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
             continue;
         }
 
-        if (isFunctionExitOpcode(opcode)) {
+        if (isFunctionExit(opcode)) {
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len);
             put8(0);
@@ -417,7 +417,7 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
         // current instruction: any instruction referring to the current one
         // (e.g. a jump) should now target our invokestatic, otherwise it will
         // be skipped.
-        if (isFunctionExitOpcode(opcode)) {
+        if (isFunctionExit(opcode)) {
             current_relocation += EXTRA_BYTECODES;
         }
     }
