@@ -326,7 +326,7 @@ void BytecodeRewriter::rewriteCode() {
     } else {
         writeInvokeRecordSample();
         // The rest of the code is unchanged
-        put(get(code_length), code_length);
+        put(code, code_length);
 
         relocation = EXTRA_BYTECODES;
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = relocation;
@@ -503,18 +503,9 @@ void BytecodeRewriter::rewriteBytecodeTable(const u32* relocation_table, int dat
 
 void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
+    put32(attribute_length);
     u16 number_of_entries = get16();
-    if (_latency) {
-        put32(attribute_length);
-        put16(number_of_entries);
-    } else {
-        // If the start of the method is being profiled, the first instruction will be
-        // invokestatic towards recordSample.
-        put32(attribute_length + 1);
-        put16(number_of_entries + 1);
-        // Prepend same_frame
-        put8(EXTRA_BYTECODES - 1);
-    }
+    put16(number_of_entries);
 
     long current_frame = -1;
     for (int i = 0; i < number_of_entries; i++) {
@@ -562,12 +553,13 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
 void BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) {
     u8 tag = get8();
     put8(tag);
-    if (tag == 8) {
+    if (tag >= 7) {
         u16 offset = get16();
-        put16(offset + relocation_table[offset]);
-    } else if (tag >= 7) {
-        // Adjust ITEM_Uninitialized offset
-        put16(get16());
+        if (tag == 8) {
+            // Adjust ITEM_Uninitialized offset
+            offset += relocation_table[offset];
+        }
+        put16(offset);
     }
 }
 
