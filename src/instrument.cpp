@@ -319,7 +319,9 @@ void BytecodeRewriter::rewriteCode() {
         put8(0);
         // The rest of the code is unchanged
         put(get(code_length), code_length);
+
         relocation = EXTRA_BYTECODES;
+        for (int i = 0; i < code_length; ++i) relocation_table[i] = relocation;
     } else {
         relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
     }
