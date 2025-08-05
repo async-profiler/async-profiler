@@ -381,14 +381,14 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
 
     u32 code_segment_begin = _dst_len;
 
-    // Second scan: fill relocation_table and rewrite code.
-    // Any jump which is "close" to the narrow->wide threshold conservatively becomes
-    // a wide jump.
     u32 current_relocation = 0;
     // Low 32 bits: jump base index
     // High 32 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
+    // Second scan: fill relocation_table and rewrite code.
+    // Any jump which is "close" to the narrow->wide threshold conservatively becomes
+    // a wide jump.
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
