@@ -134,7 +134,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _record_start = false;
+    bool _latency = false;
 
     // Reader
 
@@ -240,13 +240,14 @@ class BytecodeRewriter {
     void writeInvokeRecordSample();
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
-        _cpool(NULL) {
+        _cpool(NULL),
+        _latency(latency) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -320,15 +321,15 @@ void BytecodeRewriter::rewriteCode() {
     u32* relocation_table = new u32[code_length];
 
     u32 relocation = 0;
-    if (_record_start) {
+    if (_latency) {
+        relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
+    } else {
         writeInvokeRecordSample();
         // The rest of the code is unchanged
         put(get(code_length), code_length);
 
         relocation = EXTRA_BYTECODES;
         for (int i = 0; i < code_length; ++i) relocation_table[i] = relocation;
-    } else {
-        relocation = rewriteCodeWithEndHooks(code, code_length, relocation_table);
     }
 
     // Fix code length, we now know the real relocation
@@ -503,16 +504,16 @@ void BytecodeRewriter::rewriteBytecodeTable(const u32* relocation_table, int dat
 void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
     u16 number_of_entries = get16();
-    if (_record_start) {
+    if (_latency) {
+        put32(attribute_length);
+        put16(number_of_entries);
+    } else {
         // If the start of the method is being profiled, the first instruction will be
         // invokestatic towards recordSample.
         put32(attribute_length + 1);
         put16(number_of_entries + 1);
         // Prepend same_frame
         put8(EXTRA_BYTECODES - 1);
-    } else {
-        put32(attribute_length);
-        put16(number_of_entries);
     }
 
     long current_frame = -1;
@@ -809,7 +810,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (!_running) return;
 
     if (name == NULL || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class);
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency > 0);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
