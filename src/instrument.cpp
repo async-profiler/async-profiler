@@ -415,6 +415,19 @@ u32 BytecodeRewriter::rewriteCodeWithEndHooks(const u8* code, u32 code_length, u
             writeInvokeRecordSample();
         } else if (isWideJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
+        } else if (opcode == JVM_OPC_tableswitch) {
+            // Nearest multiple of 4, 'default' lies after the padding
+            u32 default_index = ((i + 3) / 4) * 4;
+            // 4 bits: default
+            jumps.push_back((u64) default_index << 32 | i);
+            // 4 bits: low
+            int32_t l = ntohl(*(u32*)(code + default_index + 4));
+            // 4 bits: high
+            int32_t h = ntohl(*(u32*)(code + default_index + 8));
+            // (high - low + 1) * 4 bits: branches
+            for (u64 c = 0; c <= h - l + 1; ++c) {
+                jumps.push_back((default_index + 12 + c * 4) << 32 | i);
+            }
         }
         for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
             relocation_table[i] = current_relocation;
