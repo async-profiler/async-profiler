@@ -9,7 +9,6 @@
 #include <string.h>
 #include <vector>
 #include "classfile_constants.h"
-#include "arch.h"
 #include "incbin.h"
 #include "log.h"
 #include "profiler.h"
