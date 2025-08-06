@@ -32,28 +32,28 @@ struct ProcessInfo {
     char _cmdline[2048];         // Command line from /proc/{pid}/cmdline
     unsigned int _uid;           // User ID
     unsigned char _state;        // Process state (R, S, D, Z, T, etc.)
-    u64 _start_time;        // Process start time (clock ticks since boot)
+    u64 _start_time;             // Process start time (seconds since epoch)
 
     // CPU & thread stats
-    u64 _cpu_user;          // User CPU time (seconds)
-    u64 _cpu_system;        // System CPU time (seconds)
+    u64 _cpu_user;               // User CPU time (seconds)
+    u64 _cpu_system;             // System CPU time (seconds)
     float _cpu_percent;          // CPU utilization percentage
-    int _threads;           // Number of threads
+    int _threads;                // Number of threads
 
     // Memory stats (in KB)
-    u64 _vm_size;           // Total virtual memory size
-    u64 _vm_rss;            // Resident memory size
-    u64 _rss_anon;          // Resident anonymous memory
-    u64 _rss_files;         // Resident file mappings
-    u64 _rss_shmem;         // Resident shared memory
+    u64 _vm_size;                // Total virtual memory size
+    u64 _vm_rss;                 // Resident memory size
+    u64 _rss_anon;               // Resident anonymous memory
+    u64 _rss_files;              // Resident file mappings
+    u64 _rss_shmem;              // Resident shared memory
 
     // Page fault stats
-    u64 _minor_faults;      // Minor page faults (no I/O required)
-    u64 _major_faults;      // Major page faults (I/O required)
+    u64 _minor_faults;           // Minor page faults (no I/O required)
+    u64 _major_faults;           // Major page faults (I/O required)
 
     // I/O stats
-    u64 _io_read;           // KB read from storage
-    u64 _io_write;          // KB written to storage
+    u64 _io_read;                // KB read from storage
+    u64 _io_write;               // KB written to storage
 
     ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
                     _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _threads(0),
