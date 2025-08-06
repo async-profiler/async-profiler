@@ -134,8 +134,6 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _latency = false;
-
     // Reader
 
     const u8* get(int bytes) {
@@ -228,7 +226,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table);
+    u32 rewriteCodeSegment(const u8* code, u32 code_length, u32* relocation_table);
     void writeRecordSampleInvocation();
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
@@ -240,14 +238,13 @@ class BytecodeRewriter {
     void writeInvokeRecordSample(bool entry);
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
-        _cpool(NULL),
-        _latency(latency) {
+        _cpool(NULL) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -320,16 +317,7 @@ void BytecodeRewriter::rewriteCode() {
     // in the modified bytecode.
     u32* relocation_table = new u32[code_length];
 
-    u32 relocation;
-    if (_latency) {
-        relocation = rewriteCodeForLatency(code, code_length, relocation_table);
-    } else {
-        writeInvokeRecordSample(true);
-        // The rest of the code is unchanged
-        put(code, code_length);
-        relocation = EXTRA_BYTECODES;
-        for (u32 i = 0; i < code_length; ++i) relocation_table[i] = relocation;
-    }
+    u32 relocation = rewriteCodeSegment(code, code_length, relocation_table);
 
     // Fix code length, we now know the real relocation
     *(u32*)(_dst + code_length_idx) = htonl(code_length + relocation);
@@ -356,7 +344,7 @@ void BytecodeRewriter::rewriteCode() {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table) {
+u32 BytecodeRewriter::rewriteCodeSegment(const u8* code, u32 code_length, u32* relocation_table) {
     // First scan: identify the maximum possible relocation for any position in code[]
     // Relocation can happen due to:
     // - Adding a new invocation
@@ -819,7 +807,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (!_running) return;
 
     if (name == NULL || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency > 0);
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
@@ -827,13 +815,9 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
+    _method_start_ns = OS::nanotime();
     if (_latency > 0) {
-        _method_start_ns = OS::nanotime();
         return;
-    }
-    if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
-        ExecutionEvent event(TSC::ticks());
-        Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
     }
 }
 
@@ -841,8 +825,14 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     // TODO: does not account for recursive methods?
-    if (OS::nanotime() - _method_start_ns >= _latency) {
+    if (_latency >= 0) {
+        u64 duration = OS::nanotime() - _method_start_ns;
+        if (duration >= _latency) {
+            ExecutionEvent event(TSC::ticks());
+            Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
+        }
+    } else if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
         ExecutionEvent event(TSC::ticks());
-        Profiler::instance()->recordSample(NULL, 1, INSTRUMENTED_METHOD, &event);
+        Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
     }
 }
