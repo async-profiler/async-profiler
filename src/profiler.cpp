@@ -855,16 +855,12 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
 
 void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
-    uintptr_t pc = frame.pc();
 
-    u32 length = SafeAccess::skipLoad((instruction_t*)pc);
-    if (length != 0) {
-        // Skip the fault instruction as if it successfully loaded default_value
-        frame.pc() += length;
-        frame.retval() = frame.arg1();
+    if (SafeAccess::checkFault(frame)) {
         return;
     }
 
+    uintptr_t pc = frame.pc();
     if (pc >= profiler_lib_start && pc < profiler_lib_end) {
         StackWalker::checkFault();
     }

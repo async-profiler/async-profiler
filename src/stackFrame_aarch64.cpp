@@ -275,7 +275,7 @@ bool StackFrame::checkInterruptedSyscall() {
         if (nr == SYS_ppoll || (nr == SYS_epoll_pwait && (int)arg3() == -1)) {
             // Check against unreadable page for the loop below
             const uintptr_t max_distance = 24;
-            if ((pc() & 0xfff) < max_distance && SafeAccess::load32((u32*)(pc() - max_distance)) == 0) {
+            if ((pc() & 0xfff) < max_distance && SafeAccess::load32((int32_t*)(pc() - max_distance)) == 0) {
                 return true;
             }
             // Try to restore the original value of x0 saved in another register
