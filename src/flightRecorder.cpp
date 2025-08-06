@@ -49,7 +49,7 @@ const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.1F;     // Minimum % cpu utilization to filter results (0 = no filtering)
+const float MIN_CPU_THRESHOLD = 5.0F;     // Minimum % cpu utilization to filter results
 const u64 MIN_MEMORY_THRESHOLD_KB = 1; // Minimum resident memory in kB .
 const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
@@ -748,12 +748,13 @@ class Recording {
         }
 
         u64 start_time = OS::nanotime();
+        u64 deadline_ns = start_time + MAX_TIME_NS;
         int pids[MAX_PROCESSES];
         int pid_count = OS::getProcessIds(pids, MAX_PROCESSES);
         cleanupProcessHistory(pids, pid_count);
 
         for (int i = 0; i < pid_count; i++) {
-            if ((OS::nanotime() - start_time) > MAX_TIME_NS) {
+            if ((i & 7) == 0 && OS::nanotime() > deadline_ns) {
                 Log::debug("Incomplete process sampling cycle.");
                 break;
             }
