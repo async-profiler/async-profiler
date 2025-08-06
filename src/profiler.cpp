@@ -693,47 +693,29 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     VMThread* vm_thread;
-    if (getCurrentCompileTask() == NULL && (vm_thread = VMThread::current()) != NULL) {
+    if (_otel_initialized && getCurrentCompileTask() == NULL && (vm_thread = VMThread::current()) != NULL) {
         JNIEnv* jni = VM::jni();
-        if (jni != NULL) {            
-            jclass spanClass = jni->FindClass("io/opentelemetry/api/trace/Span");
-            if (spanClass != NULL && !jni->ExceptionCheck()) {
-                jmethodID currentMethod = jni->GetStaticMethodID(spanClass, "current", "()Lio/opentelemetry/api/trace/Span;");
-                if (currentMethod != NULL && !jni->ExceptionCheck()) {
-                    jobject currentSpan = jni->CallStaticObjectMethod(spanClass, currentMethod);
-                    if (currentSpan != NULL && !jni->ExceptionCheck()) {
-                        jmethodID getSpanContextMethod = jni->GetMethodID(spanClass, "getSpanContext", "()Lio/opentelemetry/api/trace/SpanContext;");
-                        if (getSpanContextMethod != NULL && !jni->ExceptionCheck()) {
-                            jobject spanContext = jni->CallObjectMethod(currentSpan, getSpanContextMethod);
-                            if (spanContext != NULL && !jni->ExceptionCheck()) {
-                                jclass spanContextClass = jni->FindClass("io/opentelemetry/api/trace/SpanContext");
-                                if (spanContextClass != NULL && !jni->ExceptionCheck()) {
-                                    jmethodID getTraceIdMethod = jni->GetMethodID(spanContextClass, "getTraceId", "()Ljava/lang/String;");
-                                    jmethodID getSpanIdMethod = jni->GetMethodID(spanContextClass, "getSpanId", "()Ljava/lang/String;");
-                                    
-                                    if (getTraceIdMethod != NULL && getSpanIdMethod != NULL && !jni->ExceptionCheck()) {
-                                        jstring traceIdStr = (jstring)jni->CallObjectMethod(spanContext, getTraceIdMethod);
-                                        jstring spanIdStr = (jstring)jni->CallObjectMethod(spanContext, getSpanIdMethod);
-                                        
-                                        if (traceIdStr && spanIdStr && !jni->ExceptionCheck()) {
-                                            const char* traceId = jni->GetStringUTFChars(traceIdStr, NULL);
-                                            const char* spanId = jni->GetStringUTFChars(spanIdStr, NULL);
-                                            
-                                            if (traceId && spanId) {
-                                                printf("TRACE_ID: %s, SPAN_ID: %s\n", traceId, spanId);
-                                            }
-                                            
-                                            if (traceId) jni->ReleaseStringUTFChars(traceIdStr, traceId);
-                                            if (spanId) jni->ReleaseStringUTFChars(spanIdStr, spanId);
-                                        }
-                                    }
-                                }
-                            }
+        if (jni != NULL) {
+            jobject current_span = jni->CallStaticObjectMethod(_span_class, _span_current_method);
+            if (current_span != NULL && !jni->ExceptionCheck()) {
+                jobject span_context = jni->CallObjectMethod(current_span, _get_span_context_method);
+                if (span_context != NULL && !jni->ExceptionCheck()) {
+                    jstring trace_id_str = (jstring)jni->CallObjectMethod(span_context, _get_trace_id_method);
+                    jstring span_id_str = (jstring)jni->CallObjectMethod(span_context, _get_span_id_method);
+                    
+                    if (trace_id_str && span_id_str && !jni->ExceptionCheck()) {
+                        const char* trace_id = jni->GetStringUTFChars(trace_id_str, NULL);
+                        const char* span_id = jni->GetStringUTFChars(span_id_str, NULL);
+                        
+                        if (trace_id && span_id) {
+                            printf("TRACE_ID: %s, SPAN_ID: %s\n", trace_id, span_id);
                         }
+                        
+                        if (trace_id) jni->ReleaseStringUTFChars(trace_id_str, trace_id);
+                        if (span_id) jni->ReleaseStringUTFChars(span_id_str, span_id);
                     }
                 }
             }
-            
             if (jni->ExceptionCheck()) {
                 jni->ExceptionClear();
             }
@@ -1255,6 +1237,8 @@ Error Profiler::start(Arguments& args, bool reset) {
         }
     }
 
+    JNIEnv* jni = NULL;
+
     error = _engine->start(args);
     if (error) {
         goto error1;
@@ -1295,6 +1279,28 @@ Error Profiler::start(Arguments& args, bool reset) {
     if (args._timeout != 0 || args._output == OUTPUT_JFR) {
         _stop_time = addTimeout(_start_time, args._timeout);
         startTimer();
+    }
+
+    _otel_initialized = false;
+    jni = VM::jni();
+    if (jni != NULL) {
+        _span_class = (jclass)jni->NewGlobalRef(jni->FindClass("io/opentelemetry/api/trace/Span"));
+        if (_span_class != NULL && !jni->ExceptionCheck()) {
+            _span_context_class = (jclass)jni->NewGlobalRef(jni->FindClass("io/opentelemetry/api/trace/SpanContext"));
+            if (_span_context_class != NULL && !jni->ExceptionCheck()) {
+                _span_current_method = jni->GetStaticMethodID(_span_class, "current", "()Lio/opentelemetry/api/trace/Span;");
+                _get_span_context_method = jni->GetMethodID(_span_class, "getSpanContext", "()Lio/opentelemetry/api/trace/SpanContext;");
+                _get_trace_id_method = jni->GetMethodID(_span_context_class, "getTraceId", "()Ljava/lang/String;");
+                _get_span_id_method = jni->GetMethodID(_span_context_class, "getSpanId", "()Ljava/lang/String;");
+                
+                if (_span_current_method && _get_span_context_method && _get_trace_id_method && _get_span_id_method && !jni->ExceptionCheck()) {
+                    _otel_initialized = true;
+                }
+            }
+        }
+        if (jni->ExceptionCheck()) {
+            jni->ExceptionClear();
+        }
     }
 
     return Error::OK;

@@ -96,6 +96,15 @@ class Profiler {
     const void* _call_stub_begin;
     const void* _call_stub_end;
 
+    // OpenTelemetry JNI cache
+    jclass _span_class;
+    jclass _span_context_class;
+    jmethodID _span_current_method;
+    jmethodID _get_span_context_method;
+    jmethodID _get_trace_id_method;
+    jmethodID _get_span_id_method;
+    bool _otel_initialized;
+
     // dlopen() hook support
     void** _dlopen_entry;
     static void* dlopen_hook(const char* filename, int flags);
