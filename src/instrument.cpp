@@ -727,12 +727,11 @@ Error Instrument::check(Arguments& args) {
         _instrument_class_loaded = true;
     }
 
-    if (args._latency > 0) {
+    if (args._latency >= 0) {
         if (args._interval > 0) {
             return Error("latency and interval cannot both be positive");
         }
-    }
-    if (args._interval < 0) {
+    } else if (args._interval < 0) {
         return Error("interval must be positive");
     }
 
@@ -746,10 +745,11 @@ Error Instrument::start(Arguments& args) {
     }
 
     setupTargetClassAndMethod(args._event);
-    if (args._latency > 0) {
+    if (args._latency >= 0) {
         _latency = args._latency;
         _interval = 0;
     } else {
+        _latency = 0;
         _interval = args._interval ? args._interval : 1;
     }
     _calls = 0;
@@ -841,8 +841,9 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     // TODO: does not account for recursive methods?
-    if (OS::nanotime() - _method_start_ns >= _latency) {
+    u64 duration = OS::nanotime() - _method_start_ns;
+    if (duration >= _latency) {
         ExecutionEvent event(TSC::ticks());
-        Profiler::instance()->recordSample(NULL, 1, INSTRUMENTED_METHOD, &event);
+        Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
     }
 }

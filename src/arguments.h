@@ -221,6 +221,7 @@ class Arguments {
         _event(NULL),
         _timeout(0),
         _interval(0),
+        _latency(-1),
         _alloc(-1),
         _nativemem(-1),
         _lock(-1),
