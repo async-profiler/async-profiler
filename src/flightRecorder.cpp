@@ -88,8 +88,8 @@ struct CpuTimes {
 };
 
 struct ProcessHistory {
-    unsigned long prev_cpu_total;
-    unsigned long prev_timestamp;
+    u64 prev_cpu_total;
+    u64 prev_timestamp;
 
     ProcessHistory() : prev_cpu_total(0), prev_timestamp(0) {}
 };
