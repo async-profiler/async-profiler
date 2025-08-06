@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <algorithm>
 #include <stdlib.h>
 #include "dwarf.h"
 #include "log.h"
@@ -59,7 +60,7 @@ FrameDesc FrameDesc::empty_frame = {0, DW_REG_SP | EMPTY_FRAME_SIZE << 8, DW_SAM
 FrameDesc FrameDesc::default_frame = {0, DW_REG_FP | LINKED_FRAME_SIZE << 8, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT};
 
 
-DwarfParser::DwarfParser(const char* name, const char* image_base, const char* eh_frame_hdr) {
+DwarfParser::DwarfParser(const char* name, const char* image_base) {
     _name = name;
     _image_base = image_base;
 
@@ -70,11 +71,9 @@ DwarfParser::DwarfParser(const char* name, const char* image_base, const char* e
 
     _code_align = sizeof(instruction_t);
     _data_align = -(int)sizeof(void*);
-
-    parse(eh_frame_hdr);
 }
 
-void DwarfParser::parse(const char* eh_frame_hdr) {
+void DwarfParser::parseEhFrameHdr(const char* eh_frame_hdr) {
     u8 version = eh_frame_hdr[0];
     u8 eh_frame_ptr_enc = eh_frame_hdr[1];
     u8 fde_count_enc = eh_frame_hdr[2];
@@ -90,11 +89,70 @@ void DwarfParser::parse(const char* eh_frame_hdr) {
     int* table =  (int*)(eh_frame_hdr + 16);
     for (int i = 0; i < fde_count; i++) {
         _ptr = eh_frame_hdr + table[i * 2];
-        parseFde();
+        parseEhFrameFde();
     }
 }
 
-void DwarfParser::parseCie() {
+void DwarfParser::parseDebugFrame(const char* debug_frame_start, const char* debug_frame_end) {
+    _ptr = debug_frame_start;
+    while (_ptr < debug_frame_end) {
+        u32 initial_length = get32();
+        u64 length;
+        u64 cie_id;
+        const char* entry_start;
+        if (initial_length == 0 || _ptr + initial_length > debug_frame_end) {
+            break;
+        }
+        if (initial_length == 0xffffffff) {
+            // 64-bit DWARF format
+            length = get64();
+            entry_start = _ptr;
+            cie_id = get64();
+        } else {
+            // 32-bit DWARF format
+            length = initial_length;
+            entry_start = _ptr;
+            cie_id = get32();
+        }
+        if (cie_id == 0xffffffff || cie_id == (u64)-1) {
+            parseDebugFrameCie(entry_start, length);
+        } else {
+            parseDebugFrameFde(entry_start, length);
+        }
+        _ptr = entry_start + length;
+    }
+    // Sort the table by location since .debug_frame entries may not be ordered
+    std::sort(_table, _table + _count, [](const FrameDesc& a, const FrameDesc& b) {
+        return a.loc < b.loc;
+    });
+}
+
+void DwarfParser::parseDebugFrameCie(const char* entry_start, u64 length) {
+    u8 version = get8();
+    // Augmentation string
+    while (*_ptr++) {}
+    if (version >= 4) {
+        // skip address_size
+        _ptr++;
+        // skip segment_size
+        _ptr++;
+    }
+    _code_align = getLeb();
+    _data_align = getSLeb();
+    _ptr = entry_start + length;
+}
+
+void DwarfParser::parseDebugFrameFde(const char* entry_start, u64 length) {
+    u64 initial_location = *(u64*)_ptr;
+    _ptr += 8;
+    u64 address_range = *(u64*)_ptr;
+    _ptr += 8;
+
+    parseInstructions(initial_location, entry_start + length);
+    addRecord(initial_location + address_range, DW_REG_FP, LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE, -LINKED_FRAME_SIZE + DW_STACK_SLOT);
+}
+
+void DwarfParser::parseEhFrameCie() {
     u32 cie_len = get32();
     if (cie_len == 0 || cie_len == 0xffffffff) {
         return;
@@ -108,7 +166,7 @@ void DwarfParser::parseCie() {
     _ptr = cie_start + cie_len;
 }
 
-void DwarfParser::parseFde() {
+void DwarfParser::parseEhFrameFde() {
     u32 fde_len = get32();
     if (fde_len == 0 || fde_len == 0xffffffff) {
         return;
@@ -118,7 +176,7 @@ void DwarfParser::parseFde() {
     u32 cie_offset = get32();
     if (_count == 0) {
         _ptr = fde_start - cie_offset;
-        parseCie();
+        parseEhFrameCie();
         _ptr = fde_start + 4;
     }
 
