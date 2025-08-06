@@ -30,6 +30,8 @@ OBJCOPY ?= objcopy
 ifneq ($(CROSS_COMPILE),)
 CC := $(CROSS_COMPILE)gcc
 CXX := $(CROSS_COMPILE)g++
+AS := $(CROSS_COMPILE)as
+LD := $(CROSS_COMPILE)ld
 STRIP := $(CROSS_COMPILE)strip
 OBJCOPY := $(CROSS_COMPILE)objcopy
 endif
