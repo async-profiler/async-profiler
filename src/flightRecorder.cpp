@@ -49,8 +49,8 @@ const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
 const int MAX_PROCESSES = 5000;  // Hard limit to prevent excessive work
 const u64 MAX_TIME_NS = 900000000UL; // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 5.0F;     // Minimum % cpu utilization to filter results
-const u64 MIN_MEMORY_THRESHOLD_KB = 1; // Minimum resident memory in kB .
+const float MIN_CPU_THRESHOLD = 5.0F;     // Minimum % cpu utilization to include results
+const u64 MIN_RSS_PERCENT_THRESHOLD = 5.0F; // Minimum % rss usage to include results
 const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
 // debug start
@@ -695,14 +695,21 @@ class Recording {
         _last_gc_id = gc_id;
     }
 
-    // Helper function to determine if a process should be included based on thresholds
-    inline bool shouldIncludeProcess(const ProcessInfo* info) {
-        return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD_KB;
+    double getRssUsagePercent(const ProcessInfo &info) {
+        if (info._vm_size <= 0 || info._vm_rss <= 0) {
+            return 0.0;
+        }
+
+        return static_cast<double>(info._vm_rss) / info._vm_size * 100;
     }
 
-    void populateCpuPercent(ProcessInfo* info, u64 sampling_time) {
-        u64 current_cpu_total = info->_cpu_user + info->_cpu_system;
-        ProcessHistory& history = _process_history[info->_pid];
+    bool shouldIncludeProcess(const ProcessInfo &info) {
+        return info._cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
+    }
+
+    void populateCpuPercent(ProcessInfo &info, u64 sampling_time) {
+        u64 current_cpu_total = info._cpu_user + info._cpu_system;
+        ProcessHistory& history = _process_history[info._pid];
         if (history.prev_timestamp == 0) {
             history.prev_cpu_total = current_cpu_total;
             history.prev_timestamp = sampling_time;
@@ -721,7 +728,7 @@ class Recording {
             }
         }
 
-        info->_cpu_percent = cpu_percent;
+        info._cpu_percent = cpu_percent;
         history.prev_cpu_total = current_cpu_total;
         history.prev_timestamp = sampling_time;
     }
@@ -758,8 +765,8 @@ class Recording {
 
             ProcessInfo info;
             if (OS::getBasicProcessInfo(pids[i], &info)) {
-                populateCpuPercent(&info, sampling_time);
-                if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
+                populateCpuPercent(info, sampling_time);
+                if (_last_proc_sample_time > 0 && shouldIncludeProcess(info)) {
                     OS::getDetailedProcessInfo(&info);
                     flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
                     recordProcessSample(&_proc_buf, &info, sampling_time);

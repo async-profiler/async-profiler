@@ -547,10 +547,10 @@ static bool readProcessStatus(int pid, ProcessInfo* info) {
     int read_count = 0;
     char line[1024];
     char key[32];
-    unsigned long value;
+    u64 value;
 
     while (fgets(line, sizeof(line), file) && read_count < 6) {
-        if (sscanf(line, "%31s %lu", key, &value) != 2) {
+        if (sscanf(line, "%31s %llu", key, &value) != 2) {
             continue;
         }
 
