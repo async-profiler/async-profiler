@@ -54,13 +54,12 @@ struct ProcessInfo {
     // I/O stats
     u64 _io_read;           // KB read from storage
     u64 _io_write;          // KB written to storage
-    u64 _last_update;       // Timestamp of last update
 
     ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
                     _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _threads(0),
                     _vm_size(0), _vm_rss(0), _rss_anon(0), _rss_files(0), _rss_shmem(0),
                     _minor_faults(0), _major_faults(0),
-                    _io_read(0), _io_write(0), _last_update(0) {
+                    _io_read(0), _io_write(0) {
         _name[0] = '\0';
         _cmdline[0] = '\0';
     }

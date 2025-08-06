@@ -700,20 +700,17 @@ class Recording {
         return info->_cpu_percent >= MIN_CPU_THRESHOLD || info->_vm_rss >= MIN_MEMORY_THRESHOLD_KB;
     }
 
-    void populateCpuPercent(ProcessInfo* info) {
-        int pid = info->_pid;
+    void populateCpuPercent(ProcessInfo* info, u64 sampling_time) {
         u64 current_cpu_total = info->_cpu_user + info->_cpu_system;
-        u64 current_time = info->_last_update;
-
-        ProcessHistory& history = _process_history[pid];
+        ProcessHistory& history = _process_history[info->_pid];
         if (history.prev_timestamp == 0) {
             history.prev_cpu_total = current_cpu_total;
-            history.prev_timestamp = current_time;
+            history.prev_timestamp = sampling_time;
             return;
         }
 
         u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
-        u64 delta_time = current_time - history.prev_timestamp;
+        u64 delta_time = sampling_time - history.prev_timestamp;
         float cpu_percent = 0.0F;
 
         if (delta_time > 0) {
@@ -726,7 +723,7 @@ class Recording {
 
         info->_cpu_percent = cpu_percent;
         history.prev_cpu_total = current_cpu_total;
-        history.prev_timestamp = current_time;
+        history.prev_timestamp = sampling_time;
     }
 
   void cleanupProcessHistory(const int* activePids, int pidCount) {
@@ -747,8 +744,8 @@ class Recording {
             return false;
         }
 
-        u64 start_time = OS::nanotime();
-        u64 deadline_ns = start_time + MAX_TIME_NS;
+        u64 sampling_time = OS::nanotime();
+        u64 deadline_ns = sampling_time + MAX_TIME_NS;
         int pids[MAX_PROCESSES];
         int pid_count = OS::getProcessIds(pids, MAX_PROCESSES);
         cleanupProcessHistory(pids, pid_count);
@@ -761,12 +758,11 @@ class Recording {
 
             ProcessInfo info;
             if (OS::getBasicProcessInfo(pids[i], &info)) {
-                info._last_update = start_time;
-                populateCpuPercent(&info);
+                populateCpuPercent(&info, sampling_time);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(&info)) {
                     OS::getDetailedProcessInfo(&info);
                     flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                    recordProcessSample(&_proc_buf, &info);
+                    recordProcessSample(&_proc_buf, &info, sampling_time);
                 }
             }
         }
@@ -1419,10 +1415,10 @@ class Recording {
         buf->putVar32(start, buf->offset() - start);
     }
 
-    void recordProcessSample(Buffer* buf, const ProcessInfo* info) {
+    void recordProcessSample(Buffer* buf, const ProcessInfo* info, u64 sampling_time) {
         int start = buf->skip(5);
         buf->put8(T_PROCESS_SAMPLE);
-        buf->putVar64(info->_last_update);
+        buf->putVar64(sampling_time);
 
         buf->putVar32(info->_pid);
         buf->putVar32(info->_ppid);
