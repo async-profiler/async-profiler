@@ -758,7 +758,7 @@ class Recording {
         cleanupProcessHistory(pids, pid_count);
 
         for (int i = 0; i < pid_count; i++) {
-            if ((i & 7) == 0 && OS::nanotime() > deadline_ns) {
+            if (OS::nanotime() > deadline_ns) {
                 Log::debug("Incomplete process sampling cycle.");
                 break;
             }

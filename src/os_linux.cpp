@@ -494,7 +494,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     char comm[COMM_LEN] = {0};
     char state;
     u64  minflt, majflt, utime, stime;
-    u64 starttime64;
+    u64 starttime;
     u64 vsize, rss;
     int  threads;
 
@@ -513,7 +513,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
                         "%llu",                   /*  24 rss                                  */
         &parsed_pid, comm, &state, &parsed_ppid,
         &minflt, &majflt, &utime, &stime,
-        &threads, &starttime64, &vsize, &rss);
+        &threads, &starttime, &vsize, &rss);
 
     if (parsed < 12) return false;
 
@@ -527,7 +527,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     info->_cpu_user      = utime;
     info->_cpu_system    = stime;
     info->_threads       = threads;
-    info->_start_time    = starttime64;
+    info->_start_time    = starttime;
     // (23) vsize convert from bytes to kB
     info->_vm_size      = vsize >> 10;
     //(24) rss - convert from number of pages to kB
