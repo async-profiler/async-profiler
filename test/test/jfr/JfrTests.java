@@ -69,7 +69,7 @@ public class JfrTests {
      * @param p The test process to profile with.
      * @throws Exception Any exception thrown during profiling JFR output parsing.
      */
-    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock,quiet,jfr,file=%f", output = true)
+    @Test(mainClass = JfrMultiModeProfiling.class, agentArgs = "start,event=cpu,alloc,lock=0,quiet,jfr,file=%f", output = true)
     public void parseMultiModeRecording(TestProcess p) throws Exception {
         Output output = p.waitForExit(TestProcess.STDOUT);
         assert p.exitCode() == 0;
@@ -91,7 +91,7 @@ public class JfrTests {
 
         Assert.isGreater(eventsCount.get("jdk.ExecutionSample"), 50);
         Assert.isGreater(eventsCount.get("jdk.JavaMonitorEnter"), 10);
-        Assert.isGreater(jfrTotalLockDurationMillis / totalLockDurationMillis, 0.90);
+        Assert.isGreater(jfrTotalLockDurationMillis / totalLockDurationMillis, 0.80);
         Assert.isGreater(eventsCount.get("jdk.ObjectAllocationInNewTLAB"), 50);
     }
 

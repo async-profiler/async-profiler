@@ -12,11 +12,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Process to simulate lock contention and allocate objects.
@@ -42,8 +42,9 @@ public class JfrMultiModeProfiling {
         }
         allocate();
         executor.shutdown();
+        executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        threadLockTimes.forEach((key, value) -> System.out.println(value));
+        threadLockTimes.values().forEach(System.out::println);
     }
 
     private static void cpuIntensiveIncrement() {
