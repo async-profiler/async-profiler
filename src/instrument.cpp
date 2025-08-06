@@ -703,7 +703,7 @@ char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
 u64 Instrument::_latency;
-u64 Instrument::_method_start_ns;
+thread_local u64 Instrument::_method_start_ns;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
