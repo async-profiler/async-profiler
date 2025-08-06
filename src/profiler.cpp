@@ -693,7 +693,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     VMThread* vm_thread;
-    if (_otel_initialized && getCurrentCompileTask() == NULL && (vm_thread = VMThread::current()) != NULL) {
+    if (_otel_initialized && (vm_thread = VMThread::current()) != NULL && vm_thread->inJava()) {
         JNIEnv* jni = VM::jni();
         if (jni != NULL) {
             jobject current_span = jni->CallStaticObjectMethod(_span_class, _span_current_method);
