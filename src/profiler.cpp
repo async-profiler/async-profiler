@@ -692,6 +692,57 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
+   VMThread* vm_thread = VMThread::current();
+    if (vm_thread != NULL) {
+        JNIEnv* jni = VM::jni();
+        if (jni != NULL) {
+            jni->PushLocalFrame(16);
+            
+            jclass spanClass = jni->FindClass("io/opentelemetry/api/trace/Span");
+            if (spanClass != NULL && !jni->ExceptionCheck()) {
+                jmethodID currentMethod = jni->GetStaticMethodID(spanClass, "current", "()Lio/opentelemetry/api/trace/Span;");
+                if (currentMethod != NULL && !jni->ExceptionCheck()) {
+                    jobject currentSpan = jni->CallStaticObjectMethod(spanClass, currentMethod);
+                    if (currentSpan != NULL && !jni->ExceptionCheck()) {
+                        jmethodID getSpanContextMethod = jni->GetMethodID(spanClass, "getSpanContext", "()Lio/opentelemetry/api/trace/SpanContext;");
+                        if (getSpanContextMethod != NULL && !jni->ExceptionCheck()) {
+                            jobject spanContext = jni->CallObjectMethod(currentSpan, getSpanContextMethod);
+                            if (spanContext != NULL && !jni->ExceptionCheck()) {
+                                jclass spanContextClass = jni->FindClass("io/opentelemetry/api/trace/SpanContext");
+                                if (spanContextClass != NULL && !jni->ExceptionCheck()) {
+                                    jmethodID getTraceIdMethod = jni->GetMethodID(spanContextClass, "getTraceId", "()Ljava/lang/String;");
+                                    jmethodID getSpanIdMethod = jni->GetMethodID(spanContextClass, "getSpanId", "()Ljava/lang/String;");
+                                    
+                                    if (getTraceIdMethod != NULL && getSpanIdMethod != NULL && !jni->ExceptionCheck()) {
+                                        jstring traceIdStr = (jstring)jni->CallObjectMethod(spanContext, getTraceIdMethod);
+                                        jstring spanIdStr = (jstring)jni->CallObjectMethod(spanContext, getSpanIdMethod);
+                                        
+                                        if (traceIdStr && spanIdStr && !jni->ExceptionCheck()) {
+                                            const char* traceId = jni->GetStringUTFChars(traceIdStr, NULL);
+                                            const char* spanId = jni->GetStringUTFChars(spanIdStr, NULL);
+                                            
+                                            if (traceId && spanId) {
+                                                printf("TRACE_ID: %s, SPAN_ID: %s\n", traceId, spanId);
+                                            }
+                                            
+                                            if (traceId) jni->ReleaseStringUTFChars(traceIdStr, traceId);
+                                            if (spanId) jni->ReleaseStringUTFChars(spanIdStr, spanId);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (jni->ExceptionCheck()) {
+                jni->ExceptionClear();
+            }
+            jni->PopLocalFrame(NULL);
+        }
+    }
+    
     if (stack_walk_begin != 0) {
         u64 stack_walk_end = OS::nanotime();
         atomicInc(_total_stack_walk_time, stack_walk_end - stack_walk_begin);
