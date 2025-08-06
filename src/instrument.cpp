@@ -11,6 +11,7 @@
 #include "classfile_constants.h"
 #include "incbin.h"
 #include "log.h"
+#include "os.h"
 #include "profiler.h"
 #include "tsc.h"
 #include "vmEntry.h"
@@ -702,6 +703,7 @@ char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
 u64 Instrument::_latency;
+u64 Instrument::_method_start_ns;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
@@ -825,6 +827,10 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
+    if (_latency > 0) {
+        _method_start_ns = OS::nanotime();
+        return;
+    }
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
         ExecutionEvent event(TSC::ticks());
         Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
@@ -834,8 +840,9 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
-    if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
+    // TODO: does not account for recursive methods?
+    if (OS::nanotime() - _method_start_ns >= _latency) {
         ExecutionEvent event(TSC::ticks());
-        Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
+        Profiler::instance()->recordSample(NULL, 1, INSTRUMENTED_METHOD, &event);
     }
 }
