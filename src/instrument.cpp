@@ -472,7 +472,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         bool is_narrow = isNarrowJump(*new_jump_base_ptr);
         int32_t old_offset;
         if (is_narrow) {
-            old_offset = (int32_t) ntohs(*(u16*)(code + old_jump_offset_idx));
+            old_offset = (int32_t) (int16_t) ntohs(*(u16*)(code + old_jump_offset_idx));
         } else {
             old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
         }
