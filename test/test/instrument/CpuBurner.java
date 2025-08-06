@@ -29,7 +29,7 @@ public class CpuBurner {
         Thread t2 = new Thread(() -> {
             burn(Duration.ofMillis(300));
             burn(Duration.ofMillis(30));
-            burn(Duration.ofMillis(200));
+            burn(Duration.ofMillis(150));
         }, "thread2");
         Thread t3 = new Thread(() -> burn(Duration.ofMillis(50)), "thread3");
         Thread t4 = new Thread(() -> burn(Duration.ofMillis(10)), "thread4");
