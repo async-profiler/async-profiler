@@ -4,6 +4,7 @@
  */
 
 #include "safeAccess.h"
+#include "stackFrame.h"
 
 #ifdef __clang__
 #  define NOINLINE __attribute__((noinline))

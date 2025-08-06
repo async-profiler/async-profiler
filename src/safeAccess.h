@@ -6,6 +6,8 @@
 #ifndef _SAFEACCESS_H
 #define _SAFEACCESS_H
 
+#include <stdint.h>
+
 class StackFrame;
 
 class SafeAccess {
