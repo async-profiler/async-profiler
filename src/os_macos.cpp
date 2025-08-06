@@ -406,6 +406,10 @@ bool OS::checkPreloaded() {
     return false;
 }
 
+u64 OS::getSysBootTime() {
+    return 0;
+}
+
 int OS::getProcessIds(int* pids, int max_pids) {
     return 0;
 }

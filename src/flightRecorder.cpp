@@ -489,6 +489,7 @@ class Recording {
     u64 _chunk_size;
     u64 _chunk_time;
     long _process_sampling_interval;
+    u64 _sys_boot_ts;
 
     int _available_processors;
     int _recorded_lib_count;
@@ -556,6 +557,7 @@ class Recording {
 
         if (args._proc > 0) {
             _process_sampling_interval = args._proc * 1000000;
+            _sys_boot_ts = OS::getSysBootTime();
         }
     }
 
@@ -758,18 +760,19 @@ class Recording {
         cleanupProcessHistory(pids, pid_count);
 
         for (int i = 0; i < pid_count; i++) {
-            if (OS::nanotime() > deadline_ns) {
+            u64 _proc_sampling_time_ns = OS::nanotime();
+            if (_proc_sampling_time_ns > deadline_ns) {
                 Log::debug("Incomplete process sampling cycle.");
                 break;
             }
 
             ProcessInfo info;
             if (OS::getBasicProcessInfo(pids[i], &info)) {
-                populateCpuPercent(info, sampling_time);
+                populateCpuPercent(info, _proc_sampling_time_ns);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(info)) {
                     OS::getDetailedProcessInfo(&info);
                     flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                    recordProcessSample(&_proc_buf, &info, sampling_time);
+                    recordProcessSample(&_proc_buf, &info, _proc_sampling_time_ns);
                 }
             }
         }
@@ -1434,8 +1437,9 @@ class Recording {
 
         buf->putVar32(info->_uid);
         buf->put8(info->_state);
-        buf->putVar64(info->_start_time);
 
+        u64 ps_start_time = _sys_boot_ts + info->_start_time / OS::clock_ticks_per_sec;
+        buf->putVar64(ps_start_time);
         buf->putVar64(info->_cpu_user / OS::clock_ticks_per_sec);
         buf->putVar64(info->_cpu_system / OS::clock_ticks_per_sec);
         buf->putFloat(info->_cpu_percent);
