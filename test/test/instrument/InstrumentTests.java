@@ -6,7 +6,7 @@ public class InstrumentTests {
 
     @Test(
             mainClass = CpuBurner.class,
-            agentArgs = "start,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
+            agentArgs = "start,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f"
     )
     public void testCompTask(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
