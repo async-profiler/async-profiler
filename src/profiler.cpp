@@ -692,12 +692,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
-   VMThread* vm_thread = VMThread::current();
-    if (vm_thread != NULL) {
+    VMThread* vm_thread;
+    if (getCurrentCompileTask() == NULL && (vm_thread = VMThread::current()) != NULL) {
         JNIEnv* jni = VM::jni();
-        if (jni != NULL) {
-            jni->PushLocalFrame(16);
-            
+        if (jni != NULL) {            
             jclass spanClass = jni->FindClass("io/opentelemetry/api/trace/Span");
             if (spanClass != NULL && !jni->ExceptionCheck()) {
                 jmethodID currentMethod = jni->GetStaticMethodID(spanClass, "current", "()Lio/opentelemetry/api/trace/Span;");
@@ -739,7 +737,6 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
             if (jni->ExceptionCheck()) {
                 jni->ExceptionClear();
             }
-            jni->PopLocalFrame(NULL);
         }
     }
     
