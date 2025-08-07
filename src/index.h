@@ -19,9 +19,7 @@ class Index {
     size_t _start_index;
   
   public:
-    Index() : Index(0) {}
-
-    Index(size_t start_index) : _start_index(start_index) {
+    Index(size_t start_index = 0) : _start_index(start_index) {
         // The first index should contain the empty string
         indexOf("");
     }
