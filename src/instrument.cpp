@@ -710,7 +710,7 @@ bool BytecodeRewriter::rewriteClass() {
 char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
-u64 Instrument::_latency;
+long Instrument::_latency;
 thread_local u64 Instrument::_method_start_ns;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
@@ -757,7 +757,7 @@ Error Instrument::start(Arguments& args) {
         _latency = args._latency;
         _interval = 0;
     } else {
-        _latency = 0;
+        _latency = -1;
         _interval = args._interval ? args._interval : 1;
     }
     _calls = 0;

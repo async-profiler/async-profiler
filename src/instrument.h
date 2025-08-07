@@ -16,7 +16,7 @@ class Instrument : public Engine {
     static char* _target_class;
     static bool _instrument_class_loaded;
     static u64 _interval;
-    static u64 _latency;
+    static long _latency;
     thread_local static u64 _method_start_ns;
     static volatile u64 _calls;
     static volatile bool _running;
