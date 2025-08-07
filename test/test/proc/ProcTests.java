@@ -31,6 +31,16 @@ public class ProcTests {
     }
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
+    public void processSamplingWithZeroFrequency(TestProcess p) throws Exception {
+        Output out = p.profile("--proc 0 -d 5 -f %f.jfr");
+        try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
+            List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
+
+            assert events.isEmpty();
+        }
+    }
+
+    @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingInterval(TestProcess p) throws Exception {
         long startTime = System.currentTimeMillis();
         Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
