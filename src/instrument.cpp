@@ -241,14 +241,14 @@ class BytecodeRewriter {
     void writeInvokeRecordSample(bool entry);
 
   public:
-    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency) :
+    BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency_profiling) :
         _src(class_data),
         _src_limit(class_data + class_data_len),
         _dst(NULL),
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
         _cpool(NULL),
-        _latency_profiling(latency) {
+        _latency_profiling(latency_profiling) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
