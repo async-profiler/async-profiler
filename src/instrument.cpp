@@ -232,6 +232,7 @@ class BytecodeRewriter {
     void writeRecordSampleInvocation();
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
+    void rewriteOffsetDelta(long& current_frame_old, const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
     void rewriteAttributes(Scope scope);
     void rewriteCodeAttributes(const u32* relocation_table);
@@ -503,12 +504,19 @@ void BytecodeRewriter::rewriteBytecodeTable(const u32* relocation_table, int dat
     }
 }
 
-#define UPDATE_OFFSET_DELTA(relocation_table)                                        \
-    long previous = current_frame_old;                                               \
-    current_frame_old += get16() + 1;                                                \
-    u64 previous_new = previous < 0 ? 0 : previous + relocation_table[previous];     \
-    u64 current_frame_new = current_frame_old + relocation_table[current_frame_old]; \
-    put16(current_frame_new - previous_new);
+void BytecodeRewriter::rewriteOffsetDelta(long& current_frame_old, const u32* relocation_table) {
+    if (current_frame_old < 0) {
+        current_frame_old = get16();
+        u64 current_frame_new = current_frame_old + relocation_table[current_frame_old];
+        put16(current_frame_new);
+    } else {
+        long previous_frame_old = current_frame_old;
+        current_frame_old += get16() + 1;
+        u64 previous_frame_new = previous_frame_old + relocation_table[previous_frame_old];
+        u64 current_frame_new = current_frame_old + relocation_table[current_frame_old];
+        put16(current_frame_new - previous_frame_new - 1);
+    }
+}
 
 void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
@@ -531,21 +539,21 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
-            UPDATE_OFFSET_DELTA(relocation_table)
+            rewriteOffsetDelta(current_frame_old, relocation_table);
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type <= 251) {
             // chop_frame or same_frame_extended
-            UPDATE_OFFSET_DELTA(relocation_table)
+            rewriteOffsetDelta(current_frame_old, relocation_table);
         } else if (frame_type <= 254) {
             // append_frame
-            UPDATE_OFFSET_DELTA(relocation_table)
+            rewriteOffsetDelta(current_frame_old, relocation_table);
             u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
             for (u8 j = 0; j < count; j++) {
                 rewriteVerificationTypeInfo(relocation_table);
             }
         } else {
             // full_frame
-            UPDATE_OFFSET_DELTA(relocation_table)
+            rewriteOffsetDelta(current_frame_old, relocation_table);
             u16 number_of_locals = get16();
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
