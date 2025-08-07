@@ -294,7 +294,7 @@ Error Arguments::parse(const char* args) {
                 }
 
             CASE("latency")
-                if (value == NULL || (_latency = parseUnits(value, UNIVERSAL)) <= 0) {
+                if (value == NULL || (_latency = parseUnits(value, UNIVERSAL)) < 0) {
                     msg = "Invalid latency";
                 }
 
