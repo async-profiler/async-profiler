@@ -849,9 +849,12 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
     // TODO: does not account for recursive methods?
-    u64 duration = OS::nanotime() - _method_start_ns;
-    if (duration >= _latency) {
-        ExecutionEvent event(TSC::ticks());
-        Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
+    if (_method_start_ns != 0) {
+        u64 duration = OS::nanotime() - _method_start_ns;
+        _method_start_ns = 0;
+        if (duration >= _latency) {
+            ExecutionEvent event(TSC::ticks());
+            Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
+        }
     }
 }
