@@ -835,7 +835,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
-    if (_latency > 0) {
+    if (_latency >= 0) {
         _method_start_ns = OS::nanotime();
         return;
     }
