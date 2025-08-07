@@ -45,7 +45,7 @@
 Profiler* const Profiler::_instance = new Profiler();
 
 static SigAction orig_trapHandler = NULL;
-static SigAction orig_segvHandler = NULL;
+static SigAction orig_crashHandler = NULL;
 
 static uintptr_t profiler_lib_start = 0;
 static uintptr_t profiler_lib_end = 0;
@@ -853,26 +853,14 @@ void Profiler::trapHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     }
 }
 
-void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
+void Profiler::crashHandler(int signo, siginfo_t* siginfo, void* ucontext) {
     StackFrame frame(ucontext);
+
+    if (SafeAccess::checkFault(frame)) {
+        return;
+    }
+
     uintptr_t pc = frame.pc();
-
-    uintptr_t length = SafeAccess::skipLoad(pc);
-    if (length > 0) {
-        // Skip the fault instruction, as if it successfully loaded NULL
-        frame.pc() += length;
-        frame.retval() = 0;
-        return;
-    }
-
-    length = SafeAccess::skipLoadArg(pc);
-    if (length > 0) {
-        // Act as if the load returned default_value argument
-        frame.pc() += length;
-        frame.retval() = frame.arg1();
-        return;
-    }
-
     if (pc >= profiler_lib_start && pc < profiler_lib_end) {
         StackWalker::checkFault();
     }
@@ -886,7 +874,7 @@ void Profiler::segvHandler(int signo, siginfo_t* siginfo, void* ucontext) {
         return;
     }
 
-    orig_segvHandler(signo, siginfo, ucontext);
+    orig_crashHandler(signo, siginfo, ucontext);
 }
 
 void Profiler::wakeupHandler(int signo) {
@@ -904,14 +892,14 @@ void Profiler::setupSignalHandlers() {
 
     // HotSpot tolerates interposed SIGSEGV/SIGBUS handler; other JVMs don't
     if (!VM::isOpenJ9() && !VM::isZing()) {
-        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)setupSignalHandlers);
+        CodeCache* profiler_lib = instance()->findLibraryByAddress((void*)crashHandler);
         if (profiler_lib != NULL) {
             // Record boundaries of our own library for the signal handler to check
             // if a crash has happened in the profiler code
             profiler_lib_start = (uintptr_t)profiler_lib->minAddress();
             profiler_lib_end = (uintptr_t)profiler_lib->maxAddress();
         }
-        orig_segvHandler = OS::replaceCrashHandler(segvHandler);
+        orig_crashHandler = OS::replaceCrashHandler(crashHandler);
     }
 
     OS::installSignalHandler(WAKEUP_SIGNAL, NULL, wakeupHandler);

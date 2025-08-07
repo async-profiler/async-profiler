@@ -502,7 +502,7 @@ class Recording {
         return true;
     }
 
-    const char* getFeaturesString(char* str, size_t size, StackWalkFeatures f) {
+    static const char* getFeaturesString(char* str, size_t size, StackWalkFeatures& f) {
         snprintf(str, size, "%s %s %s %s %s %s %s %s %s %s %s",
                  f.unknown_java  ? "unknown_java"  : "-",
                  f.unwind_stub   ? "unwind_stub"   : "-",
