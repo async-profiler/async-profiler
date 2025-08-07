@@ -16,10 +16,11 @@
 class Index {
   private:
     std::unordered_map<std::string, size_t> _idx_map;
+    size_t _start_index;
   
   public:
-    Index() {
-        // Index 0 should contain the empty string
+    Index(size_t start_index = 0) : _start_index(start_index) {
+        // The first index should contain the empty string
         indexOf("");
     }
 
@@ -37,11 +38,11 @@ class Index {
     }
 
     size_t indexOf(const std::string& value) {
-        return _idx_map.insert({value, _idx_map.size()}).first->second;
+        return _idx_map.insert({value, _start_index + _idx_map.size()}).first->second;
     }
 
     size_t indexOf(std::string&& value) {
-        return _idx_map.insert({std::move(value), _idx_map.size()}).first->second;
+        return _idx_map.insert({std::move(value), _start_index + _idx_map.size()}).first->second;
     }
 
     size_t size() const {
@@ -51,10 +52,10 @@ class Index {
     void forEachOrdered(const std::function<void(size_t idx, const std::string&)>& consumer) const {
         std::vector<const std::string*> arr(_idx_map.size());
         for (const auto& it : _idx_map) {
-            arr[it.second] = &it.first;
+            arr[it.second - _start_index] = &it.first;
         }
         for (size_t idx = 0; idx < size(); ++idx) {
-            consumer(idx, *arr[idx]);
+            consumer(idx + _start_index, *arr[idx]);
         }
     }
 };
