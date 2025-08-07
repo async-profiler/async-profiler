@@ -784,8 +784,8 @@ class Recording {
 
         buf->putVar32(11);
 
-        Index packages;
-        Index symbols;
+        Index packages(1);
+        Index symbols(1);
         Lookup lookup(&_method_map, Profiler::instance()->classMap(), &packages, &symbols, OUTPUT_JFR);
         writeFrameTypes(buf);
         writeThreadStates(buf);
