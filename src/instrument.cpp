@@ -134,7 +134,7 @@ class BytecodeRewriter {
     const char* _target_signature;
     u16 _target_signature_len;
 
-    bool _latency = false;
+    bool _latency_profiling = false;
 
     // Reader
 
@@ -248,7 +248,7 @@ class BytecodeRewriter {
         _dst_len(0),
         _dst_capacity(class_data_len + 400),
         _cpool(NULL),
-        _latency(latency) {
+        _latency_profiling(latency) {
 
         _target_class = target_class;
         _target_class_len = strlen(_target_class);
@@ -322,7 +322,7 @@ void BytecodeRewriter::rewriteCode() {
     u32* relocation_table = new u32[code_length];
 
     u32 relocation;
-    if (_latency) {
+    if (_latency_profiling) {
         relocation = rewriteCodeForLatency(code, code_length, relocation_table);
     } else {
         writeInvokeRecordSample(true);
@@ -827,7 +827,7 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     if (!_running) return;
 
     if (name == NULL || strcmp(name, _target_class) == 0) {
-        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency > 0);
+        BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency >= 0);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
 }
