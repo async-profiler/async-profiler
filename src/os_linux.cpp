@@ -615,16 +615,16 @@ static bool readProcessIO(int pid, ProcessInfo* info) {
         return false;
     }
 
-    char line[256];
+    char line[1024];
     while (fgets(line, sizeof(line), file)) {
         if (strncmp(line, "read_bytes:", 11) == 0) {
-            unsigned long read_bytes;
-            if (sscanf(line + 11, "%lu", &read_bytes) == 1) {
+            u64 read_bytes;
+            if (sscanf(line + 11, "%llu", &read_bytes) == 1) {
                 info->_io_read = read_bytes >> 10;
             }
         } else if (strncmp(line, "write_bytes:", 12) == 0) {
-            unsigned long write_bytes;
-            if (sscanf(line + 12, "%lu", &write_bytes) == 1) {
+            u64 write_bytes;
+            if (sscanf(line + 12, "%llu", &write_bytes) == 1) {
                 info->_io_write = write_bytes >> 10;
             }
         }

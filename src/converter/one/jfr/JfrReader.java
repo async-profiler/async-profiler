@@ -566,6 +566,7 @@ public class JfrReader implements Closeable {
         registerEvent("jdk.GCHeapSummary", GCHeapSummary.class);
         registerEvent("jdk.ObjectCount", ObjectCount.class);
         registerEvent("jdk.ObjectCountAfterGC", ObjectCount.class);
+        registerEvent("profiler.ProcessSample", ProcessSample.class);
     }
 
     private int getTypeId(String typeName) {
@@ -618,6 +619,10 @@ public class JfrReader implements Closeable {
 
     public double getDouble() {
         return buf.getDouble();
+    }
+
+    public byte getByte() {
+        return buf.get();
     }
 
     public String getString() {

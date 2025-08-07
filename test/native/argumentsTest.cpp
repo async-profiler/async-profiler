@@ -63,3 +63,25 @@ TEST_CASE(Parse_override_before_all_mode) {
     ASSERT_EQ(args._live, true);
     ASSERT_EQ(args._proc, 10);
 }
+
+TEST_CASE(Parse_proc_standalone) {
+    Arguments args;
+    char argument[] = "start,proc=5,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ(args._proc, 5);
+    ASSERT_EQ(args._all, false);
+}
+
+TEST_CASE(Parse_proc_default_value) {
+    Arguments args;
+    char argument[] = "start,proc,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ(args._proc, DEFAULT_PROC_INTERVAL);
+}
+
+TEST_CASE(Parse_proc_with_units) {
+    Arguments args;
+    char argument[] = "start,proc=2m,file=%f.jfr";
+    Error error = args.parse(argument);
+    ASSERT_EQ(args._proc, 120);
+}
