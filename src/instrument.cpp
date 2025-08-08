@@ -293,9 +293,23 @@ static inline bool isWideJump(u8 opcode) {
 
 static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
-    if (code[index] != JVM_OPC_wide) return OPCODE_LENGTH[code[index]];
-    if (code[index+1] == JVM_OPC_iinc) return 6;
-    return 4;
+    u8 opcode = code[index];
+    if (opcode == JVM_OPC_wide) {
+        if (code[index+1] == JVM_OPC_iinc) return 6;
+        return 4;
+    }
+    if (opcode == JVM_OPC_tableswitch) {
+        u32 default_index = ((i + 3) / 4) * 4;
+        int32_t l = ntohl(*(u32*)(code + default_index + 4));
+        int32_t h = ntohl(*(u32*)(code + default_index + 8));
+        return default_index - i + (3 + (h - l + 1)) * 4;
+    }
+    if (opcode == JVM_OPC_lookupswitch) {
+        u32 default_index = ((i + 3) / 4) * 4;
+        u32 npairs = ntohl(*(u32*)(code + default_index + 4));
+        return default_index - i + npairs * 8;
+    }
+    return OPCODE_LENGTH[opcode];
 }
 
 void BytecodeRewriter::writeInvokeRecordSample(bool entry) {
