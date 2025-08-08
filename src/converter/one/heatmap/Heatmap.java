@@ -28,8 +28,8 @@ public class Heatmap {
         this.state = new State(converter, BLOCK_DURATION_MS, args);
     }
 
-    public void addEvent(int stackTraceId, int threadId, int extra, byte type, long timeMs) {
-        state.addEvent(stackTraceId, threadId, extra, type, timeMs);
+    public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
+        state.addEvent(stackTraceId, threadId, classId, type, timeMs);
     }
 
     public void addStack(long id, long[] methods, int[] locations, byte[] types, int size) {
@@ -403,19 +403,19 @@ public class Heatmap {
             this.args = args;
         }
 
-        public void addEvent(int stackTraceId, int threadId, int extra, byte type, long timeMs) {
+        public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
             if (sampleList.getRecordsCount() >= LIMIT) {
                 return;
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            if (extra == 0 && !args.threads) {
+            if (classId == 0 && !args.threads) {
                 sampleList.add(prototypeId, timeMs);
                 return;
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + (args.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
+            int stackSize = prototype.length + (args.threads ? 1 : 0) + (classId != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
@@ -429,10 +429,10 @@ public class Heatmap {
                 System.arraycopy(prototype, 0, cachedStackTrace, 0, prototype.length);
             }
 
-            if (extra != 0) {
-                long id = (long) extra << 32 | 1L << 63;
+            if (classId != 0) {
+                long id = (long) classId << 32 | 1L << 63;
                 MethodKey key = new MethodKey(id, -1, type, false);
-                Integer threadFrameIndex = getMethodIndex(key, () -> createExtraMethod(key, extra));
+                Integer threadFrameIndex = getMethodIndex(key, () -> createClassMethod(key, classId));
                 cachedStackTrace[stackSize - 1] = threadFrameIndex;
             }
 
@@ -474,8 +474,8 @@ public class Heatmap {
             return new Method(key.methodId, className, methodName, key.getLocation(), key.getType(), key.getFirstInStack());
         }
 
-        private Method createExtraMethod(MethodKey key, int extra) {
-            String javaClassName = converter.getClassName(extra);
+        private Method createClassMethod(MethodKey key, int classId) {
+            String javaClassName = converter.getClassName(classId);
             return new Method(key.methodId, symbolTable.index(javaClassName), 0, key.getLocation(),
                     key.getType(), key.getFirstInStack());
         }

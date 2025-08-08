@@ -32,20 +32,20 @@ public class JfrToHeatmap extends JfrConverter {
         return new EventCollector() {
             @Override
             public void collect(Event event) {
-                int extra = 0;
+                int classId = 0;
                 byte type = 0;
                 if (event instanceof AllocationSample) {
-                    extra = ((AllocationSample) event).classId;
+                    classId = ((AllocationSample) event).classId;
                     type = ((AllocationSample) event).tlabSize == 0 ? TYPE_KERNEL : TYPE_INLINED;
                 } else if (event instanceof ContendedLock) {
-                    extra = ((ContendedLock) event).classId;
+                    classId = ((ContendedLock) event).classId;
                     type = TYPE_KERNEL;
                 }
 
                 long msFromStart = (event.time - jfr.chunkStartTicks) * 1_000 / jfr.ticksPerSec;
                 long timeMs = jfr.chunkStartNanos / 1_000_000 + msFromStart;
 
-                heatmap.addEvent(event.stackTraceId, event.tid, extra, type, timeMs);
+                heatmap.addEvent(event.stackTraceId, event.tid, classId, type, timeMs);
             }
 
             @Override
