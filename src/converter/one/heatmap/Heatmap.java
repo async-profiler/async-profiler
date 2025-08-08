@@ -8,7 +8,6 @@ package one.heatmap;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 import one.convert.*;
@@ -391,17 +390,17 @@ public class Heatmap {
         final Map<MethodKey, Integer> methodCache = new HashMap<>();
         final Index<Method> methods = new Index<>(Method.class, Method.EMPTY);
         final Index<String> symbolTable = new Index<>(String.class, "");
-        final Arguments arguments;
+        final Arguments args;
 
         final JfrConverter converter;
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(JfrConverter converter, long blockDurationMs, Arguments arguments) {
+        State(JfrConverter converter, long blockDurationMs, Arguments args) {
             sampleList = new SampleList(blockDurationMs);
             this.converter = converter;
-            this.arguments = arguments;
+            this.args = args;
         }
 
         public void addEvent(int stackTraceId, int threadId, int extra, byte type, long timeMs) {
@@ -410,17 +409,17 @@ public class Heatmap {
             }
 
             int prototypeId = stackTracesCache.get(stackTraceId);
-            if (extra == 0 && !arguments.threads) {
+            if (extra == 0 && !args.threads) {
                 sampleList.add(prototypeId, timeMs);
                 return;
             }
 
             int[] prototype = stackTracesRemap.get(prototypeId);
-            int stackSize = prototype.length + (arguments.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
+            int stackSize = prototype.length + (args.threads ? 1 : 0) + (extra != 0 ? 1 : 0);
             if (cachedStackTrace.length < stackSize) {
                 cachedStackTrace = new int[stackSize * 2];
             }
-            if (arguments.threads) {
+            if (args.threads) {
                 long id = (long) threadId << 32 | 1L << 63;
                 MethodKey key = new MethodKey(id, -1, Frame.TYPE_NATIVE, true);
                 Integer threadFrameIndex = getMethodIndex(key, () -> createThreadMethod(key, threadId));
@@ -453,8 +452,8 @@ public class Heatmap {
                 int index = size - 1 - i;
                 boolean firstMethodInTrace = index == 0;
 
-                // When arguments.threads is true, the first frame is the artificial thread frame
-                boolean firstFrameInStack = firstMethodInTrace && !arguments.threads;
+                // When args.threads is true, the first frame is the artificial thread frame
+                boolean firstFrameInStack = firstMethodInTrace && !args.threads;
 
                 MethodKey key = new MethodKey(methodId, location, type, firstFrameInStack);
                 Integer threadFrameIndex = getMethodIndex(key, () -> createMethod(key));
