@@ -19,6 +19,7 @@
 
 constexpr u32 MAX_CODE_SEGMENT_BYTES = 65534;
 constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
+constexpr int16_t INT16_T_MAX_VALUE = 0x7fff;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
@@ -395,27 +396,18 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
-        if (isNarrowJump(opcode)) {
-            jumps.push_back((i + 1ULL) << 32 | i);
-
-            int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
-            if (max_relocation > std::numeric_limits<int16_t>::max() - offset) {
-                current_relocation += 2;
-                put8(opcode == JVM_OPC_goto ? JVM_OPC_goto_w : JVM_OPC_jsr_w);
-                put16(0);
-            } else {
-                put8(opcode);
-            }
-            put16(0);
-
-            for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
-                relocation_table[i++] = current_relocation;
-            }
-            continue;
-        }
-
         if (isFunctionExit(opcode)) {
             writeInvokeRecordSample(false);
+        } else if (isNarrowJump(opcode)) {
+            jumps.push_back((i + 1ULL) << 32 | i);
+            int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
+            if (max_relocation > INT16_T_MAX_VALUE - offset) {
+                Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting");
+                _dst_len = code_segment_begin;
+                put(code, code_length);
+                for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
+                return 0;
+            }
         } else if (isWideJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
