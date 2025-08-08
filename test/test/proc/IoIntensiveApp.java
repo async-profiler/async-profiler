@@ -26,7 +26,7 @@ public class IoIntensiveApp {
     public static void main(String[] args) throws Exception {
         Path tmp = Files.createTempFile("proc-test", ".tmp");
 
-        // burn some cpu so we jfr includes it
+        // burn some cpu to pass min cpu % threshold
         new Thread(() -> {
                 while (true) {
                     long n = random.nextLong();
@@ -55,7 +55,9 @@ public class IoIntensiveApp {
         }
 
         byte[] reread = Files.readAllBytes(tmp);
-        System.out.println("Read " + reread.length + " bytes.");
+        if (reread.length == 0) {
+            System.out.println("Read " + reread.length + " bytes.");
+        }
         Thread.sleep(20000);
     }
 }

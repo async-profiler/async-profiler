@@ -53,13 +53,6 @@ const float MIN_CPU_THRESHOLD = 5.0F;     // Minimum % cpu utilization to includ
 const u64 MIN_RSS_PERCENT_THRESHOLD = 5.0F; // Minimum % rss usage to include results
 const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
-// debug start
-static double min_ms = 10000000;
-static double max_ms = 0.0;
-static double sum_ms = 0.0;
-static double total = 0.0;
-// debug end
-
 enum GCWhen {
     BEFORE_GC,
     AFTER_GC
@@ -1590,7 +1583,6 @@ Error FlightRecorder::start(Arguments& args, bool reset) {
 }
 
 void FlightRecorder::stop() {
-    fprintf(stderr, "Time(ms): avg = %f | max = %f | min = %f\n", sum_ms / total, max_ms, min_ms);
     if (_rec != NULL) {
         _rec_lock.lock();
 
@@ -1631,18 +1623,7 @@ bool FlightRecorder::timerTick(u64 wall_time, u32 gc_id) {
     _rec->heapMonitorCycle(gc_id);
 
 #ifdef __linux__
-    // Process monitoring is only implemented for Linux
-    u64 start_time = OS::nanotime();
-    if (_rec->processMonitorCycle(wall_time) == true) {
-        u64 fin_time = OS::nanotime();
-        u64 delta_ns = fin_time - start_time;
-        double delta_ms = static_cast<double>(delta_ns) / 1000000.0;
-        if (delta_ms > max_ms) max_ms = delta_ms;
-        if (delta_ms < min_ms) min_ms = delta_ms;
-        sum_ms += delta_ms;
-        total += 1;
-        fprintf(stderr, "processMonitorCycle took %.3f ms\n", delta_ms);
-    }
+    _rec->processMonitorCycle(wall_time);
 #endif
 
     bool need_switch_chunk = _rec->needSwitchChunk(wall_time);
