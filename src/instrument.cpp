@@ -18,7 +18,6 @@
 #include "instrument.h"
 
 constexpr u32 MAX_CODE_SEGMENT_BYTES = 65534;
-constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
 constexpr int16_t INT16_T_MAX_VALUE = 0x7fff;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
@@ -292,6 +291,13 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
+static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
+    static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
+    if (code[index] != JVM_OPC_wide) return OPCODE_LENGTH[code[index]];
+    if (code[index+1] == JVM_OPC_iinc) return 6;
+    return 4;
+}
+
 void BytecodeRewriter::writeInvokeRecordSample(bool entry) {
     // invokestatic "one/profiler/Instrument.recordSample()V"
     put8(JVM_OPC_invokestatic);
@@ -370,7 +376,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         } else if (isNarrowJump(opcode)) {
             max_relocation += 2;
         }
-        i += OPCODE_LENGTH[opcode];
+        i += computeInstructionByteCount(code, i);
     }
 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
@@ -439,7 +445,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
                 jumps.push_back((pair_base + 4) << 32 | i);
             }
         }
-        for (u32 args_idx = 0; args_idx < OPCODE_LENGTH[opcode]; ++args_idx) {
+        for (u32 args_idx = 0; args_idx < computeInstructionByteCount(code, i); ++args_idx) {
             relocation_table[i] = current_relocation;
             put8(code[i++]);
         }
