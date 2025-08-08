@@ -6,18 +6,15 @@
 package test.proc;
 
 import java.util.Random;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
+import com.sun.nio.file.ExtendedOpenOption;
 
 public class IoIntensiveApp {
     private static final Random random = new Random();
@@ -36,28 +33,30 @@ public class IoIntensiveApp {
                 }
         }).start();
 
-        final int SIZE = 64 * 1024 * 1024;
-        byte[] payload = new byte[SIZE];
+        // write
+        byte[] payload = new byte[BLOCK];
         new SecureRandom().nextBytes(payload);
 
-        try (FileChannel ch = FileChannel.open(
-                 tmp,
-                 StandardOpenOption.CREATE,
-                 StandardOpenOption.TRUNCATE_EXISTING,
-                 StandardOpenOption.WRITE)) {
+         try (FileChannel ch = FileChannel.open(
+                  tmp,
+                  StandardOpenOption.CREATE,
+                  StandardOpenOption.TRUNCATE_EXISTING,
+                  StandardOpenOption.WRITE,
+                  ExtendedOpenOption.DIRECT)) {
+             ByteBuffer buf = ByteBuffer.wrap(payload);
+             while (buf.hasRemaining()) {
+                 ch.write(buf);
+             }
 
-            ByteBuffer buf = ByteBuffer.wrap(payload);
-            while (buf.hasRemaining()) {
-                ch.write(buf);
-            }
+             ch.force(true);
+         }
 
-            ch.force(true);
-        }
+         //read
+         try(FileChannel f = FileChannel.open(tmp, ExtendedOpenOption.DIRECT)) {
+             ByteBuffer b = ByteBuffer.allocate(BLOCK);
+             f.read(b);
+         }
 
-        byte[] reread = Files.readAllBytes(tmp);
-        if (reread.length == 0) {
-            System.out.println("Read " + reread.length + " bytes.");
-        }
-        Thread.sleep(20000);
+         Thread.sleep(20000);
     }
 }

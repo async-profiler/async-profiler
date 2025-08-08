@@ -5,13 +5,14 @@
 
 package test.proc;
 
-import java.util.stream.Collectors;
 import one.jfr.JfrReader;
 import one.jfr.event.ProcessSample;
 import one.profiler.test.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Comparator;
 
 public class ProcTests {
 
@@ -97,12 +98,12 @@ public class ProcTests {
 
             ProcessSample sample  = events.stream()
                 .filter(e -> e.cmdLine != null && e.cmdLine.contains("IoIntensiveApp"))
-                .findAny()
+                .max(Comparator.comparingLong(e -> e.time))
                 .orElse(null);
 
             assert sample != null;
-            Assert.isGreaterOrEqual(sample.ioRead, 0);
-            Assert.isGreaterOrEqual(sample.ioWrite, 16384);
+            Assert.isGreaterOrEqual(sample.ioRead, 64*1024);
+            Assert.isGreaterOrEqual(sample.ioWrite, 64*1024);
         }
     }
 
