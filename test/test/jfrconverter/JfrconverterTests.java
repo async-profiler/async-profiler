@@ -18,14 +18,14 @@ public class JfrconverterTests {
     public void testAllocationHeatmapConversion(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
-        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("alloc"));
+        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
     public void testCpuHeatmapConversion(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
-        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("cpu"));
+        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--cpu"));
     }
 
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=%f")
