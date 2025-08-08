@@ -422,16 +422,14 @@ public class Heatmap {
 
             if (args.threads) {
                 MethodKey key = new MethodKey(threadId, -1, Frame.TYPE_NATIVE, true);
-                Integer threadFrameIndex = getMethodIndex(key, () -> createThreadMethod(key, threadId));
-                cachedStackTrace[0] = threadFrameIndex;
+                cachedStackTrace[0] = getMethodIndex(key, () -> createThreadMethod(key, threadId));
             }
 
             System.arraycopy(prototype, 0, cachedStackTrace, args.threads ? 1 : 0, prototype.length);
 
             if (classId != 0) {
                 MethodKey key = new MethodKey((long) classId << 32, -1, type, false);
-                Integer threadFrameIndex = getMethodIndex(key, () -> createClassMethod(key, classId));
-                cachedStackTrace[stackSize - 1] = threadFrameIndex;
+                cachedStackTrace[stackSize - 1] = getMethodIndex(key, () -> createClassMethod(key, classId));
             }
 
             sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
