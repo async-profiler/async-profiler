@@ -213,6 +213,9 @@ class Profiler {
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
 
+    void setTraceContext(const char* traceId, const char* spanId);
+    void clearTraceContext();
+
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
     const char* getLibraryName(const char* native_symbol);

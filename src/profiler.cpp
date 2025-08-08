@@ -65,6 +65,9 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
+// Thread-local storage for trace correlation
+thread_local std::string current_trace_id;
+thread_local std::string current_span_id;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -609,6 +612,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     atomicInc(_total_samples);
 
     int tid = OS::threadId();
+    printf("[RECORD_SAMPLE] tid=%d, traceId=%s, spanId=%s\n", 
+       tid, current_trace_id.c_str(), current_span_id.c_str());
     u32 lock_index = getLockIndex(tid);
     if (!_locks[lock_index].tryLock() &&
         !_locks[lock_index = (lock_index + 1) % CONCURRENCY_LEVEL].tryLock() &&
@@ -781,6 +786,18 @@ void Profiler::writeLog(LogLevel level, const char* message) {
 
 void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
     _jfr.recordLog(level, message, len);
+}
+
+void Profiler::setTraceContext(const char* traceId, const char* spanId) {
+    current_trace_id = traceId ? traceId : "";
+    current_span_id = spanId ? spanId : "";
+    printf("[TRACE_CONTEXT] tid=%d, traceId=%s, spanId=%s\n", OS::threadId(), traceId, spanId);
+}
+
+void Profiler::clearTraceContext() {
+    current_trace_id.clear();
+    current_span_id.clear();
+    printf("[TRACE_CONTEXT] tid=%d, context cleared\n", OS::threadId());
 }
 
 void* Profiler::dlopen_hook(const char* filename, int flags) {

@@ -30,4 +30,7 @@ public interface AsyncProfilerMXBean {
     String dumpTraces(int maxTraces);
     String dumpFlat(int maxMethods);
     byte[] dumpOtlp();
+
+    void setTraceContext(String traceId, String spanId);
+    void clearTraceContext();
 }

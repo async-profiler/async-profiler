@@ -281,6 +281,24 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
         }
     }
 
+    /**
+     * Set trace context for signal correlation
+     * @param traceId OpenTelemetry trace identifier
+     * @param spanId OpenTelemetry span identifier
+     */
+    @Override
+    public void setTraceContext(String traceId, String spanId) {
+        setTraceContext0(traceId, spanId);
+    }
+
+    /**
+     * Clear trace context for the current thread
+     */
+    @Override
+    public void clearTraceContext() {
+        clearTraceContext0();
+    }
+
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
     private native void stop0() throws IllegalStateException;
@@ -290,4 +308,8 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
     private native byte[] execute1(String command) throws IllegalArgumentException, IllegalStateException, IOException;
 
     private native void filterThread0(Thread thread, boolean enable);
+
+    private native void setTraceContext0(String traceId, String spanId);
+    
+    private native void clearTraceContext0();
 }
