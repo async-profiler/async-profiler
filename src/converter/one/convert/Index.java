@@ -45,13 +45,9 @@ public class Index<T> extends HashMap<T, Integer> {
     @SuppressWarnings("unchecked")
     public T[] keys() {
         T[] result = (T[]) Array.newInstance(cls, size());
-        keys(result);
-        return result;
-    }
-
-    public void keys(T[] result) {
         for (Entry<T, Integer> entry : entrySet()) {
             result[entry.getValue()] = entry.getKey();
         }
+        return result;
     }
 }
