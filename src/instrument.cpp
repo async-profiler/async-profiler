@@ -299,15 +299,15 @@ static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
         return 4;
     }
     if (opcode == JVM_OPC_tableswitch) {
-        u32 default_index = ((i + 3) / 4) * 4;
+        u32 default_index = ((index + 3) / 4) * 4;
         int32_t l = ntohl(*(u32*)(code + default_index + 4));
         int32_t h = ntohl(*(u32*)(code + default_index + 8));
-        return default_index - i + (3 + (h - l + 1)) * 4;
+        return default_index - index + (3 + (h - l + 1)) * 4;
     }
     if (opcode == JVM_OPC_lookupswitch) {
-        u32 default_index = ((i + 3) / 4) * 4;
+        u32 default_index = ((index + 3) / 4) * 4;
         u32 npairs = ntohl(*(u32*)(code + default_index + 4));
-        return default_index - i + npairs * 8;
+        return default_index - index + npairs * 8;
     }
     return OPCODE_LENGTH[opcode];
 }
