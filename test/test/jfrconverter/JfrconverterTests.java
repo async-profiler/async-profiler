@@ -12,8 +12,6 @@ import one.profiler.test.*;
 // we only verify that the conversion completes successfully.
 public class JfrconverterTests {
 
-    private static final String TMP_DIR = System.getProperty("java.io.tmpdir");
-
     @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
     public void testAllocationHeatmapConversion(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
