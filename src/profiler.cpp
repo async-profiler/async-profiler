@@ -790,31 +790,16 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 }
 
 void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
-    delete[] current_trace_id;
-    delete[] current_span_id;
+    free((void*)current_trace_id);
+    free((void*)current_span_id);
     
-    if (trace_id) {
-        size_t len = strlen(trace_id) + 1;
-        char* new_trace_id = new char[len];
-        strcpy(new_trace_id, trace_id);
-        current_trace_id = new_trace_id;
-    } else {
-        current_trace_id = nullptr;
-    }
-    
-    if (span_id) {
-        size_t len = strlen(span_id) + 1;
-        char* new_span_id = new char[len];
-        strcpy(new_span_id, span_id);
-        current_span_id = new_span_id;
-    } else {
-        current_span_id = nullptr;
-    }
+    current_trace_id = trace_id ? strdup(trace_id) : nullptr;
+    current_span_id = span_id ? strdup(span_id) : nullptr;
 }
 
 void Profiler::clearTraceContext() {
-    delete[] current_trace_id;
-    delete[] current_span_id;
+    free((void*)current_trace_id);
+    free((void*)current_span_id);
     current_trace_id = nullptr;
     current_span_id = nullptr;
 }
