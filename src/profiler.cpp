@@ -66,8 +66,8 @@ static Instrument instrument;
 static ProfilingWindow profiling_window;
 
 // Thread-local storage for trace correlation
-thread_local const char* current_trace_id;
-thread_local const char* current_span_id;
+thread_local char* current_trace_id;
+thread_local char* current_span_id;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -790,16 +790,16 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 }
 
 void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
-    free((void*)current_trace_id);
-    free((void*)current_span_id);
+    free(current_trace_id);
+    free(current_span_id);
     
     current_trace_id = trace_id ? strdup(trace_id) : nullptr;
     current_span_id = span_id ? strdup(span_id) : nullptr;
 }
 
 void Profiler::clearTraceContext() {
-    free((void*)current_trace_id);
-    free((void*)current_span_id);
+    free(current_trace_id);
+    free(current_span_id);
     current_trace_id = nullptr;
     current_span_id = nullptr;
 }
