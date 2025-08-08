@@ -478,8 +478,8 @@ public class Heatmap {
                     key.getType(), key.getFirstInStack());
         }
 
-        private Method createThreadMethod(MethodKey key, int tid) {
-            String threadName = converter.getThreadName(tid);
+        private Method createThreadMethod(MethodKey key, int threadId) {
+            String threadName = converter.getThreadName(threadId);
             return new Method(key.methodId, 0, symbolTable.index(threadName), key.getLocation(),
                     key.getType(), key.getFirstInStack());
         }
