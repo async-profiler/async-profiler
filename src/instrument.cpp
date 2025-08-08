@@ -344,8 +344,8 @@ void BytecodeRewriter::rewriteCode() {
         u16 handler_pc = get16();
         u16 catch_type = get16();
         put16(start_pc + relocation_table[start_pc]);
-        put16(start_pc + relocation_table[end_pc]);
-        put16(start_pc + relocation_table[handler_pc]);
+        put16(end_pc + relocation_table[end_pc]);
+        put16(handler_pc + relocation_table[handler_pc]);
         put16(catch_type);
     }
 
