@@ -467,18 +467,18 @@ public class Heatmap {
             StackTraceElement ste = converter.getStackTraceElement(key.methodId, key.getType(), key.getLocation());
             int className = symbolTable.index(ste.getClassName());
             int methodName = symbolTable.index(ste.getMethodName());
-            return new Method(key.methodId, className, methodName, key.getLocation(), key.getType(), key.getFirstInStack());
+            return new Method(className, methodName, key.getLocation(), key.getType(), key.getFirstInStack());
         }
 
         private Method createClassMethod(MethodKey key, int classId) {
             String javaClassName = converter.getClassName(classId);
-            return new Method(key.methodId, symbolTable.index(javaClassName), 0, key.getLocation(),
+            return new Method(symbolTable.index(javaClassName), 0, key.getLocation(),
                     key.getType(), key.getFirstInStack());
         }
 
         private Method createThreadMethod(MethodKey key, int threadId) {
             String threadName = converter.getThreadName(threadId);
-            return new Method(key.methodId, 0, symbolTable.index(threadName), key.getLocation(),
+            return new Method(0, symbolTable.index(threadName), key.getLocation(),
                     key.getType(), key.getFirstInStack());
         }
 
