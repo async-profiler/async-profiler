@@ -422,14 +422,14 @@ public class Heatmap {
 
             if (args.threads) {
                 MethodKey key = new MethodKey(MethodKeyType.THREAD, threadId, -1, Frame.TYPE_NATIVE, true);
-                cachedStackTrace[0] = getMethodIndex(key, threadId);
+                cachedStackTrace[0] = getMethodIndex(key);
             }
 
             System.arraycopy(prototype, 0, cachedStackTrace, args.threads ? 1 : 0, prototype.length);
 
             if (classId != 0) {
-                MethodKey key = new MethodKey(MethodKeyType.CLASS, (long) classId << 32, -1, type, false);
-                cachedStackTrace[stackSize - 1] = getMethodIndex(key, classId);
+                MethodKey key = new MethodKey(MethodKeyType.CLASS, classId, -1, type, false);
+                cachedStackTrace[stackSize - 1] = getMethodIndex(key);
             }
 
             sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
@@ -459,15 +459,11 @@ public class Heatmap {
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Integer getMethodIndex(MethodKey key, int extra) {
-            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod(extra)));
-        }
-
         private Integer getMethodIndex(MethodKey key) {
-            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod()));
+            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod(converter, symbolTable)));
         }
 
-        private final class MethodKey {
+        private static final class MethodKey {
             private final long methodId;
             // 32 bits: location
             // 8 bits: type
@@ -495,27 +491,7 @@ public class Heatmap {
                 return ((metadata >> 40) & 1L) != 0;
             }
 
-            public Method makeMethod(int extra) {
-                switch (keyType) {
-                    case METHOD:
-                        if (extra != -1) {
-                            throw new IllegalArgumentException("Expected 'extra' not to be provided: " + extra);
-                        }
-
-                    case THREAD:
-                        String threadName = converter.getThreadName(extra);
-                        return new Method(0, symbolTable.index(threadName), getLocation(), getType(), getFirstInStack());
-
-                    case CLASS:
-                        String javaClassName = converter.getClassName(extra);
-                        return new Method(symbolTable.index(javaClassName), 0, getLocation(), getType(), getFirstInStack());
-
-                    default:
-                        throw new IllegalArgumentException("Unexpected keyType: " + keyType);
-                }
-            }
-
-            public Method makeMethod() {
+            public Method makeMethod(JfrConverter converter, Index<String> symbolTable) {
                 switch (keyType) {
                     case METHOD:
                         StackTraceElement ste = converter.getStackTraceElement(methodId, getType(), getLocation());
@@ -523,8 +499,13 @@ public class Heatmap {
                         int methodName = symbolTable.index(ste.getMethodName());
                         return new Method(className, methodName, getLocation(), getType(), getFirstInStack());
 
-                    case THREAD: case CLASS:
-                        throw new IllegalArgumentException("Expected 'extra' to be provided");
+                    case THREAD:
+                        String threadName = converter.getThreadName(Math.toIntExact(methodId));
+                        return new Method(0, symbolTable.index(threadName), getLocation(), getType(), getFirstInStack());
+
+                    case CLASS:
+                        String javaClassName = converter.getClassName(methodId);
+                        return new Method(symbolTable.index(javaClassName), 0, getLocation(), getType(), getFirstInStack());
 
                     default:
                         throw new IllegalArgumentException("Unexpected keyType: " + keyType);
