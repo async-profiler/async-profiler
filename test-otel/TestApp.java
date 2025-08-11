@@ -37,7 +37,7 @@ public class TestApp {
                 }
             }).start();
         }
-        try { Thread.sleep(5000); } catch (InterruptedException e) {}
+        try { Thread.sleep(10000); } catch (InterruptedException e) {}
     }
 
     private static void doWork() {

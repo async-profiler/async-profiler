@@ -90,6 +90,10 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
+    // Thread-local storage for trace correlation
+    static thread_local char* _current_trace_id;
+    static thread_local char* _current_span_id;
+
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
