@@ -387,8 +387,6 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         u8 opcode = code[i];
         if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES;
-        } else if (isNarrowJump(opcode)) {
-            max_relocation += 2;
         }
         i += computeInstructionByteCount(code, i);
     }
@@ -411,8 +409,6 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
     // Second scan: fill relocation_table and rewrite code.
-    // Any jump which is "close" to the narrow->wide threshold conservatively becomes
-    // a wide jump.
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
 
