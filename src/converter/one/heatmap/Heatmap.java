@@ -459,7 +459,11 @@ public class Heatmap {
         }
 
         private Integer getMethodIndex(MethodKey key) {
-            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod(converter, symbolTable)));
+            return methodCache.computeIfAbsent(key, this::makeMethod);
+        }
+
+        private Integer makeMethod(MethodKey methodKey) {
+            return methods.index(methodKey.makeMethod(converter, symbolTable));
         }
 
         private static final class MethodKey {
