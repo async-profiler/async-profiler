@@ -5,6 +5,7 @@
 
 package test.jfrconverter;
 
+import test.otlp.CpuBurner;
 import one.convert.*;
 import one.profiler.test.*;
 
