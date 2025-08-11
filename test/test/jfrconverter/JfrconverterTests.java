@@ -12,24 +12,20 @@ import one.profiler.test.*;
 // we only verify that the conversion completes successfully.
 public class JfrconverterTests {
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
-    public void testAllocationHeatmapConversion(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
+    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,file=profile.jfr,all,file=%f")
+    public void allocationHeatmapConversion(TestProcess p) throws Exception {
+        p.waitForExit();
         assert p.exitCode() == 0;
-        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
+        JfrToHeatmap.convert("profile.jfr", "/dev/null", new Arguments("--alloc"));
     }
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
-    public void testCpuHeatmapConversion(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
-        assert p.exitCode() == 0;
-        JfrToHeatmap.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--cpu"));
+    @Test(sh = "")
+    public void cpuHeatmapConversion(TestProcess p) throws Exception {
+        JfrToHeatmap.convert("profile.jfr", "/dev/null", new Arguments("--cpu"));
     }
 
-    @Test(mainClass = CpuBurner.class, agentArgs = "start,jfr,all,file=%f")
-    public void testFlamegraphConversion(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
-        assert p.exitCode() == 0;
-        JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments());
+    @Test(sh = "")
+    public void flamegraphConversion(TestProcess p) throws Exception {
+        JfrToFlame.convert("profile.jfr", "/dev/null", new Arguments());
     }
 }
