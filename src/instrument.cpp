@@ -229,7 +229,6 @@ class BytecodeRewriter {
 
     void rewriteCode();
     u32 rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table);
-    void writeRecordSampleInvocation();
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
