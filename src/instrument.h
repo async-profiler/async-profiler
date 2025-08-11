@@ -49,7 +49,10 @@ class Instrument : public Engine {
                                           jint* new_class_data_len, u8** new_class_data);
 
     static void JNICALL recordEntry(JNIEnv* jni, jobject unused);
-    static void JNICALL recordExit(JNIEnv* jni, jobject unused);
+    static void JNICALL recordExit(JNIEnv* jni, jobject unused, jlong);
 };
+
+u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
+                       u16 offset_delta_old, const u32* relocation_table);
 
 #endif // _INSTRUMENT_H

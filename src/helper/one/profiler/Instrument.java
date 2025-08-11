@@ -14,5 +14,5 @@ public class Instrument {
     }
 
     public static native void recordEntry();
-    public static native void recordExit();
+    public static native void recordExit(long startTimeNanos);
 }

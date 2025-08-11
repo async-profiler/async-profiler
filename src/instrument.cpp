@@ -110,7 +110,7 @@ enum Scope {
 };
 
 enum PatchConstants {
-    EXTRA_CONSTANTS = 9,
+    EXTRA_CONSTANTS = 16,
     EXTRA_BYTECODES = 4
 };
 
@@ -228,7 +228,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode();
-    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table);
+    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u16 max_locals, u32* relocation_table);
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
@@ -236,7 +236,6 @@ class BytecodeRewriter {
     void rewriteCodeAttributes(const u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
-    void writeInvokeRecordSample(bool entry);
 
   public:
     BytecodeRewriter(const u8* class_data, int class_data_len, const char* target_class, bool latency_profiling) :
@@ -311,13 +310,6 @@ static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
     return OPCODE_LENGTH[opcode];
 }
 
-void BytecodeRewriter::writeInvokeRecordSample(bool entry) {
-    // invokestatic "one/profiler/Instrument.recordSample()V"
-    put8(JVM_OPC_invokestatic);
-    put16(_cpool_len + (entry ? 0 : 6));
-    // nop ensures that tableswitch/lookupswitch needs no realignment
-    put8(0);
-}
 
 void BytecodeRewriter::rewriteCode() {
     u32 attribute_length = get32();
@@ -329,6 +321,8 @@ void BytecodeRewriter::rewriteCode() {
     put16(max_stack);
 
     u16 max_locals = get16();
+    // Store the result of System.nanoTime()
+    max_locals += _latency_profiling ? 2 : 0;
     put16(max_locals);
 
     u32 code_length = get32();
@@ -342,12 +336,17 @@ void BytecodeRewriter::rewriteCode() {
 
     u32 relocation;
     if (_latency_profiling) {
-        relocation = rewriteCodeForLatency(code, code_length, relocation_table);
+        relocation = rewriteCodeForLatency(code, code_length, max_locals, relocation_table);
     } else {
-        writeInvokeRecordSample(true);
+        // invokestatic "one/profiler/Instrument.recordSample()V"
+        put8(JVM_OPC_invokestatic);
+        put16(_cpool_len);
+        // nop ensures that tableswitch/lookupswitch needs no realignment
+        put8(0);
+        relocation = EXTRA_BYTECODES;
+
         // The rest of the code is unchanged
         put(code, code_length);
-        relocation = EXTRA_BYTECODES;
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = relocation;
     }
 
@@ -376,12 +375,15 @@ void BytecodeRewriter::rewriteCode() {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32* relocation_table) {
+u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16 max_locals, u32* relocation_table) {
+    // Method start is relocated
+    u32 current_relocation = EXTRA_BYTECODES * 2;
+
     // First scan: identify the maximum possible relocation for any position in code[]
     // Relocation can happen due to:
     // - Adding a new invocation
     // - Narrow jump becoming a wide jump
-    u32 max_relocation = 0;
+    u32 max_relocation = current_relocation;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
         if (isFunctionExit(opcode)) {
@@ -399,10 +401,17 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
 
     u32 code_segment_begin = _dst_len;
 
-    writeInvokeRecordSample(true);
+    // invokestatic "java/lang/System.nanoTime()V"
+    put8(JVM_OPC_invokestatic);
+    put16(_cpool_len + 10);
+    // nop ensures that tableswitch/lookupswitch needs no realignment
+    put8(0);
 
-    // Method start is relocated
-    u32 current_relocation = EXTRA_BYTECODES;
+    // invokestatic "java/lang/System.nanoTime()V"
+    put8(JVM_OPC_lstore);
+    put8(max_locals - 2);
+    put16(0);
+
     // Low 32 bits: jump base index
     // High 32 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
@@ -412,7 +421,14 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         u8 opcode = code[i];
 
         if (isFunctionExit(opcode)) {
-            writeInvokeRecordSample(false);
+            put8(JVM_OPC_lload);
+            put8(max_locals - 2);
+            put16(0);
+
+            // invokestatic "one/profiler/Instrument.recordSample()V"
+            put8(JVM_OPC_invokestatic);
+            put16(_cpool_len + 6);
+            put8(0);
         } else if (isNarrowJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
@@ -463,7 +479,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u32
         // (e.g. a jump) should now target our invokestatic, otherwise it will
         // be skipped.
         if (isFunctionExit(opcode)) {
-            current_relocation += EXTRA_BYTECODES;
+            current_relocation += EXTRA_BYTECODES * 2;
         }
     }
 
@@ -510,16 +526,12 @@ void BytecodeRewriter::rewriteBytecodeTable(const u32* relocation_table, int dat
     }
 }
 
-u16 updateCurrentFrame(long& current_frame_old, u16 offset_delta_old, const u32* relocation_table) {
-    if (current_frame_old < 0) {
-        current_frame_old = offset_delta_old;
-        u64 current_frame_new = current_frame_old + relocation_table[current_frame_old];
-        return current_frame_new;
-    }
-    long previous_frame_old = current_frame_old;
+// Return the new offset delta
+u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new, 
+                       u16 offset_delta_old, const u32* relocation_table) {
     current_frame_old += offset_delta_old + 1;
-    u64 previous_frame_new = previous_frame_old + relocation_table[previous_frame_old];
-    u64 current_frame_new = current_frame_old + relocation_table[current_frame_old];
+    u64 previous_frame_new = current_frame_new;
+    current_frame_new = current_frame_old + relocation_table[current_frame_old];
     return current_frame_new - previous_frame_new - 1;
 }
 
@@ -527,12 +539,26 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
+    // Current instruction index in the old code
+    long current_frame_old;
+    // And in the new code
+    long current_frame_new;
+
     u32 attribute_start_idx = _dst_len;
     u16 number_of_entries = get16();
-    put16(number_of_entries);
+    if (_latency_profiling && relocation_table[0] != 0) {
+        put16(number_of_entries + 1);
+        put8(252); // append_frame with Long_variable_info
+        put16(8);
+        put8(4);   // Long_variable_info
+        current_frame_old = -1;
+        current_frame_new = 8;
+    } else {
+        put16(number_of_entries);
+        current_frame_old = -1;
+        current_frame_new = -1;
+    }
 
-    // Keep track of the current frame being visited, in the old code
-    long current_frame_old = -1;
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
         u32 stack_map_frame_idx = _dst_len;
@@ -540,7 +566,8 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
 
         if (frame_type <= 127) {
             // same_frame and same_locals_1_stack_item_frame
-            u16 new_offset_delta = updateCurrentFrame(current_frame_old, frame_type % 64, relocation_table);
+            u16 new_offset_delta = updateCurrentFrame(current_frame_old, current_frame_new, 
+                                                      frame_type % 64, relocation_table);
 
             u8 new_frame_type;
             if (new_offset_delta <= 63) {
@@ -557,21 +584,21 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
             }
         } else if (frame_type == 247) {
             // same_locals_1_stack_item_frame_extended
-            put16(updateCurrentFrame(current_frame_old, get16(), relocation_table));
+            put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
             rewriteVerificationTypeInfo(relocation_table);
         } else if (frame_type <= 251) {
             // chop_frame or same_frame_extended
-            put16(updateCurrentFrame(current_frame_old, get16(), relocation_table));
+            put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
         } else if (frame_type <= 254) {
             // append_frame
-            put16(updateCurrentFrame(current_frame_old, get16(), relocation_table));
+            put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
             u8 count = frame_type - (u8)251; // explicit cast to workaround clang type promotion bug
             for (u8 j = 0; j < count; j++) {
                 rewriteVerificationTypeInfo(relocation_table);
             }
         } else {
             // full_frame
-            put16(updateCurrentFrame(current_frame_old, get16(), relocation_table));
+            put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
             u16 number_of_locals = get16();
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
@@ -699,8 +726,16 @@ bool BytecodeRewriter::rewriteClass() {
     putConstant("()V");
 
     putConstant(CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
-    putConstant(CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 5);
+    putConstant(CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
+    putConstant("(J)V");
+
+    putConstant(CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
+    putConstant(CONSTANT_Class, _cpool_len + 13);
+    putConstant(CONSTANT_NameAndType, _cpool_len + 14, _cpool_len + 15);
+    putConstant("java/lang/System");
+    putConstant("nanoTime");
+    putConstant("()J");
 
     u16 access_flags = get16();
     put16(access_flags);
@@ -745,7 +780,7 @@ Error Instrument::check(Arguments& args) {
         JNIEnv* jni = VM::jni();
         JNINativeMethod native_method[2];
         native_method[0] = {(char*)"recordEntry", (char*)"()V", (void*)recordEntry};
-        native_method[1] = {(char*)"recordExit", (char*)"()V", (void*)recordExit};
+        native_method[1] = {(char*)"recordExit", (char*)"(J)V", (void*)recordExit};
 
         jclass cls = jni->DefineClass(INSTRUMENT_NAME, NULL, (const jbyte*)INSTRUMENT_CLASS, INCBIN_SIZEOF(INSTRUMENT_CLASS));
         if (cls == NULL || jni->RegisterNatives(cls, native_method, 2) != 0) {
@@ -866,7 +901,7 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     }
 }
 
-void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused) {
+void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
     // TODO: does not account for recursive methods?
