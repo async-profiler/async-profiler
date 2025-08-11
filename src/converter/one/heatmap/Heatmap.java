@@ -421,15 +421,15 @@ public class Heatmap {
             }
 
             if (args.threads) {
-                MethodKey key = new MethodKey(threadId, -1, Frame.TYPE_NATIVE, true);
-                cachedStackTrace[0] = getMethodIndex(key, () -> createThreadMethod(key, threadId));
+                MethodKey key = new MethodKey(MethodKeyType.THREAD, threadId, -1, Frame.TYPE_NATIVE, true);
+                cachedStackTrace[0] = getMethodIndex(key, threadId);
             }
 
             System.arraycopy(prototype, 0, cachedStackTrace, args.threads ? 1 : 0, prototype.length);
 
             if (classId != 0) {
-                MethodKey key = new MethodKey((long) classId << 32, -1, type, false);
-                cachedStackTrace[stackSize - 1] = getMethodIndex(key, () -> createClassMethod(key, classId));
+                MethodKey key = new MethodKey(MethodKeyType.CLASS, (long) classId << 32, -1, type, false);
+                cachedStackTrace[stackSize - 1] = getMethodIndex(key, classId);
             }
 
             sampleList.add(stackTracesRemap.index(cachedStackTrace, stackSize), timeMs);
@@ -451,46 +451,34 @@ public class Heatmap {
                 // When args.threads is true, the first frame is the artificial thread frame
                 boolean firstFrameInStack = firstMethodInTrace && !args.threads;
 
-                MethodKey key = new MethodKey(methodId, location, type, firstFrameInStack);
-                Integer threadFrameIndex = getMethodIndex(key, () -> createMethod(key));
+                MethodKey key = new MethodKey(MethodKeyType.METHOD, methodId, location, type, firstFrameInStack);
+                Integer threadFrameIndex = getMethodIndex(key);
                 cachedStackTrace[index] = threadFrameIndex;
             }
 
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Integer getMethodIndex(MethodKey key, Supplier<Method> methodSupplier) {
-            return methodCache.computeIfAbsent(key, k -> methods.index(methodSupplier.get()));
+        private Integer getMethodIndex(MethodKey key, int extra) {
+            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod(extra)));
         }
 
-        private Method createMethod(MethodKey key) {
-            StackTraceElement ste = converter.getStackTraceElement(key.methodId, key.getType(), key.getLocation());
-            int className = symbolTable.index(ste.getClassName());
-            int methodName = symbolTable.index(ste.getMethodName());
-            return new Method(className, methodName, key.getLocation(), key.getType(), key.getFirstInStack());
+        private Integer getMethodIndex(MethodKey key) {
+            return methodCache.computeIfAbsent(key, k -> methods.index(key.makeMethod()));
         }
 
-        private Method createClassMethod(MethodKey key, int classId) {
-            String javaClassName = converter.getClassName(classId);
-            return new Method(symbolTable.index(javaClassName), 0, key.getLocation(),
-                    key.getType(), key.getFirstInStack());
-        }
-
-        private Method createThreadMethod(MethodKey key, int threadId) {
-            String threadName = converter.getThreadName(threadId);
-            return new Method(0, symbolTable.index(threadName), key.getLocation(),
-                    key.getType(), key.getFirstInStack());
-        }
-
-        private static final class MethodKey {
+        private final class MethodKey {
             private final long methodId;
             // 32 bits: location
             // 8 bits: type
             // 1 bit: firstInStack
             private final long metadata;
+            // Used to infer what type of method to create
+            private final MethodKeyType keyType;
 
-            public MethodKey(long methodId, int location, byte type, boolean firstInStack) {
+            public MethodKey(MethodKeyType keyType, long methodId, int location, byte type, boolean firstInStack) {
                 if (type < 0) throw new IllegalArgumentException("Unexpected type: " + type);
+                this.keyType = keyType;
                 this.methodId = methodId;
                 this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (long) type << 32 | (location & 0xFFFFFFFFL);
             }
@@ -507,19 +495,58 @@ public class Heatmap {
                 return ((metadata >> 40) & 1L) != 0;
             }
 
+            public Method makeMethod(int extra) {
+                switch (keyType) {
+                    case METHOD:
+                        if (extra != -1) {
+                            throw new IllegalArgumentException("Expected 'extra' not to be provided: " + extra);
+                        }
+
+                    case THREAD:
+                        String threadName = converter.getThreadName(extra);
+                        return new Method(0, symbolTable.index(threadName), getLocation(), getType(), getFirstInStack());
+
+                    case CLASS:
+                        String javaClassName = converter.getClassName(extra);
+                        return new Method(symbolTable.index(javaClassName), 0, getLocation(), getType(), getFirstInStack());
+
+                    default:
+                        throw new IllegalArgumentException("Unexpected keyType: " + keyType);
+                }
+            }
+
+            public Method makeMethod() {
+                switch (keyType) {
+                    case METHOD:
+                        StackTraceElement ste = converter.getStackTraceElement(methodId, getType(), getLocation());
+                        int className = symbolTable.index(ste.getClassName());
+                        int methodName = symbolTable.index(ste.getMethodName());
+                        return new Method(className, methodName, getLocation(), getType(), getFirstInStack());
+
+                    case THREAD: case CLASS:
+                        throw new IllegalArgumentException("Expected 'extra' to be provided");
+
+                    default:
+                        throw new IllegalArgumentException("Unexpected keyType: " + keyType);
+                }
+            }
+
             @Override
             public boolean equals(Object other) {
                 if (!(other instanceof MethodKey)) return false;
                 MethodKey methodKey = (MethodKey) other;
-                return methodId == methodKey.methodId && metadata == methodKey.metadata;
+                return methodId == methodKey.methodId && metadata == methodKey.metadata && keyType == methodKey.keyType;
             }
 
             @Override
             public int hashCode() {
-                return 31 * Long.hashCode(methodId) + Long.hashCode(metadata);
+                return 31 * (31 * Long.hashCode(methodId) + Long.hashCode(metadata)) + keyType.hashCode();
             }
         }
 
+        private enum MethodKeyType {
+            METHOD, THREAD, CLASS
+        }
     }
 
 }
