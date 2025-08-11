@@ -8,7 +8,6 @@ package one.heatmap;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.*;
-import java.util.function.Supplier;
 
 import one.convert.*;
 import one.jfr.DictionaryInt;
