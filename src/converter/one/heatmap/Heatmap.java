@@ -457,16 +457,14 @@ public class Heatmap {
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Integer getMethodIndex(MethodKey key, Supplier<Method> methodSupplier) {
+        private Integer getMethodIndex(MethodKey key) {
             Integer methodIdx = methodCache.get(key);
             if (methodIdx != null) return methodIdx;
-            methodIdx = methods.index(methodSupplier.get());
-            methodCache.put(key, methodIdx);
-            return methodIdx;
+            return makeMethod(key);
         }
 
-        private Integer makeMethod(MethodKey methodKey) {
-            return methods.index(methodKey.makeMethod(converter, symbolTable));
+        private Integer makeMethod(MethodKey key) {
+            return methods.index(key.makeMethod(converter, symbolTable));
         }
 
         private static final class MethodKey {
