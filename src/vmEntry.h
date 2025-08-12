@@ -51,8 +51,7 @@ enum ASGCT_CallFrameType {
     BCI_ADDRESS             = -17,  // method_id is a PC address
     BCI_ERROR               = -18,  // method_id is an error string
     BCI_CPU                 = -19,  // method_id is the cpu the sample was taken on
-    BCI_TRACE_ID            = -20,  // OpenTelemetry trace ID for correlation
-    BCI_SPAN_ID             = -21,  // OpenTelemetry span ID for correlation
+    BCI_TRACE_CONTEXT       = -20,  // OpenTelemetry trace context for correlation
 };
 
 // See hotspot/src/share/vm/prims/forte.cpp

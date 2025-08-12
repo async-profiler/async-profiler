@@ -65,9 +65,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-thread_local char* Profiler::_current_trace_id = nullptr;
-thread_local char* Profiler::_current_span_id = nullptr;
-
+thread_local char* Profiler::_current_trace_context = nullptr;
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -695,12 +693,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
-    if (_current_trace_id) {
-        num_frames += makeFrame(frames + num_frames, BCI_TRACE_ID, _current_trace_id);
-    }
-
-    if (_current_span_id) {
-        num_frames += makeFrame(frames + num_frames, BCI_SPAN_ID, _current_span_id);
+    if (_current_trace_context) {
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, _current_trace_context);
     }
 
     if (stack_walk_begin != 0) {
@@ -795,18 +789,18 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 }
 
 void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
-    free(_current_trace_id);
-    free(_current_span_id);
-    
-    _current_trace_id = trace_id ? strdup(trace_id) : nullptr;
-    _current_span_id = span_id ? strdup(span_id) : nullptr;
+    if (trace_id && span_id) {
+        char* combined = (char*)malloc(strlen(trace_id) + strlen(span_id) + 1);
+        strcpy(combined, trace_id);
+        strcat(combined, span_id);
+        _current_trace_context = combined;
+    } else {
+        _current_trace_context = nullptr;
+    }
 }
 
 void Profiler::clearTraceContext() {
-    // free(_current_trace_id);
-    // free(_current_span_id);
-    _current_trace_id = nullptr;
-    _current_span_id = nullptr;
+    _current_trace_context = nullptr;
 }
 
 void* Profiler::dlopen_hook(const char* filename, int flags) {
@@ -1324,10 +1318,8 @@ Error Profiler::stop(bool restart) {
         FdTransferClient::closePeer();
     }
 
-    free(_current_trace_id);
-    free(_current_span_id);
-    _current_trace_id = nullptr;
-    _current_span_id = nullptr;
+    free(_current_trace_context);
+    _current_trace_context = nullptr;
 
     _state = IDLE;
     return Error::OK;
@@ -1719,31 +1711,19 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_value_mark);
         otlp_buffer.commitMessage(sample_mark);
 
-        const char* trace_id = nullptr;
-        const char* span_id = nullptr;
+        const char* trace_context = nullptr;
 
         for (int j = 0; j < trace->num_frames; j++) {
-            if (trace->frames[j].bci == BCI_TRACE_ID) {
-                trace_id = (const char*)trace->frames[j].method_id;
-            } else if (trace->frames[j].bci == BCI_SPAN_ID) {
-                span_id = (const char*)trace->frames[j].method_id;
+            if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
+                trace_context = (const char*)trace->frames[j].method_id;
             }
 
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
-            if (trace->frames[j].bci == BCI_TRACE_ID) {
-                const char* trace_id = (const char*)trace->frames[j].method_id;
-                //printf("[dumpOtlp: ] trace_id: %s\n", trace_id ? trace_id : "NULL");
-            }
-            if (trace->frames[j].bci == BCI_SPAN_ID) {
-                const char* span_id = (const char*)trace->frames[j].method_id;
-                //printf("[dumpOtlp: ] span_id: %s\n", span_id ? span_id : "NULL");
-            }
         }
 
-        if (trace_id && span_id) {
-            std::string link_key = std::string(trace_id) + std::string(span_id);
-            size_t link_idx = links.indexOf(link_key);
+        if (trace_context) {
+            size_t link_idx = links.indexOf(trace_context);
             otlp_buffer.field(Sample::link_index, link_idx);
         }
 

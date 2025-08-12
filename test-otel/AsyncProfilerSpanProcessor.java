@@ -4,7 +4,7 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import one.profiler.AsyncProfiler;
 
-public class CustomSpanProcessor implements SpanProcessor {
+public class AsyncProfilerSpanProcessor implements SpanProcessor {
     @Override
     public void onStart(Context parentContext, ReadWriteSpan span) {
         String traceId = span.getSpanContext().getTraceId();

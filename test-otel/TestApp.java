@@ -7,19 +7,14 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider;
 
 public class TestApp {
     public static void main(String[] args) {
-        System.out.println("Creating SpanProcessor");
-        
         SdkTracerProvider tracerProvider = SdkTracerProvider.builder()
-            .addSpanProcessor(new CustomSpanProcessor())
+            .addSpanProcessor(new AsyncProfilerSpanProcessor())
             .build();
-        
-        System.out.println("Building OpenTelemetry");
         
         OpenTelemetrySdk.builder()
             .setTracerProvider(tracerProvider)
             .buildAndRegisterGlobal();
 
-        System.out.println("Getting tracer");
         Tracer tracer = GlobalOpenTelemetry.getTracer("test-app");
 
         System.out.println("Starting threads");
