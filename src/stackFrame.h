@@ -29,7 +29,7 @@ class StackFrame {
     }
 
     void restore(uintptr_t saved_pc, uintptr_t saved_sp, uintptr_t saved_fp) {
-        if (_ucontext != NULL) {
+        if (_ucontext != nullptr) {
             pc() = saved_pc;
             sp() = saved_sp;
             fp() = saved_fp;

@@ -123,7 +123,7 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_W) {
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X) {
     char name[50];
-    snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%lx:x", sizeof(long));
+    snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%zx:x", sizeof(long));
 
     PerfEventType* event_type = PerfEventType::forName(name);
     ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, sizeof(long), 0);
@@ -136,7 +136,7 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_InvalidDefaultRW) {
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Arg) {
     char name[50];
-    snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%lx:x{3}", sizeof(long));
+    snprintf(name, sizeof(name), "mem:0x123+0x22000/0x%zx:x{3}", sizeof(long));
 
     PerfEventType* event_type = PerfEventType::forName(name);
     ASSERT_BP(event_type, HW_BREAKPOINT_X, 0x22123, sizeof(long), 3);
@@ -159,7 +159,7 @@ TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_WX) {
 
 TEST_CASE(ForName_Breakpoint_Addr_HexOffset_HexLen_X_Known) {
     char name[50];
-    snprintf(name, sizeof(name), "mem:mmap+0x22000/0x%lx:x", sizeof(long));
+    snprintf(name, sizeof(name), "mem:mmap+0x22000/0x%zx:x", sizeof(long));
     PerfEventType* event_type = PerfEventType::forName(name);
     const __u64 mmap_addr = (__u64)(uintptr_t)dlsym(RTLD_DEFAULT, "mmap");
 
