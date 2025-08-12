@@ -26,5 +26,6 @@ public class JfrconverterTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
         JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments());
+        JfrToFlame.convert(p.getFilePath("%f"), "/dev/null", new Arguments("--alloc"));
     }
 }
