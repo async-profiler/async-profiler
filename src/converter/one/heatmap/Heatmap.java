@@ -460,7 +460,9 @@ public class Heatmap {
         private Integer getMethodIndex(MethodKey key) {
             Integer methodIdx = methodCache.get(key);
             if (methodIdx != null) return methodIdx;
-            return makeMethod(key);
+            methodIdx = makeMethod(key);
+            methodCache.put(key, methodIdx);
+            return methodIdx;
         }
 
         private Integer makeMethod(MethodKey key) {
