@@ -1709,27 +1709,9 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         CallTrace* trace = cts->acquireTrace();
         if (trace == NULL || excludeTrace(&fn, trace) || cts->samples == 0) continue;
 
-        const char* trace_id = nullptr;
-        const char* span_id = nullptr;
-
-        for (int j = 0; j < trace->num_frames; j++) {
-            if (trace->frames[j].bci == BCI_TRACE_ID) {
-                trace_id = (const char*)trace->frames[j].method_id;
-            }
-            if (trace->frames[j].bci == BCI_SPAN_ID) {
-                span_id = (const char*)trace->frames[j].method_id;
-            }
-        }
-
         protobuf_mark_t sample_mark = otlp_buffer.startMessage(Profile::sample, 1);
         otlp_buffer.field(Sample::locations_start_index, frames_seen);
         otlp_buffer.field(Sample::locations_length, trace->num_frames);
-
-        if (trace_id && span_id) {
-            std::string link_key = std::string(trace_id) + ":" + std::string(span_id);
-            size_t link_idx = links.indexOf(link_key);
-            otlp_buffer.field(Sample::link_index, link_idx + 1);
-        }
 
         protobuf_mark_t sample_value_mark = otlp_buffer.startMessage(Sample::value, 1);
         otlp_buffer.putVarInt(cts->samples);
@@ -1737,18 +1719,34 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(sample_value_mark);
         otlp_buffer.commitMessage(sample_mark);
 
+        const char* trace_id = nullptr;
+        const char* span_id = nullptr;
+
         for (int j = 0; j < trace->num_frames; j++) {
+            if (trace->frames[j].bci == BCI_TRACE_ID) {
+                trace_id = (const char*)trace->frames[j].method_id;
+            } else if (trace->frames[j].bci == BCI_SPAN_ID) {
+                span_id = (const char*)trace->frames[j].method_id;
+            }
+
             // To be written below in Profile.location_indices
             location_indices.push_back(functions.indexOf(fn.name(trace->frames[j])));
             if (trace->frames[j].bci == BCI_TRACE_ID) {
                 const char* trace_id = (const char*)trace->frames[j].method_id;
-                printf("[dumpOtlp: ] trace_id: %s\n", trace_id ? trace_id : "NULL");
+                //printf("[dumpOtlp: ] trace_id: %s\n", trace_id ? trace_id : "NULL");
             }
             if (trace->frames[j].bci == BCI_SPAN_ID) {
                 const char* span_id = (const char*)trace->frames[j].method_id;
-                printf("[dumpOtlp: ] span_id: %s\n", span_id ? span_id : "NULL");
+                //printf("[dumpOtlp: ] span_id: %s\n", span_id ? span_id : "NULL");
             }
         }
+
+        if (trace_id && span_id) {
+            std::string link_key = std::string(trace_id) + ":" + std::string(span_id);
+            size_t link_idx = links.indexOf(link_key);
+            otlp_buffer.field(Sample::link_index, link_idx);
+        }
+
         frames_seen += trace->num_frames;
     }
 
@@ -1788,18 +1786,21 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.commitMessage(location_mark);
     }
 
-    protobuf_mark_t default_link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-    otlp_buffer.commitMessage(default_link_mark);
     // Write link_table
     links.forEachOrdered([&] (size_t idx, const std::string& link_key) {
-        size_t colon_pos = link_key.find(':');
-        if (colon_pos != std::string::npos) {
-            std::string trace_id = link_key.substr(0, colon_pos);
-            std::string span_id = link_key.substr(colon_pos + 1);
+        if (link_key.empty()) {
+            protobuf_mark_t default_link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+            otlp_buffer.commitMessage(default_link_mark);
+        } else {
+            std::string mutable_key = link_key;
+            mutable_key[16] = '\0';
+            
+            const char* trace_id = mutable_key.c_str();
+            const char* span_id = mutable_key.c_str() + 17;
             
             protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-            otlp_buffer.field(Link::trace_id, trace_id.c_str(), trace_id.length());
-            otlp_buffer.field(Link::span_id, span_id.c_str(), span_id.length());
+            otlp_buffer.field(Link::trace_id, trace_id, 16);
+            otlp_buffer.field(Link::span_id, span_id, strlen(span_id));
             otlp_buffer.commitMessage(link_mark);
         }
     });
