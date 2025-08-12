@@ -199,11 +199,7 @@ inline u32 Profiler::getLockIndex(int tid) {
 }
 
 void Profiler::updateSymbols(bool kernel_symbols) {
-    Symbols::parseLibraries(&_native_libs, kernel_symbols, NULL);
-}
-
-void Profiler::updateLibrarySymbols(const char* library) {
-    Symbols::parseLibraries(&_native_libs, false, library);
+    Symbols::parseLibraries(&_native_libs, kernel_symbols, false);
 }
 
 void Profiler::mangle(const char* name, char* buf, size_t size) {

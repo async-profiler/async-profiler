@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include "hooks.h"
 #include "profiler.h"
+#include "symbols.h"
 #include "vmStructs.h"
 
 
@@ -33,12 +34,10 @@ class LateInitializer {
 
   private:
     bool checkJvmLoaded() {
-        const char* jvm_lib = OS::isLinux() ? "libjvm.so" : "libjvm.dylib";
-
         Profiler* profiler = Profiler::instance();
-        profiler->updateLibrarySymbols(jvm_lib);
+        Symbols::parseLibraries(profiler->nativeLibs(), false, true);
 
-        CodeCache* libjvm = profiler->findLibraryByName(jvm_lib);
+        CodeCache* libjvm = profiler->findLibraryByName(OS::isLinux() ? "libjvm.so" : "libjvm.dylib");
         if (libjvm != NULL && libjvm->findSymbol("AsyncGetCallTrace") != NULL) {
             VMStructs::init(libjvm);
             if (CollectedHeap::created()) {  // heap is already created => this is dynamic attach

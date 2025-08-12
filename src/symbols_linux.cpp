@@ -723,7 +723,7 @@ void Symbols::parseKernelSymbols(CodeCache* cc) {
     fclose(f);
 }
 
-static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, const char* library) {
+static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs, int max_count, bool only_lib_jvm) {
     FILE* f = fopen("/proc/self/maps", "r");
     if (f == NULL) {
         return;
@@ -745,10 +745,10 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
             continue;
         }
 
-        // Skip non target libs
-        if (library) {
+        if (only_lib_jvm) {
             const char* current_file = strrchr(map.file(), '/');
-            if (!current_file || strncmp(current_file + 1, library, library_name_len) != 0) {
+            current_file = current_file ? current_file + 1 : map.file();
+            if (strcmp(current_file, "libjvm.so") != 0) {
                 continue;
             }
         }
@@ -787,7 +787,7 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     fclose(f);
 }
 
-void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const char* library) {
+void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool only_lib_jvm) {
     MutexLocker ml(_parse_lock);
 
     if (_in_parse_libraries || array->count() >= MAX_NATIVE_LIBS) {
@@ -808,7 +808,8 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, const c
     }
 
     std::unordered_map<u64, SharedLibrary> libs;
-    collectSharedLibraries(libs, MAX_NATIVE_LIBS - array->count(), library);
+    int max_count = MAX_NATIVE_LIBS - array->count();
+    collectSharedLibraries(libs, only_lib_jvm ? std::min(1, max_count) : max_count, only_lib_jvm);
 
     for (auto& it : libs) {
         u64 inode = it.first;
