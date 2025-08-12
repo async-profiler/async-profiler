@@ -806,8 +806,7 @@ void Symbols::parseLibraries(CodeCacheArray* array, bool kernel_symbols, bool on
     }
 
     std::unordered_map<u64, SharedLibrary> libs;
-    int max_count = MAX_NATIVE_LIBS - array->count();
-    collectSharedLibraries(libs, only_lib_jvm ? std::min(1, max_count) : max_count, only_lib_jvm);
+    collectSharedLibraries(libs, only_lib_jvm ? 1 : MAX_NATIVE_LIBS - array->count(), only_lib_jvm);
 
     for (auto& it : libs) {
         u64 inode = it.first;
