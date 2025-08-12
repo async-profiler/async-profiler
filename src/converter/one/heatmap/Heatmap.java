@@ -458,8 +458,12 @@ public class Heatmap {
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Integer getMethodIndex(MethodKey key) {
-            return methodCache.computeIfAbsent(key, this::makeMethod);
+        private Integer getMethodIndex(MethodKey key, Supplier<Method> methodSupplier) {
+            Integer methodIdx = methodCache.get(key);
+            if (methodIdx != null) return methodIdx;
+            methodIdx = methods.index(methodSupplier.get());
+            methodCache.put(key, methodIdx);
+            return methodIdx;
         }
 
         private Integer makeMethod(MethodKey methodKey) {
