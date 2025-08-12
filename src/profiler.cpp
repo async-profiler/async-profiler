@@ -1742,7 +1742,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         }
 
         if (trace_id && span_id) {
-            std::string link_key = std::string(trace_id) + ":" + std::string(span_id);
+            std::string link_key = std::string(trace_id) + std::string(span_id);
             size_t link_idx = links.indexOf(link_key);
             otlp_buffer.field(Sample::link_index, link_idx);
         }
@@ -1793,7 +1793,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             const char* data = link_key.c_str();
 
             otlp_buffer.field(Link::trace_id, data, 16);
-            otlp_buffer.field(Link::span_id, data + 17, link_key.length() - 17);  // after ":"
+            otlp_buffer.field(Link::span_id, data + 16, link_key.length() - 16);
         }
         otlp_buffer.commitMessage(link_mark);
     });
