@@ -457,7 +457,7 @@ public class Heatmap {
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
         }
 
-        private Integer getMethodIndex(MethodKey key) {
+        private int getMethodIndex(MethodKey key) {
             Integer methodIdx = methodCache.get(key);
             if (methodIdx != null) return methodIdx;
             methodIdx = makeMethod(key);
@@ -465,7 +465,7 @@ public class Heatmap {
             return methodIdx;
         }
 
-        private Integer makeMethod(MethodKey key) {
+        private int makeMethod(MethodKey key) {
             return methods.index(key.makeMethod(converter, symbolTable));
         }
 
@@ -479,10 +479,9 @@ public class Heatmap {
             private final MethodKeyType keyType;
 
             public MethodKey(MethodKeyType keyType, long methodId, int location, byte type, boolean firstInStack) {
-                if (type < 0) throw new IllegalArgumentException("Unexpected type: " + type);
                 this.keyType = keyType;
                 this.methodId = methodId;
-                this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (long) type << 32 | (location & 0xFFFFFFFFL);
+                this.metadata = (long) (firstInStack ? 1 : 0) << 40 | (type & 0xffL) << 32 | (location & 0xFFFFFFFFL);
             }
 
             public int getLocation() {
