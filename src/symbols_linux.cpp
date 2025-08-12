@@ -735,8 +735,6 @@ static void collectSharedLibraries(std::unordered_map<u64, SharedLibrary>& libs,
     size_t str_size = 0;
     ssize_t len;
 
-    const size_t library_name_len = library ? strlen(library) : 0;
-
     while (max_count > 0 && (len = getline(&str, &str_size, f)) > 0) {
         str[len - 1] = 0;
 
