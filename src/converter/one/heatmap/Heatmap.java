@@ -451,8 +451,7 @@ public class Heatmap {
                 boolean firstFrameInStack = firstMethodInTrace && !args.threads;
 
                 MethodKey key = new MethodKey(MethodKeyType.METHOD, methodId, location, type, firstFrameInStack);
-                Integer threadFrameIndex = getMethodIndex(key);
-                cachedStackTrace[index] = threadFrameIndex;
+                cachedStackTrace[index] = getMethodIndex(key);
             }
 
             stackTracesCache.put(id, stackTracesRemap.index(cachedStackTrace, size));
