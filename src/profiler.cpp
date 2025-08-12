@@ -1788,21 +1788,14 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
 
     // Write link_table
     links.forEachOrdered([&] (size_t idx, const std::string& link_key) {
-        if (link_key.empty()) {
-            protobuf_mark_t default_link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-            otlp_buffer.commitMessage(default_link_mark);
-        } else {
-            std::string mutable_key = link_key;
-            mutable_key[16] = '\0';
-            
-            const char* trace_id = mutable_key.c_str();
-            const char* span_id = mutable_key.c_str() + 17;
-            
-            protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
-            otlp_buffer.field(Link::trace_id, trace_id, 16);
-            otlp_buffer.field(Link::span_id, span_id, strlen(span_id));
-            otlp_buffer.commitMessage(link_mark);
+        protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
+        if (!link_key.empty()) {
+            const char* data = link_key.c_str();
+
+            otlp_buffer.field(Link::trace_id, data, 16);
+            otlp_buffer.field(Link::span_id, data + 17, link_key.length() - 17);  // after ":"
         }
+        otlp_buffer.commitMessage(link_mark);
     });
 
     // Write string_table
