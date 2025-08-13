@@ -50,10 +50,10 @@ public class JfrToHeatmap extends JfrConverter {
 
             @Override
             public void beforeChunk() {
+                heatmap.beforeChunk();
                 jfr.stackTraces.forEach(new Dictionary.Visitor<StackTrace>() {
                     @Override
                     public void visit(long key, StackTrace trace) {
-                        heatmap.beforeChunk();
                         heatmap.addStack(key, trace.methods, trace.locations, trace.types, trace.methods.length);
                     }
                 });
