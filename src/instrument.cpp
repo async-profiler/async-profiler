@@ -113,7 +113,7 @@ class Constant {
                 ++count;
                 while (sig[++i] == '[');
                 if (sig[i] == 'L') while (sig[++i] != ';');
-                else ++i;
+                ++i;
             } else if (sig[i] == 'J' || sig[i] == 'D') {
                 count += 2;
                 ++i;
