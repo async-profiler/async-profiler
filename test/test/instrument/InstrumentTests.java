@@ -58,7 +58,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = Recursive.class,
-        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=150ms,collapsed,file=%f"
+        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f"
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
