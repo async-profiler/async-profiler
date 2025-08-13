@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
