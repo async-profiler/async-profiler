@@ -6,6 +6,7 @@
 #ifdef __APPLE__
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <libkern/OSByteOrder.h>
 #include <libproc.h>
 #include <mach/mach.h>
@@ -121,6 +122,11 @@ u64 OS::micros() {
 void OS::sleep(u64 nanos) {
     struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
     nanosleep(&ts, NULL);
+}
+
+void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    while (*flag && nanosleep(&ts, &ts) < 0 && errno == EINTR);
 }
 
 u64 OS::overrun(siginfo_t* siginfo) {
