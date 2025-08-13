@@ -100,6 +100,30 @@ class Constant {
         }
         return equals(value, len);
     }
+
+    u8 countParametersSlots() const {
+        const char* sig = (const char*) (_info + 2);
+        u8 count = 0;
+        size_t i = 1;
+        while (sig[i] != ')') {
+            if (sig[i] == 'L') {
+                count += 1;
+                while (sig[++i] != ';');
+            } else if (sig[i] == '[') {
+                ++count;
+                while (sig[++i] == '[');
+                if (sig[i] == 'L') while (sig[++i] != ';');
+                else ++i;
+            } else if (sig[i] == 'J' || sig[i] == 'D') {
+                count += 2;
+                ++i;
+            } else {
+                ++count;
+                ++i;
+            }
+        }
+        return count;
+    }
 };
 
 enum Scope {
@@ -227,12 +251,12 @@ class BytecodeRewriter {
 
     // BytecodeRewriter
 
-    void rewriteCode();
-    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u16 max_locals, u32* relocation_table);
+    void rewriteCode(u16 access_flags, u16 descriptor_index);
+    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table);
     void rewriteBytecodeTable(const u32* relocation_table, int data_len);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
-    void rewriteAttributes(Scope scope);
+    void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
     void rewriteCodeAttributes(const u32* relocation_table);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
@@ -311,7 +335,7 @@ static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
 }
 
 
-void BytecodeRewriter::rewriteCode() {
+void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -336,9 +360,12 @@ void BytecodeRewriter::rewriteCode() {
 
     u32 relocation;
     if (_latency_profiling) {
-        relocation = rewriteCodeForLatency(code, code_length, max_locals, relocation_table);
+        u8 parameters_count = _cpool[descriptor_index]->countParametersSlots();
+        bool is_static = (access_flags & JVM_ACC_STATIC) != 0;
+        u8 first_available_local = parameters_count + (is_static ? 0 : 1);
+        relocation = rewriteCodeForLatency(code, code_length, first_available_local, relocation_table);
     } else {
-        // invokestatic "one/profiler/Instrument.recordSample()V"
+        // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
         put16(_cpool_len);
         // nop ensures that tableswitch/lookupswitch needs no realignment
@@ -375,7 +402,7 @@ void BytecodeRewriter::rewriteCode() {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16 max_locals, u32* relocation_table) {
+u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table) {
     // Method start is relocated
     u32 current_relocation = EXTRA_BYTECODES * 2;
 
@@ -407,9 +434,8 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16
     // nop ensures that tableswitch/lookupswitch needs no realignment
     put8(0);
 
-    // invokestatic "java/lang/System.nanoTime()V"
     put8(JVM_OPC_lstore);
-    put8(max_locals - 2);
+    put8(start_time_loc_index);
     put16(0);
 
     // Low 32 bits: jump base index
@@ -422,10 +448,10 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16
 
         if (isFunctionExit(opcode)) {
             put8(JVM_OPC_lload);
-            put8(max_locals - 2);
+            put8(start_time_loc_index);
             put16(0);
 
-            // invokestatic "one/profiler/Instrument.recordSample()V"
+            // invokestatic "one/profiler/Instrument.recordExit(J)V"
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len + 6);
             put8(0);
@@ -470,7 +496,8 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16
                 jumps.push_back((pair_base + 4) << 32 | i);
             }
         }
-        for (u32 args_idx = 0; args_idx < computeInstructionByteCount(code, i); ++args_idx) {
+        u8 bc = computeInstructionByteCount(code, i);
+        for (u32 args_idx = 0; args_idx < bc; ++args_idx) {
             relocation_table[i] = current_relocation;
             put8(code[i++]);
         }
@@ -480,6 +507,30 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u16
         // be skipped.
         if (isFunctionExit(opcode)) {
             current_relocation += EXTRA_BYTECODES * 2;
+        } else if ((opcode >= JVM_OPC_iload && opcode <= JVM_OPC_aload) ||
+                   (opcode >= JVM_OPC_istore && opcode <= JVM_OPC_astore)) {
+            u8 index = code[i-1];
+            if (index >= start_time_loc_index) {
+                index += 2;
+                *(_dst + _dst_len - 1) = index;
+            }
+        } else if ((opcode >= JVM_OPC_iload_0 && opcode <= JVM_OPC_aload_3) ||
+                   (opcode >= JVM_OPC_istore_0 && opcode <= JVM_OPC_astore_3)) {
+            u8 base = opcode <= JVM_OPC_aload_3 ? JVM_OPC_iload_0 : JVM_OPC_istore_0;
+            u8 index = (opcode - base) % 4;
+            if (index >= start_time_loc_index) {
+                index += 2;
+                if (index <= 3) {
+                    u8 new_opcode_0 = (opcode - base - 1) / 4 * 4 + base;
+                    *(_dst + _dst_len - 1) = new_opcode_0 + index;
+                } else {
+                    u8 new_opcode = (opcode <= JVM_OPC_aload_3 ? JVM_OPC_iload : JVM_OPC_istore) +
+                                    (opcode - base) / 4;
+                    *(_dst + _dst_len - 1) = new_opcode;
+                    put8(index);
+                    current_relocation += 1;
+                }
+            }
         }
     }
 
@@ -539,25 +590,13 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
-    // Current instruction index in the old code
-    long current_frame_old;
-    // And in the new code
-    long current_frame_new;
-
     u32 attribute_start_idx = _dst_len;
     u16 number_of_entries = get16();
-    if (_latency_profiling && relocation_table[0] != 0) {
-        put16(number_of_entries + 1);
-        put8(252); // append_frame with Long_variable_info
-        put16(8);
-        put8(4);   // Long_variable_info
-        current_frame_old = -1;
-        current_frame_new = 8;
-    } else {
-        put16(number_of_entries);
-        current_frame_old = -1;
-        current_frame_new = -1;
-    }
+    put16(number_of_entries);
+    // Current instruction index in the old code
+    long current_frame_old = -1;
+    // And in the new code
+    long current_frame_new = -1;
 
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
@@ -629,7 +668,7 @@ void BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) 
     }
 }
 
-void BytecodeRewriter::rewriteAttributes(Scope scope) {
+void BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 descriptor_index) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -639,7 +678,7 @@ void BytecodeRewriter::rewriteAttributes(Scope scope) {
 
         Constant* attribute_name = _cpool[attribute_name_index];
         if (scope == SCOPE_REWRITE_METHOD && attribute_name->equals("Code", 4)) {
-            rewriteCode();
+            rewriteCode(access_flags, descriptor_index);
             continue;
         }
 
@@ -694,7 +733,7 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
             && _cpool[name_index]->matches(_target_method, _target_method_len)
             && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
 
-        rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD);
+        rewriteAttributes(need_rewrite ? SCOPE_REWRITE_METHOD : SCOPE_METHOD, access_flags, descriptor_index);
     }
 }
 
