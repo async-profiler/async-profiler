@@ -11,6 +11,9 @@ import java.time.Duration;
 
 public class InstrumentTests {
 
+    private static final String MAIN_METHOD_SEGMENT = "^test\\/instrument\\/Recursive\\.main";
+    private static final String RECURSIVE_METHOD_SEGMENT = ";test\\/instrument\\/Recursive\\.recursive";
+
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f"
@@ -51,6 +54,38 @@ public class InstrumentTests {
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(300+150).toNanos();
         assert out.samples("\\[thread3.*") == 0;
         assert out.samples("\\[thread4.*") == 0;
+    }
+
+    @Test(
+        mainClass = Recursive.class,
+        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=150ms,collapsed,file=%f"
+    )
+    public void recursive(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        // recursive(i) = \sum_{j=i}^5 100*(MAX_RECURSION-j) ms
+        // MAX_RECURSION = 3
+        
+        // recursive(3) is filtered out
+        Duration duration = Duration.ZERO;
+        assert out.samples(String.format("%s%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, 
+                RECURSIVE_METHOD_SEGMENT)) == 0;
+        
+        // recursive(2) is filtered out
+        duration = duration.plus(Duration.ofMillis(100));
+        assert out.samples(String.format("%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) == 0;
+
+        // recursive(1)
+        duration = duration.plus(Duration.ofMillis(200));
+        System.err.println(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT));
+        System.err.println(out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)));
+        System.err.println(out);
+        assert out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
+
+        // recursive(0)
+        duration = duration.plus(Duration.ofMillis(300));
+        assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
     }
 
 }
