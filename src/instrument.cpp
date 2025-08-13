@@ -590,13 +590,22 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
-    u32 attribute_start_idx = _dst_len;
-    u16 number_of_entries = get16();
-    put16(number_of_entries);
     // Current instruction index in the old code
     long current_frame_old = -1;
     // And in the new code
     long current_frame_new = -1;
+
+    u32 attribute_start_idx = _dst_len;
+    u16 number_of_entries = get16();
+    if (_latency_profiling && relocation_table[0] > 0) {
+        put16(number_of_entries + 1);
+        current_frame_new = 8;
+        put8(252);
+        put16(8);
+        put8(JVM_ITEM_Long);
+    } else {
+        put16(number_of_entries);
+    }
 
     for (int i = 0; i < number_of_entries; i++) {
         u8 frame_type = get8();
@@ -806,7 +815,6 @@ char* Instrument::_target_class = NULL;
 bool Instrument::_instrument_class_loaded = false;
 u64 Instrument::_interval;
 long Instrument::_latency;
-thread_local u64 Instrument::_method_start_ns;
 volatile u64 Instrument::_calls;
 volatile bool Instrument::_running;
 
@@ -930,10 +938,6 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
     if (!_enabled) return;
 
-    if (_latency >= 0) {
-        _method_start_ns = OS::nanotime();
-        return;
-    }
     if (_interval <= 1 || ((atomicInc(_calls) + 1) % _interval) == 0) {
         ExecutionEvent event(TSC::ticks());
         Profiler::instance()->recordSample(NULL, _interval, INSTRUMENTED_METHOD, &event);
@@ -943,13 +947,9 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
-    // TODO: does not account for recursive methods?
-    if (_method_start_ns != 0) {
-        u64 duration = OS::nanotime() - _method_start_ns;
-        _method_start_ns = 0;
-        if (duration >= _latency) {
-            ExecutionEvent event(TSC::ticks());
-            Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
-        }
+    u64 duration = OS::nanotime() - (u64) startTimeNanos;
+    if (duration >= _latency) {
+        ExecutionEvent event(TSC::ticks());
+        Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
     }
 }
