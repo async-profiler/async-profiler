@@ -15,7 +15,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f"
     )
-    public void testInstrument(TestProcess p) throws Exception {
+    public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
@@ -29,7 +29,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f"
     )
-    public void testLatency(TestProcess p) throws Exception {
+    public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
@@ -43,7 +43,7 @@ public class InstrumentTests {
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f"
     )
-    public void testLatencyDuration(TestProcess p) throws Exception {
+    public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
