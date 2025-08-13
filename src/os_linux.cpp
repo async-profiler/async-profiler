@@ -136,8 +136,9 @@ void OS::sleep(u64 nanos) {
 }
 
 void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
-    nanos += OS::nanotime();
-    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    // Workaround nanosleep bug: https://man7.org/linux/man-pages/man2/nanosleep.2.html#BUGS
+    u64 deadline = OS::nanotime() + nanos;
+    struct timespec ts = {(time_t)(deadline / 1000000000), (long)(deadline % 1000000000)};
     while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &ts) == EINTR && *flag);
 }
 
