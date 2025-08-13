@@ -369,7 +369,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         put8(JVM_OPC_invokestatic);
         put16(_cpool_len);
         // nop ensures that tableswitch/lookupswitch needs no realignment
-        put8(0);
+        put8(JVM_OPC_nop);
         relocation = EXTRA_BYTECODES;
 
         // The rest of the code is unchanged
@@ -432,11 +432,11 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     put8(JVM_OPC_invokestatic);
     put16(_cpool_len + 10);
     // nop ensures that tableswitch/lookupswitch needs no realignment
-    put8(0);
+    put8(JVM_OPC_nop);
 
     put8(JVM_OPC_lstore);
     put8(start_time_loc_index);
-    put16(0);
+    put16(JVM_OPC_nop);
 
     // Low 32 bits: jump base index
     // High 32 bits: jump offset index
@@ -449,12 +449,12 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         if (isFunctionExit(opcode)) {
             put8(JVM_OPC_lload);
             put8(start_time_loc_index);
-            put16(0);
+            put16(JVM_OPC_nop);
 
             // invokestatic "one/profiler/Instrument.recordExit(J)V"
             put8(JVM_OPC_invokestatic);
             put16(_cpool_len + 6);
-            put8(0);
+            put8(JVM_OPC_nop);
         } else if (isNarrowJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
