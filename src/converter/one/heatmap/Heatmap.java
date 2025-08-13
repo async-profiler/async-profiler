@@ -24,7 +24,7 @@ public class Heatmap {
 
     public Heatmap(Arguments args, JfrConverter converter) {
         this.args = args;
-        this.state = new State(converter, BLOCK_DURATION_MS, args);
+        this.state = new State(converter, args, BLOCK_DURATION_MS);
     }
 
     public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
@@ -386,6 +386,8 @@ public class Heatmap {
 
         private static final int LIMIT = Integer.MAX_VALUE;
 
+        final JfrConverter converter;
+        final Arguments args;
         final SampleList sampleList;
         final StackStorage stackTracesRemap = new StackStorage();
 
@@ -394,17 +396,14 @@ public class Heatmap {
         final Map<MethodKey, Integer> methodCache = new HashMap<>();
         final Index<Method> methods = new Index<>(Method.class, Method.EMPTY);
         final Index<String> symbolTable = new Index<>(String.class, "");
-        final Arguments args;
-
-        final JfrConverter converter;
 
         // reusable array to (temporary) store (potentially) new stack trace
         int[] cachedStackTrace = new int[4096];
 
-        State(JfrConverter converter, long blockDurationMs, Arguments args) {
-            sampleList = new SampleList(blockDurationMs);
+        State(JfrConverter converter, Arguments args, long blockDurationMs) {
             this.converter = converter;
             this.args = args;
+            this.sampleList = new SampleList(blockDurationMs);
         }
 
         public void addEvent(int stackTraceId, int threadId, int classId, byte type, long timeMs) {
@@ -463,15 +462,12 @@ public class Heatmap {
         }
 
         private int getMethodIndex(MethodKey key) {
-            Integer methodIdx = methodCache.get(key);
-            if (methodIdx != null) return methodIdx;
-            methodIdx = makeMethod(key);
-            methodCache.put(key, methodIdx);
-            return methodIdx;
-        }
+            Integer oldIdx = methodCache.get(key);
+            if (oldIdx != null) return oldIdx;
 
-        private int makeMethod(MethodKey key) {
-            return methods.index(key.makeMethod(converter, symbolTable));
+            int newIdx = methods.index(key.makeMethod(converter, symbolTable));
+            methodCache.put(key, newIdx);
+            return newIdx;
         }
 
         private static final class MethodKey {
