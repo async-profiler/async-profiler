@@ -78,9 +78,6 @@ public class InstrumentTests {
 
         // recursive(1)
         duration = duration.plus(Duration.ofMillis(200));
-        System.err.println(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT));
-        System.err.println(out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)));
-        System.err.println(out);
         assert out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
 
         // recursive(0)
