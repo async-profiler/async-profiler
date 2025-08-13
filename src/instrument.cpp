@@ -949,7 +949,7 @@ void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTime
 
     u64 duration = OS::nanotime() - (u64) startTimeNanos;
     if (duration >= _latency) {
-        ExecutionEvent event(TSC::ticks());
+        ExecutionEvent event((u64) startTimeNanos);
         Profiler::instance()->recordSample(NULL, duration, INSTRUMENTED_METHOD, &event);
     }
 }
