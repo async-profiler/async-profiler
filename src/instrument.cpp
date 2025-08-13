@@ -22,6 +22,26 @@ constexpr int16_t INT16_T_MAX_VALUE = 0x7fff;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
+u8 countParametersSlots(const char* method_sig) {
+    u8 count = 0;
+    size_t i = 1;
+    while (method_sig[i] != ')') {
+        if (method_sig[i] == 'L') {
+            count += 1;
+            while (method_sig[++i] != ';');
+        } else if (method_sig[i] == '[') {
+            ++count;
+            while (method_sig[++i] == '[');
+            if (method_sig[i] == 'L') while (method_sig[++i] != ';');
+        } else if (method_sig[i] == 'J' || method_sig[i] == 'D') {
+            count += 2;
+        } else {
+            ++count;
+        }
+        ++i;
+    }
+    return count;
+}
 
 enum ConstantTag {
     CONSTANT_Utf8 = 1,
@@ -101,28 +121,8 @@ class Constant {
         return equals(value, len);
     }
 
-    u8 countParametersSlots() const {
-        const char* sig = (const char*) (_info + 2);
-        u8 count = 0;
-        size_t i = 1;
-        while (sig[i] != ')') {
-            if (sig[i] == 'L') {
-                count += 1;
-                while (sig[++i] != ';');
-            } else if (sig[i] == '[') {
-                ++count;
-                while (sig[++i] == '[');
-                if (sig[i] == 'L') while (sig[++i] != ';');
-                ++i;
-            } else if (sig[i] == 'J' || sig[i] == 'D') {
-                count += 2;
-                ++i;
-            } else {
-                ++count;
-                ++i;
-            }
-        }
-        return count;
+    u8 getCountParametersSlots() const {
+        return countParametersSlots((const char*) (_info + 2));
     }
 };
 
@@ -360,7 +360,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
     u32 relocation;
     if (_latency_profiling) {
-        u8 parameters_count = _cpool[descriptor_index]->countParametersSlots();
+        u8 parameters_count = _cpool[descriptor_index]->getCountParametersSlots();
         bool is_static = (access_flags & JVM_ACC_STATIC) != 0;
         u8 first_available_local = parameters_count + (is_static ? 0 : 1);
         relocation = rewriteCodeForLatency(code, code_length, first_available_local, relocation_table);

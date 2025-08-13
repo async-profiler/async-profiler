@@ -45,3 +45,34 @@ TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
     CHECK_EQ(current_frame_new, 6);
     CHECK_EQ(offset_delta_new, 3);
 }
+
+TEST_CASE(Instrument_test_countParametersSlots_reference) {
+    CHECK_EQ(countParametersSlots("(Ljava/time/Duration;)"), 1);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_referenceArray) {
+    CHECK_EQ(countParametersSlots("([Ljava/time/Duration;)"), 1);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_2darray) {
+    CHECK_EQ(countParametersSlots("([[I)"), 1);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_2slots) {
+    CHECK_EQ(countParametersSlots("(D)"), 2);
+    CHECK_EQ(countParametersSlots("(J)"), 2);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_1slot) {
+    CHECK_EQ(countParametersSlots("(Z)"), 1);
+    CHECK_EQ(countParametersSlots("(I)"), 1);
+    CHECK_EQ(countParametersSlots("(F)"), 1);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_doubleArray) {
+    CHECK_EQ(countParametersSlots("([D)"), 1);
+}
+
+TEST_CASE(Instrument_test_countParametersSlots_mix) {
+    CHECK_EQ(countParametersSlots("(ZD[I)"), 4);
+}
