@@ -53,7 +53,7 @@ namespace Sample {
     const protobuf_index_t locations_start_index = 1;
     const protobuf_index_t locations_length = 2;
     const protobuf_index_t value = 3;
-    const protobuf_index_t link_index = 4;
+    const protobuf_index_t link_index = 5;
 }
 
 namespace Location {
