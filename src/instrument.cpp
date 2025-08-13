@@ -420,7 +420,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     }
 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
-        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting", MAX_CODE_SEGMENT_BYTES);
+        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_SEGMENT_BYTES, _target_class, _target_method);
         put(code, code_length);
         for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
         return 0;
@@ -459,7 +459,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (max_relocation > INT16_T_MAX_VALUE - offset) {
-                Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting");
+                Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
                 _dst_len = code_segment_begin;
                 put(code, code_length);
                 for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
