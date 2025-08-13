@@ -35,8 +35,13 @@ public class Heatmap {
         state.addStack(id, methods, locations, types, size);
     }
 
+    public void beforeChunk() {
+        state.methodCache.clear();
+    }
+
     public void finish(long startMs) {
         this.startMs = startMs;
+        state.methodCache.clear();
         state.stackTracesCache.clear();
     }
 
