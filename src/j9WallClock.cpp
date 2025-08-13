@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
 #include <stdlib.h>
-#include <time.h>
 #include "j9WallClock.h"
 #include "j9Ext.h"
 #include "profiler.h"
@@ -33,17 +31,6 @@ void J9WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-void J9WallClock::uninterruptibleSleep(u64 nanos) const {
-#ifdef __APPLE__
-    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
-    while (nanosleep(&ts, &ts) < 0 && errno == EINTR && _running);
-#else
-    nanos += OS::nanotime();
-    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
-    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &ts) == EINTR && _running);
-#endif
-}
-
 void J9WallClock::timerLoop() {
     JNIEnv* jni = VM::attachThread("Async-profiler Sampler");
     jvmtiEnv* jvmti = VM::jvmti();
@@ -53,7 +40,7 @@ void J9WallClock::timerLoop() {
 
     while (_running) {
         if (!_enabled) {
-            uninterruptibleSleep(_interval);
+            OS::uninterruptibleSleep(_interval, &_running);
             continue;
         }
 
@@ -81,7 +68,7 @@ void J9WallClock::timerLoop() {
 
         jni->PopLocalFrame(NULL);
 
-        uninterruptibleSleep(_interval);
+        OS::uninterruptibleSleep(_interval, &_running);
     }
 
     free(frames);

@@ -135,6 +135,12 @@ void OS::sleep(u64 nanos) {
     nanosleep(&ts, NULL);
 }
 
+void OS::uninterruptibleSleep(u64 nanos, volatile bool* flag) {
+    nanos += OS::nanotime();
+    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
+    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &ts) == EINTR && *flag);
+}
+
 u64 OS::overrun(siginfo_t* siginfo) {
     return siginfo->si_overrun;
 }

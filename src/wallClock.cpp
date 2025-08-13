@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
 #include <string.h>
-#include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include "wallClock.h"
 #include "profiler.h"
 #include "stackFrame.h"
@@ -184,17 +182,6 @@ void WallClock::stop() {
     pthread_join(_thread, NULL);
 }
 
-void WallClock::uninterruptibleSleep(u64 nanos) const {
-#ifdef __APPLE__
-    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
-    while (nanosleep(&ts, &ts) < 0 && errno == EINTR && _running);
-#else
-    nanos += OS::nanotime();
-    struct timespec ts = {(time_t)(nanos / 1000000000), (long)(nanos % 1000000000)};
-    while (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, &ts) == EINTR && _running);
-#endif
-}
-
 void WallClock::timerLoop() {
     int self = OS::threadId();
     ThreadFilter* thread_filter = Profiler::instance()->threadFilter();
@@ -247,7 +234,7 @@ void WallClock::timerLoop() {
         if (thread_list->hasNext()) {
             // Try to keep interval stable regardless of the number of profiled threads
             long long sleep_time = cycle_start_time + (u64)_interval * thread_list->index() / thread_list->count() - current_time;
-            uninterruptibleSleep(sleep_time < MIN_INTERVAL ? MIN_INTERVAL : sleep_time);
+            OS::uninterruptibleSleep(sleep_time < MIN_INTERVAL ? MIN_INTERVAL : sleep_time, &_running);
         } else {
             // Cycle has ended: prepare for the next cycle
             cycle_start_time += (u64)_interval;
@@ -256,7 +243,7 @@ void WallClock::timerLoop() {
                 cycle_start_time = current_time + MIN_INTERVAL;
                 sleep_time = MIN_INTERVAL;
             }
-            uninterruptibleSleep(sleep_time);
+            OS::uninterruptibleSleep(sleep_time, &_running);
             thread_list->update();
         }
 

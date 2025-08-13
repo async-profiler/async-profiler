@@ -9,7 +9,6 @@
 #include <jvmti.h>
 #include <signal.h>
 #include <pthread.h>
-#include "arch.h"
 #include "engine.h"
 #include "os.h"
 
@@ -28,8 +27,6 @@ class WallClock : public Engine {
 
     volatile bool _running;
     pthread_t _thread;
-
-    void uninterruptibleSleep(u64 nanos) const;
 
     void timerLoop();
 
