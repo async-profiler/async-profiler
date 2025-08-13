@@ -1730,7 +1730,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             otlp_buffer.field(Sample::link_index, link_idx);
         }
 
-        frames_seen += trace->num_frames;
+        frames_seen += trace->num_frames - (trace_context ? 1 : 0);
     }
 
     protobuf_mark_t location_indices_mark = otlp_buffer.startMessage(Profile::location_indices);
