@@ -790,9 +790,11 @@ void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
 
 void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
     if (trace_id && span_id) {
-        char* combined = (char*)malloc(strlen(trace_id) + strlen(span_id) + 1);
-        strcpy(combined, trace_id);
-        strcat(combined, span_id);
+        // TODO: free the memory
+        char* combined = (char*)malloc(49);
+        memcpy(combined, trace_id, 32);
+        memcpy(combined + 32, span_id, 16);
+        combined[48] = '\0';
         _current_trace_context = combined;
     } else {
         _current_trace_context = nullptr;
@@ -1716,6 +1718,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         for (int j = 0; j < trace->num_frames; j++) {
             if (trace->frames[j].bci == BCI_TRACE_CONTEXT) {
                 trace_context = (const char*)trace->frames[j].method_id;
+                continue;
             }
 
             // To be written below in Profile.location_indices
@@ -1771,9 +1774,8 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         protobuf_mark_t link_mark = otlp_buffer.startMessage(ProfilesDictionary::link_table, 1);
         if (!link_key.empty()) {
             const char* data = link_key.c_str();
-
-            otlp_buffer.field(Link::trace_id, data, 16);
-            otlp_buffer.field(Link::span_id, data + 16, link_key.length() - 16);
+            otlp_buffer.field(Link::trace_id, data, 32);
+            otlp_buffer.field(Link::span_id, data + 32, 16);
         }
         otlp_buffer.commitMessage(link_mark);
     });
