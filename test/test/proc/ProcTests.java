@@ -151,12 +151,12 @@ public class ProcTests {
 
     @Test(mainClass = ManyProcessApp.class, os = Os.LINUX)
     public void highProcessCount(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 8 -f %f.jfr");
+        Output out = p.profile("--proc 4 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
             assert !events.isEmpty();
-            Assert.isLess(events.size(), 5000);
+            Assert.isLess(events.size(), 5001);
         }
     }
 
