@@ -76,8 +76,8 @@ public class InstrumentTests {
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 2;
-        assert out.samples("\\[thread3.*") == 0;
-        assert out.samples("\\[thread4.*") == 0;
+        assert !out.contains("\\[thread3.*");
+        assert !out.contains("\\[thread4.*");
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
@@ -91,8 +91,8 @@ public class InstrumentTests {
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 2;
-        assert out.samples("\\[thread3.*") == 0;
-        assert out.samples("\\[thread4.*") == 0;
+        assert !out.contains("\\[thread3.*");
+        assert !out.contains("\\[thread4.*");
     }
 
     @Test(
@@ -105,8 +105,8 @@ public class InstrumentTests {
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(500).toNanos();
         assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(300+150).toNanos();
-        assert out.samples("\\[thread3.*") == 0;
-        assert out.samples("\\[thread4.*") == 0;
+        assert !out.contains("\\[thread3.*");
+        assert !out.contains("\\[thread4.*");
     }
 
     @Test(
@@ -122,12 +122,12 @@ public class InstrumentTests {
         
         // recursive(3) is filtered out
         Duration duration = Duration.ZERO;
-        assert out.samples(String.format("%s%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, 
-                RECURSIVE_METHOD_SEGMENT)) == 0;
+        assert !out.contains(String.format("%s%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, 
+                RECURSIVE_METHOD_SEGMENT));
         
         // recursive(2) is filtered out
         duration = duration.plus(Duration.ofMillis(100));
-        assert out.samples(String.format("%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) == 0;
+        assert !out.contains(String.format("%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT));
 
         // recursive(1)
         duration = duration.plus(Duration.ofMillis(200));
