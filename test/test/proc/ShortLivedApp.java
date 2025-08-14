@@ -33,6 +33,6 @@ public class ShortLivedApp {
             p.waitFor();
         }
 
-        Thread.sleep(9000);
+        Thread.sleep(5000);
     }
 }

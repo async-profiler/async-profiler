@@ -89,7 +89,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = IoIntensiveApp.class, os = Os.LINUX)
+    @Test(mainClass = IoIntensiveApp.class, jvmVer = {11, Integer.MAX_VALUE}, os = Os.LINUX)
     public void validateIoStats(TestProcess p) throws Exception {
         Output out = p.profile("--proc 1 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
@@ -135,7 +135,7 @@ public class ProcTests {
 
     @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
     public void shortLivedProcesses(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 15 -f %f.jfr", false, 15);
+        Output out = p.profile("--proc 1 -d 10 -f %f.jfr", false, 15);
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
