@@ -36,4 +36,16 @@ public class InstrumentTests {
         assert out.samples("java\\/lang\\/String\\.<init> ") > 0;
     }
 
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,event=*.<init>,collapsed,file=%f"
+    )
+    public void instrumentAllInit(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        assert out.samples("^java\\/lang\\/Thread\\.run ") == 0;
+        assert out.samples("java\\/lang\\/String\\.<init> ") > 0;
+    }
+
 }
