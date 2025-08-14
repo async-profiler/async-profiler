@@ -483,7 +483,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             int32_t h = ntohl(*(u32*)(code + default_index + 8));
             // (high - low + 1) * 4 bits: branches
             u32 branches_base_index = default_index + 12;
-            for (u64 c = 0; c <= h - l + 1; ++c) {
+            for (u64 c = 0; c < h - l + 1; ++c) {
                 jumps.push_back((branches_base_index + c * 4) << 32 | i);
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
