@@ -257,7 +257,7 @@ class BytecodeRewriter {
     }
 
     void rewrite(u8** new_class_data, int* new_class_data_len) {
-        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == 0) {
+        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == JVMTI_ERROR_NONE) {
             if (rewriteClass()) {
                 *new_class_data = _dst;
                 *new_class_data_len = _dst_len;
@@ -474,7 +474,7 @@ bool BytecodeRewriter::rewriteClass() {
     put16(this_class);
 
     u16 class_name_index = _cpool[this_class]->info();
-    if (!_cpool[class_name_index]->equals(_target_class, _target_class_len)) {
+    if (!_cpool[class_name_index]->matches(_target_class, _target_class_len)) {
         return false;
     }
 
@@ -566,24 +566,39 @@ void Instrument::setupTargetClassAndMethod(const char* event) {
 void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     jint class_count;
     jclass* classes;
-    if (jvmti->GetLoadedClasses(&class_count, &classes) != 0) {
-        return;
+    jvmtiError error;
+    if ((error = jvmti->GetLoadedClasses(&class_count, &classes)) != JVMTI_ERROR_NONE) {
+        Log::error("JVMTI error %d occurred while calling GetLoadedClasses, aborting", error);
     }
 
     jint matched_count = 0;
     size_t len = strlen(_target_class);
+    bool wildcard_class = len == 1 && _target_class[0] == '*';
     for (int i = 0; i < class_count; i++) {
         char* signature;
-        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == 0) {
-            if (signature[0] == 'L' && strncmp(signature + 1, _target_class, len) == 0 && signature[len + 1] == ';') {
-                classes[matched_count++] = classes[i];
+        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == JVMTI_ERROR_NONE) {
+            if (signature[0] == 'L') {
+                if (wildcard_class) {
+                    jboolean is_modifiable_class;
+                    if (jvmti->IsModifiableClass(classes[i], &is_modifiable_class) != JVMTI_ERROR_NONE) {
+                        is_modifiable_class = false;
+                    }
+                    if (is_modifiable_class) {
+                        classes[matched_count++] = classes[i];
+                    }
+                } else if (strncmp(signature + 1, _target_class, len) == 0 && signature[len + 1] == ';') {
+                    classes[matched_count++] = classes[i];
+                }
             }
             jvmti->Deallocate((unsigned char*)signature);
         }
     }
 
     if (matched_count > 0) {
-        jvmti->RetransformClasses(matched_count, classes);
+        jvmtiError error;
+        if ((error = jvmti->RetransformClasses(matched_count, classes)) != JVMTI_ERROR_NONE) {
+            Log::error("JVMTI error %d occurred while calling RetransformClasses", error);
+        }
         VM::jni()->ExceptionClear();
     }
 
@@ -598,7 +613,8 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
     // Do not retransform if the profiling has stopped
     if (!_running) return;
 
-    if (name == NULL || strcmp(name, _target_class) == 0) {
+    bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
+    if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
         BytecodeRewriter rewriter(class_data, class_data_len, _target_class);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
