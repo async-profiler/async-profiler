@@ -43,6 +43,10 @@ u8 countParametersSlots(const char* method_sig) {
     return count;
 }
 
+inline u32 smallestGreaterMultiple4(u32 i) {
+    return (i / 4) * 4 + 4;
+}
+
 enum ConstantTag {
     CONSTANT_Utf8 = 1,
     CONSTANT_Integer = 3,
@@ -321,13 +325,13 @@ static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
         return 4;
     }
     if (opcode == JVM_OPC_tableswitch) {
-        u32 default_index = ((index + 3) / 4) * 4;
+        u32 default_index = smallestGreaterMultiple4(index);
         int32_t l = ntohl(*(u32*)(code + default_index + 4));
         int32_t h = ntohl(*(u32*)(code + default_index + 8));
         return default_index - index + (3 + (h - l + 1)) * 4;
     }
     if (opcode == JVM_OPC_lookupswitch) {
-        u32 default_index = ((index + 3) / 4) * 4;
+        u32 default_index = smallestGreaterMultiple4(index);
         u32 npairs = ntohl(*(u32*)(code + default_index + 4));
         return default_index - index + npairs * 8;
     }
@@ -442,6 +446,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // High 32 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
+    jumps.reserve(code_length / 20);
     // Second scan: fill relocation_table and rewrite code.
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
@@ -469,7 +474,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
             // Nearest multiple of 4, 'default' lies after the padding
-            u32 default_index = ((i + 3) / 4) * 4;
+            u32 default_index = smallestGreaterMultiple4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
             // 4 bits: low
@@ -483,7 +488,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
             // Nearest multiple of 4, 'default' lies after the padding
-            u32 default_index = ((i + 3) / 4) * 4;
+            u32 default_index = smallestGreaterMultiple4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
             // 4 bits: npairs

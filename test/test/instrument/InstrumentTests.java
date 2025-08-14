@@ -28,7 +28,6 @@ public class InstrumentTests {
         assert out.samples("\\[thread4 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$3;test\\/instrument\\/CpuBurner\\.burn") == 1;
     }
 
-    
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
     @Test(
         mainClass = CpuBurner.class,
@@ -72,6 +71,21 @@ public class InstrumentTests {
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f"
     )
     public void latency(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
+
+        assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
+        assert out.samples("\\[thread2 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$1;test\\/instrument\\/CpuBurner\\.burn") == 2;
+        assert out.samples("\\[thread3.*") == 0;
+        assert out.samples("\\[thread4.*") == 0;
+    }
+
+    // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f"
+    )
+    public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
