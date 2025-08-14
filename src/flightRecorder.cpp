@@ -532,19 +532,19 @@ class Recording {
         cleanupProcessHistory(pids, pid_count);
 
         for (int i = 0; i < pid_count; i++) {
-            u64 _proc_sampling_time_ns = OS::nanotime();
-            if (_proc_sampling_time_ns > deadline_ns) {
+            u64 proc_sampling_time_ns = OS::nanotime();
+            if (proc_sampling_time_ns > deadline_ns) {
                 Log::debug("Incomplete process sampling cycle.");
                 break;
             }
 
             ProcessInfo info;
             if (OS::getBasicProcessInfo(pids[i], &info)) {
-                populateCpuPercent(info, _proc_sampling_time_ns);
+                populateCpuPercent(info, proc_sampling_time_ns);
                 if (_last_proc_sample_time > 0 && shouldIncludeProcess(info)) {
                     OS::getDetailedProcessInfo(&info);
                     flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                    recordProcessSample(&_proc_buf, &info, _proc_sampling_time_ns);
+                    recordProcessSample(&_proc_buf, &info, proc_sampling_time_ns);
                 }
             }
         }

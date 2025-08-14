@@ -7,6 +7,7 @@
 
 #include <arpa/inet.h>
 #include <byteswap.h>
+#include <climits>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -447,7 +448,7 @@ u64 OS::getSysBootTime(){
     while (fgets(line, sizeof(line), file)) {
         if (sscanf(line, "%5s %llu", key, &value) == 2 && strcmp(key, "btime") == 0) {
             fclose(file);
-            return static_cast<u64>(value);
+            return value;
         }
     }
 
