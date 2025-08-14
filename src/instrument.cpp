@@ -257,7 +257,7 @@ class BytecodeRewriter {
     }
 
     void rewrite(u8** new_class_data, int* new_class_data_len) {
-        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == JVMTI_ERROR_NONE) {
+        if (VM::jvmti()->Allocate(_dst_capacity, &_dst) == 0) {
             if (rewriteClass()) {
                 *new_class_data = _dst;
                 *new_class_data_len = _dst_len;
@@ -567,8 +567,9 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     jint class_count;
     jclass* classes;
     jvmtiError error;
-    if ((error = jvmti->GetLoadedClasses(&class_count, &classes)) != JVMTI_ERROR_NONE) {
+    if ((error = jvmti->GetLoadedClasses(&class_count, &classes)) != 0) {
         Log::error("JVMTI error %d occurred while calling GetLoadedClasses, aborting", error);
+        return;
     }
 
     jint matched_count = 0;
@@ -576,14 +577,11 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     bool wildcard_class = len == 1 && _target_class[0] == '*';
     for (int i = 0; i < class_count; i++) {
         char* signature;
-        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == JVMTI_ERROR_NONE) {
+        if (jvmti->GetClassSignature(classes[i], &signature, NULL) == 0) {
             if (signature[0] == 'L') {
                 if (wildcard_class) {
-                    jboolean is_modifiable_class;
-                    if (jvmti->IsModifiableClass(classes[i], &is_modifiable_class) != JVMTI_ERROR_NONE) {
-                        is_modifiable_class = false;
-                    }
-                    if (is_modifiable_class) {
+                    jboolean modifiable;
+                    if (jvmti->IsModifiableClass(classes[i], &modifiable) == 0 && modifiable) {
                         classes[matched_count++] = classes[i];
                     }
                 } else if (strncmp(signature + 1, _target_class, len) == 0 && signature[len + 1] == ';') {
@@ -596,7 +594,7 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
 
     if (matched_count > 0) {
         jvmtiError error;
-        if ((error = jvmti->RetransformClasses(matched_count, classes)) != JVMTI_ERROR_NONE) {
+        if ((error = jvmti->RetransformClasses(matched_count, classes)) != 0) {
             Log::error("JVMTI error %d occurred while calling RetransformClasses", error);
         }
         VM::jni()->ExceptionClear();
