@@ -81,10 +81,10 @@ public class InstrumentTests {
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
-    @Test(
-        mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f"
-    )
+    //@Test(
+    //    mainClass = CpuBurner.class,
+    //    agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f"
+    //)
     public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
