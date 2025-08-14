@@ -37,8 +37,8 @@ public class InstrumentTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        assert out.samples("java\\/lang\\/Thread\\.run ") > 0;
-        assert out.samples("java\\/lang\\/String\\.<init> ") > 0;
+        assert out.contains("java\\/lang\\/Thread\\.run ");
+        assert out.contains("java\\/lang\\/String\\.<init> ");
     }
 
     @Test(
@@ -49,8 +49,8 @@ public class InstrumentTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        assert out.samples("java\\/lang\\/Thread\\.run ") == 0;
-        assert out.samples("java\\/lang\\/String\\.<init> ") > 0;
+        assert !out.contains("java\\/lang\\/Thread\\.run ");
+        assert out.contains("java\\/lang\\/String\\.<init> ");
     }
 
     @Test(
@@ -61,9 +61,9 @@ public class InstrumentTests {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
 
-        assert out.samples("java\\/lang\\/Thread\\.run ") > 0;
-        assert out.samples("java\\/lang\\/Thread\\.<init> ") > 0;
-        assert out.samples("java\\/lang\\/String\\.<init> ") == 0;
+        assert out.contains("java\\/lang\\/Thread\\.run ");
+        assert out.contains("java\\/lang\\/Thread\\.<init> ");
+        assert !out.contains("java\\/lang\\/String\\.<init> ");
     }
 
     @Test(
