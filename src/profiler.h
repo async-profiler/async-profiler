@@ -90,6 +90,9 @@ class Profiler {
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
 
+    // Thread-local storage for trace correlation
+    static thread_local char* _current_trace_context;
+
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
     CodeCacheArray _native_libs;
@@ -212,6 +215,9 @@ class Profiler {
     void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
+
+    void setTraceContext(const char* traceId, const char* spanId);
+    void clearTraceContext();
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
