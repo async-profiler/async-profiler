@@ -135,7 +135,7 @@ public class ProcTests {
 
     @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
     public void shortLivedProcesses(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 10 -f %f.jfr", false, 15);
+        Output out = p.profile("--proc 1 -d 15 -f %f.jfr", false, 10);
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();

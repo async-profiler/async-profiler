@@ -13,7 +13,7 @@ public class ShortLivedApp {
     private static final int SPAWN = 10;
 
     private static final String[] DD_CMD = {
-        "timeout", "6",
+        "timeout", "5",
         "dd",
         "if=/dev/zero",
         "of=/dev/null",
@@ -33,6 +33,6 @@ public class ShortLivedApp {
             p.waitFor();
         }
 
-        Thread.sleep(5000);
+        Thread.sleep(10000);
     }
 }
