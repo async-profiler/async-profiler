@@ -40,7 +40,7 @@ void J9WallClock::timerLoop() {
 
     while (_running) {
         if (!_enabled) {
-            OS::sleep(_interval);
+            OS::uninterruptibleSleep(_interval, &_running);
             continue;
         }
 
@@ -68,7 +68,7 @@ void J9WallClock::timerLoop() {
 
         jni->PopLocalFrame(NULL);
 
-        OS::sleep(_interval);
+        OS::uninterruptibleSleep(_interval, &_running);
     }
 
     free(frames);
