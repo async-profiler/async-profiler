@@ -258,11 +258,11 @@ class BytecodeRewriter {
     void rewriteCode(u16 access_flags, u16 descriptor_index);
     u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table);
     void rewriteLineNumberTable(const u32* relocation_table);
-    void rewriteLocalVariableTable(const u32* relocation_table);
+    void rewriteLocalVariableTable(const u32* relocation_table, int new_local_index);
     void rewriteStackMapTable(const u32* relocation_table);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
     void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
-    void rewriteCodeAttributes(const u32* relocation_table);
+    void rewriteCodeAttributes(const u32* relocation_table, int new_local_index);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
 
@@ -366,12 +366,13 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     // (i.e. LocalVariableTable).
     u32* relocation_table = new u32[code_length + 1];
 
+    int new_local_index = -1;
     u32 relocation;
     if (_latency_profiling) {
         u8 parameters_count = _cpool[descriptor_index]->getCountParametersSlots();
         bool is_static = (access_flags & JVM_ACC_STATIC) != 0;
-        u8 first_available_local = parameters_count + (is_static ? 0 : 1);
-        relocation = rewriteCodeForLatency(code, code_length, first_available_local, relocation_table);
+        new_local_index = parameters_count + (is_static ? 0 : 1);
+        relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
         put8(JVM_OPC_invokestatic);
@@ -402,7 +403,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         put16(catch_type);
     }
 
-    rewriteCodeAttributes(relocation_table);
+    rewriteCodeAttributes(relocation_table, new_local_index);
     delete[] relocation_table;
 
     // Patch attribute length
@@ -586,7 +587,7 @@ void BytecodeRewriter::rewriteLineNumberTable(const u32* relocation_table) {
     }
 }
 
-void BytecodeRewriter::rewriteLocalVariableTable(const u32* relocation_table) {
+void BytecodeRewriter::rewriteLocalVariableTable(const u32* relocation_table, int new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -603,7 +604,14 @@ void BytecodeRewriter::rewriteLocalVariableTable(const u32* relocation_table) {
         u16 end_pc_new = end_pc_old + relocation_table[end_pc_old];
         put16(end_pc_new - start_pc_new);
 
-        put(get(6), 6);
+        put32(get32());
+
+        u16 index = get16();
+        if (index >= new_local_index) {
+            // The new variable is a long
+            index += 2;
+        }
+        put16(index);
     }
 }
 
@@ -727,7 +735,7 @@ void BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 desc
     }
 }
 
-void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table) {
+void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table, int new_local_index) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
@@ -741,7 +749,7 @@ void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table) {
             continue;
         } else if (attribute_name->equals("LocalVariableTable", 18) ||
                    attribute_name->equals("LocalVariableTypeTable", 22)) {
-            rewriteLocalVariableTable(relocation_table);
+            rewriteLocalVariableTable(relocation_table, new_local_index);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
             rewriteStackMapTable(relocation_table);
