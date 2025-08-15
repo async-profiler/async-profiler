@@ -561,7 +561,6 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
 
         u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
         u8* new_jump_base_ptr = _dst + code_segment_begin + new_jump_base_idx;
-        u8* new_jump_offset_ptr = _dst + code_segment_begin + (old_jump_offset_idx + relocation_table[old_jump_offset_idx]);
 
         bool is_narrow = isNarrowJump(*new_jump_base_ptr);
         int32_t old_offset;
@@ -570,8 +569,12 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         } else {
             old_offset = (int32_t) ntohl(*(u32*)(code + old_jump_offset_idx));
         }
+
         u32 old_jump_target = (u32) (old_jump_base_idx + old_offset);
         int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
+
+        u32 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
+        u8* new_jump_offset_ptr = _dst + code_segment_begin + new_jump_offset_idx;
         if (is_narrow) {
             *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
         } else {
@@ -1023,6 +1026,7 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
+    // TODO: is this comparable with System.nanoTime()?
     u64 duration = OS::nanotime() - (u64) startTimeNanos;
     if (duration >= _latency) {
         ExecutionEvent event((u64) startTimeNanos);
