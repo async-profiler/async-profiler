@@ -7,7 +7,6 @@
 
 #include <arpa/inet.h>
 #include <byteswap.h>
-#include <climits>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -444,14 +443,12 @@ u64 OS::getSysBootTime(){
     char line[1024];
     char key[6];
     u64 value;
-
     while (fgets(line, sizeof(line), file)) {
         if (sscanf(line, "%5s %llu", key, &value) == 2 && strcmp(key, "btime") == 0) {
             fclose(file);
             return value;
         }
     }
-
     fclose(file);
     return 0;
 }
@@ -462,7 +459,7 @@ int OS::getProcessIds(int* pids, int max_pids) {
     if (!proc) return 0;
     for (dirent* de; (de = readdir(proc)) && count < max_pids; ) {
         unsigned long pid = strtoul(de->d_name, NULL, 10);
-        if (pid != 0 && pid != ULLONG_MAX)  {
+        if (pid != 0) {
             pids[count++] = pid;
         }
     }
@@ -495,7 +492,6 @@ static bool readProcessCmdline(int pid, ProcessInfo* info) {
           info->_cmdline[len-1] = '\0';
       }
     }
-
     fclose(file);
     return true;
 }
@@ -514,14 +510,13 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
     }
     fclose(file);
 
-    int  parsed_pid, parsed_ppid;
+    int parsed_pid, parsed_ppid;
     char comm[COMM_LEN] = {0};
     char state;
-    u64  minflt, majflt, utime, stime;
+    u64 minflt, majflt, utime, stime;
     u64 starttime;
     u64 vsize, rss;
-    int  threads;
-
+    int threads;
     int parsed = sscanf(buffer,
                         "%d "                     /*  1 pid                                   */
                         "(%15[^)]) "              /*  2 comm  (read until ')')                */
@@ -543,19 +538,19 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
 
     memcpy(info->_name, comm, COMM_LEN);
 
-    info->_pid           = parsed_pid;
-    info->_ppid          = parsed_ppid;
-    info->_state         = (unsigned char)state;
-    info->_minor_faults  = minflt;
-    info->_major_faults  = majflt;
-    info->_cpu_user      = utime;
-    info->_cpu_system    = stime;
-    info->_threads       = threads;
-    info->_start_time    = starttime;
+    info->_pid = parsed_pid;
+    info->_ppid = parsed_ppid;
+    info->_state = (unsigned char)state;
+    info->_minor_faults = minflt;
+    info->_major_faults = majflt;
+    info->_cpu_user = utime;
+    info->_cpu_system = stime;
+    info->_threads = threads;
+    info->_start_time = starttime;
     // (23) vsize convert from bytes to kB
-    info->_vm_size      = vsize >> 10;
+    info->_vm_size = vsize >> 10;
     //(24) rss - convert from number of pages to kB
-    info->_vm_rss  = (rss * OS::page_size) >> 10;
+    info->_vm_rss = (rss * OS::page_size) >> 10;
     return true;
 }
 
@@ -572,15 +567,15 @@ static bool readProcessStatus(int pid, ProcessInfo* info) {
     char line[1024];
     char key[32];
     u64 value;
-
     while (fgets(line, sizeof(line), file) && read_count < 6) {
         if (sscanf(line, "%31s %llu", key, &value) != 2) {
             continue;
         }
 
         size_t len = strlen(key);
-        if (len && key[len - 1] == ':')
+        if (len && key[len - 1] == ':') {
             key[len - 1] = '\0';
+        }
 
         if (strcmp(key, "Uid") == 0) {
             read_count++;
@@ -594,12 +589,10 @@ static bool readProcessStatus(int pid, ProcessInfo* info) {
         } else if (strcmp(key, "RssShmem") == 0) {
             read_count++;
             info->_rss_shmem = value;
-        }
-        else if (strcmp(key, "VmSize") == 0) {
+        } else if (strcmp(key, "VmSize") == 0) {
             read_count++;
             info->_vm_size = value;
-        }
-        else if (strcmp(key, "VmRSS") == 0) {
+        } else if (strcmp(key, "VmRSS") == 0) {
             read_count++;
             info->_vm_rss = value;
         }
@@ -640,12 +633,11 @@ static bool readProcessIO(int pid, ProcessInfo* info) {
 }
 
 bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
-    *info = ProcessInfo();
     info->_pid = pid;
     return readProcessStats(pid, info);
 }
 
-bool OS::getDetailedProcessInfo(ProcessInfo* info) {\
+bool OS::getDetailedProcessInfo(ProcessInfo* info) {
     readProcessStatus(info->_pid, info);
     readProcessIO(info->_pid, info);
     readProcessCmdline(info->_pid, info);

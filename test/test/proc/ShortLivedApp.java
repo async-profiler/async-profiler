@@ -12,14 +12,7 @@ public class ShortLivedApp {
 
     private static final int SPAWN = 10;
 
-    private static final String[] DD_CMD = {
-        "timeout", "5",
-        "dd",
-        "if=/dev/zero",
-        "of=/dev/null",
-        "bs=1M",
-        "status=none"
-    };
+    private static final String[] DD_CMD = {"timeout", "5", "dd", "if=/dev/zero", "of=/dev/null", "bs=1M", "status=none"};
 
     public static void main(String[] args) throws Exception {
 

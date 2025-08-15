@@ -24,10 +24,9 @@ public class ProcTests {
             assert !events.isEmpty();
 
             List<ProcessSample> appSamples = events.stream()
-                .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp"))
-                .collect(Collectors.toList());
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp")).collect(Collectors.toList());
 
-            Assert.isEqual(appSamples.size(), 4); // We discard first sample
+            Assert.isEqual(appSamples.size(), 4); // We discard the first sample
         }
     }
 
@@ -51,8 +50,7 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
             List<ProcessSample> appSamples = events.stream()
-                .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp"))
-                .collect(Collectors.toList());
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp")).collect(Collectors.toList());
 
             Assert.isEqual(appSamples.size(), 3);
         }
@@ -96,14 +94,13 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
 
-            ProcessSample sample  = events.stream()
-                .filter(e -> e.cmdLine != null && e.cmdLine.contains("IoIntensiveApp"))
-                .max(Comparator.comparingLong(e -> e.time))
-                .orElse(null);
+            ProcessSample sample = events.stream()
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("IoIntensiveApp"))
+                    .max(Comparator.comparingLong(e -> e.time)).orElse(null);
 
             assert sample != null;
-            Assert.isGreaterOrEqual(sample.ioRead, 64*1024);
-            Assert.isGreaterOrEqual(sample.ioWrite, 64*1024);
+            Assert.isGreaterOrEqual(sample.ioRead, 64 * 1024);
+            Assert.isGreaterOrEqual(sample.ioWrite, 64 * 1024);
         }
     }
 
@@ -114,9 +111,8 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
             ProcessSample multiThreadSample = events.stream()
-                .filter(e -> e.cmdLine != null && e.cmdLine.contains("MultiThreadApp"))
-                .findFirst()
-                .orElse(null);
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("MultiThreadApp"))
+                    .findFirst().orElse(null);
 
             assert multiThreadSample != null;
             Assert.isGreaterOrEqual(multiThreadSample.threads, 5);
@@ -141,9 +137,8 @@ public class ProcTests {
             assert !events.isEmpty();
 
             ProcessSample sample = events.stream()
-                .filter(e -> e.cmdLine != null && e.cmdLine.contains("dd if=/dev/zero of=/dev/nul"))
-                .findAny()
-                .orElse(null);
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("dd if=/dev/zero of=/dev/nul"))
+                    .findAny().orElse(null);
 
             assert sample != null;
         }
@@ -231,16 +226,15 @@ public class ProcTests {
             assert !events.isEmpty();
 
             events.forEach(sample -> {
+                Assert.isGreaterOrEqual(sample.rssAnon, 0);
+                Assert.isGreaterOrEqual(sample.rssFiles, 0);
+                Assert.isGreaterOrEqual(sample.rssShmem, 0);
+                Assert.isGreaterOrEqual(sample.vmRss, 0);
 
-               Assert.isGreaterOrEqual(sample.rssAnon, 0);
-               Assert.isGreaterOrEqual(sample.rssFiles, 0);
-               Assert.isGreaterOrEqual(sample.rssShmem, 0);
-               Assert.isGreaterOrEqual(sample.vmRss, 0);
-
-               if (sample.vmRss > 0) {
-                   long totalBreakdown = sample.rssAnon + sample.rssFiles + sample.rssShmem;
-                   Assert.isLessOrEqual(totalBreakdown, sample.vmRss * 1.1);
-               }
+                if (sample.vmRss > 0) {
+                    long totalBreakdown = sample.rssAnon + sample.rssFiles + sample.rssShmem;
+                    Assert.isLessOrEqual(totalBreakdown, sample.vmRss * 1.1);
+                }
             });
         }
     }

@@ -436,7 +436,6 @@ int OS::getProcessIds(int* pids, int max_pids) {
 }
 
 bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
-    *info = ProcessInfo();
     return false;
 }
 
