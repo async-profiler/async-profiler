@@ -259,7 +259,7 @@ class BytecodeRewriter {
     u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table);
     void rewriteLineNumberTable(const u32* relocation_table);
     void rewriteLocalVariableTable(const u32* relocation_table, int new_local_index);
-    void rewriteStackMapTable(const u32* relocation_table);
+    void rewriteStackMapTable(const u32* relocation_table, u8 new_local_index);
     void rewriteVerificationTypeInfo(const u32* relocation_table);
     void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
     void rewriteCodeAttributes(const u32* relocation_table, int new_local_index);
@@ -624,7 +624,7 @@ u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
     return current_frame_new - previous_frame_new - 1;
 }
 
-void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
+void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -635,7 +635,10 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
 
     u32 attribute_start_idx = _dst_len;
     u16 number_of_entries = get16();
-    if (_latency_profiling && relocation_table[0] > 0) {
+
+    // Latency profiling may have bailed out
+    bool latency_profiling_ok = _latency_profiling && relocation_table[0] > 0;
+    if (latency_profiling_ok) {
         put16(number_of_entries + 1);
         // The new stackframe is applied to the nop just after the lstore,
         // so we don't need to worry about conflicts with existing frames
@@ -688,9 +691,14 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
         } else {
             // full_frame
             put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
-            u16 number_of_locals = get16();
+            u16 number_of_locals = get16() + latency_profiling_ok;
             put16(number_of_locals);
             for (int j = 0; j < number_of_locals; j++) {
+                if (latency_profiling_ok && j == new_local_index) {
+                    // Make sure our new local variable is not left out
+                    put8(JVM_ITEM_Long);
+                    continue;
+                }
                 rewriteVerificationTypeInfo(relocation_table);
             }
             u16 number_of_stack_items = get16();
@@ -755,7 +763,7 @@ void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table, int ne
             rewriteLocalVariableTable(relocation_table, new_local_index);
             continue;
         } else if (attribute_name->equals("StackMapTable", 13)) {
-            rewriteStackMapTable(relocation_table);
+            rewriteStackMapTable(relocation_table, new_local_index);
             continue;
         }
 
@@ -970,6 +978,8 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
             Log::error("JVMTI error %d occurred while calling RetransformClasses", error);
         }
         VM::jni()->ExceptionClear();
+    } else {
+        Log::warn("No loaded class matches selector: %s", _target_class);
     }
 
     jvmti->Deallocate((unsigned char*)classes);
