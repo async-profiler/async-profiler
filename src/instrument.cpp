@@ -637,9 +637,12 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table) {
     u16 number_of_entries = get16();
     if (_latency_profiling && relocation_table[0] > 0) {
         put16(number_of_entries + 1);
-        current_frame_new = 8;
+        // The new stackframe is applied to the nop just after the lstore,
+        // so we don't need to worry about conflicts with existing frames
+        // in the same spot.
+        current_frame_new = 7;
         put8(252);
-        put16(8);
+        put16(current_frame_new);
         put8(JVM_ITEM_Long);
     } else {
         put16(number_of_entries);
