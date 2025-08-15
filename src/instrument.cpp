@@ -503,7 +503,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 u64 pair_base = branches_base_index + c * 8;
                 // 4 bits: match
                 // 4 bits: offset
-                jumps.push_back((pair_base + 4) << 32 | i);
+                jumps.push_back(pair_base << 32 | i);
             }
         }
         u8 bc = computeInstructionByteCount(code, i);
@@ -537,7 +537,10 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                                     (opcode - base) / 4;
                     *(_dst + _dst_len - 1) = new_opcode;
                     put8(index);
-                    current_relocation += 1;
+                    put8(JVM_OPC_nop);
+                    put8(JVM_OPC_nop);
+                    put8(JVM_OPC_nop);
+                    current_relocation += 4;
                 }
             }
         } else if (opcode == JVM_OPC_iinc) {
