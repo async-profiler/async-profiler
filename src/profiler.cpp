@@ -695,6 +695,7 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_trace_buffer[0] != '\0') {
+        // TODO: free
         char* trace_copy = (char*)malloc(Otlp::TRACE_CONTEXT_BUFFER_SIZE);
         memcpy(trace_copy, _trace_buffer, Otlp::TRACE_CONTEXT_BUFFER_SIZE);
         num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, trace_copy);
