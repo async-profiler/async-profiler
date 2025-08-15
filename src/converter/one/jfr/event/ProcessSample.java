@@ -14,7 +14,7 @@ public class ProcessSample extends Event {
     public final String cmdLine;
     public final int uid;
     public final byte state;
-    public final long startTime;
+    public final long processStartTime;
     public final long cpuUser;
     public final long cpuSystem;
     public final float cpuPercent;
@@ -37,7 +37,7 @@ public class ProcessSample extends Event {
         this.cmdLine = jfr.getString();
         this.uid = jfr.getVarint();
         this.state = jfr.getByte();
-        this.startTime = jfr.getVarlong();
+        this.processStartTime = jfr.getVarlong();
         this.cpuUser = jfr.getVarlong();
         this.cpuSystem = jfr.getVarlong();
         this.cpuPercent = jfr.getFloat();

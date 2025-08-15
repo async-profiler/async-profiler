@@ -265,7 +265,7 @@ JfrMetadata::JfrMetadata() : Element("root") {
                 << field("cmdLine", T_STRING, "Command Line")
                 << field("uid", T_INT, "User ID")
                 << field("state", T_BYTE, "Process State")
-                << field("startTime", T_LONG, "Process Start Time")
+                << field("processStartTime", T_LONG, "Process Start Time")
                 << field("cpuUser", T_LONG, "User CPU Time")
                 << field("cpuSystem", T_LONG, "System CPU Time")
                 << field("cpuPercent", T_FLOAT, "CPU Percentage")
