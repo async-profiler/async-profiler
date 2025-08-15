@@ -37,7 +37,7 @@ public class TraceContext {
 
     private static void writeString(ByteBuffer buffer, String str, int len) {
         if (str == null) throw new IllegalArgumentException("String cannot be null");
-        if (str.length() < len) throw new IllegalArgumentException("String too long");
+        if (str.length() < len) throw new IllegalArgumentException("String too short");
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
         buffer.put(bytes, 0, bytes.length);
         for (int i = bytes.length; i < len; i++) buffer.put((byte) 0);
