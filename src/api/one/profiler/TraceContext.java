@@ -36,10 +36,10 @@ public class TraceContext {
     }
 
     private static void writeString(ByteBuffer buffer, String str, int len) {
-        if (str == null) str = "";
+        if (str == null) throw new IllegalArgumentException("String cannot be null");
+        if (str.length() > len) throw new IllegalArgumentException("String too long");
         byte[] bytes = str.getBytes(StandardCharsets.UTF_8);
-        int copyLen = Math.min(bytes.length, len);
-        buffer.put(bytes, 0, copyLen);
-        for (int i = copyLen; i < len; i++) buffer.put((byte) 0);
+        buffer.put(bytes, 0, bytes.length);
+        for (int i = bytes.length; i < len; i++) buffer.put((byte) 0);
     }
 }

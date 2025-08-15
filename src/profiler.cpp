@@ -13,6 +13,7 @@
 #include <sys/param.h>
 #include <time.h>
 #include "index.h"
+#include "otlp.h"
 #include "profiler.h"
 #include "perfEvents.h"
 #include "ctimer.h"
@@ -65,7 +66,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-thread_local char Profiler::_trace_buffer[49] = {0};
+thread_local char Profiler::_trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE] = {0};
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -694,8 +695,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_trace_buffer[0] != '\0') {
-        char* trace_copy = (char*)malloc(49);
-        memcpy(trace_copy, _trace_buffer, 49);
+        char* trace_copy = (char*)malloc(Otlp::TRACE_CONTEXT_BUFFER_SIZE);
+        memcpy(trace_copy, _trace_buffer, Otlp::TRACE_CONTEXT_BUFFER_SIZE);
         num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, trace_copy);
     }
 

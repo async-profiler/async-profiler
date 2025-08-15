@@ -18,6 +18,7 @@
 #include "flightRecorder.h"
 #include "log.h"
 #include "mutex.h"
+#include "otlp.h"
 #include "spinLock.h"
 #include "threadFilter.h"
 #include "trap.h"
@@ -91,7 +92,7 @@ class Profiler {
     volatile jvmtiEventMode _thread_events_state;
 
     // Thread-local storage for trace correlation
-    static thread_local char _trace_buffer[49];
+    static thread_local char _trace_buffer[Otlp::TRACE_CONTEXT_BUFFER_SIZE];
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
