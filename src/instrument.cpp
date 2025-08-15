@@ -540,6 +540,14 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                     current_relocation += 1;
                 }
             }
+        } else if (opcode == JVM_OPC_iinc) {
+            // TODO: handle wide
+            u8 index = code[i-2];
+            if (index >= start_time_loc_index) {
+                // TODO: handle overflow here
+                index += 2;
+                *(_dst + _dst_len - 2) = index;
+            }
         }
     }
 
