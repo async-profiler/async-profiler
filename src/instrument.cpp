@@ -981,8 +981,6 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
             jvmti->Deallocate((unsigned char*)error_name);
         }
         VM::jni()->ExceptionClear();
-    } else {
-        Log::warn("No loaded class matches selector: %s", _target_class);
     }
 
     jvmti->Deallocate((unsigned char*)classes);
