@@ -16,7 +16,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f"
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -31,7 +32,8 @@ public class InstrumentTests {
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,event=*.*,collapsed,file=%f"
+        agentArgs = "start,event=*.*,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -43,7 +45,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,event=*.<init>,collapsed,file=%f"
+        agentArgs = "start,event=*.<init>,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -55,7 +58,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f"
+        agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -68,7 +72,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f"
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -97,7 +102,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f"
+        agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -111,7 +117,8 @@ public class InstrumentTests {
 
     @Test(
         mainClass = Recursive.class,
-        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f"
+        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -136,6 +143,16 @@ public class InstrumentTests {
         // recursive(0)
         duration = duration.plus(Duration.ofMillis(300));
         assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
+    }
+
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=sun/net/www/protocol/jar/Handler.indexOfBangSlash,latency=100ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all"
+    )
+    public void jarHandler(TestProcess p) throws Exception {
+        Output out = p.waitForExit("%f");
+        assert p.exitCode() == 0;
     }
 
 }
