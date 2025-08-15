@@ -975,7 +975,10 @@ void Instrument::retransformMatchedClasses(jvmtiEnv* jvmti) {
     if (matched_count > 0) {
         jvmtiError error;
         if ((error = jvmti->RetransformClasses(matched_count, classes)) != 0) {
-            Log::error("JVMTI error %d occurred while calling RetransformClasses", error);
+            char *error_name;
+            jvmti->GetErrorName(error, &error_name);
+            Log::error("%s occurred while calling RetransformClasses", error_name);
+            jvmti->Deallocate((unsigned char*)error_name);
         }
         VM::jni()->ExceptionClear();
     } else {
