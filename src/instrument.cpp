@@ -531,8 +531,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             if (index >= start_time_loc_index) {
                 index += 2;
                 if (index <= 3) {
-                    u8 new_opcode_0 = (opcode - base - 1) / 4 * 4 + base;
-                    *(_dst + _dst_len - 1) = new_opcode_0 + index;
+                    *(_dst + _dst_len - 1) = opcode + 2;
                 } else {
                     u8 new_opcode = (opcode <= JVM_OPC_aload_3 ? JVM_OPC_iload : JVM_OPC_istore) +
                                     (opcode - base) / 4;
