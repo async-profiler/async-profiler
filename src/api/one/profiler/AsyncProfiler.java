@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * Java API for in-process profiling. Serves as a wrapper around
@@ -288,7 +289,7 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void setTraceContext(String traceId, String spanId) {
-        setTraceContext0(traceId, spanId);
+        TraceContext.setTraceContext(traceId, spanId);
     }
 
     /**
@@ -296,8 +297,10 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
      */
     @Override
     public void clearTraceContext() {
-        clearTraceContext0();
+        TraceContext.clearTraceContext();
     }
+
+    static native ByteBuffer getThreadLocalBuffer();
 
     private native void start0(String event, long interval, boolean reset) throws IllegalStateException;
 
@@ -309,7 +312,4 @@ public class AsyncProfiler implements AsyncProfilerMXBean {
 
     private native void filterThread0(Thread thread, boolean enable);
 
-    private native void setTraceContext0(String traceId, String spanId);
-    
-    private native void clearTraceContext0();
 }

@@ -65,7 +65,7 @@ static Instrument instrument;
 
 static ProfilingWindow profiling_window;
 
-thread_local char* Profiler::_current_trace_context = nullptr;
+thread_local char Profiler::_trace_buffer[49] = {0};
 
 // The same constants are used in JfrSync
 enum EventMask {
@@ -693,8 +693,10 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
         num_frames += makeFrame(frames + num_frames, BCI_CPU, java_ctx.cpu | 0x8000);
     }
 
-    if (_current_trace_context) {
-        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, _current_trace_context);
+    if (_trace_buffer[0] != '\0') {
+        char* trace_copy = (char*)malloc(49);
+        memcpy(trace_copy, _trace_buffer, 49);
+        num_frames += makeFrame(frames + num_frames, BCI_TRACE_CONTEXT, trace_copy);
     }
 
     if (stack_walk_begin != 0) {
@@ -786,23 +788,6 @@ void Profiler::writeLog(LogLevel level, const char* message) {
 
 void Profiler::writeLog(LogLevel level, const char* message, size_t len) {
     _jfr.recordLog(level, message, len);
-}
-
-void Profiler::setTraceContext(const char* trace_id, const char* span_id) {
-    if (trace_id && span_id) {
-        // TODO: free the memory
-        char* combined = (char*)malloc(49);
-        memcpy(combined, trace_id, 32);
-        memcpy(combined + 32, span_id, 16);
-        combined[48] = '\0';
-        _current_trace_context = combined;
-    } else {
-        _current_trace_context = nullptr;
-    }
-}
-
-void Profiler::clearTraceContext() {
-    _current_trace_context = nullptr;
 }
 
 void* Profiler::dlopen_hook(const char* filename, int flags) {
@@ -1319,9 +1304,6 @@ Error Profiler::stop(bool restart) {
     if (!restart) {
         FdTransferClient::closePeer();
     }
-
-    free(_current_trace_context);
-    _current_trace_context = nullptr;
 
     _state = IDLE;
     return Error::OK;

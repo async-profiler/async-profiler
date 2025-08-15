@@ -148,20 +148,9 @@ Java_one_profiler_AsyncProfiler_filterThread0(JNIEnv* env, jobject unused, jthre
     }
 }
 
-extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_setTraceContext0(JNIEnv* env, jobject unused, jstring traceId, jstring spanId) {
-    const char* trace_id_str = env->GetStringUTFChars(traceId, NULL);
-    const char* span_id_str = env->GetStringUTFChars(spanId, NULL);
-    
-    Profiler::instance()->setTraceContext(trace_id_str, span_id_str);
-    
-    env->ReleaseStringUTFChars(traceId, trace_id_str);
-    env->ReleaseStringUTFChars(spanId, span_id_str);
-}
-
-extern "C" DLLEXPORT void JNICALL
-Java_one_profiler_AsyncProfiler_clearTraceContext0(JNIEnv* env, jobject unused) {
-    Profiler::instance()->clearTraceContext();
+extern "C" DLLEXPORT jobject JNICALL
+Java_one_profiler_AsyncProfiler_getThreadLocalBuffer(JNIEnv* env, jclass unused) {
+    return env->NewDirectByteBuffer(Profiler::traceBuffer(), 49);
 }
 
 #define F(name, sig)  {(char*)#name, (char*)sig, (void*)Java_one_profiler_AsyncProfiler_##name}
@@ -173,8 +162,7 @@ static const JNINativeMethod profiler_natives[] = {
     F(execute1,      "(Ljava/lang/String;)[B"),
     F(getSamples,    "()J"),
     F(filterThread0, "(Ljava/lang/Thread;Z)V"),
-    F(setTraceContext0,   "(Ljava/lang/String;Ljava/lang/String;)V"),
-    F(clearTraceContext0, "()V"),
+    F(getThreadLocalBuffer, "()Ljava/nio/ByteBuffer;"),
 };
 
 static const JNINativeMethod* execute0 = &profiler_natives[2];

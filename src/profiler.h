@@ -91,7 +91,7 @@ class Profiler {
     volatile jvmtiEventMode _thread_events_state;
 
     // Thread-local storage for trace correlation
-    static thread_local char* _current_trace_context;
+    static thread_local char _trace_buffer[49];
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -194,6 +194,7 @@ class Profiler {
     Dictionary* classMap() { return &_class_map; }
     ThreadFilter* threadFilter() { return &_thread_filter; }
     CodeCacheArray* nativeLibs() { return &_native_libs; }
+    static char* traceBuffer() { return _trace_buffer; }
 
     Error run(Arguments& args);
     Error runInternal(Arguments& args, Writer& out);
@@ -215,9 +216,6 @@ class Profiler {
     void tryResetCounters();
     void writeLog(LogLevel level, const char* message);
     void writeLog(LogLevel level, const char* message, size_t len);
-
-    void setTraceContext(const char* traceId, const char* spanId);
-    void clearTraceContext();
 
     void updateSymbols(bool kernel_symbols);
     const void* resolveSymbol(const char* name);
