@@ -363,6 +363,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     // This is code_length + 1 for convenience: sometimes we need to access the
     // code_length-ith index to refer to the first position after the code array
     // (i.e. LocalVariableTable).
+    // TODO: Does this really need to be u32?
     u32* relocation_table = new u32[code_length + 1];
 
     int new_local_index = -1;
@@ -382,7 +383,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         // The rest of the code is unchanged
         put(code, code_length);
-        for (u32 i = 0; i <= code_length; ++i) relocation_table[i] = relocation;
+        memset(relocation_table, relocation, sizeof(u32));
     }
 
     // Fix code length, we now know the real relocation
@@ -430,7 +431,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
         Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_SEGMENT_BYTES, _target_class, _target_method);
         put(code, code_length);
-        for (u32 i = 0; i <= code_length; ++i) relocation_table[i] = 0;
+        memset(relocation_table, 0, sizeof(u32));
         return 0;
     }
 
@@ -471,7 +472,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
                 _dst_len = code_segment_begin;
                 put(code, code_length);
-                for (u32 i = 0; i < code_length; ++i) relocation_table[i] = 0;
+                memset(relocation_table, 0, sizeof(u32));
                 return 0;
             }
         } else if (isWideJump(opcode)) {
