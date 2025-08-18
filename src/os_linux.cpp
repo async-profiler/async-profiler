@@ -436,19 +436,19 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
-u64 OS::getSysBootTime(){
+u64 OS::getSysBootTime() {
     FILE* file = fopen("/proc/stat", "r");
     if (!file) return 0;
 
     char line[1024];
     char key[6];
-    u64 value;
     while (fgets(line, sizeof(line), file)) {
-        if (sscanf(line, "%5s %llu", key, &value) == 2 && strcmp(key, "btime") == 0) {
+        if (strncmp(line, "btime", 5) == 0) {
             fclose(file);
-            return value;
+            return strtoull(line+5, NULL, 10);
         }
     }
+
     fclose(file);
     return 0;
 }
@@ -467,7 +467,6 @@ int OS::getProcessIds(int* pids, int max_pids) {
     return count;
 }
 
-// Helper method to read command line from /proc/{pid}/cmdline
 bool readProcessCmdline(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
@@ -554,7 +553,6 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     return true;
 }
 
-// Helper method to read data from /proc/{pid}/status
 bool readProcessStatus(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
