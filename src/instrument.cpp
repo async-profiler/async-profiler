@@ -426,13 +426,13 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     }
 
     if (max_relocation > MAX_CODE_LENGTH - code_length) {
-        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_LENGTH, _target_class, _target_method);
+        Log::warn("Method %s.%s is too large for instrumentation", _target_class, _target_method);
         put(code, code_length);
         memset(relocation_table, 0, sizeof(relocation_table[0]));
         return 0;
     }
 
-    u32 code_segment_begin = _dst_len;
+    u32 code_start = _dst_len;
 
     // invokestatic "java/lang/System.nanoTime()V"
     put8(JVM_OPC_invokestatic);
@@ -466,7 +466,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (max_relocation > 0x7fff - offset) {
                 Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
-                _dst_len = code_segment_begin;
+                _dst_len = code_start;
                 put(code, code_length);
                 memset(relocation_table, 0, sizeof(relocation_table[0]));
                 return 0;
@@ -563,7 +563,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         u32 old_jump_offset_idx = (u32) (jump >> 32);
 
         u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
-        u8* new_jump_base_ptr = _dst + code_segment_begin + new_jump_base_idx;
+        u8* new_jump_base_ptr = _dst + code_start + new_jump_base_idx;
         assert(code[old_jump_base_idx] == *new_jump_base_ptr);
 
         bool is_narrow = isNarrowJump(*new_jump_base_ptr);
@@ -578,7 +578,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         int32_t new_offset = old_jump_target + relocation_table[old_jump_target] - new_jump_base_idx;
 
         u32 new_jump_offset_idx = old_jump_offset_idx + relocation_table[old_jump_offset_idx];
-        u8* new_jump_offset_ptr = _dst + code_segment_begin + new_jump_offset_idx;
+        u8* new_jump_offset_ptr = _dst + code_start + new_jump_offset_idx;
         if (is_narrow) {
             *(u16*)(new_jump_offset_ptr) = htons((u16) new_offset);
         } else {
