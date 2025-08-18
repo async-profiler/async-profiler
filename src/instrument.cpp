@@ -47,21 +47,7 @@ inline u32 alignUp4(u32 i) {
 }
 
 enum ConstantTag {
-    CONSTANT_Utf8 = 1,
-    CONSTANT_Integer = 3,
-    CONSTANT_Float = 4,
-    CONSTANT_Long = 5,
-    CONSTANT_Double = 6,
-    CONSTANT_Class = 7,
-    CONSTANT_String = 8,
-    CONSTANT_Fieldref = 9,
-    CONSTANT_Methodref = 10,
-    CONSTANT_InterfaceMethodref = 11,
-    CONSTANT_NameAndType = 12,
-    CONSTANT_MethodHandle = 15,
-    CONSTANT_MethodType = 16,
-    CONSTANT_Dynamic = 17,
-    CONSTANT_InvokeDynamic = 18,
+    // Available since JDK 17
     CONSTANT_Module = 19,
     CONSTANT_Package = 20
 };
@@ -77,7 +63,7 @@ class Constant {
     }
 
     int slots() {
-        return _tag == CONSTANT_Long || _tag == CONSTANT_Double ? 2 : 1;
+        return _tag == JVM_CONSTANT_Long || _tag == JVM_CONSTANT_Double ? 2 : 1;
     }
 
     u16 info() {
@@ -86,27 +72,27 @@ class Constant {
 
     int length() {
         switch (_tag) {
-            case CONSTANT_Utf8:
+            case JVM_CONSTANT_Utf8:
                 return 2 + info();
-            case CONSTANT_Integer:
-            case CONSTANT_Float:
-            case CONSTANT_Fieldref:
-            case CONSTANT_Methodref:
-            case CONSTANT_InterfaceMethodref:
-            case CONSTANT_NameAndType:
-            case CONSTANT_Dynamic:
-            case CONSTANT_InvokeDynamic:
+            case JVM_CONSTANT_Integer:
+            case JVM_CONSTANT_Float:
+            case JVM_CONSTANT_Fieldref:
+            case JVM_CONSTANT_Methodref:
+            case JVM_CONSTANT_InterfaceMethodref:
+            case JVM_CONSTANT_NameAndType:
+            case JVM_CONSTANT_Dynamic:
+            case JVM_CONSTANT_InvokeDynamic:
                 return 4;
-            case CONSTANT_Long:
-            case CONSTANT_Double:
+            case JVM_CONSTANT_Long:
+            case JVM_CONSTANT_Double:
                 return 8;
-            case CONSTANT_Class:
-            case CONSTANT_String:
-            case CONSTANT_MethodType:
+            case JVM_CONSTANT_Class:
+            case JVM_CONSTANT_String:
+            case JVM_CONSTANT_MethodType:
             case CONSTANT_Module:
             case CONSTANT_Package:
                 return 2;
-            case CONSTANT_MethodHandle:
+            case JVM_CONSTANT_MethodHandle:
                 return 3;
             default:
                 return 0;
@@ -114,12 +100,12 @@ class Constant {
     }
 
     bool equals(const char* value, u16 len) {
-        return _tag == CONSTANT_Utf8 && info() == len && memcmp(_info + 2, value, len) == 0;
+        return _tag == JVM_CONSTANT_Utf8 && info() == len && memcmp(_info + 2, value, len) == 0;
     }
 
     bool matches(const char* value, u16 len) {
         if (len > 0 && value[len - 1] == '*') {
-            return _tag == CONSTANT_Utf8 && info() >= len - 1 && memcmp(_info + 2, value, len - 1) == 0;
+            return _tag == JVM_CONSTANT_Utf8 && info() >= len - 1 && memcmp(_info + 2, value, len - 1) == 0;
         }
         return equals(value, len);
     }
@@ -248,7 +234,7 @@ class BytecodeRewriter {
 
     void putConstant(const char* value) {
         u16 len = strlen(value);
-        put8(CONSTANT_Utf8);
+        put8(JVM_CONSTANT_Utf8);
         put16(len);
         put((const u8*)value, len);
     }
@@ -825,7 +811,7 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
 
         u16 descriptor_index = get16();
         put16(descriptor_index);
-        assert(scope != SCOPE_METHOD || _cpool[descriptor_index]->tag() == CONSTANT_NameAndType);
+        assert(scope != SCOPE_METHOD || _cpool[descriptor_index]->tag() == JVM_CONSTANT_NameAndType);
 
         bool need_rewrite = scope == SCOPE_METHOD
             && _cpool[name_index]->matches(_target_method, _target_method_len)
@@ -855,21 +841,21 @@ bool BytecodeRewriter::rewriteClass() {
     const u8* cpool_end = _src;
     put(cpool_start, cpool_end - cpool_start);
 
-    putConstant(CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
-    putConstant(CONSTANT_Class, _cpool_len + 3);
-    putConstant(CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 2);
+    putConstant(JVM_CONSTANT_Class, _cpool_len + 3);
+    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 4, _cpool_len + 5);
     putConstant("one/profiler/Instrument");
     putConstant("recordEntry");
     putConstant("()V");
 
-    putConstant(CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
-    putConstant(CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 1, _cpool_len + 7);
+    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 8, _cpool_len + 9);
     putConstant("recordExit");
     putConstant("(J)V");
 
-    putConstant(CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
-    putConstant(CONSTANT_Class, _cpool_len + 13);
-    putConstant(CONSTANT_NameAndType, _cpool_len + 14, _cpool_len + 15);
+    putConstant(JVM_CONSTANT_Methodref, _cpool_len + 11, _cpool_len + 12);
+    putConstant(JVM_CONSTANT_Class, _cpool_len + 13);
+    putConstant(JVM_CONSTANT_NameAndType, _cpool_len + 14, _cpool_len + 15);
     putConstant("java/lang/System");
     putConstant("nanoTime");
     putConstant("()J");
