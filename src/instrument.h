@@ -54,5 +54,6 @@ class Instrument : public Engine {
 u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
                        u16 offset_delta_old, const u32* relocation_table);
 u8 countParametersSlots(const char* method_sig);
+u8 computeInstructionByteCount(const u8* code, u32 index);
 
 #endif // _INSTRUMENT_H
