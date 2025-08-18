@@ -26,43 +26,34 @@ enum ThreadState {
 };
 
 struct ProcessInfo {
-    int _pid;
-    int _ppid;
-    char _name[16];              // Process name from /proc/{pid}/stats
-    char _cmdline[2048];         // Command line from /proc/{pid}/cmdline
-    unsigned int _uid;           // User ID
-    unsigned char _state;        // Process state (R, S, D, Z, T, etc.)
-    u64 _start_time;             // Process start time (seconds since epoch)
+    int pid = 0;
+    int ppid = 0;
+    char name[16] = {};              // Process name from /proc/{pid}/stats
+    char cmdline[2048] = {};         // Command line from /proc/{pid}/cmdline
+    unsigned int uid = 0;           // User ID
+    unsigned char state = 0;        // Process state (R, S, D, Z, T, etc.)
+    u64 start_time = 0;             // Process start time (seconds since epoch)
 
     // CPU & thread stats
-    u64 _cpu_user;               // User CPU time (seconds)
-    u64 _cpu_system;             // System CPU time (seconds)
-    float _cpu_percent;          // CPU utilization percentage
-    int _threads;                // Number of threads
+    u64 cpu_user = 0;               // User CPU time (seconds)
+    u64 cpu_system = 0;             // System CPU time (seconds)
+    float cpu_percent = 0;          // CPU utilization percentage
+    int threads = 0;                // Number of threads
 
     // Memory stats (in KB)
-    u64 _vm_size;                // Total virtual memory size
-    u64 _vm_rss;                 // Resident memory size
-    u64 _rss_anon;               // Resident anonymous memory
-    u64 _rss_files;              // Resident file mappings
-    u64 _rss_shmem;              // Resident shared memory
+    u64 vm_size = 0;                // Total virtual memory size
+    u64 vm_rss = 0;                 // Resident memory size
+    u64 rss_anon = 0;               // Resident anonymous memory
+    u64 rss_files = 0;              // Resident file mappings
+    u64 rss_shmem = 0;              // Resident shared memory
 
     // Page fault stats
-    u64 _minor_faults;           // Minor page faults (no I/O required)
-    u64 _major_faults;           // Major page faults (I/O required)
+    u64 minor_faults = 0;           // Minor page faults (no I/O required)
+    u64 major_faults = 0;           // Major page faults (I/O required)
 
     // I/O stats
-    u64 _io_read;                // KB read from storage
-    u64 _io_write;               // KB written to storage
-
-    ProcessInfo() : _pid(0), _ppid(0), _uid(0), _state(0), _start_time(0),
-                    _cpu_user(0), _cpu_system(0), _cpu_percent(0.0F), _threads(0),
-                    _vm_size(0), _vm_rss(0), _rss_anon(0), _rss_files(0), _rss_shmem(0),
-                    _minor_faults(0), _major_faults(0),
-                    _io_read(0), _io_write(0) {
-        _name[0] = '\0';
-        _cmdline[0] = '\0';
-    }
+    u64 io_read = 0;                // KB read from storage
+    u64 io_write = 0;               // KB written to storage
 };
 
 

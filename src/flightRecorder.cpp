@@ -470,20 +470,20 @@ class Recording {
     }
 
     double getRssUsagePercent(const ProcessInfo &info) {
-        if (info._vm_size <= 0 || info._vm_rss <= 0) {
+        if (info.vm_size <= 0 || info.vm_rss <= 0) {
             return 0.0;
         }
 
-        return static_cast<double>(info._vm_rss) / info._vm_size * 100;
+        return static_cast<double>(info.vm_rss) / info.vm_size * 100;
     }
 
     bool shouldIncludeProcess(const ProcessInfo &info) {
-        return info._cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
+        return info.cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
     }
 
     void populateCpuPercent(ProcessInfo &info, u64 sampling_time) {
-        u64 current_cpu_total = info._cpu_user + info._cpu_system;
-        ProcessHistory& history = _process_history[info._pid];
+        u64 current_cpu_total = info.cpu_user + info.cpu_system;
+        ProcessHistory& history = _process_history[info.pid];
         if (history.prev_timestamp == 0) {
             history.prev_cpu_total = current_cpu_total;
             history.prev_timestamp = sampling_time;
@@ -502,7 +502,7 @@ class Recording {
             }
         }
 
-        info._cpu_percent = cpu_percent;
+        info.cpu_percent = cpu_percent;
         history.prev_cpu_total = current_cpu_total;
         history.prev_timestamp = sampling_time;
     }
@@ -1197,33 +1197,33 @@ class Recording {
         buf->put8(T_PROCESS_SAMPLE);
         buf->putVar64(sampling_time);
 
-        buf->putVar32(info->_pid);
-        buf->putVar32(info->_ppid);
-        buf->putByteString(info->_name);
-        buf->putByteString(info->_cmdline);
+        buf->putVar32(info->pid);
+        buf->putVar32(info->ppid);
+        buf->putByteString(info->name);
+        buf->putByteString(info->cmdline);
 
-        buf->putVar32(info->_uid);
-        buf->put8(info->_state);
+        buf->putVar32(info->uid);
+        buf->put8(info->state);
 
-        u64 ps_start_time = _sys_boot_ts + info->_start_time / OS::clock_ticks_per_sec;
+        u64 ps_start_time = _sys_boot_ts + info->start_time / OS::clock_ticks_per_sec;
         buf->putVar64(ps_start_time);
-        buf->putVar64(info->_cpu_user / OS::clock_ticks_per_sec);
-        buf->putVar64(info->_cpu_system / OS::clock_ticks_per_sec);
-        buf->putFloat(info->_cpu_percent);
-        buf->putVar32(info->_threads);
+        buf->putVar64(info->cpu_user / OS::clock_ticks_per_sec);
+        buf->putVar64(info->cpu_system / OS::clock_ticks_per_sec);
+        buf->putFloat(info->cpu_percent);
+        buf->putVar32(info->threads);
 
-        buf->putVar64(info->_vm_size);
-        buf->putVar64(info->_vm_rss);
+        buf->putVar64(info->vm_size);
+        buf->putVar64(info->vm_rss);
 
-        buf->putVar64(info->_rss_anon);
-        buf->putVar64(info->_rss_files);
-        buf->putVar64(info->_rss_shmem);
+        buf->putVar64(info->rss_anon);
+        buf->putVar64(info->rss_files);
+        buf->putVar64(info->rss_shmem);
 
-        buf->putVar64(info->_minor_faults);
-        buf->putVar64(info->_major_faults);
+        buf->putVar64(info->minor_faults);
+        buf->putVar64(info->major_faults);
 
-        buf->putVar64(info->_io_read);
-        buf->putVar64(info->_io_write);
+        buf->putVar64(info->io_read);
+        buf->putVar64(info->io_write);
 
         buf->putVar32(start, buf->offset() - start);
     }
