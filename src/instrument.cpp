@@ -267,7 +267,7 @@ class BytecodeRewriter {
     void rewriteLineNumberTable(const u32* relocation_table);
     void rewriteLocalVariableTable(const u32* relocation_table, int new_local_index);
     void rewriteStackMapTable(const u32* relocation_table, u8 new_local_index);
-    void rewriteVerificationTypeInfo(const u32* relocation_table);
+    u8 rewriteVerificationTypeInfo(const u32* relocation_table);
     void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
     void rewriteCodeAttributes(const u32* relocation_table, int new_local_index);
     void rewriteMembers(Scope scope);
@@ -375,6 +375,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     // TODO: Does this really need to be u32?
     u32* relocation_table = new u32[code_length + 1];
 
+    // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
     u32 relocation;
     if (_latency_profiling) {
@@ -647,6 +648,7 @@ u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
     return current_frame_new - previous_frame_new - 1;
 }
 
+// new_local_index is the byte index, considering that long and double take two slots
 void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
@@ -714,16 +716,27 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_
         } else {
             // full_frame
             put16(updateCurrentFrame(current_frame_old, current_frame_new, get16(), relocation_table));
-            u16 number_of_locals = get16() + latency_profiling_ok;
-            put16(number_of_locals);
-            for (int j = 0; j < number_of_locals; j++) {
-                if (latency_profiling_ok && j == new_local_index) {
-                    // Make sure our new local variable is not left out
-                    put8(JVM_ITEM_Long);
-                    continue;
-                }
+            u16 locals_count_old = get16();
+            put16(locals_count_old + latency_profiling_ok);
+
+            u32 locals_idx_old = 0;
+            u32 current_byte_count = 0;
+            while (current_byte_count < new_local_index) {
+                u8 tag = rewriteVerificationTypeInfo(relocation_table);
+                current_byte_count += tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1;
+                ++locals_idx_old;
+            }
+
+            assert(current_byte_count == new_local_index);
+            assert(locals_idx_old <= locals_count_old);
+            // Make sure our new local variable is not left out
+            put8(JVM_ITEM_Long);
+
+            // Write the remaining locals
+            for (; locals_idx_old < locals_count_old; ++locals_idx_old) {
                 rewriteVerificationTypeInfo(relocation_table);
             }
+
             u16 number_of_stack_items = get16();
             put16(number_of_stack_items);
             for (int j = 0; j < number_of_stack_items; j++) {
@@ -736,7 +749,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_
     *(u32*)(_dst + attribute_start_idx - 4) = htonl(_dst_len - attribute_start_idx);
 }
 
-void BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) {
+u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) {
     u8 tag = get8();
     put8(tag);
     if (tag >= 7) {
@@ -747,6 +760,7 @@ void BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) 
         }
         put16(offset);
     }
+    return tag;
 }
 
 void BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 descriptor_index) {
