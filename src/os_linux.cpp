@@ -510,7 +510,7 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     }
     fclose(file);
 
-    int parsed_pid, parsed_ppid;
+    int parsed_pid, ppid;
     char comm[COMM_LEN] = {0};
     char state;
     u64 minflt, majflt, utime, stime;
@@ -530,7 +530,7 @@ bool readProcessStats(int pid, ProcessInfo* info) {
                         "%llu "                   /*  22 starttime                            */
                         "%llu "                   /*  23 vsize                                */
                         "%llu",                   /*  24 rss                                  */
-        &parsed_pid, comm, &state, &parsed_ppid,
+        &parsed_pid, comm, &state, &ppid,
         &minflt, &majflt, &utime, &stime,
         &threads, &starttime, &vsize, &rss);
 
@@ -539,7 +539,7 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     memcpy(info->name, comm, COMM_LEN);
 
     info->pid = parsed_pid;
-    info->ppid = parsed_ppid;
+    info->ppid = ppid;
     info->state = (unsigned char)state;
     info->minor_faults = minflt;
     info->major_faults = majflt;
@@ -602,30 +602,23 @@ bool readProcessStatus(int pid, ProcessInfo* info) {
     return true;
 }
 
-// Helper method to read I/O stats from /proc/{pid}/io
 bool readProcessIO(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE* file = fopen(path, "r");
-    // todo: fix this.
-    if (!file) {
-        info->io_read = -1;
-        info->io_write = -1;
-        return false;
-    }
+    if (!file) return false;
 
+    int read_count = 0;
     char line[1024];
-    while (fgets(line, sizeof(line), file)) {
+    while (fgets(line, sizeof(line), file) && read_count < 2) {
         if (strncmp(line, "read_bytes:", 11) == 0) {
-            u64 read_bytes;
-            if (sscanf(line + 11, "%llu", &read_bytes) == 1) {
-                info->io_read = read_bytes >> 10;
-            }
+            u64 read_bytes = strtoull(line+11, NULL, 10);
+            info->io_read = read_bytes >> 10;
+            read_count++;
         } else if (strncmp(line, "write_bytes:", 12) == 0) {
-            u64 write_bytes;
-            if (sscanf(line + 12, "%llu", &write_bytes) == 1) {
-                info->io_write = write_bytes >> 10;
-            }
+            u64 write_bytes = strtoull(line+12, NULL, 10);
+            info->io_write = write_bytes >> 10;
+            read_count++;
         }
     }
 
@@ -634,7 +627,6 @@ bool readProcessIO(int pid, ProcessInfo* info) {
 }
 
 bool OS::getBasicProcessInfo(int pid, ProcessInfo* info) {
-    info->pid = pid;
     return readProcessStats(pid, info);
 }
 
