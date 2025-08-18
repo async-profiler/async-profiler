@@ -428,6 +428,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     u32 max_relocation = current_relocation;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
+        assert(opcode != JVM_OPC_nop);
         if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES_EXIT;
         }
