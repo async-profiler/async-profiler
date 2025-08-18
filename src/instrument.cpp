@@ -18,11 +18,10 @@
 #include "instrument.h"
 
 constexpr u32 MAX_CODE_SEGMENT_BYTES = 65534;
-constexpr int16_t INT16_T_MAX_VALUE = 0x7fff;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
-u8 countParametersSlots(const char* method_sig) {
+u8 parametersSlots(const char* method_sig) {
     u8 count = 0;
     size_t i = 1;
     while (method_sig[i] != ')') {
@@ -43,7 +42,7 @@ u8 countParametersSlots(const char* method_sig) {
     return count;
 }
 
-inline u32 smallestGreaterMultiple4(u32 i) {
+inline u32 alignUp4(u32 i) {
     return (i / 4) * 4 + 4;
 }
 
@@ -125,8 +124,8 @@ class Constant {
         return equals(value, len);
     }
 
-    u8 getCountParametersSlots() const {
-        return countParametersSlots((const char*) (_info + 2));
+    const char* getSignature() const {
+        return (const char*) (_info + 2);
     }
 };
 
@@ -325,7 +324,7 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-inline u8 computeInstructionByteCount(const u8* code, u32 index) {
+inline u8 instructionBytes(const u8* code, u32 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
@@ -334,13 +333,13 @@ inline u8 computeInstructionByteCount(const u8* code, u32 index) {
         return 4;
     }
     if (opcode == JVM_OPC_tableswitch) {
-        u32 default_index = smallestGreaterMultiple4(index);
+        u32 default_index = alignUp4(index);
         int32_t l = ntohl(*(u32*)(code + default_index + 4));
         int32_t h = ntohl(*(u32*)(code + default_index + 8));
         return default_index - index + (3 + (h - l + 1)) * 4;
     }
     if (opcode == JVM_OPC_lookupswitch) {
-        u32 default_index = smallestGreaterMultiple4(index);
+        u32 default_index = alignUp4(index);
         u32 npairs = ntohl(*(u32*)(code + default_index + 4));
         return default_index - index + (npairs + 1) * 8;
     }
@@ -376,9 +375,9 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int new_local_index = -1;
     u16 relocation;
     if (_latency_profiling) {
-        u8 parameters_count = _cpool[descriptor_index]->getCountParametersSlots();
-        bool is_static = (access_flags & JVM_ACC_STATIC) != 0;
-        new_local_index = parameters_count + (is_static ? 0 : 1);
+        u8 parameters_count = parametersSlots(_cpool[descriptor_index]->getSignature());
+        bool is_not_static = (access_flags & JVM_ACC_STATIC) == 0;
+        new_local_index = parameters_count + is_not_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
@@ -432,7 +431,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES_EXIT;
         }
-        i += computeInstructionByteCount(code, i);
+        i += instructionBytes(code, i);
     }
 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
@@ -459,7 +458,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
     // Second scan: fill relocation_table and rewrite code.
-    for (u32 i = 0; i < code_length; /* incremented with computeInstructionByteCount */) {
+    for (u32 i = 0; i < code_length; /* incremented with instructionBytes */) {
         u8 opcode = code[i];
         assert(opcode != JVM_OPC_nop);
 
@@ -475,7 +474,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         } else if (isNarrowJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
-            if (max_relocation > INT16_T_MAX_VALUE - offset) {
+            if (max_relocation > 0x7fff - offset) {
                 Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
                 _dst_len = code_segment_begin;
                 put(code, code_length);
@@ -486,7 +485,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
             // Nearest multiple of 4, 'default' lies after the padding
-            u32 default_index = smallestGreaterMultiple4(i);
+            u32 default_index = alignUp4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
             // 4 bits: low
@@ -500,7 +499,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
             // Nearest multiple of 4, 'default' lies after the padding
-            u32 default_index = smallestGreaterMultiple4(i);
+            u32 default_index = alignUp4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
             // 4 bits: npairs
@@ -510,10 +509,10 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 u32 pair_base = branches_base_index + c * 8;
                 // 4 bits: match
                 // 4 bits: offset
-                jumps.push_back(pair_base << 32 | i);
+                jumps.push_back((u64) pair_base << 32 | i);
             }
         }
-        u8 bc = computeInstructionByteCount(code, i);
+        u8 bc = instructionBytes(code, i);
         for (u8 args_idx = 0; args_idx < bc; ++args_idx) {
             relocation_table[i] = current_relocation;
             put8(code[i++]);

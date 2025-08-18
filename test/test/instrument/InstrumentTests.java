@@ -8,6 +8,9 @@ package test.instrument;
 import one.profiler.test.*;
 
 import java.time.Duration;
+import java.io.File;
+import java.io.FileInputStream;
+
 
 public class InstrumentTests {
 
@@ -17,7 +20,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -33,7 +37,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.*,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -46,7 +51,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=*.<init>,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -59,7 +65,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,event=java.lang.Thread.*,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -73,7 +80,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -103,7 +111,8 @@ public class InstrumentTests {
     @Test(
         mainClass = CpuBurner.class,
         agentArgs = "start,threads,event=test.instrument.CpuBurner.burn,total,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -118,7 +127,8 @@ public class InstrumentTests {
     @Test(
         mainClass = Recursive.class,
         agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
@@ -147,12 +157,21 @@ public class InstrumentTests {
 
     @Test(
         mainClass = CpuBurner.class,
-        agentArgs = "start,threads,event=sun/net/www/protocol/jar/Handler.indexOfBangSlash,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all"
+        agentArgs = "start,event=sun/net/www/protocol/jar/Handler.indexOfBangSlash,latency=100ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
     )
     public void jarHandler(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
         assert p.exitCode() == 0;
+        File f = p.getFile("%err");
+        FileInputStream fis = new FileInputStream(f);
+        int oneByte;
+        while ((oneByte = fis.read()) != -1) {
+            System.out.write(oneByte);  // writes one byte to stdout
+        }
+        System.out.flush();
+        fis.close();
     }
 
 }
