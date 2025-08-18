@@ -263,13 +263,13 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode(u16 access_flags, u16 descriptor_index);
-    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table);
-    void rewriteLineNumberTable(const u32* relocation_table);
-    void rewriteLocalVariableTable(const u32* relocation_table, int new_local_index);
-    void rewriteStackMapTable(const u32* relocation_table, u8 new_local_index);
-    u8 rewriteVerificationTypeInfo(const u32* relocation_table);
+    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table);
+    void rewriteLineNumberTable(const u16* relocation_table);
+    void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
+    void rewriteStackMapTable(const u16* relocation_table, u8 new_local_index);
+    u8 rewriteVerificationTypeInfo(const u16* relocation_table);
     void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
-    void rewriteCodeAttributes(const u32* relocation_table, int new_local_index);
+    void rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
     void rewriteMembers(Scope scope);
     bool rewriteClass();
 
@@ -372,12 +372,11 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     // This is code_length + 1 for convenience: sometimes we need to access the
     // code_length-ith index to refer to the first position after the code array
     // (i.e. LocalVariableTable).
-    // TODO: Does this really need to be u32?
-    u32* relocation_table = new u32[code_length + 1];
+    u16* relocation_table = new u16[code_length + 1];
 
     // This contains the byte index, considering that long and double take two slots
     int new_local_index = -1;
-    u32 relocation;
+    u16 relocation;
     if (_latency_profiling) {
         u8 parameters_count = _cpool[descriptor_index]->getCountParametersSlots();
         bool is_static = (access_flags & JVM_ACC_STATIC) != 0;
@@ -393,7 +392,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         // The rest of the code is unchanged
         put(code, code_length);
-        memset(relocation_table, relocation, sizeof(u32));
+        memset(relocation_table, relocation, sizeof(relocation_table[0]));
     }
 
     // Fix code length, we now know the real relocation
@@ -421,9 +420,9 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table) {
+u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table) {
     // Method start is relocated
-    u32 current_relocation = EXTRA_BYTECODES_ENTRY;
+    u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
     // First scan: identify the maximum possible relocation for any position in code[]
     // Relocation can happen due to:
@@ -441,7 +440,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
         Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_SEGMENT_BYTES, _target_class, _target_method);
         put(code, code_length);
-        memset(relocation_table, 0, sizeof(u32));
+        memset(relocation_table, 0, sizeof(relocation_table[0]));
         return 0;
     }
 
@@ -461,9 +460,8 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // High 32 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u64> jumps;
-    jumps.reserve(code_length / 20);
     // Second scan: fill relocation_table and rewrite code.
-    for (u32 i = 0; i < code_length;) {
+    for (u32 i = 0; i < code_length; /* incremented with computeInstructionByteCount */) {
         u8 opcode = code[i];
         assert(opcode != JVM_OPC_nop);
 
@@ -483,7 +481,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
                 _dst_len = code_segment_begin;
                 put(code, code_length);
-                memset(relocation_table, 0, sizeof(u32));
+                memset(relocation_table, 0, sizeof(relocation_table[0]));
                 return 0;
             }
         } else if (isWideJump(opcode)) {
@@ -510,15 +508,15 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             // 4 bits: npairs
             u32 npairs = ntohl(*(u32*)(code + default_index + 4));
             u32 branches_base_index = default_index + 12;
-            for (u64 c = 0; c < npairs; ++c) {
-                u64 pair_base = branches_base_index + c * 8;
+            for (u32 c = 0; c < npairs; ++c) {
+                u32 pair_base = branches_base_index + c * 8;
                 // 4 bits: match
                 // 4 bits: offset
                 jumps.push_back(pair_base << 32 | i);
             }
         }
         u8 bc = computeInstructionByteCount(code, i);
-        for (u32 args_idx = 0; args_idx < bc; ++args_idx) {
+        for (u8 args_idx = 0; args_idx < bc; ++args_idx) {
             relocation_table[i] = current_relocation;
             put8(code[i++]);
         }
@@ -597,7 +595,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     return current_relocation;
 }
 
-void BytecodeRewriter::rewriteLineNumberTable(const u32* relocation_table) {
+void BytecodeRewriter::rewriteLineNumberTable(const u16* relocation_table) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -611,7 +609,7 @@ void BytecodeRewriter::rewriteLineNumberTable(const u32* relocation_table) {
     }
 }
 
-void BytecodeRewriter::rewriteLocalVariableTable(const u32* relocation_table, int new_local_index) {
+void BytecodeRewriter::rewriteLocalVariableTable(const u16* relocation_table, int new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -641,7 +639,7 @@ void BytecodeRewriter::rewriteLocalVariableTable(const u32* relocation_table, in
 
 // Return the new offset delta
 u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new, 
-                       u16 offset_delta_old, const u32* relocation_table) {
+                       u16 offset_delta_old, const u16* relocation_table) {
     current_frame_old += offset_delta_old + 1;
     u64 previous_frame_new = current_frame_new;
     current_frame_new = current_frame_old + relocation_table[current_frame_old];
@@ -649,7 +647,7 @@ u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
 }
 
 // new_local_index is the byte index, considering that long and double take two slots
-void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_local_index) {
+void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -719,8 +717,8 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_
             u16 locals_count_old = get16();
             put16(locals_count_old + latency_profiling_ok);
 
-            u32 locals_idx_old = 0;
-            u32 current_byte_count = 0;
+            u16 locals_idx_old = 0;
+            u8 current_byte_count = 0;
             while (current_byte_count < new_local_index) {
                 u8 tag = rewriteVerificationTypeInfo(relocation_table);
                 current_byte_count += tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1;
@@ -749,7 +747,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u32* relocation_table, u8 new_
     *(u32*)(_dst + attribute_start_idx - 4) = htonl(_dst_len - attribute_start_idx);
 }
 
-u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u32* relocation_table) {
+u8 BytecodeRewriter::rewriteVerificationTypeInfo(const u16* relocation_table) {
     u8 tag = get8();
     put8(tag);
     if (tag >= 7) {
@@ -783,7 +781,7 @@ void BytecodeRewriter::rewriteAttributes(Scope scope, u16 access_flags, u16 desc
     }
 }
 
-void BytecodeRewriter::rewriteCodeAttributes(const u32* relocation_table, int new_local_index) {
+void BytecodeRewriter::rewriteCodeAttributes(const u16* relocation_table, int new_local_index) {
     u16 attributes_count = get16();
     put16(attributes_count);
 
