@@ -308,7 +308,8 @@ static inline bool isFunctionExit(u8 opcode) {
 }
 
 static inline bool isNarrowJump(u8 opcode) {
-    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull || opcode == JVM_OPC_ifnonnull;
+    return (opcode >= JVM_OPC_ifeq && opcode <= JVM_OPC_jsr) || opcode == JVM_OPC_ifnull ||
+            opcode == JVM_OPC_ifnonnull || opcode == JVM_OPC_goto;
 }
 
 static inline bool isWideJump(u8 opcode) {
@@ -382,7 +383,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         // The rest of the code is unchanged
         put(code, code_length);
-        memset(relocation_table, relocation, sizeof(relocation_table[0]));
+        memset(relocation_table, EXTRA_BYTECODES_SIMPLE_ENTRY, sizeof(relocation_table[0]));
     }
 
     // Fix code length, we now know the real relocation
@@ -506,8 +507,8 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         }
 
         u32 bc = instructionBytes(code, i);
-        memset(relocation_table + i, current_relocation, sizeof(current_relocation) * bc);
-        put(get(bc), bc);
+        for (u32 j = 0; j < bc; ++j) relocation_table[i + j] = current_relocation;
+        put(code + i, bc);
         i += bc;
 
         // current_relocation should be incremented for addresses after the
@@ -560,6 +561,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
 
         u32 new_jump_base_idx = old_jump_base_idx + relocation_table[old_jump_base_idx];
         u8* new_jump_base_ptr = _dst + code_segment_begin + new_jump_base_idx;
+        assert(code[old_jump_base_idx] == *new_jump_base_ptr);
 
         bool is_narrow = isNarrowJump(*new_jump_base_ptr);
         int32_t old_offset;
