@@ -125,7 +125,12 @@ class Constant {
     }
 
     const char* getSignature() const {
-        return (const char*) (_info + 2);
+        const char* name_and_signature = (const char*) (_info + 2);
+        u32 i = 0;
+        while (name_and_signature[i] != 0 && name_and_signature[i] != '(') {
+            ++i;
+        }
+        return name_and_signature[i] == 0 ? nullptr : name_and_signature + i;
     }
 };
 
