@@ -468,7 +468,7 @@ int OS::getProcessIds(int* pids, int max_pids) {
 }
 
 // Helper method to read command line from /proc/{pid}/cmdline
-static bool readProcessCmdline(int pid, ProcessInfo* info) {
+bool readProcessCmdline(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/cmdline", pid);
     FILE* file = fopen(path, "rb");
@@ -497,7 +497,7 @@ static bool readProcessCmdline(int pid, ProcessInfo* info) {
 }
 
 // Helper method to read process stats from /proc/{pid}/stat
-static bool readProcessStats(int pid, ProcessInfo* info) {
+bool readProcessStats(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
     FILE* file = fopen(path, "r");
@@ -555,7 +555,7 @@ static bool readProcessStats(int pid, ProcessInfo* info) {
 }
 
 // Helper method to read data from /proc/{pid}/status
-static bool readProcessStatus(int pid, ProcessInfo* info) {
+bool readProcessStatus(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
     FILE* file = fopen(path, "r");
@@ -603,7 +603,7 @@ static bool readProcessStatus(int pid, ProcessInfo* info) {
 }
 
 // Helper method to read I/O stats from /proc/{pid}/io
-static bool readProcessIO(int pid, ProcessInfo* info) {
+bool readProcessIO(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/io", pid);
     FILE* file = fopen(path, "r");
