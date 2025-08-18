@@ -353,14 +353,12 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     put32(attribute_length);
 
     int code_begin = _dst_len;
-    // Store the result of System.nanoTime()
-    u8 new_variables = _latency_profiling ? 2 : 0;
 
     u16 max_stack = get16();
-    put16(max_stack + new_variables);
+    put16(max_stack + _latency_profiling ? 2 : 0);
 
     u16 max_locals = get16();
-    put16(max_locals + new_variables);
+    put16(max_locals + _latency_profiling ? 2 : 0);
 
     u32 code_length = get32();
     const u8* code = get(code_length);
