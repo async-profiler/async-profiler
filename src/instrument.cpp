@@ -263,7 +263,7 @@ class BytecodeRewriter {
     // BytecodeRewriter
 
     void rewriteCode(u16 access_flags, u16 descriptor_index);
-    u32 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table);
+    u16 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
     void rewriteStackMapTable(const u16* relocation_table, u8 new_local_index);
@@ -420,7 +420,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 }
 
 // Return the relocation after the last byte of code
-u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table) {
+u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table) {
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
