@@ -4,6 +4,7 @@
  */
 
 #include "testRunner.hpp"
+#include "classfile_constants.h"
 #include "instrument.h"
 
 TEST_CASE(Instrument_test_updateCurrentFrame_start) {
@@ -75,4 +76,31 @@ TEST_CASE(Instrument_test_countParametersSlots_doubleArray) {
 
 TEST_CASE(Instrument_test_countParametersSlots_mix) {
     CHECK_EQ(countParametersSlots("(ZD[I)"), 4);
+}
+
+TEST_CASE(Instrument_test_computeInstructionByteCount) {
+    u8 code[1];
+    code[0] = JVM_OPC_invokevirtual;
+    CHECK_EQ(computeInstructionByteCount(code, 0), 3);
+
+    code[0] = JVM_OPC_istore;
+    CHECK_EQ(computeInstructionByteCount(code, 0), 2);
+    
+    code[0] = JVM_OPC_istore_2;
+    CHECK_EQ(computeInstructionByteCount(code, 0), 1);
+}
+
+TEST_CASE(Instrument_test_computeInstructionByteCount_lookupswitch) {
+    u8 code[12];
+    code[0] = JVM_OPC_lookupswitch;
+    code[11] = 3; // pairs
+    CHECK_EQ(computeInstructionByteCount(code, 0), 36);
+}
+
+TEST_CASE(Instrument_test_computeInstructionByteCount_tableswitch) {
+    u8 code[16];
+    code[0] = JVM_OPC_tableswitch;
+    code[11] = 3; // low
+    code[15] = 10; // high
+    CHECK_EQ(computeInstructionByteCount(code, 0), 48);
 }

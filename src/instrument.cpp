@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include "assert.h"
 #include "classfile_constants.h"
 #include "incbin.h"
 #include "log.h"
@@ -324,10 +325,11 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
+inline u8 computeInstructionByteCount(const u8* code, u32 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
+        // TODO: This will skip iinc in the main loop in rewriteCodeForLatency
         if (code[index+1] == JVM_OPC_iinc) return 6;
         return 4;
     }
@@ -340,7 +342,7 @@ static inline u8 computeInstructionByteCount(const u8* code, u32 index) {
     if (opcode == JVM_OPC_lookupswitch) {
         u32 default_index = smallestGreaterMultiple4(index);
         u32 npairs = ntohl(*(u32*)(code + default_index + 4));
-        return default_index - index + npairs * 8;
+        return default_index - index + (npairs + 1) * 8;
     }
     return OPCODE_LENGTH[opcode];
 }
@@ -462,6 +464,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // Second scan: fill relocation_table and rewrite code.
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
+        assert(opcode != JVM_OPC_nop);
 
         if (isFunctionExit(opcode)) {
             put8(JVM_OPC_lload);
