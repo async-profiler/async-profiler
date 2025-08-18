@@ -497,7 +497,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
             // 4 bits: npairs
-            int32_t npairs = ntohl(*(u32*)(code + default_index + 4));
+            u32 npairs = ntohl(*(u32*)(code + default_index + 4));
             u32 branches_base_index = default_index + 12;
             for (u64 c = 0; c < npairs; ++c) {
                 u64 pair_base = branches_base_index + c * 8;
