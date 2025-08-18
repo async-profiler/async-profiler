@@ -808,12 +808,14 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
 
         u16 name_index = get16();
         put16(name_index);
+        assert(_cpool[name_index]->tag() == JVM_CONSTANT_Utf8);
 
         u16 descriptor_index = get16();
         put16(descriptor_index);
-        assert(scope != SCOPE_METHOD || _cpool[descriptor_index]->tag() == JVM_CONSTANT_NameAndType);
+        assert(_cpool[descriptor_index]->tag() == JVM_CONSTANT_Utf8);
 
         bool need_rewrite = scope == SCOPE_METHOD
+            && (access_flags & JVM_ACC_NATIVE) == 0
             && _cpool[name_index]->matches(_target_method, _target_method_len)
             && (_target_signature == NULL || _cpool[descriptor_index]->matches(_target_signature, _target_signature_len));
 
