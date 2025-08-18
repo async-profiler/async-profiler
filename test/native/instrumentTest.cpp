@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <arpa/inet.h>
 #include "testRunner.hpp"
 #include "classfile_constants.h"
 #include "instrument.h"
@@ -10,7 +11,7 @@
 TEST_CASE(Instrument_test_updateCurrentFrame_start) {
     long current_frame_old = -1;
     long current_frame_new = -1;
-    u32 relocation_table[3];
+    u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
 
@@ -23,7 +24,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_start) {
 TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
     long current_frame_old = -1;
     long current_frame_new = 4;
-    u32 relocation_table[3];
+    u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
 
@@ -37,7 +38,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
 TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
     long current_frame_old = 1;
     long current_frame_new = 2;
-    u32 relocation_table[3];
+    u16 relocation_table[3];
     relocation_table[2] = 4;
     u16 offset_delta_old = 0;
 
@@ -78,29 +79,36 @@ TEST_CASE(Instrument_test_parametersSlots_mix) {
     CHECK_EQ(parametersSlots("(ZD[I)"), 4);
 }
 
-TEST_CASE(Instrument_test_computeInstructionByteCount) {
+TEST_CASE(Instrument_test_instructionBytes) {
     u8 code[1];
     code[0] = JVM_OPC_invokevirtual;
-    CHECK_EQ(computeInstructionByteCount(code, 0), 3);
+    CHECK_EQ(instructionBytes(code, 0), 3);
 
     code[0] = JVM_OPC_istore;
-    CHECK_EQ(computeInstructionByteCount(code, 0), 2);
+    CHECK_EQ(instructionBytes(code, 0), 2);
     
     code[0] = JVM_OPC_istore_2;
-    CHECK_EQ(computeInstructionByteCount(code, 0), 1);
+    CHECK_EQ(instructionBytes(code, 0), 1);
 }
 
-TEST_CASE(Instrument_test_computeInstructionByteCount_lookupswitch) {
+TEST_CASE(Instrument_test_instructionBytes_lookupswitch) {
     u8 code[12];
     code[0] = JVM_OPC_lookupswitch;
-    code[11] = 3; // pairs
-    CHECK_EQ(computeInstructionByteCount(code, 0), 36);
+    *(u32*)(code+8) = htonl(3); // pairs
+    CHECK_EQ(instructionBytes(code, 0), 12 + 3 * 4 * 2);
 }
 
-TEST_CASE(Instrument_test_computeInstructionByteCount_tableswitch) {
+TEST_CASE(Instrument_test_instructionBytes_largeLookupswitch) {
+    u8 code[12];
+    code[0] = JVM_OPC_lookupswitch;
+    *(u32*)(code+8) = htonl(0xFFFFFF); // pairs
+    CHECK_EQ(instructionBytes(code, 0), 12 + 0xFFFFFF * 4 * 2);
+}
+
+TEST_CASE(Instrument_test_instructionBytes_tableswitch) {
     u8 code[16];
     code[0] = JVM_OPC_tableswitch;
-    code[11] = 3; // low
-    code[15] = 10; // high
-    CHECK_EQ(computeInstructionByteCount(code, 0), 48);
+    *(u32*)(code+8) = htonl(3); // pairs
+    *(u32*)(code+12) = htonl(10); // pairs
+    CHECK_EQ(instructionBytes(code, 0), 16 + 8 * 4);
 }

@@ -324,7 +324,7 @@ static inline bool isWideJump(u8 opcode) {
     return opcode == JVM_OPC_goto_w || opcode == JVM_OPC_jsr_w;
 }
 
-inline u8 instructionBytes(const u8* code, u32 index) {
+inline u32 instructionBytes(const u8* code, u32 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
@@ -336,13 +336,15 @@ inline u8 instructionBytes(const u8* code, u32 index) {
         u32 default_index = alignUp4(index);
         int32_t l = ntohl(*(u32*)(code + default_index + 4));
         int32_t h = ntohl(*(u32*)(code + default_index + 8));
-        return default_index - index + (3 + (h - l + 1)) * 4;
+        u32 branches_count = h - l + 1;
+        return default_index - index + (3 + branches_count) * 4;
     }
     if (opcode == JVM_OPC_lookupswitch) {
         u32 default_index = alignUp4(index);
         u32 npairs = ntohl(*(u32*)(code + default_index + 4));
         return default_index - index + (npairs + 1) * 8;
     }
+    assert(opcode < JVM_OPC_MAX+1);
     return OPCODE_LENGTH[opcode];
 }
 
@@ -428,7 +430,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     u32 max_relocation = current_relocation;
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
-        assert(opcode != JVM_OPC_nop);
         if (isFunctionExit(opcode)) {
             max_relocation += EXTRA_BYTECODES_EXIT;
         }
@@ -461,7 +462,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     // Second scan: fill relocation_table and rewrite code.
     for (u32 i = 0; i < code_length; /* incremented with instructionBytes */) {
         u8 opcode = code[i];
-        assert(opcode != JVM_OPC_nop);
 
         if (isFunctionExit(opcode)) {
             put8(JVM_OPC_lload);
@@ -513,11 +513,12 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 jumps.push_back((u64) pair_base << 32 | i);
             }
         }
-        u8 bc = instructionBytes(code, i);
-        for (u8 args_idx = 0; args_idx < bc; ++args_idx) {
-            relocation_table[i] = current_relocation;
-            put8(code[i++]);
-        }
+
+        u32 bc = instructionBytes(code, i);
+        memset(relocation_table + i, current_relocation, sizeof(current_relocation) * bc);
+        put(get(bc), bc);
+        i += bc;
+
         // current_relocation should be incremented for addresses after the
         // current instruction: any instruction referring to the current one
         // (e.g. a jump) should now target our invokestatic, otherwise it will
@@ -1029,6 +1030,9 @@ void JNICALL Instrument::ClassFileLoadHook(jvmtiEnv* jvmti, JNIEnv* jni,
 
     bool wildcard_class = _target_class[0] == '*' && strlen(_target_class) == 1;
     if (name == NULL || wildcard_class || strcmp(name, _target_class) == 0) {
+        if (wildcard_class && strncmp("one/profiler/", name, 13) == 0) {
+            return;
+        }
         BytecodeRewriter rewriter(class_data, class_data_len, _target_class, _latency >= 0);
         rewriter.rewrite(new_class_data, new_class_data_len);
     }
