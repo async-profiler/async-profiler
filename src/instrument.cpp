@@ -354,10 +354,10 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int code_begin = _dst_len;
 
     u16 max_stack = get16();
-    put16(max_stack + _latency_profiling ? 2 : 0);
+    put16(max_stack + (_latency_profiling ? 2 : 0));
 
     u16 max_locals = get16();
-    put16(max_locals + _latency_profiling ? 2 : 0);
+    put16(max_locals + (_latency_profiling ? 2 : 0));
 
     u32 code_length = get32();
     const u8* code = get(code_length);
@@ -718,7 +718,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_
             u8 current_byte_count = 0;
             while (current_byte_count < new_local_index) {
                 u8 tag = rewriteVerificationTypeInfo(relocation_table);
-                current_byte_count += tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1;
+                current_byte_count += (tag == JVM_ITEM_Long || tag == JVM_ITEM_Double ? 2 : 1);
                 ++locals_idx_old;
             }
 
