@@ -320,7 +320,6 @@ inline u32 instructionBytes(const u8* code, u32 index) {
     static constexpr unsigned char OPCODE_LENGTH[JVM_OPC_MAX+1] = JVM_OPCODE_LENGTH_INITIALIZER;
     u8 opcode = code[index];
     if (opcode == JVM_OPC_wide) {
-        // TODO: This will skip iinc in the main loop in rewriteCodeForLatency
         if (code[index+1] == JVM_OPC_iinc) return 6;
         return 4;
     }
@@ -544,12 +543,18 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 }
             }
         } else if (opcode == JVM_OPC_iinc) {
-            // TODO: handle wide
             u8 index = code[i-2];
             if (index >= start_time_loc_index) {
                 // TODO: handle overflow here
                 index += 2;
                 *(_dst + _dst_len - 2) = index;
+            }
+        } else if (opcode == JVM_OPC_wide) {
+            u32 back = bc - 2;
+            u16 index = ntohs(*(u16*)(code + i - back));
+            if (index >= start_time_loc_index) {
+                index += 2;
+                *(u16*)(_dst + _dst_len - back) = htons(index);
             }
         }
     }
