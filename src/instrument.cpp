@@ -23,21 +23,19 @@ INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument
 
 u8 parameterSlots(const char* method_sig) {
     u8 count = 0;
-    size_t i = 1;
-    while (method_sig[i] != ')') {
-        if (method_sig[i] == 'L') {
-            count += 1;
-            while (method_sig[++i] != ';');
-        } else if (method_sig[i] == '[') {
+    for (const char* c = method_sig + 1; *c != ')'; ++c) {
+        if (*c == 'L') {
             ++count;
-            while (method_sig[++i] == '[');
-            if (method_sig[i] == 'L') while (method_sig[++i] != ';');
-        } else if (method_sig[i] == 'J' || method_sig[i] == 'D') {
+            while (*(++c) != ';');
+        } else if (*c == '[') {
+            ++count;
+            while (*(++c) == '[');
+            if (*c == 'L') while (*(++c) != ';');
+        } else if (*c == 'J' || *c == 'D') {
             count += 2;
         } else {
             ++count;
         }
-        ++i;
     }
     return count;
 }
@@ -521,7 +519,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             u8 index = code[i-1];
             if (index >= start_time_loc_index) {
                 index += 2;
-                *(_dst + _dst_len - 1) = index;
+                _dst[_dst_len - 1] = index;
             }
         } else if ((opcode >= JVM_OPC_iload_0 && opcode <= JVM_OPC_aload_3) ||
                    (opcode >= JVM_OPC_istore_0 && opcode <= JVM_OPC_astore_3)) {
@@ -530,11 +528,11 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             if (index >= start_time_loc_index) {
                 index += 2;
                 if (index <= 3) {
-                    *(_dst + _dst_len - 1) = opcode + 2;
+                    _dst[_dst_len - 1] = opcode + 2;
                 } else {
                     u8 new_opcode = (opcode <= JVM_OPC_aload_3 ? JVM_OPC_iload : JVM_OPC_istore) +
                                     (opcode - base) / 4;
-                    *(_dst + _dst_len - 1) = new_opcode;
+                    _dst[_dst_len - 1] = new_opcode;
                     put8(index);
                     put8(JVM_OPC_nop);
                     put8(JVM_OPC_nop);
@@ -547,7 +545,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             if (index >= start_time_loc_index) {
                 // TODO: handle overflow here
                 index += 2;
-                *(_dst + _dst_len - 2) = index;
+                _dst[_dst_len - 2] = index;
             }
         } else if (opcode == JVM_OPC_wide) {
             u32 back = bc - 2;
@@ -690,7 +688,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_
                 put16(new_offset_delta);
             }
             // Patch frame type
-            *(_dst + stack_map_frame_idx) = new_frame_type;
+            _dst[stack_map_frame_idx] = new_frame_type;
             if (frame_type > 63) {
                 rewriteVerificationTypeInfo(relocation_table);
             }
