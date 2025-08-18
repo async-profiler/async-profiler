@@ -457,9 +457,10 @@ int OS::getProcessIds(int* pids, int max_pids) {
     int count = 0;
     DIR* proc = opendir("/proc");
     if (!proc) return 0;
-    for (dirent* de; (de = readdir(proc)) && count < max_pids; ) {
-        unsigned long pid = strtoul(de->d_name, NULL, 10);
-        if (pid != 0) {
+
+    for (dirent* de; (de = readdir(proc)) && count < max_pids;) {
+        int pid = atoi(de->d_name);
+        if (pid > 0) {
             pids[count++] = pid;
         }
     }

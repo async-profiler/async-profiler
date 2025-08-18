@@ -507,15 +507,15 @@ class Recording {
         history.prev_timestamp = sampling_time;
     }
 
-  void cleanupProcessHistory(const int* activePids, int pidCount) {
-      std::unordered_set<int> active_pid_set(activePids, activePids + pidCount);
-      for (auto it = _process_history.begin(); it != _process_history.end(); ) {
-          if (active_pid_set.count(it->first) == 0) {
-              it = _process_history.erase(it);
-          } else {
-              ++it;
-          }
-      }
+    void cleanupProcessHistory(const int* active_pids, const int pid_count) {
+        std::unordered_set<int> active_pid_set(active_pids, active_pids + pid_count);
+        for (auto it = _process_history.begin(); it != _process_history.end(); ) {
+            if (active_pid_set.count(it->first) == 0) {
+                it = _process_history.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     bool processMonitorCycle(u64 wall_time) {
