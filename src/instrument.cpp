@@ -138,7 +138,14 @@ enum Scope {
 
 enum PatchConstants {
     EXTRA_CONSTANTS = 16,
-    EXTRA_BYTECODES = 4
+    // Entry which does not track start time
+    EXTRA_BYTECODES_SIMPLE_ENTRY = 4,
+    // System.nanoTime and llstore
+    EXTRA_BYTECODES_ENTRY = 8,
+    // lload and recordExit(startTime)
+    EXTRA_BYTECODES_EXIT = 8,
+    // *load_i or *store_i to *load/*store
+    EXTRA_BYTECODES_INDEXED = 4
 };
 
 
@@ -379,7 +386,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
         put16(_cpool_len);
         // nop ensures that tableswitch/lookupswitch needs no realignment
         put8(JVM_OPC_nop);
-        relocation = EXTRA_BYTECODES;
+        relocation = EXTRA_BYTECODES_SIMPLE_ENTRY;
 
         // The rest of the code is unchanged
         put(code, code_length);
@@ -413,7 +420,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 // Return the relocation after the last byte of code
 u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u32* relocation_table) {
     // Method start is relocated
-    u32 current_relocation = EXTRA_BYTECODES * 2;
+    u32 current_relocation = EXTRA_BYTECODES_ENTRY;
 
     // First scan: identify the maximum possible relocation for any position in code[]
     // Relocation can happen due to:
@@ -423,7 +430,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
     for (u32 i = 0; i < code_length;) {
         u8 opcode = code[i];
         if (isFunctionExit(opcode)) {
-            max_relocation += EXTRA_BYTECODES;
+            max_relocation += EXTRA_BYTECODES_EXIT;
         }
         i += computeInstructionByteCount(code, i);
     }
@@ -516,7 +523,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         // (e.g. a jump) should now target our invokestatic, otherwise it will
         // be skipped.
         if (isFunctionExit(opcode)) {
-            current_relocation += EXTRA_BYTECODES * 2;
+            current_relocation += EXTRA_BYTECODES_EXIT;
         } else if ((opcode >= JVM_OPC_iload && opcode <= JVM_OPC_aload) ||
                    (opcode >= JVM_OPC_istore && opcode <= JVM_OPC_astore)) {
             u8 index = code[i-1];
@@ -540,7 +547,7 @@ u32 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                     put8(JVM_OPC_nop);
                     put8(JVM_OPC_nop);
                     put8(JVM_OPC_nop);
-                    current_relocation += 4;
+                    current_relocation += EXTRA_BYTECODES_INDEXED;
                 }
             }
         } else if (opcode == JVM_OPC_iinc) {
