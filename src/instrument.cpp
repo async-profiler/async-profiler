@@ -21,7 +21,7 @@ constexpr u32 MAX_CODE_SEGMENT_BYTES = 65534;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
-u8 parametersSlots(const char* method_sig) {
+u8 parameterSlots(const char* method_sig) {
     u8 count = 0;
     size_t i = 1;
     while (method_sig[i] != ')') {
@@ -377,7 +377,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     int new_local_index = -1;
     u16 relocation;
     if (_latency_profiling) {
-        u8 parameters_count = parametersSlots(_cpool[descriptor_index]->getSignature());
+        u8 parameters_count = parameterSlots(_cpool[descriptor_index]->getSignature());
         bool is_not_static = (access_flags & JVM_ACC_STATIC) == 0;
         new_local_index = parameters_count + is_not_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);

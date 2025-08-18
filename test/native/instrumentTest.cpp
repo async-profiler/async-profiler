@@ -49,34 +49,34 @@ TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
 }
 
 TEST_CASE(Instrument_test_parametersSlots_reference) {
-    CHECK_EQ(parametersSlots("(Ljava/time/Duration;)"), 1);
+    CHECK_EQ(parameterSlots("(Ljava/time/Duration;)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_referenceArray) {
-    CHECK_EQ(parametersSlots("([Ljava/time/Duration;)"), 1);
+    CHECK_EQ(parameterSlots("([Ljava/time/Duration;)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_2darray) {
-    CHECK_EQ(parametersSlots("([[I)"), 1);
+    CHECK_EQ(parameterSlots("([[I)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_2slots) {
-    CHECK_EQ(parametersSlots("(D)"), 2);
-    CHECK_EQ(parametersSlots("(J)"), 2);
+    CHECK_EQ(parameterSlots("(D)"), 2);
+    CHECK_EQ(parameterSlots("(J)"), 2);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_1slot) {
-    CHECK_EQ(parametersSlots("(Z)"), 1);
-    CHECK_EQ(parametersSlots("(I)"), 1);
-    CHECK_EQ(parametersSlots("(F)"), 1);
+    CHECK_EQ(parameterSlots("(Z)"), 1);
+    CHECK_EQ(parameterSlots("(I)"), 1);
+    CHECK_EQ(parameterSlots("(F)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_doubleArray) {
-    CHECK_EQ(parametersSlots("([D)"), 1);
+    CHECK_EQ(parameterSlots("([D)"), 1);
 }
 
 TEST_CASE(Instrument_test_parametersSlots_mix) {
-    CHECK_EQ(parametersSlots("(ZD[I)"), 4);
+    CHECK_EQ(parameterSlots("(ZD[I)"), 4);
 }
 
 TEST_CASE(Instrument_test_instructionBytes) {
