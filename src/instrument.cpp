@@ -17,7 +17,7 @@
 #include "vmEntry.h"
 #include "instrument.h"
 
-constexpr u32 MAX_CODE_SEGMENT_BYTES = 65534;
+constexpr u32 MAX_CODE_LENGTH = 65534;
 
 INCLUDE_HELPER_CLASS(INSTRUMENT_NAME, INSTRUMENT_CLASS, "one/profiler/Instrument")
 
@@ -42,8 +42,8 @@ u8 parameterSlots(const char* method_sig) {
     return count;
 }
 
-inline u32 alignUp4(u32 i) {
-    return (i / 4) * 4 + 4;
+static inline u32 alignUp4(u32 i) {
+    return (i & ~3) + 4;
 }
 
 enum ConstantTag {
@@ -131,7 +131,7 @@ enum PatchConstants {
     EXTRA_CONSTANTS = 16,
     // Entry which does not track start time
     EXTRA_BYTECODES_SIMPLE_ENTRY = 4,
-    // System.nanoTime and llstore
+    // System.nanoTime and lstore
     EXTRA_BYTECODES_ENTRY = 8,
     // lload and recordExit(startTime)
     EXTRA_BYTECODES_EXIT = 8,
@@ -369,8 +369,8 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
     u16 relocation;
     if (_latency_profiling) {
         u8 parameters_count = parameterSlots(_cpool[descriptor_index]->getSignature());
-        bool is_not_static = (access_flags & JVM_ACC_STATIC) == 0;
-        new_local_index = parameters_count + is_not_static;
+        bool is_non_static = (access_flags & JVM_ACC_STATIC) == 0;
+        new_local_index = parameters_count + is_non_static;
         relocation = rewriteCodeForLatency(code, code_length, new_local_index, relocation_table);
     } else {
         // invokestatic "one/profiler/Instrument.recordEntry()V"
@@ -427,8 +427,8 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         i += instructionBytes(code, i);
     }
 
-    if (max_relocation > MAX_CODE_SEGMENT_BYTES - code_length) {
-        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_SEGMENT_BYTES, _target_class, _target_method);
+    if (max_relocation > MAX_CODE_LENGTH - code_length) {
+        Log::warn("Instrumented code size exceeds JVM code segment size limit (%u), aborting instrumentation of %s.%s", MAX_CODE_LENGTH, _target_class, _target_method);
         put(code, code_length);
         memset(relocation_table, 0, sizeof(relocation_table[0]));
         return 0;
@@ -1051,7 +1051,6 @@ void JNICALL Instrument::recordEntry(JNIEnv* jni, jobject unused) {
 void JNICALL Instrument::recordExit(JNIEnv* jni, jobject unused, jlong startTimeNanos) {
     if (!_enabled) return;
 
-    // TODO: is this comparable with System.nanoTime()?
     u64 duration = OS::nanotime() - (u64) startTimeNanos;
     if (duration >= _latency) {
         ExecutionEvent event((u64) startTimeNanos);
