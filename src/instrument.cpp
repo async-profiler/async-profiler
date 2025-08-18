@@ -825,6 +825,7 @@ void BytecodeRewriter::rewriteMembers(Scope scope) {
 
         u16 descriptor_index = get16();
         put16(descriptor_index);
+        assert(scope != SCOPE_METHOD || _cpool[descriptor_index]->tag() == CONSTANT_NameAndType);
 
         bool need_rewrite = scope == SCOPE_METHOD
             && _cpool[name_index]->matches(_target_method, _target_method_len)
