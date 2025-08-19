@@ -46,10 +46,10 @@ const int RECORDING_BUFFER_LIMIT = RECORDING_BUFFER_SIZE - 4096;
 const int MAX_STRING_LENGTH = 8191;
 const u64 MAX_JLONG = 0x7fffffffffffffffULL;
 const u64 MIN_JLONG = 0x8000000000000000ULL;
-const int MAX_PROCESSES = 5000;             // Hard limit to prevent excessive work
-const u64 MAX_TIME_NS = 900000000UL;        // Timeout after 900ms to guarantee runtime <1sec
-const float MIN_CPU_THRESHOLD = 0.0f;       // Minimum % cpu utilization to include results
-const u64 MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
+const int MAX_PROCESSES = 5000;               // Hard limit to prevent excessive work
+const u64 MAX_TIME_NS = 900000000UL;          // Timeout after 900ms to guarantee runtime <1sec
+const float MIN_CPU_THRESHOLD = 5.0f;         // Minimum % cpu utilization to include results
+const float MIN_RSS_PERCENT_THRESHOLD = 5.0f; // Minimum % rss usage to include results
 const int MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH = 2500;
 
 enum GCWhen {
