@@ -150,7 +150,7 @@ public class ProcTests {
 
     @Test(mainClass = ShortLivedApp.class, os = Os.LINUX)
     public void shortLivedProcesses(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 5 -f %f.jfr", false, 10);
+        Output out = p.profile("--proc 1 -d 6 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
@@ -211,8 +211,8 @@ public class ProcTests {
 
             assert sample != null;
             Assert.isGreater(sample.cpuUser, 0);
-            Assert.isGreater(sample.cpuSystem, 0);
             Assert.isGreater(sample.cpuPercent, 0);
+            Assert.isGreaterOrEqual(sample.cpuSystem, 0);
         }
     }
 

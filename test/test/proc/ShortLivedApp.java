@@ -10,22 +10,14 @@ import java.util.List;
 
 public class ShortLivedApp {
 
-    private static final int SPAWN = 10;
-
-    private static final String[] DD_CMD = {"timeout", "5", "dd", "if=/dev/zero", "of=/dev/null", "bs=1M", "status=none"};
+    private static final String[] DD_CMD = {"timeout", "2", "dd", "if=/dev/zero", "of=/dev/null", "bs=1M", "status=none"};
 
     public static void main(String[] args) throws Exception {
-
-        List<Process> procs = new ArrayList<>(SPAWN);
-
-        for (int i = 0; i < SPAWN; i++) {
-            procs.add(new ProcessBuilder(DD_CMD).start());
+        while (true) {
+            for (int i = 0; i < 10; i++) {
+                new ProcessBuilder(DD_CMD).start();
+            }
+            Thread.sleep(500);
         }
-
-        for (Process p : procs) {
-            p.waitFor();
-        }
-
-        Thread.sleep(10000);
     }
 }
