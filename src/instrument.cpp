@@ -474,7 +474,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
         } else if (isWideJump(opcode)) {
             jumps.push_back((i + 1ULL) << 32 | i);
         } else if (opcode == JVM_OPC_tableswitch) {
-            // Nearest multiple of 4, 'default' lies after the padding
+            // 'default' lies after the padding
             u32 default_index = alignUp4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
@@ -488,7 +488,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
                 jumps.push_back((branches_base_index + c * 4) << 32 | i);
             }
         } else if (opcode == JVM_OPC_lookupswitch) {
-            // Nearest multiple of 4, 'default' lies after the padding
+            // 'default' lies after the padding
             u32 default_index = alignUp4(i);
             // 4 bits: default
             jumps.push_back((u64) default_index << 32 | i);
