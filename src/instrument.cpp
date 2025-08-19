@@ -465,7 +465,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u32 code_length, u8 
             jumps.push_back((i + 1ULL) << 32 | i);
             int16_t offset = (int16_t) ntohs(*(u16*)(code + i + 1));
             if (max_relocation > 0x7fff - offset) {
-                Log::warn("Narrow jump offset exceeds the limit for signed int16, aborting instrumentation of %s.", _target_class, _target_method);
+                Log::warn("Jump overflow, aborting instrumentation of %s.%s", _target_class, _target_method);
                 _dst_len = code_start;
                 put(code, code_length);
                 memset(relocation_table, 0, sizeof(relocation_table[0]));
