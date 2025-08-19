@@ -42,7 +42,7 @@ public class ProcTests {
     }
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
-    public void processSamplingInterval(TestProcess p) throws Exception {
+    public void processEvenSamplingInterval(TestProcess p) throws Exception {
         long startTime = System.currentTimeMillis();
         Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
 
@@ -59,7 +59,7 @@ public class ProcTests {
 
     @Test(mainClass = BasicApp.class, os = Os.LINUX)
     public void processSamplingWithAllMode(TestProcess p) throws Exception {
-        Output out = p.profile("--all -d 62 -f %f.jfr", false, 65);
+        Output out = p.profile("--all -d 60 -f %f.jfr", false, 61);
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> procEvents = jfr.readAllEvents(ProcessSample.class);
             assert !procEvents.isEmpty();
@@ -199,7 +199,7 @@ public class ProcTests {
 
     @Test(mainClass = CpuIntensiveApp.class, os = Os.LINUX)
     public void processSamplingWithCpuThreshold(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
+        Output out = p.profile("--proc 1 -d 3 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
@@ -218,7 +218,7 @@ public class ProcTests {
 
     @Test(mainClass = MemoryIntensiveApp.class, jvmArgs = "-XX:+AlwaysPreTouch -XX:InitialRAMPercentage=10", os = Os.LINUX)
     public void processSamplingWithMemoryThreshold(TestProcess p) throws Exception {
-        Output out = p.profile("--proc 1 -d 5 -f %f.jfr");
+        Output out = p.profile("--proc 1 -d 2 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
