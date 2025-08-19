@@ -209,7 +209,7 @@ public class ProcTests {
         }
     }
 
-    @Test(mainClass = MemoryIntensiveApp.class, os = Os.LINUX)
+    @Test(mainClass = MemoryIntensiveApp.class, jvmArgs = "-XX:+AlwaysPreTouch -XX:InitialRAMPercentage=10", os = Os.LINUX)
     public void processSamplingWithMemoryThreshold(TestProcess p) throws Exception {
         Output out = p.profile("--proc 2 -d 8 -f %f.jfr");
         try (JfrReader jfr = new JfrReader(p.getFilePath("%f"))) {
