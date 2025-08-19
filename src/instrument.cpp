@@ -415,26 +415,6 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     // Method start is relocated
     u16 current_relocation = EXTRA_BYTECODES_ENTRY;
 
-    // First scan: identify the maximum possible relocation for any position in code[]
-    // Relocation can happen due to:
-    // - Adding a new invocation
-    // - Narrow jump becoming a wide jump
-    u32 max_relocation = current_relocation;
-    for (u16 i = 0; i < code_length;) {
-        u8 opcode = code[i];
-        if (isFunctionExit(opcode)) {
-            max_relocation += EXTRA_BYTECODES_EXIT;
-        }
-        i += instructionBytes(code, i);
-    }
-
-    if (max_relocation > MAX_CODE_LENGTH - code_length) {
-        Log::warn("Method %s.%s is too large for instrumentation", _target_class, _target_method);
-        put(code, code_length);
-        memset(relocation_table, 0, sizeof(relocation_table[0]));
-        return 0;
-    }
-
     u32 code_start = _dst_len;
 
     // invokestatic "java/lang/System.nanoTime()V"
@@ -451,7 +431,7 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
     // High 16 bits: jump offset index
     // This supports narrow and wide jumps, as well as tableswitch and lookupswitch
     std::vector<u32> jumps;
-    // Second scan: fill relocation_table and rewrite code.
+    // First scan: fill relocation_table and rewrite code.
     for (u16 i = 0; i < code_length; /* incremented with instructionBytes */) {
         u8 opcode = code[i];
 
@@ -553,7 +533,14 @@ u16 BytecodeRewriter::rewriteCodeForLatency(const u8* code, u16 code_length, u8 
         }
     }
 
-    // Third scan (jumps only): fix the jump offset using information in relocation_table.
+    if (current_relocation > MAX_CODE_LENGTH - code_length) {
+        Log::warn("Method %s.%s is too large for instrumentation", _target_class, _target_method);
+        put(code, code_length);
+        memset(relocation_table, 0, sizeof(relocation_table[0]));
+        return 0;
+    }
+
+    // Second scan (jumps only): fix the jump offset using information in relocation_table.
     for (u32 jump : jumps) {
         u16 old_jump_base_idx = (u16) jump;
         u16 old_jump_offset_idx = (u16) (jump >> 16);
