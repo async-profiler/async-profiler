@@ -1228,8 +1228,8 @@ class Recording {
         buf->put8(info->state);
 
         buf->putVar64(info->start_time);
-        buf->putVar64(info->cpu_user);
-        buf->putVar64(info->cpu_system);
+        buf->putFloat(info->cpu_user);
+        buf->putFloat(info->cpu_system);
         buf->putFloat(info->cpu_percent);
         buf->putVar32(info->threads);
 

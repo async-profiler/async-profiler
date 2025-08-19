@@ -15,8 +15,8 @@ public class ProcessSample extends Event {
     public final int uid;
     public final byte state;
     public final long processStartTime;
-    public final long cpuUser;
-    public final long cpuSystem;
+    public final float cpuUser;
+    public final float cpuSystem;
     public final float cpuPercent;
     public final int threads;
     public final long vmSize;
@@ -38,8 +38,8 @@ public class ProcessSample extends Event {
         this.uid = jfr.getVarint();
         this.state = jfr.getByte();
         this.processStartTime = jfr.getVarlong();
-        this.cpuUser = jfr.getVarlong();
-        this.cpuSystem = jfr.getVarlong();
+        this.cpuUser = jfr.getFloat();
+        this.cpuSystem = jfr.getFloat();
         this.cpuPercent = jfr.getFloat();
         this.threads = jfr.getVarint();
         this.vmSize = jfr.getVarlong();

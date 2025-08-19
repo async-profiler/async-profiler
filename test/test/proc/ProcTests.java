@@ -50,7 +50,8 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
 
             List<ProcessSample> appSamples = events.stream()
-                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp")).collect(Collectors.toList());
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp"))
+                    .collect(Collectors.toList());
 
             Assert.isEqual(appSamples.size(), 3);
         }
@@ -72,7 +73,12 @@ public class ProcTests {
             List<ProcessSample> events = jfr.readAllEvents(ProcessSample.class);
             assert !events.isEmpty();
 
-            ProcessSample sample = events.get(0);
+            ProcessSample sample = events.stream()
+                    .filter(e -> e.cmdLine != null && e.cmdLine.contains("BasicApp"))
+                    .findAny()
+                    .orElse(null);
+
+            assert sample != null;
 
             Assert.isGreater(sample.pid, 0);
             Assert.isGreaterOrEqual(sample.ppid, 0);
@@ -83,7 +89,7 @@ public class ProcTests {
             Assert.isGreater(sample.processStartTime, 0);
             Assert.isGreater(sample.cpuUser, 0);
             Assert.isGreater(sample.cpuSystem, 0);
-            Assert.isGreaterOrEqual(sample.cpuPercent, 0);
+            Assert.isGreater(sample.cpuPercent, 0);
             Assert.isGreater(sample.threads, 0);
             Assert.isGreaterOrEqual(sample.vmSize, 0);
             Assert.isGreaterOrEqual(sample.vmRss, 0);
