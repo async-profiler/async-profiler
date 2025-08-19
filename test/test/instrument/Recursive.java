@@ -13,7 +13,7 @@ public class Recursive {
 
     static void recursive(long recursionCount) throws InterruptedException {
         if (recursionCount > MAX_RECURSION) return;
-        Thread.sleep((MAX_RECURSION - recursionCount) * 100);
+        Thread.sleep((MAX_RECURSION - recursionCount) * 200);
         recursive(recursionCount+1);
     }
 

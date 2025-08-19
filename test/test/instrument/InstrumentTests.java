@@ -142,7 +142,7 @@ public class InstrumentTests {
 
     @Test(
         mainClass = Recursive.class,
-        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=250ms,collapsed,file=%f",
+        agentArgs = "start,event=test.instrument.Recursive.recursive,total,latency=600ms,collapsed,file=%f",
         jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
         error     = true,
         jvmVer    = {9, Integer.MAX_VALUE}
@@ -152,7 +152,7 @@ public class InstrumentTests {
         assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
-        // recursive(i) = \sum_{j=i}^5 100*(MAX_RECURSION-j) ms
+        // recursive(i) = \sum_{j=i}^5 200*(MAX_RECURSION-j) ms
         // MAX_RECURSION = 3
         
         // recursive(3) is filtered out
@@ -161,15 +161,15 @@ public class InstrumentTests {
                 RECURSIVE_METHOD_SEGMENT));
         
         // recursive(2) is filtered out
-        duration = duration.plus(Duration.ofMillis(100));
+        duration = duration.plus(Duration.ofMillis(200));
         assert !out.contains(String.format("%s%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT));
 
         // recursive(1)
-        duration = duration.plus(Duration.ofMillis(200));
+        duration = duration.plus(Duration.ofMillis(400));
         assert out.samples(String.format("%s%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
 
         // recursive(0)
-        duration = duration.plus(Duration.ofMillis(300));
+        duration = duration.plus(Duration.ofMillis(600));
         assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
     }
 
