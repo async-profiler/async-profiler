@@ -88,7 +88,6 @@ struct ProcessHistory {
 
 class ProcessSampler {
   private:
-    static u64 _system_boot_time;
     static u64 _last_sample_ts;
     static std::unordered_map<int, ProcessHistory> _process_history;
 
@@ -109,10 +108,6 @@ class ProcessSampler {
 
     void enable(const long sampling_interval) {
         _sampling_interval = sampling_interval;
-        if (_system_boot_time == 0) {
-            _system_boot_time = OS::getSysBootTime();
-        }
-
         _last_sample_ts = 0;
         _process_history.clear();
     }
@@ -142,8 +137,8 @@ class ProcessSampler {
             return false;
         }
 
-        u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
-        u64 delta_time = sampling_time - history.prev_timestamp;
+        const u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
+        const u64 delta_time = sampling_time - history.prev_timestamp;
         float cpu_percent = 0.0F;
 
         if (delta_time > 0) {
@@ -181,8 +176,8 @@ class ProcessSampler {
         return false;
     }
 };
+
 u64 ProcessSampler::_last_sample_ts = 0;
-u64 ProcessSampler::_system_boot_time = 0;
 std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 class Buffer {
@@ -1238,9 +1233,7 @@ class Recording {
         buf->putVar32(info->uid);
         buf->put8(info->state);
 
-        // u64 ps_start_time = _sys_boot_ts + info->start_time / OS::clock_ticks_per_sec;
-        // buf->putVar64(ps_start_time);
-        buf->putVar64(0);
+        buf->putVar64(info->start_time);
         buf->putVar64(info->cpu_user / OS::clock_ticks_per_sec);
         buf->putVar64(info->cpu_system / OS::clock_ticks_per_sec);
         buf->putFloat(info->cpu_percent);

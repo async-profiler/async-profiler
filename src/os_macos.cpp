@@ -427,7 +427,7 @@ bool OS::checkPreloaded() {
     return false;
 }
 
-u64 OS::getSysBootTime() {
+u64 OS::getSystemBootTime() {
     return 0;
 }
 

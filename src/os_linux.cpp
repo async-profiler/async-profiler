@@ -436,21 +436,26 @@ bool OS::checkPreloaded() {
     return dl_iterate_phdr(checkPreloadedCallback, (void*)info) == 1;
 }
 
-u64 OS::getSysBootTime() {
-    FILE* file = fopen("/proc/stat", "r");
-    if (!file) return 0;
+u64 OS::getSystemBootTime() {
+    static u64 system_boot_time = 0;
 
-    char line[1024];
-    char key[6];
-    while (fgets(line, sizeof(line), file)) {
-        if (strncmp(line, "btime", 5) == 0) {
-            fclose(file);
-            return strtoull(line+5, NULL, 10);
+    if (system_boot_time == 0) {
+        FILE* file = fopen("/proc/stat", "r");
+        if (!file) return 0;
+
+        char line[1024];
+        char key[6];
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "btime", 5) == 0) {
+                system_boot_time = strtoull(line+5, NULL, 10);
+                break;
+            }
         }
+
+        fclose(file);
     }
 
-    fclose(file);
-    return 0;
+    return system_boot_time;
 }
 
 int OS::getProcessIds(int* pids, int max_pids) {
@@ -496,7 +501,6 @@ bool readProcessCmdline(int pid, ProcessInfo* info) {
     return true;
 }
 
-// Helper method to read process stats from /proc/{pid}/stat
 bool readProcessStats(int pid, ProcessInfo* info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
@@ -546,11 +550,11 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     info->cpu_user = utime;
     info->cpu_system = stime;
     info->threads = threads;
-    info->start_time = starttime;
     // (23) vsize convert from bytes to kB
     info->vm_size = vsize >> 10;
     //(24) rss - convert from number of pages to kB
     info->vm_rss = (rss * OS::page_size) >> 10;
+    info->start_time = OS::getSystemBootTime() + starttime / OS::clock_ticks_per_sec;
     return true;
 }
 
