@@ -28,7 +28,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_newEntry) {
     relocation_table[2] = 4;
     u16 offset_delta_old = 2;
 
-    u32 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
+    u16 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
     CHECK_EQ(current_frame_old, 2);
     CHECK_EQ(current_frame_new, 6);
     // offset from first StackMapTable entry to the next
@@ -42,7 +42,7 @@ TEST_CASE(Instrument_test_updateCurrentFrame_mid) {
     relocation_table[2] = 4;
     u16 offset_delta_old = 0;
 
-    u32 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
+    u16 offset_delta_new = updateCurrentFrame(current_frame_old, current_frame_new, offset_delta_old, relocation_table);
     CHECK_EQ(current_frame_old, 2);
     CHECK_EQ(current_frame_new, 6);
     CHECK_EQ(offset_delta_new, 3);
