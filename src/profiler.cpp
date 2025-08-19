@@ -1695,7 +1695,6 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
         otlp_buffer.putVarInt(cts->samples);
         otlp_buffer.putVarInt(cts->counter);
         otlp_buffer.commitMessage(sample_value_mark);
-        otlp_buffer.commitMessage(sample_mark);
 
         const char* trace_context = nullptr;
 
@@ -1713,7 +1712,7 @@ void Profiler::dumpOtlp(Writer& out, Arguments& args) {
             size_t link_idx = links.indexOf(trace_context);
             otlp_buffer.field(Sample::link_index, link_idx);
         }
-
+        otlp_buffer.commitMessage(sample_mark);
         frames_seen += trace->num_frames - (trace_context ? 1 : 0);
     }
 
