@@ -86,8 +86,104 @@ struct ProcessHistory {
     ProcessHistory() : prev_cpu_total(0), prev_timestamp(0) {}
 };
 
-static std::unordered_map<int, ProcessHistory> _process_history;
-static u64 _last_proc_sample_time = 0;
+class ProcessSampler {
+  private:
+    static u64 _system_boot_time;
+    static u64 _last_sample_ts;
+    static std::unordered_map<int, ProcessHistory> _process_history;
+
+    long _sampling_interval = -1;
+    int _pids[MAX_PROCESSES];
+
+  public:
+    void cleanupProcessHistory(const int pid_count) {
+        const std::unordered_set<int> active_pid_set(_pids, _pids + pid_count);
+        for (auto it = _process_history.begin(); it != _process_history.end();) {
+            if (active_pid_set.count(it->first) == 0) {
+                it = _process_history.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void enable(const long sampling_interval) {
+        _sampling_interval = sampling_interval;
+        if (_system_boot_time == 0) {
+            _system_boot_time = OS::getSysBootTime();
+        }
+
+        _last_sample_ts = 0;
+        _process_history.clear();
+    }
+
+    bool shouldSample(const u64 wall_time) const {
+        return _sampling_interval >= 0 && (wall_time - _last_sample_ts) >= (u64)_sampling_interval;
+    }
+
+    static double getRssUsagePercent(const ProcessInfo &info) {
+        if (info.vm_size <= 0 || info.vm_rss <= 0) {
+            return 0.0;
+        }
+
+        return static_cast<double>(info.vm_rss) / info.vm_size * 100;
+    }
+
+    static bool shouldIncludeProcess(const ProcessInfo &info) {
+        return info.cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
+    }
+
+    static bool populateCpuPercent(ProcessInfo& info, const u64 sampling_time) {
+        const u64 current_cpu_total = info.cpu_user + info.cpu_system;
+        ProcessHistory &history = _process_history[info.pid];
+        if (history.prev_timestamp == 0) {
+            history.prev_cpu_total = current_cpu_total;
+            history.prev_timestamp = sampling_time;
+            return false;
+        }
+
+        u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
+        u64 delta_time = sampling_time - history.prev_timestamp;
+        float cpu_percent = 0.0F;
+
+        if (delta_time > 0) {
+            float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
+            float elapsed_secs = static_cast<float>(delta_time) / 1e9;
+            if (elapsed_secs > 0) {
+                cpu_percent = (cpu_secs / elapsed_secs) * 100.0;
+            }
+        }
+
+        info.cpu_percent = cpu_percent;
+        history.prev_cpu_total = current_cpu_total;
+        history.prev_timestamp = sampling_time;
+        return true;
+    }
+
+    int getSampledProcessCount(u64 wall_time) {
+        const int pid_count = OS::getProcessIds(_pids, MAX_PROCESSES);
+        cleanupProcessHistory(pid_count);
+        _last_sample_ts = wall_time;
+        return pid_count;
+    }
+
+    bool getProcessSample(int pid_index, u64 sampling_time, ProcessInfo &info) const {
+        const int pid = _pids[pid_index];
+        if (OS::getBasicProcessInfo(pid, &info)) {
+            if (populateCpuPercent(info, sampling_time)) {
+                if (shouldIncludeProcess(info)) {
+                    OS::getDetailedProcessInfo(&info);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+};
+u64 ProcessSampler::_last_sample_ts = 0;
+u64 ProcessSampler::_system_boot_time = 0;
+std::unordered_map<int, ProcessHistory> ProcessSampler::_process_history;
 
 class Buffer {
   private:
@@ -260,8 +356,6 @@ class Recording {
     u64 _bytes_written;
     u64 _chunk_size;
     u64 _chunk_time;
-    long _process_sampling_interval;
-    u64 _sys_boot_ts;
 
     int _available_processors;
     int _recorded_lib_count;
@@ -273,6 +367,7 @@ class Recording {
     CpuTimes _last_times;
     SmallBuffer _monitor_buf;
     RecordingBuffer _proc_buf;
+    ProcessSampler _process_sampler;
 
     static float ratio(float value) {
         return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -288,7 +383,6 @@ class Recording {
         _bytes_written = 0;
         _memfd = -1;
         _in_memory = false;
-        _process_sampling_interval = -1;
 
         _chunk_size = args._chunk_size <= 0 ? MAX_JLONG : (args._chunk_size < 262144 ? 262144 : args._chunk_size);
         _chunk_time = args._chunk_time <= 0 ? MAX_JLONG : (args._chunk_time < 5 ? 5 : args._chunk_time) * 1000000ULL;
@@ -328,8 +422,7 @@ class Recording {
         _last_gc_id = 0;
 
         if (args._proc > 0) {
-            _process_sampling_interval = args._proc * 1000000;
-            _sys_boot_ts = OS::getSysBootTime();
+            _process_sampler.enable(args._proc * 1000000);
         }
     }
 
@@ -469,88 +562,28 @@ class Recording {
         _last_gc_id = gc_id;
     }
 
-    double getRssUsagePercent(const ProcessInfo &info) {
-        if (info.vm_size <= 0 || info.vm_rss <= 0) {
-            return 0.0;
-        }
-
-        return static_cast<double>(info.vm_rss) / info.vm_size * 100;
-    }
-
-    bool shouldIncludeProcess(const ProcessInfo &info) {
-        return info.cpu_percent >= MIN_CPU_THRESHOLD || getRssUsagePercent(info) >= MIN_RSS_PERCENT_THRESHOLD;
-    }
-
-    void populateCpuPercent(ProcessInfo &info, u64 sampling_time) {
-        u64 current_cpu_total = info.cpu_user + info.cpu_system;
-        ProcessHistory& history = _process_history[info.pid];
-        if (history.prev_timestamp == 0) {
-            history.prev_cpu_total = current_cpu_total;
-            history.prev_timestamp = sampling_time;
-            return;
-        }
-
-        u64 delta_cpu = current_cpu_total - history.prev_cpu_total;
-        u64 delta_time = sampling_time - history.prev_timestamp;
-        float cpu_percent = 0.0F;
-
-        if (delta_time > 0) {
-            float cpu_secs = static_cast<float>(delta_cpu) / OS::clock_ticks_per_sec;
-            float elapsed_secs = static_cast<float>(delta_time) / 1e9;
-            if (elapsed_secs > 0) {
-              cpu_percent = (cpu_secs / elapsed_secs) * 100.0;
-            }
-        }
-
-        info.cpu_percent = cpu_percent;
-        history.prev_cpu_total = current_cpu_total;
-        history.prev_timestamp = sampling_time;
-    }
-
-    void cleanupProcessHistory(const int* active_pids, const int pid_count) {
-        std::unordered_set<int> active_pid_set(active_pids, active_pids + pid_count);
-        for (auto it = _process_history.begin(); it != _process_history.end(); ) {
-            if (active_pid_set.count(it->first) == 0) {
-                it = _process_history.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
-
-    bool processMonitorCycle(u64 wall_time) {
-        if (_process_sampling_interval < 0) return false;
-
-        if ((wall_time - _last_proc_sample_time) < (u64)_process_sampling_interval) {
+    bool processMonitorCycle(const u64 wall_time) {
+        if (!_process_sampler.shouldSample(wall_time)) {
             return false;
         }
 
-        u64 sampling_time = OS::nanotime();
-        u64 deadline_ns = sampling_time + MAX_TIME_NS;
-        int pids[MAX_PROCESSES];
-        int pid_count = OS::getProcessIds(pids, MAX_PROCESSES);
-        cleanupProcessHistory(pids, pid_count);
-
-        for (int i = 0; i < pid_count; i++) {
-            u64 proc_sampling_time_ns = OS::nanotime();
-            if (proc_sampling_time_ns > deadline_ns) {
+        const u64 deadline_ns = OS::nanotime() + MAX_TIME_NS;
+        const int process_count = _process_sampler.getSampledProcessCount(wall_time);
+        for (int pid_index = 0; pid_index < process_count; pid_index++) {
+            const u64 current_time = OS::nanotime();
+            if (current_time > deadline_ns) {
                 Log::debug("Incomplete process sampling cycle.");
                 break;
             }
 
             ProcessInfo info;
-            if (OS::getBasicProcessInfo(pids[i], &info)) {
-                populateCpuPercent(info, proc_sampling_time_ns);
-                if (_last_proc_sample_time > 0 && shouldIncludeProcess(info)) {
-                    OS::getDetailedProcessInfo(&info);
-                    flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
-                    recordProcessSample(&_proc_buf, &info, proc_sampling_time_ns);
-                }
+            if (_process_sampler.getProcessSample(pid_index, current_time, info)) {
+                flushIfNeeded(&_proc_buf, RECORDING_BUFFER_LIMIT - MAX_PROCESS_SAMPLE_JFR_EVENT_LENGTH);
+                recordProcessSample(&_proc_buf, &info, current_time);
             }
         }
 
-        _last_proc_sample_time = wall_time;
-        return true;
+        return process_count > 0;
     }
 
     bool hasMasterRecording() const {
@@ -1205,8 +1238,9 @@ class Recording {
         buf->putVar32(info->uid);
         buf->put8(info->state);
 
-        u64 ps_start_time = _sys_boot_ts + info->start_time / OS::clock_ticks_per_sec;
-        buf->putVar64(ps_start_time);
+        // u64 ps_start_time = _sys_boot_ts + info->start_time / OS::clock_ticks_per_sec;
+        // buf->putVar64(ps_start_time);
+        buf->putVar64(0);
         buf->putVar64(info->cpu_user / OS::clock_ticks_per_sec);
         buf->putVar64(info->cpu_system / OS::clock_ticks_per_sec);
         buf->putFloat(info->cpu_percent);
