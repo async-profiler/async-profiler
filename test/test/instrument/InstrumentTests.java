@@ -8,8 +8,8 @@ package test.instrument;
 import one.profiler.test.*;
 
 import java.time.Duration;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.*;
+import java.nio.file.Files;
 
 
 public class InstrumentTests {
@@ -25,6 +25,7 @@ public class InstrumentTests {
     )
     public void instrument(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 2;
@@ -42,6 +43,7 @@ public class InstrumentTests {
     )
     public void instrumentAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -56,6 +58,7 @@ public class InstrumentTests {
     )
     public void instrumentAllInit(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert !out.contains("java\\/lang\\/Thread\\.run ");
@@ -70,6 +73,7 @@ public class InstrumentTests {
     )
     public void instrumentAllMethodsInClass(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.contains("java\\/lang\\/Thread\\.run ");
@@ -85,6 +89,7 @@ public class InstrumentTests {
     )
     public void latency(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -94,12 +99,15 @@ public class InstrumentTests {
     }
 
     // Smoke test: if any validation failure happens Instrument::BytecodeRewriter has a bug
-    //@Test(
-    //    mainClass = CpuBurner.class,
-    //    agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f"
-    //)
+    @Test(
+        mainClass = CpuBurner.class,
+        agentArgs = "start,threads,event=*.*,latency=100ms,collapsed,file=%f",
+        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
+        error     = true
+    )
     public void latencyAll(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") == 1;
@@ -116,6 +124,7 @@ public class InstrumentTests {
     )
     public void latencyDuration(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         assert out.samples("\\[thread1 .*;test\\/instrument\\/CpuBurner\\.lambda\\$main\\$0;test\\/instrument\\/CpuBurner\\.burn") >= Duration.ofMillis(500).toNanos();
@@ -132,6 +141,7 @@ public class InstrumentTests {
     )
     public void recursive(TestProcess p) throws Exception {
         Output out = p.waitForExit("%f");
+        assertNoVerificationErrors(p.getFile("%err"));
         assert p.exitCode() == 0;
 
         // recursive(i) = \sum_{j=i}^5 100*(MAX_RECURSION-j) ms
@@ -155,23 +165,9 @@ public class InstrumentTests {
         assert out.samples(String.format("%s%s ", MAIN_METHOD_SEGMENT, RECURSIVE_METHOD_SEGMENT)) >= duration.toNanos();
     }
 
-    @Test(
-        mainClass = CpuBurner.class,
-        agentArgs = "start,event=sun/net/www/protocol/jar/Handler.indexOfBangSlash,latency=100ms,collapsed,file=%f",
-        jvmArgs   = "-Xverify:all -Xlog:redefine+class+exceptions*",
-        error     = true
-    )
-    public void jarHandler(TestProcess p) throws Exception {
-        Output out = p.waitForExit("%f");
-        assert p.exitCode() == 0;
-        File f = p.getFile("%err");
-        FileInputStream fis = new FileInputStream(f);
-        int oneByte;
-        while ((oneByte = fis.read()) != -1) {
-            System.out.write(oneByte);  // writes one byte to stdout
-        }
-        System.out.flush();
-        fis.close();
+    private static void assertNoVerificationErrors(File stderr) throws IOException {
+        String content = new String(Files.readAllBytes(stderr.toPath()));
+        assert content.isEmpty() : content;
     }
 
 }
