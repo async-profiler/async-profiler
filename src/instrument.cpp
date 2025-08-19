@@ -254,7 +254,7 @@ class BytecodeRewriter {
     u16 rewriteCodeForLatency(const u8* code, u32 code_length, u8 start_time_loc_index, u16* relocation_table);
     void rewriteLineNumberTable(const u16* relocation_table);
     void rewriteLocalVariableTable(const u16* relocation_table, int new_local_index);
-    void rewriteStackMapTable(const u16* relocation_table, u8 new_local_index);
+    void rewriteStackMapTable(const u16* relocation_table, int new_local_index);
     u8 rewriteVerificationTypeInfo(const u16* relocation_table);
     void rewriteAttributes(Scope scope, u16 access_flags = 0, u16 descriptor_index = 0);
     void rewriteCodeAttributes(const u16* relocation_table, int new_local_index);
@@ -380,7 +380,7 @@ void BytecodeRewriter::rewriteCode(u16 access_flags, u16 descriptor_index) {
 
         // The rest of the code is unchanged
         put(code, code_length);
-        memset(relocation_table, EXTRA_BYTECODES_SIMPLE_ENTRY, sizeof(relocation_table[0]));
+        for (u32 i = 0; i <= code_length; ++i) relocation_table[i] = relocation;
     }
 
     // Fix code length, we now know the real relocation
@@ -624,7 +624,7 @@ void BytecodeRewriter::rewriteLocalVariableTable(const u16* relocation_table, in
         put32(get32());
 
         u16 index = get16();
-        if (index >= new_local_index) {
+        if (new_local_index >= 0 && index >= new_local_index) {
             // The new variable is a long
             index += 2;
         }
@@ -642,7 +642,7 @@ u16 updateCurrentFrame(long& current_frame_old, long& current_frame_new,
 }
 
 // new_local_index is the byte index, considering that long and double take two slots
-void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_local_index) {
+void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, int new_local_index) {
     u32 attribute_length = get32();
     put32(attribute_length);
 
@@ -655,7 +655,7 @@ void BytecodeRewriter::rewriteStackMapTable(const u16* relocation_table, u8 new_
     u16 number_of_entries = get16();
 
     // Latency profiling may have bailed out
-    bool latency_profiling_ok = _latency_profiling && relocation_table[0] > 0;
+    bool latency_profiling_ok = new_local_index >= 0;
     if (latency_profiling_ok) {
         put16(number_of_entries + 1);
         // The new stackframe is applied to the nop just after the lstore,
