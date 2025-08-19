@@ -521,18 +521,37 @@ bool readProcessCmdline(int pid, ProcessInfo *info) {
     return true;
 }
 
-bool readProcessStats(int pid, ProcessInfo* info) {
+bool readProcessStats(int pid, ProcessInfo *info) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/stat", pid);
-    FILE* file = fopen(path, "r");
-    if (!file) return false;
+
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd == -1)
+        return false;
 
     char buffer[4096];
-    if (!fgets(buffer, sizeof(buffer), file)) {
-        fclose(file);
-        return false;
+    size_t len = 0;
+
+    for (;;) {
+        ssize_t r = read(fd, buffer + len, sizeof(buffer) - 1 - len);
+        if (r > 0) {
+            len += (size_t)r;
+            if (len == sizeof(buffer) - 1)
+                break;
+        } else if (r == 0) {
+            break;
+        } else {
+            if (errno == EINTR)
+                continue;
+            close(fd);
+            return false;
+        }
     }
-    fclose(file);
+    close(fd);
+
+    if (len == 0)
+        return false;
+    buffer[len] = '\0';
 
     int parsed_pid, ppid;
     char comm[COMM_LEN] = {0};
@@ -541,27 +560,26 @@ bool readProcessStats(int pid, ProcessInfo* info) {
     u64 starttime;
     u64 vsize, rss;
     int threads;
-    int parsed = sscanf(buffer,
-                        "%d "                     /*  1 pid                                   */
-                        "(%15[^)]) "              /*  2 comm  (read until ')')                */
-                        "%c %d "                  /*  3 state, 4 ppid                         */
-                        "%*d %*d %*d %*d %*u "    /*  5-9(skip) pgrp,session,tty,tpgid,flags  */
-                        "%llu %*llu %llu %*llu "  /*  10-13 minflt,-,majflt,-                 */
-                        "%llu %llu "              /*  14-15 utime, stime                      */
-                        "%*d %*d %*d %*d "        /*  16-19(skip) cutime,cstime,prio,nice     */
-                        "%d "                     /*  20 num_threads                          */
-                        "%*d "                    /*  21 itrealvalue (skip)                   */
-                        "%llu "                   /*  22 starttime                            */
-                        "%llu "                   /*  23 vsize                                */
-                        "%llu",                   /*  24 rss                                  */
-        &parsed_pid, comm, &state, &ppid,
-        &minflt, &majflt, &utime, &stime,
-        &threads, &starttime, &vsize, &rss);
+    int parsed =
+        sscanf(buffer,
+               "%d "                    /*  1 pid                                   */
+               "(%15[^)]) "             /*  2 comm (read until ')')                 */
+               "%c %d "                 /*  3 state, 4 ppid                         */
+               "%*d %*d %*d %*d %*u "   /*  5-9 skip                                */
+               "%llu %*llu %llu %*llu " /* 10-13 minflt,-,majflt,-                  */
+               "%llu %llu "             /* 14-15 utime, stime                       */
+               "%*d %*d %*d %*d "       /* 16-19 skip                               */
+               "%d "                    /* 20 threads                               */
+               "%*d "                   /* 21 skip                                  */
+               "%llu "                  /* 22 starttime                             */
+               "%llu "                  /* 23 vsize                                 */
+               "%llu",                  /* 24 rss                                   */
+               &parsed_pid, comm, &state, &ppid, &minflt, &majflt, &utime, &stime, &threads, &starttime, &vsize, &rss);
 
-    if (parsed < 12) return false;
+    if (parsed < 12)
+        return false;
 
     memcpy(info->name, comm, COMM_LEN);
-
     info->pid = parsed_pid;
     info->ppid = ppid;
     info->state = (unsigned char)state;
